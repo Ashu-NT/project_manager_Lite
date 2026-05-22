@@ -20,11 +20,11 @@ Rectangle {
         : Theme.AppTheme.surfaceRaised
     border.color: Theme.AppTheme.subtleBorder
     border.width: 1
-    implicitHeight: 148
+    implicitHeight: 108
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginMd
+        anchors.margins: Theme.AppTheme.marginSm
         spacing: Theme.AppTheme.spacingXs
 
         RowLayout {
@@ -56,7 +56,7 @@ Rectangle {
                 text: String(root.model.metricValue || "—")
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.titleSize
+                font.pixelSize: Theme.AppTheme.bodySize + 4
                 font.bold: true
             }
 
@@ -66,14 +66,9 @@ Rectangle {
                 color: Theme.AppTheme.textMuted
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
+                elide: Text.ElideRight
+                maximumLineCount: 1
             }
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: 1
-            color: Theme.AppTheme.divider
         }
 
         Label {
@@ -81,8 +76,10 @@ Rectangle {
             text: String(root.model.supportingText || "")
             color: Theme.AppTheme.textSecondary
             font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
+            font.pixelSize: Theme.AppTheme.captionSize
             wrapMode: Text.WordWrap
+            maximumLineCount: 2
+            elide: Text.ElideRight
         }
 
         Item {
@@ -100,7 +97,8 @@ Rectangle {
                 color: Theme.AppTheme.textMuted
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.captionSize
-                wrapMode: Text.WordWrap
+                elide: Text.ElideRight
+                maximumLineCount: 1
             }
 
             Label {

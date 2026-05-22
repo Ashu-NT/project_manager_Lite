@@ -39,7 +39,9 @@ Item {
 
                 DashboardPanelFrame {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 216
+                    Layout.fillHeight: true
+                    Layout.preferredHeight: 154
+                    Layout.minimumHeight: 138
                     visible: root.scheduleChart !== null
                     title: root.scheduleChart ? root.scheduleChart.title || "Schedule Trend" : ""
                     subtitle: root.scheduleChart ? root.scheduleChart.subtitle || "" : ""
@@ -57,7 +59,9 @@ Item {
 
                 DashboardPanelFrame {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 216
+                    Layout.fillHeight: true
+                    Layout.preferredHeight: 154
+                    Layout.minimumHeight: 138
                     visible: root.costChart !== null
                     title: root.costChart ? root.costChart.title || "Cost Trend" : ""
                     subtitle: root.costChart ? root.costChart.subtitle || "" : ""
@@ -77,7 +81,8 @@ Item {
             DashboardPanelFrame {
                 Layout.preferredWidth: Math.max(360, root.width * 0.33)
                 Layout.fillHeight: true
-                Layout.preferredHeight: 440
+                Layout.preferredHeight: 320
+                Layout.minimumHeight: 220
                 visible: root.resourceChart !== null
                 title: root.resourceChart ? root.resourceChart.title || "Resource Utilization" : ""
                 subtitle: root.resourceChart ? root.resourceChart.subtitle || "" : ""
@@ -107,7 +112,8 @@ Item {
                     required property var modelData
 
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 224
+                    Layout.preferredHeight: 196
+                    Layout.minimumHeight: 156
                     title: stackedChartFrame.modelData.title || ""
                     subtitle: stackedChartFrame.modelData.subtitle || ""
 

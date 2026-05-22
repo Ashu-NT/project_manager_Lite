@@ -199,6 +199,48 @@ def test_project_management_dashboard_desktop_api_builds_preview_snapshot() -> N
     assert "not connected" in snapshot.empty_state
 
 
+def test_project_management_dashboard_desktop_api_builds_portfolio_service_snapshot() -> None:
+    api = build_project_management_dashboard_desktop_api(
+        dashboard_service=SimpleNamespace(
+            get_portfolio_data=lambda: SimpleNamespace(
+                kpi=SimpleNamespace(
+                    project_id="__portfolio__",
+                    name="Portfolio Overview",
+                    tasks_total=18,
+                    tasks_completed=10,
+                    tasks_in_progress=5,
+                    task_blocked=1,
+                    critical_tasks=2,
+                    late_tasks=3,
+                    cost_variance=4200.0,
+                    total_actual_cost=52000.0,
+                    total_planned_cost=47800.0,
+                ),
+                portfolio=SimpleNamespace(
+                    projects_total=3,
+                    status_rollup=[],
+                    project_rankings=[],
+                ),
+                alerts=[],
+                milestone_health=[],
+                critical_watchlist=[],
+                burndown=[],
+                resource_load=[],
+                upcoming_tasks=[],
+                evm=None,
+                register_summary=None,
+                cost_sources=None,
+            )
+        )
+    )
+
+    snapshot = api.build_snapshot(project_id="__portfolio__")
+
+    assert snapshot.selected_project_id == "__portfolio__"
+    assert snapshot.charts[0].title == "Portfolio Status"
+    assert snapshot.charts[1].title == "Cost Pressure"
+
+
 def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> None:
     api = build_project_management_dashboard_desktop_api(
         project_service=SimpleNamespace(

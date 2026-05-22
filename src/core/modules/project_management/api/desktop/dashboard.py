@@ -1853,8 +1853,8 @@ class ProjectManagementDashboardDesktopApi:
     ) -> tuple[ProjectDashboardChartDescriptor, ...]:
         if portfolio_mode:
             return (
-                self._build_portfolio_status_chart(dashboard_data),
-                self._build_portfolio_cost_chart(dashboard_data),
+                self._build_portfolio_status_chart(dashboard_data=dashboard_data),
+                self._build_portfolio_cost_chart(dashboard_data=dashboard_data),
                 self._build_resource_chart(
                     dashboard_data=dashboard_data,
                     portfolio_mode=True,

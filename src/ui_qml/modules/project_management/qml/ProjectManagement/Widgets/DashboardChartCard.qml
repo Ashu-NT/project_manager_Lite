@@ -95,8 +95,10 @@ Item {
             id: lineCanvas
 
             Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumHeight: 132
             visible: root.chartType === "line" && (root.points || []).length > 0
-            implicitHeight: 220
+            implicitHeight: 168
 
             onPaint: {
                 const ctx = getContext("2d")
@@ -209,75 +211,85 @@ Item {
             }
         }
 
-        ColumnLayout {
+        ScrollView {
+            id: barChartScroll
             Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumHeight: 132
+            implicitHeight: 180
             visible: root.chartType !== "line" && (root.points || []).length > 0
-            spacing: Theme.AppTheme.spacingSm
+            clip: true
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
-            Repeater {
-                model: root.points || []
+            ColumnLayout {
+                width: barChartScroll.availableWidth > 0 ? barChartScroll.availableWidth : barChartScroll.width
+                spacing: Theme.AppTheme.spacingSm
 
-                delegate: ColumnLayout {
-                    id: barDelegate
+                Repeater {
+                    model: root.points || []
 
-                    required property var modelData
+                    delegate: ColumnLayout {
+                        id: barDelegate
 
-                    Layout.fillWidth: true
-                    spacing: Theme.AppTheme.spacingXs
+                        required property var modelData
 
-                    RowLayout {
                         Layout.fillWidth: true
-                        spacing: Theme.AppTheme.spacingSm
+                        spacing: Theme.AppTheme.spacingXs
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.AppTheme.spacingSm
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: barDelegate.modelData.label || ""
+                                color: Theme.AppTheme.textPrimary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                font.bold: true
+                                wrapMode: Text.WordWrap
+                            }
+
+                            Label {
+                                text: barDelegate.modelData.valueLabel || ""
+                                color: root.toneColor(barDelegate.modelData.tone)
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                font.bold: true
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 10
+                            radius: 5
+                            color: Theme.AppTheme.surfaceAlt
+
+                            Rectangle {
+                                anchors.left: parent.left
+                                anchors.top: parent.top
+                                anchors.bottom: parent.bottom
+                                width: Math.max(
+                                    6,
+                                    Math.min(
+                                        parent.width,
+                                        (Number(barDelegate.modelData.value || 0) / Math.max(root.maxValue, 1)) * parent.width
+                                    )
+                                )
+                                radius: parent.radius
+                                color: root.toneColor(barDelegate.modelData.tone)
+                            }
+                        }
 
                         Label {
                             Layout.fillWidth: true
-                            text: barDelegate.modelData.label || ""
-                            color: Theme.AppTheme.textPrimary
+                            visible: String(barDelegate.modelData.supportingText || "").length > 0
+                            text: barDelegate.modelData.supportingText || ""
+                            color: Theme.AppTheme.textSecondary
                             font.family: Theme.AppTheme.fontFamily
                             font.pixelSize: Theme.AppTheme.smallSize
-                            font.bold: true
                             wrapMode: Text.WordWrap
                         }
-
-                        Label {
-                            text: barDelegate.modelData.valueLabel || ""
-                            color: root.toneColor(barDelegate.modelData.tone)
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.smallSize
-                            font.bold: true
-                        }
-                    }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: 10
-                        radius: 5
-                        color: Theme.AppTheme.surfaceAlt
-
-                        Rectangle {
-                            anchors.left: parent.left
-                            anchors.top: parent.top
-                            anchors.bottom: parent.bottom
-                            width: Math.max(
-                                6,
-                                Math.min(
-                                    parent.width,
-                                    (Number(barDelegate.modelData.value || 0) / Math.max(root.maxValue, 1)) * parent.width
-                                )
-                            )
-                            radius: parent.radius
-                            color: root.toneColor(barDelegate.modelData.tone)
-                        }
-                    }
-
-                    Label {
-                        Layout.fillWidth: true
-                        visible: String(barDelegate.modelData.supportingText || "").length > 0
-                        text: barDelegate.modelData.supportingText || ""
-                        color: Theme.AppTheme.textSecondary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.smallSize
-                        wrapMode: Text.WordWrap
                     }
                 }
             }

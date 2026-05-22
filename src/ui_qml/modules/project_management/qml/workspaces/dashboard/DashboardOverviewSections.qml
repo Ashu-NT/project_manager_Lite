@@ -88,7 +88,6 @@ Item {
             DashboardPanelFrame {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.preferredHeight: 520
                 title: root.operationalTableModel.title || "Operational Tables"
                 subtitle: root.operationalTableModel.subtitle || "Executive drill-down into delayed tasks, risks, budget pressure, resource load, approvals, and milestones."
 
@@ -109,7 +108,6 @@ Item {
             DashboardPanelFrame {
                 Layout.preferredWidth: 360
                 Layout.fillHeight: true
-                Layout.preferredHeight: 520
                 title: root.activityFeedModel.title || "Recent Activity"
                 subtitle: root.activityFeedModel.subtitle || "Workflow updates, approvals, and project events."
 
@@ -134,7 +132,9 @@ Item {
 
         DashboardPanelFrame {
             Layout.fillWidth: true
-            Layout.preferredHeight: 560
+            Layout.fillHeight: true
+            Layout.preferredHeight: 420
+            Layout.minimumHeight: 260
             visible: !root.splitLayout
             title: root.operationalTableModel.title || "Operational Tables"
             subtitle: root.operationalTableModel.subtitle || "Executive drill-down into delayed tasks, risks, budget pressure, resource load, approvals, and milestones."
@@ -155,7 +155,8 @@ Item {
 
         DashboardPanelFrame {
             Layout.fillWidth: true
-            Layout.preferredHeight: 280
+            Layout.preferredHeight: 220
+            Layout.minimumHeight: 160
             visible: !root.splitLayout
             title: root.activityFeedModel.title || "Recent Activity"
             subtitle: root.activityFeedModel.subtitle || "Workflow updates, approvals, and project events."

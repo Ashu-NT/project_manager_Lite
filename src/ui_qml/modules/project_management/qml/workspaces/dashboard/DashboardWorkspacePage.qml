@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
@@ -121,22 +122,45 @@ AppLayouts.WorkspaceFrame {
 
         DashboardAnalysisPanels {
             Layout.fillWidth: true
-            Layout.preferredHeight: width >= 1320 ? 148 : width >= 900 ? 320 : 632
+            Layout.preferredHeight: width >= 1320 ? 112 : width >= 900 ? 228 : 468
             workspaceController: root.workspaceController
             shellModel: root.shellModel
         }
 
-        DashboardChartsSection {
-            Layout.fillWidth: true
-            Layout.preferredHeight: visible ? (width >= 1220 ? 440 : (root.workspaceController && (root.workspaceController.charts || []).length > 0 ? 700 : 0)) : 0
-            workspaceController: root.workspaceController
-        }
-
-        DashboardOverviewSections {
+        SplitView {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            workspaceController: root.workspaceController
-            shellModel: root.shellModel
+            Layout.minimumHeight: 420
+            orientation: Qt.Vertical
+            clip: true
+
+            handle: Rectangle {
+                implicitHeight: 6
+                color: Theme.AppTheme.surfaceAlt
+
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 64
+                    height: 2
+                    radius: 1
+                    color: Theme.AppTheme.divider
+                }
+            }
+
+            DashboardChartsSection {
+                SplitView.fillWidth: true
+                SplitView.preferredHeight: visible ? (width >= 1220 ? 320 : 420) : 0
+                SplitView.minimumHeight: visible ? 220 : 0
+                workspaceController: root.workspaceController
+            }
+
+            DashboardOverviewSections {
+                SplitView.fillWidth: true
+                SplitView.fillHeight: true
+                SplitView.minimumHeight: 280
+                workspaceController: root.workspaceController
+                shellModel: root.shellModel
+            }
         }
     }
 }
