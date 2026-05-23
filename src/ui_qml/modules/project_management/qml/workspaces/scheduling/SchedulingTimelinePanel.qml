@@ -139,7 +139,7 @@ SchedulingPanelFrame {
 
                             Label {
                                 Layout.preferredWidth: 110
-                                text: String(modelData.title || "")
+                                text: String(_row.modelData.title || "")
                                 color: Theme.AppTheme.textSecondary
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.smallSize
@@ -217,7 +217,7 @@ SchedulingPanelFrame {
                             Label {
                                 Layout.preferredWidth: 64
                                 horizontalAlignment: Text.AlignRight
-                                text: String(modelData.statusLabel || "")
+                                text: String(_row.modelData.statusLabel || "")
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize

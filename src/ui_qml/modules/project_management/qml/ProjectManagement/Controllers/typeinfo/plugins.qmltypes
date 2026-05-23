@@ -300,6 +300,16 @@ Module {
         Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
         Property { name: "constraints"; type: "QVariantMap"; isReadonly: true }
         Property { name: "activityFeed"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "scheduleRows"; type: "QVariantList"; isReadonly: true }
+        Property { name: "diagnosticsRows"; type: "QVariantList"; isReadonly: true }
+        Property { name: "delayedActivityRows"; type: "QVariantList"; isReadonly: true }
+        Property { name: "resourceLoadingRows"; type: "QVariantList"; isReadonly: true }
+        Property { name: "baselineCompareRows"; type: "QVariantList"; isReadonly: true }
+        Property { name: "baselineRegisterRows"; type: "QVariantList"; isReadonly: true }
+        Property { name: "dependencyRows"; type: "QVariantList"; isReadonly: true }
+        Property { name: "constraintRows"; type: "QVariantList"; isReadonly: true }
+        Property { name: "calendarSummaryRows"; type: "QVariantList"; isReadonly: true }
+        Property { name: "holidayRows"; type: "QVariantList"; isReadonly: true }
         Property { name: "selectedActivity"; type: "QVariantMap"; isReadonly: true }
         Property { name: "calculatorResult"; type: "QString"; isReadonly: true }
         Method { name: "refresh" }

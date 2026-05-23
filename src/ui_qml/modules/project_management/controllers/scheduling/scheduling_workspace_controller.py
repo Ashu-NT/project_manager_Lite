@@ -57,6 +57,16 @@ class ProjectManagementSchedulingWorkspaceController(
     dependenciesChanged = Signal()
     constraintsChanged = Signal()
     activityFeedChanged = Signal()
+    scheduleRowsChanged = Signal()
+    diagnosticsRowsChanged = Signal()
+    delayedActivityRowsChanged = Signal()
+    resourceLoadingRowsChanged = Signal()
+    baselineCompareRowsChanged = Signal()
+    baselineRegisterRowsChanged = Signal()
+    dependencyRowsChanged = Signal()
+    constraintRowsChanged = Signal()
+    calendarSummaryRowsChanged = Signal()
+    holidayRowsChanged = Signal()
     selectedActivityChanged = Signal()
     selectedActivityIdChanged = Signal()
     calculatorResultChanged = Signal()
@@ -169,6 +179,16 @@ class ProjectManagementSchedulingWorkspaceController(
             "items": [],
             "emptyState": "",
         }
+        self._schedule_rows: list[dict[str, object]] = []
+        self._diagnostics_rows: list[dict[str, object]] = []
+        self._delayed_activity_rows: list[dict[str, object]] = []
+        self._resource_loading_rows: list[dict[str, object]] = []
+        self._baseline_compare_rows: list[dict[str, object]] = []
+        self._baseline_register_rows: list[dict[str, object]] = []
+        self._dependency_rows: list[dict[str, object]] = []
+        self._constraint_rows: list[dict[str, object]] = []
+        self._calendar_summary_rows: list[dict[str, object]] = []
+        self._holiday_rows: list[dict[str, object]] = []
         self._selected_activity: dict[str, object] = {
             "id": "",
             "title": "",
@@ -300,6 +320,46 @@ class ProjectManagementSchedulingWorkspaceController(
     def activityFeed(self) -> dict[str, object]:
         return self._activity_feed
 
+    @Property("QVariantList", notify=scheduleRowsChanged)
+    def scheduleRows(self) -> list[dict[str, object]]:
+        return self._schedule_rows
+
+    @Property("QVariantList", notify=diagnosticsRowsChanged)
+    def diagnosticsRows(self) -> list[dict[str, object]]:
+        return self._diagnostics_rows
+
+    @Property("QVariantList", notify=delayedActivityRowsChanged)
+    def delayedActivityRows(self) -> list[dict[str, object]]:
+        return self._delayed_activity_rows
+
+    @Property("QVariantList", notify=resourceLoadingRowsChanged)
+    def resourceLoadingRows(self) -> list[dict[str, object]]:
+        return self._resource_loading_rows
+
+    @Property("QVariantList", notify=baselineCompareRowsChanged)
+    def baselineCompareRows(self) -> list[dict[str, object]]:
+        return self._baseline_compare_rows
+
+    @Property("QVariantList", notify=baselineRegisterRowsChanged)
+    def baselineRegisterRows(self) -> list[dict[str, object]]:
+        return self._baseline_register_rows
+
+    @Property("QVariantList", notify=dependencyRowsChanged)
+    def dependencyRows(self) -> list[dict[str, object]]:
+        return self._dependency_rows
+
+    @Property("QVariantList", notify=constraintRowsChanged)
+    def constraintRows(self) -> list[dict[str, object]]:
+        return self._constraint_rows
+
+    @Property("QVariantList", notify=calendarSummaryRowsChanged)
+    def calendarSummaryRows(self) -> list[dict[str, object]]:
+        return self._calendar_summary_rows
+
+    @Property("QVariantList", notify=holidayRowsChanged)
+    def holidayRows(self) -> list[dict[str, object]]:
+        return self._holiday_rows
+
     @Property("QVariantMap", notify=selectedActivityChanged)
     def selectedActivity(self) -> dict[str, object]:
         return self._selected_activity
@@ -371,47 +431,79 @@ class ProjectManagementSchedulingWorkspaceController(
             self._set_activity_page_size(workspace_state.page_size)
             self._set_activity_total_count(workspace_state.total_count)
             self._set_selected_activity_id(workspace_state.selected_activity_id)
-            self._set_calendar(
-                serialize_scheduling_calendar_view_model(workspace_state.calendar)
+            serialized_calendar = serialize_scheduling_calendar_view_model(
+                workspace_state.calendar
             )
-            self._set_baselines(
-                serialize_scheduling_baselines_view_model(workspace_state.baselines)
+            serialized_baselines = serialize_scheduling_baselines_view_model(
+                workspace_state.baselines
             )
-            self._set_schedule(
-                serialize_scheduling_collection_view_model(workspace_state.schedule)
+            serialized_schedule = serialize_scheduling_collection_view_model(
+                workspace_state.schedule
             )
-            self._set_timeline(
-                serialize_scheduling_collection_view_model(workspace_state.timeline)
+            serialized_timeline = serialize_scheduling_collection_view_model(
+                workspace_state.timeline
             )
-            self._set_critical_path(
-                serialize_scheduling_collection_view_model(workspace_state.critical_path)
+            serialized_critical_path = serialize_scheduling_collection_view_model(
+                workspace_state.critical_path
             )
-            self._set_diagnostics(
-                serialize_scheduling_collection_view_model(workspace_state.diagnostics)
+            serialized_diagnostics = serialize_scheduling_collection_view_model(
+                workspace_state.diagnostics
             )
-            self._set_delayed_activities(
-                serialize_scheduling_collection_view_model(
-                    workspace_state.delayed_activities
-                )
+            serialized_delayed = serialize_scheduling_collection_view_model(
+                workspace_state.delayed_activities
             )
-            self._set_resource_loading(
-                serialize_scheduling_collection_view_model(
-                    workspace_state.resource_loading
-                )
+            serialized_resource_loading = serialize_scheduling_collection_view_model(
+                workspace_state.resource_loading
             )
-            self._set_baseline_register(
-                serialize_scheduling_collection_view_model(
-                    workspace_state.baseline_register
-                )
+            serialized_baseline_register = serialize_scheduling_collection_view_model(
+                workspace_state.baseline_register
             )
-            self._set_dependencies(
-                serialize_scheduling_collection_view_model(workspace_state.dependencies)
+            serialized_dependencies = serialize_scheduling_collection_view_model(
+                workspace_state.dependencies
             )
-            self._set_constraints(
-                serialize_scheduling_collection_view_model(workspace_state.constraints)
+            serialized_constraints = serialize_scheduling_collection_view_model(
+                workspace_state.constraints
             )
-            self._set_activity_feed(
-                serialize_scheduling_collection_view_model(workspace_state.activity_feed)
+            serialized_activity_feed = serialize_scheduling_collection_view_model(
+                workspace_state.activity_feed
+            )
+            self._set_calendar(serialized_calendar)
+            self._set_baselines(serialized_baselines)
+            self._set_schedule(serialized_schedule)
+            self._set_timeline(serialized_timeline)
+            self._set_critical_path(serialized_critical_path)
+            self._set_diagnostics(serialized_diagnostics)
+            self._set_delayed_activities(serialized_delayed)
+            self._set_resource_loading(serialized_resource_loading)
+            self._set_baseline_register(serialized_baseline_register)
+            self._set_dependencies(serialized_dependencies)
+            self._set_constraints(serialized_constraints)
+            self._set_activity_feed(serialized_activity_feed)
+            self._set_calendar_summary_rows(
+                self._build_calendar_summary_rows(serialized_calendar)
+            )
+            self._set_holiday_rows(self._build_holiday_rows(serialized_calendar))
+            self._set_baseline_compare_rows(
+                self._build_baseline_compare_rows(serialized_baselines)
+            )
+            self._set_schedule_rows(self._build_schedule_rows(serialized_schedule))
+            self._set_diagnostics_rows(
+                self._build_diagnostics_rows(serialized_diagnostics)
+            )
+            self._set_delayed_activity_rows(
+                self._build_delayed_rows(serialized_delayed)
+            )
+            self._set_resource_loading_rows(
+                self._build_resource_rows(serialized_resource_loading)
+            )
+            self._set_baseline_register_rows(
+                self._build_baseline_register_rows(serialized_baseline_register)
+            )
+            self._set_dependency_rows(
+                self._build_dependency_rows(serialized_dependencies)
+            )
+            self._set_constraint_rows(
+                self._build_constraint_rows(serialized_constraints)
             )
             self._set_selected_activity(
                 serialize_scheduling_detail_view_model(
@@ -994,6 +1086,66 @@ class ProjectManagementSchedulingWorkspaceController(
         self._activity_feed = activity_feed
         self.activityFeedChanged.emit()
 
+    def _set_schedule_rows(self, rows: list[dict[str, object]]) -> None:
+        if rows == self._schedule_rows:
+            return
+        self._schedule_rows = rows
+        self.scheduleRowsChanged.emit()
+
+    def _set_diagnostics_rows(self, rows: list[dict[str, object]]) -> None:
+        if rows == self._diagnostics_rows:
+            return
+        self._diagnostics_rows = rows
+        self.diagnosticsRowsChanged.emit()
+
+    def _set_delayed_activity_rows(self, rows: list[dict[str, object]]) -> None:
+        if rows == self._delayed_activity_rows:
+            return
+        self._delayed_activity_rows = rows
+        self.delayedActivityRowsChanged.emit()
+
+    def _set_resource_loading_rows(self, rows: list[dict[str, object]]) -> None:
+        if rows == self._resource_loading_rows:
+            return
+        self._resource_loading_rows = rows
+        self.resourceLoadingRowsChanged.emit()
+
+    def _set_baseline_compare_rows(self, rows: list[dict[str, object]]) -> None:
+        if rows == self._baseline_compare_rows:
+            return
+        self._baseline_compare_rows = rows
+        self.baselineCompareRowsChanged.emit()
+
+    def _set_baseline_register_rows(self, rows: list[dict[str, object]]) -> None:
+        if rows == self._baseline_register_rows:
+            return
+        self._baseline_register_rows = rows
+        self.baselineRegisterRowsChanged.emit()
+
+    def _set_dependency_rows(self, rows: list[dict[str, object]]) -> None:
+        if rows == self._dependency_rows:
+            return
+        self._dependency_rows = rows
+        self.dependencyRowsChanged.emit()
+
+    def _set_constraint_rows(self, rows: list[dict[str, object]]) -> None:
+        if rows == self._constraint_rows:
+            return
+        self._constraint_rows = rows
+        self.constraintRowsChanged.emit()
+
+    def _set_calendar_summary_rows(self, rows: list[dict[str, object]]) -> None:
+        if rows == self._calendar_summary_rows:
+            return
+        self._calendar_summary_rows = rows
+        self.calendarSummaryRowsChanged.emit()
+
+    def _set_holiday_rows(self, rows: list[dict[str, object]]) -> None:
+        if rows == self._holiday_rows:
+            return
+        self._holiday_rows = rows
+        self.holidayRowsChanged.emit()
+
     def _set_selected_activity(self, selected_activity: dict[str, object]) -> None:
         if selected_activity == self._selected_activity:
             return
@@ -1005,6 +1157,182 @@ class ProjectManagementSchedulingWorkspaceController(
             return
         self._calculator_result = calculator_result
         self.calculatorResultChanged.emit()
+
+    @staticmethod
+    def _build_schedule_rows(model: dict[str, object]) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for item in model.get("items", []):
+            state = dict(item.get("state", {}) or {})
+            rows.append(
+                {
+                    "id": item.get("id", ""),
+                    "activityId": state.get("activityId", item.get("id", "")),
+                    "activityCode": state.get("activityCode", ""),
+                    "wbs": state.get("wbs", ""),
+                    "taskName": item.get("title", ""),
+                    "start": state.get("startDateLabel", ""),
+                    "finish": state.get("finishDateLabel", ""),
+                    "duration": state.get("durationLabel", ""),
+                    "remainingDuration": state.get("remainingDurationLabel", ""),
+                    "float": state.get("floatLabel", ""),
+                    "critical": state.get("criticalLabel", ""),
+                    "constraint": state.get("constraintLabel", ""),
+                    "calendar": state.get("calendarLabel", ""),
+                    "progress": state.get("progressValue", {"value": 0.0, "label": "0%"}),
+                    "status": state.get("statusLabel", item.get("statusLabel", "")),
+                }
+            )
+        return rows
+
+    @staticmethod
+    def _build_diagnostics_rows(model: dict[str, object]) -> list[dict[str, object]]:
+        return [
+            {
+                "id": item.get("id", ""),
+                "message": item.get("title", ""),
+                "severity": item.get("statusLabel", ""),
+                "metric": item.get("metaText", ""),
+                "status": item.get("subtitle", ""),
+                "details": item.get("supportingText", ""),
+            }
+            for item in model.get("items", [])
+        ]
+
+    @staticmethod
+    def _build_delayed_rows(model: dict[str, object]) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for item in model.get("items", []):
+            state = dict(item.get("state", {}) or {})
+            rows.append(
+                {
+                    "id": item.get("id", ""),
+                    "activityId": state.get("activityId", item.get("id", "")),
+                    "activity": item.get("title", ""),
+                    "finish": state.get("finishDateLabel", item.get("subtitle", "")),
+                    "deadline": state.get("deadlineLabel", ""),
+                    "delay": state.get("lateByLabel", item.get("supportingText", "")),
+                    "progress": state.get("progressLabel", item.get("metaText", "")),
+                    "status": item.get("statusLabel", ""),
+                }
+            )
+        return rows
+
+    @staticmethod
+    def _build_resource_rows(model: dict[str, object]) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for item in model.get("items", []):
+            state = dict(item.get("state", {}) or {})
+            rows.append(
+                {
+                    "id": item.get("id", ""),
+                    "resource": item.get("title", ""),
+                    "allocation": state.get("allocationLabel", ""),
+                    "capacity": state.get("capacityLabel", ""),
+                    "utilization": state.get("utilizationLabel", ""),
+                    "tasks": str(state.get("tasksCount", "")),
+                    "status": item.get("statusLabel", ""),
+                }
+            )
+        return rows
+
+    @staticmethod
+    def _build_baseline_compare_rows(model: dict[str, object]) -> list[dict[str, object]]:
+        return [
+            {
+                "id": item.get("id", ""),
+                "activity": item.get("title", ""),
+                "change": item.get("statusLabel", ""),
+                "shift": item.get("supportingText", ""),
+                "dates": item.get("subtitle", ""),
+                "cost": item.get("metaText", ""),
+            }
+            for item in model.get("rows", [])
+        ]
+
+    @staticmethod
+    def _build_baseline_register_rows(model: dict[str, object]) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for item in model.get("items", []):
+            state = dict(item.get("state", {}) or {})
+            rows.append(
+                {
+                    "id": item.get("id", ""),
+                    "baseline": item.get("title", ""),
+                    "created": state.get("createdLabel", item.get("subtitle", "")),
+                    "approvedBy": state.get("approvedByLabel", ""),
+                    "state": state.get("varianceState", item.get("statusLabel", "")),
+                }
+            )
+        return rows
+
+    @staticmethod
+    def _build_dependency_rows(model: dict[str, object]) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for item in model.get("items", []):
+            state = dict(item.get("state", {}) or {})
+            rows.append(
+                {
+                    "id": item.get("id", ""),
+                    "relatedActivity": item.get("title", ""),
+                    "dependencyType": state.get(
+                        "dependencyTypeLabel", item.get("subtitle", "")
+                    ),
+                    "lag": state.get("lagLabel", ""),
+                    "direction": item.get("statusLabel", ""),
+                    "status": state.get("statusLabel", ""),
+                    "notes": item.get("supportingText", ""),
+                }
+            )
+        return rows
+
+    @staticmethod
+    def _build_constraint_rows(model: dict[str, object]) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for item in model.get("items", []):
+            state = dict(item.get("state", {}) or {})
+            rows.append(
+                {
+                    "id": item.get("id", ""),
+                    "constraint": item.get("title", ""),
+                    "value": state.get("constraintValue", item.get("subtitle", "")),
+                    "status": state.get("constraintStatus", item.get("statusLabel", "")),
+                    "notes": item.get("supportingText", ""),
+                }
+            )
+        return rows
+
+    @staticmethod
+    def _build_calendar_summary_rows(model: dict[str, object]) -> list[dict[str, object]]:
+        working_days = [
+            str(day.get("label", ""))
+            for day in model.get("workingDays", [])
+            if bool(day.get("checked", False))
+        ]
+        return [
+            {
+                "id": "calendar:default",
+                "calendar": "Default Calendar",
+                "workingDays": ", ".join(working_days),
+                "shiftPattern": "Business week" if working_days else "No shift",
+                "hoursPerDay": str(model.get("hoursPerDay", "8")),
+                "exceptions": f"{len(model.get('holidays', []))} holiday(s)",
+            }
+        ]
+
+    @staticmethod
+    def _build_holiday_rows(model: dict[str, object]) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for item in model.get("holidays", []):
+            rows.append(
+                {
+                    "id": item.get("id", ""),
+                    "date": item.get("title", ""),
+                    "exception": item.get("subtitle", ""),
+                    "calendar": "Default Calendar",
+                    "details": item.get("supportingText", "") or item.get("metaText", ""),
+                }
+            )
+        return rows
 
 
 __all__ = ["ProjectManagementSchedulingWorkspaceController"]
