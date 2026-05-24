@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
@@ -59,7 +60,7 @@ ColumnLayout {
         signal openRequested()
 
         Layout.fillWidth: true
-        height: 36
+        Layout.preferredHeight: 36
         color:  "transparent"
 
         Rectangle {
@@ -93,7 +94,7 @@ ColumnLayout {
 
             Rectangle {
                 visible: _pr.canOpen
-                width: 22; height: 22; radius: Theme.AppTheme.radiusMd
+                Layout.preferredWidth: 22; Layout.preferredHeight: 22; radius: Theme.AppTheme.radiusMd
                 color: _openMA.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
 
                 AppIcons.AppIcon {
@@ -212,7 +213,7 @@ ColumnLayout {
     // ── Section title bar ─────────────────────────────────────────
     Rectangle {
         Layout.fillWidth: true
-        height: Theme.AppTheme.toolbarHeight - 6
+        Layout.preferredHeight: Theme.AppTheme.toolbarHeight - 6
         color:  Theme.AppTheme.surfaceRaised
         z:      1
 
@@ -377,7 +378,7 @@ ColumnLayout {
         // Panel divider
         Rectangle {
             Layout.fillHeight: true
-            width: 1; color: Theme.AppTheme.divider
+            Layout.preferredWidth: 1; color: Theme.AppTheme.divider
         }
 
         // ── Runtime Status ────────────────────────────────────────
@@ -458,7 +459,7 @@ ColumnLayout {
         }
     }
 
-    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
+    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.AppTheme.divider }
 
     // ── Incident Diagnostics ──────────────────────────────────────
     AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Incident Diagnostics" }
@@ -540,7 +541,7 @@ ColumnLayout {
     // Diagnostics action bar
     Rectangle {
         Layout.fillWidth: true
-        height: Theme.AppTheme.toolbarHeight
+        Layout.preferredHeight: Theme.AppTheme.toolbarHeight
         color:  Theme.AppTheme.surfaceOverlay
 
         Rectangle {
@@ -574,7 +575,7 @@ ColumnLayout {
         }
     }
 
-    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
+    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.AppTheme.divider }
 
     // ── Runtime Paths ─────────────────────────────────────────────
     AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Runtime Paths" }
@@ -599,7 +600,7 @@ ColumnLayout {
         onOpenRequested: { if (root.supportController) root.supportController.openDataFolder() }
     }
 
-    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
+    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.AppTheme.divider }
 
     // ── Support Activity ──────────────────────────────────────────
     AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Support Activity" }
@@ -624,7 +625,7 @@ ColumnLayout {
                 required property var modelData
                 required property int index
 
-                width:  _activityList.width
+                width: ListView.view ? ListView.view.width : 0
                 height: 44
 
                 // Timeline dot
@@ -645,7 +646,7 @@ ColumnLayout {
 
                 // Vertical connector
                 Rectangle {
-                    visible:                  _actRow.index < _activityList.count - 1
+                    visible:                  _actRow.index < (ListView.view ? ListView.view.count - 1 : 0)
                     anchors.horizontalCenter: _actDot.horizontalCenter
                     anchors.top:              _actDot.bottom
                     anchors.topMargin:        2
@@ -706,8 +707,7 @@ ColumnLayout {
     Popup {
         id: supportFilterPopup
         parent:      Overlay.overlay
-        anchors.centerIn: parent
-        width:       280
+        implicitWidth:       280
         padding:     Theme.AppTheme.marginMd
         modal:       true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
@@ -752,8 +752,7 @@ ColumnLayout {
     Popup {
         id: supportViewsPopup
         parent:      Overlay.overlay
-        anchors.centerIn: parent
-        width:       220
+        implicitWidth:       220
         padding:     4
         modal:       true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
@@ -764,7 +763,7 @@ ColumnLayout {
             border.color: Theme.AppTheme.divider
             border.width: 1
         }
-
+        
         Column {
             width: parent.width; spacing: 2
 
@@ -772,6 +771,8 @@ ColumnLayout {
                 model: ["All Activity", "Updates", "Diagnostics", "Incidents", "Warnings"]
 
                 delegate: Rectangle {
+                    id: delegateRoot
+
                     required property string modelData
                     required property int    index
                     width:  parent.width; height: 34
@@ -784,7 +785,7 @@ ColumnLayout {
                             leftMargin:     Theme.AppTheme.spacingMd
                             verticalCenter: parent.verticalCenter
                         }
-                        text:           modelData
+                        text:           delegateRoot.modelData
                         color:          Theme.AppTheme.textPrimary
                         font.family:    Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize

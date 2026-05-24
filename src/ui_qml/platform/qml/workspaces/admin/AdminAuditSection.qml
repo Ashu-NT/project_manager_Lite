@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -38,7 +39,7 @@ ColumnLayout {
     // ── Section title bar ─────────────────────────────────────────
     Rectangle {
         Layout.fillWidth: true
-        height: Theme.AppTheme.toolbarHeight - 6
+        Layout.preferredHeight: Theme.AppTheme.toolbarHeight - 6
         color:  Theme.AppTheme.surfaceRaised
         z:      1
 
@@ -215,7 +216,7 @@ ColumnLayout {
         // Column divider
         Rectangle {
             Layout.fillHeight: true
-            width: 1; color: Theme.AppTheme.divider
+            Layout.preferredWidth: 1; color: Theme.AppTheme.divider
         }
 
         // ── Right: Runtime + Identity + Master Data (scrollable) ──
@@ -294,7 +295,7 @@ ColumnLayout {
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: 1; color: Theme.AppTheme.divider
+                                Layout.preferredHeight: 1; color: Theme.AppTheme.divider
                                 visible: _rtRow.index < (root._runtimeSection.rows || []).length - 1
                             }
                         }
@@ -310,7 +311,7 @@ ColumnLayout {
                     }
                 }
 
-                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
+                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.AppTheme.divider }
 
                 // ── Identity & Workforce ──────────────────────────
                 AppWidgets.SectionHeading {
@@ -370,7 +371,7 @@ ColumnLayout {
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: 1; color: Theme.AppTheme.divider
+                                Layout.preferredHeight: 1; color: Theme.AppTheme.divider
                                 visible: _wfRow.index < (root._workforceSection.rows || []).length - 1
                             }
                         }
@@ -386,7 +387,7 @@ ColumnLayout {
                     }
                 }
 
-                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
+                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.AppTheme.divider }
 
                 // ── Master Data Coverage ──────────────────────────
                 AppWidgets.SectionHeading {
@@ -446,7 +447,7 @@ ColumnLayout {
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: 1; color: Theme.AppTheme.divider
+                                Layout.preferredHeight: 1; color: Theme.AppTheme.divider
                                 visible: _mdRow.index < (root._masterSection.rows || []).length - 1
                             }
                         }
@@ -539,6 +540,7 @@ ColumnLayout {
                 ]
 
                 delegate: Rectangle {
+                    id: delegateRow
                     required property string modelData
                     required property int    index
                     width: parent.width; height: 34
@@ -551,7 +553,7 @@ ColumnLayout {
                             leftMargin:     Theme.AppTheme.spacingMd
                             verticalCenter: parent.verticalCenter
                         }
-                        text:           modelData
+                        text:           delegateRow.modelData
                         color:          Theme.AppTheme.textPrimary
                         font.family:    Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize

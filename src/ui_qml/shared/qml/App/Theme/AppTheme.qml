@@ -102,4 +102,18 @@ QtObject {
     readonly property int pagePadding: spaciousDensity ? 28 : comfortableDensity ? 24 : 20
     readonly property int sectionGap: spaciousDensity ? 20 : comfortableDensity ? 16 : 12
     readonly property int detailRailWidth: 220
+
+    // Icon sizes
+    readonly property int iconXs: 11
+    readonly property int iconSm: 13
+    readonly property int iconMd: 16
+    readonly property int iconLg: 20
+    readonly property int iconXl: 24
+
+    // Context-specific icon sizes
+    readonly property int navIconSize: 13
+    readonly property int toolbarIconSize: 14
+    readonly property int buttonIconSize: 12
+    readonly property int tableIconSize: 13
+    readonly property int headerIconSize: 16
 }

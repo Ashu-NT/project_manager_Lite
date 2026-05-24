@@ -150,7 +150,7 @@ Rectangle {
                 spacing: Theme.AppTheme.spacingXs
 
                 AppIcons.AppIcon {
-                    name: "settings"
+                    name: "table_settings"
                     size: 11
                     iconColor: Theme.AppTheme.textMuted
                     anchors.verticalCenter: parent.verticalCenter

@@ -45,11 +45,14 @@ Item {
         "dashboard":      "\uF344", // ic_fluent_data_pie_20_regular
         "search":         "\uF68F", // ic_fluent_search_20_regular
         "settings":       "\uF6A9", // ic_fluent_settings_20_regular
+        "table_settings": "\uEC4E", // ic_fluent_settings_20_regular
         "notifications":  "\uF114", // ic_fluent_alert_20_regular
         "user":           "\uF5BD", // ic_fluent_person_20_regular
         "admin":          "\uE946", // ic_fluent_person_settings_20_regular
         "control":        "\uEAD7", // ic_fluent_shield_task_20_regular
         "menu":           "\uE8B0", // ic_fluent_panel_left_20_regular
+        "location":       "\uF4F8", //ic_fluent_location_20_regular
+        "documents":      "\uF378", //ic_fluent_document_20_regular
 
         // Actions
         "add":            "\uF109", // ic_fluent_add_20_regular
