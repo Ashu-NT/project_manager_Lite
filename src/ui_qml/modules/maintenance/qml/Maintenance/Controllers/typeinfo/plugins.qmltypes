@@ -314,3 +314,4 @@ Module {
         Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }
     }
 }
+

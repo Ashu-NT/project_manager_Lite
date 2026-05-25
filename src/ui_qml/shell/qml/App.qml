@@ -30,3 +30,4 @@ ApplicationWindow {
         maintenanceCatalog: app.maintenanceCatalog
     }
 }
+

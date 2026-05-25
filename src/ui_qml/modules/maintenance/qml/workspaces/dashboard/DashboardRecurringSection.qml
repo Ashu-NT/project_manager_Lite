@@ -5,3 +5,4 @@ MaintenanceWidgets.RecordListCard {
     title: "Recurring Failures"
     subtitle: "Assets, systems, or locations showing repeated failure patterns."
 }
+

@@ -168,13 +168,11 @@ AppLayouts.WorkspaceFrame {
             }
 
             // Filter flyout popup — anchored to DataTable
-            Popup {
+            AppWidgets.AnchoredPopup {
                 id: filterPopup
-                parent: riskTable
+                anchorItem: riskTable.filterButtonItem
                 width: 260
                 padding: 12
-                x: riskTable.width - width - 4
-                y: 30
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                 Column {

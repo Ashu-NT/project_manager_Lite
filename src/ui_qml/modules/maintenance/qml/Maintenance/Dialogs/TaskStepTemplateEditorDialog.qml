@@ -1,8 +1,8 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-
-Dialog {
+import App.Controls 1.0 as AppControls
+AppControls.CenteredDialog {
     id: root
 
     property var formOptions: ({})
@@ -176,3 +176,4 @@ Dialog {
         }
     }
 }
+

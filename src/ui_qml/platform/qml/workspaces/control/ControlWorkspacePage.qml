@@ -4,7 +4,6 @@ import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
-import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Dialogs 1.0 as PlatformDialogs
@@ -159,6 +158,7 @@ AppLayouts.WorkspaceFrame {
 
                 // ── Approval Queue toolbar ────────────────────────
                 AppWidgets.TableToolbar {
+                    id: approvalToolbar
                     Layout.fillWidth:  true
                     searchPlaceholder: "Search approvals..."
                     showFilter:        true
@@ -623,13 +623,11 @@ AppLayouts.WorkspaceFrame {
     }
 
     // ── Filter popup ──────────────────────────────────────────────
-    Popup {
+    AppWidgets.AnchoredPopup {
         id: approvalFilterPopup
-        parent:      Overlay.overlay
-        anchors.centerIn: parent
-        width:       320
+        anchorItem: approvalToolbar.filterButtonItem
+        implicitWidth: 320
         padding:     Theme.AppTheme.marginMd
-        modal:       true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
@@ -669,13 +667,11 @@ AppLayouts.WorkspaceFrame {
     }
 
     // ── Views popup ───────────────────────────────────────────────
-    Popup {
+    AppWidgets.AnchoredPopup {
         id: approvalViewsPopup
-        parent:      Overlay.overlay
-        anchors.centerIn: parent
-        width:       220
+        anchorItem: approvalToolbar.viewsButtonItem
+        implicitWidth: 220
         padding:     4
-        modal:       true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {

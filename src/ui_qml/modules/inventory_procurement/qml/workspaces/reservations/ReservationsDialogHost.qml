@@ -76,7 +76,7 @@ Item {
         }
     }
 
-    Dialog {
+    AppControls.CenteredDialog {
         id: confirmationDialog
         objectName: "reservationConfirmationDialog"
 
@@ -122,3 +122,4 @@ Item {
         }
     }
 }
+

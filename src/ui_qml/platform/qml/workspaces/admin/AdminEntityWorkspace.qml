@@ -1,9 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
-import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 
 // Reusable admin entity workspace: section title bar + TableToolbar + DataTable.
@@ -78,7 +76,7 @@ ColumnLayout {
         isBusy:        root.isBusy
         onCreateRequested:  root.createRequested()
         onRefreshRequested: root.refreshRequested()
-        onCustomizeClicked: _dataTable.openColumnCustomizer()
+        onCustomizeClicked: _dataTable.openColumnCustomizer(_tableToolbar.customizeButtonItem)
     }
 
     // ── Inline state banners ──────────────────────────────────────

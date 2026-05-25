@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 import ProjectManagement.Dialogs 1.0 as ProjectManagementDialogs
 
@@ -69,7 +70,7 @@ Item {
         }
     }
 
-    Dialog {
+    AppControls.CenteredDialog {
         id: deleteDialog
 
         modal: true
@@ -115,3 +116,4 @@ Item {
         }
     }
 }
+

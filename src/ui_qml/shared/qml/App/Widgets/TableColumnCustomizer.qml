@@ -7,7 +7,7 @@ import App.Theme 1.0 as Theme
 
 // Column visibility popup for DataTable.
 // Pass in `columns` (same array as DataTable), listen to columnVisibilityChanged.
-Popup {
+AnchoredPopup {
     id: root
 
     property var columns: []
@@ -17,6 +17,7 @@ Popup {
     width: 260
     padding: 0
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+    placement: "below-right"
 
     // Internal draft state — committed on Apply
     property var _draft: []

@@ -5,3 +5,4 @@ MaintenanceWidgets.RecordListCard {
     title: "Recurring Review"
     subtitle: "Recurring failure patterns that should influence planning and release decisions."
 }
+

@@ -176,7 +176,7 @@ ColumnLayout {
         }
     }
 
-    Dialog {
+    AppControls.CenteredDialog {
         id: installDialog
         modal: true; focus: true; implicitWidth: 460
         title: "Install Update"
@@ -236,6 +236,7 @@ ColumnLayout {
 
     // ── TableToolbar ──────────────────────────────────────────────
     AppWidgets.TableToolbar {
+        id: supportToolbar
         Layout.fillWidth:  true
         searchPlaceholder: "Search diagnostics..."
         showFilter:        true
@@ -704,12 +705,11 @@ ColumnLayout {
     }
 
     // ── Filter popup ──────────────────────────────────────────────
-    Popup {
+    AppWidgets.AnchoredPopup {
         id: supportFilterPopup
-        parent:      Overlay.overlay
+        anchorItem: supportToolbar.filterButtonItem
         implicitWidth:       280
         padding:     Theme.AppTheme.marginMd
-        modal:       true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
@@ -749,12 +749,11 @@ ColumnLayout {
     }
 
     // ── Views popup ───────────────────────────────────────────────
-    Popup {
+    AppWidgets.AnchoredPopup {
         id: supportViewsPopup
-        parent:      Overlay.overlay
+        anchorItem: supportToolbar.viewsButtonItem
         implicitWidth:       220
         padding:     4
-        modal:       true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
@@ -803,3 +802,4 @@ ColumnLayout {
         }
     }
 }
+

@@ -16,3 +16,4 @@ Module {
         Method { name: "selectRoute"; Parameter { name: "routeId"; type: "QString" } }
     }
 }
+

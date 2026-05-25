@@ -5,3 +5,4 @@ MaintenanceWidgets.RecordListCard {
     title: "Backlog Profile"
     subtitle: "Status and priority splits for the selected maintenance scope."
 }
+

@@ -34,3 +34,4 @@ PlatformWidgets.RecordListCard {
         root.lifecycleRequested(itemId)
     }
 }
+

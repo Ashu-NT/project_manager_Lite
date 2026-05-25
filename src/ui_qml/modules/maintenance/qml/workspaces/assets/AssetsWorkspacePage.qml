@@ -296,12 +296,14 @@ AppLayouts.WorkspaceFrame {
             searchPlaceholder: "Search assets…"
             showCreate: true
             createLabel: root.currentCreateLabel
+            showFilter: true
             showRefresh: true
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
             onSearchChanged: function(text) {
                 if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
             }
+            onFilterClicked: filterPopup.open()
             onRefreshRequested: {
                 if (root.workspaceController !== null) root.workspaceController.refresh()
             }
@@ -398,13 +400,11 @@ AppLayouts.WorkspaceFrame {
                 onSortRequested: function(key) {}
             }
 
-            Popup {
+            AppWidgets.AnchoredPopup {
                 id: filterPopup
-                parent: tableToolbar
+                anchorItem: tableToolbar.filterButtonItem
                 width: 260
                 padding: 12
-                x: tableToolbar.width - width - 4
-                y: tableToolbar.height + 4
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                 background: Rectangle {

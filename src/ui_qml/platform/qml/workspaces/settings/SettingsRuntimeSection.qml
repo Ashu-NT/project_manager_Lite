@@ -26,3 +26,4 @@ RowLayout {
         supportingText: root.workspaceSummary
     }
 }
+

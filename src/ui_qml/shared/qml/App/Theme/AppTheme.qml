@@ -116,4 +116,18 @@ QtObject {
     readonly property int buttonIconSize: 12
     readonly property int tableIconSize: 13
     readonly property int headerIconSize: 16
+
+    // Dialogs
+    readonly property color dialogBackground: surfaceRaised
+    readonly property color dialogBorder: subtleBorder
+    readonly property color dialogHeaderBackground: surfaceOverlay
+    readonly property color dialogFooterBackground: surface
+    readonly property color dialogShadow: "#26000000"
+
+    readonly property int dialogPadding: spaciousDensity ? 28 : comfortableDensity ? 24 : 20
+    readonly property int dialogHeaderHeight: spaciousDensity ? 56 : comfortableDensity ? 52 : 48
+    readonly property int dialogFooterHeight: spaciousDensity ? 64 : comfortableDensity ? 58 : 52
+    readonly property int dialogMaxWidth: 920
+    readonly property int dialogFormWidth: 640
+    readonly property int dialogCompactWidth: 420
 }

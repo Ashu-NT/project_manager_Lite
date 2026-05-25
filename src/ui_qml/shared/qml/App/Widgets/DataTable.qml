@@ -33,6 +33,8 @@ Item {
     property bool   multiSelect:    false
     property var    selectedRowIds: []
     property var    _selectedLookup: ({})
+    property Item   columnCustomizerAnchorItem: null
+    property alias  filterButtonItem: _filterButton
 
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
@@ -59,7 +61,13 @@ Item {
         return root._selectedLookup[String(rowId)] === true
     }
 
-    function openColumnCustomizer() { _colCustomizer.open() }
+    function openColumnCustomizer(anchorItem) {
+        if (anchorItem) {
+            root.columnCustomizerAnchorItem = anchorItem
+        }
+        _colCustomizer.anchorItem = root.columnCustomizerAnchorItem || _columnCustomizerAnchor
+        _colCustomizer.open()
+    }
 
     onSelectedRowIdsChanged: root._rebuildSelectedLookup()
     Component.onCompleted: root._rebuildSelectedLookup()
@@ -134,10 +142,17 @@ Item {
     // Notify the header's columnWidthProvider when visible-column set changes.
     on_VisColsChanged: Qt.callLater(function() { _mainView.forceLayout() })
 
+    Item {
+        id: _columnCustomizerAnchor
+        anchors.top: root.top
+        anchors.right: root.right
+        width: 1
+        height: _header.height
+    }
+
     TableColumnCustomizer {
         id: _colCustomizer
-        x: root.width - _colCustomizer.width - 4
-        y: 2
+        anchorItem: root.columnCustomizerAnchorItem || _columnCustomizerAnchor
         columns: root.columns
         onColumnVisibilityChanged: function(draft) {
             root._applyColumnVisibility(draft)
@@ -267,6 +282,51 @@ Item {
         Rectangle {
             anchors { left: _header.left; right: _header.right; bottom: _header.bottom }
             height: 1; color: Theme.AppTheme.divider
+        }
+
+        Rectangle {
+            id: _filterButton
+            visible: root.showFilter
+            anchors.right: _header.right
+            anchors.rightMargin: Theme.AppTheme.spacingSm
+            anchors.verticalCenter: _header.verticalCenter
+            implicitWidth: _filterRow.implicitWidth + 14
+            implicitHeight: Theme.AppTheme.inputHeight - 8
+            radius: Theme.AppTheme.radiusSm
+            color: _filterHover.containsMouse
+                ? Theme.AppTheme.hoverSurface
+                : Theme.AppTheme.surfaceRaised
+            z: 3
+
+            Row {
+                id: _filterRow
+                anchors.centerIn: parent
+                spacing: Theme.AppTheme.spacingXs
+
+                Text {
+                    text: "\u25bc"
+                    color: Theme.AppTheme.textMuted
+                    font.pixelSize: Theme.AppTheme.captionSize - 1
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                Label {
+                    text: "Filters"
+                    color: Theme.AppTheme.textSecondary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold: true
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+
+            MouseArea {
+                id: _filterHover
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.filterClicked()
+            }
         }
     }
 

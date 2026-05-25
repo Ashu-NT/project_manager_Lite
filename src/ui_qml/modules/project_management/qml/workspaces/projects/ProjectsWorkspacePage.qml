@@ -196,7 +196,7 @@ AppLayouts.WorkspaceFrame {
                         if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
                     }
                     onFilterClicked: filterPopup.open()
-                    onCustomizeClicked: projectsTable.openColumnCustomizer()
+                    onCustomizeClicked: projectsTable.openColumnCustomizer(tableToolbar.customizeButtonItem)
                     onRefreshRequested: {
                         if (root.workspaceController !== null) root.workspaceController.refresh()
                     }
@@ -270,13 +270,11 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    Popup {
+                    AppWidgets.AnchoredPopup {
                         id: filterPopup
-                        parent: tableToolbar
+                        anchorItem: tableToolbar.filterButtonItem
                         width: 280
                         padding: Theme.AppTheme.marginMd
-                        x: tableToolbar.width - width
-                        y: tableToolbar.height + Theme.AppTheme.spacingXs
                         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                         background: Rectangle {
@@ -367,9 +365,7 @@ AppLayouts.WorkspaceFrame {
 
                     AppWidgets.BulkChangePropertyPopup {
                         id: bulkChangePropertyPopup
-                        parent: bulkActionBar
-                        x: Math.round((bulkActionBar.width - width) / 2)
-                        y: -height - Theme.AppTheme.spacingXs
+                        anchorItem: bulkActionBar.actionButtonForId("change_property")
                         selectedCount: root.workspaceController ? root.workspaceController.selectedProjectCount : 0
                         busy: root.workspaceController ? root.workspaceController.isBusy : false
                         properties: root._bulkChangeProperties
@@ -382,7 +378,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    Dialog {
+                    AppControls.CenteredDialog {
                         id: bulkDeleteDialog
                         modal: true
                         width: 440
@@ -488,3 +484,4 @@ AppLayouts.WorkspaceFrame {
         }
     }
 }
+

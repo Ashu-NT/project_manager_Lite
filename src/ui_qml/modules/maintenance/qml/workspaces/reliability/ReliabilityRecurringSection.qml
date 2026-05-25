@@ -5,3 +5,4 @@ MaintenanceWidgets.RecordListCard {
     title: "Recurring Failure Queue"
     subtitle: "Patterns that planners and reliability engineers should review next."
 }
+

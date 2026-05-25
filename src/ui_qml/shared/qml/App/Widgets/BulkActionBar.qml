@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -16,6 +18,17 @@ Rectangle {
 
     signal cancelRequested()
     signal actionTriggered(string id)
+
+    function actionButtonForId(actionId) {
+        const wantedId = String(actionId || "")
+        for (let i = 0; i < actionRepeater.count; i += 1) {
+            const item = actionRepeater.itemAt(i)
+            if (item && String(item.objectName || "") === wantedId) {
+                return item
+            }
+        }
+        return null
+    }
 
     visible: root.selectedCount > 0
     height:  40
@@ -36,7 +49,11 @@ Rectangle {
             font.bold:      true
         }
 
-        Rectangle { width: 1; height: 20; color: Theme.AppTheme.divider }
+        Rectangle {
+            implicitWidth: 1
+            implicitHeight: 20
+            color: Theme.AppTheme.divider
+        }
 
         AppControls.SecondaryButton {
             text:         "Cancel"
@@ -46,9 +63,13 @@ Rectangle {
         }
 
         Repeater {
+            id: actionRepeater
             model: root.actions
             delegate: AppControls.SecondaryButton {
+                id: actionButton
                 required property var modelData
+                readonly property string _actionId: String(modelData.id || "")
+                objectName: _actionId
                 text:      modelData.label  || ""
                 iconName:  modelData.icon   || ""
                 danger:    modelData.danger || false

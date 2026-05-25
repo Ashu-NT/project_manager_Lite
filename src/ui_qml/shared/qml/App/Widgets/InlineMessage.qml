@@ -57,3 +57,4 @@ Rectangle {
         wrapMode: Text.WordWrap
     }
 }
+

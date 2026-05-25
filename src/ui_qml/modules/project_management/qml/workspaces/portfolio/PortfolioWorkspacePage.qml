@@ -412,13 +412,11 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     // Filter popup
-                    Popup {
+                    AppWidgets.AnchoredPopup {
                         id: filterPopup
-                        parent: tableToolbar
+                        anchorItem: tableToolbar.filterButtonItem
                         width: 280
                         padding: Theme.AppTheme.marginMd
-                        x: tableToolbar.width - width
-                        y: tableToolbar.height + Theme.AppTheme.spacingXs
                         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                         background: Rectangle {

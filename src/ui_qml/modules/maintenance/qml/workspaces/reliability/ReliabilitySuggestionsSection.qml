@@ -5,3 +5,4 @@ MaintenanceWidgets.RecordListCard {
     title: "Root Cause Suggestions"
     subtitle: "Suggested causes for the selected failure symptom and scope."
 }
+

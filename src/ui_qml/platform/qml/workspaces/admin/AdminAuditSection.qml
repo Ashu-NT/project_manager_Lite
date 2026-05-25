@@ -4,7 +4,6 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
-import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
 
@@ -62,6 +61,7 @@ ColumnLayout {
 
     // ── TableToolbar ──────────────────────────────────────────────
     AppWidgets.TableToolbar {
+        id: auditToolbar
         Layout.fillWidth:  true
         searchPlaceholder: "Search activity..."
         showFilter:        true
@@ -467,13 +467,11 @@ ColumnLayout {
     }
 
     // ── Filter popup ──────────────────────────────────────────────
-    Popup {
+    AppWidgets.AnchoredPopup {
         id: auditFilterPopup
-        parent:      Overlay.overlay
-        anchors.centerIn: parent
-        width:       280
+        anchorItem: auditToolbar.filterButtonItem
+        implicitWidth: 280
         padding:     Theme.AppTheme.marginMd
-        modal:       true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
@@ -511,13 +509,11 @@ ColumnLayout {
     }
 
     // ── Views popup ───────────────────────────────────────────────
-    Popup {
+    AppWidgets.AnchoredPopup {
         id: auditViewsPopup
-        parent:      Overlay.overlay
-        anchors.centerIn: parent
-        width:       240
+        anchorItem: auditToolbar.viewsButtonItem
+        implicitWidth: 240
         padding:     4
-        modal:       true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {

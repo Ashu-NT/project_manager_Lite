@@ -161,13 +161,11 @@ AppLayouts.WorkspaceFrame {
                 onSortRequested: function(key) {}
             }
 
-            Popup {
+            AppWidgets.AnchoredPopup {
                 id: filterPopup
-                parent: workRequestsTable
+                anchorItem: workRequestsTable.filterButtonItem
                 width: 260
                 padding: 12
-                x: workRequestsTable.width - width - 4
-                y: 30
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                 Column {

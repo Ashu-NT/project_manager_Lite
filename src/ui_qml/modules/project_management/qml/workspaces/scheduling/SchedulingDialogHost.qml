@@ -70,7 +70,7 @@ Item {
         deleteDependencyDialog.open()
     }
 
-    Dialog {
+    AppControls.CenteredDialog {
         id: createBaselineDialog
         modal: true
         width: 420
@@ -138,7 +138,7 @@ Item {
         }
     }
 
-    Dialog {
+    AppControls.CenteredDialog {
         id: dependencyEditorDialog
         property string mode: "create"
         modal: true
@@ -255,7 +255,7 @@ Item {
         }
     }
 
-    Dialog {
+    AppControls.CenteredDialog {
         id: deleteDependencyDialog
         modal: true
         width: 420
@@ -316,3 +316,4 @@ Item {
         }
     }
 }
+

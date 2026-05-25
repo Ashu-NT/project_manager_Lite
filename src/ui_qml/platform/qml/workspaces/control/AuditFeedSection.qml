@@ -12,3 +12,4 @@ PlatformWidgets.RecordListCard {
     emptyState: root.workspaceController ? (root.workspaceController.auditFeed.emptyState || "") : ""
     items: root.workspaceController ? (root.workspaceController.auditFeed.items || []) : []
 }
+

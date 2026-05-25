@@ -122,3 +122,4 @@ Rectangle {
         onClicked: root.shellModel.selectRoute(root._routeId)
     }
 }
+

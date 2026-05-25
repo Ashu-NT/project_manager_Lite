@@ -27,3 +27,4 @@ PlatformWidgets.RecordListCard {
         root.rejectRequested(itemId)
     }
 }
+

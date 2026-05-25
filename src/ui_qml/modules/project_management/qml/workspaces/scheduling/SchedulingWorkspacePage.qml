@@ -542,7 +542,7 @@ AppLayouts.WorkspaceFrame {
                                         }
                                     }
                                     onFilterClicked: activityFilterPopup.open()
-                                    onCustomizeClicked: activityTable.openColumnCustomizer()
+                                    onCustomizeClicked: activityTable.openColumnCustomizer(activityToolbar.customizeButtonItem)
                                     onExportRequested: {
                                         if (root.workspaceController !== null) {
                                             root.workspaceController.exportSchedule()
@@ -603,13 +603,11 @@ AppLayouts.WorkspaceFrame {
                                             }
                                         }
 
-                                        Popup {
+                                        AppWidgets.AnchoredPopup {
                                             id: activityFilterPopup
-                                            parent: activityToolbar
+                                            anchorItem: activityToolbar.filterButtonItem
                                             width: 288
                                             padding: Theme.AppTheme.marginMd
-                                            x: activityToolbar.width - width
-                                            y: activityToolbar.height + Theme.AppTheme.spacingXs
                                             closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                                             background: Rectangle {
@@ -759,7 +757,7 @@ AppLayouts.WorkspaceFrame {
                                     showRefresh: false
                                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                                     onSearchChanged: function(text) { root.diagnosticsSearchText = text }
-                                    onCustomizeClicked: diagnosticsTable.openColumnCustomizer()
+                                    onCustomizeClicked: diagnosticsTable.openColumnCustomizer(diagnosticsToolbar.customizeButtonItem)
                                     onExportRequested: {
                                         if (root.workspaceController !== null) {
                                             root.workspaceController.exportSchedule()
@@ -823,7 +821,7 @@ AppLayouts.WorkspaceFrame {
                                     showRefresh: false
                                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                                     onSearchChanged: function(text) { root.resourcesSearchText = text }
-                                    onCustomizeClicked: resourcesTable.openColumnCustomizer()
+                                    onCustomizeClicked: resourcesTable.openColumnCustomizer(resourcesToolbar.customizeButtonItem)
                                     onExportRequested: {
                                         if (root.workspaceController !== null) {
                                             root.workspaceController.exportSchedule()
@@ -945,7 +943,7 @@ AppLayouts.WorkspaceFrame {
                                     showRefresh: false
                                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                                     onSearchChanged: function(text) { root.baselinesSearchText = text }
-                                    onCustomizeClicked: baselineRegisterTable.openColumnCustomizer()
+                                    onCustomizeClicked: baselineRegisterTable.openColumnCustomizer(baselinesToolbar.customizeButtonItem)
                                     onExportRequested: {
                                         if (root.workspaceController !== null) {
                                             root.workspaceController.exportSchedule()
@@ -1023,7 +1021,7 @@ AppLayouts.WorkspaceFrame {
                                     showRefresh: false
                                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                                     onSearchChanged: function(text) { root.delaysSearchText = text }
-                                    onCustomizeClicked: delaysTable.openColumnCustomizer()
+                                    onCustomizeClicked: delaysTable.openColumnCustomizer(delaysToolbar.customizeButtonItem)
                                     onExportRequested: {
                                         if (root.workspaceController !== null) {
                                             root.workspaceController.exportSchedule()
@@ -1274,7 +1272,7 @@ AppLayouts.WorkspaceFrame {
                                     showRefresh: false
                                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                                     onSearchChanged: function(text) { root.calendarsSearchText = text }
-                                    onCustomizeClicked: holidaysTable.openColumnCustomizer()
+                                    onCustomizeClicked: holidaysTable.openColumnCustomizer(calendarsToolbar.customizeButtonItem)
                                 }
 
                                 AppWidgets.DataTable {
@@ -1420,3 +1418,4 @@ AppLayouts.WorkspaceFrame {
         }
     }
 }
+

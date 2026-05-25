@@ -5,3 +5,4 @@ MaintenanceWidgets.RecordListCard {
     title: "Observed Root Causes"
     subtitle: "Most common failure and root-cause combinations in the selected window."
 }
+

@@ -7,7 +7,7 @@ import App.Theme 1.0 as Theme
 // Bulk property change popup — anchored above BulkActionBar.
 // properties: [{id, label, values:[{value, label}]}]
 // Emits applyRequested({propertyId, value, note}) on confirm.
-Popup {
+AnchoredPopup {
     id: root
 
     property int selectedCount: 0
@@ -21,6 +21,7 @@ Popup {
     width:       240
     padding:     Theme.AppTheme.marginMd
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+    placement:   "above-center"
 
     background: Rectangle {
         radius:       Theme.AppTheme.radiusLg

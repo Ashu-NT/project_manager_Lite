@@ -18,6 +18,9 @@ Rectangle {
     property bool showViews: false
     property string createLabel: "New"
     property bool isBusy: false
+    property alias filterButtonItem: filterButton
+    property alias customizeButtonItem: customizeButton
+    property alias viewsButtonItem: viewsButton
 
     default property alias filterContent: filterSlot.data
 
@@ -96,6 +99,7 @@ Rectangle {
         }
 
         Rectangle {
+            id: filterButton
             visible: root.showFilter
             implicitWidth: filterRow.implicitWidth + 14
             implicitHeight: Theme.AppTheme.inputHeight - 4
@@ -136,6 +140,7 @@ Rectangle {
         }
 
         Rectangle {
+            id: customizeButton
             visible: root.showCustomize
             implicitWidth: customizeRow.implicitWidth + 14
             implicitHeight: Theme.AppTheme.inputHeight - 4
@@ -176,6 +181,7 @@ Rectangle {
         }
 
         Rectangle {
+            id: viewsButton
             visible: root.showViews
             implicitWidth: viewsRow.implicitWidth + 14
             implicitHeight: Theme.AppTheme.inputHeight - 4

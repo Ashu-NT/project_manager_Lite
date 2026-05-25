@@ -5,3 +5,4 @@ MaintenanceWidgets.RecordListCard {
     title: "Top Root Causes"
     subtitle: "Frequent failure and cause combinations across recent work."
 }
+

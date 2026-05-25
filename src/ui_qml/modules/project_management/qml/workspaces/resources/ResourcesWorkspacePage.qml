@@ -171,7 +171,7 @@ AppLayouts.WorkspaceFrame {
                         if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
                     }
                     onFilterClicked: filterPopup.open()
-                    onCustomizeClicked: resourcesTable.openColumnCustomizer()
+                    onCustomizeClicked: resourcesTable.openColumnCustomizer(tableToolbar.customizeButtonItem)
                     onRefreshRequested: {
                         if (root.workspaceController !== null) root.workspaceController.refresh()
                     }
@@ -244,13 +244,11 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     // ── Filter popup ──────────────────────────────────
-                    Popup {
+                    AppWidgets.AnchoredPopup {
                         id: filterPopup
-                        parent: tableToolbar
+                        anchorItem: tableToolbar.filterButtonItem
                         width: 280
                         padding: Theme.AppTheme.marginMd
-                        x: tableToolbar.width - width
-                        y: tableToolbar.height + Theme.AppTheme.spacingXs
                         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                         background: Rectangle {
@@ -364,7 +362,7 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     // ── Bulk delete confirmation ───────────────────────
-                    Dialog {
+                    AppControls.CenteredDialog {
                         id: bulkDeleteDialog
                         modal: true
                         width: 440
@@ -465,3 +463,4 @@ AppLayouts.WorkspaceFrame {
         }
     }
 }
+

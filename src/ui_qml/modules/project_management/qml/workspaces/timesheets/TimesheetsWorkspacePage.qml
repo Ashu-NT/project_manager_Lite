@@ -178,7 +178,7 @@ AppLayouts.WorkspaceFrame {
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
                     onFilterClicked: filterPopup.open()
-                    onCustomizeClicked: reviewTable.openColumnCustomizer()
+                    onCustomizeClicked: reviewTable.openColumnCustomizer(tableToolbar.customizeButtonItem)
                     onViewsClicked: viewsPopup.open()
                     onRefreshRequested: {
                         if (root.workspaceController !== null) root.workspaceController.refresh()
@@ -272,13 +272,11 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     // ── Filter popup ──────────────────────────────────────
-                    Popup {
+                    AppWidgets.AnchoredPopup {
                         id: filterPopup
-                        parent: tableToolbar
+                        anchorItem: tableToolbar.filterButtonItem
                         width: 280
                         padding: Theme.AppTheme.marginMd
-                        x: tableToolbar.width - width
-                        y: tableToolbar.height + Theme.AppTheme.spacingXs
                         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                         background: Rectangle {
@@ -391,13 +389,11 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     // ── Views popup (queue status / workflow stage) ───────
-                    Popup {
+                    AppWidgets.AnchoredPopup {
                         id: viewsPopup
-                        parent: tableToolbar
+                        anchorItem: tableToolbar.viewsButtonItem
                         width: 260
                         padding: Theme.AppTheme.marginMd
-                        x: tableToolbar.width - width
-                        y: tableToolbar.height + Theme.AppTheme.spacingXs
                         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                         background: Rectangle {

@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 
-Dialog {
+AppControls.CenteredDialog {
     id: root
 
     property string mode: "create"
@@ -219,3 +219,4 @@ Dialog {
         }
     }
 }
+

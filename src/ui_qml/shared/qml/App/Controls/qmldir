@@ -1,3 +1,4 @@
 module App.Controls
+CenteredDialog 1.0 CenteredDialog.qml
 PrimaryButton 1.0 PrimaryButton.qml
 SecondaryButton 1.0 SecondaryButton.qml

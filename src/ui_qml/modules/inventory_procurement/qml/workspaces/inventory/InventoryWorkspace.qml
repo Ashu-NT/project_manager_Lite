@@ -2,3 +2,4 @@ import QtQuick
 
 InventoryWorkspacePage {
 }
+

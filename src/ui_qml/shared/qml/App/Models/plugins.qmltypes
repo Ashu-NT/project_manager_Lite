@@ -10,3 +10,4 @@ Module {
         Property { name: "columns"; type: "QVariantList" }
     }
 }
+

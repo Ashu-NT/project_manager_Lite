@@ -134,7 +134,7 @@ Item {
                     root.workspaceController.setOperationalSearchText(text)
                 }
             }
-            onCustomizeClicked: operationalTable.openColumnCustomizer()
+            onCustomizeClicked: operationalTable.openColumnCustomizer(tableToolbar.customizeButtonItem)
         }
 
         Item {
@@ -195,3 +195,4 @@ Item {
         }
     }
 }
+

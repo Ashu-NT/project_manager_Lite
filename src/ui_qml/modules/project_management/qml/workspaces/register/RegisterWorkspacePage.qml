@@ -187,7 +187,7 @@ AppLayouts.WorkspaceFrame {
                         if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
                     }
                     onFilterClicked: filterPopup.open()
-                    onCustomizeClicked: registerTable.openColumnCustomizer()
+                    onCustomizeClicked: registerTable.openColumnCustomizer(tableToolbar.customizeButtonItem)
                     onViewsClicked: viewsPopup.open()
                     onRefreshRequested: {
                         if (root.workspaceController !== null) root.workspaceController.refresh()
@@ -285,9 +285,7 @@ AppLayouts.WorkspaceFrame {
 
                     AppWidgets.BulkChangePropertyPopup {
                         id: _bulkChangePropertyPopup
-                        parent: _bulkActionBar
-                        x: Math.round((_bulkActionBar.width - width) / 2)
-                        y: -height - Theme.AppTheme.spacingXs
+                        anchorItem: _bulkActionBar.actionButtonForId("change_property")
                         selectedCount: root.workspaceController ? root.workspaceController.selectedEntryCount : 0
                         busy: root.workspaceController ? root.workspaceController.isBusy : false
                         properties: root._bulkChangeProperties
@@ -300,13 +298,11 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     // ── Filter popup ──────────────────────────────────────
-                    Popup {
+                    AppWidgets.AnchoredPopup {
                         id: filterPopup
-                        parent: tableToolbar
+                        anchorItem: tableToolbar.filterButtonItem
                         width: 280
                         padding: Theme.AppTheme.marginMd
-                        x: tableToolbar.width - width
-                        y: tableToolbar.height + Theme.AppTheme.spacingXs
                         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                         background: Rectangle {
@@ -440,13 +436,11 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     // ── Views popup ───────────────────────────────────────
-                    Popup {
+                    AppWidgets.AnchoredPopup {
                         id: viewsPopup
-                        parent: tableToolbar
+                        anchorItem: tableToolbar.viewsButtonItem
                         width: 260
                         padding: Theme.AppTheme.marginMd
-                        x: tableToolbar.width - width
-                        y: tableToolbar.height + Theme.AppTheme.spacingXs
                         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                         background: Rectangle {
