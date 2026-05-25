@@ -13,5 +13,7 @@ Rectangle {
     BusyIndicator {
         anchors.centerIn: parent
         running: root.loading
+        implicitWidth: Theme.AppTheme.normalRowHeight
+        implicitHeight: Theme.AppTheme.normalRowHeight
     }
 }

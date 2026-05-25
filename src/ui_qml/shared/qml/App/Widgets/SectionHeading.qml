@@ -36,7 +36,7 @@ Item {
 
         color: Theme.AppTheme.textMuted
         
-        font.pixelSize: Theme.AppTheme.smallSize
+        font.pixelSize: Theme.AppTheme.sectionTitleSize
         font.bold: true
         font.family: Theme.AppTheme.fontFamily
         font.letterSpacing: 0.8

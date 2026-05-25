@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import App.Models 1.0 as AppModels
 
@@ -303,10 +304,10 @@ Item {
                 anchors.centerIn: parent
                 spacing: Theme.AppTheme.spacingXs
 
-                Text {
-                    text: "\u25bc"
-                    color: Theme.AppTheme.textMuted
-                    font.pixelSize: Theme.AppTheme.captionSize - 1
+                AppIcons.AppIcon {
+                    name: "filter"
+                    size: Theme.AppTheme.tableIconSize
+                    iconColor: Theme.AppTheme.textMuted
                     anchors.verticalCenter: parent.verticalCenter
                 }
 

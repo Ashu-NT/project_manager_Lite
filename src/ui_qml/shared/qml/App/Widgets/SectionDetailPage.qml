@@ -75,8 +75,8 @@ Item {
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: Theme.AppTheme.marginMd
-                    anchors.rightMargin: Theme.AppTheme.marginMd
+                    anchors.leftMargin: Theme.AppTheme.pagePadding
+                    anchors.rightMargin: Theme.AppTheme.pagePadding
                     spacing: Theme.AppTheme.spacingSm
 
                     Item {
@@ -99,7 +99,7 @@ Item {
 
                             AppIcons.AppIcon {
                                 name: "chevron_left"
-                                size: 12
+                                size: Theme.AppTheme.headerIconSize
                                 iconColor: Theme.AppTheme.textSecondary
                                 anchors.verticalCenter: parent.verticalCenter
                             }
@@ -189,8 +189,8 @@ Item {
                         anchors.top: parent.top
                         anchors.left: parent.left
                         anchors.right: parent.right
-                        anchors.margins: Theme.AppTheme.marginMd
-                        spacing: Theme.AppTheme.spacingXs
+                        anchors.margins: Theme.AppTheme.pagePadding
+                        spacing: Theme.AppTheme.sectionGap
 
                         Label {
                             width: parent.width

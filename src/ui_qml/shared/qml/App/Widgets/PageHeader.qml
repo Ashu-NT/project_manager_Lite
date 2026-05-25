@@ -35,7 +35,7 @@ Item {
                     text: root.eyebrow.toUpperCase()
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.pixelSize: Theme.AppTheme.sectionTitleSize
                     font.bold: true
                     font.letterSpacing: 0.8
                     elide: Text.ElideRight
@@ -47,7 +47,7 @@ Item {
                     text: root.title
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.titleSize
+                    font.pixelSize: Theme.AppTheme.headerSize
                     font.bold: true
                     elide: Text.ElideRight
                 }
@@ -71,7 +71,7 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            height: 1
+            Layout.preferredHeight: 1
             color: Theme.AppTheme.divider
             visible: root.showDivider
         }

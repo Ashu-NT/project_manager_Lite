@@ -33,21 +33,21 @@ Rectangle {
 
     color: {
         switch (chip._variant) {
-            case "success": return "#E6F4EE"
-            case "info":    return Theme.AppTheme.accentSoft
-            case "warning": return "#FFF4E0"
-            case "danger":  return "#FDEAEB"
+            case "success": return Theme.AppTheme.successSoft
+            case "info":    return Theme.AppTheme.infoSoft
+            case "warning": return Theme.AppTheme.warningSoft
+            case "danger":  return Theme.AppTheme.dangerSoft
             default:        return Theme.AppTheme.surfaceAlt
         }
     }
 
     border.color: {
         switch (chip._variant) {
-            case "success": return "#A3D4BB"
-            case "info":    return Theme.AppTheme.accent
-            case "warning": return "#E8A840"
-            case "danger":  return "#DFA0A2"
-            default:        return Theme.AppTheme.border
+            case "success": return Theme.AppTheme.success
+            case "info":    return Theme.AppTheme.info
+            case "warning": return Theme.AppTheme.warning
+            case "danger":  return Theme.AppTheme.error
+            default:        return Theme.AppTheme.borderStrong
         }
     }
     border.width: 1
@@ -59,9 +59,9 @@ Rectangle {
         color: {
             switch (chip._variant) {
                 case "success": return Theme.AppTheme.success
-                case "info":    return Theme.AppTheme.accent
+                case "info":    return Theme.AppTheme.info
                 case "warning": return Theme.AppTheme.warning
-                case "danger":  return Theme.AppTheme.danger
+                case "danger":  return Theme.AppTheme.error
                 default:        return Theme.AppTheme.textSecondary
             }
         }

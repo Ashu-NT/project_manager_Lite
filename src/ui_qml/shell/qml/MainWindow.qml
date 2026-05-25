@@ -18,7 +18,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.AppTheme.appBackground
+        color: Theme.AppTheme.background
     }
 
     ColumnLayout {

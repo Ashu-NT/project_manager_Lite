@@ -18,15 +18,15 @@ AnchoredPopup {
     signal applyRequested(var payload)
     signal cancelRequested()
 
-    width:       240
-    padding:     Theme.AppTheme.marginMd
+    width:       Math.min(280, Theme.AppTheme.dialogCompactWidth)
+    padding:     Theme.AppTheme.dialogPadding
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
     placement:   "above-center"
 
     background: Rectangle {
         radius:       Theme.AppTheme.radiusLg
-        color:        Theme.AppTheme.surfaceRaised
-        border.color: Theme.AppTheme.divider
+        color:        Theme.AppTheme.dialogBackground
+        border.color: Theme.AppTheme.dialogBorder
         border.width: 1
     }
 

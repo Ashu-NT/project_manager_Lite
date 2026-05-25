@@ -23,7 +23,7 @@ Rectangle {
     signal createRequested()
     signal actionTriggered(string id)
 
-    implicitHeight: Theme.AppTheme.toolbarHeight - 6
+    implicitHeight: Theme.AppTheme.panelHeaderHeight
     color:          Theme.AppTheme.surfaceAlt
 
     Rectangle {
@@ -45,7 +45,7 @@ Rectangle {
 
             AppIcons.AppIcon {
                 anchors.centerIn: parent
-                name: "chevron_left"; size: 12
+                name: "chevron_left"; size: Theme.AppTheme.headerIconSize
                 iconColor: Theme.AppTheme.textMuted
             }
 
@@ -65,7 +65,7 @@ Rectangle {
             text:           root.title
             color:          Theme.AppTheme.textPrimary
             font.family:    Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
+            font.pixelSize: Theme.AppTheme.sectionTitleSize
             font.bold:      true
             elide:          Text.ElideRight
             Layout.maximumWidth: 200

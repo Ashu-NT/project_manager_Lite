@@ -7,7 +7,7 @@ Item {
     // Public API
     property string name:      "default"
     property color  iconColor: Theme.AppTheme.textSecondary
-    property int    size:      16
+    property int    size:      Theme.AppTheme.iconMd
     property bool   active:    false
     property bool   disabled:  false
 

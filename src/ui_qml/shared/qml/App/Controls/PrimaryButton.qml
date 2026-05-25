@@ -24,8 +24,8 @@ Button {
             AppIcons.AppIcon {
                 visible: control.iconName.length > 0
                 name: control.iconName.length > 0 ? control.iconName : "default"
-                size: 12
-                iconColor: "#FFFFFF"
+                size: Theme.AppTheme.buttonIconSize
+                iconColor: Theme.AppTheme.textOnAccent
                 height: _label.implicitHeight
             }
 
@@ -33,7 +33,7 @@ Button {
                 id: _label
                 verticalAlignment: Text.AlignVCenter
                 text: control.text
-                color: "#FFFFFF"
+                color: Theme.AppTheme.textOnAccent
                 font.family: Theme.AppTheme.fontFamily
                 font.bold: true
                 font.pixelSize: Theme.AppTheme.smallSize

@@ -12,6 +12,8 @@ Rectangle {
 
     radius: Theme.AppTheme.radiusMd
     color: Theme.AppTheme.surfaceRaised
+    border.color: Theme.AppTheme.subtleBorder
+    border.width: 1
     implicitWidth: 220
     implicitHeight: 124
 
@@ -25,7 +27,7 @@ Rectangle {
             text: root.label
             color: Theme.AppTheme.textMuted
             font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.captionSize
+            font.pixelSize: Theme.AppTheme.sectionTitleSize
             font.bold: true
             font.letterSpacing: 0.5
             elide: Text.ElideRight
@@ -36,7 +38,7 @@ Rectangle {
             text: root.value
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: 26
+            font.pixelSize: Theme.AppTheme.headerSize
             font.bold: true
             elide: Text.ElideRight
         }

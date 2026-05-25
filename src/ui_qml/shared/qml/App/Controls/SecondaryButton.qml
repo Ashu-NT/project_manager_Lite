@@ -8,6 +8,11 @@ Button {
 
     property bool danger: false
     property string iconName: ""
+    readonly property color _accentColor: control.down
+        ? Theme.AppTheme.accentPressed
+        : control.hovered || control.activeFocus
+            ? Theme.AppTheme.accentHover
+            : Theme.AppTheme.textSecondary
 
     implicitHeight: Theme.AppTheme.toolbarHeight
     implicitWidth: Math.max(108, contentItem.implicitWidth + 28)
@@ -24,12 +29,10 @@ Button {
             AppIcons.AppIcon {
                 visible: control.iconName.length > 0
                 name: control.iconName.length > 0 ? control.iconName : "default"
-                size: 12
+                size: Theme.AppTheme.buttonIconSize
                 iconColor: control.danger
                     ? Theme.AppTheme.danger
-                    : control.down || control.hovered || control.activeFocus
-                        ? Theme.AppTheme.accent
-                        : Theme.AppTheme.textSecondary
+                    : control._accentColor
                 height: _label.implicitHeight
             }
 
@@ -39,9 +42,7 @@ Button {
                 text: control.text
                 color: control.danger
                     ? Theme.AppTheme.danger
-                    : control.down || control.hovered || control.activeFocus
-                        ? Theme.AppTheme.accent
-                        : Theme.AppTheme.textSecondary
+                    : control._accentColor
                 font.family: Theme.AppTheme.fontFamily
                 font.bold: true
                 font.pixelSize: Theme.AppTheme.smallSize
@@ -58,9 +59,11 @@ Button {
                 : Theme.AppTheme.surfaceRaised
         border.color: control.danger
             ? Theme.AppTheme.danger
-            : control.activeFocus || control.hovered
+            : control.activeFocus
                 ? Theme.AppTheme.focusBorder
-                : Theme.AppTheme.subtleBorder
+                : control.hovered
+                    ? Theme.AppTheme.borderStrong
+                    : Theme.AppTheme.subtleBorder
         border.width: 1
     }
 }

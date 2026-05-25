@@ -55,7 +55,7 @@ Rectangle {
             AppIcons.AppIcon {
                 anchors.centerIn: parent
                 name: "menu"
-                size: 14
+                size: Theme.AppTheme.headerIconSize
                 iconColor: Theme.AppTheme.textMuted
             }
 
@@ -142,7 +142,7 @@ Rectangle {
 
                 AppIcons.AppIcon {
                     name: "search"
-                    size: 12
+                    size: Theme.AppTheme.iconSm
                     iconColor: Theme.AppTheme.textMuted
                 }
 
@@ -180,7 +180,7 @@ Rectangle {
                     AppIcons.AppIcon {
                         anchors.centerIn: parent
                         name: actionCell.modelData.icon
-                        size: 13
+                        size: Theme.AppTheme.headerIconSize
                         iconColor: Theme.AppTheme.textMuted
                     }
 
@@ -212,9 +212,9 @@ Rectangle {
                 spacing: Theme.AppTheme.spacingSm
 
                 Rectangle {
-                    implicitWidth: 28
-                    implicitHeight: 28
-                    radius: 14
+                    implicitWidth: Theme.AppTheme.iconXl + Theme.AppTheme.spacingXs
+                    implicitHeight: Theme.AppTheme.iconXl + Theme.AppTheme.spacingXs
+                    radius: implicitHeight / 2
                     color: Theme.AppTheme.accentSoft
 
                     Label {
@@ -225,7 +225,7 @@ Rectangle {
                         }
                         color: Theme.AppTheme.accent
                         font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.smallSize
+                        font.pixelSize: Theme.AppTheme.iconLg
                         font.bold: true
                     }
                 }

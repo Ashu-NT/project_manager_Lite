@@ -60,7 +60,7 @@ Rectangle {
 
                 AppIcons.AppIcon {
                     name: "search"
-                    size: 12
+                    size: Theme.AppTheme.toolbarIconSize
                     iconColor: Theme.AppTheme.textMuted
                 }
 
@@ -115,7 +115,7 @@ Rectangle {
 
                 AppIcons.AppIcon {
                     name: "filter"
-                    size: 11
+                    size: Theme.AppTheme.toolbarIconSize
                     iconColor: Theme.AppTheme.textMuted
                     anchors.verticalCenter: parent.verticalCenter
                 }
@@ -156,7 +156,7 @@ Rectangle {
 
                 AppIcons.AppIcon {
                     name: "table_settings"
-                    size: 11
+                    size: Theme.AppTheme.toolbarIconSize
                     iconColor: Theme.AppTheme.textMuted
                     anchors.verticalCenter: parent.verticalCenter
                 }
@@ -197,7 +197,7 @@ Rectangle {
 
                 AppIcons.AppIcon {
                     name: "register"
-                    size: 11
+                    size: Theme.AppTheme.toolbarIconSize
                     iconColor: Theme.AppTheme.textMuted
                     anchors.verticalCenter: parent.verticalCenter
                 }

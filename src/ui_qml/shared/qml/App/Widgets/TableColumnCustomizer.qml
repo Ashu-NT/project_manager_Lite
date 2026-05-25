@@ -14,7 +14,7 @@ AnchoredPopup {
 
     signal columnVisibilityChanged(var updatedColumns)
 
-    width: 260
+    width: Math.min(300, Theme.AppTheme.dialogCompactWidth)
     padding: 0
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
     placement: "below-right"
@@ -33,7 +33,8 @@ AnchoredPopup {
 
     background: Rectangle {
         radius: Theme.AppTheme.radiusMd
-        color: Theme.AppTheme.surface
+        color: Theme.AppTheme.dialogBackground
+        border.color: Theme.AppTheme.dialogBorder
         border.width: 1
 
         layer.enabled: true
@@ -46,8 +47,8 @@ AnchoredPopup {
         // Header
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 40
-            color: Theme.AppTheme.surfaceAlt
+            Layout.preferredHeight: Theme.AppTheme.dialogHeaderHeight
+            color: Theme.AppTheme.dialogHeaderBackground
             radius: Theme.AppTheme.radiusMd
 
             Label {
@@ -83,7 +84,7 @@ AnchoredPopup {
                 required property int index
 
                 width: _colList.width
-                height: 36
+                height: Theme.AppTheme.normalRowHeight
                 color: _checkRowHover.containsMouse
                     ? Theme.AppTheme.hoverSurface
                     : "transparent"

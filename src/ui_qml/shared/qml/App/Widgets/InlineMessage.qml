@@ -12,8 +12,8 @@ Rectangle {
         switch (root.tone) {
             case "success": return Theme.AppTheme.success
             case "warning": return Theme.AppTheme.warning
-            case "danger": return Theme.AppTheme.danger
-            default: return Theme.AppTheme.accent
+            case "danger": return Theme.AppTheme.error
+            default: return Theme.AppTheme.info
         }
     }
 

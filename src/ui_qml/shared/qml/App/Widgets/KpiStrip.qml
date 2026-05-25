@@ -9,7 +9,7 @@ Item {
 
     property var metrics: []
 
-    implicitHeight: Theme.AppTheme.normalRowHeight + Theme.AppTheme.spacingMd
+    implicitHeight: Theme.AppTheme.normalRowHeight + Theme.AppTheme.sectionGap
     visible: root.metrics.length > 0
 
     Rectangle {
@@ -86,7 +86,7 @@ Item {
                                 visible: kpiCell._trendArrow !== ""
                                 text: kpiCell._trendArrow
                                 color: kpiCell._trendColor
-                                font.pixelSize: 8
+                                font.pixelSize: Theme.AppTheme.iconXs
                             }
 
                             Label {

@@ -128,7 +128,7 @@ Rectangle {
 
                 AppIcons.AppIcon {
                     name: "search"
-                    size: 11
+                    size: Theme.AppTheme.navIconSize
                     iconColor: Theme.AppTheme.textMuted
                 }
 
@@ -213,7 +213,7 @@ Rectangle {
                                     name: drawer._isCollapsed(navDelegate.modelData.moduleLabel)
                                         ? "chevron_right"
                                         : "chevron_down"
-                                    size: 9
+                                    size: Theme.AppTheme.navIconSize
                                     iconColor: Theme.AppTheme.textMuted
                                 }
                             }
@@ -260,7 +260,7 @@ Rectangle {
                                 anchors.centerIn: parent
                                 visible: drawer.collapsed
                                 name: navDelegate.modelData.icon || "default"
-                                size: 15
+                                size: Theme.AppTheme.iconMd
                                 iconColor: navDelegate.isSelected
                                     ? Theme.AppTheme.navSelectedText
                                     : Theme.AppTheme.textMuted
@@ -275,7 +275,7 @@ Rectangle {
 
                                 AppIcons.AppIcon {
                                     name: navDelegate.modelData.icon || "default"
-                                    size: 14
+                                    size: Theme.AppTheme.navIconSize
                                     iconColor: navDelegate.isSelected
                                         ? Theme.AppTheme.navSelectedText
                                         : Theme.AppTheme.textMuted
@@ -345,7 +345,7 @@ Rectangle {
 
                 AppIcons.AppIcon {
                     name: "chevron_left"
-                    size: 10
+                    size: Theme.AppTheme.iconXs
                     iconColor: Theme.AppTheme.textMuted
                 }
             }
@@ -354,7 +354,7 @@ Rectangle {
                 anchors.centerIn: parent
                 visible: drawer.collapsed
                 name: "chevron_right"
-                size: 10
+                size: Theme.AppTheme.iconXs
                 iconColor: Theme.AppTheme.textMuted
             }
 

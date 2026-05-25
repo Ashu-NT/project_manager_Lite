@@ -31,9 +31,11 @@ Rectangle {
     }
 
     visible: root.selectedCount > 0
-    height:  40
+    height:  Theme.AppTheme.toolbarHeight
     radius:  Theme.AppTheme.radiusMd
     color:   Theme.AppTheme.surfaceRaised
+    border.color: Theme.AppTheme.subtleBorder
+    border.width: 1
     width:   _row.implicitWidth + Theme.AppTheme.marginMd * 2
 
     RowLayout {

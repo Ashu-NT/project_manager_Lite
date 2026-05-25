@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
-import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import Shell.Controllers 1.0 as ShellControllers
 
@@ -15,7 +14,7 @@ ApplicationWindow {
     height: 440
     visible: true
     title: "Sign in"
-    color: Theme.AppTheme.appBackground
+    color: Theme.AppTheme.background
 
     onClosing: function() {
         if (loginController !== null && !loginController.isAuthenticated) {
@@ -39,14 +38,14 @@ ApplicationWindow {
         anchors.fill: parent
         gradient: Gradient {
             GradientStop { position: 0.0; color: "#F7FBFF" }
-            GradientStop { position: 1.0; color: Theme.AppTheme.appBackground }
+            GradientStop { position: 1.0; color: Theme.AppTheme.background }
         }
     }
 
     Rectangle {
         anchors.centerIn: parent
-        width: Math.min(parent.width - 48, 440)
-        height: Math.max(loginLayout.implicitHeight + Theme.AppTheme.marginLg * 2, 360)
+        width: Math.min(parent.width - (Theme.AppTheme.marginXl * 2), Theme.AppTheme.dialogCompactWidth + 20)
+        height: Math.max(loginLayout.implicitHeight + Theme.AppTheme.marginXl * 2, 360)
         radius: Theme.AppTheme.radiusLg
         color: Theme.AppTheme.surface
 
@@ -54,13 +53,13 @@ ApplicationWindow {
             id: loginLayout
             
             anchors.fill: parent
-            anchors.margins: Theme.AppTheme.marginLg
-            spacing: Theme.AppTheme.spacingMd
+            anchors.margins: Theme.AppTheme.marginXl
+            spacing: Theme.AppTheme.spacingXl
 
             Label {
                 text: "TECHASH Enterprise"
                 font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: 28
+                font.pixelSize: Theme.AppTheme.headerSize
                 font.bold: true
                 color: Theme.AppTheme.textPrimary
             }

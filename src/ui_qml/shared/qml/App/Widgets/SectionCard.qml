@@ -15,8 +15,8 @@ Rectangle {
 
     radius: Theme.AppTheme.radiusMd
     color: Theme.AppTheme.surfaceRaised
-    border.color: root.outlined ? Theme.AppTheme.subtleBorder : "transparent"
-    border.width: root.outlined ? 1 : 0
+    border.color: root.outlined ? Theme.AppTheme.borderStrong : Theme.AppTheme.subtleBorder
+    border.width: 1
     clip: true
 
     ColumnLayout {
@@ -43,7 +43,7 @@ Rectangle {
                     text: root.title
                     color: Theme.AppTheme.textSecondary
                     font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.pixelSize: Theme.AppTheme.sectionTitleSize
                     font.bold: true
                     font.letterSpacing: 0.5
                     elide: Text.ElideRight
