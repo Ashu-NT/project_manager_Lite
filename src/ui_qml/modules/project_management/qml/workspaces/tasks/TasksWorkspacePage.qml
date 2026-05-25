@@ -141,6 +141,9 @@ AppLayouts.WorkspaceFrame {
 
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
+    property bool _detailOpen: false
+    property int _pendingDetailSection: 0
+    readonly property var detailPage: detailPageLoader.item
 
     readonly property var _detailActions: {
         const idx = detailPage ? detailPage.activeSectionIndex : 0
@@ -172,6 +175,15 @@ AppLayouts.WorkspaceFrame {
             root.workspaceController.loadSelectedTaskTime()
         } else if (sectionIndex === 4) {
             root.workspaceController.loadSelectedTaskCollaboration()
+        }
+    }
+
+    function _openDetail(sectionIndex) {
+        root._pendingDetailSection = sectionIndex
+        root._detailOpen = true
+        if (detailPage) {
+            detailPage.scrollToSection(sectionIndex)
+            root._loadLazyDetailSection(sectionIndex)
         }
     }
 
@@ -268,7 +280,7 @@ AppLayouts.WorkspaceFrame {
         Item {
             id: _listPage
             anchors.fill: parent
-            visible: !detailPage.open
+            visible: !root._detailOpen
 
             ColumnLayout {
                 anchors.fill: parent
@@ -372,12 +384,10 @@ AppLayouts.WorkspaceFrame {
                             }
                         }
                         onRowActivated: function(rowId) {
-                            detailPage.scrollToSection(0)
-                            detailPage.open = true
-
                             if (root.workspaceController !== null) {
                                 root.workspaceController.activateTask(rowId)
                             }
+                            root._openDetail(0)
                         }
                         onRowSelectionToggled: function(rowId, selected) {
                             if (root.workspaceController !== null) {
@@ -709,145 +719,160 @@ AppLayouts.WorkspaceFrame {
         }
 
         // ── Detail page (covers full area, z:20) ──────────────────
-        AppWidgets.SectionDetailPage {
-            id: detailPage
+        Loader {
+            id: detailPageLoader
             anchors.fill: parent
-            open: false
-            showHeader: false
-            showEdit: false
-            showDelete: false
-            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-            sections: [
-                    "Details",
-                    { "label": "Assignments",  "count": (root.assignmentsModel.items   || []).length },
-                    { "label": "Dependencies", "count": (root.dependenciesModel.items  || []).length },
-                    { "label": "Time",         "count": (root.timeEntriesModel.items   || []).length },
-                    { "label": "Activity",     "count": (root.collaborationCommentsModel.items || []).length }
-                ]
-            z: 20
+            active: root._detailOpen
+            visible: root._detailOpen && status === Loader.Ready
+            asynchronous: true
+            sourceComponent: _detailPageComponent
+        }
 
-            onSectionChanged: function(index) {
-                root._loadLazyDetailSection(index)
-            }
+        Component {
+            id: _detailPageComponent
 
-            AppWidgets.ContextualActionToolbar {
-                width: parent ? parent.width : 0
-                showBack: true
-                title: root.selectedTaskModel.title || "Task Details"
-                subtitle: root.selectedTaskModel.statusLabel || root.selectedTaskModel.subtitle || ""
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: root._detailActions
-
-                onBackRequested: {
-                    detailPage.open = false
-                    detailPage.scrollToSection(0)
-                }
-                onActionTriggered: function(actionId) {
-                    if (actionId === "edit") {
-                        dialogHost.openEditDialog(root.selectedTaskModel)
-                    } else if (actionId === "progress") {
-                        dialogHost.openProgressDialog(root.selectedTaskModel)
-                    } else if (actionId === "delete") {
-                        dialogHost.openDeleteDialog(root.selectedTaskModel)
-                    }
-                }
-            }
-
-            TasksDetailPanel {
-                width: parent ? parent.width : 0
-                detailPage: detailPage
-                taskDetail: root.selectedTaskModel
+            AppWidgets.SectionDetailPage {
+                open: true
+                anchors.fill: parent
+                showHeader: false
+                showEdit: false
+                showDelete: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                assignmentsModel: root.assignmentsModel
-                selectedAssignmentId: root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
-                assignmentOptions: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
-
-                dependenciesModel: root.dependenciesModel
-                dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
-
-                timeAssignmentSummaryModel: root.timeAssignmentSummaryModel
-                timeEntriesModel: root.timeEntriesModel
-                selectedTimeEntryModel: root.selectedTimeEntryModel
-                selectedEntryId: root.workspaceController ? root.workspaceController.selectedTimeEntryId : ""
-                periodOptions: root.workspaceController ? (root.workspaceController.timePeriodOptions || []) : []
-                selectedPeriodStart: root.workspaceController ? root.workspaceController.selectedTimePeriodStart : ""
-
-                collaborationCommentsModel: root.collaborationCommentsModel
-                collaborationPresenceModel: root.collaborationPresenceModel
-                selectedTaskId: root.workspaceController ? root.workspaceController.selectedTaskId : ""
-
-                onCreateAssignmentRequested: dialogHost.openCreateAssignmentDialog(root.selectedTaskModel)
-                onAssignmentSelected: function(assignmentId) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.selectAssignment(assignmentId)
-                    }
-                }
-                onEditAllocationRequested: function(assignmentData) {
-                    dialogHost.openEditAssignmentAllocationDialog(assignmentData, root.selectedTaskModel)
-                }
-                onSetHoursRequested: function(assignmentData) {
-                    dialogHost.openAssignmentHoursDialog(assignmentData)
-                }
-                onDeleteAssignmentRequested: function(assignmentData) {
-                    dialogHost.openDeleteAssignmentDialog(assignmentData)
+                sections: [
+                        "Details",
+                        { "label": "Assignments",  "count": (root.assignmentsModel.items   || []).length },
+                        { "label": "Dependencies", "count": (root.dependenciesModel.items  || []).length },
+                        { "label": "Time",         "count": (root.timeEntriesModel.items   || []).length },
+                        { "label": "Activity",     "count": (root.collaborationCommentsModel.items || []).length }
+                    ]
+                z: 20
+                Component.onCompleted: {
+                    scrollToSection(root._pendingDetailSection)
+                    root._loadLazyDetailSection(root._pendingDetailSection)
                 }
 
-                onCreateDependencyRequested: dialogHost.openCreateDependencyDialog(root.selectedTaskModel)
-                onDeleteDependencyRequested: function(dependencyData) {
-                    dialogHost.openDeleteDependencyDialog(dependencyData)
+                onSectionChanged: function(index) {
+                    root._loadLazyDetailSection(index)
                 }
 
-                onPeriodChanged: function(periodStart) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.selectTimePeriod(periodStart)
+                AppWidgets.ContextualActionToolbar {
+                    width: parent ? parent.width : 0
+                    showBack: true
+                    title: root.selectedTaskModel.title || "Task Details"
+                    subtitle: root.selectedTaskModel.statusLabel || root.selectedTaskModel.subtitle || ""
+                    busy: root.workspaceController ? root.workspaceController.isBusy : false
+                    actions: root._detailActions
+
+                    onBackRequested: {
+                        root._detailOpen = false
                     }
-                }
-                onEntrySelected: function(entryId) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.selectTimeEntry(entryId)
-                    }
-                }
-                onTimeAddRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.addTaskTimeEntry(payload)
-                    }
-                }
-                onTimeUpdateRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.updateTaskTimeEntry(payload)
-                    }
-                }
-                onTimeDeleteRequested: function(entryId) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.deleteTaskTimeEntry(entryId)
-                    }
-                }
-                onTimeSubmitRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.submitTaskPeriod(payload)
-                    }
-                }
-                onTimeLockRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.lockTaskPeriod(payload)
-                    }
-                }
-                onTimeUnlockRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.unlockTaskPeriod(payload)
+                    onActionTriggered: function(actionId) {
+                        if (actionId === "edit") {
+                            dialogHost.openEditDialog(root.selectedTaskModel)
+                        } else if (actionId === "progress") {
+                            dialogHost.openProgressDialog(root.selectedTaskModel)
+                        } else if (actionId === "delete") {
+                            dialogHost.openDeleteDialog(root.selectedTaskModel)
+                        }
                     }
                 }
 
-                onComposeRequested: dialogHost.openTaskCollaborationDialog(root.selectedTaskModel)
-                onMarkReadRequested: function(taskId) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.markTaskCollaborationRead(taskId)
+                TasksDetailPanel {
+                    width: parent ? parent.width : 0
+                    detailPage: detailPageLoader.item
+                    taskDetail: root.selectedTaskModel
+                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+
+                    assignmentsModel: root.assignmentsModel
+                    selectedAssignmentId: root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
+                    assignmentOptions: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
+
+                    dependenciesModel: root.dependenciesModel
+                    dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
+
+                    timeAssignmentSummaryModel: root.timeAssignmentSummaryModel
+                    timeEntriesModel: root.timeEntriesModel
+                    selectedTimeEntryModel: root.selectedTimeEntryModel
+                    selectedEntryId: root.workspaceController ? root.workspaceController.selectedTimeEntryId : ""
+                    periodOptions: root.workspaceController ? (root.workspaceController.timePeriodOptions || []) : []
+                    selectedPeriodStart: root.workspaceController ? root.workspaceController.selectedTimePeriodStart : ""
+
+                    collaborationCommentsModel: root.collaborationCommentsModel
+                    collaborationPresenceModel: root.collaborationPresenceModel
+                    selectedTaskId: root.workspaceController ? root.workspaceController.selectedTaskId : ""
+
+                    onCreateAssignmentRequested: dialogHost.openCreateAssignmentDialog(root.selectedTaskModel)
+                    onAssignmentSelected: function(assignmentId) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.selectAssignment(assignmentId)
+                        }
                     }
-                }
-                onCollaborationRefreshRequested: {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.refresh()
+                    onEditAllocationRequested: function(assignmentData) {
+                        dialogHost.openEditAssignmentAllocationDialog(assignmentData, root.selectedTaskModel)
+                    }
+                    onSetHoursRequested: function(assignmentData) {
+                        dialogHost.openAssignmentHoursDialog(assignmentData)
+                    }
+                    onDeleteAssignmentRequested: function(assignmentData) {
+                        dialogHost.openDeleteAssignmentDialog(assignmentData)
+                    }
+
+                    onCreateDependencyRequested: dialogHost.openCreateDependencyDialog(root.selectedTaskModel)
+                    onDeleteDependencyRequested: function(dependencyData) {
+                        dialogHost.openDeleteDependencyDialog(dependencyData)
+                    }
+
+                    onPeriodChanged: function(periodStart) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.selectTimePeriod(periodStart)
+                        }
+                    }
+                    onEntrySelected: function(entryId) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.selectTimeEntry(entryId)
+                        }
+                    }
+                    onTimeAddRequested: function(payload) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.addTaskTimeEntry(payload)
+                        }
+                    }
+                    onTimeUpdateRequested: function(payload) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.updateTaskTimeEntry(payload)
+                        }
+                    }
+                    onTimeDeleteRequested: function(entryId) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.deleteTaskTimeEntry(entryId)
+                        }
+                    }
+                    onTimeSubmitRequested: function(payload) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.submitTaskPeriod(payload)
+                        }
+                    }
+                    onTimeLockRequested: function(payload) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.lockTaskPeriod(payload)
+                        }
+                    }
+                    onTimeUnlockRequested: function(payload) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.unlockTaskPeriod(payload)
+                        }
+                    }
+
+                    onComposeRequested: dialogHost.openTaskCollaborationDialog(root.selectedTaskModel)
+                    onMarkReadRequested: function(taskId) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.markTaskCollaborationRead(taskId)
+                        }
+                    }
+                    onCollaborationRefreshRequested: {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.refresh()
+                        }
                     }
                 }
             }

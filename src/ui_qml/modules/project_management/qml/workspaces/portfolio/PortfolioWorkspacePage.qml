@@ -65,6 +65,9 @@ AppLayouts.WorkspaceFrame {
     property int    _pageSize:          25
     property int    _bottomTab:         0
     property string _selectedFundingId: ""
+    property bool _detailOpen: false
+    property int _pendingDetailSection: 0
+    readonly property var detailPage: detailPageLoader.item
 
     // ── Selected heatmap item (for detail page) ────────────────────────
     readonly property var _selectedHeatmapItem: {
@@ -202,7 +205,7 @@ AppLayouts.WorkspaceFrame {
         Item {
             id: _listPage
             anchors.fill: parent
-            visible: !detailPage.open
+            visible: !root._detailOpen
 
             ColumnLayout {
                 anchors.fill: parent
@@ -347,7 +350,8 @@ AppLayouts.WorkspaceFrame {
                         }
                         onRowActivated: function(rowId) {
                             root._selectedRowId = rowId
-                            detailPage.open = true
+                            root._pendingDetailSection = 0
+                            root._detailOpen = true
                         }
                         onRowSelectionToggled: function(rowId, selected) {
                             const ids = root._selectedRowIds.slice()
@@ -857,52 +861,65 @@ AppLayouts.WorkspaceFrame {
         }
 
         // ── Detail page (covers full area, z:20) ──────────────────────
-        AppWidgets.SectionDetailPage {
-            id: detailPage
+        Loader {
+            id: detailPageLoader
             anchors.fill: parent
-            open: false
-            showHeader: false
-            showEdit: false
-            showDelete: false
-            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-            sections: [
-                "Overview",
-                { "label": "Scenarios",    "count": (root._scenariosModel.items    || []).length },
-                { "label": "Dependencies", "count": (root._dependenciesModel.items || []).length },
-                { "label": "Funding",      "count": (root._intakeModel.items       || []).length },
-                "Activity"
-            ]
-            z: 20
+            active: root._detailOpen
+            visible: root._detailOpen && status === Loader.Ready
+            asynchronous: true
+            sourceComponent: _detailPageComponent
+        }
 
-            AppWidgets.ContextualActionToolbar {
-                width: parent ? parent.width : 0
-                showBack: true
-                title: root._selectedHeatmapItem
-                    ? String(root._selectedHeatmapItem.title || "Project Details")
-                    : "Project Details"
-                subtitle: root._selectedHeatmapItem
-                    ? String(root._selectedHeatmapItem.subtitle || "")
-                    : ""
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: root._detailActions
+        Component {
+            id: _detailPageComponent
 
-                onBackRequested: detailPage.open = false
-                onActionTriggered: function(actionId) {
-                    if (actionId === "evaluate") {
-                        detailPage.open = false
-                        root._bottomTab = 2
+            AppWidgets.SectionDetailPage {
+                open: true
+                anchors.fill: parent
+                showHeader: false
+                showEdit: false
+                showDelete: false
+                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                sections: [
+                    "Overview",
+                    { "label": "Scenarios",    "count": (root._scenariosModel.items    || []).length },
+                    { "label": "Dependencies", "count": (root._dependenciesModel.items || []).length },
+                    { "label": "Funding",      "count": (root._intakeModel.items       || []).length },
+                    "Activity"
+                ]
+                z: 20
+                Component.onCompleted: scrollToSection(root._pendingDetailSection)
+
+                AppWidgets.ContextualActionToolbar {
+                    width: parent ? parent.width : 0
+                    showBack: true
+                    title: root._selectedHeatmapItem
+                        ? String(root._selectedHeatmapItem.title || "Project Details")
+                        : "Project Details"
+                    subtitle: root._selectedHeatmapItem
+                        ? String(root._selectedHeatmapItem.subtitle || "")
+                        : ""
+                    busy: root.workspaceController ? root.workspaceController.isBusy : false
+                    actions: root._detailActions
+
+                    onBackRequested: root._detailOpen = false
+                    onActionTriggered: function(actionId) {
+                        if (actionId === "evaluate") {
+                            root._detailOpen = false
+                            root._bottomTab = 2
+                        }
                     }
                 }
-            }
 
-            PortfolioDetailPanel {
-                width: parent ? parent.width : 0
-                detailPage: detailPage
-                heatmapItem: root._selectedHeatmapItem
-                scenariosModel: root._scenariosModel
-                dependenciesModel: root._dependenciesModel
-                intakeItemsModel: root._intakeModel
-                recentActionsModel: root._recentActionsModel
+                PortfolioDetailPanel {
+                    width: parent ? parent.width : 0
+                    detailPage: detailPageLoader.item
+                    heatmapItem: root._selectedHeatmapItem
+                    scenariosModel: root._scenariosModel
+                    dependenciesModel: root._dependenciesModel
+                    intakeItemsModel: root._intakeModel
+                    recentActionsModel: root._recentActionsModel
+                }
             }
         }
     }

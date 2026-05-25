@@ -54,6 +54,9 @@ AppLayouts.WorkspaceFrame {
 
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
+    property bool _detailOpen: false
+    property int _pendingDetailSection: 0
+    readonly property var detailPage: detailPageLoader.item
 
     readonly property var _tableColumns: [
         { "key": "title",              "label": "Project",  "flex": 2,   "sortable": true  },
@@ -108,6 +111,15 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
+    function _openDetail(sectionIndex) {
+        root._pendingDetailSection = sectionIndex
+        root._detailOpen = true
+        if (detailPage) {
+            detailPage.scrollToSection(sectionIndex)
+            root._loadLazyProjectSection(sectionIndex)
+        }
+    }
+
     ProjectsDialogHost {
         id: dialogHost
 
@@ -135,7 +147,7 @@ AppLayouts.WorkspaceFrame {
         Item {
             id: _listPage
             anchors.fill: parent
-            visible: !detailPage.open
+            visible: !root._detailOpen
 
             ColumnLayout {
                 anchors.fill: parent
@@ -229,12 +241,12 @@ AppLayouts.WorkspaceFrame {
                             if (root.workspaceController !== null) root.workspaceController.selectProject(rowId)
                         }
                         onRowActivated: function(rowId) {
-                            detailPage.open = true
                             if (root.workspaceController !== null) root.workspaceController.activateProject(rowId)
+                            root._openDetail(0)
                         }
                         onViewDetailRequested: function(rowId) {
-                            detailPage.open = true
                             if (root.workspaceController !== null) root.workspaceController.activateProject(rowId)
+                            root._openDetail(0)
                         }
                         onRowSelectionToggled: function(rowId, selected) {
                             if (root.workspaceController !== null)
@@ -430,56 +442,71 @@ AppLayouts.WorkspaceFrame {
         }
 
         // ── Detail page (covers full area, z:20) ──────────────────
-        AppWidgets.SectionDetailPage {
-            id: detailPage
+        Loader {
+            id: detailPageLoader
             anchors.fill: parent
-            open: false
-            showHeader: false
-            showEdit: false
-            showDelete: false
-            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-            sections: ["Overview", "Schedule", "Tasks", "Resources", "Financials", "Risks", "Documents", "Activity"]
-            z: 20
+            active: root._detailOpen
+            visible: root._detailOpen && status === Loader.Ready
+            asynchronous: true
+            sourceComponent: _detailPageComponent
+        }
 
-            onSectionChanged: function(index) {
-                root._loadLazyProjectSection(index)
-            }
+        Component {
+            id: _detailPageComponent
 
-            AppWidgets.ContextualActionToolbar {
-                width: parent ? parent.width : 0
-                showBack: true
-                title: root.selectedProjectModel.title || "Project Details"
-                subtitle: root.selectedProjectModel.statusLabel || ""
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: [
-                    { "id": "edit",   "label": "Edit",   "icon": "edit",    "enabled": true, "danger": false },
-                    { "id": "status", "label": "Status", "icon": "approve", "enabled": true, "danger": false },
-                    { "id": "delete", "label": "Delete", "icon": "delete",  "enabled": true, "danger": true  }
-                ]
-
-                onBackRequested: {
-                    detailPage.open = false
-                    detailPage.scrollToSection(0)
+            AppWidgets.SectionDetailPage {
+                open: true
+                anchors.fill: parent
+                showHeader: false
+                showEdit: false
+                showDelete: false
+                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                sections: ["Overview", "Schedule", "Tasks", "Resources", "Financials", "Risks", "Documents", "Activity"]
+                z: 20
+                Component.onCompleted: {
+                    scrollToSection(root._pendingDetailSection)
+                    root._loadLazyProjectSection(root._pendingDetailSection)
                 }
-                onActionTriggered: function(actionId) {
-                    if (actionId === "edit") {
-                        dialogHost.openEditDialog(root.selectedProjectModel)
-                    } else if (actionId === "status") {
-                        dialogHost.openStatusDialog(root.selectedProjectModel)
-                    } else if (actionId === "delete") {
-                        dialogHost.openDeleteDialog(root.selectedProjectModel)
+
+                onSectionChanged: function(index) {
+                    root._loadLazyProjectSection(index)
+                }
+
+                AppWidgets.ContextualActionToolbar {
+                    width: parent ? parent.width : 0
+                    showBack: true
+                    title: root.selectedProjectModel.title || "Project Details"
+                    subtitle: root.selectedProjectModel.statusLabel || ""
+                    busy: root.workspaceController ? root.workspaceController.isBusy : false
+                    actions: [
+                        { "id": "edit",   "label": "Edit",   "icon": "edit",    "enabled": true, "danger": false },
+                        { "id": "status", "label": "Status", "icon": "approve", "enabled": true, "danger": false },
+                        { "id": "delete", "label": "Delete", "icon": "delete",  "enabled": true, "danger": true  }
+                    ]
+
+                    onBackRequested: {
+                        root._detailOpen = false
+                    }
+                    onActionTriggered: function(actionId) {
+                        if (actionId === "edit") {
+                            dialogHost.openEditDialog(root.selectedProjectModel)
+                        } else if (actionId === "status") {
+                            dialogHost.openStatusDialog(root.selectedProjectModel)
+                        } else if (actionId === "delete") {
+                            dialogHost.openDeleteDialog(root.selectedProjectModel)
+                        }
                     }
                 }
-            }
 
-            ProjectsDetailSection {
-                width: parent ? parent.width : 0
-                detailPage: detailPage
-                projectDetail: root.selectedProjectModel
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                onEditRequested: dialogHost.openEditDialog(root.selectedProjectModel)
-                onStatusRequested: dialogHost.openStatusDialog(root.selectedProjectModel)
-                onDeleteRequested: dialogHost.openDeleteDialog(root.selectedProjectModel)
+                ProjectsDetailSection {
+                    width: parent ? parent.width : 0
+                    detailPage: detailPageLoader.item
+                    projectDetail: root.selectedProjectModel
+                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    onEditRequested: dialogHost.openEditDialog(root.selectedProjectModel)
+                    onStatusRequested: dialogHost.openStatusDialog(root.selectedProjectModel)
+                    onDeleteRequested: dialogHost.openDeleteDialog(root.selectedProjectModel)
+                }
             }
         }
     }

@@ -69,6 +69,9 @@ AppLayouts.WorkspaceFrame {
 
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
+    property bool _detailOpen: false
+    property int _pendingDetailSection: 0
+    readonly property var detailPage: detailPageLoader.item
 
     readonly property var _tableColumns: [
         { "key": "title",         "label": "Resource / Period", "flex": 2,   "sortable": true },
@@ -113,6 +116,14 @@ AppLayouts.WorkspaceFrame {
         return 0
     }
 
+    function _openDetail(sectionIndex) {
+        root._pendingDetailSection = sectionIndex
+        root._detailOpen = true
+        if (detailPage) {
+            detailPage.scrollToSection(sectionIndex)
+        }
+    }
+
     // ── Stacked layout: list page / detail page ───────────────────────
     Item {
         anchors.fill: parent
@@ -121,7 +132,7 @@ AppLayouts.WorkspaceFrame {
         Item {
             id: _listPage
             anchors.fill: parent
-            visible: !detailPage.open
+            visible: !root._detailOpen
 
             ColumnLayout {
                 anchors.fill: parent
@@ -210,11 +221,11 @@ AppLayouts.WorkspaceFrame {
                         }
                         onRowActivated: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.selectQueuePeriod(rowId)
-                            detailPage.open = true
+                            root._openDetail(0)
                         }
                         onViewDetailRequested: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.selectQueuePeriod(rowId)
-                            detailPage.open = true
+                            root._openDetail(0)
                         }
                         onRowSelectionToggled: function(rowId, selected) {
                             if (root.workspaceController !== null)
@@ -439,61 +450,74 @@ AppLayouts.WorkspaceFrame {
         }
 
         // ── Detail page (covers full area, z:20) ─────────────────────────
-        AppWidgets.SectionDetailPage {
-            id: detailPage
+        Loader {
+            id: detailPageLoader
             anchors.fill: parent
-            open: false
-            showHeader: false
-            showEdit: false
-            showDelete: false
-            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-            sections: [
-                { "label": "Entries",          "count": (root.entriesModel.items || []).length },
-                "Approval History",
-                "Labor Notes",
-                "Audit Trail"
-            ]
-            z: 20
+            active: root._detailOpen
+            visible: root._detailOpen && status === Loader.Ready
+            asynchronous: true
+            sourceComponent: _detailPageComponent
+        }
 
-            AppWidgets.ContextualActionToolbar {
-                width: parent ? parent.width : 0
-                showBack: true
-                title: root.selectedPeriodModel.title || "Timesheet Period"
-                subtitle: root.selectedPeriodModel.statusLabel || root.selectedPeriodModel.subtitle || ""
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: root._detailActions
+        Component {
+            id: _detailPageComponent
 
-                onBackRequested: detailPage.open = false
-                onActionTriggered: function(actionId) {
-                    if (root.workspaceController === null) return
-                    const state = root.selectedPeriodModel ? (root.selectedPeriodModel.state || {}) : {}
-                    const periodId = String(state.periodId || "")
-                    if (!periodId) return
-                    if (actionId === "submit") {
-                        root.workspaceController.submitPeriod({ "periodId": periodId })
-                    } else if (actionId === "approve") {
-                        root.workspaceController.approvePeriod({ "periodId": periodId })
-                    } else if (actionId === "reject") {
-                        root.workspaceController.rejectPeriod({ "periodId": periodId })
-                    } else if (actionId === "lock") {
-                        root.workspaceController.lockPeriod({ "periodId": periodId })
-                    } else if (actionId === "unlock") {
-                        root.workspaceController.unlockPeriod({ "periodId": periodId })
+            AppWidgets.SectionDetailPage {
+                open: true
+                anchors.fill: parent
+                showHeader: false
+                showEdit: false
+                showDelete: false
+                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                sections: [
+                    { "label": "Entries",          "count": (root.entriesModel.items || []).length },
+                    "Approval History",
+                    "Labor Notes",
+                    "Audit Trail"
+                ]
+                z: 20
+                Component.onCompleted: scrollToSection(root._pendingDetailSection)
+
+                AppWidgets.ContextualActionToolbar {
+                    width: parent ? parent.width : 0
+                    showBack: true
+                    title: root.selectedPeriodModel.title || "Timesheet Period"
+                    subtitle: root.selectedPeriodModel.statusLabel || root.selectedPeriodModel.subtitle || ""
+                    busy: root.workspaceController ? root.workspaceController.isBusy : false
+                    actions: root._detailActions
+
+                    onBackRequested: root._detailOpen = false
+                    onActionTriggered: function(actionId) {
+                        if (root.workspaceController === null) return
+                        const state = root.selectedPeriodModel ? (root.selectedPeriodModel.state || {}) : {}
+                        const periodId = String(state.periodId || "")
+                        if (!periodId) return
+                        if (actionId === "submit") {
+                            root.workspaceController.submitPeriod({ "periodId": periodId })
+                        } else if (actionId === "approve") {
+                            root.workspaceController.approvePeriod({ "periodId": periodId })
+                        } else if (actionId === "reject") {
+                            root.workspaceController.rejectPeriod({ "periodId": periodId })
+                        } else if (actionId === "lock") {
+                            root.workspaceController.lockPeriod({ "periodId": periodId })
+                        } else if (actionId === "unlock") {
+                            root.workspaceController.unlockPeriod({ "periodId": periodId })
+                        }
                     }
                 }
-            }
 
-            TimesheetsDetailSection {
-                width: parent ? parent.width : 0
-                detailPage: detailPage
-                reviewDetail: root.selectedPeriodModel
-                entriesModel: root.entriesModel
-                selectedEntry: root.selectedEntryModel
-                selectedEntryId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                TimesheetsDetailSection {
+                    width: parent ? parent.width : 0
+                    detailPage: detailPageLoader.item
+                    reviewDetail: root.selectedPeriodModel
+                    entriesModel: root.entriesModel
+                    selectedEntry: root.selectedEntryModel
+                    selectedEntryId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
+                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
-                onEntrySelected: function(entryId) {
-                    if (root.workspaceController !== null) root.workspaceController.selectEntry(entryId)
+                    onEntrySelected: function(entryId) {
+                        if (root.workspaceController !== null) root.workspaceController.selectEntry(entryId)
+                    }
                 }
             }
         }

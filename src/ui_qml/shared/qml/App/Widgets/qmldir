@@ -11,6 +11,7 @@ EmptyState 1.0 EmptyState.qml
 FilterBar 1.0 FilterBar.qml
 InlineMessage 1.0 InlineMessage.qml
 KpiStrip 1.0 KpiStrip.qml
+LazySectionLoader 1.0 LazySectionLoader.qml
 LoadingOverlay 1.0 LoadingOverlay.qml
 MetricCard 1.0 MetricCard.qml
 PageHeader 1.0 PageHeader.qml

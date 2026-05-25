@@ -30,145 +30,141 @@ Item {
 
     implicitHeight: _activeSectionH
 
-    // ── Section 0: Details ────────────────────────────────────────────────
-    Item {
+    AppWidgets.LazySectionLoader {
         id: _sec0
-        width: parent.width
-        implicitHeight: _sec0Col.implicitHeight
-        visible: root._idx === 0
+        anchors.left: parent.left
+        anchors.right: parent.right
+        active: root._idx === 0
+        sourceComponent: Component {
+            Column {
+                width: parent ? parent.width : 0
+                spacing: 0
 
-        Column {
-            id: _sec0Col
-            width: parent.width
-            spacing: 0
+                AppWidgets.SectionHeading {
+                    width: parent.width
+                    label: "Details"
+                }
 
-            AppWidgets.SectionHeading {
-                width: parent.width
-                label: "Details"
-            }
+                Item {
+                    width: parent.width
+                    implicitHeight: detailSection.implicitHeight + Theme.AppTheme.spacingMd * 2
 
-            Item {
-                width: parent.width
-                implicitHeight: detailSection.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    ProjectManagementWidgets.RegisterDetailSection {
+                        id: detailSection
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.topMargin: Theme.AppTheme.spacingMd
+                        anchors.leftMargin: Theme.AppTheme.spacingMd
+                        anchors.rightMargin: Theme.AppTheme.spacingMd
 
-                ProjectManagementWidgets.RegisterDetailSection {
-                    id: detailSection
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.topMargin: Theme.AppTheme.spacingMd
-                    anchors.leftMargin: Theme.AppTheme.spacingMd
-                    anchors.rightMargin: Theme.AppTheme.spacingMd
-
-                    entryDetail: root.entryDetail
-                    isBusy: root.isBusy
-                    onEditRequested: root.editRequested()
-                    onDeleteRequested: root.deleteRequested()
+                        entryDetail: root.entryDetail
+                        isBusy: root.isBusy
+                        onEditRequested: root.editRequested()
+                        onDeleteRequested: root.deleteRequested()
+                    }
                 }
             }
         }
     }
 
-    // ── Section 1: Impact ─────────────────────────────────────────────────
-    Item {
+    AppWidgets.LazySectionLoader {
         id: _sec1
-        width: parent.width
-        implicitHeight: _sec1Col.implicitHeight
-        visible: root._idx === 1
+        anchors.left: parent.left
+        anchors.right: parent.right
+        active: root._idx === 1
+        sourceComponent: Component {
+            Column {
+                width: parent ? parent.width : 0
+                spacing: 0
 
-        Column {
-            id: _sec1Col
-            width: parent.width
-            spacing: 0
+                AppWidgets.SectionHeading {
+                    width: parent.width
+                    label: "Impact"
+                }
 
-            AppWidgets.SectionHeading {
-                width: parent.width
-                label: "Impact"
-            }
+                Item {
+                    width: parent.width
+                    implicitHeight: urgentSection.implicitHeight + Theme.AppTheme.spacingMd * 2
 
-            Item {
-                width: parent.width
-                implicitHeight: urgentSection.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    ProjectManagementWidgets.RegisterUrgentSection {
+                        id: urgentSection
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.topMargin: Theme.AppTheme.spacingMd
+                        anchors.leftMargin: Theme.AppTheme.spacingMd
+                        anchors.rightMargin: Theme.AppTheme.spacingMd
 
-                ProjectManagementWidgets.RegisterUrgentSection {
-                    id: urgentSection
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.topMargin: Theme.AppTheme.spacingMd
-                    anchors.leftMargin: Theme.AppTheme.spacingMd
-                    anchors.rightMargin: Theme.AppTheme.spacingMd
+                        urgentModel: root.urgentModel
+                        selectedEntryId: root.selectedEntryId
 
-                    urgentModel: root.urgentModel
-                    selectedEntryId: root.selectedEntryId
-
-                    onEntrySelected: function(entryId) { root.urgentEntrySelected(entryId) }
+                        onEntrySelected: function(entryId) { root.urgentEntrySelected(entryId) }
+                    }
                 }
             }
         }
     }
 
-    // ── Section 2: Response ───────────────────────────────────────────────
-    Item {
+    AppWidgets.LazySectionLoader {
         id: _sec2
-        width: parent.width
-        implicitHeight: _sec2Col.implicitHeight
-        visible: root._idx === 2
+        anchors.left: parent.left
+        anchors.right: parent.right
+        active: root._idx === 2
+        sourceComponent: Component {
+            Column {
+                width: parent ? parent.width : 0
+                spacing: 0
 
-        Column {
-            id: _sec2Col
-            width: parent.width
-            spacing: 0
+                AppWidgets.SectionHeading {
+                    width: parent.width
+                    label: "Response"
+                }
 
-            AppWidgets.SectionHeading {
-                width: parent.width
-                label: "Response"
-            }
+                Rectangle {
+                    width: parent.width
+                    height: 80
+                    color: "transparent"
 
-            Rectangle {
-                width: parent.width
-                height: 80
-                color: "transparent"
-
-                AppControls.Label {
-                    anchors.centerIn: parent
-                    text: "Activity feed coming soon"
-                    color: Theme.AppTheme.textMuted
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
+                    AppControls.Label {
+                        anchors.centerIn: parent
+                        text: "Activity feed coming soon"
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.bodySize
+                    }
                 }
             }
         }
     }
 
-    // ── Section 3: Links ──────────────────────────────────────────────────
-    Item {
+    AppWidgets.LazySectionLoader {
         id: _sec3
-        width: parent.width
-        implicitHeight: _sec3Col.implicitHeight
-        visible: root._idx === 3
+        anchors.left: parent.left
+        anchors.right: parent.right
+        active: root._idx === 3
+        sourceComponent: Component {
+            Column {
+                width: parent ? parent.width : 0
+                spacing: 0
 
-        Column {
-            id: _sec3Col
-            width: parent.width
-            spacing: 0
+                AppWidgets.SectionHeading {
+                    width: parent.width
+                    label: "Links"
+                }
 
-            AppWidgets.SectionHeading {
-                width: parent.width
-                label: "Links"
-            }
+                Rectangle {
+                    width: parent.width
+                    height: 80
+                    color: "transparent"
 
-            Rectangle {
-                width: parent.width
-                height: 80
-                color: "transparent"
-
-                AppControls.Label {
-                    anchors.centerIn: parent
-                    text: "Linked documents and references coming soon"
-                    color: Theme.AppTheme.textMuted
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
+                    AppControls.Label {
+                        anchors.centerIn: parent
+                        text: "Linked documents and references coming soon"
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.bodySize
+                    }
                 }
             }
         }

@@ -54,6 +54,9 @@ AppLayouts.WorkspaceFrame {
 
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
+    property bool _detailOpen: false
+    property int _pendingDetailSection: 0
+    readonly property var detailPage: detailPageLoader.item
 
     readonly property var _tableColumns: [
         { "key": "title",            "label": "Resource",   "flex": 2,   "sortable": true  },
@@ -84,6 +87,14 @@ AppLayouts.WorkspaceFrame {
         return 0
     }
 
+    function _openDetail(sectionIndex) {
+        root._pendingDetailSection = sectionIndex
+        root._detailOpen = true
+        if (detailPage) {
+            detailPage.scrollToSection(sectionIndex)
+        }
+    }
+
     ResourcesDialogHost {
         id: dialogHost
 
@@ -110,7 +121,7 @@ AppLayouts.WorkspaceFrame {
         Item {
             id: _listPage
             anchors.fill: parent
-            visible: !detailPage.open
+            visible: !root._detailOpen
 
             ColumnLayout {
                 anchors.fill: parent
@@ -205,11 +216,11 @@ AppLayouts.WorkspaceFrame {
                         }
                         onRowActivated: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.activateResource(rowId)
-                            detailPage.open = true
+                            root._openDetail(0)
                         }
                         onViewDetailRequested: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.activateResource(rowId)
-                            detailPage.open = true
+                            root._openDetail(0)
                         }
                         onRowSelectionToggled: function(rowId, selected) {
                             if (root.workspaceController !== null)
@@ -414,51 +425,64 @@ AppLayouts.WorkspaceFrame {
         }
 
         // ── Detail page (covers full area, z:20) ─────────────────────
-        AppWidgets.SectionDetailPage {
-            id: detailPage
+        Loader {
+            id: detailPageLoader
             anchors.fill: parent
-            open: false
-            showHeader: false
-            showEdit: false
-            showDelete: false
-            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-            sections: ["Overview", "Assignments", "Capacity", "Calendar", "Skills", "Certifications", "Cost Rates", "Activity"]
-            z: 20
+            active: root._detailOpen
+            visible: root._detailOpen && status === Loader.Ready
+            asynchronous: true
+            sourceComponent: _detailPageComponent
+        }
 
-            AppWidgets.ContextualActionToolbar {
-                width: parent ? parent.width : 0
-                showBack: true
-                title: root.selectedResourceModel.title || "Resource Details"
-                subtitle: root.selectedResourceModel.statusLabel || ""
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: root._detailActions
+        Component {
+            id: _detailPageComponent
 
-                onBackRequested: detailPage.open = false
-                onActionTriggered: function(actionId) {
-                    if (actionId === "edit") {
-                        dialogHost.openEditDialog(root.selectedResourceModel)
-                    } else if (actionId === "toggle") {
-                        const state = root.selectedResourceModel
-                            ? (root.selectedResourceModel.state || {}) : {}
-                        if (root.workspaceController !== null && state.resourceId) {
-                            root.workspaceController.toggleResourceActive(
-                                String(state.resourceId || ""),
-                                parseInt(String(state.version || "0"), 10)
-                            )
+            AppWidgets.SectionDetailPage {
+                open: true
+                anchors.fill: parent
+                showHeader: false
+                showEdit: false
+                showDelete: false
+                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                sections: ["Overview", "Assignments", "Capacity", "Calendar", "Skills", "Certifications", "Cost Rates", "Activity"]
+                z: 20
+                Component.onCompleted: scrollToSection(root._pendingDetailSection)
+
+                AppWidgets.ContextualActionToolbar {
+                    width: parent ? parent.width : 0
+                    showBack: true
+                    title: root.selectedResourceModel.title || "Resource Details"
+                    subtitle: root.selectedResourceModel.statusLabel || ""
+                    busy: root.workspaceController ? root.workspaceController.isBusy : false
+                    actions: root._detailActions
+
+                    onBackRequested: root._detailOpen = false
+                    onActionTriggered: function(actionId) {
+                        if (actionId === "edit") {
+                            dialogHost.openEditDialog(root.selectedResourceModel)
+                        } else if (actionId === "toggle") {
+                            const state = root.selectedResourceModel
+                                ? (root.selectedResourceModel.state || {}) : {}
+                            if (root.workspaceController !== null && state.resourceId) {
+                                root.workspaceController.toggleResourceActive(
+                                    String(state.resourceId || ""),
+                                    parseInt(String(state.version || "0"), 10)
+                                )
+                            }
+                        } else if (actionId === "delete") {
+                            dialogHost.openDeleteDialog(root.selectedResourceModel)
                         }
-                    } else if (actionId === "delete") {
-                        dialogHost.openDeleteDialog(root.selectedResourceModel)
                     }
                 }
-            }
 
-            ResourcesDetailSection {
-                width: parent ? parent.width : 0
-                detailPage: detailPage
-                resourceDetail: root.selectedResourceModel
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                onEditRequested: dialogHost.openEditDialog(root.selectedResourceModel)
-                onDeleteRequested: dialogHost.openDeleteDialog(root.selectedResourceModel)
+                ResourcesDetailSection {
+                    width: parent ? parent.width : 0
+                    detailPage: detailPageLoader.item
+                    resourceDetail: root.selectedResourceModel
+                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    onEditRequested: dialogHost.openEditDialog(root.selectedResourceModel)
+                    onDeleteRequested: dialogHost.openDeleteDialog(root.selectedResourceModel)
+                }
             }
         }
     }

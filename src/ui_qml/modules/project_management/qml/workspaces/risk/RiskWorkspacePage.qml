@@ -62,6 +62,9 @@ AppLayouts.WorkspaceFrame {
 
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
+    property bool _detailOpen: false
+    property int _pendingDetailSection: 0
+    readonly property var detailPage: detailPageLoader.item
 
     readonly property var _tableColumns: [
         { "key": "title",        "label": "Risk",     "flex": 2,   "sortable": true  },
@@ -145,6 +148,7 @@ AppLayouts.WorkspaceFrame {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
+            visible: !root._detailOpen
 
             AppWidgets.DataTable {
                 id: riskTable
@@ -163,7 +167,8 @@ AppLayouts.WorkspaceFrame {
                 }
                 onViewDetailRequested: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)
-                    detailPage.open = true
+                    root._pendingDetailSection = 0
+                    root._detailOpen = true
                 }
                 onSortRequested: function(key) {}
             }
@@ -243,29 +248,42 @@ AppLayouts.WorkspaceFrame {
             }
 
             // Full-page detail view
-            AppWidgets.SectionDetailPage {
-                id: detailPage
+            Loader {
+                id: detailPageLoader
                 anchors.fill: parent
-                title: root.selectedEntryModel.title || "Risk Details"
-                open: false
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                sections: ["Details", "Impact", "Response", "Links"]
+                active: root._detailOpen
+                visible: root._detailOpen && status === Loader.Ready
+                asynchronous: true
+                sourceComponent: _detailPageComponent
+            }
 
-                onBackRequested: detailPage.open = false
-                onEditRequested: dialogHost.openEditDialog(root.selectedEntryModel)
-                onDeleteRequested: dialogHost.openDeleteDialog(root.selectedEntryModel)
+            Component {
+                id: _detailPageComponent
 
-                RiskDetailPanel {
-                    width: parent.width
-                    detailPage: detailPage
-                    entryDetail: root.selectedEntryModel
-                    urgentModel: root.urgentModel
-                    selectedEntryId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
+                AppWidgets.SectionDetailPage {
+                    title: root.selectedEntryModel.title || "Risk Details"
+                    anchors.fill: parent
+                    open: true
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    sections: ["Details", "Impact", "Response", "Links"]
+                    Component.onCompleted: scrollToSection(root._pendingDetailSection)
+
+                    onBackRequested: root._detailOpen = false
                     onEditRequested: dialogHost.openEditDialog(root.selectedEntryModel)
                     onDeleteRequested: dialogHost.openDeleteDialog(root.selectedEntryModel)
-                    onUrgentEntrySelected: function(entryId) {
-                        if (root.workspaceController !== null) root.workspaceController.selectEntry(entryId)
+
+                    RiskDetailPanel {
+                        width: parent.width
+                        detailPage: detailPageLoader.item
+                        entryDetail: root.selectedEntryModel
+                        urgentModel: root.urgentModel
+                        selectedEntryId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
+                        isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                        onEditRequested: dialogHost.openEditDialog(root.selectedEntryModel)
+                        onDeleteRequested: dialogHost.openDeleteDialog(root.selectedEntryModel)
+                        onUrgentEntrySelected: function(entryId) {
+                            if (root.workspaceController !== null) root.workspaceController.selectEntry(entryId)
+                        }
                     }
                 }
             }

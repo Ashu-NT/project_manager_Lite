@@ -62,6 +62,9 @@ AppLayouts.WorkspaceFrame {
 
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
+    property bool _detailOpen: false
+    property int _pendingDetailSection: 0
+    readonly property var detailPage: detailPageLoader.item
 
     readonly property var _tableColumns: [
         { "key": "title",               "label": "Description", "flex": 2,   "sortable": true  },
@@ -99,6 +102,14 @@ AppLayouts.WorkspaceFrame {
         return 0
     }
 
+    function _openDetail(sectionIndex) {
+        root._pendingDetailSection = sectionIndex
+        root._detailOpen = true
+        if (detailPage) {
+            detailPage.scrollToSection(sectionIndex)
+        }
+    }
+
     FinancialsDialogHost {
         id: dialogHost
 
@@ -125,7 +136,7 @@ AppLayouts.WorkspaceFrame {
         Item {
             id: _listPage
             anchors.fill: parent
-            visible: !detailPage.open
+            visible: !root._detailOpen
 
             ColumnLayout {
                 anchors.fill: parent
@@ -222,11 +233,11 @@ AppLayouts.WorkspaceFrame {
                         }
                         onRowActivated: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.selectCost(rowId)
-                            detailPage.open = true
+                            root._openDetail(0)
                         }
                         onViewDetailRequested: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.selectCost(rowId)
-                            detailPage.open = true
+                            root._openDetail(0)
                         }
                         onRowSelectionToggled: function(rowId, selected) {
                             if (root.workspaceController !== null)
@@ -441,57 +452,70 @@ AppLayouts.WorkspaceFrame {
         }
 
         // ── Detail page (covers full area, z:20) ─────────────────────────
-        AppWidgets.SectionDetailPage {
-            id: detailPage
+        Loader {
+            id: detailPageLoader
             anchors.fill: parent
-            open: false
-            showHeader: false
-            showEdit: false
-            showDelete: false
-            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-            sections: [
-                "Budget",
-                { "label": "Actuals",     "count": (root.ledgerModel.items     || []).length },
-                { "label": "Forecast",    "count": (root.cashflowModel.items    || []).length },
-                { "label": "Commitments", "count": (root.sourceAnalyticsModel.items || []).length },
-                "Invoices",
-                "Purchase Orders",
-                "Earned Value",
-                "Activity"
-            ]
-            z: 20
+            active: root._detailOpen
+            visible: root._detailOpen && status === Loader.Ready
+            asynchronous: true
+            sourceComponent: _detailPageComponent
+        }
 
-            AppWidgets.ContextualActionToolbar {
-                width: parent ? parent.width : 0
-                showBack: true
-                title: root.selectedCostModel.title || "Cost Details"
-                subtitle: root.selectedCostModel.statusLabel || root.selectedCostModel.subtitle || ""
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: root._detailActions
+        Component {
+            id: _detailPageComponent
 
-                onBackRequested: detailPage.open = false
-                onActionTriggered: function(actionId) {
-                    if (actionId === "edit") {
-                        dialogHost.openEditDialog(root.selectedCostModel)
-                    } else if (actionId === "add") {
-                        dialogHost.openCreateDialog()
-                    } else if (actionId === "export") {
-                        if (root.workspaceController !== null) root.workspaceController.exportFinancials()
-                    } else if (actionId === "delete") {
-                        dialogHost.openDeleteDialog(root.selectedCostModel)
+            AppWidgets.SectionDetailPage {
+                open: true
+                anchors.fill: parent
+                showHeader: false
+                showEdit: false
+                showDelete: false
+                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                sections: [
+                    "Budget",
+                    { "label": "Actuals",     "count": (root.ledgerModel.items     || []).length },
+                    { "label": "Forecast",    "count": (root.cashflowModel.items    || []).length },
+                    { "label": "Commitments", "count": (root.sourceAnalyticsModel.items || []).length },
+                    "Invoices",
+                    "Purchase Orders",
+                    "Earned Value",
+                    "Activity"
+                ]
+                z: 20
+                Component.onCompleted: scrollToSection(root._pendingDetailSection)
+
+                AppWidgets.ContextualActionToolbar {
+                    width: parent ? parent.width : 0
+                    showBack: true
+                    title: root.selectedCostModel.title || "Cost Details"
+                    subtitle: root.selectedCostModel.statusLabel || root.selectedCostModel.subtitle || ""
+                    busy: root.workspaceController ? root.workspaceController.isBusy : false
+                    actions: root._detailActions
+
+                    onBackRequested: root._detailOpen = false
+                    onActionTriggered: function(actionId) {
+                        if (actionId === "edit") {
+                            dialogHost.openEditDialog(root.selectedCostModel)
+                        } else if (actionId === "add") {
+                            dialogHost.openCreateDialog()
+                        } else if (actionId === "export") {
+                            if (root.workspaceController !== null) root.workspaceController.exportFinancials()
+                        } else if (actionId === "delete") {
+                            dialogHost.openDeleteDialog(root.selectedCostModel)
+                        }
                     }
                 }
-            }
 
-            FinancialsDetailSection {
-                width: parent ? parent.width : 0
-                detailPage: detailPage
-                costDetail: root.selectedCostModel
-                cashflowModel: root.cashflowModel
-                ledgerModel: root.ledgerModel
-                sourceAnalyticsModel: root.sourceAnalyticsModel
-                overviewModel: root.overviewModel
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                FinancialsDetailSection {
+                    width: parent ? parent.width : 0
+                    detailPage: detailPageLoader.item
+                    costDetail: root.selectedCostModel
+                    cashflowModel: root.cashflowModel
+                    ledgerModel: root.ledgerModel
+                    sourceAnalyticsModel: root.sourceAnalyticsModel
+                    overviewModel: root.overviewModel
+                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                }
             }
         }
     }
