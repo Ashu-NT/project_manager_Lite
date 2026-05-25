@@ -220,6 +220,16 @@ Module {
         Property { name: "collaborationDocumentOptions"; type: "QVariantList"; isReadonly: true }
         Property { name: "collaborationComments"; type: "QVariantMap"; isReadonly: true }
         Property { name: "collaborationPresence"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "taskListController"; type: "QObject"; isReadonly: true }
+        Property { name: "assignmentsController"; type: "QObject"; isReadonly: true }
+        Property { name: "dependenciesController"; type: "QObject"; isReadonly: true }
+        Property { name: "timeController"; type: "QObject"; isReadonly: true }
+        Property { name: "collaborationController"; type: "QObject"; isReadonly: true }
+        Property { name: "isTimeSectionLoaded"; type: "bool"; isReadonly: true }
+        Property { name: "isCollaborationSectionLoaded"; type: "bool"; isReadonly: true }
+        Property { name: "taskPage"; type: "int"; isReadonly: true }
+        Property { name: "taskPageSize"; type: "int"; isReadonly: true }
+        Property { name: "taskTotalCount"; type: "int"; isReadonly: true }
         Method { name: "refresh" }
         Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
         Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
@@ -263,6 +273,11 @@ Module {
         Method { name: "deleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
         Method { name: "postTaskComment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "markTaskCollaborationRead"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
+        Method { name: "setTaskPage"; Parameter { name: "page"; type: "int" } }
+        Method { name: "setTaskPageSize"; Parameter { name: "pageSize"; type: "int" } }
+        Method { name: "activateTask"; Parameter { name: "taskId"; type: "QString" } }
+        Method { name: "loadSelectedTaskTime" }
+        Method { name: "loadSelectedTaskCollaboration" }
     }
 
     Component {

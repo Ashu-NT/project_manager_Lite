@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.common import (
@@ -38,6 +38,20 @@ class ProjectManagementProjectsWorkspaceController(
     projectTotalCountChanged = Signal()
     selectedProjectIdsChanged = Signal()
     selectedProjectCountChanged = Signal()
+    
+    projectTasksChanged = Signal()
+    projectResourcesChanged = Signal()
+    projectFinancialsChanged = Signal()
+    projectRisksChanged = Signal()
+    projectDocumentsChanged = Signal()
+    projectActivityChanged = Signal()
+
+    projectTasksLoadedChanged = Signal()
+    projectResourcesLoadedChanged = Signal()
+    projectFinancialsLoadedChanged = Signal()
+    projectRisksLoadedChanged = Signal()
+    projectDocumentsLoadedChanged = Signal()
+    projectActivityLoadedChanged = Signal()
 
     def __init__(
         self,
@@ -79,6 +93,21 @@ class ProjectManagementProjectsWorkspaceController(
         self._project_total_count = 0
         self._selected_project_ids: list[str] = []
         self._selected_project_count = 0
+        
+        self._project_tasks = {"title": "Tasks", "subtitle": "", "emptyState": "Open this section to load project tasks.", "items": []}
+        self._project_resources = {"title": "Resources", "subtitle": "", "emptyState": "Open this section to load project resources.", "items": []}
+        self._project_financials = {"title": "Financials", "subtitle": "", "emptyState": "Open this section to load project financials.", "items": []}
+        self._project_risks = {"title": "Risks", "subtitle": "", "emptyState": "Open this section to load project risks.", "items": []}
+        self._project_documents = {"title": "Documents", "subtitle": "", "emptyState": "Open this section to load project documents.", "items": []}
+        self._project_activity = {"title": "Activity", "subtitle": "", "emptyState": "Open this section to load project activity.", "items": []}
+
+        self._project_tasks_loaded_for_project_id = ""
+        self._project_resources_loaded_for_project_id = ""
+        self._project_financials_loaded_for_project_id = ""
+        self._project_risks_loaded_for_project_id = ""
+        self._project_documents_loaded_for_project_id = ""
+        self._project_activity_loaded_for_project_id = ""
+        
         self._bind_domain_events()
         self.refresh()
 
@@ -134,6 +163,30 @@ class ProjectManagementProjectsWorkspaceController(
     def selectedProjectCount(self) -> int:
         return self._selected_project_count
 
+    @Property("QVariantMap", notify=projectTasksChanged)
+    def projectTasks(self) -> dict[str, object]:
+        return self._project_tasks
+
+    @Property("QVariantMap", notify=projectResourcesChanged)
+    def projectResources(self) -> dict[str, object]:
+        return self._project_resources
+
+    @Property("QVariantMap", notify=projectFinancialsChanged)
+    def projectFinancials(self) -> dict[str, object]:
+        return self._project_financials
+
+    @Property("QVariantMap", notify=projectRisksChanged)
+    def projectRisks(self) -> dict[str, object]:
+        return self._project_risks
+
+    @Property("QVariantMap", notify=projectDocumentsChanged)
+    def projectDocuments(self) -> dict[str, object]:
+        return self._project_documents
+
+    @Property("QVariantMap", notify=projectActivityChanged)
+    def projectActivity(self) -> dict[str, object]:
+        return self._project_activity
+
     @Slot()
     def refresh(self) -> None:
         self._set_is_loading(True)
@@ -172,12 +225,7 @@ class ProjectManagementProjectsWorkspaceController(
                     ),
                 }
             )
-            self._set_selected_project_id(workspace_state.selected_project_id)
-            self._set_selected_project(
-                serialize_project_detail_view_model(
-                    workspace_state.selected_project_detail
-                )
-            )
+
             self._set_empty_state(workspace_state.empty_state)
             self._set_project_total_count(workspace_state.total_count)
             self._set_project_page(workspace_state.page)
@@ -214,8 +262,35 @@ class ProjectManagementProjectsWorkspaceController(
 
     @Slot(str)
     def activateProject(self, project_id: str) -> None:
-        self.selectProject(project_id)
-        QTimer.singleShot(0, self.refresh)
+        normalized_value = (project_id or "").strip()
+
+        if not normalized_value:
+            return
+
+        self._set_selected_project_id(normalized_value)
+        self._reset_project_lazy_sections()
+        
+        self._set_is_loading(True)
+
+        try:
+            self._set_error_message("")
+
+            workspace_state = self._projects_workspace_presenter.build_project_detail_state(
+                project_id=normalized_value,
+            )
+
+            self._set_selected_project_id(workspace_state.selected_project_id)
+            self._set_selected_project(
+                serialize_project_detail_view_model(
+                    workspace_state.selected_project_detail
+                )
+            )
+
+        except Exception as exc:
+            self._set_error_message(str(exc))
+
+        finally:
+            self._set_is_loading(False)
 
     @Slot(int)
     def setProjectPage(self, page: int) -> None:
@@ -352,12 +427,134 @@ class ProjectManagementProjectsWorkspaceController(
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot()
+    def loadProjectTasks(self) -> None:
+        if not self._selected_project_id:
+            return
+        if self._project_tasks_loaded_for_project_id == self._selected_project_id:
+            return
+
+        self._set_is_loading(True)
+        try:
+            ws = self._projects_workspace_presenter.build_project_tasks_state(
+                project_id=self._selected_project_id
+            )
+            self._set_project_tasks(self._serialize_project_section(ws.project_tasks))
+            self._project_tasks_loaded_for_project_id = self._selected_project_id
+        except Exception as exc:
+            self._set_error_message(str(exc))
+        finally:
+            self._set_is_loading(False)
+
+    @Slot()
+    def loadProjectResources(self) -> None:
+        if not self._selected_project_id:
+            return
+        if self._project_resources_loaded_for_project_id == self._selected_project_id:
+            return
+
+        self._set_is_loading(True)
+        try:
+            ws = self._projects_workspace_presenter.build_project_resources_state(
+                project_id=self._selected_project_id
+            )
+            self._set_project_resources(self._serialize_project_section(ws.project_resources))
+            self._project_resources_loaded_for_project_id = self._selected_project_id
+        except Exception as exc:
+            self._set_error_message(str(exc))
+        finally:
+            self._set_is_loading(False)
+
+    @Slot()
+    def loadProjectFinancials(self) -> None:
+        if not self._selected_project_id:
+            return
+        if self._project_financials_loaded_for_project_id == self._selected_project_id:
+            return
+
+        self._set_is_loading(True)
+        try:
+            ws = self._projects_workspace_presenter.build_project_financials_state(
+                project_id=self._selected_project_id
+            )
+            self._set_project_financials(self._serialize_project_section(ws.project_financials))
+            self._project_financials_loaded_for_project_id = self._selected_project_id
+        except Exception as exc:
+            self._set_error_message(str(exc))
+        finally:
+            self._set_is_loading(False)
+
+    @Slot()
+    def loadProjectRisks(self) -> None:
+        if not self._selected_project_id:
+            return
+        if self._project_risks_loaded_for_project_id == self._selected_project_id:
+            return
+
+        self._set_is_loading(True)
+        try:
+            ws = self._projects_workspace_presenter.build_project_risks_state(
+                project_id=self._selected_project_id
+            )
+            self._set_project_risks(self._serialize_project_section(ws.project_risks))
+            self._project_risks_loaded_for_project_id = self._selected_project_id
+        except Exception as exc:
+            self._set_error_message(str(exc))
+        finally:
+            self._set_is_loading(False)
+
+    @Slot()
+    def loadProjectDocuments(self) -> None:
+        if not self._selected_project_id:
+            return
+        if self._project_documents_loaded_for_project_id == self._selected_project_id:
+            return
+
+        self._set_is_loading(True)
+        try:
+            ws = self._projects_workspace_presenter.build_project_documents_state(
+                project_id=self._selected_project_id
+            )
+            self._set_project_documents(self._serialize_project_section(ws.project_documents))
+            self._project_documents_loaded_for_project_id = self._selected_project_id
+        except Exception as exc:
+            self._set_error_message(str(exc))
+        finally:
+            self._set_is_loading(False)
+
+    @Slot()
+    def loadProjectActivity(self) -> None:
+        if not self._selected_project_id:
+            return
+        if self._project_activity_loaded_for_project_id == self._selected_project_id:
+            return
+
+        self._set_is_loading(True)
+        try:
+            ws = self._projects_workspace_presenter.build_project_activity_state(
+                project_id=self._selected_project_id
+            )
+            self._set_project_activity(self._serialize_project_section(ws.project_activity))
+            self._project_activity_loaded_for_project_id = self._selected_project_id
+        except Exception as exc:
+            self._set_error_message(str(exc))
+        finally:
+            self._set_is_loading(False)
+
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(
             "project",
             "portfolio_entity",
             scope_code="project_management",
         )
+
+    def _reset_project_lazy_sections(self) -> None:
+        self._project_tasks_loaded_for_project_id = ""
+        self._project_resources_loaded_for_project_id = ""
+        self._project_financials_loaded_for_project_id = ""
+        self._project_risks_loaded_for_project_id = ""
+        self._project_documents_loaded_for_project_id = ""
+        self._project_activity_loaded_for_project_id = ""
 
     def _on_bulk_mutation_success(self) -> None:
         self._set_selected_project_ids([])
@@ -370,6 +567,15 @@ class ProjectManagementProjectsWorkspaceController(
     def _do_bulk_set_status(self, ids: list[str], status: str) -> None:
         for project_id in ids:
             self._projects_workspace_presenter.set_project_status(project_id, status)
+
+    @staticmethod
+    def _serialize_project_section(section) -> dict[str, object]:
+        return {
+            "title": section.title,
+            "subtitle": section.subtitle,
+            "emptyState": section.empty_state,
+            "items": serialize_project_record_view_models(section.items),
+        }
 
     def _set_overview(self, overview: dict[str, object]) -> None:
         if overview == self._overview:
@@ -439,7 +645,42 @@ class ProjectManagementProjectsWorkspaceController(
         self.selectedProjectIdsChanged.emit()
         if count != self._selected_project_count:
             self._selected_project_count = count
-            self.selectedProjectCountChanged.emit()
+            self.selectedProjectCountChanged.emit() 
 
+    def _set_project_tasks(self, value: dict[str, object]) -> None:
+        if value == self._project_tasks:
+            return
+        self._project_tasks = value
+        self.projectTasksChanged.emit()
+
+    def _set_project_resources(self, value: dict[str, object]) -> None:
+        if value == self._project_resources:
+            return
+        self._project_resources = value
+        self.projectResourcesChanged.emit()
+
+    def _set_project_financials(self, value: dict[str, object]) -> None:
+        if value == self._project_financials:
+            return
+        self._project_financials = value
+        self.projectFinancialsChanged.emit()
+
+    def _set_project_risks(self, value: dict[str, object]) -> None:
+        if value == self._project_risks:
+            return
+        self._project_risks = value
+        self.projectRisksChanged.emit()
+
+    def _set_project_documents(self, value: dict[str, object]) -> None:
+        if value == self._project_documents:
+            return
+        self._project_documents = value
+        self.projectDocumentsChanged.emit()
+
+    def _set_project_activity(self, value: dict[str, object]) -> None:
+        if value == self._project_activity:
+            return
+        self._project_activity = value
+        self.projectActivityChanged.emit()
 
 __all__ = ["ProjectManagementProjectsWorkspaceController"]

@@ -42,6 +42,9 @@ Component {
     Property { name: "collaborationDocumentOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "collaborationComments"; type: "QVariantMap"; isReadonly: true }
     Property { name: "collaborationPresence"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "taskPage"; type: "int"; isReadonly: true }
+    Property { name: "taskPageSize"; type: "int"; isReadonly: true }
+    Property { name: "taskTotalCount"; type: "int"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
@@ -84,5 +87,10 @@ Component {
     Method { name: "createDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "deleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
     Method { name: "postTaskComment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "activateTask"; Parameter { name: "task_id"; type: "QString" } }
+    Method { name: "setTaskPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setTaskPageSize"; Parameter { name: "page_size"; type: "int" } }
+    Method { name: "loadSelectedTaskTime"}
+    Method { name: "loadSelectedTaskCollaboration"}
     Method { name: "markTaskCollaborationRead"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
 }

@@ -22,6 +22,7 @@ Item {
     signal backRequested()
     signal editRequested()
     signal deleteRequested()
+    signal sectionChanged(int index)
 
     default property alias content: contentColumn.data
 
@@ -35,8 +36,14 @@ Item {
         if (index < 0 || index >= root.sections.length) {
             return
         }
+
+        if (_activeIdx === index) {
+            return
+        }
+
         _activeIdx = index
         contentFlickable.contentY = 0
+        root.sectionChanged(index)
     }
 
     property int _activeIdx: 0

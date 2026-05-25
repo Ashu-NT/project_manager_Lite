@@ -163,6 +163,17 @@ AppLayouts.WorkspaceFrame {
         }
         return 0
     }
+    function _loadLazyDetailSection(sectionIndex) {
+        if (root.workspaceController === null) {
+            return
+        }
+
+        if (sectionIndex === 3) {
+            root.workspaceController.loadSelectedTaskTime()
+        } else if (sectionIndex === 4) {
+            root.workspaceController.loadSelectedTaskCollaboration()
+        }
+    }
 
     TasksDialogHost {
         id: dialogHost
@@ -361,10 +372,12 @@ AppLayouts.WorkspaceFrame {
                             }
                         }
                         onRowActivated: function(rowId) {
+                            detailPage.scrollToSection(0)
+                            detailPage.open = true
+
                             if (root.workspaceController !== null) {
                                 root.workspaceController.activateTask(rowId)
                             }
-                            detailPage.open = true
                         }
                         onRowSelectionToggled: function(rowId, selected) {
                             if (root.workspaceController !== null) {
@@ -719,6 +732,10 @@ AppLayouts.WorkspaceFrame {
                 ]
             z: 20
 
+            onSectionChanged: function(index) {
+                root._loadLazyDetailSection(index)
+            }
+
             AppWidgets.ContextualActionToolbar {
                 width: parent ? parent.width : 0
                 showBack: true
@@ -727,7 +744,10 @@ AppLayouts.WorkspaceFrame {
                 busy: root.workspaceController ? root.workspaceController.isBusy : false
                 actions: root._detailActions
 
-                onBackRequested: detailPage.open = false
+                onBackRequested: {
+                    detailPage.open = false
+                    detailPage.scrollToSection(0)
+                }
                 onActionTriggered: function(actionId) {
                     if (actionId === "edit") {
                         dialogHost.openEditDialog(root.selectedTaskModel)

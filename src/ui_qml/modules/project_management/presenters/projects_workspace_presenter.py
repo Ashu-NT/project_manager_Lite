@@ -16,6 +16,7 @@ from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectDetailFieldViewModel,
     ProjectDetailViewModel,
     ProjectRecordViewModel,
+    ProjectSectionCollectionViewModel,
     ProjectStatusOptionViewModel,
 )
 
@@ -99,6 +100,147 @@ class ProjectProjectsWorkspacePresenter:
             total_count=_total_count,
             page=_page,
             page_size=_page_size,
+        )
+
+    def build_project_detail_state(
+        self,
+        *,
+        project_id: str,
+    ) -> ProjectCatalogWorkspaceViewModel:
+        normalized_project_id = (project_id or "").strip()
+
+        all_projects = self._desktop_api.list_projects()
+
+        selected_project = next(
+            (
+                project
+                for project in all_projects
+                if project.id == normalized_project_id
+            ),
+            None,
+        )
+
+        return ProjectCatalogWorkspaceViewModel(
+            overview=ProjectCatalogOverviewViewModel(
+                title="Projects",
+                subtitle="Project lifecycle, ownership, status, and list workflows.",
+                metrics=(),
+            ),
+            selected_project_id=normalized_project_id if selected_project is not None else "",
+            selected_project_detail=self._build_detail_view_model(selected_project),
+        )
+
+    def build_project_tasks_state(
+        self,
+        *,
+        project_id: str,
+    ) -> ProjectCatalogWorkspaceViewModel:
+        normalized_project_id = (project_id or "").strip()
+
+        return ProjectCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_project_id=normalized_project_id,
+            project_tasks=ProjectSectionCollectionViewModel(
+                title="Tasks",
+                subtitle="Tasks linked to this project.",
+                empty_state="Project task lazy loading is not connected yet.",
+                items=(),
+            ),
+        )
+
+
+    def build_project_resources_state(
+        self,
+        *,
+        project_id: str,
+    ) -> ProjectCatalogWorkspaceViewModel:
+        normalized_project_id = (project_id or "").strip()
+
+        return ProjectCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_project_id=normalized_project_id,
+            project_resources=ProjectSectionCollectionViewModel(
+                title="Resources",
+                subtitle="Resources assigned to this project.",
+                empty_state="Project resource lazy loading is not connected yet.",
+                items=(),
+            ),
+        )
+
+
+    def build_project_financials_state(
+        self,
+        *,
+        project_id: str,
+    ) -> ProjectCatalogWorkspaceViewModel:
+        normalized_project_id = (project_id or "").strip()
+
+        return ProjectCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_project_id=normalized_project_id,
+            project_financials=ProjectSectionCollectionViewModel(
+                title="Financials",
+                subtitle="Budget, cost, and financial tracking.",
+                empty_state="Project financial lazy loading is not connected yet.",
+                items=(),
+            ),
+        )
+
+
+    def build_project_risks_state(
+        self,
+        *,
+        project_id: str,
+    ) -> ProjectCatalogWorkspaceViewModel:
+        normalized_project_id = (project_id or "").strip()
+
+        return ProjectCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_project_id=normalized_project_id,
+            project_risks=ProjectSectionCollectionViewModel(
+                title="Risks",
+                subtitle="Risks and mitigation records.",
+                empty_state="Project risk lazy loading is not connected yet.",
+                items=(),
+            ),
+        )
+
+
+    def build_project_documents_state(
+        self,
+        *,
+        project_id: str,
+    ) -> ProjectCatalogWorkspaceViewModel:
+        normalized_project_id = (project_id or "").strip()
+
+        return ProjectCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_project_id=normalized_project_id,
+            project_documents=ProjectSectionCollectionViewModel(
+                title="Documents",
+                subtitle="Project documents and references.",
+                empty_state="Project document lazy loading is not connected yet.",
+                items=(),
+            ),
+        )
+
+
+    def build_project_activity_state(
+        self,
+        *,
+        project_id: str,
+    ) -> ProjectCatalogWorkspaceViewModel:
+        normalized_project_id = (project_id or "").strip()
+
+        return ProjectCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_project_id=normalized_project_id,
+            project_activity=ProjectSectionCollectionViewModel(
+                title="Activity",
+                subtitle="Recent project activity.",
+                empty_state="Project activity lazy loading is not connected yet.",
+                items=(),
+            ),
         )
 
     def create_project(self, payload: dict[str, Any]) -> None:
@@ -189,6 +331,14 @@ class ProjectProjectsWorkspacePresenter:
                     supporting_text="Closed delivery work.",
                 ),
             ),
+        )
+
+    @staticmethod
+    def _build_empty_overview() -> ProjectCatalogOverviewViewModel:
+        return ProjectCatalogOverviewViewModel(
+            title="Projects",
+            subtitle="Project lifecycle, ownership, status, and list workflows.",
+            metrics=(),
         )
 
     def _build_detail_view_model(self, project) -> ProjectDetailViewModel:

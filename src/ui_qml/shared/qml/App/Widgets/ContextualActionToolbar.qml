@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -39,7 +40,7 @@ Rectangle {
         // Back button
         Rectangle {
             visible: root.showBack
-            width: 26; height: 26; radius: 4
+            Layout.preferredWidth: 26; Layout.preferredHeight: 26; radius: 4
             color: _backMA.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
 
             AppIcons.AppIcon {
@@ -99,7 +100,7 @@ Rectangle {
         // Separator before create
         Rectangle {
             visible: root.createLabel.length > 0 && root.actions.length > 0
-            width: 1; height: 14
+            Layout.preferredWidth: 1; Layout.preferredHeight: 14
             color: Theme.AppTheme.divider
         }
 

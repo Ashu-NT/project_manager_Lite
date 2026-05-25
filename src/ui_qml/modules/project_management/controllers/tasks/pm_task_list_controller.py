@@ -103,6 +103,11 @@ class PMTaskListController(QObject):
             serialize_task_detail_view_model(workspace_state.selected_task_detail)
         )
 
+    def updateSelectedTaskOnly(self, workspace_state: object) -> None:
+        self._set_selected_task(
+            serialize_task_detail_view_model(workspace_state.selected_task_detail)
+        )
+
     # ── Properties ───────────────────────────────────────────────────
 
     @Property("QVariantMap", notify=overviewChanged)

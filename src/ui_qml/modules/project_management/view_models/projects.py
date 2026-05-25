@@ -56,7 +56,13 @@ class ProjectDetailViewModel:
     fields: tuple[ProjectDetailFieldViewModel, ...] = field(default_factory=tuple)
     state: dict[str, Any] = field(default_factory=dict)
 
-
+@dataclass(frozen=True)
+class ProjectSectionCollectionViewModel:
+    title: str
+    subtitle: str
+    empty_state: str = ""
+    items: tuple[ProjectRecordViewModel, ...] = field(default_factory=tuple)
+    
 @dataclass(frozen=True)
 class ProjectCatalogWorkspaceViewModel:
     overview: ProjectCatalogOverviewViewModel
@@ -72,6 +78,54 @@ class ProjectCatalogWorkspaceViewModel:
     total_count: int = 0
     page: int = 1
     page_size: int = 25
+    
+    project_tasks: ProjectSectionCollectionViewModel = field(
+    default_factory=lambda: ProjectSectionCollectionViewModel(
+        title="Tasks",
+        subtitle="Tasks linked to this project.",
+        empty_state="Open this section to load project tasks.",
+    )
+)
+
+    project_resources: ProjectSectionCollectionViewModel = field(
+        default_factory=lambda: ProjectSectionCollectionViewModel(
+            title="Resources",
+            subtitle="Resources assigned to this project.",
+            empty_state="Open this section to load project resources.",
+        )
+    )
+
+    project_financials: ProjectSectionCollectionViewModel = field(
+        default_factory=lambda: ProjectSectionCollectionViewModel(
+            title="Financials",
+            subtitle="Budget, cost, and financial tracking.",
+            empty_state="Open this section to load project financials.",
+        )
+    )
+
+    project_risks: ProjectSectionCollectionViewModel = field(
+        default_factory=lambda: ProjectSectionCollectionViewModel(
+            title="Risks",
+            subtitle="Risks and mitigation records.",
+            empty_state="Open this section to load project risks.",
+        )
+    )
+
+    project_documents: ProjectSectionCollectionViewModel = field(
+        default_factory=lambda: ProjectSectionCollectionViewModel(
+            title="Documents",
+            subtitle="Project documents and references.",
+            empty_state="Open this section to load project documents.",
+        )
+    )
+
+    project_activity: ProjectSectionCollectionViewModel = field(
+        default_factory=lambda: ProjectSectionCollectionViewModel(
+            title="Activity",
+            subtitle="Recent project activity.",
+            empty_state="Open this section to load project activity.",
+        )
+    )
 
 
 __all__ = [
@@ -82,4 +136,5 @@ __all__ = [
     "ProjectDetailViewModel",
     "ProjectRecordViewModel",
     "ProjectStatusOptionViewModel",
+    "ProjectSectionCollectionViewModel",
 ]

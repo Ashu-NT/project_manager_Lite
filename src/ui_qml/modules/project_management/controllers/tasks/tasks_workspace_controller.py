@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.tasks.pm_assignment_controller import (
@@ -71,12 +71,14 @@ class ProjectManagementTasksWorkspaceController(
     selectedTimePeriodStartChanged = Signal()
     timeAssignmentSummaryChanged = Signal()
     timeEntriesChanged = Signal()
+    timeSectionLoadedChanged = Signal()
     selectedTimeEntryIdChanged = Signal()
     selectedTimeEntryChanged = Signal()
     collaborationMentionOptionsChanged = Signal()
     collaborationDocumentOptionsChanged = Signal()
     collaborationCommentsChanged = Signal()
     collaborationPresenceChanged = Signal()
+    collaborationSectionLoadedChanged = Signal()
 
     def __init__(
         self,
@@ -108,6 +110,8 @@ class ProjectManagementTasksWorkspaceController(
         self._selected_assignment_id = ""
         self._selected_time_period_start = ""
         self._selected_time_entry_id = ""
+        self._time_section_loaded_for_task_id  = ""
+        self._collaboration_section_loaded_for_task_id = ""
         # ── Saved views ────────────────────────────────────────────────
         self._task_view_store = task_view_store or ProjectManagementTaskViewStore()
         self._saved_task_views: dict[str, dict[str, object]] = (
@@ -357,6 +361,20 @@ class ProjectManagementTasksWorkspaceController(
     def collaborationPresence(self) -> dict[str, object]:
         return self._collab_ctrl.collaborationPresence
 
+    @Property(bool, notify=timeSectionLoadedChanged)
+    def isTimeSectionLoaded(self) -> bool:
+        return (
+            bool(self._selected_task_id)
+            and self._time_section_loaded_for_task_id == self._selected_task_id
+        )
+
+    @Property(bool, notify=collaborationSectionLoadedChanged)
+    def isCollaborationSectionLoaded(self) -> bool:
+        return (
+            bool(self._selected_task_id)
+            and self._collaboration_section_loaded_for_task_id == self._selected_task_id
+        )
+
     # ── Pagination properties ─────────────────────────────────────────
 
     @Property(int, notify=taskPageChanged)
@@ -416,20 +434,12 @@ class ProjectManagementTasksWorkspaceController(
                 page_size=self._task_page_size,
             )
             self._task_list._update(ws)
-            self._assignments_ctrl._update(ws)
-            self._dependencies_ctrl._update(ws)
-            self._time_ctrl._update(ws)
-            self._collab_ctrl._update(ws)
-            self._collab_ctrl.sync_review_presence(ws.selected_task_id)
             self._set_selected_project_id(ws.selected_project_id)
             self._set_selected_status_filter(ws.selected_status_filter)
             self._set_selected_priority_filter(ws.selected_priority_filter)
             self._set_selected_schedule_filter(ws.selected_schedule_filter)
             self._set_search_text(ws.search_text)
-            self._set_selected_task_id(ws.selected_task_id)
-            self._set_selected_assignment_id(ws.selected_assignment_id)
-            self._set_selected_time_period_start(ws.selected_time_period_start)
-            self._set_selected_time_entry_id(ws.selected_time_entry_id)
+            
             self._set_empty_state(ws.empty_state)
             self._set_task_total_count(ws.total_count)
             self._set_task_page(ws.page)
@@ -521,6 +531,11 @@ class ProjectManagementTasksWorkspaceController(
         self._set_selected_assignment_id("")
         self._set_selected_time_period_start("")
         self._set_selected_time_entry_id("")
+        self._set_time_section_loaded_for_task_id("")
+        self._time_ctrl._update(
+            self._tasks_workspace_presenter.build_empty_task_time_state()
+        )
+        self._set_collaboration_section_loaded_for_task_id("")
 
     @Slot(int)
     def setTaskPage(self, page: int) -> None:
@@ -541,8 +556,117 @@ class ProjectManagementTasksWorkspaceController(
 
     @Slot(str)
     def activateTask(self, task_id: str) -> None:
-        self.selectTask(task_id)
-        QTimer.singleShot(0, self.refresh)
+        normalized = (task_id or "").strip()
+
+        if not normalized:
+            return
+
+        self._set_selected_task_id(normalized)
+        self._set_selected_assignment_id("")
+        self._set_selected_time_period_start("")
+        self._set_selected_time_entry_id("")
+        
+        self._set_time_section_loaded_for_task_id("")
+        self._time_ctrl._update(
+            self._tasks_workspace_presenter.build_empty_task_time_state()
+        )
+        self._set_collaboration_section_loaded_for_task_id("")
+
+        self._set_is_loading(True)
+
+        try:
+            self._set_error_message("")
+
+            ws = self._tasks_workspace_presenter.build_task_detail_state(
+                task_id=normalized,
+                project_id=self._selected_project_id or None,
+            )
+            self._task_list.updateSelectedTaskOnly(ws)
+            self._assignments_ctrl._update(ws)
+            self._dependencies_ctrl._update(ws)
+
+            self._set_selected_task_id(ws.selected_task_id)
+
+            # Pick the first assignment for this task, if available.
+            assignment_items = getattr(ws.assignments, "items", ()) or ()
+            first_assignment_id = ""
+
+            if assignment_items:
+                first_assignment = assignment_items[0]
+                first_assignment_id = str(getattr(first_assignment, "id", "") or "")
+
+            self._set_selected_assignment_id(first_assignment_id)
+            self._set_selected_time_period_start("")
+            self._set_selected_time_entry_id("")
+
+        except Exception as exc:
+            self._set_error_message(str(exc))
+
+        finally:
+            self._set_is_loading(False)
+
+    @Slot()
+    def loadSelectedTaskTime(self) -> None:
+        if not self._selected_task_id:
+            return
+
+        if self.isTimeSectionLoaded:
+            return
+
+        self._set_is_loading(True)
+
+        try:
+            self._set_error_message("")
+
+            ws = self._tasks_workspace_presenter.build_task_time_state(
+                task_id=self._selected_task_id,
+                selected_assignment_id=self._selected_assignment_id or None,
+                selected_time_period_start=self._selected_time_period_start,
+                selected_time_entry_id=self._selected_time_entry_id or None,
+            )
+
+            self._time_ctrl._update(ws)
+
+            self._set_selected_assignment_id(ws.selected_assignment_id)
+            self._set_selected_time_period_start(ws.selected_time_period_start)
+            self._set_selected_time_entry_id(ws.selected_time_entry_id)
+
+            self._set_time_section_loaded_for_task_id(self._selected_task_id)
+
+        except Exception as exc:
+            self._set_error_message(str(exc))
+
+        finally:
+            self._set_is_loading(False)
+        
+    @Slot()
+    def loadSelectedTaskCollaboration(self) -> None:
+        if not self._selected_task_id:
+            return
+
+        if self.isCollaborationSectionLoaded:
+            return
+
+        self._set_is_loading(True)
+
+        try:
+            self._set_error_message("")
+
+            ws = self._tasks_workspace_presenter.build_task_collaboration_state(
+                task_id=self._selected_task_id,
+            )
+
+            self._collab_ctrl._update(ws)
+
+            self._set_collaboration_section_loaded_for_task_id(
+                self._selected_task_id
+            )
+
+        except Exception as exc:
+            self._set_error_message(str(exc))
+
+        finally:
+            self._set_is_loading(False)
 
     @Slot(str, bool)
     def setTaskBulkSelection(self, task_id: str, selected: bool) -> None:
@@ -561,28 +685,37 @@ class ProjectManagementTasksWorkspaceController(
         normalized = (assignment_id or "").strip()
         if normalized == self._selected_assignment_id:
             return
+
         self._set_selected_assignment_id(normalized)
         self._set_selected_time_period_start("")
         self._set_selected_time_entry_id("")
-        self.refresh()
+        self._set_time_section_loaded_for_task_id("")
+
+        if normalized:
+            self.loadSelectedTaskTime()
 
     @Slot(str)
     def selectTimePeriod(self, period_start: str) -> None:
         normalized = (period_start or "").strip()
         if normalized == self._selected_time_period_start:
             return
+
         self._set_selected_time_period_start(normalized)
         self._set_selected_time_entry_id("")
-        self.refresh()
+        self._set_time_section_loaded_for_task_id("")
+
+        self.loadSelectedTaskTime()
 
     @Slot(str)
     def selectTimeEntry(self, entry_id: str) -> None:
         normalized = (entry_id or "").strip()
         if normalized == self._selected_time_entry_id:
             return
-        self._set_selected_time_entry_id(normalized)
-        self.refresh()
 
+        self._set_selected_time_entry_id(normalized)
+        self._set_time_section_loaded_for_task_id("")
+
+        self.loadSelectedTaskTime()
     # ── Saved views ───────────────────────────────────────────────────
 
     @Slot(str)
@@ -812,6 +945,20 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._selected_time_entry_id = v
         self.selectedTimeEntryIdChanged.emit()
+
+    def _set_time_section_loaded_for_task_id(self, task_id: str) -> None:
+        normalized = (task_id or "").strip()
+        if normalized == self._time_section_loaded_for_task_id:
+            return
+        self._time_section_loaded_for_task_id = normalized
+        self.timeSectionLoadedChanged.emit()
+
+    def _set_collaboration_section_loaded_for_task_id(self, task_id: str) -> None:
+        normalized = (task_id or "").strip()
+        if normalized == self._collaboration_section_loaded_for_task_id:
+            return
+        self._collaboration_section_loaded_for_task_id = normalized
+        self.collaborationSectionLoadedChanged.emit()
 
     # ── Saved view helpers ────────────────────────────────────────────
 

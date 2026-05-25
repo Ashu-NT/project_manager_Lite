@@ -1,0 +1,1111 @@
+[
+    {
+        "classes": [
+            {
+                "className": "ProjectManagementTasksWorkspaceController",
+                "qualifiedClassName": "ProjectManagementTasksWorkspaceController",
+                "object": false,
+                "superClasses": [
+                    {
+                        "access": "public",
+                        "name": "ProjectManagementWorkspaceControllerBase"
+                    }
+                ],
+                "classInfos": [
+                    {
+                        "name": "QML.Element",
+                        "value": "auto"
+                    },
+                    {
+                        "name": "QML.Creatable",
+                        "value": "false"
+                    },
+                    {
+                        "name": "QML.UncreatableReason",
+                        "value": "Project management workspace controllers are provided by the shell runtime."
+                    }
+                ],
+                "properties": [
+                    {
+                        "name": "taskListController",
+                        "type": "QObject",
+                        "index": 0,
+                        "read": "taskListController"
+                    },
+                    {
+                        "name": "assignmentsController",
+                        "type": "QObject",
+                        "index": 1,
+                        "read": "assignmentsController"
+                    },
+                    {
+                        "name": "dependenciesController",
+                        "type": "QObject",
+                        "index": 2,
+                        "read": "dependenciesController"
+                    },
+                    {
+                        "name": "timeController",
+                        "type": "QObject",
+                        "index": 3,
+                        "read": "timeController"
+                    },
+                    {
+                        "name": "collaborationController",
+                        "type": "QObject",
+                        "index": 4,
+                        "read": "collaborationController"
+                    },
+                    {
+                        "name": "overview",
+                        "type": "QVariantMap",
+                        "index": 5,
+                        "read": "overview",
+                        "notify": "overviewChanged"
+                    },
+                    {
+                        "name": "projectOptions",
+                        "type": "QVariantList",
+                        "index": 6,
+                        "read": "projectOptions",
+                        "notify": "projectOptionsChanged"
+                    },
+                    {
+                        "name": "selectedProjectId",
+                        "type": "QString",
+                        "index": 7,
+                        "read": "selectedProjectId",
+                        "notify": "selectedProjectIdChanged"
+                    },
+                    {
+                        "name": "statusOptions",
+                        "type": "QVariantList",
+                        "index": 8,
+                        "read": "statusOptions",
+                        "notify": "statusOptionsChanged"
+                    },
+                    {
+                        "name": "bulkStatusOptions",
+                        "type": "QVariantList",
+                        "index": 9,
+                        "read": "bulkStatusOptions",
+                        "notify": "bulkStatusOptionsChanged"
+                    },
+                    {
+                        "name": "priorityOptions",
+                        "type": "QVariantList",
+                        "index": 10,
+                        "read": "priorityOptions",
+                        "notify": "priorityOptionsChanged"
+                    },
+                    {
+                        "name": "scheduleOptions",
+                        "type": "QVariantList",
+                        "index": 11,
+                        "read": "scheduleOptions",
+                        "notify": "scheduleOptionsChanged"
+                    },
+                    {
+                        "name": "taskViewOptions",
+                        "type": "QVariantList",
+                        "index": 12,
+                        "read": "taskViewOptions",
+                        "notify": "taskViewOptionsChanged"
+                    },
+                    {
+                        "name": "selectedStatusFilter",
+                        "type": "QString",
+                        "index": 13,
+                        "read": "selectedStatusFilter",
+                        "notify": "selectedStatusFilterChanged"
+                    },
+                    {
+                        "name": "selectedPriorityFilter",
+                        "type": "QString",
+                        "index": 14,
+                        "read": "selectedPriorityFilter",
+                        "notify": "selectedPriorityFilterChanged"
+                    },
+                    {
+                        "name": "selectedScheduleFilter",
+                        "type": "QString",
+                        "index": 15,
+                        "read": "selectedScheduleFilter",
+                        "notify": "selectedScheduleFilterChanged"
+                    },
+                    {
+                        "name": "selectedTaskViewName",
+                        "type": "QString",
+                        "index": 16,
+                        "read": "selectedTaskViewName",
+                        "notify": "selectedTaskViewNameChanged"
+                    },
+                    {
+                        "name": "searchText",
+                        "type": "QString",
+                        "index": 17,
+                        "read": "searchText",
+                        "notify": "searchTextChanged"
+                    },
+                    {
+                        "name": "tasks",
+                        "type": "QVariantMap",
+                        "index": 18,
+                        "read": "tasks",
+                        "notify": "tasksChanged"
+                    },
+                    {
+                        "name": "selectedTask",
+                        "type": "QVariantMap",
+                        "index": 19,
+                        "read": "selectedTask",
+                        "notify": "selectedTaskChanged"
+                    },
+                    {
+                        "name": "selectedTaskId",
+                        "type": "QString",
+                        "index": 20,
+                        "read": "selectedTaskId",
+                        "notify": "selectedTaskIdChanged"
+                    },
+                    {
+                        "name": "selectedTaskIds",
+                        "type": "QVariantList",
+                        "index": 21,
+                        "read": "selectedTaskIds",
+                        "notify": "selectedTaskIdsChanged"
+                    },
+                    {
+                        "name": "selectedTaskCount",
+                        "type": "int",
+                        "index": 22,
+                        "read": "selectedTaskCount",
+                        "notify": "selectedTaskCountChanged"
+                    },
+                    {
+                        "name": "selectedTaskDoneCount",
+                        "type": "int",
+                        "index": 23,
+                        "read": "selectedTaskDoneCount",
+                        "notify": "selectedTaskDoneCountChanged"
+                    },
+                    {
+                        "name": "canUndoTaskAction",
+                        "type": "bool",
+                        "index": 24,
+                        "read": "canUndoTaskAction",
+                        "notify": "taskActionHistoryChanged"
+                    },
+                    {
+                        "name": "canRedoTaskAction",
+                        "type": "bool",
+                        "index": 25,
+                        "read": "canRedoTaskAction",
+                        "notify": "taskActionHistoryChanged"
+                    },
+                    {
+                        "name": "nextUndoLabel",
+                        "type": "QString",
+                        "index": 26,
+                        "read": "nextUndoLabel",
+                        "notify": "taskActionHistoryChanged"
+                    },
+                    {
+                        "name": "nextRedoLabel",
+                        "type": "QString",
+                        "index": 27,
+                        "read": "nextRedoLabel",
+                        "notify": "taskActionHistoryChanged"
+                    },
+                    {
+                        "name": "assignmentOptions",
+                        "type": "QVariantList",
+                        "index": 28,
+                        "read": "assignmentOptions",
+                        "notify": "assignmentOptionsChanged"
+                    },
+                    {
+                        "name": "selectedAssignmentId",
+                        "type": "QString",
+                        "index": 29,
+                        "read": "selectedAssignmentId",
+                        "notify": "selectedAssignmentIdChanged"
+                    },
+                    {
+                        "name": "dependencyTaskOptions",
+                        "type": "QVariantList",
+                        "index": 30,
+                        "read": "dependencyTaskOptions",
+                        "notify": "dependencyTaskOptionsChanged"
+                    },
+                    {
+                        "name": "dependencyTypeOptions",
+                        "type": "QVariantList",
+                        "index": 31,
+                        "read": "dependencyTypeOptions",
+                        "notify": "dependencyTypeOptionsChanged"
+                    },
+                    {
+                        "name": "assignments",
+                        "type": "QVariantMap",
+                        "index": 32,
+                        "read": "assignments",
+                        "notify": "assignmentsChanged"
+                    },
+                    {
+                        "name": "dependencies",
+                        "type": "QVariantMap",
+                        "index": 33,
+                        "read": "dependencies",
+                        "notify": "dependenciesChanged"
+                    },
+                    {
+                        "name": "timePeriodOptions",
+                        "type": "QVariantList",
+                        "index": 34,
+                        "read": "timePeriodOptions",
+                        "notify": "timePeriodOptionsChanged"
+                    },
+                    {
+                        "name": "selectedTimePeriodStart",
+                        "type": "QString",
+                        "index": 35,
+                        "read": "selectedTimePeriodStart",
+                        "notify": "selectedTimePeriodStartChanged"
+                    },
+                    {
+                        "name": "timeAssignmentSummary",
+                        "type": "QVariantMap",
+                        "index": 36,
+                        "read": "timeAssignmentSummary",
+                        "notify": "timeAssignmentSummaryChanged"
+                    },
+                    {
+                        "name": "timeEntries",
+                        "type": "QVariantMap",
+                        "index": 37,
+                        "read": "timeEntries",
+                        "notify": "timeEntriesChanged"
+                    },
+                    {
+                        "name": "selectedTimeEntryId",
+                        "type": "QString",
+                        "index": 38,
+                        "read": "selectedTimeEntryId",
+                        "notify": "selectedTimeEntryIdChanged"
+                    },
+                    {
+                        "name": "selectedTimeEntry",
+                        "type": "QVariantMap",
+                        "index": 39,
+                        "read": "selectedTimeEntry",
+                        "notify": "selectedTimeEntryChanged"
+                    },
+                    {
+                        "name": "collaborationMentionOptions",
+                        "type": "QVariantList",
+                        "index": 40,
+                        "read": "collaborationMentionOptions",
+                        "notify": "collaborationMentionOptionsChanged"
+                    },
+                    {
+                        "name": "collaborationDocumentOptions",
+                        "type": "QVariantList",
+                        "index": 41,
+                        "read": "collaborationDocumentOptions",
+                        "notify": "collaborationDocumentOptionsChanged"
+                    },
+                    {
+                        "name": "collaborationComments",
+                        "type": "QVariantMap",
+                        "index": 42,
+                        "read": "collaborationComments",
+                        "notify": "collaborationCommentsChanged"
+                    },
+                    {
+                        "name": "collaborationPresence",
+                        "type": "QVariantMap",
+                        "index": 43,
+                        "read": "collaborationPresence",
+                        "notify": "collaborationPresenceChanged"
+                    },
+                    {
+                        "name": "isTimeSectionLoaded",
+                        "type": "bool",
+                        "index": 44,
+                        "read": "isTimeSectionLoaded",
+                        "notify": "timeSectionLoadedChanged"
+                    },
+                    {
+                        "name": "isCollaborationSectionLoaded",
+                        "type": "bool",
+                        "index": 45,
+                        "read": "isCollaborationSectionLoaded",
+                        "notify": "collaborationSectionLoadedChanged"
+                    },
+                    {
+                        "name": "taskPage",
+                        "type": "int",
+                        "index": 46,
+                        "read": "taskPage",
+                        "notify": "taskPageChanged"
+                    },
+                    {
+                        "name": "taskPageSize",
+                        "type": "int",
+                        "index": 47,
+                        "read": "taskPageSize",
+                        "notify": "taskPageSizeChanged"
+                    },
+                    {
+                        "name": "taskTotalCount",
+                        "type": "int",
+                        "index": 48,
+                        "read": "taskTotalCount",
+                        "notify": "taskTotalCountChanged"
+                    }
+                ],
+                "signals": [
+                    {
+                        "access": "public",
+                        "name": "taskPageChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "taskPageSizeChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "taskTotalCountChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "overviewChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "projectOptionsChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectedProjectIdChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "statusOptionsChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "bulkStatusOptionsChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "priorityOptionsChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "scheduleOptionsChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "taskViewOptionsChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectedStatusFilterChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectedPriorityFilterChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectedScheduleFilterChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectedTaskViewNameChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "searchTextChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "tasksChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectedTaskChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectedTaskIdChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectedTaskIdsChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectedTaskCountChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectedTaskDoneCountChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "taskActionHistoryChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "assignmentOptionsChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectedAssignmentIdChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "dependencyTaskOptionsChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "dependencyTypeOptionsChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "assignmentsChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "dependenciesChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "timePeriodOptionsChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectedTimePeriodStartChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "timeAssignmentSummaryChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "timeEntriesChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "timeSectionLoadedChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectedTimeEntryIdChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectedTimeEntryChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "collaborationMentionOptionsChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "collaborationDocumentOptionsChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "collaborationCommentsChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "collaborationPresenceChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "collaborationSectionLoadedChanged",
+                        "arguments": [],
+                        "returnType": "void"
+                    }
+                ],
+                "slots": [
+                    {
+                        "access": "public",
+                        "name": "refresh",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectProject",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "setSearchText",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "setStatusFilter",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "setPriorityFilter",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "setScheduleFilter",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "clearFilters",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectTask",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "setTaskPage",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "int"
+                            }
+                        ],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "setTaskPageSize",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "int"
+                            }
+                        ],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "activateTask",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "loadSelectedTaskTime",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "loadSelectedTaskCollaboration",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "setTaskBulkSelection",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            },
+                            {
+                                "name": "a2",
+                                "type": "bool"
+                            }
+                        ],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectVisibleTasks",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "clearTaskBulkSelection",
+                        "arguments": [],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectAssignment",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectTimePeriod",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectTimeEntry",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "selectTaskView",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "saveCurrentTaskView",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "applySelectedTaskView",
+                        "arguments": [],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "deleteSelectedTaskView",
+                        "arguments": [],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "exportTasks",
+                        "arguments": [],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "createTask",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QVariantMap"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "updateTask",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QVariantMap"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "updateProgress",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QVariantMap"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "deleteTask",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "applyBulkStatus",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QVariantMap"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "bulkDeleteTasks",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QVariantList"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "undoLastTaskAction",
+                        "arguments": [],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "redoLastTaskAction",
+                        "arguments": [],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "createAssignment",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QVariantMap"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "updateAssignmentAllocation",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QVariantMap"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "setAssignmentHours",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QVariantMap"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "deleteAssignment",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "createDependency",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QVariantMap"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "deleteDependency",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "addTaskTimeEntry",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QVariantMap"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "updateTaskTimeEntry",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QVariantMap"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "deleteTaskTimeEntry",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "submitTaskPeriod",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QVariantMap"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "lockTaskPeriod",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QVariantMap"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "unlockTaskPeriod",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QVariantMap"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "postTaskComment",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QVariantMap"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "markTaskCollaborationRead",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "beginTaskPresence",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            },
+                            {
+                                "name": "a2",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    },
+                    {
+                        "access": "public",
+                        "name": "endTaskPresence",
+                        "arguments": [
+                            {
+                                "name": "a1",
+                                "type": "QString"
+                            }
+                        ],
+                        "returnType": "QVariantMap"
+                    }
+                ]
+            }
+        ],
+        "outputRevision": 68,
+        "QML_IMPORT_NAME": "ProjectManagement.Controllers",
+        "QML_IMPORT_MAJOR_VERSION": 1,
+        "QML_IMPORT_MINOR_VERSION": 0,
+        "QT_MODULES": [
+            "QtCore",
+            "QtQml"
+        ],
+        "inputFile": "C:/Users/ashuf/Desktop/Projects/project_mangement_app/src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py"
+    }
+]

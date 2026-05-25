@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
@@ -49,6 +50,29 @@ from src.ui_qml.modules.project_management.view_models.timesheets import (
     TimesheetRecordViewModel,
 )
 
+@dataclass(frozen=True)
+class _TaskFilterOptions:
+    project_options: tuple[TaskSelectorOptionViewModel, ...]
+    status_options: tuple[TaskSelectorOptionViewModel, ...]
+    bulk_status_options: tuple[TaskSelectorOptionViewModel, ...]
+    priority_options: tuple[TaskSelectorOptionViewModel, ...]
+    schedule_options: tuple[TaskSelectorOptionViewModel, ...]
+
+
+@dataclass(frozen=True)
+class _NormalizedTaskFilters:
+    search_text: str
+    status_filter: str
+    priority_filter: str
+    schedule_filter: str
+
+
+@dataclass(frozen=True)
+class _PagedTaskResult:
+    items: tuple[Any, ...]
+    total_count: int
+    page: int
+    page_size: int
 
 class ProjectTasksWorkspacePresenter:
     def __init__(
@@ -69,176 +93,157 @@ class ProjectTasksWorkspacePresenter:
         )
 
     def build_workspace_state(
+            self,
+            *,
+            project_id: str | None = None,
+            search_text: str = "",
+            status_filter: str = "all",
+            priority_filter: str = "all",
+            schedule_filter: str = "all",
+            selected_task_id: str | None = None,
+            selected_assignment_id: str | None = None,
+            selected_time_period_start: str = "",
+            selected_time_entry_id: str | None = None,
+            page: int = 1,
+            page_size: int = 25,
+        ) -> TaskCatalogWorkspaceViewModel:
+            """
+            Build the task list workspace.
+
+            This method intentionally avoids loading heavy selected-task sections:
+            assignments, dependencies, timesheets, and collaboration.
+
+            Detail-page data should be loaded through build_task_detail_state().
+            Time data should be loaded through build_task_time_state().
+            Collaboration data should be loaded through build_task_collaboration_state().
+            """
+            options = self._build_task_filter_options()
+
+            resolved_project_id = self._resolve_project_id(
+                project_id,
+                options.project_options,
+            )
+
+            filters = self._normalize_workspace_filters(
+                search_text=search_text,
+                status_filter=status_filter,
+                priority_filter=priority_filter,
+                schedule_filter=schedule_filter,
+                status_options=options.status_options,
+                priority_options=options.priority_options,
+                schedule_options=options.schedule_options,
+            )
+
+            all_tasks = self._load_tasks_for_project(resolved_project_id)
+            filtered_tasks = self._filter_tasks(all_tasks, filters)
+
+            paged_tasks = self._paginate_tasks(
+                filtered_tasks,
+                page=page,
+                page_size=page_size,
+            )
+
+            resolved_task_id = self._resolve_task_id(
+                selected_task_id,
+                filtered_tasks,
+            )
+
+            selected_task = self._find_task(filtered_tasks, resolved_task_id)
+
+            return TaskCatalogWorkspaceViewModel(
+                overview=self._build_overview(
+                    all_tasks=all_tasks,
+                    filtered_tasks=filtered_tasks,
+                    collaboration_workspace_snapshot=None,
+                    collaboration_snapshot=None,
+                    has_selected_task=bool(resolved_task_id),
+                ),
+                project_options=options.project_options,
+                selected_project_id=resolved_project_id,
+                status_options=options.status_options,
+                bulk_status_options=options.bulk_status_options,
+                priority_options=options.priority_options,
+                schedule_options=options.schedule_options,
+                selected_status_filter=filters.status_filter,
+                selected_priority_filter=filters.priority_filter,
+                selected_schedule_filter=filters.schedule_filter,
+                search_text=filters.search_text,
+                tasks=tuple(
+                    self._to_task_record_view_model(task)
+                    for task in paged_tasks.items
+                ),
+                total_count=paged_tasks.total_count,
+                page=paged_tasks.page,
+                page_size=paged_tasks.page_size,
+                selected_task_id=resolved_task_id,
+                selected_task_detail=self._build_detail_view_model(
+                    selected_task,
+                    assignment_count=0,
+                    dependency_count=0,
+                ),
+                empty_state=self._build_empty_state(
+                    project_options=options.project_options,
+                    all_tasks=all_tasks,
+                    filtered_tasks=filtered_tasks,
+                    search_text=filters.search_text,
+                    status_filter=filters.status_filter,
+                    priority_filter=filters.priority_filter,
+                    schedule_filter=filters.schedule_filter,
+                ),
+            )
+
+    def build_task_detail_state(
         self,
         *,
+        task_id: str,
         project_id: str | None = None,
-        search_text: str = "",
-        status_filter: str = "all",
-        priority_filter: str = "all",
-        schedule_filter: str = "all",
-        selected_task_id: str | None = None,
-        selected_assignment_id: str | None = None,
-        selected_time_period_start: str = "",
-        selected_time_entry_id: str | None = None,
-        page: int = 1,
-        page_size: int = 25,
     ) -> TaskCatalogWorkspaceViewModel:
-        project_options = (
-            TaskSelectorOptionViewModel(value="", label="All Projects"),
-            *(
-                TaskSelectorOptionViewModel(value=option.value, label=option.label)
-                for option in self._desktop_api.list_projects()
-            ),
+        """
+        Build lightweight detail state for one selected task.
+
+        Loads only:
+        - selected task detail
+        - assignments
+        - dependencies
+
+        Does not load:
+        - timesheets
+        - collaboration comments
+        - collaboration presence
+        - global collaboration snapshot
+        """
+        normalized_task_id = (task_id or "").strip()
+        all_tasks = self._load_tasks_for_project(project_id or "")
+
+        selected_task = self._find_task(all_tasks, normalized_task_id)
+
+        if selected_task is None:
+            return self._build_empty_task_detail_state(project_id=project_id)
+
+        assignments = self._desktop_api.list_assignments(normalized_task_id)
+        dependencies = self._desktop_api.list_dependencies(normalized_task_id)
+
+        assignment_options = self._build_assignment_options(
+            selected_task.project_id or project_id,
         )
-        resolved_project_id = self._resolve_project_id(project_id, project_options)
-        status_options = (
-            TaskSelectorOptionViewModel(value="all", label="All statuses"),
-            *(
-                TaskSelectorOptionViewModel(value=option.value, label=option.label)
-                for option in self._desktop_api.list_statuses()
-            ),
+
+        dependency_type_options = self._build_dependency_type_options()
+
+        dependency_task_options = self._build_dependency_task_options(
+            all_tasks,
+            selected_task_id=normalized_task_id,
         )
-        bulk_status_options = tuple(
-            TaskSelectorOptionViewModel(value=option.value, label=option.label)
-            for option in self._desktop_api.list_statuses()
-        )
-        priority_options = build_task_priority_options()
-        schedule_options = build_task_schedule_options()
-        normalized_search = (search_text or "").strip()
-        normalized_status_filter = self._normalize_status_filter(
-            status_filter,
-            status_options,
-        )
-        normalized_priority_filter = normalize_task_filter(
-            priority_filter,
-            priority_options,
-        )
-        normalized_schedule_filter = normalize_task_filter(
-            schedule_filter,
-            schedule_options,
-        )
-        all_tasks = (
-            self._desktop_api.list_tasks(resolved_project_id)
-            if resolved_project_id
-            else self._desktop_api.list_all_tasks()
-        )
-        filtered_tasks = tuple(
-            task
-            for task in all_tasks
-            if matches_task_filters(
-                task,
-                search_text=normalized_search,
-                status_filter=normalized_status_filter,
-                priority_filter=normalized_priority_filter,
-                schedule_filter=normalized_schedule_filter,
-            )
-        )
-        _total_count = len(filtered_tasks)
-        _page = max(1, page)
-        _page_size = max(1, page_size)
-        _offset = (_page - 1) * _page_size
-        paged_tasks = filtered_tasks[_offset: _offset + _page_size]
-        resolved_task_id = self._resolve_task_id(selected_task_id, filtered_tasks)
-        selected_task = next(
-            (task for task in filtered_tasks if task.id == resolved_task_id),
-            None,
-        )
-        assignment_options = tuple(
-            TaskSelectorOptionViewModel(value=option.value, label=option.label)
-            for option in self._desktop_api.list_project_resources(resolved_project_id)
-        )
-        dependency_type_options = tuple(
-            TaskSelectorOptionViewModel(value=option.value, label=option.label)
-            for option in self._desktop_api.list_dependency_types()
-        )
-        dependency_task_options = tuple(
-            TaskSelectorOptionViewModel(value=task.id, label=task.name)
-            for task in all_tasks
-            if task.id != resolved_task_id
-        )
-        assignments = (
-            self._desktop_api.list_assignments(resolved_task_id)
-            if resolved_task_id
-            else ()
-        )
-        resolved_assignment_id = self._resolve_assignment_id(
-            selected_assignment_id,
-            assignments,
-        )
-        dependencies = (
-            self._desktop_api.list_dependencies(resolved_task_id)
-            if resolved_task_id
-            else ()
-        )
-        timesheet_snapshot = (
-            self._timesheets_desktop_api.build_assignment_snapshot(
-                resolved_assignment_id,
-                period_start=self._optional_iso_date(selected_time_period_start),
-            )
-            if resolved_assignment_id
-            else None
-        )
-        time_period_options = tuple(
-            TaskSelectorOptionViewModel(value=option.value, label=option.label)
-            for option in (timesheet_snapshot.period_options if timesheet_snapshot is not None else ())
-        )
-        resolved_time_period_start = (
-            timesheet_snapshot.selected_period_start
-            if timesheet_snapshot is not None
-            else ""
-        )
-        resolved_time_entry_id = self._resolve_time_entry_id(
-            selected_time_entry_id,
-            timesheet_snapshot.entries if timesheet_snapshot is not None else (),
-        )
-        selected_time_entry = next(
-            (
-                entry
-                for entry in (timesheet_snapshot.entries if timesheet_snapshot is not None else ())
-                if entry.entry_id == resolved_time_entry_id
-            ),
-            None,
-        )
-        collaboration_snapshot = (
-            self._collaboration_desktop_api.build_task_snapshot(resolved_task_id)
-            if resolved_task_id
-            else None
-        )
-        collaboration_workspace_snapshot = self._collaboration_desktop_api.build_snapshot()
 
         return TaskCatalogWorkspaceViewModel(
-            overview=self._build_overview(
-                all_tasks=all_tasks,
-                filtered_tasks=filtered_tasks,
-                collaboration_workspace_snapshot=collaboration_workspace_snapshot,
-                collaboration_snapshot=collaboration_snapshot,
-                has_selected_task=bool(resolved_task_id),
-            ),
-            project_options=project_options,
-            selected_project_id=resolved_project_id,
-            status_options=status_options,
-            bulk_status_options=bulk_status_options,
-            priority_options=priority_options,
-            schedule_options=schedule_options,
-            selected_status_filter=normalized_status_filter,
-            selected_priority_filter=normalized_priority_filter,
-            selected_schedule_filter=normalized_schedule_filter,
-            search_text=normalized_search,
-            tasks=tuple(
-                self._to_task_record_view_model(task)
-                for task in paged_tasks
-            ),
-            total_count=_total_count,
-            page=_page,
-            page_size=_page_size,
-            selected_task_id=resolved_task_id,
+            overview=self._build_empty_overview(),
+            selected_project_id=project_id or "",
+            selected_task_id=normalized_task_id,
             selected_task_detail=self._build_detail_view_model(
                 selected_task,
                 assignment_count=len(assignments),
                 dependency_count=len(dependencies),
             ),
             assignment_options=assignment_options,
-            selected_assignment_id=resolved_assignment_id,
             dependency_task_options=dependency_task_options,
             dependency_type_options=dependency_type_options,
             assignments=self._build_assignments_collection(
@@ -251,18 +256,125 @@ class ProjectTasksWorkspacePresenter:
                 all_tasks=all_tasks,
                 dependencies=dependencies,
             ),
+        )
+
+    def build_task_time_state(
+        self,
+        *,
+        task_id: str,
+        selected_assignment_id: str | None = None,
+        selected_time_period_start: str = "",
+        selected_time_entry_id: str | None = None,
+    ) -> TaskCatalogWorkspaceViewModel:
+        normalized_task_id = (task_id or "").strip()
+
+        assignments = (
+            self._desktop_api.list_assignments(normalized_task_id)
+            if normalized_task_id
+            else ()
+        )
+
+        resolved_assignment_id = self._resolve_assignment_id(
+            selected_assignment_id,
+            assignments,
+        )
+
+        timesheet_snapshot = (
+            self._timesheets_desktop_api.build_assignment_snapshot(
+                resolved_assignment_id,
+                period_start=self._optional_iso_date(selected_time_period_start),
+            )
+            if resolved_assignment_id
+            else None
+        )
+
+        time_period_options = tuple(
+            TaskSelectorOptionViewModel(value=option.value, label=option.label)
+            for option in (
+                timesheet_snapshot.period_options
+                if timesheet_snapshot is not None
+                else ()
+            )
+        )
+
+        resolved_time_period_start = (
+            timesheet_snapshot.selected_period_start
+            if timesheet_snapshot is not None
+            else ""
+        )
+
+        resolved_time_entry_id = self._resolve_time_entry_id(
+            selected_time_entry_id,
+            timesheet_snapshot.entries if timesheet_snapshot is not None else (),
+        )
+
+        selected_time_entry = next(
+            (
+                entry
+                for entry in (
+                    timesheet_snapshot.entries
+                    if timesheet_snapshot is not None
+                    else ()
+                )
+                if entry.entry_id == resolved_time_entry_id
+            ),
+            None,
+        )
+
+        return TaskCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_task_id=normalized_task_id,
+            selected_assignment_id=resolved_assignment_id,
             time_period_options=time_period_options,
             selected_time_period_start=resolved_time_period_start,
             time_assignment_summary=self._build_time_assignment_summary(
                 timesheet_snapshot
             ),
-            time_entries=self._build_time_entries_collection(
-                timesheet_snapshot
-            ),
+            time_entries=self._build_time_entries_collection(timesheet_snapshot),
             selected_time_entry_id=resolved_time_entry_id,
             selected_time_entry_detail=self._build_selected_time_entry_detail(
                 selected_time_entry
             ),
+        )
+
+    def build_empty_task_time_state(self) -> TaskCatalogWorkspaceViewModel:
+        return TaskCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_assignment_id="",
+            selected_time_period_start="",
+            selected_time_entry_id="",
+            time_period_options=(),
+            time_assignment_summary=self._build_time_assignment_summary(None),
+            time_entries=self._build_time_entries_collection(None),
+            selected_time_entry_detail=self._build_selected_time_entry_detail(None),
+        )
+
+    def build_task_collaboration_state(
+        self,
+        *,
+        task_id: str,
+    ) -> TaskCatalogWorkspaceViewModel:
+        """
+        Build only the collaboration section for a selected task.
+        """
+        normalized_task_id = (task_id or "").strip()
+
+        selected_task = None
+        if normalized_task_id:
+            selected_task = self._find_task(
+                self._load_tasks_for_project(""),
+                normalized_task_id,
+            )
+
+        collaboration_snapshot = (
+            self._collaboration_desktop_api.build_task_snapshot(normalized_task_id)
+            if normalized_task_id
+            else None
+        )
+
+        return TaskCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_task_id=normalized_task_id if selected_task is not None else "",
             collaboration_mention_options=tuple(
                 TaskSelectorOptionViewModel(value=option.value, label=option.label)
                 for option in (
@@ -287,14 +399,176 @@ class ProjectTasksWorkspacePresenter:
                 selected_task=selected_task,
                 snapshot=collaboration_snapshot,
             ),
-            empty_state=self._build_empty_state(
-                project_options=project_options,
-                all_tasks=all_tasks,
-                filtered_tasks=filtered_tasks,
-                search_text=normalized_search,
-                status_filter=normalized_status_filter,
-                priority_filter=normalized_priority_filter,
-                schedule_filter=normalized_schedule_filter,
+        )
+
+    def _build_task_filter_options(self) -> _TaskFilterOptions:
+        project_options = (
+            TaskSelectorOptionViewModel(value="", label="All Projects"),
+            *(
+                TaskSelectorOptionViewModel(value=option.value, label=option.label)
+                for option in self._desktop_api.list_projects()
+            ),
+        )
+
+        raw_status_options = tuple(self._desktop_api.list_statuses())
+
+        status_options = (
+            TaskSelectorOptionViewModel(value="all", label="All statuses"),
+            *(
+                TaskSelectorOptionViewModel(value=option.value, label=option.label)
+                for option in raw_status_options
+            ),
+        )
+
+        bulk_status_options = tuple(
+            TaskSelectorOptionViewModel(value=option.value, label=option.label)
+            for option in raw_status_options
+        )
+
+        return _TaskFilterOptions(
+            project_options=project_options,
+            status_options=status_options,
+            bulk_status_options=bulk_status_options,
+            priority_options=build_task_priority_options(),
+            schedule_options=build_task_schedule_options(),
+        )
+
+    def _normalize_workspace_filters(
+        self,
+        *,
+        search_text: str,
+        status_filter: str,
+        priority_filter: str,
+        schedule_filter: str,
+        status_options: tuple[TaskSelectorOptionViewModel, ...],
+        priority_options: tuple[TaskSelectorOptionViewModel, ...],
+        schedule_options: tuple[TaskSelectorOptionViewModel, ...],
+    ) -> _NormalizedTaskFilters:
+        return _NormalizedTaskFilters(
+            search_text=(search_text or "").strip(),
+            status_filter=self._normalize_status_filter(
+                status_filter,
+                status_options,
+            ),
+            priority_filter=normalize_task_filter(
+                priority_filter,
+                priority_options,
+            ),
+            schedule_filter=normalize_task_filter(
+                schedule_filter,
+                schedule_options,
+            ),
+        )
+
+    def _load_tasks_for_project(self, project_id: str | None):
+        normalized_project_id = (project_id or "").strip()
+
+        if normalized_project_id:
+            return self._desktop_api.list_tasks(normalized_project_id)
+
+        return self._desktop_api.list_all_tasks()
+
+    @staticmethod
+    def _filter_tasks(
+        all_tasks,
+        filters: _NormalizedTaskFilters,
+    ):
+        return tuple(
+            task
+            for task in all_tasks
+            if matches_task_filters(
+                task,
+                search_text=filters.search_text,
+                status_filter=filters.status_filter,
+                priority_filter=filters.priority_filter,
+                schedule_filter=filters.schedule_filter,
+            )
+        )
+
+    @staticmethod
+    def _paginate_tasks(
+        tasks,
+        *,
+        page: int,
+        page_size: int,
+    ) -> _PagedTaskResult:
+        total_count = len(tasks)
+        resolved_page = max(1, page)
+        resolved_page_size = max(1, page_size)
+        offset = (resolved_page - 1) * resolved_page_size
+
+        return _PagedTaskResult(
+            items=tasks[offset: offset + resolved_page_size],
+            total_count=total_count,
+            page=resolved_page,
+            page_size=resolved_page_size,
+        )
+
+    @staticmethod
+    def _find_task(tasks, task_id: str | None):
+        normalized_task_id = (task_id or "").strip()
+
+        if not normalized_task_id:
+            return None
+
+        return next(
+            (task for task in tasks if task.id == normalized_task_id),
+            None,
+        )
+
+    def _build_assignment_options(
+        self,
+        project_id: str | None,
+    ) -> tuple[TaskSelectorOptionViewModel, ...]:
+        return tuple(
+            TaskSelectorOptionViewModel(value=option.value, label=option.label)
+            for option in self._desktop_api.list_project_resources(project_id)
+        )
+
+    def _build_dependency_type_options(
+        self,
+    ) -> tuple[TaskSelectorOptionViewModel, ...]:
+        return tuple(
+            TaskSelectorOptionViewModel(value=option.value, label=option.label)
+            for option in self._desktop_api.list_dependency_types()
+        )
+
+    @staticmethod
+    def _build_dependency_task_options(
+        all_tasks,
+        *,
+        selected_task_id: str,
+    ) -> tuple[TaskSelectorOptionViewModel, ...]:
+        return tuple(
+            TaskSelectorOptionViewModel(value=task.id, label=task.name)
+            for task in all_tasks
+            if task.id != selected_task_id
+        )
+
+    @staticmethod
+    def _build_empty_overview() -> TaskCatalogOverviewViewModel:
+        return TaskCatalogOverviewViewModel(
+            title="Tasks",
+            subtitle=(
+                "Task planning, progress, dependencies, assignments, "
+                "and execution state."
+            ),
+            metrics=(),
+        )
+
+    def _build_empty_task_detail_state(
+        self,
+        *,
+        project_id: str | None,
+    ) -> TaskCatalogWorkspaceViewModel:
+        return TaskCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_project_id=project_id or "",
+            selected_task_id="",
+            selected_task_detail=self._build_detail_view_model(
+                None,
+                assignment_count=0,
+                dependency_count=0,
             ),
         )
 

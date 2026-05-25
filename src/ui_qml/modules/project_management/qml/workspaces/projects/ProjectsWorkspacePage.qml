@@ -88,6 +88,26 @@ AppLayouts.WorkspaceFrame {
         return 0
     }
 
+    function _loadLazyProjectSection(sectionIndex) {
+        if (root.workspaceController === null) {
+            return
+        }
+
+        if (sectionIndex === 2) {
+            root.workspaceController.loadProjectTasks()
+        } else if (sectionIndex === 3) {
+            root.workspaceController.loadProjectResources()
+        } else if (sectionIndex === 4) {
+            root.workspaceController.loadProjectFinancials()
+        } else if (sectionIndex === 5) {
+            root.workspaceController.loadProjectRisks()
+        } else if (sectionIndex === 6) {
+            root.workspaceController.loadProjectDocuments()
+        } else if (sectionIndex === 7) {
+            root.workspaceController.loadProjectActivity()
+        }
+    }
+
     ProjectsDialogHost {
         id: dialogHost
 
@@ -209,12 +229,12 @@ AppLayouts.WorkspaceFrame {
                             if (root.workspaceController !== null) root.workspaceController.selectProject(rowId)
                         }
                         onRowActivated: function(rowId) {
-                            if (root.workspaceController !== null) root.workspaceController.activateProject(rowId)
                             detailPage.open = true
+                            if (root.workspaceController !== null) root.workspaceController.activateProject(rowId)
                         }
                         onViewDetailRequested: function(rowId) {
-                            if (root.workspaceController !== null) root.workspaceController.activateProject(rowId)
                             detailPage.open = true
+                            if (root.workspaceController !== null) root.workspaceController.activateProject(rowId)
                         }
                         onRowSelectionToggled: function(rowId, selected) {
                             if (root.workspaceController !== null)
@@ -425,6 +445,10 @@ AppLayouts.WorkspaceFrame {
             sections: ["Overview", "Schedule", "Tasks", "Resources", "Financials", "Risks", "Documents", "Activity"]
             z: 20
 
+            onSectionChanged: function(index) {
+                root._loadLazyProjectSection(index)
+            }
+
             AppWidgets.ContextualActionToolbar {
                 width: parent ? parent.width : 0
                 showBack: true
@@ -437,7 +461,10 @@ AppLayouts.WorkspaceFrame {
                     { "id": "delete", "label": "Delete", "icon": "delete",  "enabled": true, "danger": true  }
                 ]
 
-                onBackRequested: detailPage.open = false
+                onBackRequested: {
+                    detailPage.open = false
+                    detailPage.scrollToSection(0)
+                }
                 onActionTriggered: function(actionId) {
                     if (actionId === "edit") {
                         dialogHost.openEditDialog(root.selectedProjectModel)
