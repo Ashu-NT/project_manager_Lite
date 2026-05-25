@@ -25,7 +25,7 @@ Item {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "New Intake Item"
             color: Theme.AppTheme.textPrimary
@@ -40,19 +40,19 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            TextField { id: titleField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "Quarterly utilities optimization" }
-            TextField { id: sponsorField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "Operations Director" }
-            TextField { id: budgetField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "250000.00" }
-            TextField { id: capacityField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "45.0" }
-            TextField { id: startDateField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "YYYY-MM-DD" }
-            ComboBox {
+            AppControls.TextField { id: titleField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "Quarterly utilities optimization" }
+            AppControls.TextField { id: sponsorField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "Operations Director" }
+            AppControls.TextField { id: budgetField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "250000.00" }
+            AppControls.TextField { id: capacityField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "45.0" }
+            AppControls.DateField { id: startDateField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "YYYY-MM-DD" }
+            AppControls.ComboBox {
                 id: statusCombo
                 Layout.fillWidth: true
                 model: root.intakeStatusOptions
                 textRole: "label"
                 enabled: !root.isBusy
             }
-            ComboBox {
+            AppControls.ComboBox {
                 id: templateCombo
                 Layout.fillWidth: true
                 model: root.templateOptions
@@ -63,18 +63,18 @@ Item {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingSm
 
-                Label { text: "Strategic"; color: Theme.AppTheme.textSecondary }
+                AppControls.Label { text: "Strategic"; color: Theme.AppTheme.textSecondary }
                 SpinBox { id: strategicSpin; from: 1; to: 5; value: 3; enabled: !root.isBusy }
-                Label { text: "Value"; color: Theme.AppTheme.textSecondary }
+                AppControls.Label { text: "Value"; color: Theme.AppTheme.textSecondary }
                 SpinBox { id: valueSpin; from: 1; to: 5; value: 3; enabled: !root.isBusy }
-                Label { text: "Urgency"; color: Theme.AppTheme.textSecondary }
+                AppControls.Label { text: "Urgency"; color: Theme.AppTheme.textSecondary }
                 SpinBox { id: urgencySpin; from: 1; to: 5; value: 3; enabled: !root.isBusy }
-                Label { text: "Risk"; color: Theme.AppTheme.textSecondary }
+                AppControls.Label { text: "Risk"; color: Theme.AppTheme.textSecondary }
                 SpinBox { id: riskSpin; from: 1; to: 5; value: 3; enabled: !root.isBusy }
             }
         }
 
-        TextArea {
+        AppControls.TextArea {
             id: summaryArea
             Layout.fillWidth: true
             Layout.preferredHeight: 96

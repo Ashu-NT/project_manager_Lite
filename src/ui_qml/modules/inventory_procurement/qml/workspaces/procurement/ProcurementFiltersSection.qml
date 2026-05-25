@@ -50,7 +50,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Procurement Filters"
                 color: Theme.AppTheme.textPrimary
@@ -87,8 +87,8 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Search" }
-            TextField {
+            AppControls.Label { text: "Search" }
+            AppControls.TextField {
                 id: searchField
                 Layout.fillWidth: true
                 placeholderText: "Number, purpose, supplier, or reference"
@@ -99,8 +99,8 @@ Item {
 
             Item { Layout.fillWidth: true }
 
-            Label { text: "Site" }
-            ComboBox {
+            AppControls.Label { text: "Site" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.siteOptions
                 textRole: "label"
@@ -112,8 +112,8 @@ Item {
                 }
             }
 
-            Label { text: "Storeroom" }
-            ComboBox {
+            AppControls.Label { text: "Storeroom" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.storeroomOptions
                 textRole: "label"
@@ -125,8 +125,8 @@ Item {
                 }
             }
 
-            Label { text: "Supplier" }
-            ComboBox {
+            AppControls.Label { text: "Supplier" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.supplierOptions
                 textRole: "label"
@@ -138,8 +138,8 @@ Item {
                 }
             }
 
-            Label { text: "Requisition status" }
-            ComboBox {
+            AppControls.Label { text: "Requisition status" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.requisitionStatusOptions
                 textRole: "label"
@@ -151,8 +151,8 @@ Item {
                 }
             }
 
-            Label { text: "PO status" }
-            ComboBox {
+            AppControls.Label { text: "PO status" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.purchaseOrderStatusOptions
                 textRole: "label"

@@ -164,7 +164,7 @@ AppControls.CenteredDialog {
             width: dialogFlickable.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.createMode
                     ? "Capture execution-scope, source, and readiness details before the work order enters planning."
@@ -175,7 +175,7 @@ AppControls.CenteredDialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.validationMessage.length > 0
                 text: root.validationMessage
@@ -191,14 +191,14 @@ AppControls.CenteredDialog {
                 columnSpacing: Theme.AppTheme.spacingMd
                 rowSpacing: Theme.AppTheme.spacingSm
 
-                Label { text: "Site" }
-                ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+                AppControls.Label { text: "Site" }
+                AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
 
-                Label { text: "Work order code" }
-                TextField { id: workOrderCodeField; Layout.fillWidth: true; placeholderText: "WO-100" }
+                AppControls.Label { text: "Work order code" }
+                AppControls.TextField { id: workOrderCodeField; Layout.fillWidth: true; placeholderText: "WO-100" }
 
-                Label { text: "Source type" }
-                ComboBox {
+                AppControls.Label { text: "Source type" }
+                AppControls.ComboBox {
                     id: sourceTypeCombo
                     Layout.fillWidth: true
                     model: root.sourceTypeOptions
@@ -206,18 +206,18 @@ AppControls.CenteredDialog {
                     enabled: root.createMode
                 }
 
-                Label { text: root.workRequestSourceSelected ? "Source work request" : "Source reference" }
+                AppControls.Label { text: root.workRequestSourceSelected ? "Source work request" : "Source reference" }
                 StackLayout {
                     Layout.fillWidth: true
                     currentIndex: root.showWorkRequestSourceReadonly ? 2 : (root.showWorkRequestSourceCombo ? 1 : 0)
 
-                    TextField {
+                    AppControls.TextField {
                         id: manualSourceIdField
                         Layout.fillWidth: true
                         placeholderText: "Optional manual source id"
                     }
 
-                    ComboBox {
+                    AppControls.ComboBox {
                         id: sourceWorkRequestCombo
                         Layout.fillWidth: true
                         model: root.sourceWorkRequestOptions
@@ -225,40 +225,40 @@ AppControls.CenteredDialog {
                         enabled: root.createMode
                     }
 
-                    TextField {
+                    AppControls.TextField {
                         id: readOnlySourceField
                         Layout.fillWidth: true
                         readOnly: true
                     }
                 }
 
-                Label { text: "Work-order type" }
-                ComboBox { id: workOrderTypeCombo; Layout.fillWidth: true; model: root.workOrderTypeOptions; textRole: "label" }
+                AppControls.Label { text: "Work-order type" }
+                AppControls.ComboBox { id: workOrderTypeCombo; Layout.fillWidth: true; model: root.workOrderTypeOptions; textRole: "label" }
 
-                Label { text: "Priority" }
-                ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
+                AppControls.Label { text: "Priority" }
+                AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
 
-                Label { text: "Location" }
-                ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
+                AppControls.Label { text: "Location" }
+                AppControls.ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
 
-                Label { text: "System" }
-                ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.systemOptions; textRole: "label" }
+                AppControls.Label { text: "System" }
+                AppControls.ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.systemOptions; textRole: "label" }
 
-                Label { text: "Asset" }
-                ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
+                AppControls.Label { text: "Asset" }
+                AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
 
-                Label { text: "Component" }
-                ComboBox { id: componentCombo; Layout.fillWidth: true; model: root.componentOptions; textRole: "label" }
+                AppControls.Label { text: "Component" }
+                AppControls.ComboBox { id: componentCombo; Layout.fillWidth: true; model: root.componentOptions; textRole: "label" }
 
-                Label { text: "Vendor" }
-                ComboBox { id: vendorCombo; Layout.fillWidth: true; model: root.vendorOptions; textRole: "label" }
+                AppControls.Label { text: "Vendor" }
+                AppControls.ComboBox { id: vendorCombo; Layout.fillWidth: true; model: root.vendorOptions; textRole: "label" }
 
-                Label { text: "Title" }
-                TextField { id: titleField; Layout.fillWidth: true; placeholderText: "Repair coupling" }
+                AppControls.Label { text: "Title" }
+                AppControls.TextField { id: titleField; Layout.fillWidth: true; placeholderText: "Repair coupling" }
             }
 
-            Label { text: "Description" }
-            TextArea {
+            AppControls.Label { text: "Description" }
+            AppControls.TextArea {
                 id: descriptionField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 110
@@ -270,15 +270,15 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                CheckBox { id: requiresShutdownCheck; text: "Requires shutdown" }
-                CheckBox { id: permitRequiredCheck; text: "Permit required" }
-                CheckBox { id: approvalRequiredCheck; text: "Approval required" }
-                CheckBox { id: preventiveCheck; text: "Preventive" }
-                CheckBox { id: emergencyCheck; text: "Emergency" }
+                AppControls.CheckBox { id: requiresShutdownCheck; text: "Requires shutdown" }
+                AppControls.CheckBox { id: permitRequiredCheck; text: "Permit required" }
+                AppControls.CheckBox { id: approvalRequiredCheck; text: "Approval required" }
+                AppControls.CheckBox { id: preventiveCheck; text: "Preventive" }
+                AppControls.CheckBox { id: emergencyCheck; text: "Emergency" }
             }
 
-            Label { text: "Notes" }
-            TextArea {
+            AppControls.Label { text: "Notes" }
+            AppControls.TextArea {
                 id: notesField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90

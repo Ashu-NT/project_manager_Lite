@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 from PySide6.QtQml import QQmlApplicationEngine
 
+import resources.resources_rc  # noqa: F401
 import src.ui_qml.shared.models.data_table_model  # noqa: F401
 import src.ui_qml.shell.context  # noqa: F401
 import src.ui_qml.shell.login  # noqa: F401
@@ -43,6 +45,8 @@ import src.ui_qml.modules.inventory_procurement.controllers.inventory.inventory_
 import src.ui_qml.modules.inventory_procurement.controllers.pricing.pricing_workspace_controller  # noqa: F401
 import src.ui_qml.modules.inventory_procurement.controllers.procurement.procurement_workspace_controller  # noqa: F401
 import src.ui_qml.modules.inventory_procurement.controllers.reservations.reservations_workspace_controller  # noqa: F401
+
+os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Basic")
 
 UI_QML_ROOT = Path(__file__).resolve().parents[1]
 QML_IMPORT_ROOTS = (

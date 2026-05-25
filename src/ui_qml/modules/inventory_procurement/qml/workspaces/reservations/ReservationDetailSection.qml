@@ -32,7 +32,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingXs
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: root.reservationDetail.title || "Reservation Detail"
                     color: Theme.AppTheme.textPrimary
@@ -42,7 +42,7 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: root.reservationDetail.subtitle || "Select a reservation to inspect source context or operate on the remaining quantity."
                     color: Theme.AppTheme.textSecondary
@@ -58,7 +58,7 @@ Item {
             }
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: String(root.reservationDetail.emptyState || "").length > 0 && String(root.reservationDetail.id || "").length === 0
             text: root.reservationDetail.emptyState
@@ -68,7 +68,7 @@ Item {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: String(root.reservationDetail.id || "").length > 0
             text: root.reservationDetail.description || ""
@@ -96,7 +96,7 @@ Item {
                     anchors.margins: Theme.AppTheme.marginMd
                     spacing: Theme.AppTheme.spacingXs
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: String(fieldCard.modelData.label || "")
                         color: Theme.AppTheme.textMuted
@@ -105,7 +105,7 @@ Item {
                         font.bold: true
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: String(fieldCard.modelData.value || "")
                         color: Theme.AppTheme.textPrimary
@@ -114,7 +114,7 @@ Item {
                         wrapMode: Text.WordWrap
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: String(fieldCard.modelData.supportingText || "").length > 0
                         text: String(fieldCard.modelData.supportingText || "")

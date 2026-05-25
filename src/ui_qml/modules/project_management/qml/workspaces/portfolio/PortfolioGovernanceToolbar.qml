@@ -43,14 +43,14 @@ Rectangle {
         anchors.rightMargin: Theme.AppTheme.marginMd
         spacing: Theme.AppTheme.spacingSm
 
-        Label {
+        AppControls.Label {
             text: "Scenario"
             color: Theme.AppTheme.textMuted
             font.family: Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.captionSize
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             Layout.preferredWidth: 190
             model: root.scenarioOptions
             textRole: "label"
@@ -72,14 +72,14 @@ Rectangle {
             opacity: 0.6
         }
 
-        Label {
+        AppControls.Label {
             text: "Base"
             color: Theme.AppTheme.textMuted
             font.family: Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.captionSize
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             Layout.preferredWidth: 160
             model: root.scenarioOptions
             textRole: "label"
@@ -94,14 +94,14 @@ Rectangle {
             }
         }
 
-        Label {
+        AppControls.Label {
             text: "vs"
             color: Theme.AppTheme.textMuted
             font.family: Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.captionSize
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             Layout.preferredWidth: 160
             model: root.scenarioOptions
             textRole: "label"

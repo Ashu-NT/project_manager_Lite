@@ -412,7 +412,7 @@ AppLayouts.WorkspaceFrame {
                         height: 1; color: Theme.AppTheme.divider
                     }
 
-                    Label {
+                    AppControls.Label {
                         anchors.left:           parent.left
                         anchors.leftMargin:     Theme.AppTheme.marginMd
                         anchors.verticalCenter: parent.verticalCenter
@@ -540,7 +540,7 @@ AppLayouts.WorkspaceFrame {
                                 Layout.bottomMargin: Theme.AppTheme.spacingSm
                                 spacing: Theme.AppTheme.spacingSm
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text:           "Linked Records"
                                     color:          Theme.AppTheme.textMuted
@@ -549,7 +549,7 @@ AppLayouts.WorkspaceFrame {
                                     font.bold:      true
                                 }
 
-                                Label {
+                                AppControls.Label {
                                     visible: (root.documentLinkCatalog.items || []).length > 0
                                     text:    String((root.documentLinkCatalog.items || []).length)
                                     color:          Theme.AppTheme.textMuted
@@ -589,7 +589,7 @@ AppLayouts.WorkspaceFrame {
                                         anchors.rightMargin: Theme.AppTheme.marginSm
                                         spacing: Theme.AppTheme.spacingXs
 
-                                        Label {
+                                        AppControls.Label {
                                             Layout.fillWidth: true
                                             text:           modelData.title || ""
                                             color:          Theme.AppTheme.textPrimary
@@ -643,7 +643,7 @@ AppLayouts.WorkspaceFrame {
                             spacing:          Theme.AppTheme.spacingSm
 
                             // Entity name
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text:           root._detailItem ? (root._detailItem.title || "") : ""
                                 color:          Theme.AppTheme.textPrimary
@@ -674,14 +674,14 @@ AppLayouts.WorkspaceFrame {
                                 visible: root._detailItem
                                     ? (root._detailItem.subtitle || "").length > 0 : false
 
-                                Label {
+                                AppControls.Label {
                                     text:           "Details"
                                     color:          Theme.AppTheme.textMuted
                                     font.family:    Theme.AppTheme.fontFamily
                                     font.pixelSize: Theme.AppTheme.captionSize
                                     font.bold:      true
                                 }
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text:           root._detailItem ? (root._detailItem.subtitle || "") : ""
                                     color:          Theme.AppTheme.textSecondary
@@ -698,14 +698,14 @@ AppLayouts.WorkspaceFrame {
                                 visible: root._detailItem
                                     ? (root._detailItem.metaText || "").length > 0 : false
 
-                                Label {
+                                AppControls.Label {
                                     text:           "Info"
                                     color:          Theme.AppTheme.textMuted
                                     font.family:    Theme.AppTheme.fontFamily
                                     font.pixelSize: Theme.AppTheme.captionSize
                                     font.bold:      true
                                 }
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text:           root._detailItem ? (root._detailItem.metaText || "") : ""
                                     color:          Theme.AppTheme.textSecondary

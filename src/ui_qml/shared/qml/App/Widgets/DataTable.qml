@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import App.Models 1.0 as AppModels
+import App.Controls 1.0 as AppControls
 
 // Enterprise data table — Qt 6 TableView, true 2-D cell-based delegates.
 //
@@ -181,7 +182,7 @@ Item {
                 height:  _headerRow.height
                 visible: root.multiSelect
 
-                CheckBox {
+                AppControls.CheckBox {
                     id: _headerCb
                     anchors.centerIn: _selectAllHeaderCell
                     checkState: root._allChecked  ? Qt.Checked
@@ -241,7 +242,7 @@ Item {
                                 anchors.rightMargin: Theme.AppTheme.spacingXs
                                 spacing: 3
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text:           _hCell.modelData.label || ""
                                     color:          _hCell._sorted
@@ -311,7 +312,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Filters"
                     color: Theme.AppTheme.textSecondary
                     font.family: Theme.AppTheme.fontFamily
@@ -435,7 +436,7 @@ Item {
                 height: 1; color: Theme.AppTheme.divider
             }
 
-            // Hover tracking (HoverHandler does not interfere with CheckBox events)
+            // Hover tracking (HoverHandler does not interfere with AppControls.CheckBox events)
             HoverHandler {
                 onHoveredChanged: {
                     if (hovered) root._hoveredRow = _cbCell.row
@@ -572,7 +573,7 @@ Item {
                     value: _cell._pVal
                 }
 
-                Label {
+                AppControls.Label {
                     id: _pPct
                     anchors.right:          _progressCell.right
                     anchors.verticalCenter: _progressCell.verticalCenter
@@ -585,7 +586,7 @@ Item {
             }
 
             // ── Plain text ────────────────────────────────────────────
-            Label {
+            AppControls.Label {
                 anchors.fill:        parent
                 anchors.leftMargin:  Theme.AppTheme.spacingSm
                 anchors.rightMargin: Theme.AppTheme.spacingXs

@@ -37,7 +37,7 @@ Item {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingMd
 
-        ComboBox {
+        AppControls.ComboBox {
             id: projectCombo
 
             Layout.preferredWidth: 240
@@ -54,7 +54,7 @@ Item {
             }
         }
 
-        TextField {
+        AppControls.TextField {
             Layout.fillWidth: true
             text: root.searchText
             placeholderText: "Search by description, task, category, or currency"
@@ -62,7 +62,7 @@ Item {
             onTextEdited: root.searchTextUpdated(text)
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             id: costTypeCombo
 
             Layout.preferredWidth: 220

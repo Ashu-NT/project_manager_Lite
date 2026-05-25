@@ -50,7 +50,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Operational Filters"
                 color: Theme.AppTheme.textPrimary
@@ -87,8 +87,8 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Search" }
-            TextField {
+            AppControls.Label { text: "Search" }
+            AppControls.TextField {
                 id: searchField
                 Layout.fillWidth: true
                 Layout.columnSpan: root.width > 980 ? 2 : 1
@@ -98,8 +98,8 @@ Item {
                 onEditingFinished: root.searchTextUpdated(text)
             }
 
-            Label { text: "Site" }
-            ComboBox {
+            AppControls.Label { text: "Site" }
+            AppControls.ComboBox {
                 id: siteCombo
                 Layout.fillWidth: true
                 model: root.siteOptions
@@ -112,8 +112,8 @@ Item {
                 }
             }
 
-            Label { text: "Storeroom activity" }
-            ComboBox {
+            AppControls.Label { text: "Storeroom activity" }
+            AppControls.ComboBox {
                 id: activeCombo
                 Layout.fillWidth: true
                 model: root.activeOptions
@@ -126,8 +126,8 @@ Item {
                 }
             }
 
-            Label { text: "Storeroom" }
-            ComboBox {
+            AppControls.Label { text: "Storeroom" }
+            AppControls.ComboBox {
                 id: storeroomCombo
                 Layout.fillWidth: true
                 model: root.storeroomOptions
@@ -140,8 +140,8 @@ Item {
                 }
             }
 
-            Label { text: "Item" }
-            ComboBox {
+            AppControls.Label { text: "Item" }
+            AppControls.ComboBox {
                 id: itemCombo
                 Layout.fillWidth: true
                 model: root.itemOptions
@@ -154,8 +154,8 @@ Item {
                 }
             }
 
-            Label { text: "Movement" }
-            ComboBox {
+            AppControls.Label { text: "Movement" }
+            AppControls.ComboBox {
                 id: transactionTypeCombo
                 Layout.fillWidth: true
                 model: root.transactionTypeOptions

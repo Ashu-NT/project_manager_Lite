@@ -80,7 +80,7 @@ ColumnLayout {
             rowSpacing: Theme.AppTheme.spacingSm
             columnSpacing: Theme.AppTheme.spacingSm
 
-            ComboBox {
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.planLibraryState.siteOptions || []
                 textRole: "label"
@@ -91,7 +91,7 @@ ColumnLayout {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.planLibraryState.assetOptions || []
                 textRole: "label"
@@ -102,7 +102,7 @@ ColumnLayout {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.planLibraryState.systemOptions || []
                 textRole: "label"
@@ -113,7 +113,7 @@ ColumnLayout {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.planLibraryState.activeOptions || []
                 textRole: "label"
@@ -124,7 +124,7 @@ ColumnLayout {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.planLibraryState.statusOptions || []
                 textRole: "label"
@@ -135,7 +135,7 @@ ColumnLayout {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.planLibraryState.planTypeOptions || []
                 textRole: "label"
@@ -146,7 +146,7 @@ ColumnLayout {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.planLibraryState.triggerModeOptions || []
                 textRole: "label"
@@ -157,7 +157,7 @@ ColumnLayout {
                 }
             }
 
-            TextField {
+            AppControls.TextField {
                 Layout.fillWidth: true
                 text: root.planLibraryState.searchText || ""
                 placeholderText: "Plan code, name, trigger, or anchor"

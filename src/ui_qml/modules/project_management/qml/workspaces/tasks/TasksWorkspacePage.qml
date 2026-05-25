@@ -433,7 +433,7 @@ AppLayouts.WorkspaceFrame {
                         contentItem: ColumnLayout {
                             spacing: Theme.AppTheme.spacingSm
 
-                            Label {
+                            AppControls.Label {
                                 text: "Project"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
@@ -441,7 +441,7 @@ AppLayouts.WorkspaceFrame {
                                 color: Theme.AppTheme.textMuted
                             }
 
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
                                 textRole: "label"
@@ -460,7 +460,7 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 text: "Status"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
@@ -468,7 +468,7 @@ AppLayouts.WorkspaceFrame {
                                 color: Theme.AppTheme.textMuted
                             }
 
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                                 textRole: "label"
@@ -487,7 +487,7 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 text: "Priority"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
@@ -495,7 +495,7 @@ AppLayouts.WorkspaceFrame {
                                 color: Theme.AppTheme.textMuted
                             }
 
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.priorityOptions || []) : []
                                 textRole: "label"
@@ -514,7 +514,7 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 text: "Schedule"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
@@ -522,7 +522,7 @@ AppLayouts.WorkspaceFrame {
                                 color: Theme.AppTheme.textMuted
                             }
 
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.scheduleOptions || []) : []
                                 textRole: "label"
@@ -541,7 +541,7 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 text: "Saved View"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
@@ -549,7 +549,7 @@ AppLayouts.WorkspaceFrame {
                                 color: Theme.AppTheme.textMuted
                             }
 
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.taskViewOptions || []) : []
                                 textRole: "label"
@@ -617,7 +617,7 @@ AppLayouts.WorkspaceFrame {
                         contentItem: ColumnLayout {
                             spacing: Theme.AppTheme.spacingSm
 
-                            Label {
+                            AppControls.Label {
                                 text: "Saved Views"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
@@ -625,7 +625,7 @@ AppLayouts.WorkspaceFrame {
                                 color: Theme.AppTheme.textMuted
                             }
 
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.taskViewOptions || []) : []
                                 textRole: "label"

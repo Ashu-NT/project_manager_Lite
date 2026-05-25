@@ -79,7 +79,7 @@ AppControls.CenteredDialog {
             width: dialogFlickable.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.modeTitle === "Create Project"
                     ? "Set up a project record and delivery baseline context."
@@ -96,26 +96,26 @@ AppControls.CenteredDialog {
                 columnSpacing: Theme.AppTheme.spacingMd
                 rowSpacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     text: "Project name"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: nameField
 
                     Layout.fillWidth: true
                     placeholderText: "Plant Upgrade"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Status"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                ComboBox {
+                AppControls.ComboBox {
                     id: statusCombo
 
                     Layout.fillWidth: true
@@ -123,39 +123,39 @@ AppControls.CenteredDialog {
                     textRole: "label"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Client"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: clientNameField
 
                     Layout.fillWidth: true
                     placeholderText: "Contoso Manufacturing"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Client contact"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: clientContactField
 
                     Layout.fillWidth: true
                     placeholderText: "client@example.com"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Planned budget"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: plannedBudgetField
 
                     Layout.fillWidth: true
@@ -163,39 +163,39 @@ AppControls.CenteredDialog {
                     placeholderText: "250000.00"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Currency"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: currencyField
 
                     Layout.fillWidth: true
                     placeholderText: "EUR"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Start date"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.DateField {
                     id: startDateField
 
                     Layout.fillWidth: true
                     placeholderText: "YYYY-MM-DD"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Finish date"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.DateField {
                     id: endDateField
 
                     Layout.fillWidth: true
@@ -203,14 +203,14 @@ AppControls.CenteredDialog {
                 }
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Description"
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
             }
 
-            TextArea {
+            AppControls.TextArea {
                 id: descriptionField
 
                 Layout.fillWidth: true

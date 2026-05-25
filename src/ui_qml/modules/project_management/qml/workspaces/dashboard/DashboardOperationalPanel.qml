@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -92,7 +93,7 @@ Item {
             visible: String(root.operationalTableModel.title || "").length > 0
                 || String(root.operationalTableModel.subtitle || "").length > 0
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: String(root.operationalTableModel.title || "").length > 0
                 text: String(root.operationalTableModel.title || "")
@@ -103,7 +104,7 @@ Item {
                 elide: Text.ElideRight
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: String(root.operationalTableModel.subtitle || "").length > 0
                 text: String(root.operationalTableModel.subtitle || "")

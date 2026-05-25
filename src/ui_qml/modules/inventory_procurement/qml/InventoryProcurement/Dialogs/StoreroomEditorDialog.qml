@@ -118,7 +118,7 @@ AppControls.CenteredDialog {
             width: dialogFlickable.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.modeTitle === "Create Storeroom"
                     ? "Create an operational stock location with capability flags, ownership, and receipt policy."
@@ -129,7 +129,7 @@ AppControls.CenteredDialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.validationMessage.length > 0
                 text: root.validationMessage
@@ -145,42 +145,42 @@ AppControls.CenteredDialog {
                 columnSpacing: Theme.AppTheme.spacingMd
                 rowSpacing: Theme.AppTheme.spacingSm
 
-                Label { text: "Storeroom code" }
-                TextField { id: storeroomCodeField; Layout.fillWidth: true; placeholderText: "MAIN" }
+                AppControls.Label { text: "Storeroom code" }
+                AppControls.TextField { id: storeroomCodeField; Layout.fillWidth: true; placeholderText: "MAIN" }
 
-                Label { text: "Name" }
-                TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Main Storeroom" }
+                AppControls.Label { text: "Name" }
+                AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Main Storeroom" }
 
-                Label { text: "Site" }
-                ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.formSiteOptions; textRole: "label" }
+                AppControls.Label { text: "Site" }
+                AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.formSiteOptions; textRole: "label" }
 
-                Label { text: "Status" }
-                ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+                AppControls.Label { text: "Status" }
+                AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
 
-                Label { text: "Storeroom type" }
-                TextField { id: storeroomTypeField; Layout.fillWidth: true; placeholderText: "MAIN" }
+                AppControls.Label { text: "Storeroom type" }
+                AppControls.TextField { id: storeroomTypeField; Layout.fillWidth: true; placeholderText: "MAIN" }
 
-                Label { text: "Default currency" }
-                TextField { id: defaultCurrencyField; Layout.fillWidth: true; placeholderText: "EUR" }
+                AppControls.Label { text: "Default currency" }
+                AppControls.TextField { id: defaultCurrencyField; Layout.fillWidth: true; placeholderText: "EUR" }
 
-                Label { text: "Manager party" }
-                ComboBox { id: managerPartyCombo; Layout.fillWidth: true; model: root.managerPartyOptions; textRole: "label" }
+                AppControls.Label { text: "Manager party" }
+                AppControls.ComboBox { id: managerPartyCombo; Layout.fillWidth: true; model: root.managerPartyOptions; textRole: "label" }
             }
 
-            CheckBox { id: internalSupplierCheck; text: "Storeroom acts as an internal supplier" }
-            CheckBox { id: allowsIssueCheck; text: "Allow issue transactions" }
-            CheckBox { id: allowsTransferCheck; text: "Allow transfer transactions" }
-            CheckBox { id: allowsReceivingCheck; text: "Allow receiving transactions" }
-            CheckBox { id: requiresReservationCheck; text: "Require reservations before issue" }
-            CheckBox { id: requiresSupplierReferenceCheck; text: "Require supplier reference for receipts" }
+            AppControls.CheckBox { id: internalSupplierCheck; text: "Storeroom acts as an internal supplier" }
+            AppControls.CheckBox { id: allowsIssueCheck; text: "Allow issue transactions" }
+            AppControls.CheckBox { id: allowsTransferCheck; text: "Allow transfer transactions" }
+            AppControls.CheckBox { id: allowsReceivingCheck; text: "Allow receiving transactions" }
+            AppControls.CheckBox { id: requiresReservationCheck; text: "Require reservations before issue" }
+            AppControls.CheckBox { id: requiresSupplierReferenceCheck; text: "Require supplier reference for receipts" }
 
-            Label {
+            AppControls.Label {
                 text: "Description"
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
             }
 
-            TextArea {
+            AppControls.TextArea {
                 id: descriptionField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 88
@@ -188,13 +188,13 @@ AppControls.CenteredDialog {
                 placeholderText: "Optional storeroom description"
             }
 
-            Label {
+            AppControls.Label {
                 text: "Notes"
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
             }
 
-            TextArea {
+            AppControls.TextArea {
                 id: notesField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 88

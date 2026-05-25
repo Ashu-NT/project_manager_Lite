@@ -56,7 +56,7 @@ ApplicationWindow {
             anchors.margins: Theme.AppTheme.marginXl
             spacing: Theme.AppTheme.spacingXl
 
-            Label {
+            AppControls.Label {
                 text: "TECHASH Enterprise"
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.headerSize
@@ -64,7 +64,7 @@ ApplicationWindow {
                 color: Theme.AppTheme.textPrimary
             }
 
-            Label {
+            AppControls.Label {
                 text: "Sign in to open the QML workspace shell."
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.bodySize
@@ -78,14 +78,14 @@ ApplicationWindow {
                 Layout.preferredHeight: Theme.AppTheme.spacingSm
             }
 
-            Label {
+            AppControls.Label {
                 text: "Username"
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.smallSize
                 color: Theme.AppTheme.textMuted
             }
 
-            TextField {
+            AppControls.TextField {
                 id: usernameField
                 Layout.fillWidth: true
                 text: loginWindow.loginController ? loginWindow.loginController.username : ""
@@ -99,14 +99,14 @@ ApplicationWindow {
                 }
             }
 
-            Label {
+            AppControls.Label {
                 text: "Password"
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.smallSize
                 color: Theme.AppTheme.textMuted
             }
 
-            TextField {
+            AppControls.TextField {
                 id: passwordField
                 Layout.fillWidth: true
                 text: loginWindow.loginController ? loginWindow.loginController.password : ""
@@ -127,7 +127,7 @@ ApplicationWindow {
                 }
             }
 
-            Label {
+            AppControls.Label {
                 visible: loginWindow.loginController !== null && loginWindow.loginController.errorMessage.length > 0
                 text: loginWindow.loginController ? loginWindow.loginController.errorMessage : ""
                 color: Theme.AppTheme.danger

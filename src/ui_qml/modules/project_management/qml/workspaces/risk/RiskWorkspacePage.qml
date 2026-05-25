@@ -6,6 +6,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
+import App.Controls 1.0 as AppControls
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -179,7 +180,7 @@ AppLayouts.WorkspaceFrame {
                     width: parent.width
                     spacing: 8
 
-                    Label {
+                    AppControls.Label {
                         text: "Project"
                         font.bold: true
                         font.pixelSize: Theme.AppTheme.captionSize
@@ -187,7 +188,7 @@ AppLayouts.WorkspaceFrame {
                         color: Theme.AppTheme.textMuted
                     }
 
-                    ComboBox {
+                    AppControls.ComboBox {
                         width: parent.width
                         model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
                         textRole: "label"
@@ -199,7 +200,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         text: "Status"
                         font.bold: true
                         font.pixelSize: Theme.AppTheme.captionSize
@@ -207,7 +208,7 @@ AppLayouts.WorkspaceFrame {
                         color: Theme.AppTheme.textMuted
                     }
 
-                    ComboBox {
+                    AppControls.ComboBox {
                         width: parent.width
                         model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                         textRole: "label"
@@ -219,7 +220,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         text: "Severity"
                         font.bold: true
                         font.pixelSize: Theme.AppTheme.captionSize
@@ -227,7 +228,7 @@ AppLayouts.WorkspaceFrame {
                         color: Theme.AppTheme.textMuted
                     }
 
-                    ComboBox {
+                    AppControls.ComboBox {
                         width: parent.width
                         model: root.workspaceController ? (root.workspaceController.severityOptions || []) : []
                         textRole: "label"

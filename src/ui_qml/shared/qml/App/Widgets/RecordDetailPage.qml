@@ -99,7 +99,7 @@ Item {
                         color: Theme.AppTheme.divider
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: root.title
                         color: Theme.AppTheme.textPrimary

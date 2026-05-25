@@ -125,14 +125,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: partyCodeField
 
                     Layout.preferredWidth: 180
                     placeholderText: "Party code"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: partyNameField
 
                     Layout.fillWidth: true
@@ -140,7 +140,7 @@ AppControls.CenteredDialog {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: typeCombo
 
                 Layout.fillWidth: true
@@ -152,14 +152,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: legalNameField
 
                     Layout.fillWidth: true
                     placeholderText: "Legal name"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: contactNameField
 
                     Layout.fillWidth: true
@@ -171,14 +171,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: emailField
 
                     Layout.fillWidth: true
                     placeholderText: "Email"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: phoneField
 
                     Layout.fillWidth: true
@@ -190,14 +190,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: countryField
 
                     Layout.fillWidth: true
                     placeholderText: "Country"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: cityField
 
                     Layout.fillWidth: true
@@ -205,14 +205,14 @@ AppControls.CenteredDialog {
                 }
             }
 
-            TextField {
+            AppControls.TextField {
                 id: addressLine1Field
 
                 Layout.fillWidth: true
                 placeholderText: "Address line 1"
             }
 
-            TextField {
+            AppControls.TextField {
                 id: addressLine2Field
 
                 Layout.fillWidth: true
@@ -223,14 +223,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: postalCodeField
 
                     Layout.fillWidth: true
                     placeholderText: "Postal code"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: websiteField
 
                     Layout.fillWidth: true
@@ -242,14 +242,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: taxRegistrationField
 
                     Layout.fillWidth: true
                     placeholderText: "Tax registration"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: externalReferenceField
 
                     Layout.fillWidth: true
@@ -257,7 +257,7 @@ AppControls.CenteredDialog {
                 }
             }
 
-            TextArea {
+            AppControls.TextArea {
                 id: notesField
 
                 Layout.fillWidth: true
@@ -266,7 +266,7 @@ AppControls.CenteredDialog {
                 wrapMode: TextEdit.WordWrap
             }
 
-            CheckBox {
+            AppControls.CheckBox {
                 id: activeCheck
 
                 text: "Active party"

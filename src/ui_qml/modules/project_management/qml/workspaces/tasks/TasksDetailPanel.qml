@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import App.Mock 1.0 as AppMock
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -123,7 +124,7 @@ Item {
                     value: root._progressValue
                 }
 
-                Label {
+                AppControls.Label {
                     text:           root._progressLabel
                     color:          Theme.AppTheme.textMuted
                     font.family:    Theme.AppTheme.fontFamily
@@ -137,7 +138,7 @@ Item {
                 visible: String(root.taskDetail.subtitle || "").length > 0
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text:           root.taskDetail.subtitle || ""
                 color:          Theme.AppTheme.textSecondary
@@ -184,7 +185,7 @@ Item {
                 }
 
                 // Description
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible:        root._hasTask
                         && String(root.taskDetail.description || "").length > 0
@@ -213,7 +214,7 @@ Item {
                             Layout.fillWidth: true
                             spacing: 2
 
-                            Label {
+                            AppControls.Label {
                                 text:           String(_field.modelData.label || "")
                                 color:          Theme.AppTheme.textMuted
                                 font.family:    Theme.AppTheme.fontFamily
@@ -221,7 +222,7 @@ Item {
                                 font.bold:      true
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text:           String(_field.modelData.value || "—")
                                 color:          Theme.AppTheme.textPrimary
@@ -230,7 +231,7 @@ Item {
                                 elide:          Text.ElideRight
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 visible:        String(_field.modelData.supportingText || "").length > 0
                                 text:           String(_field.modelData.supportingText || "")

@@ -11,13 +11,13 @@ AppControls.CenteredDialog {
     ColumnLayout {
         spacing: 10
 
-        TextField {
+        AppControls.TextField {
             id: username
             Layout.preferredWidth: 320
             placeholderText: "Username"
         }
 
-        TextField {
+        AppControls.TextField {
             id: password
             Layout.preferredWidth: 320
             placeholderText: "Password"

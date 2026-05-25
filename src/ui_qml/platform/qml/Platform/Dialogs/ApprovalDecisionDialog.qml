@@ -31,7 +31,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.requestTitle.length > 0
                 ? root.requestTitle
@@ -43,7 +43,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.mode === "reject"
                 ? "Capture an optional rejection reason before closing the request."
@@ -54,7 +54,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        TextArea {
+        AppControls.TextArea {
             id: noteField
 
             Layout.fillWidth: true

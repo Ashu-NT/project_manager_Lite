@@ -95,7 +95,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.validationMessage.length > 0
             text: root.validationMessage
@@ -111,23 +111,23 @@ AppControls.CenteredDialog {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Item" }
-            ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+            AppControls.Label { text: "Item" }
+            AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
 
-            Label { text: "Storeroom" }
-            ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+            AppControls.Label { text: "Storeroom" }
+            AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
 
-            Label { text: "Quantity" }
-            TextField { id: quantityField; objectName: "quantityField"; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+            AppControls.Label { text: "Quantity" }
+            AppControls.TextField { id: quantityField; objectName: "quantityField"; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
 
-            Label { text: "UOM" }
-            TextField { id: uomField; Layout.fillWidth: true; placeholderText: "EA" }
+            AppControls.Label { text: "UOM" }
+            AppControls.TextField { id: uomField; Layout.fillWidth: true; placeholderText: "EA" }
 
-            Label {
+            AppControls.Label {
                 visible: root.showDirection
                 text: "Direction"
             }
-            ComboBox {
+            AppControls.ComboBox {
                 id: directionCombo
                 visible: root.showDirection
                 Layout.fillWidth: true
@@ -138,14 +138,14 @@ AppControls.CenteredDialog {
                 textRole: "label"
             }
 
-            Label { text: "Unit cost" }
-            TextField { id: unitCostField; Layout.fillWidth: true; placeholderText: "0.00"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+            AppControls.Label { text: "Unit cost" }
+            AppControls.TextField { id: unitCostField; Layout.fillWidth: true; placeholderText: "0.00"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
 
-            Label {
+            AppControls.Label {
                 visible: root.showReleaseReservedField
                 text: "Release reserved qty"
             }
-            TextField {
+            AppControls.TextField {
                 id: releaseReservedField
                 visible: root.showReleaseReservedField
                 Layout.fillWidth: true
@@ -153,22 +153,22 @@ AppControls.CenteredDialog {
                 inputMethodHints: Qt.ImhFormattedNumbersOnly
             }
 
-            Label {
+            AppControls.Label {
                 visible: root.showReferenceFields
                 text: "Reference type"
             }
-            TextField {
+            AppControls.TextField {
                 id: referenceTypeField
                 visible: root.showReferenceFields
                 Layout.fillWidth: true
                 placeholderText: "issue"
             }
 
-            Label {
+            AppControls.Label {
                 visible: root.showReferenceFields
                 text: "Reference id"
             }
-            TextField {
+            AppControls.TextField {
                 id: referenceIdField
                 visible: root.showReferenceFields
                 Layout.fillWidth: true
@@ -176,13 +176,13 @@ AppControls.CenteredDialog {
             }
         }
 
-        Label {
+        AppControls.Label {
             text: "Notes"
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
         }
 
-        TextArea {
+        AppControls.TextArea {
             id: notesField
             Layout.fillWidth: true
             Layout.preferredHeight: 96

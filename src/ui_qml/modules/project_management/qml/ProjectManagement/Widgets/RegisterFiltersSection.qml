@@ -49,7 +49,7 @@ Item {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingMd
 
-            TextField {
+            AppControls.TextField {
                 Layout.fillWidth: true
                 text: root.searchText
                 placeholderText: "Search by title, owner, project, impact, or response plan"
@@ -77,7 +77,7 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            ComboBox {
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.projectOptions
                 textRole: "label"
@@ -92,7 +92,7 @@ Item {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 visible: root.showTypeFilter
                 Layout.fillWidth: true
                 model: root.typeOptions
@@ -108,7 +108,7 @@ Item {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.statusOptions
                 textRole: "label"
@@ -123,7 +123,7 @@ Item {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.severityOptions
                 textRole: "label"

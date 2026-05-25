@@ -36,7 +36,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingXs
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: root.purchaseOrderDetail.title || "Purchase-Order Detail"
                     color: Theme.AppTheme.textPrimary
@@ -46,7 +46,7 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: root.purchaseOrderDetail.subtitle || "Select a purchase order to review supplier commitments."
                     color: Theme.AppTheme.textSecondary
@@ -62,7 +62,7 @@ Item {
             }
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: String(root.purchaseOrderDetail.emptyState || "").length > 0 && String(root.purchaseOrderDetail.id || "").length === 0
             text: root.purchaseOrderDetail.emptyState
@@ -72,7 +72,7 @@ Item {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: String(root.purchaseOrderDetail.id || "").length > 0
             text: root.purchaseOrderDetail.description || ""
@@ -102,7 +102,7 @@ Item {
                     anchors.topMargin: Theme.AppTheme.spacingSm
                     spacing: Theme.AppTheme.spacingXs
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: String(fieldRow.modelData.label || "")
                         color: Theme.AppTheme.textMuted
@@ -111,7 +111,7 @@ Item {
                         font.bold: true
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: String(fieldRow.modelData.value || "")
                         color: Theme.AppTheme.textPrimary

@@ -33,7 +33,7 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: Theme.AppTheme.spacingXs
 
-        Label {
+        AppControls.Label {
             text:               _mr.rowLabel
             color:              Theme.AppTheme.textMuted
             font.family:        Theme.AppTheme.fontFamily
@@ -41,7 +41,7 @@ ColumnLayout {
             font.bold:          true
             Layout.preferredWidth: 100
         }
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text:           _mr.rowValue || "-"
             color:          Theme.AppTheme.textSecondary
@@ -74,7 +74,7 @@ ColumnLayout {
             anchors.rightMargin: Theme.AppTheme.marginSm
             spacing:             Theme.AppTheme.spacingXs
 
-            Label {
+            AppControls.Label {
                 text:           _pr.rowLabel
                 color:          Theme.AppTheme.textMuted
                 font.family:    Theme.AppTheme.fontFamily
@@ -83,7 +83,7 @@ ColumnLayout {
                 Layout.preferredWidth: 160
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text:           _pr.rowValue.length > 0 ? _pr.rowValue : "-"
                 color:          Theme.AppTheme.textSecondary
@@ -180,7 +180,7 @@ ColumnLayout {
         id: installDialog
         modal: true; focus: true; implicitWidth: 460
         title: "Install Update"
-        contentItem: Label {
+        contentItem: AppControls.Label {
             text: "The app will download the installer, prepare the Windows update handoff, then close and relaunch automatically. Continue?"
             wrapMode: Text.WordWrap
             color: Theme.AppTheme.textPrimary
@@ -222,7 +222,7 @@ ColumnLayout {
             height: 1; color: Theme.AppTheme.divider
         }
 
-        Label {
+        AppControls.Label {
             anchors.left:           parent.left
             anchors.leftMargin:     Theme.AppTheme.marginMd
             anchors.verticalCenter: parent.verticalCenter
@@ -289,7 +289,7 @@ ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 3
 
-                        Label {
+                        AppControls.Label {
                             text:           "Channel"
                             color:          Theme.AppTheme.textMuted
                             font.family:    Theme.AppTheme.fontFamily
@@ -297,7 +297,7 @@ ColumnLayout {
                             font.bold:      true
                         }
 
-                        ComboBox {
+                        AppControls.ComboBox {
                             id: channelCombo
                             Layout.fillWidth: true
                             enabled:  !root._busy
@@ -306,7 +306,7 @@ ColumnLayout {
                         }
                     }
 
-                    CheckBox {
+                    AppControls.CheckBox {
                         id: autoCheckBox
                         Layout.alignment: Qt.AlignBottom
                         text:    "Auto-check at startup"
@@ -321,7 +321,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 3
 
-                    Label {
+                    AppControls.Label {
                         text:           "Manifest Source"
                         color:          Theme.AppTheme.textMuted
                         font.family:    Theme.AppTheme.fontFamily
@@ -329,7 +329,7 @@ ColumnLayout {
                         font.bold:      true
                     }
 
-                    TextField {
+                    AppControls.TextField {
                         id: manifestField
                         Layout.fillWidth: true
                         enabled:         !root._busy
@@ -403,7 +403,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.AppTheme.spacingXs
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text:           "Release Status"
                         color:          Theme.AppTheme.textMuted
@@ -423,7 +423,7 @@ ColumnLayout {
                 MetaRow { rowLabel: "Theme";       rowValue: String(root.supportSettings.themeMode     || "-") }
                 MetaRow { rowLabel: "Governance";  rowValue: String(root.supportSettings.governanceMode || "-") }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible:        String(root.updateStatus.notes || "").length > 0
                     text:           String(root.updateStatus.notes || "")
@@ -433,7 +433,7 @@ ColumnLayout {
                     wrapMode:       Text.WordWrap
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible:        String(root.updateStatus.summary || "").length > 0
                     text:           String(root.updateStatus.summary || "")
@@ -443,7 +443,7 @@ ColumnLayout {
                     wrapMode:       Text.WordWrap
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible:        String(root.updateStatus.sha256 || "").length > 0
                     text:           "SHA256: " + String(root.updateStatus.sha256 || "")
@@ -485,7 +485,7 @@ ColumnLayout {
             }
             spacing: Theme.AppTheme.spacingXs
 
-            Label {
+            AppControls.Label {
                 text:               "ACTIVE TRACE"
                 color:              Theme.AppTheme.textMuted
                 font.family:        Theme.AppTheme.fontFamily
@@ -498,7 +498,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingSm
 
-                TextField {
+                AppControls.TextField {
                     id: incidentField
                     Layout.fillWidth: true
                     enabled:         !root._busy
@@ -669,7 +669,7 @@ ColumnLayout {
                         Layout.fillWidth: true
                         spacing:          Theme.AppTheme.spacingXs
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             text:           _actRow.modelData.title || ""
                             color:          Theme.AppTheme.textPrimary
@@ -684,7 +684,7 @@ ColumnLayout {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         visible:        (_actRow.modelData.metaText || "").length > 0
                         text:           _actRow.modelData.metaText || ""
                         color:          Theme.AppTheme.textMuted
@@ -723,7 +723,7 @@ ColumnLayout {
             width:   parent.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 text:           "Filter Support"
                 color:          Theme.AppTheme.textPrimary
                 font.family:    Theme.AppTheme.fontFamily
@@ -731,7 +731,7 @@ ColumnLayout {
                 font.bold:      true
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text:    "Activity type and date filters will appear here."
                 color:   Theme.AppTheme.textMuted
@@ -778,7 +778,7 @@ ColumnLayout {
                     radius: Theme.AppTheme.radiusMd
                     color:  _svMA.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
 
-                    Label {
+                    AppControls.Label {
                         anchors {
                             left:           parent.left
                             leftMargin:     Theme.AppTheme.spacingMd

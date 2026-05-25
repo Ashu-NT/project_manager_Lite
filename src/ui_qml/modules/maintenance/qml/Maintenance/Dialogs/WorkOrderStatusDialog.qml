@@ -47,7 +47,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.workOrderData && root.workOrderData.title
                 ? "Update the execution lifecycle state for " + root.workOrderData.title + "."
@@ -58,7 +58,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             id: statusCombo
             objectName: "statusCombo"
 

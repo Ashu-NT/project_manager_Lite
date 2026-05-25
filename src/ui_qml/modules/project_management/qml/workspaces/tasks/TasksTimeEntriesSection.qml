@@ -143,7 +143,7 @@ Item {
                     Layout.fillWidth: true
                     spacing: 2
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: String(root.assignmentSummary.title || "").length > 0
                         text:           root.assignmentSummary.title || ""
@@ -154,7 +154,7 @@ Item {
                         elide:          Text.ElideRight
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: String(root.assignmentSummary.subtitle || "").length > 0
                         text:           root.assignmentSummary.subtitle || ""
@@ -165,7 +165,7 @@ Item {
                     }
                 }
 
-                ComboBox {
+                AppControls.ComboBox {
                     Layout.preferredWidth: 160
                     visible: root.periodOptions.length > 0
                     model:        root.periodOptions
@@ -209,7 +209,7 @@ Item {
                         Layout.fillWidth: true
                         spacing: 3
 
-                        Label {
+                        AppControls.Label {
                             text:           "Date"
                             color:          Theme.AppTheme.textMuted
                             font.family:    Theme.AppTheme.fontFamily
@@ -217,7 +217,7 @@ Item {
                             font.bold:      true
                         }
 
-                        TextField {
+                        AppControls.DateField {
                             id: _dateField
                             Layout.fillWidth: true
                             enabled:         !root.isBusy
@@ -231,7 +231,7 @@ Item {
                         Layout.preferredWidth: 120
                         spacing: 3
 
-                        Label {
+                        AppControls.Label {
                             text:           "Hours"
                             color:          Theme.AppTheme.textMuted
                             font.family:    Theme.AppTheme.fontFamily
@@ -239,7 +239,7 @@ Item {
                             font.bold:      true
                         }
 
-                        TextField {
+                        AppControls.TextField {
                             id: _hoursField
                             Layout.fillWidth: true
                             enabled:         !root.isBusy
@@ -250,7 +250,7 @@ Item {
                     }
                 }
 
-                TextArea {
+                AppControls.TextArea {
                     id: _noteArea
                     Layout.fillWidth:    true
                     Layout.preferredHeight: 72
@@ -342,7 +342,7 @@ Item {
                     color: Theme.AppTheme.divider
                 }
 
-                TextArea {
+                AppControls.TextArea {
                     id: _periodNoteArea
                     Layout.fillWidth:       true
                     Layout.preferredHeight: 64

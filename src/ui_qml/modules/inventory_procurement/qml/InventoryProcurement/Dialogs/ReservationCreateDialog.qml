@@ -87,7 +87,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Reserve available stock against a real upstream demand reference. The reservation reduces availability without reducing on-hand stock."
             color: Theme.AppTheme.textSecondary
@@ -96,7 +96,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.validationMessage.length > 0
             text: root.validationMessage
@@ -112,32 +112,32 @@ AppControls.CenteredDialog {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Item" }
-            ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.formItemOptions; textRole: "label" }
+            AppControls.Label { text: "Item" }
+            AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.formItemOptions; textRole: "label" }
 
-            Label { text: "Storeroom" }
-            ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.formStoreroomOptions; textRole: "label" }
+            AppControls.Label { text: "Storeroom" }
+            AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.formStoreroomOptions; textRole: "label" }
 
-            Label { text: "Reserved qty" }
-            TextField { id: quantityField; objectName: "quantityField"; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+            AppControls.Label { text: "Reserved qty" }
+            AppControls.TextField { id: quantityField; objectName: "quantityField"; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
 
-            Label { text: "Need by (YYYY-MM-DD)" }
-            TextField { id: needByDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+            AppControls.Label { text: "Need by (YYYY-MM-DD)" }
+            AppControls.DateField { id: needByDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
 
-            Label { text: "Source type" }
-            TextField { id: sourceTypeField; Layout.fillWidth: true; placeholderText: "task, work_order, project..." }
+            AppControls.Label { text: "Source type" }
+            AppControls.TextField { id: sourceTypeField; Layout.fillWidth: true; placeholderText: "task, work_order, project..." }
 
-            Label { text: "Source id" }
-            TextField { id: sourceIdField; Layout.fillWidth: true; placeholderText: "TASK-42" }
+            AppControls.Label { text: "Source id" }
+            AppControls.TextField { id: sourceIdField; Layout.fillWidth: true; placeholderText: "TASK-42" }
         }
 
-        Label {
+        AppControls.Label {
             text: "Notes"
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
         }
 
-        TextArea {
+        AppControls.TextArea {
             id: notesField
             Layout.fillWidth: true
             Layout.preferredHeight: 96

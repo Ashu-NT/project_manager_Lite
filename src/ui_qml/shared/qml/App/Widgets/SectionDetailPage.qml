@@ -129,7 +129,7 @@ Item {
                         color: Theme.AppTheme.divider
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: root.title
                         font.pixelSize: Theme.AppTheme.sectionSize
@@ -192,7 +192,7 @@ Item {
                         anchors.margins: Theme.AppTheme.pagePadding
                         spacing: Theme.AppTheme.sectionGap
 
-                        Label {
+                        AppControls.Label {
                             width: parent.width
                             visible: root.sections.length > 0
                             text: "SECTIONS"
@@ -242,7 +242,7 @@ Item {
                                     visible: navItem.isActive
                                 }
 
-                                Label {
+                                AppControls.Label {
                                     id: _navLabel
                                     anchors.verticalCenter: parent.verticalCenter
                                     anchors.left:        parent.left
@@ -272,7 +272,7 @@ Item {
                                         ? Theme.AppTheme.accent
                                         : Theme.AppTheme.surfaceOverlay
 
-                                    Label {
+                                    AppControls.Label {
                                         id: _countLabel
                                         anchors.centerIn: parent
                                         text:           String(navItem._count)

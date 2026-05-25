@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -38,7 +39,7 @@ Item {
             spacing: 2
             visible: root.title.length > 0 || root.subtitle.length > 0
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.title.length > 0
                 text: root.title
@@ -48,7 +49,7 @@ Item {
                 font.bold: true
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.subtitle.length > 0
                 text: root.subtitle
@@ -59,7 +60,7 @@ Item {
             }
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.hint.length > 0
             text: root.hint
@@ -129,7 +130,7 @@ Item {
                             Layout.fillWidth: true
                             spacing: 2
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: panelRow.modelData.label || ""
                                 color: Theme.AppTheme.textPrimary
@@ -139,7 +140,7 @@ Item {
                                 wrapMode: Text.WordWrap
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 visible: String(panelRow.modelData.supportingText || "").length > 0
                                 text: panelRow.modelData.supportingText || ""
@@ -150,7 +151,7 @@ Item {
                             }
                         }
 
-                        Label {
+                        AppControls.Label {
                             text: panelRow.modelData.value || ""
                             color: root.toneColor(panelRow.modelData.tone)
                             font.family: Theme.AppTheme.fontFamily

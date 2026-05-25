@@ -122,7 +122,7 @@ AppControls.CenteredDialog {
             width: dialogFlickable.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.modeTitle === "Create Resource"
                     ? "Set up a PM resource record for internal staffing or external support."
@@ -133,7 +133,7 @@ AppControls.CenteredDialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.validationMessage.length > 0
                 text: root.validationMessage
@@ -149,13 +149,13 @@ AppControls.CenteredDialog {
                 columnSpacing: Theme.AppTheme.spacingMd
                 rowSpacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     text: "Worker type"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                ComboBox {
+                AppControls.ComboBox {
                     id: workerTypeCombo
 
                     Layout.fillWidth: true
@@ -164,13 +164,13 @@ AppControls.CenteredDialog {
                     onCurrentIndexChanged: root.applyEmployeeDefaults()
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Employee"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                ComboBox {
+                AppControls.ComboBox {
                     id: employeeCombo
 
                     Layout.fillWidth: true
@@ -180,13 +180,13 @@ AppControls.CenteredDialog {
                     onCurrentIndexChanged: root.applyEmployeeDefaults()
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Shared context"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                Label {
+                AppControls.Label {
                     id: employeeContextValue
 
                     Layout.fillWidth: true
@@ -197,13 +197,13 @@ AppControls.CenteredDialog {
                     wrapMode: Text.WordWrap
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Resource name"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: nameField
 
                     Layout.fillWidth: true
@@ -211,13 +211,13 @@ AppControls.CenteredDialog {
                     readOnly: root.employeeWorkerSelected
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Role"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: roleField
 
                     Layout.fillWidth: true
@@ -225,13 +225,13 @@ AppControls.CenteredDialog {
                     readOnly: root.employeeWorkerSelected
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Category"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                ComboBox {
+                AppControls.ComboBox {
                     id: categoryCombo
 
                     Layout.fillWidth: true
@@ -239,13 +239,13 @@ AppControls.CenteredDialog {
                     textRole: "label"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Hourly rate"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: hourlyRateField
 
                     Layout.fillWidth: true
@@ -253,13 +253,13 @@ AppControls.CenteredDialog {
                     placeholderText: "95.00"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Capacity (%)"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: capacityField
 
                     Layout.fillWidth: true
@@ -267,39 +267,39 @@ AppControls.CenteredDialog {
                     placeholderText: "100.0"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Currency"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: currencyField
 
                     Layout.fillWidth: true
                     placeholderText: "EUR"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Address"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: addressField
 
                     Layout.fillWidth: true
                     placeholderText: "Site office or vendor address"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Contact"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: contactField
 
                     Layout.fillWidth: true
@@ -308,7 +308,7 @@ AppControls.CenteredDialog {
                 }
             }
 
-            CheckBox {
+            AppControls.CheckBox {
                 id: activeCheck
 
                 text: "Resource is active and available for planning"

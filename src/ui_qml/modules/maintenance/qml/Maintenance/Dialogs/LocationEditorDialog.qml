@@ -105,7 +105,7 @@ AppControls.CenteredDialog {
             width: dialogFlickable.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Capture site location hierarchy, lifecycle state, and scope notes for maintenance anchors."
                 color: Theme.AppTheme.textSecondary
@@ -114,7 +114,7 @@ AppControls.CenteredDialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.validationMessage.length > 0
                 text: root.validationMessage
@@ -130,40 +130,40 @@ AppControls.CenteredDialog {
                 columnSpacing: Theme.AppTheme.spacingMd
                 rowSpacing: Theme.AppTheme.spacingSm
 
-                Label { text: "Site" }
-                ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+                AppControls.Label { text: "Site" }
+                AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
 
-                Label { text: "Location code" }
-                TextField { id: locationCodeField; Layout.fillWidth: true; placeholderText: "LOC-100" }
+                AppControls.Label { text: "Location code" }
+                AppControls.TextField { id: locationCodeField; Layout.fillWidth: true; placeholderText: "LOC-100" }
 
-                Label { text: "Name" }
-                TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Production Area A" }
+                AppControls.Label { text: "Name" }
+                AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Production Area A" }
 
-                Label { text: "Parent location" }
-                ComboBox { id: parentLocationCombo; Layout.fillWidth: true; model: root.parentLocationOptions; textRole: "label" }
+                AppControls.Label { text: "Parent location" }
+                AppControls.ComboBox { id: parentLocationCombo; Layout.fillWidth: true; model: root.parentLocationOptions; textRole: "label" }
 
-                Label { text: "Location type" }
-                TextField { id: locationTypeField; Layout.fillWidth: true; placeholderText: "PRODUCTION" }
+                AppControls.Label { text: "Location type" }
+                AppControls.TextField { id: locationTypeField; Layout.fillWidth: true; placeholderText: "PRODUCTION" }
 
-                Label { text: "Criticality" }
-                ComboBox { id: criticalityCombo; Layout.fillWidth: true; model: root.criticalityOptions; textRole: "label" }
+                AppControls.Label { text: "Criticality" }
+                AppControls.ComboBox { id: criticalityCombo; Layout.fillWidth: true; model: root.criticalityOptions; textRole: "label" }
 
-                Label { text: "Lifecycle status" }
-                ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+                AppControls.Label { text: "Lifecycle status" }
+                AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
             }
 
-            Label { text: "Description" }
-            TextArea {
+            AppControls.Label { text: "Description" }
+            AppControls.TextArea {
                 id: descriptionField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90
                 wrapMode: TextEdit.WordWrap
             }
 
-            CheckBox { id: activeCheck; text: "Active location" }
+            AppControls.CheckBox { id: activeCheck; text: "Active location" }
 
-            Label { text: "Notes" }
-            TextArea {
+            AppControls.Label { text: "Notes" }
+            AppControls.TextArea {
                 id: notesField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90

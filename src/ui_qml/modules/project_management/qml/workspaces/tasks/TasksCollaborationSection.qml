@@ -90,7 +90,7 @@ Item {
                 anchors.margins: Theme.AppTheme.spacingMd
                 spacing:         Theme.AppTheme.spacingXs
 
-                Label {
+                AppControls.Label {
                     text:           "ACTIVE PRESENCE"
                     color:          Theme.AppTheme.textMuted
                     font.family:    Theme.AppTheme.fontFamily
@@ -112,7 +112,7 @@ Item {
                             color: Theme.AppTheme.success
                         }
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             text:           String(_pRow.modelData.title || "")
                             color:          Theme.AppTheme.textSecondary
@@ -121,7 +121,7 @@ Item {
                             elide:          Text.ElideRight
                         }
 
-                        Label {
+                        AppControls.Label {
                             text:           String(_pRow.modelData.metaText || "")
                             color:          Theme.AppTheme.textMuted
                             font.family:    Theme.AppTheme.fontFamily

@@ -70,7 +70,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingXs
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Bulk Actions"
                     color: Theme.AppTheme.textPrimary
@@ -79,7 +79,7 @@ Item {
                     font.bold: true
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: root.selectedTaskCount > 0
                         ? String(root.selectedTaskCount) + " task(s) selected for bulk actions."
@@ -126,7 +126,7 @@ Item {
             }
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.selectedTaskDoneCount > 0 && root.selectedStatusValue !== "DONE"
             text: String(root.selectedTaskDoneCount) + " completed task(s) will be reopened by this status change."
@@ -140,7 +140,7 @@ Item {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingMd
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: statusCombo
                 Layout.preferredWidth: 220
                 model: root.statusOptions
@@ -156,7 +156,7 @@ Item {
                 }
             }
 
-            TextField {
+            AppControls.TextField {
                 id: reopenPercentField
                 Layout.preferredWidth: 160
                 visible: root.selectedTaskDoneCount > 0 && root.selectedStatusValue === "IN_PROGRESS"

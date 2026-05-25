@@ -47,7 +47,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.workRequestData && root.workRequestData.title
                 ? "Update the triage lifecycle state for " + root.workRequestData.title + "."
@@ -58,7 +58,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             id: statusCombo
             objectName: "statusCombo"
 

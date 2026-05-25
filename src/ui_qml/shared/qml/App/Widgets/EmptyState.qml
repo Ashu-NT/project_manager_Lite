@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -17,7 +18,7 @@ Item {
         spacing: Theme.AppTheme.spacingSm
         width: Math.min(parent.width, 320)
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.title
             color: Theme.AppTheme.textSecondary
@@ -28,7 +29,7 @@ Item {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.message.length > 0
             text: root.message

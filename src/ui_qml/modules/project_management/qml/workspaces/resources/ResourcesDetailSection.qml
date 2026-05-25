@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -91,14 +92,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Role"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("role") || "—"
                                 color: Theme.AppTheme.textPrimary
@@ -111,14 +112,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Type"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("workerTypeLabel") || "—"
                                 color: Theme.AppTheme.textPrimary
@@ -130,14 +131,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Capacity"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: {
                                     const pct = parseFloat(root._sv("capacityPercent") || "0")
@@ -152,14 +153,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Rate"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("hourlyRateLabel") || "—"
                                 color: Theme.AppTheme.textPrimary
@@ -186,14 +187,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Contact"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("contact") || "—"
                                 color: Theme.AppTheme.textPrimary
@@ -206,14 +207,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Currency"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("currency") || "—"
                                 color: Theme.AppTheme.textPrimary
@@ -225,7 +226,7 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Status"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
@@ -240,14 +241,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Version"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("version") ? "v" + root._sv("version") : "—"
                                 color: Theme.AppTheme.textMuted
@@ -257,7 +258,7 @@ Item {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: root._hasResource
                         text: root.resourceDetail.description
@@ -375,7 +376,7 @@ Item {
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Label {
+                                    AppControls.Label {
                                         text: "Capacity"
                                         color: Theme.AppTheme.textMuted
                                         font.family: Theme.AppTheme.fontFamily
@@ -383,7 +384,7 @@ Item {
                                         font.bold: true
                                     }
                                     Item { Layout.fillWidth: true }
-                                    Label {
+                                    AppControls.Label {
                                         text: parent.parent.parent._label
                                         color: Theme.AppTheme.textPrimary
                                         font.family: Theme.AppTheme.fontFamily
@@ -418,7 +419,7 @@ Item {
                                 anchors.rightMargin: Theme.AppTheme.spacingMd
                                 spacing: Theme.AppTheme.spacingSm
 
-                                Label {
+                                AppControls.Label {
                                     text: "Hourly Rate"
                                     color: Theme.AppTheme.textMuted
                                     font.family: Theme.AppTheme.fontFamily
@@ -426,7 +427,7 @@ Item {
                                     font.bold: true
                                 }
                                 Item { Layout.fillWidth: true }
-                                Label {
+                                AppControls.Label {
                                     text: root._sv("hourlyRateLabel") || "—"
                                     color: Theme.AppTheme.textPrimary
                                     font.family: Theme.AppTheme.fontFamily
@@ -453,7 +454,7 @@ Item {
                                 anchors.rightMargin: Theme.AppTheme.spacingMd
                                 spacing: Theme.AppTheme.spacingSm
 
-                                Label {
+                                AppControls.Label {
                                     text: "Cost Type"
                                     color: Theme.AppTheme.textMuted
                                     font.family: Theme.AppTheme.fontFamily
@@ -461,7 +462,7 @@ Item {
                                     font.bold: true
                                 }
                                 Item { Layout.fillWidth: true }
-                                Label {
+                                AppControls.Label {
                                     text: root._sv("costTypeLabel") || "—"
                                     color: Theme.AppTheme.textPrimary
                                     font.family: Theme.AppTheme.fontFamily
@@ -627,14 +628,14 @@ Item {
                             columnSpacing: Theme.AppTheme.spacingMd
                             rowSpacing: Theme.AppTheme.spacingXs
 
-                            Label {
+                            AppControls.Label {
                                 text: "Hourly Rate"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("hourlyRateLabel") || "—"
                                 color: Theme.AppTheme.textPrimary
@@ -643,14 +644,14 @@ Item {
                                 font.bold: true
                             }
 
-                            Label {
+                            AppControls.Label {
                                 text: "Currency"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("currency") || "—"
                                 color: Theme.AppTheme.textPrimary
@@ -658,14 +659,14 @@ Item {
                                 font.pixelSize: Theme.AppTheme.smallSize
                             }
 
-                            Label {
+                            AppControls.Label {
                                 text: "Cost Type"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("costTypeLabel") || "—"
                                 color: Theme.AppTheme.textPrimary
@@ -673,14 +674,14 @@ Item {
                                 font.pixelSize: Theme.AppTheme.smallSize
                             }
 
-                            Label {
+                            AppControls.Label {
                                 text: "Worker Type"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("workerTypeLabel") || "—"
                                 color: Theme.AppTheme.textPrimary

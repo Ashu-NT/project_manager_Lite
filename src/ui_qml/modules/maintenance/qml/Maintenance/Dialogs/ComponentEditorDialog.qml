@@ -122,7 +122,7 @@ AppControls.CenteredDialog {
             width: dialogFlickable.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Capture component identity, supplier context, and lifecycle state under the selected asset."
                 color: Theme.AppTheme.textSecondary
@@ -131,7 +131,7 @@ AppControls.CenteredDialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.validationMessage.length > 0
                 text: root.validationMessage
@@ -147,51 +147,51 @@ AppControls.CenteredDialog {
                 columnSpacing: Theme.AppTheme.spacingMd
                 rowSpacing: Theme.AppTheme.spacingSm
 
-                Label { text: "Asset" }
-                ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
+                AppControls.Label { text: "Asset" }
+                AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
 
-                Label { text: "Parent component" }
-                ComboBox { id: parentComponentCombo; Layout.fillWidth: true; model: root.parentComponentOptions; textRole: "label" }
+                AppControls.Label { text: "Parent component" }
+                AppControls.ComboBox { id: parentComponentCombo; Layout.fillWidth: true; model: root.parentComponentOptions; textRole: "label" }
 
-                Label { text: "Component code" }
-                TextField { id: componentCodeField; Layout.fillWidth: true; placeholderText: "CMP-100" }
+                AppControls.Label { text: "Component code" }
+                AppControls.TextField { id: componentCodeField; Layout.fillWidth: true; placeholderText: "CMP-100" }
 
-                Label { text: "Name" }
-                TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Drive Motor" }
+                AppControls.Label { text: "Name" }
+                AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Drive Motor" }
 
-                Label { text: "Component type" }
-                TextField { id: componentTypeField; Layout.fillWidth: true; placeholderText: "MOTOR" }
+                AppControls.Label { text: "Component type" }
+                AppControls.TextField { id: componentTypeField; Layout.fillWidth: true; placeholderText: "MOTOR" }
 
-                Label { text: "Lifecycle status" }
-                ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+                AppControls.Label { text: "Lifecycle status" }
+                AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
 
-                Label { text: "Manufacturer" }
-                ComboBox { id: manufacturerCombo; Layout.fillWidth: true; model: root.manufacturerOptions; textRole: "label" }
+                AppControls.Label { text: "Manufacturer" }
+                AppControls.ComboBox { id: manufacturerCombo; Layout.fillWidth: true; model: root.manufacturerOptions; textRole: "label" }
 
-                Label { text: "Supplier" }
-                ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
+                AppControls.Label { text: "Supplier" }
+                AppControls.ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
 
-                Label { text: "Manufacturer part number" }
-                TextField { id: manufacturerPartNumberField; Layout.fillWidth: true }
+                AppControls.Label { text: "Manufacturer part number" }
+                AppControls.TextField { id: manufacturerPartNumberField; Layout.fillWidth: true }
 
-                Label { text: "Supplier part number" }
-                TextField { id: supplierPartNumberField; Layout.fillWidth: true }
+                AppControls.Label { text: "Supplier part number" }
+                AppControls.TextField { id: supplierPartNumberField; Layout.fillWidth: true }
 
-                Label { text: "Model number" }
-                TextField { id: modelNumberField; Layout.fillWidth: true }
+                AppControls.Label { text: "Model number" }
+                AppControls.TextField { id: modelNumberField; Layout.fillWidth: true }
 
-                Label { text: "Serial number" }
-                TextField { id: serialNumberField; Layout.fillWidth: true }
+                AppControls.Label { text: "Serial number" }
+                AppControls.TextField { id: serialNumberField; Layout.fillWidth: true }
 
-                Label { text: "Expected life hours" }
-                TextField { id: expectedLifeHoursField; Layout.fillWidth: true; placeholderText: "12000" }
+                AppControls.Label { text: "Expected life hours" }
+                AppControls.TextField { id: expectedLifeHoursField; Layout.fillWidth: true; placeholderText: "12000" }
 
-                Label { text: "Expected life cycles" }
-                TextField { id: expectedLifeCyclesField; Layout.fillWidth: true; placeholderText: "500000" }
+                AppControls.Label { text: "Expected life cycles" }
+                AppControls.TextField { id: expectedLifeCyclesField; Layout.fillWidth: true; placeholderText: "500000" }
             }
 
-            Label { text: "Description" }
-            TextArea {
+            AppControls.Label { text: "Description" }
+            AppControls.TextArea {
                 id: descriptionField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90
@@ -201,12 +201,12 @@ AppControls.CenteredDialog {
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
-                CheckBox { id: activeCheck; text: "Active component" }
-                CheckBox { id: criticalCheck; text: "Critical component" }
+                AppControls.CheckBox { id: activeCheck; text: "Active component" }
+                AppControls.CheckBox { id: criticalCheck; text: "Critical component" }
             }
 
-            Label { text: "Notes" }
-            TextArea {
+            AppControls.Label { text: "Notes" }
+            AppControls.TextArea {
                 id: notesField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90

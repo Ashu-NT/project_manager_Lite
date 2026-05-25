@@ -48,7 +48,7 @@ Item {
                         Layout.fillWidth: true
                         spacing: Theme.AppTheme.spacingXs
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             text: root.workRequestDetail.title || "Work Request Detail"
                             color: Theme.AppTheme.textPrimary
@@ -58,7 +58,7 @@ Item {
                             wrapMode: Text.WordWrap
                         }
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             text: root.workRequestDetail.subtitle || "Select a work request to inspect its intake context, triage state, and update actions."
                             color: Theme.AppTheme.textSecondary
@@ -74,7 +74,7 @@ Item {
                     }
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: String(root.workRequestDetail.emptyState || "").length > 0 && String(root.workRequestDetail.id || "").length === 0
                     text: root.workRequestDetail.emptyState
@@ -84,7 +84,7 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: String(root.workRequestDetail.id || "").length > 0
                     text: root.workRequestDetail.description || ""
@@ -131,7 +131,7 @@ Item {
                             anchors.margins: Theme.AppTheme.marginMd
                             spacing: Theme.AppTheme.spacingXs
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: String(fieldCard.modelData.label || "")
                                 color: Theme.AppTheme.textMuted
@@ -140,7 +140,7 @@ Item {
                                 font.bold: true
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: String(fieldCard.modelData.value || "")
                                 color: Theme.AppTheme.textPrimary
@@ -149,7 +149,7 @@ Item {
                                 wrapMode: Text.WordWrap
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 visible: String(fieldCard.modelData.supportingText || "").length > 0
                                 text: String(fieldCard.modelData.supportingText || "")

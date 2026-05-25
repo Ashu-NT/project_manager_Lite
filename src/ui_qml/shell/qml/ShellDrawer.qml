@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import Shell.Context 1.0 as ShellContexts
 import App.Theme 1.0 as Theme
 import App.Icons 1.0 as AppIcons
+import App.Controls 1.0 as AppControls
 
 Rectangle {
     id: drawer
@@ -110,44 +111,17 @@ Rectangle {
                 : Theme.AppTheme.marginMd
         }
 
-        Rectangle {
+        AppControls.SearchField {
+            id: filterField
             Layout.fillWidth: true
             Layout.leftMargin: Theme.AppTheme.marginMd
             Layout.rightMargin: Theme.AppTheme.marginMd
             Layout.preferredHeight: drawer.collapsed ? 0 : Theme.AppTheme.inputHeight
-            radius: Theme.AppTheme.radiusSm
-            color: Theme.AppTheme.surfaceOverlay
             visible: !drawer.collapsed
-            clip: true
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Theme.AppTheme.spacingSm
-                anchors.rightMargin: Theme.AppTheme.spacingSm
-                spacing: Theme.AppTheme.spacingXs
-
-                AppIcons.AppIcon {
-                    name: "search"
-                    size: Theme.AppTheme.navIconSize
-                    iconColor: Theme.AppTheme.textMuted
-                }
-
-                TextField {
-                    id: filterField
-                    Layout.fillWidth: true
-                    text: drawer._filter
-                    onTextChanged: drawer._filter = text
-                    placeholderText: "Filter navigation"
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.smallSize
-                    color: Theme.AppTheme.textPrimary
-                    leftPadding: 0
-                    rightPadding: 0
-                    topPadding: 0
-                    bottomPadding: 0
-                    background: Item {}
-                }
-            }
+            text: drawer._filter
+            placeholderText: "Filter navigation"
+            debounceInterval: 160
+            onTextChanged: drawer._filter = text
         }
 
         Item {
@@ -198,7 +172,7 @@ Rectangle {
                                 anchors.bottomMargin: Theme.AppTheme.spacingXs
                                 spacing: Theme.AppTheme.spacingSm
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text: (navDelegate.modelData.moduleLabel || "").toUpperCase()
                                     color: Theme.AppTheme.navMutedText
@@ -281,7 +255,7 @@ Rectangle {
                                         : Theme.AppTheme.textMuted
                                 }
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text: navDelegate.modelData.title || ""
                                     color: navDelegate.isSelected
@@ -335,7 +309,7 @@ Rectangle {
                 spacing: Theme.AppTheme.spacingSm
                 visible: !drawer.collapsed
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Collapse sidebar"
                     color: Theme.AppTheme.textMuted

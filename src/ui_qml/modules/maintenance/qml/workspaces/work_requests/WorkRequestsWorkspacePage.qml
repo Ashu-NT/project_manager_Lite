@@ -6,6 +6,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
+import App.Controls 1.0 as AppControls
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -172,14 +173,14 @@ AppLayouts.WorkspaceFrame {
                     width: parent.width
                     spacing: 8
 
-                    Label {
+                    AppControls.Label {
                         text: "Site"
                         font.bold: true
                         font.pixelSize: Theme.AppTheme.captionSize
                         font.family: Theme.AppTheme.fontFamily
                         color: Theme.AppTheme.textMuted
                     }
-                    ComboBox {
+                    AppControls.ComboBox {
                         width: parent.width
                         model: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
                         textRole: "label"
@@ -191,14 +192,14 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         text: "Status"
                         font.bold: true
                         font.pixelSize: Theme.AppTheme.captionSize
                         font.family: Theme.AppTheme.fontFamily
                         color: Theme.AppTheme.textMuted
                     }
-                    ComboBox {
+                    AppControls.ComboBox {
                         width: parent.width
                         model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                         textRole: "label"
@@ -210,14 +211,14 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         text: "Priority"
                         font.bold: true
                         font.pixelSize: Theme.AppTheme.captionSize
                         font.family: Theme.AppTheme.fontFamily
                         color: Theme.AppTheme.textMuted
                     }
-                    ComboBox {
+                    AppControls.ComboBox {
                         width: parent.width
                         model: root.workspaceController ? (root.workspaceController.priorityOptions || []) : []
                         textRole: "label"
@@ -229,14 +230,14 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         text: "Asset"
                         font.bold: true
                         font.pixelSize: Theme.AppTheme.captionSize
                         font.family: Theme.AppTheme.fontFamily
                         color: Theme.AppTheme.textMuted
                     }
-                    ComboBox {
+                    AppControls.ComboBox {
                         width: parent.width
                         model: root.workspaceController ? (root.workspaceController.assetOptions || []) : []
                         textRole: "label"

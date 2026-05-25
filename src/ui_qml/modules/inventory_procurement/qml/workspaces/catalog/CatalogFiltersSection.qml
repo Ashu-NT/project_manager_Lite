@@ -41,7 +41,7 @@ Item {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Filter the shared inventory master, then open category or item workflows without leaving the catalog."
             color: Theme.AppTheme.textSecondary
@@ -56,7 +56,7 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            TextField {
+            AppControls.TextField {
                 id: searchField
                 Layout.fillWidth: true
                 placeholderText: "Search code, name, category, supplier, or notes"
@@ -65,7 +65,7 @@ Item {
                 onEditingFinished: root.searchTextUpdated(text)
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: activeCombo
                 Layout.fillWidth: true
                 model: root.activeOptions
@@ -75,7 +75,7 @@ Item {
                 Component.onCompleted: currentIndex = root.indexForValue(root.activeOptions, root.selectedActiveFilter)
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: usageCombo
                 Layout.fillWidth: true
                 model: root.usageOptions
@@ -85,7 +85,7 @@ Item {
                 Component.onCompleted: currentIndex = root.indexForValue(root.usageOptions, root.selectedUsageFilter)
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: categoryTypeCombo
                 Layout.fillWidth: true
                 model: root.categoryTypeOptions
@@ -95,7 +95,7 @@ Item {
                 Component.onCompleted: currentIndex = root.indexForValue(root.categoryTypeOptions, root.selectedCategoryTypeFilter)
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: categoryCombo
                 Layout.fillWidth: true
                 model: root.categoryOptions

@@ -429,7 +429,7 @@ AppLayouts.WorkspaceFrame {
                         contentItem: ColumnLayout {
                             spacing: Theme.AppTheme.spacingSm
 
-                            Label {
+                            AppControls.Label {
                                 text: "Intake Status"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
@@ -437,7 +437,7 @@ AppLayouts.WorkspaceFrame {
                                 color: Theme.AppTheme.textMuted
                             }
 
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController
                                     ? (root.workspaceController.intakeStatusOptions || []) : []
@@ -524,7 +524,7 @@ AppLayouts.WorkspaceFrame {
                                                     ? Theme.AppTheme.hoverSurface
                                                     : Qt.rgba(0, 0, 0, 0))
 
-                                            Label {
+                                            AppControls.Label {
                                                 id: _tabLabel
                                                 anchors.centerIn: parent
                                                 text: String(_tabBtn.modelData || "")
@@ -608,7 +608,7 @@ AppLayouts.WorkspaceFrame {
                                                 anchors.rightMargin: Theme.AppTheme.marginMd
                                                 spacing: Theme.AppTheme.spacingSm
 
-                                                Label {
+                                                AppControls.Label {
                                                     text: "Status:"
                                                     color: Theme.AppTheme.textMuted
                                                     font.family: Theme.AppTheme.fontFamily
@@ -735,7 +735,7 @@ AppLayouts.WorkspaceFrame {
                                             anchors.topMargin:   Theme.AppTheme.spacingSm
                                             spacing: Theme.AppTheme.spacingSm
 
-                                            Label {
+                                            AppControls.Label {
                                                 Layout.fillWidth: true
                                                 text: root._templatesModel.title || "Scoring Templates"
                                                 color: Theme.AppTheme.textSecondary
@@ -744,7 +744,7 @@ AppLayouts.WorkspaceFrame {
                                                 font.bold: true
                                             }
 
-                                            Label {
+                                            AppControls.Label {
                                                 Layout.fillWidth: true
                                                 text: root._templatesModel.subtitle || ""
                                                 visible: text.length > 0
@@ -780,7 +780,7 @@ AppLayouts.WorkspaceFrame {
                                                             Layout.fillWidth: true
                                                             spacing: 2
 
-                                                            Label {
+                                                            AppControls.Label {
                                                                 Layout.fillWidth: true
                                                                 text: String(_tplRow.modelData.title || "")
                                                                 color: Theme.AppTheme.textPrimary
@@ -790,7 +790,7 @@ AppLayouts.WorkspaceFrame {
                                                                 elide: Text.ElideRight
                                                             }
 
-                                                            Label {
+                                                            AppControls.Label {
                                                                 Layout.fillWidth: true
                                                                 text: String(_tplRow.modelData.subtitle || "")
                                                                 color: Theme.AppTheme.textSecondary
@@ -825,7 +825,7 @@ AppLayouts.WorkspaceFrame {
                                                 }
                                             }
 
-                                            Label {
+                                            AppControls.Label {
                                                 Layout.fillWidth: true
                                                 visible: (root._templatesModel.items || []).length === 0
                                                 text: root._templatesModel.emptyState

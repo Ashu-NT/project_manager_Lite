@@ -37,7 +37,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Connect the selected shared document to a business record in another module."
             color: Theme.AppTheme.textSecondary
@@ -46,28 +46,28 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        TextField {
+        AppControls.TextField {
             id: moduleCodeField
 
             Layout.fillWidth: true
             placeholderText: "Module code"
         }
 
-        TextField {
+        AppControls.TextField {
             id: entityTypeField
 
             Layout.fillWidth: true
             placeholderText: "Entity type"
         }
 
-        TextField {
+        AppControls.TextField {
             id: entityIdField
 
             Layout.fillWidth: true
             placeholderText: "Entity id"
         }
 
-        TextField {
+        AppControls.TextField {
             id: linkRoleField
 
             Layout.fillWidth: true

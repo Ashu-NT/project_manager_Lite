@@ -316,14 +316,14 @@ AppLayouts.WorkspaceFrame {
                         contentItem: ColumnLayout {
                             spacing: Theme.AppTheme.spacingSm
 
-                            Label {
+                            AppControls.Label {
                                 text: "Project"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.family: Theme.AppTheme.fontFamily
                                 color: Theme.AppTheme.textMuted
                             }
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
                                 textRole: "label"
@@ -340,14 +340,14 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 text: "Cost Type"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.family: Theme.AppTheme.fontFamily
                                 color: Theme.AppTheme.textMuted
                             }
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.costTypeOptions || []) : []
                                 textRole: "label"
@@ -408,7 +408,7 @@ AppLayouts.WorkspaceFrame {
                         contentItem: ColumnLayout {
                             spacing: Theme.AppTheme.spacingSm
 
-                            Label {
+                            AppControls.Label {
                                 text: "Cost View"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
@@ -416,7 +416,7 @@ AppLayouts.WorkspaceFrame {
                                 color: Theme.AppTheme.textMuted
                             }
 
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.costTypeOptions || []) : []
                                 textRole: "label"

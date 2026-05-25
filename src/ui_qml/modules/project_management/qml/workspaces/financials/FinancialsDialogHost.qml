@@ -81,7 +81,7 @@ Item {
         contentItem: ColumnLayout {
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.deleteTarget && root.deleteTarget.title
                     ? "Delete " + root.deleteTarget.title + " from the selected project?"
@@ -92,7 +92,7 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "This removes the financial line from cost control, finance snapshots, and related project reporting."
                 color: Theme.AppTheme.textSecondary

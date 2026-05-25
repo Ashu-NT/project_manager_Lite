@@ -51,7 +51,7 @@ AnchoredPopup {
             color: Theme.AppTheme.dialogHeaderBackground
             radius: Theme.AppTheme.radiusMd
 
-            Label {
+            AppControls.Label {
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.AppTheme.marginMd
                 anchors.verticalCenter: parent.verticalCenter
@@ -95,7 +95,7 @@ AnchoredPopup {
                     anchors.rightMargin: Theme.AppTheme.marginMd
                     spacing: Theme.AppTheme.spacingSm
 
-                    CheckBox {
+                    AppControls.CheckBox {
                         id: _colCheck
                         checked: checkRow.modelData.visible
                         onToggled: {
@@ -103,7 +103,7 @@ AnchoredPopup {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text:           checkRow.modelData.label || checkRow.modelData.key
                         color:          Theme.AppTheme.textPrimary

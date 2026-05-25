@@ -37,7 +37,7 @@ Item {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.details.title || "Select a document"
             color: Theme.AppTheme.textPrimary
@@ -47,7 +47,7 @@ Item {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.details.summary || "Select a document to inspect metadata and preview state."
             color: Theme.AppTheme.textSecondary
@@ -73,7 +73,7 @@ Item {
                     implicitHeight: badgeLabel.implicitHeight + Theme.AppTheme.marginSm * 2
                     implicitWidth: badgeLabel.implicitWidth + Theme.AppTheme.marginMd * 2
 
-                    Label {
+                    AppControls.Label {
                         id: badgeLabel
 
                         anchors.centerIn: parent
@@ -95,7 +95,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Preview"
                     color: Theme.AppTheme.textMuted
@@ -116,7 +116,7 @@ Item {
                 color: Theme.AppTheme.divider
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: String(root.previewState.summary || "").length > 0
                 text: root.previewState.summary || ""
@@ -154,7 +154,7 @@ Item {
                     Layout.fillWidth: true
                     spacing: Theme.AppTheme.spacingXs
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: metadataColumn.modelData.label || ""
                         color: Theme.AppTheme.textMuted
@@ -163,7 +163,7 @@ Item {
                         font.bold: true
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: metadataColumn.modelData.value || "-"
                         color: Theme.AppTheme.textPrimary
@@ -179,7 +179,7 @@ Item {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingXs
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Notes"
                 color: Theme.AppTheme.textMuted
@@ -188,7 +188,7 @@ Item {
                 font.bold: true
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: String(root.details.notes || "").length > 0 ? root.details.notes : "No notes recorded."
                 color: Theme.AppTheme.textPrimary

@@ -63,7 +63,7 @@ Item {
                 anchors.bottomMargin: Theme.AppTheme.spacingSm
                 spacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     text: "Scope"
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
@@ -71,7 +71,7 @@ Item {
                     font.bold: true
                 }
 
-                ComboBox {
+                AppControls.ComboBox {
                     Layout.preferredWidth: Math.max(220, root.width * 0.24)
                     Layout.fillWidth: true
                     enabled: !root.isLoading
@@ -85,7 +85,7 @@ Item {
                     }
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Baseline"
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
@@ -93,7 +93,7 @@ Item {
                     font.bold: true
                 }
 
-                ComboBox {
+                AppControls.ComboBox {
                     Layout.preferredWidth: 210
                     enabled: !root.isLoading && !root.baselineSelectionLocked
                     model: root.baselineOptions || []
@@ -106,7 +106,7 @@ Item {
                     }
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Period"
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
@@ -114,7 +114,7 @@ Item {
                     font.bold: true
                 }
 
-                ComboBox {
+                AppControls.ComboBox {
                     Layout.preferredWidth: 150
                     enabled: !root.isLoading
                     model: root.periodOptions || []
@@ -127,7 +127,7 @@ Item {
                     }
                 }
 
-                Label {
+                AppControls.Label {
                     text: "View"
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
@@ -135,7 +135,7 @@ Item {
                     font.bold: true
                 }
 
-                ComboBox {
+                AppControls.ComboBox {
                     Layout.preferredWidth: 190
                     enabled: !root.isLoading
                     model: root.viewOptions || []
@@ -168,7 +168,7 @@ Item {
             }
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.baselineSelectionLocked
             text: "Portfolio overview keeps baseline selection locked and rolls up cross-project health."

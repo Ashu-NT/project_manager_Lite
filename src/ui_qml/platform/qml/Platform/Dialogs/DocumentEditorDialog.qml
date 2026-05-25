@@ -130,14 +130,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: documentCodeField
 
                     Layout.preferredWidth: 180
                     placeholderText: "Document code"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: titleField
 
                     Layout.fillWidth: true
@@ -145,7 +145,7 @@ AppControls.CenteredDialog {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: typeCombo
 
                 Layout.fillWidth: true
@@ -153,7 +153,7 @@ AppControls.CenteredDialog {
                 textRole: "label"
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: structureCombo
 
                 Layout.fillWidth: true
@@ -161,7 +161,7 @@ AppControls.CenteredDialog {
                 textRole: "label"
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: storageKindCombo
 
                 Layout.fillWidth: true
@@ -169,7 +169,7 @@ AppControls.CenteredDialog {
                 textRole: "label"
             }
 
-            TextField {
+            AppControls.TextField {
                 id: storageUriField
 
                 Layout.fillWidth: true
@@ -180,14 +180,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: fileNameField
 
                     Layout.fillWidth: true
                     placeholderText: "File name"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: mimeTypeField
 
                     Layout.fillWidth: true
@@ -199,14 +199,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: sourceSystemField
 
                     Layout.fillWidth: true
                     placeholderText: "Source system"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: confidentialityField
 
                     Layout.fillWidth: true
@@ -214,14 +214,14 @@ AppControls.CenteredDialog {
                 }
             }
 
-            TextField {
+            AppControls.TextField {
                 id: versionField
 
                 Layout.fillWidth: true
                 placeholderText: "Business version"
             }
 
-            TextArea {
+            AppControls.TextArea {
                 id: notesField
 
                 Layout.fillWidth: true
@@ -234,13 +234,13 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                CheckBox {
+                AppControls.CheckBox {
                     id: currentCheck
 
                     text: "Current version"
                 }
 
-                CheckBox {
+                AppControls.CheckBox {
                     id: activeCheck
 
                     text: "Active document"

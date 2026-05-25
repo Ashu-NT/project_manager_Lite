@@ -45,7 +45,7 @@ Item {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Pricing Filters"
                 color: Theme.AppTheme.textPrimary
@@ -68,8 +68,8 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Site" }
-            ComboBox {
+            AppControls.Label { text: "Site" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.siteOptions
                 textRole: "label"
@@ -81,8 +81,8 @@ Item {
                 }
             }
 
-            Label { text: "Storeroom" }
-            ComboBox {
+            AppControls.Label { text: "Storeroom" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.storeroomOptions
                 textRole: "label"
@@ -94,8 +94,8 @@ Item {
                 }
             }
 
-            Label { text: "Supplier" }
-            ComboBox {
+            AppControls.Label { text: "Supplier" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.supplierOptions
                 textRole: "label"
@@ -107,8 +107,8 @@ Item {
                 }
             }
 
-            Label { text: "Procurement limit" }
-            ComboBox {
+            AppControls.Label { text: "Procurement limit" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.limitOptions
                 textRole: "label"
@@ -121,7 +121,7 @@ Item {
             }
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.contextLabel.length > 0
                 ? "Current scope: " + root.contextLabel

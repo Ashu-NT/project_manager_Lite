@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Rectangle {
     id: root
@@ -40,7 +41,7 @@ Rectangle {
         color: root.toneColor
     }
 
-    Label {
+    AppControls.Label {
         id: msgLabel
         anchors.left: parent.left
         anchors.right: parent.right

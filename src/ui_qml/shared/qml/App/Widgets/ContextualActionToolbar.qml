@@ -60,7 +60,7 @@ Rectangle {
         }
 
         // Title
-        Label {
+        AppControls.Label {
             visible:        root.title.length > 0
             text:           root.title
             color:          Theme.AppTheme.textPrimary
@@ -72,7 +72,7 @@ Rectangle {
         }
 
         // Subtitle
-        Label {
+        AppControls.Label {
             visible:        root.subtitle.length > 0
             text:           root.subtitle
             color:          Theme.AppTheme.textMuted

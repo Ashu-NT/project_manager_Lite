@@ -40,7 +40,7 @@ ColumnLayout {
             Layout.fillWidth: true
             spacing: 2
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.title.length > 0
                 text: root.title
@@ -50,7 +50,7 @@ ColumnLayout {
                 font.bold: true
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.summary.length > 0
                 text: root.summary

@@ -1,8 +1,9 @@
 import QtQuick
 import QtQuick.Controls
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
-Label {
+AppControls.Label {
     color: Theme.AppTheme.textMuted
     font.family: Theme.AppTheme.fontFamily
     font.pixelSize: Theme.AppTheme.sectionTitleSize

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 // Section heading used inside SectionDetailPage content.
 // Renders a styled label that visually separates content regions.
@@ -26,7 +27,7 @@ Item {
         color: Theme.AppTheme.divider
     }
 
-    Label {
+    AppControls.Label {
         anchors {
             verticalCenter: parent.verticalCenter
             left: parent.left

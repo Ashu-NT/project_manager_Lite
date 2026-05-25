@@ -53,7 +53,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.moduleLabel.length > 0
                 ? root.moduleLabel
@@ -65,7 +65,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Lifecycle state controls whether a licensed module can run at runtime."
             color: Theme.AppTheme.textSecondary
@@ -74,7 +74,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             id: statusCombo
 
             Layout.fillWidth: true

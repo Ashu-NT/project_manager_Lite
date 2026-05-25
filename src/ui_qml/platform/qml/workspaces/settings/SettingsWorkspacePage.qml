@@ -1,4 +1,5 @@
 pragma ComponentBehavior: Bound
+import App.Controls 1.0 as AppControls
 
 import QtQuick
 import QtQuick.Controls
@@ -137,7 +138,7 @@ AppLayouts.WorkspaceFrame {
                 anchors.right: parent.right
                 height: 40
 
-                Label {
+                AppControls.Label {
                     visible:                !_sidebar.collapsed
                     anchors.left:           parent.left
                     anchors.leftMargin:     14
@@ -221,7 +222,7 @@ AppLayouts.WorkspaceFrame {
                     visible: sidebarDelegate.isGroup ? !_sidebar.collapsed : true
                     clip:    true
 
-                    Label {
+                    AppControls.Label {
                         visible:            sidebarDelegate.isGroup
                         anchors.left:       parent.left
                         anchors.leftMargin: 14
@@ -269,7 +270,7 @@ AppLayouts.WorkspaceFrame {
                                 ? Theme.AppTheme.accent : Theme.AppTheme.textSecondary
                         }
 
-                        Label {
+                        AppControls.Label {
                             visible:                !_sidebar.collapsed
                             anchors.left:           _navIco.right
                             anchors.leftMargin:     9
@@ -378,7 +379,7 @@ AppLayouts.WorkspaceFrame {
                                     anchors.rightMargin: 8
                                     spacing:             Theme.AppTheme.spacingXs
 
-                                    Label {
+                                    AppControls.Label {
                                         text:           "Runtime Configuration"
                                         color:          Theme.AppTheme.textPrimary
                                         font.family:    Theme.AppTheme.fontFamily
@@ -439,7 +440,7 @@ AppLayouts.WorkspaceFrame {
                                             anchors.leftMargin: Theme.AppTheme.marginMd
                                             anchors.rightMargin: Theme.AppTheme.marginMd
                                             spacing: Theme.AppTheme.spacingMd
-                                            Label {
+                                            AppControls.Label {
                                                 Layout.preferredWidth: 120
                                                 text: "Theme Mode"
                                                 color: Theme.AppTheme.textMuted
@@ -447,7 +448,7 @@ AppLayouts.WorkspaceFrame {
                                                 font.pixelSize: Theme.AppTheme.smallSize
                                                 font.bold: true
                                             }
-                                            Label {
+                                            AppControls.Label {
                                                 Layout.fillWidth: true
                                                 text: root.shellModel ? root.shellModel.themeMode : "—"
                                                 color: Theme.AppTheme.textPrimary
@@ -472,7 +473,7 @@ AppLayouts.WorkspaceFrame {
                                             anchors.leftMargin: Theme.AppTheme.marginMd
                                             anchors.rightMargin: Theme.AppTheme.marginMd
                                             spacing: Theme.AppTheme.spacingMd
-                                            Label {
+                                            AppControls.Label {
                                                 Layout.preferredWidth: 120
                                                 text: "Platform API"
                                                 color: Theme.AppTheme.textMuted
@@ -480,7 +481,7 @@ AppLayouts.WorkspaceFrame {
                                                 font.pixelSize: Theme.AppTheme.smallSize
                                                 font.bold: true
                                             }
-                                            Label {
+                                            AppControls.Label {
                                                 Layout.fillWidth: true
                                                 text: root.workspaceController
                                                     ? (root.workspaceController.overview.statusLabel || "—") : "—"
@@ -506,7 +507,7 @@ AppLayouts.WorkspaceFrame {
                                             anchors.leftMargin: Theme.AppTheme.marginMd
                                             anchors.rightMargin: Theme.AppTheme.marginMd
                                             spacing: Theme.AppTheme.spacingMd
-                                            Label {
+                                            AppControls.Label {
                                                 Layout.preferredWidth: 120
                                                 text: "Summary"
                                                 color: Theme.AppTheme.textMuted
@@ -514,7 +515,7 @@ AppLayouts.WorkspaceFrame {
                                                 font.pixelSize: Theme.AppTheme.smallSize
                                                 font.bold: true
                                             }
-                                            Label {
+                                            AppControls.Label {
                                                 Layout.fillWidth: true
                                                 text: root.workspaceModel.summary || "—"
                                                 color: Theme.AppTheme.textPrimary
@@ -555,14 +556,14 @@ AppLayouts.WorkspaceFrame {
                                     anchors.rightMargin: 8
                                     spacing:             Theme.AppTheme.spacingXs
 
-                                    Label {
+                                    AppControls.Label {
                                         text:           "Module Entitlements"
                                         color:          Theme.AppTheme.textPrimary
                                         font.family:    Theme.AppTheme.fontFamily
                                         font.pixelSize: Theme.AppTheme.smallSize
                                         font.bold:      true
                                     }
-                                    Label {
+                                    AppControls.Label {
                                         visible:        root._moduleCount > 0
                                         text:           String(root._moduleCount)
                                         color:          Theme.AppTheme.textMuted
@@ -679,14 +680,14 @@ AppLayouts.WorkspaceFrame {
                                     anchors.rightMargin: 8
                                     spacing:             Theme.AppTheme.spacingXs
 
-                                    Label {
+                                    AppControls.Label {
                                         text:           "Organization Profiles"
                                         color:          Theme.AppTheme.textPrimary
                                         font.family:    Theme.AppTheme.fontFamily
                                         font.pixelSize: Theme.AppTheme.smallSize
                                         font.bold:      true
                                     }
-                                    Label {
+                                    AppControls.Label {
                                         visible:        root._profileCount > 0
                                         text:           String(root._profileCount)
                                         color:          Theme.AppTheme.textMuted
@@ -759,7 +760,7 @@ AppLayouts.WorkspaceFrame {
                                     anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
                                     height: 1; color: Theme.AppTheme.divider
                                 }
-                                Label {
+                                AppControls.Label {
                                     anchors.left:           parent.left
                                     anchors.leftMargin:     Theme.AppTheme.marginMd
                                     anchors.verticalCenter: parent.verticalCenter
@@ -801,7 +802,7 @@ AppLayouts.WorkspaceFrame {
                                     anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
                                     height: 1; color: Theme.AppTheme.divider
                                 }
-                                Label {
+                                AppControls.Label {
                                     anchors.left:           parent.left
                                     anchors.leftMargin:     Theme.AppTheme.marginMd
                                     anchors.verticalCenter: parent.verticalCenter
@@ -843,7 +844,7 @@ AppLayouts.WorkspaceFrame {
                                     anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
                                     height: 1; color: Theme.AppTheme.divider
                                 }
-                                Label {
+                                AppControls.Label {
                                     anchors.left:           parent.left
                                     anchors.leftMargin:     Theme.AppTheme.marginMd
                                     anchors.verticalCenter: parent.verticalCenter
@@ -893,7 +894,7 @@ AppLayouts.WorkspaceFrame {
                                     anchors.rightMargin: 8
                                     spacing:             Theme.AppTheme.spacingXs
 
-                                    Label {
+                                    AppControls.Label {
                                         text:           "System Info"
                                         color:          Theme.AppTheme.textPrimary
                                         font.family:    Theme.AppTheme.fontFamily
@@ -1022,7 +1023,7 @@ AppLayouts.WorkspaceFrame {
                                 spacing: Theme.AppTheme.spacingSm
 
                                 // Item title
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth:   true
                                     Layout.leftMargin:  Theme.AppTheme.marginMd
                                     Layout.rightMargin: Theme.AppTheme.marginMd
@@ -1062,7 +1063,7 @@ AppLayouts.WorkspaceFrame {
                                     visible: root._selectedItem
                                         ? (root._selectedItem.subtitle || "").length > 0 : false
 
-                                    Label {
+                                    AppControls.Label {
                                         text:           root._activeSection === "modules"
                                             ? "Stage / License" : "Details"
                                         color:          Theme.AppTheme.textMuted
@@ -1070,7 +1071,7 @@ AppLayouts.WorkspaceFrame {
                                         font.pixelSize: Theme.AppTheme.captionSize
                                         font.bold:      true
                                     }
-                                    Label {
+                                    AppControls.Label {
                                         Layout.fillWidth: true
                                         text:           root._selectedItem
                                             ? (root._selectedItem.subtitle || "") : ""
@@ -1090,7 +1091,7 @@ AppLayouts.WorkspaceFrame {
                                     visible: root._selectedItem
                                         ? (root._selectedItem.metaText || "").length > 0 : false
 
-                                    Label {
+                                    AppControls.Label {
                                         text:           root._activeSection === "modules"
                                             ? "Runtime" : "Info"
                                         color:          Theme.AppTheme.textMuted
@@ -1098,7 +1099,7 @@ AppLayouts.WorkspaceFrame {
                                         font.pixelSize: Theme.AppTheme.captionSize
                                         font.bold:      true
                                     }
-                                    Label {
+                                    AppControls.Label {
                                         Layout.fillWidth: true
                                         text:           root._selectedItem
                                             ? (root._selectedItem.metaText || "") : ""

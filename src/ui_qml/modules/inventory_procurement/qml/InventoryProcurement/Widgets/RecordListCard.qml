@@ -45,7 +45,7 @@ Item {
             spacing: 2
             Layout.bottomMargin: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.title.length > 0
                 text: root.title
@@ -55,7 +55,7 @@ Item {
                 font.bold: true
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.subtitle.length > 0
                 text: root.subtitle
@@ -129,7 +129,7 @@ Item {
                             Layout.fillWidth: true
                             spacing: Theme.AppTheme.spacingSm
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: String(rowDelegate.modelData.title || "")
                                 color: Theme.AppTheme.textPrimary
@@ -145,7 +145,7 @@ Item {
                             }
                         }
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             visible: rowDelegate.subtitleText.length > 0
                             text: rowDelegate.subtitleText
@@ -155,7 +155,7 @@ Item {
                             elide: Text.ElideRight
                         }
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             visible: rowDelegate.metaText.length > 0
                             text: rowDelegate.metaText

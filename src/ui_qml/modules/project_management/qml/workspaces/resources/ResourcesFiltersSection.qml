@@ -41,7 +41,7 @@ Item {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingMd
 
-        TextField {
+        AppControls.TextField {
             Layout.fillWidth: true
             text: root.searchText
             placeholderText: "Search by name, role, worker type, category, or context"
@@ -49,7 +49,7 @@ Item {
             onTextEdited: root.searchTextUpdated(text)
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             id: activeCombo
 
             Layout.preferredWidth: 180
@@ -66,7 +66,7 @@ Item {
             }
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             id: categoryCombo
 
             Layout.preferredWidth: 220

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Rectangle {
     id: root
@@ -22,7 +23,7 @@ Rectangle {
         anchors.margins: Theme.AppTheme.marginMd
         spacing: Theme.AppTheme.spacingSm
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.label
             color: Theme.AppTheme.textMuted
@@ -33,7 +34,7 @@ Rectangle {
             elide: Text.ElideRight
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.value
             color: Theme.AppTheme.textPrimary
@@ -43,7 +44,7 @@ Rectangle {
             elide: Text.ElideRight
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.supportingText
             color: Theme.AppTheme.textSecondary

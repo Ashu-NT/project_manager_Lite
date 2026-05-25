@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -27,7 +28,7 @@ Item {
             visible: root.title.length > 0 || root.subtitle.length > 0
             Layout.bottomMargin: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.title.length > 0
                 text: root.title
@@ -37,7 +38,7 @@ Item {
                 font.bold: true
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.subtitle.length > 0
                 text: root.subtitle
@@ -79,7 +80,7 @@ Item {
                         Layout.fillWidth: true
                         spacing: Theme.AppTheme.spacingSm
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             text: String(sectionItem.modelData.title || "")
                             color: Theme.AppTheme.textPrimary
@@ -95,7 +96,7 @@ Item {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: sectionItem.subtitleText.length > 0
                         text: sectionItem.subtitleText
@@ -105,7 +106,7 @@ Item {
                         elide: Text.ElideRight
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: sectionItem.supportingText.length > 0
                         text: sectionItem.supportingText
@@ -115,7 +116,7 @@ Item {
                         elide: Text.ElideRight
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: sectionItem.metaText.length > 0
                         text: sectionItem.metaText

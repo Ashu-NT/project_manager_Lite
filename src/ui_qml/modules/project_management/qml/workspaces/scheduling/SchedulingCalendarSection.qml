@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -73,7 +72,7 @@ Item {
                 anchors.margins: Theme.AppTheme.marginLg
                 spacing: Theme.AppTheme.spacingMd
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Working Calendar"
                     color: Theme.AppTheme.textPrimary
@@ -82,7 +81,7 @@ Item {
                     font.bold: true
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: String(root.calendarModel.summaryText || "")
                     color: Theme.AppTheme.textSecondary
@@ -99,7 +98,7 @@ Item {
                         id: dayRepeater
                         model: root.workingDayStates
 
-                        delegate: CheckBox {
+                        delegate: AppControls.CheckBox {
                             id: dayCheck
                             required property var modelData
                             required property int index
@@ -125,13 +124,13 @@ Item {
                     Layout.fillWidth: true
                     spacing: Theme.AppTheme.spacingSm
 
-                    Label {
+                    AppControls.Label {
                         text: "Hours / day"
                         color: Theme.AppTheme.textPrimary
                         font.family: Theme.AppTheme.fontFamily
                     }
 
-                    TextField {
+                    AppControls.TextField {
                         id: hoursField
                         Layout.preferredWidth: 120
                         text: String(root.calendarModel.hoursPerDay || "8")
@@ -168,7 +167,7 @@ Item {
                 anchors.margins: Theme.AppTheme.marginLg
                 spacing: Theme.AppTheme.spacingMd
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Working-Day Calculator"
                     color: Theme.AppTheme.textPrimary
@@ -177,7 +176,7 @@ Item {
                     font.bold: true
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Preview finish dates using the current working calendar and non-working days."
                     color: Theme.AppTheme.textSecondary
@@ -186,14 +185,14 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
-                TextField {
+                AppControls.DateField {
                     id: calculatorStartDateField
                     Layout.fillWidth: true
                     placeholderText: "Start date (YYYY-MM-DD)"
                     enabled: !root.isBusy
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: calculatorDaysField
                     Layout.fillWidth: true
                     placeholderText: "Working days"
@@ -210,7 +209,7 @@ Item {
                     })
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: String(root.calculatorResult || "Run the calculator to preview the working-day finish date.")
                     color: Theme.AppTheme.textSecondary
@@ -235,7 +234,7 @@ Item {
                 anchors.margins: Theme.AppTheme.marginLg
                 spacing: Theme.AppTheme.spacingMd
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Non-Working Days"
                     color: Theme.AppTheme.textPrimary
@@ -248,14 +247,14 @@ Item {
                     Layout.fillWidth: true
                     spacing: Theme.AppTheme.spacingSm
 
-                    TextField {
+                    AppControls.DateField {
                         id: holidayDateField
                         Layout.fillWidth: true
                         placeholderText: "Holiday date (YYYY-MM-DD)"
                         enabled: !root.isBusy
                     }
 
-                    TextField {
+                    AppControls.TextField {
                         id: holidayNameField
                         Layout.fillWidth: true
                         placeholderText: "Label"

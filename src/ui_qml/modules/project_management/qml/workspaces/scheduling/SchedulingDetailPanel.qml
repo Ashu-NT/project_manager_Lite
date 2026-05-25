@@ -1,4 +1,5 @@
 pragma ComponentBehavior: Bound
+import App.Controls 1.0 as AppControls
 
 import QtQuick
 import QtQuick.Controls
@@ -53,7 +54,7 @@ Item {
                     message: root.activityDetail.emptyState || ""
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: String(root.activityDetail.description || "").length > 0
                     text: root.activityDetail.description || ""
@@ -83,7 +84,7 @@ Item {
                             anchors.margins: Theme.AppTheme.spacingSm
                             spacing: 2
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: String(fieldCard.modelData.label || "")
                                 color: Theme.AppTheme.textMuted
@@ -92,7 +93,7 @@ Item {
                                 font.bold: true
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: String(fieldCard.modelData.value || "")
                                 color: Theme.AppTheme.textPrimary
@@ -101,7 +102,7 @@ Item {
                                 wrapMode: Text.WordWrap
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 visible: String(fieldCard.modelData.supportingText || "").length > 0
                                 text: String(fieldCard.modelData.supportingText || "")

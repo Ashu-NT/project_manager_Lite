@@ -100,7 +100,7 @@ AppControls.CenteredDialog {
             width: parent.availableWidth
             spacing: Theme.AppTheme.spacingMd
 
-            TextField {
+            AppControls.TextField {
                 id: usernameField
 
                 Layout.fillWidth: true
@@ -111,14 +111,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: displayNameField
 
                     Layout.fillWidth: true
                     placeholderText: "Display name"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: emailField
 
                     Layout.fillWidth: true
@@ -126,7 +126,7 @@ AppControls.CenteredDialog {
                 }
             }
 
-            TextField {
+            AppControls.TextField {
                 id: passwordField
 
                 Layout.fillWidth: true
@@ -136,7 +136,7 @@ AppControls.CenteredDialog {
                 echoMode: TextInput.Password
             }
 
-            CheckBox {
+            AppControls.CheckBox {
                 id: activeCheck
 
                 text: "Active account"
@@ -146,7 +146,7 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Roles"
                     color: Theme.AppTheme.textPrimary
@@ -158,7 +158,7 @@ AppControls.CenteredDialog {
                 Repeater {
                     model: roleModel
 
-                    delegate: CheckBox {
+                    delegate: AppControls.CheckBox {
                         required property int index
                         required property string label
                         required property bool selected

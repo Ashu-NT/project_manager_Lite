@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 // Reusable timeline activity feed.
 // items: [{ title, metaText, statusLabel }]
@@ -88,7 +89,7 @@ Item {
                     Layout.fillWidth: true
                     spacing: Theme.AppTheme.spacingXs
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text:           String(_row.modelData.title || "")
                         color:          _row._clickable ? Theme.AppTheme.accent : Theme.AppTheme.textPrimary
@@ -104,7 +105,7 @@ Item {
                     }
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible:        String(_row.modelData.metaText || "").length > 0
                     text:           String(_row.modelData.metaText || "")

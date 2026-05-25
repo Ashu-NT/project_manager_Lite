@@ -32,7 +32,7 @@ Item {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingMd
 
-        ComboBox {
+        AppControls.ComboBox {
             Layout.preferredWidth: 260
             model: root.projectOptions
             textRole: "label"
@@ -47,7 +47,7 @@ Item {
             }
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Recalculate the selected project schedule, then review baseline drift and the current critical path."
             color: Theme.AppTheme.textSecondary

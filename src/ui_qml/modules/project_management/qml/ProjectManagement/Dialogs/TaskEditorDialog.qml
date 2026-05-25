@@ -78,7 +78,7 @@ AppControls.CenteredDialog {
             width: dialogFlickable.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.modeTitle === "Create Task"
                     ? "Add a delivery task inside the currently selected project."
@@ -95,38 +95,38 @@ AppControls.CenteredDialog {
                 columnSpacing: Theme.AppTheme.spacingMd
                 rowSpacing: Theme.AppTheme.spacingSm
 
-                Label { text: "Task name"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Cable Pull" }
+                AppControls.Label { text: "Task name"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+                AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Cable Pull" }
 
-                Label { text: "Status"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                ComboBox {
+                AppControls.Label { text: "Status"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+                AppControls.ComboBox {
                     id: statusCombo
                     Layout.fillWidth: true
                     model: root.workflowStatusOptions
                     textRole: "label"
                 }
 
-                Label { text: "Start date"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                TextField { id: startDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+                AppControls.Label { text: "Start date"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+                AppControls.DateField { id: startDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
 
-                Label { text: "Duration"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                TextField { id: durationField; Layout.fillWidth: true; placeholderText: "Working days" }
+                AppControls.Label { text: "Duration"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+                AppControls.TextField { id: durationField; Layout.fillWidth: true; placeholderText: "Working days" }
 
-                Label { text: "Deadline"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                TextField { id: deadlineField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+                AppControls.Label { text: "Deadline"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+                AppControls.DateField { id: deadlineField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
 
-                Label { text: "Priority"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                TextField { id: priorityField; Layout.fillWidth: true; placeholderText: "0-100" }
+                AppControls.Label { text: "Priority"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+                AppControls.TextField { id: priorityField; Layout.fillWidth: true; placeholderText: "0-100" }
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Description"
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
             }
 
-            TextArea {
+            AppControls.TextArea {
                 id: descriptionField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 150

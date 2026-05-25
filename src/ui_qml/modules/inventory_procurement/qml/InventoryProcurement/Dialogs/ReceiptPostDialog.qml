@@ -100,7 +100,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Post accepted and rejected quantities against the selected purchase order. Accepted quantities increase stock while rejected quantities close supplier demand without increasing on-hand."
             color: Theme.AppTheme.textSecondary
@@ -109,7 +109,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.validationMessage.length > 0
             text: root.validationMessage
@@ -125,11 +125,11 @@ AppControls.CenteredDialog {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Delivery reference" }
-            TextField { id: supplierDeliveryReferenceField; Layout.fillWidth: true; placeholderText: "Carrier or supplier slip number" }
+            AppControls.Label { text: "Delivery reference" }
+            AppControls.TextField { id: supplierDeliveryReferenceField; Layout.fillWidth: true; placeholderText: "Carrier or supplier slip number" }
 
-            Label { text: "Notes" }
-            TextArea {
+            AppControls.Label { text: "Notes" }
+            AppControls.TextArea {
                 id: notesField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 72
@@ -172,7 +172,7 @@ AppControls.CenteredDialog {
                             anchors.margins: Theme.AppTheme.marginMd
                             spacing: Theme.AppTheme.spacingSm
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: receiptLineCard.title
                                 color: Theme.AppTheme.textPrimary
@@ -182,7 +182,7 @@ AppControls.CenteredDialog {
                                 wrapMode: Text.WordWrap
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: receiptLineCard.subtitle
                                 color: Theme.AppTheme.textSecondary
@@ -191,7 +191,7 @@ AppControls.CenteredDialog {
                                 wrapMode: Text.WordWrap
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: receiptLineCard.supportingText
                                 color: Theme.AppTheme.textMuted
@@ -206,7 +206,7 @@ AppControls.CenteredDialog {
                                 columnSpacing: Theme.AppTheme.spacingMd
                                 rowSpacing: Theme.AppTheme.spacingSm
 
-                                TextField {
+                                AppControls.TextField {
                                     Layout.fillWidth: true
                                     placeholderText: "Accepted qty"
                                     text: receiptLineCard.quantityAccepted
@@ -214,7 +214,7 @@ AppControls.CenteredDialog {
                                     onTextChanged: receiptLineModel.setProperty(receiptLineCard.index, "quantityAccepted", text)
                                 }
 
-                                TextField {
+                                AppControls.TextField {
                                     Layout.fillWidth: true
                                     placeholderText: "Rejected qty"
                                     text: receiptLineCard.quantityRejected
@@ -222,7 +222,7 @@ AppControls.CenteredDialog {
                                     onTextChanged: receiptLineModel.setProperty(receiptLineCard.index, "quantityRejected", text)
                                 }
 
-                                TextField {
+                                AppControls.TextField {
                                     Layout.fillWidth: true
                                     placeholderText: "Unit cost"
                                     text: receiptLineCard.unitPrice

@@ -1,4 +1,5 @@
 pragma ComponentBehavior: Bound
+import App.Controls 1.0 as AppControls
 
 import QtQuick
 import QtQuick.Controls
@@ -40,7 +41,7 @@ Item {
         anchors.right: parent.right
         height: 40
 
-        Label {
+        AppControls.Label {
             visible: !root.collapsed
             anchors.left:           parent.left
             anchors.leftMargin:     14
@@ -131,7 +132,7 @@ Item {
             clip:    true
 
             // ── Group header ──────────────────────────────────────
-            Label {
+            AppControls.Label {
                 visible:         navDelegate.isGroup
                 anchors.left:    parent.left
                 anchors.leftMargin: 14
@@ -180,7 +181,7 @@ Item {
                     iconColor: _itemBg._active ? Theme.AppTheme.accent : Theme.AppTheme.textSecondary
                 }
 
-                Label {
+                AppControls.Label {
                     visible:                !root.collapsed
                     anchors.left:           _ico.right
                     anchors.leftMargin:     9

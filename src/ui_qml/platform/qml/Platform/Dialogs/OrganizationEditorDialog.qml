@@ -93,14 +93,14 @@ AppControls.CenteredDialog {
             width: parent.availableWidth
             spacing: Theme.AppTheme.spacingMd
 
-            TextField {
+            AppControls.TextField {
                 id: organizationCodeField
 
                 Layout.fillWidth: true
                 placeholderText: "Organization code"
             }
 
-            TextField {
+            AppControls.TextField {
                 id: displayNameField
 
                 Layout.fillWidth: true
@@ -111,14 +111,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: timezoneField
 
                     Layout.fillWidth: true
                     placeholderText: "Timezone"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: currencyField
 
                     Layout.preferredWidth: 120
@@ -126,7 +126,7 @@ AppControls.CenteredDialog {
                 }
             }
 
-            CheckBox {
+            AppControls.CheckBox {
                 id: activeCheck
 
                 text: "Active organization"
@@ -137,7 +137,7 @@ AppControls.CenteredDialog {
                 visible: root.mode === "create"
                 spacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Initial modules"
                     color: Theme.AppTheme.textPrimary
@@ -146,7 +146,7 @@ AppControls.CenteredDialog {
                     font.bold: true
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Choose the modules available immediately after organization provisioning."
                     color: Theme.AppTheme.textSecondary
@@ -158,7 +158,7 @@ AppControls.CenteredDialog {
                 Repeater {
                     model: moduleModel
 
-                    delegate: CheckBox {
+                    delegate: AppControls.CheckBox {
                         required property int index
                         required property string label
                         required property bool selected

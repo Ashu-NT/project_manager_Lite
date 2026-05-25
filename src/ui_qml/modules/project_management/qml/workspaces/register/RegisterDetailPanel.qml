@@ -5,6 +5,7 @@ import App.Mock 1.0 as AppMock
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -129,7 +130,7 @@ Item {
                 height: 80
                 color: "transparent"
 
-                Label {
+                AppControls.Label {
                     anchors.centerIn: parent
                     text: "Activity feed coming soon"
                     color: Theme.AppTheme.textMuted
@@ -162,7 +163,7 @@ Item {
                 height: 80
                 color: "transparent"
 
-                Label {
+                AppControls.Label {
                     anchors.centerIn: parent
                     text: "Linked documents and references coming soon"
                     color: Theme.AppTheme.textMuted

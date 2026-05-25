@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -36,7 +37,7 @@ Item {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingSm
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.hint.length > 0
             text: root.hint
@@ -71,7 +72,7 @@ Item {
                     Layout.fillWidth: true
                     spacing: 1
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: metricItem.modelData.value || ""
                         color: Theme.AppTheme.textPrimary
@@ -81,7 +82,7 @@ Item {
                         elide: Text.ElideRight
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: metricItem.modelData.label || ""
                         color: Theme.AppTheme.textMuted
@@ -91,7 +92,7 @@ Item {
                         elide: Text.ElideRight
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: String(metricItem.modelData.supportingText || "").length > 0
                         text: metricItem.modelData.supportingText || ""
@@ -129,7 +130,7 @@ Item {
                             Layout.fillWidth: true
                             spacing: 2
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: summaryRow.modelData.label || ""
                                 color: Theme.AppTheme.textPrimary
@@ -139,7 +140,7 @@ Item {
                                 wrapMode: Text.WordWrap
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 visible: String(summaryRow.modelData.supportingText || "").length > 0
                                 text: summaryRow.modelData.supportingText || ""
@@ -150,7 +151,7 @@ Item {
                             }
                         }
 
-                        Label {
+                        AppControls.Label {
                             text: summaryRow.modelData.value || ""
                             color: root.toneColor(summaryRow.modelData.tone)
                             font.family: Theme.AppTheme.fontFamily

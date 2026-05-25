@@ -60,7 +60,7 @@ Item {
                 anchors.margins: Theme.AppTheme.marginLg
                 spacing: Theme.AppTheme.spacingMd
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Baseline Management"
                     color: Theme.AppTheme.textPrimary
@@ -69,7 +69,7 @@ Item {
                     font.bold: true
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Create planning snapshots, compare drift between freezes, and remove stale baselines after review."
                     color: Theme.AppTheme.textSecondary
@@ -82,7 +82,7 @@ Item {
                     Layout.fillWidth: true
                     spacing: Theme.AppTheme.spacingSm
 
-                    TextField {
+                    AppControls.TextField {
                         id: baselineNameField
                         Layout.fillWidth: true
                         placeholderText: "New baseline name"
@@ -106,13 +106,13 @@ Item {
                     columnSpacing: Theme.AppTheme.spacingMd
                     rowSpacing: Theme.AppTheme.spacingSm
 
-                    Label {
+                    AppControls.Label {
                         text: "From baseline"
                         color: Theme.AppTheme.textPrimary
                         font.family: Theme.AppTheme.fontFamily
                     }
 
-                    ComboBox {
+                    AppControls.ComboBox {
                         Layout.fillWidth: true
                         model: root.baselinesModel.options || []
                         textRole: "label"
@@ -130,13 +130,13 @@ Item {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         text: "To baseline"
                         color: Theme.AppTheme.textPrimary
                         font.family: Theme.AppTheme.fontFamily
                     }
 
-                    ComboBox {
+                    AppControls.ComboBox {
                         Layout.fillWidth: true
                         model: root.baselinesModel.options || []
                         textRole: "label"
@@ -154,7 +154,7 @@ Item {
                         }
                     }
 
-                    CheckBox {
+                    AppControls.CheckBox {
                         Layout.columnSpan: width > 920 ? 2 : 1
                         text: "Show unchanged tasks"
                         checked: Boolean(root.baselinesModel.includeUnchanged)
@@ -172,7 +172,7 @@ Item {
                     }
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: String(root.baselinesModel.summaryText || "").length > 0
                     text: String(root.baselinesModel.summaryText || "")

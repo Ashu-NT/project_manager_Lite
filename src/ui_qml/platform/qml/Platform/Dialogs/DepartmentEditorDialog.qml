@@ -123,14 +123,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: departmentCodeField
 
                     Layout.preferredWidth: 180
                     placeholderText: "Department code"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: nameField
 
                     Layout.fillWidth: true
@@ -138,14 +138,14 @@ AppControls.CenteredDialog {
                 }
             }
 
-            TextField {
+            AppControls.TextField {
                 id: descriptionField
 
                 Layout.fillWidth: true
                 placeholderText: "Description"
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: siteCombo
 
                 Layout.fillWidth: true
@@ -153,7 +153,7 @@ AppControls.CenteredDialog {
                 textRole: "label"
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: locationCombo
 
                 Layout.fillWidth: true
@@ -161,7 +161,7 @@ AppControls.CenteredDialog {
                 textRole: "label"
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: parentCombo
 
                 Layout.fillWidth: true
@@ -173,14 +173,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: departmentTypeField
 
                     Layout.fillWidth: true
                     placeholderText: "Department type"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: costCenterField
 
                     Layout.fillWidth: true
@@ -188,7 +188,7 @@ AppControls.CenteredDialog {
                 }
             }
 
-            TextArea {
+            AppControls.TextArea {
                 id: notesField
 
                 Layout.fillWidth: true
@@ -197,7 +197,7 @@ AppControls.CenteredDialog {
                 wrapMode: TextEdit.WordWrap
             }
 
-            CheckBox {
+            AppControls.CheckBox {
                 id: activeCheck
 
                 text: "Active department"

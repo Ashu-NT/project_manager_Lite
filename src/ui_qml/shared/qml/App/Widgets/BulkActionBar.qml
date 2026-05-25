@@ -43,7 +43,7 @@ Rectangle {
         anchors.centerIn: parent
         spacing: Theme.AppTheme.spacingSm
 
-        Label {
+        AppControls.Label {
             text:           root.selectedCount + " selected"
             color:          Theme.AppTheme.textPrimary
             font.family:    Theme.AppTheme.fontFamily

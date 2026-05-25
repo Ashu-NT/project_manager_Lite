@@ -49,7 +49,7 @@ Item {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Planner Filters"
                 color: Theme.AppTheme.textPrimary
@@ -72,8 +72,8 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Site" }
-            ComboBox {
+            AppControls.Label { text: "Site" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.siteOptions
                 textRole: "label"
@@ -85,8 +85,8 @@ Item {
                 }
             }
 
-            Label { text: "Asset" }
-            ComboBox {
+            AppControls.Label { text: "Asset" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.assetOptions
                 textRole: "label"
@@ -98,8 +98,8 @@ Item {
                 }
             }
 
-            Label { text: "System" }
-            ComboBox {
+            AppControls.Label { text: "System" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.systemOptions
                 textRole: "label"
@@ -111,8 +111,8 @@ Item {
                 }
             }
 
-            Label { text: "Request queue" }
-            ComboBox {
+            AppControls.Label { text: "Request queue" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.requestQueueOptions
                 textRole: "label"
@@ -124,8 +124,8 @@ Item {
                 }
             }
 
-            Label { text: "Work order queue" }
-            ComboBox {
+            AppControls.Label { text: "Work order queue" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.workOrderQueueOptions
                 textRole: "label"
@@ -137,8 +137,8 @@ Item {
                 }
             }
 
-            Label { text: "Search" }
-            TextField {
+            AppControls.Label { text: "Search" }
+            AppControls.TextField {
                 Layout.fillWidth: true
                 text: root.searchText
                 enabled: !root.isBusy

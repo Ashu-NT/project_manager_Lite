@@ -138,7 +138,7 @@ AppControls.CenteredDialog {
             width: dialogFlickable.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Capture asset identity, anchor context, lifecycle state, and maintenance strategy."
                 color: Theme.AppTheme.textSecondary
@@ -147,7 +147,7 @@ AppControls.CenteredDialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.validationMessage.length > 0
                 text: root.validationMessage
@@ -163,60 +163,60 @@ AppControls.CenteredDialog {
                 columnSpacing: Theme.AppTheme.spacingMd
                 rowSpacing: Theme.AppTheme.spacingSm
 
-                Label { text: "Site" }
-                ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+                AppControls.Label { text: "Site" }
+                AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
 
-                Label { text: "Location" }
-                ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
+                AppControls.Label { text: "Location" }
+                AppControls.ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
 
-                Label { text: "System" }
-                ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.systemOptions; textRole: "label" }
+                AppControls.Label { text: "System" }
+                AppControls.ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.systemOptions; textRole: "label" }
 
-                Label { text: "Parent asset" }
-                ComboBox { id: parentAssetCombo; Layout.fillWidth: true; model: root.parentAssetOptions; textRole: "label" }
+                AppControls.Label { text: "Parent asset" }
+                AppControls.ComboBox { id: parentAssetCombo; Layout.fillWidth: true; model: root.parentAssetOptions; textRole: "label" }
 
-                Label { text: "Asset code" }
-                TextField { id: assetCodeField; Layout.fillWidth: true; placeholderText: "AST-100" }
+                AppControls.Label { text: "Asset code" }
+                AppControls.TextField { id: assetCodeField; Layout.fillWidth: true; placeholderText: "AST-100" }
 
-                Label { text: "Name" }
-                TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Conveyor 100" }
+                AppControls.Label { text: "Name" }
+                AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Conveyor 100" }
 
-                Label { text: "Asset type" }
-                TextField { id: assetTypeField; Layout.fillWidth: true; placeholderText: "CONVEYOR" }
+                AppControls.Label { text: "Asset type" }
+                AppControls.TextField { id: assetTypeField; Layout.fillWidth: true; placeholderText: "CONVEYOR" }
 
-                Label { text: "Category" }
-                TextField { id: assetCategoryField; Layout.fillWidth: true; placeholderText: "ROTATING" }
+                AppControls.Label { text: "Category" }
+                AppControls.TextField { id: assetCategoryField; Layout.fillWidth: true; placeholderText: "ROTATING" }
 
-                Label { text: "Criticality" }
-                ComboBox { id: criticalityCombo; Layout.fillWidth: true; model: root.criticalityOptions; textRole: "label" }
+                AppControls.Label { text: "Criticality" }
+                AppControls.ComboBox { id: criticalityCombo; Layout.fillWidth: true; model: root.criticalityOptions; textRole: "label" }
 
-                Label { text: "Lifecycle status" }
-                ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+                AppControls.Label { text: "Lifecycle status" }
+                AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
 
-                Label { text: "Manufacturer" }
-                ComboBox { id: manufacturerCombo; Layout.fillWidth: true; model: root.manufacturerOptions; textRole: "label" }
+                AppControls.Label { text: "Manufacturer" }
+                AppControls.ComboBox { id: manufacturerCombo; Layout.fillWidth: true; model: root.manufacturerOptions; textRole: "label" }
 
-                Label { text: "Supplier" }
-                ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
+                AppControls.Label { text: "Supplier" }
+                AppControls.ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
 
-                Label { text: "Model number" }
-                TextField { id: modelNumberField; Layout.fillWidth: true }
+                AppControls.Label { text: "Model number" }
+                AppControls.TextField { id: modelNumberField; Layout.fillWidth: true }
 
-                Label { text: "Serial number" }
-                TextField { id: serialNumberField; Layout.fillWidth: true }
+                AppControls.Label { text: "Serial number" }
+                AppControls.TextField { id: serialNumberField; Layout.fillWidth: true }
 
-                Label { text: "Replacement cost" }
-                TextField { id: replacementCostField; Layout.fillWidth: true; placeholderText: "2500.00" }
+                AppControls.Label { text: "Replacement cost" }
+                AppControls.TextField { id: replacementCostField; Layout.fillWidth: true; placeholderText: "2500.00" }
 
-                Label { text: "Maintenance strategy" }
-                TextField { id: maintenanceStrategyField; Layout.fillWidth: true; placeholderText: "Condition-based" }
+                AppControls.Label { text: "Maintenance strategy" }
+                AppControls.TextField { id: maintenanceStrategyField; Layout.fillWidth: true; placeholderText: "Condition-based" }
 
-                Label { text: "Service level" }
-                TextField { id: serviceLevelField; Layout.fillWidth: true; placeholderText: "Tier 1" }
+                AppControls.Label { text: "Service level" }
+                AppControls.TextField { id: serviceLevelField; Layout.fillWidth: true; placeholderText: "Tier 1" }
             }
 
-            Label { text: "Description" }
-            TextArea {
+            AppControls.Label { text: "Description" }
+            AppControls.TextArea {
                 id: descriptionField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90
@@ -226,12 +226,12 @@ AppControls.CenteredDialog {
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
-                CheckBox { id: activeCheck; text: "Active asset" }
-                CheckBox { id: shutdownCheck; text: "Requires shutdown for major work" }
+                AppControls.CheckBox { id: activeCheck; text: "Active asset" }
+                AppControls.CheckBox { id: shutdownCheck; text: "Requires shutdown for major work" }
             }
 
-            Label { text: "Notes" }
-            TextArea {
+            AppControls.Label { text: "Notes" }
+            AppControls.TextArea {
                 id: notesField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90

@@ -132,7 +132,7 @@ AppControls.CenteredDialog {
             width: dialogFlickable.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.modeTitle === "Create Work Request"
                     ? "Capture intake details before the request is triaged or converted into execution planning."
@@ -143,7 +143,7 @@ AppControls.CenteredDialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.validationMessage.length > 0
                 text: root.validationMessage
@@ -159,51 +159,51 @@ AppControls.CenteredDialog {
                 columnSpacing: Theme.AppTheme.spacingMd
                 rowSpacing: Theme.AppTheme.spacingSm
 
-                Label { text: "Site" }
-                ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+                AppControls.Label { text: "Site" }
+                AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
 
-                Label { text: "Work request code" }
-                TextField { id: workRequestCodeField; Layout.fillWidth: true; placeholderText: "WR-100" }
+                AppControls.Label { text: "Work request code" }
+                AppControls.TextField { id: workRequestCodeField; Layout.fillWidth: true; placeholderText: "WR-100" }
 
-                Label { text: "Source type" }
-                ComboBox { id: sourceTypeCombo; Layout.fillWidth: true; model: root.sourceTypeOptions; textRole: "label" }
+                AppControls.Label { text: "Source type" }
+                AppControls.ComboBox { id: sourceTypeCombo; Layout.fillWidth: true; model: root.sourceTypeOptions; textRole: "label" }
 
-                Label { text: "Source id" }
-                TextField { id: sourceIdField; Layout.fillWidth: true; placeholderText: "Origin ticket or request id" }
+                AppControls.Label { text: "Source id" }
+                AppControls.TextField { id: sourceIdField; Layout.fillWidth: true; placeholderText: "Origin ticket or request id" }
 
-                Label { text: "Request type" }
-                TextField { id: requestTypeField; Layout.fillWidth: true; placeholderText: "CORRECTIVE / BREAKDOWN / INSPECTION" }
+                AppControls.Label { text: "Request type" }
+                AppControls.TextField { id: requestTypeField; Layout.fillWidth: true; placeholderText: "CORRECTIVE / BREAKDOWN / INSPECTION" }
 
-                Label { text: "Priority" }
-                ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
+                AppControls.Label { text: "Priority" }
+                AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
 
-                Label { text: "Location" }
-                ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
+                AppControls.Label { text: "Location" }
+                AppControls.ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
 
-                Label { text: "System" }
-                ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.systemOptions; textRole: "label" }
+                AppControls.Label { text: "System" }
+                AppControls.ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.systemOptions; textRole: "label" }
 
-                Label { text: "Asset" }
-                ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
+                AppControls.Label { text: "Asset" }
+                AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
 
-                Label { text: "Component" }
-                ComboBox { id: componentCombo; Layout.fillWidth: true; model: root.componentOptions; textRole: "label" }
+                AppControls.Label { text: "Component" }
+                AppControls.ComboBox { id: componentCombo; Layout.fillWidth: true; model: root.componentOptions; textRole: "label" }
 
-                Label { text: "Title" }
-                TextField { id: titleField; Layout.fillWidth: true; placeholderText: "Seal leak observed on transfer pump" }
+                AppControls.Label { text: "Title" }
+                AppControls.TextField { id: titleField; Layout.fillWidth: true; placeholderText: "Seal leak observed on transfer pump" }
 
-                Label { text: "Failure symptom code" }
-                TextField { id: failureSymptomField; Layout.fillWidth: true; placeholderText: "Optional symptom code" }
+                AppControls.Label { text: "Failure symptom code" }
+                AppControls.TextField { id: failureSymptomField; Layout.fillWidth: true; placeholderText: "Optional symptom code" }
 
-                Label { text: "Safety risk" }
-                TextField { id: safetyRiskField; Layout.fillWidth: true; placeholderText: "LOW / MEDIUM / HIGH" }
+                AppControls.Label { text: "Safety risk" }
+                AppControls.TextField { id: safetyRiskField; Layout.fillWidth: true; placeholderText: "LOW / MEDIUM / HIGH" }
 
-                Label { text: "Production impact" }
-                TextField { id: productionImpactField; Layout.fillWidth: true; placeholderText: "LOW / MEDIUM / HIGH" }
+                AppControls.Label { text: "Production impact" }
+                AppControls.TextField { id: productionImpactField; Layout.fillWidth: true; placeholderText: "LOW / MEDIUM / HIGH" }
             }
 
-            Label { text: "Description" }
-            TextArea {
+            AppControls.Label { text: "Description" }
+            AppControls.TextArea {
                 id: descriptionField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 120
@@ -211,8 +211,8 @@ AppControls.CenteredDialog {
                 wrapMode: TextEdit.WordWrap
             }
 
-            Label { text: "Notes" }
-            TextArea {
+            AppControls.Label { text: "Notes" }
+            AppControls.TextArea {
                 id: notesField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 100

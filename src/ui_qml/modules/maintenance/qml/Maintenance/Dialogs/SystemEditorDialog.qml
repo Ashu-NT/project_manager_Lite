@@ -108,7 +108,7 @@ AppControls.CenteredDialog {
             width: dialogFlickable.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Capture system hierarchy and lifecycle state for maintenance planning scope."
                 color: Theme.AppTheme.textSecondary
@@ -117,7 +117,7 @@ AppControls.CenteredDialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.validationMessage.length > 0
                 text: root.validationMessage
@@ -133,43 +133,43 @@ AppControls.CenteredDialog {
                 columnSpacing: Theme.AppTheme.spacingMd
                 rowSpacing: Theme.AppTheme.spacingSm
 
-                Label { text: "Site" }
-                ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+                AppControls.Label { text: "Site" }
+                AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
 
-                Label { text: "System code" }
-                TextField { id: systemCodeField; Layout.fillWidth: true; placeholderText: "SYS-100" }
+                AppControls.Label { text: "System code" }
+                AppControls.TextField { id: systemCodeField; Layout.fillWidth: true; placeholderText: "SYS-100" }
 
-                Label { text: "Name" }
-                TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Packaging Line" }
+                AppControls.Label { text: "Name" }
+                AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Packaging Line" }
 
-                Label { text: "Location" }
-                ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
+                AppControls.Label { text: "Location" }
+                AppControls.ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
 
-                Label { text: "Parent system" }
-                ComboBox { id: parentSystemCombo; Layout.fillWidth: true; model: root.parentSystemOptions; textRole: "label" }
+                AppControls.Label { text: "Parent system" }
+                AppControls.ComboBox { id: parentSystemCombo; Layout.fillWidth: true; model: root.parentSystemOptions; textRole: "label" }
 
-                Label { text: "System type" }
-                TextField { id: systemTypeField; Layout.fillWidth: true; placeholderText: "LINE" }
+                AppControls.Label { text: "System type" }
+                AppControls.TextField { id: systemTypeField; Layout.fillWidth: true; placeholderText: "LINE" }
 
-                Label { text: "Criticality" }
-                ComboBox { id: criticalityCombo; Layout.fillWidth: true; model: root.criticalityOptions; textRole: "label" }
+                AppControls.Label { text: "Criticality" }
+                AppControls.ComboBox { id: criticalityCombo; Layout.fillWidth: true; model: root.criticalityOptions; textRole: "label" }
 
-                Label { text: "Lifecycle status" }
-                ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+                AppControls.Label { text: "Lifecycle status" }
+                AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
             }
 
-            Label { text: "Description" }
-            TextArea {
+            AppControls.Label { text: "Description" }
+            AppControls.TextArea {
                 id: descriptionField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90
                 wrapMode: TextEdit.WordWrap
             }
 
-            CheckBox { id: activeCheck; text: "Active system" }
+            AppControls.CheckBox { id: activeCheck; text: "Active system" }
 
-            Label { text: "Notes" }
-            TextArea {
+            AppControls.Label { text: "Notes" }
+            AppControls.TextArea {
                 id: notesField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90

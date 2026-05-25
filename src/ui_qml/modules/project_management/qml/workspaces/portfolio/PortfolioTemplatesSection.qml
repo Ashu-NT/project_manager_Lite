@@ -24,7 +24,7 @@ Item {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.activeTemplateSummary
             visible: text.length > 0
@@ -40,26 +40,26 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            TextField { id: nameField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "Balanced PMO" }
-            TextField { id: summaryField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "Balanced scoring for strategic fit and delivery risk." }
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "Balanced PMO" }
+            AppControls.TextField { id: summaryField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "Balanced scoring for strategic fit and delivery risk." }
 
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingSm
-                Label { text: "Strategic"; color: Theme.AppTheme.textSecondary }
+                AppControls.Label { text: "Strategic"; color: Theme.AppTheme.textSecondary }
                 SpinBox { id: strategicWeight; from: 1; to: 5; value: 3; enabled: !root.isBusy }
-                Label { text: "Value"; color: Theme.AppTheme.textSecondary }
+                AppControls.Label { text: "Value"; color: Theme.AppTheme.textSecondary }
                 SpinBox { id: valueWeight; from: 1; to: 5; value: 2; enabled: !root.isBusy }
             }
 
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingSm
-                Label { text: "Urgency"; color: Theme.AppTheme.textSecondary }
+                AppControls.Label { text: "Urgency"; color: Theme.AppTheme.textSecondary }
                 SpinBox { id: urgencyWeight; from: 1; to: 5; value: 2; enabled: !root.isBusy }
-                Label { text: "Risk"; color: Theme.AppTheme.textSecondary }
+                AppControls.Label { text: "Risk"; color: Theme.AppTheme.textSecondary }
                 SpinBox { id: riskWeight; from: 1; to: 5; value: 1; enabled: !root.isBusy }
-                CheckBox { id: activateBox; text: "Activate now"; enabled: !root.isBusy }
+                AppControls.CheckBox { id: activateBox; text: "Activate now"; enabled: !root.isBusy }
             }
         }
 

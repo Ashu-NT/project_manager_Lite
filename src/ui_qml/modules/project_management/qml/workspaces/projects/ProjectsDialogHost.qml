@@ -92,7 +92,7 @@ Item {
         contentItem: ColumnLayout {
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.deleteTarget && root.deleteTarget.title
                     ? "Delete " + root.deleteTarget.title + " and its related planning data?"
@@ -103,7 +103,7 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "This action removes the project record, related tasks, and dependent planning data."
                 color: Theme.AppTheme.textSecondary

@@ -95,7 +95,7 @@ AppControls.CenteredDialog {
             width: dialogFlickable.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.modeTitle === "Create Category"
                     ? "Define a reusable inventory category and its cross-module usage flags."
@@ -106,7 +106,7 @@ AppControls.CenteredDialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.validationMessage.length > 0
                 text: root.validationMessage
@@ -122,30 +122,30 @@ AppControls.CenteredDialog {
                 columnSpacing: Theme.AppTheme.spacingMd
                 rowSpacing: Theme.AppTheme.spacingSm
 
-                Label { text: "Category code" }
-                TextField {
+                AppControls.Label { text: "Category code" }
+                AppControls.TextField {
                     id: categoryCodeField
                     Layout.fillWidth: true
                     placeholderText: "SPARE"
                 }
 
-                Label { text: "Name" }
-                TextField {
+                AppControls.Label { text: "Name" }
+                AppControls.TextField {
                     id: nameField
                     Layout.fillWidth: true
                     placeholderText: "Spare Parts"
                 }
 
-                Label { text: "Category type" }
-                ComboBox {
+                AppControls.Label { text: "Category type" }
+                AppControls.ComboBox {
                     id: categoryTypeCombo
                     Layout.fillWidth: true
                     model: root.formCategoryTypeOptions
                     textRole: "label"
                 }
 
-                Label { text: "Description" }
-                TextArea {
+                AppControls.Label { text: "Description" }
+                AppControls.TextArea {
                     id: descriptionField
                     Layout.fillWidth: true
                     Layout.preferredHeight: 96
@@ -154,22 +154,22 @@ AppControls.CenteredDialog {
                 }
             }
 
-            CheckBox {
+            AppControls.CheckBox {
                 id: equipmentCheck
                 text: "Category represents equipment or reusable asset types"
             }
 
-            CheckBox {
+            AppControls.CheckBox {
                 id: projectUsageCheck
                 text: "Available for project-management usage"
             }
 
-            CheckBox {
+            AppControls.CheckBox {
                 id: maintenanceUsageCheck
                 text: "Available for maintenance usage"
             }
 
-            CheckBox {
+            AppControls.CheckBox {
                 id: activeCheck
                 text: "Category is active"
             }

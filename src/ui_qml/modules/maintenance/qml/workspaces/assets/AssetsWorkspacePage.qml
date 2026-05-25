@@ -416,7 +416,7 @@ AppLayouts.WorkspaceFrame {
                     width: parent.width
                     spacing: Theme.AppTheme.spacingSm
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: "Site"
                         font.bold: true
@@ -424,7 +424,7 @@ AppLayouts.WorkspaceFrame {
                         font.family: Theme.AppTheme.fontFamily
                         color: Theme.AppTheme.textMuted
                     }
-                    ComboBox {
+                    AppControls.ComboBox {
                         Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
                         textRole: "label"
@@ -436,7 +436,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: "Active Status"
                         font.bold: true
@@ -444,7 +444,7 @@ AppLayouts.WorkspaceFrame {
                         font.family: Theme.AppTheme.fontFamily
                         color: Theme.AppTheme.textMuted
                     }
-                    ComboBox {
+                    AppControls.ComboBox {
                         Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.activeFilterOptions || []) : []
                         textRole: "label"

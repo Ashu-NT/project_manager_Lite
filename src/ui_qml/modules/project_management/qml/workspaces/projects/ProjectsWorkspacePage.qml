@@ -287,7 +287,7 @@ AppLayouts.WorkspaceFrame {
                         contentItem: ColumnLayout {
                             spacing: Theme.AppTheme.spacingSm
 
-                            Label {
+                            AppControls.Label {
                                 text: "Status"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
@@ -295,7 +295,7 @@ AppLayouts.WorkspaceFrame {
                                 color: Theme.AppTheme.textMuted
                             }
 
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                                 textRole: "label"
@@ -394,7 +394,7 @@ AppLayouts.WorkspaceFrame {
                         contentItem: ColumnLayout {
                             spacing: Theme.AppTheme.spacingSm
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: {
                                     const count = root.workspaceController
@@ -407,7 +407,7 @@ AppLayouts.WorkspaceFrame {
                                 wrapMode: Text.WordWrap
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: "This action removes the project records, related tasks, and dependent planning data. It cannot be undone."
                                 color: Theme.AppTheme.textSecondary

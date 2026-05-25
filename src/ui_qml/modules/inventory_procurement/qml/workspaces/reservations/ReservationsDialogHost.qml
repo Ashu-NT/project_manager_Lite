@@ -82,7 +82,7 @@ Item {
 
         modal: true
 
-        contentItem: Label {
+        contentItem: AppControls.Label {
             id: confirmationMessage
             text: ""
             wrapMode: Text.WordWrap

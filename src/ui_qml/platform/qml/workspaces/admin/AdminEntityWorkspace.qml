@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 // Reusable admin entity workspace: section title bar + TableToolbar + DataTable.
 // All selected-record business actions live exclusively in the right detail panel.
@@ -44,7 +45,7 @@ ColumnLayout {
             anchors.rightMargin: 8
             spacing:             Theme.AppTheme.spacingXs
 
-            Label {
+            AppControls.Label {
                 text:           root.sectionTitle
                 color:          Theme.AppTheme.textPrimary
                 font.family:    Theme.AppTheme.fontFamily
@@ -52,7 +53,7 @@ ColumnLayout {
                 font.bold:      true
             }
 
-            Label {
+            AppControls.Label {
                 visible:        (root.catalog.items || []).length > 0
                 text:           String((root.catalog.items || []).length)
                 color:          Theme.AppTheme.textMuted

@@ -52,7 +52,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Issue reserved stock against the held quantity. This reduces on-hand stock and consumes the reservation at the same time."
             color: Theme.AppTheme.textSecondary
@@ -61,7 +61,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.validationMessage.length > 0
             text: root.validationMessage
@@ -77,8 +77,8 @@ AppControls.CenteredDialog {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Reservation" }
-            Label {
+            AppControls.Label { text: "Reservation" }
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: String(root.reservationData.title || "")
                 color: Theme.AppTheme.textPrimary
@@ -86,8 +86,8 @@ AppControls.CenteredDialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label { text: "Remaining qty" }
-            Label {
+            AppControls.Label { text: "Remaining qty" }
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: String(root.reservationData.state && root.reservationData.state.remainingQtyLabel || "-")
                 color: Theme.AppTheme.textPrimary
@@ -95,8 +95,8 @@ AppControls.CenteredDialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label { text: "Issue qty" }
-            TextField {
+            AppControls.Label { text: "Issue qty" }
+            AppControls.TextField {
                 id: quantityField
                 Layout.fillWidth: true
                 placeholderText: "1.000"
@@ -104,13 +104,13 @@ AppControls.CenteredDialog {
             }
         }
 
-        Label {
+        AppControls.Label {
             text: "Notes"
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
         }
 
-        TextArea {
+        AppControls.TextArea {
             id: notesField
             Layout.fillWidth: true
             Layout.preferredHeight: 96

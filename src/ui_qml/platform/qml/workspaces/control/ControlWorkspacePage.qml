@@ -135,7 +135,7 @@ AppLayouts.WorkspaceFrame {
                         anchors.rightMargin: 8
                         spacing:             Theme.AppTheme.spacingXs
 
-                        Label {
+                        AppControls.Label {
                             text:           "Approval Queue"
                             color:          Theme.AppTheme.textPrimary
                             font.family:    Theme.AppTheme.fontFamily
@@ -143,7 +143,7 @@ AppLayouts.WorkspaceFrame {
                             font.bold:      true
                         }
 
-                        Label {
+                        AppControls.Label {
                             visible:        root._queueCount > 0
                             text:           String(root._queueCount)
                             color:          Theme.AppTheme.textMuted
@@ -214,7 +214,7 @@ AppLayouts.WorkspaceFrame {
                         anchors.rightMargin: 8
                         spacing:             Theme.AppTheme.spacingXs
 
-                        Label {
+                        AppControls.Label {
                             text: root.workspaceController
                                 ? (root.workspaceController.auditFeed.title || "Recent Activity")
                                 : "Recent Activity"
@@ -224,7 +224,7 @@ AppLayouts.WorkspaceFrame {
                             font.bold:      true
                         }
 
-                        Label {
+                        AppControls.Label {
                             visible:        root._feedCount > 0
                             text:           String(root._feedCount)
                             color:          Theme.AppTheme.textMuted
@@ -304,7 +304,7 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillWidth: true
                                     spacing:          Theme.AppTheme.spacingXs
 
-                                    Label {
+                                    AppControls.Label {
                                         Layout.fillWidth: true
                                         text:           _feedRow.modelData.title || ""
                                         color:          Theme.AppTheme.textPrimary
@@ -319,7 +319,7 @@ AppLayouts.WorkspaceFrame {
                                     }
                                 }
 
-                                Label {
+                                AppControls.Label {
                                     visible:        (_feedRow.modelData.metaText || "").length > 0
                                     text:           _feedRow.modelData.metaText || ""
                                     color:          Theme.AppTheme.textMuted
@@ -395,7 +395,7 @@ AppLayouts.WorkspaceFrame {
                                 Layout.bottomMargin: Theme.AppTheme.spacingSm
                                 spacing:             Theme.AppTheme.spacingSm
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text:           root._queueItem ? (root._queueItem.title || "") : ""
                                     color:          Theme.AppTheme.textPrimary
@@ -437,14 +437,14 @@ AppLayouts.WorkspaceFrame {
                                     visible: root._queueItem
                                         ? (root._queueItem.subtitle || "").length > 0 : false
 
-                                    Label {
+                                    AppControls.Label {
                                         text:           "Submitted by"
                                         color:          Theme.AppTheme.textMuted
                                         font.family:    Theme.AppTheme.fontFamily
                                         font.pixelSize: Theme.AppTheme.captionSize
                                         font.bold:      true
                                     }
-                                    Label {
+                                    AppControls.Label {
                                         Layout.fillWidth: true
                                         text:    root._queueItem ? (root._queueItem.subtitle || "") : ""
                                         color:   Theme.AppTheme.textSecondary
@@ -461,14 +461,14 @@ AppLayouts.WorkspaceFrame {
                                     visible: root._queueItem
                                         ? (root._queueItem.metaText || "").length > 0 : false
 
-                                    Label {
+                                    AppControls.Label {
                                         text:           "Module / Source"
                                         color:          Theme.AppTheme.textMuted
                                         font.family:    Theme.AppTheme.fontFamily
                                         font.pixelSize: Theme.AppTheme.captionSize
                                         font.bold:      true
                                     }
-                                    Label {
+                                    AppControls.Label {
                                         Layout.fillWidth: true
                                         text:    root._queueItem ? (root._queueItem.metaText || "") : ""
                                         color:   Theme.AppTheme.textSecondary
@@ -485,14 +485,14 @@ AppLayouts.WorkspaceFrame {
                                     visible: root._queueItem
                                         ? (root._queueItem.supportingText || "").length > 0 : false
 
-                                    Label {
+                                    AppControls.Label {
                                         text:           "Context"
                                         color:          Theme.AppTheme.textMuted
                                         font.family:    Theme.AppTheme.fontFamily
                                         font.pixelSize: Theme.AppTheme.captionSize
                                         font.bold:      true
                                     }
-                                    Label {
+                                    AppControls.Label {
                                         Layout.fillWidth: true
                                         text:    root._queueItem ? (root._queueItem.supportingText || "") : ""
                                         color:   Theme.AppTheme.textSecondary
@@ -529,14 +529,14 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillWidth: true
                                     spacing: 2
 
-                                    Label {
+                                    AppControls.Label {
                                         text:           "Required action"
                                         color:          Theme.AppTheme.textMuted
                                         font.family:    Theme.AppTheme.fontFamily
                                         font.pixelSize: Theme.AppTheme.captionSize
                                         font.bold:      true
                                     }
-                                    Label {
+                                    AppControls.Label {
                                         Layout.fillWidth: true
                                         text: {
                                             if (!root._queueItem) return ""
@@ -556,14 +556,14 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillWidth: true
                                     spacing: 2
 
-                                    Label {
+                                    AppControls.Label {
                                         text:           "Request ID"
                                         color:          Theme.AppTheme.textMuted
                                         font.family:    Theme.AppTheme.fontFamily
                                         font.pixelSize: Theme.AppTheme.captionSize
                                         font.bold:      true
                                     }
-                                    Label {
+                                    AppControls.Label {
                                         Layout.fillWidth: true
                                         text:  root._queueItem ? String(root._queueItem.id || "") : ""
                                         color: Theme.AppTheme.textSecondary
@@ -641,7 +641,7 @@ AppLayouts.WorkspaceFrame {
             width:   parent.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 text:           "Filter Approvals"
                 color:          Theme.AppTheme.textPrimary
                 font.family:    Theme.AppTheme.fontFamily
@@ -649,7 +649,7 @@ AppLayouts.WorkspaceFrame {
                 font.bold:      true
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text:    "Status, module, and date filters will appear here."
                 color:   Theme.AppTheme.textMuted
@@ -696,7 +696,7 @@ AppLayouts.WorkspaceFrame {
                     radius: Theme.AppTheme.radiusMd
                     color:  _viewMA.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
 
-                    Label {
+                    AppControls.Label {
                         anchors {
                             left:           parent.left
                             leftMargin:     Theme.AppTheme.spacingMd

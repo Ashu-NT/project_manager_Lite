@@ -1,4 +1,5 @@
 pragma ComponentBehavior: Bound
+import App.Controls 1.0 as AppControls
 
 import QtQuick
 import QtQuick.Controls
@@ -68,7 +69,7 @@ SchedulingPanelFrame {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     text: root._windowStartLabel || "Window start"
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
@@ -79,7 +80,7 @@ SchedulingPanelFrame {
                     Layout.fillWidth: true
                 }
 
-                Label {
+                AppControls.Label {
                     visible: root._windowStartLabel.length > 0 && root._windowFinishLabel.length > 0
                     text: "Today marker"
                     color: Theme.AppTheme.textMuted
@@ -87,7 +88,7 @@ SchedulingPanelFrame {
                     font.pixelSize: Theme.AppTheme.captionSize
                 }
 
-                Label {
+                AppControls.Label {
                     text: root._windowFinishLabel || "Window finish"
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
@@ -106,7 +107,7 @@ SchedulingPanelFrame {
                 Layout.fillHeight: true
                 clip: true
 
-                Label {
+                AppControls.Label {
                     anchors.centerIn: parent
                     visible: root._items.length === 0
                     text: root.timelineModel.emptyState || "No timeline activities are available."
@@ -137,7 +138,7 @@ SchedulingPanelFrame {
                             anchors.fill: parent
                             spacing: Theme.AppTheme.spacingSm
 
-                            Label {
+                            AppControls.Label {
                                 Layout.preferredWidth: 110
                                 text: String(_row.modelData.title || "")
                                 color: Theme.AppTheme.textSecondary
@@ -214,7 +215,7 @@ SchedulingPanelFrame {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.preferredWidth: 64
                                 horizontalAlignment: Text.AlignRight
                                 text: String(_row.modelData.statusLabel || "")

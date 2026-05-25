@@ -56,7 +56,7 @@ Item {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Reliability Filters"
                 color: Theme.AppTheme.textPrimary
@@ -79,8 +79,8 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Site" }
-            ComboBox {
+            AppControls.Label { text: "Site" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.siteOptions
                 textRole: "label"
@@ -92,8 +92,8 @@ Item {
                 }
             }
 
-            Label { text: "Asset" }
-            ComboBox {
+            AppControls.Label { text: "Asset" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.assetOptions
                 textRole: "label"
@@ -105,8 +105,8 @@ Item {
                 }
             }
 
-            Label { text: "System" }
-            ComboBox {
+            AppControls.Label { text: "System" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.systemOptions
                 textRole: "label"
@@ -118,8 +118,8 @@ Item {
                 }
             }
 
-            Label { text: "Location" }
-            ComboBox {
+            AppControls.Label { text: "Location" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.locationOptions
                 textRole: "label"
@@ -131,8 +131,8 @@ Item {
                 }
             }
 
-            Label { text: "Failure symptom" }
-            ComboBox {
+            AppControls.Label { text: "Failure symptom" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.failureSymptomOptions
                 textRole: "label"
@@ -144,8 +144,8 @@ Item {
                 }
             }
 
-            Label { text: "Window" }
-            ComboBox {
+            AppControls.Label { text: "Window" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.daysOptions
                 textRole: "label"
@@ -157,8 +157,8 @@ Item {
                 }
             }
 
-            Label { text: "Limit" }
-            ComboBox {
+            AppControls.Label { text: "Limit" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.limitOptions
                 textRole: "label"
@@ -170,8 +170,8 @@ Item {
                 }
             }
 
-            Label { text: "Recurring threshold" }
-            ComboBox {
+            AppControls.Label { text: "Recurring threshold" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.thresholdOptions
                 textRole: "label"

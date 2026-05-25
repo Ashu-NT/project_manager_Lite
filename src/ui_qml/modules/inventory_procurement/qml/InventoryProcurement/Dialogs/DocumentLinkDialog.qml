@@ -41,7 +41,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Select a shared document to attach to the selected inventory item."
             color: Theme.AppTheme.textSecondary
@@ -49,7 +49,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.validationMessage.length > 0
             text: root.validationMessage
@@ -59,7 +59,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             id: documentCombo
             Layout.fillWidth: true
             model: root.documentOptions

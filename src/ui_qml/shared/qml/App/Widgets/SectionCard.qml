@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Rectangle {
     id: root
@@ -38,7 +39,7 @@ Rectangle {
                 anchors.rightMargin: Theme.AppTheme.marginMd
                 spacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: root.title
                     color: Theme.AppTheme.textSecondary
@@ -58,7 +59,7 @@ Rectangle {
                         ? Theme.AppTheme.hoverSurface
                         : Theme.AppTheme.surfaceOverlay
 
-                    Label {
+                    AppControls.Label {
                         id: actionText
                         anchors.centerIn: parent
                         text: root.actionLabel

@@ -14,20 +14,20 @@ QtObject {
     // Surface hierarchy
     readonly property color appBackground: "#F3F6FA"
     readonly property color background: appBackground
-    readonly property color workspaceBackground: "#F8FAFD"
+    readonly property color workspaceBackground: "#F7F8FA"
     readonly property color surface: "#FCFDFE"
     readonly property color surfaceAlt: "#EEF3F8"
     readonly property color surfaceRaised: "#FFFFFF"
     readonly property color surfaceSunken: "#E9EFF6"
-    readonly property color surfaceOverlay: "#F5F8FC"
-    readonly property color hoverSurface: "#E6EEF7"
-    readonly property color selectedSurface: "#D9E7F7"
+    readonly property color surfaceOverlay: "#F6F7F9"
+    readonly property color hoverSurface: "#EEF2F6"
+    readonly property color selectedSurface: "#E4EDF7"
 
     // Borders and separators
     readonly property color border: "#CAD4DF"
     readonly property color borderStrong: "#B4C3D3"
-    readonly property color subtleBorder: "#DEE7F0"
-    readonly property color divider: "#E0E8F0"
+    readonly property color subtleBorder: "#D3DCE6"
+    readonly property color divider: "#D7E0E8"
     readonly property color focusBorder: "#0A66A8"
     readonly property color shadowColor: "#160A1B2A"
     readonly property color overlayScrim: "#4016202B"

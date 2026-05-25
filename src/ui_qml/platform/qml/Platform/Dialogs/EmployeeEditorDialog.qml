@@ -131,14 +131,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: employeeCodeField
 
                     Layout.preferredWidth: 180
                     placeholderText: "Employee code"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: fullNameField
 
                     Layout.fillWidth: true
@@ -146,7 +146,7 @@ AppControls.CenteredDialog {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: departmentCombo
 
                 Layout.fillWidth: true
@@ -154,7 +154,7 @@ AppControls.CenteredDialog {
                 textRole: "label"
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: siteCombo
 
                 Layout.fillWidth: true
@@ -166,14 +166,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: titleField
 
                     Layout.fillWidth: true
                     placeholderText: "Job title"
                 }
 
-                ComboBox {
+                AppControls.ComboBox {
                     id: employmentTypeCombo
 
                     Layout.fillWidth: true
@@ -186,14 +186,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: emailField
 
                     Layout.fillWidth: true
                     placeholderText: "Email"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: phoneField
 
                     Layout.fillWidth: true
@@ -201,7 +201,7 @@ AppControls.CenteredDialog {
                 }
             }
 
-            CheckBox {
+            AppControls.CheckBox {
                 id: activeCheck
 
                 text: "Active employee"

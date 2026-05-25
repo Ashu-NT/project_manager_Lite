@@ -158,75 +158,75 @@ AppControls.CenteredDialog {
                 columnSpacing: 12
                 rowSpacing: 12
 
-                Label { text: "Site" }
-                ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.optionsFor("siteOptions"); textRole: "label" }
+                AppControls.Label { text: "Site" }
+                AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.optionsFor("siteOptions"); textRole: "label" }
 
-                Label { text: "Plan Code" }
-                TextField { id: planCodeField; Layout.fillWidth: true; placeholderText: "PM-100" }
+                AppControls.Label { text: "Plan Code" }
+                AppControls.TextField { id: planCodeField; Layout.fillWidth: true; placeholderText: "PM-100" }
 
-                Label { text: "Name" }
-                TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Monthly inspection route" }
+                AppControls.Label { text: "Name" }
+                AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Monthly inspection route" }
 
-                Label { text: "Asset" }
-                ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.optionsFor("assetOptions"); textRole: "label" }
+                AppControls.Label { text: "Asset" }
+                AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.optionsFor("assetOptions"); textRole: "label" }
 
-                Label { text: "Component" }
-                ComboBox { id: componentCombo; Layout.fillWidth: true; model: root.optionsFor("componentOptions"); textRole: "label" }
+                AppControls.Label { text: "Component" }
+                AppControls.ComboBox { id: componentCombo; Layout.fillWidth: true; model: root.optionsFor("componentOptions"); textRole: "label" }
 
-                Label { text: "System" }
-                ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.optionsFor("systemOptions"); textRole: "label" }
+                AppControls.Label { text: "System" }
+                AppControls.ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.optionsFor("systemOptions"); textRole: "label" }
 
-                Label { text: "Status" }
-                ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.optionsFor("statusOptions"); textRole: "label" }
+                AppControls.Label { text: "Status" }
+                AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.optionsFor("statusOptions"); textRole: "label" }
 
-                Label { text: "Plan Type" }
-                ComboBox { id: planTypeCombo; Layout.fillWidth: true; model: root.optionsFor("planTypeOptions"); textRole: "label" }
+                AppControls.Label { text: "Plan Type" }
+                AppControls.ComboBox { id: planTypeCombo; Layout.fillWidth: true; model: root.optionsFor("planTypeOptions"); textRole: "label" }
 
-                Label { text: "Priority" }
-                ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.optionsFor("priorityOptions"); textRole: "label" }
+                AppControls.Label { text: "Priority" }
+                AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.optionsFor("priorityOptions"); textRole: "label" }
 
-                Label { text: "Trigger Mode" }
-                ComboBox { id: triggerModeCombo; Layout.fillWidth: true; model: root.optionsFor("triggerModeOptions"); textRole: "label" }
+                AppControls.Label { text: "Trigger Mode" }
+                AppControls.ComboBox { id: triggerModeCombo; Layout.fillWidth: true; model: root.optionsFor("triggerModeOptions"); textRole: "label" }
 
-                Label { text: "Schedule Policy" }
-                ComboBox { id: schedulePolicyCombo; Layout.fillWidth: true; model: root.optionsFor("schedulePolicyOptions"); textRole: "label" }
+                AppControls.Label { text: "Schedule Policy" }
+                AppControls.ComboBox { id: schedulePolicyCombo; Layout.fillWidth: true; model: root.optionsFor("schedulePolicyOptions"); textRole: "label" }
 
-                Label { text: "Calendar Unit" }
-                ComboBox { id: calendarUnitCombo; Layout.fillWidth: true; model: root.optionsFor("calendarFrequencyUnitOptions"); textRole: "label" }
+                AppControls.Label { text: "Calendar Unit" }
+                AppControls.ComboBox { id: calendarUnitCombo; Layout.fillWidth: true; model: root.optionsFor("calendarFrequencyUnitOptions"); textRole: "label" }
 
-                Label { text: "Calendar Value" }
-                TextField { id: calendarValueField; Layout.fillWidth: true; placeholderText: "1" }
+                AppControls.Label { text: "Calendar Value" }
+                AppControls.TextField { id: calendarValueField; Layout.fillWidth: true; placeholderText: "1" }
 
-                Label { text: "Generation Horizon" }
-                TextField { id: generationHorizonField; Layout.fillWidth: true; placeholderText: "3" }
+                AppControls.Label { text: "Generation Horizon" }
+                AppControls.TextField { id: generationHorizonField; Layout.fillWidth: true; placeholderText: "3" }
 
-                Label { text: "Generation Lead" }
+                AppControls.Label { text: "Generation Lead" }
                 RowLayout {
                     Layout.fillWidth: true
-                    TextField { id: generationLeadValueField; Layout.fillWidth: true; placeholderText: "0" }
-                    ComboBox { id: generationLeadUnitCombo; Layout.preferredWidth: 180; model: root.optionsFor("generationLeadUnitOptions"); textRole: "label" }
+                    AppControls.TextField { id: generationLeadValueField; Layout.fillWidth: true; placeholderText: "0" }
+                    AppControls.ComboBox { id: generationLeadUnitCombo; Layout.preferredWidth: 180; model: root.optionsFor("generationLeadUnitOptions"); textRole: "label" }
                 }
 
-                Label { text: "Sensor" }
-                ComboBox { id: sensorCombo; Layout.fillWidth: true; model: root.optionsFor("sensorOptions"); textRole: "label" }
+                AppControls.Label { text: "Sensor" }
+                AppControls.ComboBox { id: sensorCombo; Layout.fillWidth: true; model: root.optionsFor("sensorOptions"); textRole: "label" }
 
-                Label { text: "Sensor Threshold" }
-                TextField { id: sensorThresholdField; Layout.fillWidth: true; placeholderText: "1200" }
+                AppControls.Label { text: "Sensor Threshold" }
+                AppControls.TextField { id: sensorThresholdField; Layout.fillWidth: true; placeholderText: "1200" }
 
-                Label { text: "Sensor Direction" }
-                ComboBox { id: sensorDirectionCombo; Layout.fillWidth: true; model: root.optionsFor("sensorDirectionOptions"); textRole: "label" }
+                AppControls.Label { text: "Sensor Direction" }
+                AppControls.ComboBox { id: sensorDirectionCombo; Layout.fillWidth: true; model: root.optionsFor("sensorDirectionOptions"); textRole: "label" }
 
-                Label { text: "Sensor Reset Rule" }
-                TextField { id: sensorResetRuleField; Layout.fillWidth: true; placeholderText: "manual reset" }
+                AppControls.Label { text: "Sensor Reset Rule" }
+                AppControls.TextField { id: sensorResetRuleField; Layout.fillWidth: true; placeholderText: "manual reset" }
             }
 
-            CheckBox { id: requiresShutdownCheck; text: "Requires shutdown" }
-            CheckBox { id: approvalRequiredCheck; text: "Approval required" }
-            CheckBox { id: autoGenerateCheck; text: "Auto-generate work order" }
-            CheckBox { id: activeCheck; text: "Active" }
+            AppControls.CheckBox { id: requiresShutdownCheck; text: "Requires shutdown" }
+            AppControls.CheckBox { id: approvalRequiredCheck; text: "Approval required" }
+            AppControls.CheckBox { id: autoGenerateCheck; text: "Auto-generate work order" }
+            AppControls.CheckBox { id: activeCheck; text: "Active" }
 
-            Label { text: "Description" }
-            TextArea {
+            AppControls.Label { text: "Description" }
+            AppControls.TextArea {
                 id: descriptionArea
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90
@@ -234,8 +234,8 @@ AppControls.CenteredDialog {
                 wrapMode: TextEdit.WordWrap
             }
 
-            Label { text: "Notes" }
-            TextArea {
+            AppControls.Label { text: "Notes" }
+            AppControls.TextArea {
                 id: notesArea
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90

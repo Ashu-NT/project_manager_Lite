@@ -135,7 +135,7 @@ AppControls.CenteredDialog {
             width: dialogFlickable.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: {
                     const state = root.selectedTaskState()
@@ -154,7 +154,7 @@ AppControls.CenteredDialog {
                 columnSpacing: Theme.AppTheme.spacingMd
                 rowSpacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     text: "Insert mention"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
@@ -164,7 +164,7 @@ AppControls.CenteredDialog {
                     Layout.fillWidth: true
                     spacing: Theme.AppTheme.spacingSm
 
-                    ComboBox {
+                    AppControls.ComboBox {
                         id: mentionCombo
                         Layout.fillWidth: true
                         model: root.mentionOptions || []
@@ -179,7 +179,7 @@ AppControls.CenteredDialog {
                     }
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Link shared document"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
@@ -189,7 +189,7 @@ AppControls.CenteredDialog {
                     Layout.fillWidth: true
                     spacing: Theme.AppTheme.spacingSm
 
-                    ComboBox {
+                    AppControls.ComboBox {
                         id: documentCombo
                         Layout.fillWidth: true
                         model: root.documentOptions || []
@@ -205,14 +205,14 @@ AppControls.CenteredDialog {
                 }
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Comment"
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
             }
 
-            TextArea {
+            AppControls.TextArea {
                 id: commentArea
                 Layout.fillWidth: true
                 Layout.preferredHeight: 180
@@ -233,7 +233,7 @@ AppControls.CenteredDialog {
                 Item { Layout.fillWidth: true }
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.pendingAttachments.length > 0
                     ? "Attachments: " + root.pendingAttachments.join(", ")
@@ -244,7 +244,7 @@ AppControls.CenteredDialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.pendingDocuments.length > 0
                     ? "Linked documents: " + root.pendingDocuments.map(function(item) { return String(item.label || "") }).join(", ")

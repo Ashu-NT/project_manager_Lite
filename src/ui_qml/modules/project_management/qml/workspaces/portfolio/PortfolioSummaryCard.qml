@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Mock 1.0 as AppMock
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -17,7 +18,7 @@ Item {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingSm
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.summaryModel.title || ""
             visible: text.length > 0
@@ -28,7 +29,7 @@ Item {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.summaryModel.subtitle || ""
             visible: text.length > 0
@@ -38,7 +39,7 @@ Item {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: (root.summaryModel.fields || []).length === 0 && String(root.summaryModel.emptyState || "").length > 0
             text: root.summaryModel.emptyState || ""
@@ -58,7 +59,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingXs
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: String(summaryFieldRow.modelData.label || "")
                     color: Theme.AppTheme.textSecondary
@@ -66,7 +67,7 @@ Item {
                     font.pixelSize: Theme.AppTheme.smallSize
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: String(summaryFieldRow.modelData.value || "")
                     color: Theme.AppTheme.textPrimary
@@ -76,7 +77,7 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: String(summaryFieldRow.modelData.supportingText || "").length > 0
                     text: String(summaryFieldRow.modelData.supportingText || "")

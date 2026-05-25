@@ -32,7 +32,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingXs
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: root.entryDetail.title || "Entry Detail"
                     color: Theme.AppTheme.textPrimary
@@ -42,7 +42,7 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: root.entryDetail.subtitle || "Select an entry to inspect its current state."
                     color: Theme.AppTheme.textSecondary
@@ -58,7 +58,7 @@ Item {
             }
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: String(root.entryDetail.emptyState || "").length > 0 && String(root.entryDetail.id || "").length === 0
             text: root.entryDetail.emptyState
@@ -68,7 +68,7 @@ Item {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: String(root.entryDetail.id || "").length > 0
             text: root.entryDetail.description || ""
@@ -97,7 +97,7 @@ Item {
                     anchors.margins: Theme.AppTheme.marginMd
                     spacing: Theme.AppTheme.spacingXs
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: String(fieldCard.modelData.label || "")
                         color: Theme.AppTheme.textMuted
@@ -106,7 +106,7 @@ Item {
                         font.bold: true
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: String(fieldCard.modelData.value || "")
                         color: Theme.AppTheme.textPrimary
@@ -115,7 +115,7 @@ Item {
                         wrapMode: Text.WordWrap
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: String(fieldCard.modelData.supportingText || "").length > 0
                         text: String(fieldCard.modelData.supportingText || "")

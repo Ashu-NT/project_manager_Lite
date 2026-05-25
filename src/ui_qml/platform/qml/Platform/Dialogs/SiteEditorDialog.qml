@@ -75,14 +75,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: siteCodeField
 
                     Layout.preferredWidth: 180
                     placeholderText: "Site code"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: nameField
 
                     Layout.fillWidth: true
@@ -90,7 +90,7 @@ AppControls.CenteredDialog {
                 }
             }
 
-            TextField {
+            AppControls.TextField {
                 id: descriptionField
 
                 Layout.fillWidth: true
@@ -101,14 +101,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: cityField
 
                     Layout.fillWidth: true
                     placeholderText: "City"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: countryField
 
                     Layout.fillWidth: true
@@ -120,14 +120,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: timezoneField
 
                     Layout.fillWidth: true
                     placeholderText: "Timezone"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: currencyField
 
                     Layout.preferredWidth: 120
@@ -139,14 +139,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: siteTypeField
 
                     Layout.fillWidth: true
                     placeholderText: "Site type"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: statusField
 
                     Layout.fillWidth: true
@@ -154,7 +154,7 @@ AppControls.CenteredDialog {
                 }
             }
 
-            TextArea {
+            AppControls.TextArea {
                 id: notesField
 
                 Layout.fillWidth: true
@@ -163,7 +163,7 @@ AppControls.CenteredDialog {
                 wrapMode: TextEdit.WordWrap
             }
 
-            CheckBox {
+            AppControls.CheckBox {
                 id: activeCheck
 
                 text: "Active site"

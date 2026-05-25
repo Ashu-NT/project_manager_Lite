@@ -261,14 +261,14 @@ AppLayouts.WorkspaceFrame {
                         contentItem: ColumnLayout {
                             spacing: Theme.AppTheme.spacingSm
 
-                            Label {
+                            AppControls.Label {
                                 text: "Active Status"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.family: Theme.AppTheme.fontFamily
                                 color: Theme.AppTheme.textMuted
                             }
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: [
                                     { "label": "All",      "value": "all"      },
@@ -289,14 +289,14 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 text: "Category"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.family: Theme.AppTheme.fontFamily
                                 color: Theme.AppTheme.textMuted
                             }
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
                                 textRole: "label"
@@ -378,7 +378,7 @@ AppLayouts.WorkspaceFrame {
                         contentItem: ColumnLayout {
                             spacing: Theme.AppTheme.spacingSm
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: {
                                     const count = root.workspaceController
@@ -391,7 +391,7 @@ AppLayouts.WorkspaceFrame {
                                 wrapMode: Text.WordWrap
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: "This removes the resource records and any project assignments. It cannot be undone."
                                 color: Theme.AppTheme.textSecondary

@@ -43,7 +43,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Reservation Filters"
                 color: Theme.AppTheme.textPrimary
@@ -73,8 +73,8 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Search" }
-            TextField {
+            AppControls.Label { text: "Search" }
+            AppControls.TextField {
                 id: searchField
                 Layout.fillWidth: true
                 placeholderText: "Reservation number, source, or requester"
@@ -83,8 +83,8 @@ Item {
                 onEditingFinished: root.searchTextUpdated(text)
             }
 
-            Label { text: "Status" }
-            ComboBox {
+            AppControls.Label { text: "Status" }
+            AppControls.ComboBox {
                 id: statusCombo
                 Layout.fillWidth: true
                 model: root.statusOptions
@@ -97,8 +97,8 @@ Item {
                 }
             }
 
-            Label { text: "Item" }
-            ComboBox {
+            AppControls.Label { text: "Item" }
+            AppControls.ComboBox {
                 id: itemCombo
                 Layout.fillWidth: true
                 model: root.itemOptions
@@ -111,8 +111,8 @@ Item {
                 }
             }
 
-            Label { text: "Storeroom" }
-            ComboBox {
+            AppControls.Label { text: "Storeroom" }
+            AppControls.ComboBox {
                 id: storeroomCombo
                 Layout.fillWidth: true
                 model: root.storeroomOptions

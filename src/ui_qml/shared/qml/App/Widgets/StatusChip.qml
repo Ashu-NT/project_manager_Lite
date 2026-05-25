@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Rectangle {
     id: chip
@@ -52,7 +53,7 @@ Rectangle {
     }
     border.width: 1
 
-    Label {
+    AppControls.Label {
         id: chipLabel
         anchors.centerIn: parent
         text: chip.status

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -78,7 +79,7 @@ Item {
                     anchors.rightMargin: Theme.AppTheme.marginMd
                     spacing: Theme.AppTheme.spacingSm
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: root.title
                         color: Theme.AppTheme.textPrimary
@@ -96,7 +97,7 @@ Item {
                             ? Theme.AppTheme.hoverSurface
                             : Theme.AppTheme.surfaceOverlay
 
-                        Label {
+                        AppControls.Label {
                             anchors.centerIn: parent
                             text: "✕"
                             color: Theme.AppTheme.textMuted

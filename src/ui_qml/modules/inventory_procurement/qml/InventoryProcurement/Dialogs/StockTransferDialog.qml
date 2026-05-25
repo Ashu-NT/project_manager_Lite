@@ -89,7 +89,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.validationMessage.length > 0
             text: root.validationMessage
@@ -105,29 +105,29 @@ AppControls.CenteredDialog {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Item" }
-            ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+            AppControls.Label { text: "Item" }
+            AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
 
-            Label { text: "Source storeroom" }
-            ComboBox { id: sourceStoreroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+            AppControls.Label { text: "Source storeroom" }
+            AppControls.ComboBox { id: sourceStoreroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
 
-            Label { text: "Destination storeroom" }
-            ComboBox { id: destinationStoreroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+            AppControls.Label { text: "Destination storeroom" }
+            AppControls.ComboBox { id: destinationStoreroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
 
-            Label { text: "Quantity" }
-            TextField { id: quantityField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+            AppControls.Label { text: "Quantity" }
+            AppControls.TextField { id: quantityField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
 
-            Label { text: "UOM" }
-            TextField { id: uomField; Layout.fillWidth: true; placeholderText: "EA" }
+            AppControls.Label { text: "UOM" }
+            AppControls.TextField { id: uomField; Layout.fillWidth: true; placeholderText: "EA" }
         }
 
-        Label {
+        AppControls.Label {
             text: "Notes"
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
         }
 
-        TextArea {
+        AppControls.TextArea {
             id: notesField
             Layout.fillWidth: true
             Layout.preferredHeight: 96

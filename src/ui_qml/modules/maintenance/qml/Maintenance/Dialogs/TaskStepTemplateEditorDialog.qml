@@ -120,26 +120,26 @@ AppControls.CenteredDialog {
                 columnSpacing: 12
                 rowSpacing: 12
 
-                Label { text: "Step Number" }
-                TextField { id: stepNumberField; Layout.fillWidth: true; placeholderText: "1" }
+                AppControls.Label { text: "Step Number" }
+                AppControls.TextField { id: stepNumberField; Layout.fillWidth: true; placeholderText: "1" }
 
-                Label { text: "Sort Order" }
-                TextField { id: sortOrderField; Layout.fillWidth: true; placeholderText: "1" }
+                AppControls.Label { text: "Sort Order" }
+                AppControls.TextField { id: sortOrderField; Layout.fillWidth: true; placeholderText: "1" }
 
-                Label { text: "Hint Level" }
-                ComboBox { id: hintLevelCombo; Layout.fillWidth: true; model: root.optionsFor("hintLevelOptions"); textRole: "label" }
+                AppControls.Label { text: "Hint Level" }
+                AppControls.ComboBox { id: hintLevelCombo; Layout.fillWidth: true; model: root.optionsFor("hintLevelOptions"); textRole: "label" }
 
-                Label { text: "Measurement Unit" }
-                TextField { id: measurementUnitField; Layout.fillWidth: true; placeholderText: "mm / H / PSI" }
+                AppControls.Label { text: "Measurement Unit" }
+                AppControls.TextField { id: measurementUnitField; Layout.fillWidth: true; placeholderText: "mm / H / PSI" }
             }
 
-            CheckBox { id: requiresConfirmationCheck; text: "Requires confirmation" }
-            CheckBox { id: requiresMeasurementCheck; text: "Requires measurement capture" }
-            CheckBox { id: requiresPhotoCheck; text: "Requires photo capture" }
-            CheckBox { id: activeCheck; text: "Active" }
+            AppControls.CheckBox { id: requiresConfirmationCheck; text: "Requires confirmation" }
+            AppControls.CheckBox { id: requiresMeasurementCheck; text: "Requires measurement capture" }
+            AppControls.CheckBox { id: requiresPhotoCheck; text: "Requires photo capture" }
+            AppControls.CheckBox { id: activeCheck; text: "Active" }
 
-            Label { text: "Instruction" }
-            TextArea {
+            AppControls.Label { text: "Instruction" }
+            AppControls.TextArea {
                 id: instructionArea
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90
@@ -147,8 +147,8 @@ AppControls.CenteredDialog {
                 wrapMode: TextEdit.WordWrap
             }
 
-            Label { text: "Expected Result" }
-            TextArea {
+            AppControls.Label { text: "Expected Result" }
+            AppControls.TextArea {
                 id: expectedResultArea
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90
@@ -156,8 +156,8 @@ AppControls.CenteredDialog {
                 wrapMode: TextEdit.WordWrap
             }
 
-            Label { text: "Hint Text" }
-            TextArea {
+            AppControls.Label { text: "Hint Text" }
+            AppControls.TextArea {
                 id: hintTextArea
                 Layout.fillWidth: true
                 Layout.preferredHeight: 80
@@ -165,8 +165,8 @@ AppControls.CenteredDialog {
                 wrapMode: TextEdit.WordWrap
             }
 
-            Label { text: "Notes" }
-            TextArea {
+            AppControls.Label { text: "Notes" }
+            AppControls.TextArea {
                 id: notesArea
                 Layout.fillWidth: true
                 Layout.preferredHeight: 80

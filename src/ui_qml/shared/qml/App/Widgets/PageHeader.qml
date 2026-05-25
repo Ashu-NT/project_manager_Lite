@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -29,7 +30,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 3
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: root.eyebrow.length > 0
                     text: root.eyebrow.toUpperCase()
@@ -41,7 +42,7 @@ Item {
                     elide: Text.ElideRight
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: root.title.length > 0
                     text: root.title
@@ -52,7 +53,7 @@ Item {
                     elide: Text.ElideRight
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: root.subtitle.length > 0
                     text: root.subtitle

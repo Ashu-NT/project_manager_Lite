@@ -264,7 +264,7 @@ Item {
         contentItem: ColumnLayout {
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.deleteTarget && root.deleteTarget.title
                     ? "Delete " + root.deleteTarget.title + " and its dependent planning data?"
@@ -275,7 +275,7 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "This action removes the task record plus related dependencies, assignments, and linked planning items."
                 color: Theme.AppTheme.textSecondary
@@ -316,7 +316,7 @@ Item {
         contentItem: ColumnLayout {
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Delete " + String((root.bulkDeleteTargetIds || []).length) + " selected tasks and their dependencies/assignments?"
                 color: Theme.AppTheme.textPrimary
@@ -325,7 +325,7 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "This action cannot be undone."
                 color: Theme.AppTheme.textSecondary
@@ -361,7 +361,7 @@ Item {
         contentItem: ColumnLayout {
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.assignmentTarget && root.assignmentTarget.title
                     ? "Remove " + root.assignmentTarget.title + " from the selected task?"
@@ -372,7 +372,7 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "This removes the assignment from the task but does not delete the underlying resource."
                 color: Theme.AppTheme.textSecondary
@@ -413,7 +413,7 @@ Item {
         contentItem: ColumnLayout {
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.dependencyTarget && root.dependencyTarget.title
                     ? "Remove the dependency link to " + root.dependencyTarget.title + "?"
@@ -424,7 +424,7 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "This removes the predecessor or successor link from the project plan."
                 color: Theme.AppTheme.textSecondary

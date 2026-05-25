@@ -87,7 +87,7 @@ Item {
         contentItem: ColumnLayout {
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.deleteTarget && root.deleteTarget.title
                     ? "Delete " + root.deleteTarget.title + " from the project register?"
@@ -98,7 +98,7 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "This removes the entry, its mitigation notes, and its current governance state from the PM register."
                 color: Theme.AppTheme.textSecondary

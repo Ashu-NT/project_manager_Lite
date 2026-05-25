@@ -52,7 +52,7 @@ Item {
                         Layout.fillWidth: true
                         spacing: Theme.AppTheme.spacingXs
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             text: root.detailModel.id ? (root.detailModel.title || root.emptyTitle) : root.emptyTitle
                             color: Theme.AppTheme.textPrimary
@@ -62,7 +62,7 @@ Item {
                             wrapMode: Text.WordWrap
                         }
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             text: root.detailModel.subtitle || root.detailModel.emptyState || ""
                             color: Theme.AppTheme.textSecondary
@@ -78,7 +78,7 @@ Item {
                     }
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: !root.detailModel.id && String(root.detailModel.emptyState || "").length > 0
                     text: root.detailModel.emptyState
@@ -88,7 +88,7 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: !!root.detailModel.id
                     text: root.detailModel.description || ""
@@ -137,7 +137,7 @@ Item {
                             anchors.topMargin: Theme.AppTheme.spacingSm
                             spacing: Theme.AppTheme.spacingXs
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: String(fieldRow.modelData.label || "")
                                 color: Theme.AppTheme.textMuted
@@ -146,7 +146,7 @@ Item {
                                 font.bold: true
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: String(fieldRow.modelData.value || "")
                                 color: Theme.AppTheme.textPrimary
@@ -155,7 +155,7 @@ Item {
                                 wrapMode: Text.WordWrap
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 visible: String(fieldRow.modelData.supportingText || "").length > 0
                                 text: String(fieldRow.modelData.supportingText || "")

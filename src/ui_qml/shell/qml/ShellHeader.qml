@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import Shell.Context 1.0 as ShellContexts
 import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Rectangle {
     id: header
@@ -78,7 +79,7 @@ Rectangle {
             Layout.preferredWidth: 280
             spacing: 1
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: header.shellModel ? header.shellModel.appTitle : "TECHASH Enterprise"
                 color: Theme.AppTheme.textMuted
@@ -93,7 +94,7 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: header.shellModel ? (header.shellModel.currentRouteTitle || "") : ""
                     color: Theme.AppTheme.textPrimary
@@ -110,7 +111,7 @@ Rectangle {
                     implicitWidth: moduleText.implicitWidth + 14
                     implicitHeight: Theme.AppTheme.inputHeight - 6
 
-                    Label {
+                    AppControls.Label {
                         id: moduleText
                         anchors.centerIn: parent
                         text: header.currentModuleLabel
@@ -146,7 +147,7 @@ Rectangle {
                     iconColor: Theme.AppTheme.textMuted
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Global search"
                     color: Theme.AppTheme.textMuted
@@ -217,7 +218,7 @@ Rectangle {
                     radius: implicitHeight / 2
                     color: Theme.AppTheme.accentSoft
 
-                    Label {
+                    AppControls.Label {
                         anchors.centerIn: parent
                         text: {
                             const name = header.shellModel ? (header.shellModel.userDisplayName || "") : ""
@@ -233,7 +234,7 @@ Rectangle {
                 ColumnLayout {
                     spacing: 0
 
-                    Label {
+                    AppControls.Label {
                         text: header.shellModel && (header.shellModel.userDisplayName || "").length > 0
                             ? header.shellModel.userDisplayName
                             : "User"
@@ -243,7 +244,7 @@ Rectangle {
                         font.bold: true
                     }
 
-                    Label {
+                    AppControls.Label {
                         text: header.currentModuleLabel.length > 0
                             ? header.currentModuleLabel
                             : "Workspace"

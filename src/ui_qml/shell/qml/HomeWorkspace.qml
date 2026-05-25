@@ -7,6 +7,7 @@ import App.Layouts 1.0 as AppLayouts
 import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
+import App.Controls 1.0 as AppControls
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -90,7 +91,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // Section label
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Modules"
                 color: Theme.AppTheme.textMuted
@@ -159,7 +160,7 @@ AppLayouts.WorkspaceFrame {
                                 Layout.fillWidth: true
                                 spacing: 2
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text: moduleDelegate.modelData.label
                                     color: Theme.AppTheme.textPrimary
@@ -169,7 +170,7 @@ AppLayouts.WorkspaceFrame {
                                     elide: Text.ElideRight
                                 }
 
-                                Label {
+                                AppControls.Label {
                                     text: moduleDelegate.modelData.count + " workspaces"
                                     color: Theme.AppTheme.textSecondary
                                     font.family: Theme.AppTheme.fontFamily
@@ -177,7 +178,7 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 text: "›"
                                 color: tileHover.containsMouse
                                     ? Theme.AppTheme.accent
@@ -203,7 +204,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // App info footer
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 Layout.topMargin: Theme.AppTheme.spacingSm
                 text: root.shellModel ? root.shellModel.appTitle + " — Enterprise Asset & Project Management" : ""

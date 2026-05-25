@@ -86,7 +86,7 @@ ColumnLayout {
             height: 1; color: Theme.AppTheme.divider
         }
 
-        Label {
+        AppControls.Label {
             anchors.left:           parent.left
             anchors.leftMargin:     Theme.AppTheme.marginMd
             anchors.verticalCenter: parent.verticalCenter
@@ -155,7 +155,7 @@ ColumnLayout {
             }
             spacing: Theme.AppTheme.spacingXs
 
-            Label {
+            AppControls.Label {
                 text:               "ACCESS ASSIGNMENT"
                 color:              Theme.AppTheme.textMuted
                 font.family:        Theme.AppTheme.fontFamily
@@ -172,14 +172,14 @@ ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 3
 
-                    Label {
+                    AppControls.Label {
                         text:           "Scope Type"
                         color:          Theme.AppTheme.textMuted
                         font.family:    Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.captionSize
                     }
 
-                    ComboBox {
+                    AppControls.ComboBox {
                         id: _scopeTypeCombo
                         Layout.fillWidth: true
                         enabled:      root.controller ? !root.controller.isBusy : false
@@ -200,14 +200,14 @@ ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 3
 
-                    Label {
+                    AppControls.Label {
                         text:           "Scope"
                         color:          Theme.AppTheme.textMuted
                         font.family:    Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.captionSize
                     }
 
-                    ComboBox {
+                    AppControls.ComboBox {
                         id: _scopeCombo
                         Layout.fillWidth: true
                         enabled:      root.controller ? !root.controller.isBusy : false
@@ -228,14 +228,14 @@ ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 3
 
-                    Label {
+                    AppControls.Label {
                         text:           "Principal"
                         color:          Theme.AppTheme.textMuted
                         font.family:    Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.captionSize
                     }
 
-                    ComboBox {
+                    AppControls.ComboBox {
                         id: _userCombo
                         Layout.fillWidth: true
                         enabled:      root.controller ? !root.controller.isBusy : false
@@ -256,14 +256,14 @@ ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 3
 
-                    Label {
+                    AppControls.Label {
                         text:           "Role"
                         color:          Theme.AppTheme.textMuted
                         font.family:    Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.captionSize
                     }
 
-                    ComboBox {
+                    AppControls.ComboBox {
                         id: _roleCombo
                         Layout.fillWidth: true
                         enabled:      root.controller ? !root.controller.isBusy : false
@@ -289,7 +289,7 @@ ColumnLayout {
                 }
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible:        text.length > 0
                 text:           root.controller ? root.controller.scopeHint : ""
@@ -350,7 +350,7 @@ ColumnLayout {
                         height: 1; color: Theme.AppTheme.divider
                     }
 
-                    Label {
+                    AppControls.Label {
                         anchors.left:           parent.left
                         anchors.leftMargin:     Theme.AppTheme.marginMd
                         anchors.verticalCenter: parent.verticalCenter
@@ -402,7 +402,7 @@ ColumnLayout {
                         anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.AppTheme.marginMd }
                         spacing: Theme.AppTheme.spacingSm
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             text:           root._selectedGrantItem ? (root._selectedGrantItem.title || "") : ""
                             color:          Theme.AppTheme.textPrimary
@@ -431,14 +431,14 @@ ColumnLayout {
                             visible: root._selectedGrantItem
                                 ? (root._selectedGrantItem.subtitle || "").length > 0 : false
 
-                            Label {
+                            AppControls.Label {
                                 text:           "Username"
                                 color:          Theme.AppTheme.textMuted
                                 font.family:    Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold:      true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text:           root._selectedGrantItem ? (root._selectedGrantItem.subtitle || "") : ""
                                 color:          Theme.AppTheme.textSecondary
@@ -453,14 +453,14 @@ ColumnLayout {
                             visible: root._selectedGrantItem
                                 ? (root._selectedGrantItem.supportingText || "").length > 0 : false
 
-                            Label {
+                            AppControls.Label {
                                 text:           "Permissions"
                                 color:          Theme.AppTheme.textMuted
                                 font.family:    Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold:      true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text:           root._selectedGrantItem ? (root._selectedGrantItem.supportingText || "") : ""
                                 color:          Theme.AppTheme.textSecondary
@@ -476,14 +476,14 @@ ColumnLayout {
                             visible: root._selectedGrantItem
                                 ? (root._selectedGrantItem.metaText || "").length > 0 : false
 
-                            Label {
+                            AppControls.Label {
                                 text:           "Assigned"
                                 color:          Theme.AppTheme.textMuted
                                 font.family:    Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold:      true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text:           root._selectedGrantItem ? (root._selectedGrantItem.metaText || "") : ""
                                 color:          Theme.AppTheme.textSecondary

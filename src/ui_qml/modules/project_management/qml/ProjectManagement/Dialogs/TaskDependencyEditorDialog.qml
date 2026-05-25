@@ -82,7 +82,7 @@ AppControls.CenteredDialog {
             width: dialogFlickable.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.taskData && root.taskData.title
                     ? "Define sequencing around " + root.taskData.title + "."
@@ -93,14 +93,14 @@ AppControls.CenteredDialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Current task"
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: String(root.taskData.title || root.taskState().name || "Selected task")
                 color: Theme.AppTheme.textPrimary
@@ -116,13 +116,13 @@ AppControls.CenteredDialog {
                 columnSpacing: Theme.AppTheme.spacingMd
                 rowSpacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     text: "Relationship"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                ComboBox {
+                AppControls.ComboBox {
                     id: relationshipCombo
 
                     Layout.fillWidth: true
@@ -130,13 +130,13 @@ AppControls.CenteredDialog {
                     textRole: "label"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Linked task"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                ComboBox {
+                AppControls.ComboBox {
                     id: linkedTaskCombo
 
                     Layout.fillWidth: true
@@ -144,13 +144,13 @@ AppControls.CenteredDialog {
                     textRole: "label"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Dependency type"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                ComboBox {
+                AppControls.ComboBox {
                     id: dependencyTypeCombo
 
                     Layout.fillWidth: true
@@ -158,13 +158,13 @@ AppControls.CenteredDialog {
                     textRole: "label"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Lag (days)"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: lagField
 
                     Layout.fillWidth: true
@@ -172,7 +172,7 @@ AppControls.CenteredDialog {
                 }
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: (root.taskOptions || []).length === 0
                 text: "At least one other task must exist in this project before you can create a dependency."

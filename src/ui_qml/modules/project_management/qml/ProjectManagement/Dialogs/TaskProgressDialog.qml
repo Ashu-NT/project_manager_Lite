@@ -50,7 +50,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.taskData && root.taskData.title
                 ? "Update progress, actual dates, and execution status for " + root.taskData.title + "."
@@ -61,22 +61,22 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        Label { text: "Progress (%)"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        TextField { id: percentField; Layout.fillWidth: true; placeholderText: "0-100" }
+        AppControls.Label { text: "Progress (%)"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+        AppControls.TextField { id: percentField; Layout.fillWidth: true; placeholderText: "0-100" }
 
-        Label { text: "Status"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        ComboBox {
+        AppControls.Label { text: "Status"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+        AppControls.ComboBox {
             id: statusCombo
             Layout.fillWidth: true
             model: root.workflowStatusOptions
             textRole: "label"
         }
 
-        Label { text: "Actual start"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        TextField { id: actualStartField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+        AppControls.Label { text: "Actual start"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+        AppControls.DateField { id: actualStartField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
 
-        Label { text: "Actual end"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        TextField { id: actualEndField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+        AppControls.Label { text: "Actual end"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+        AppControls.DateField { id: actualEndField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
     }
 
     footer: RowLayout {

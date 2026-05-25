@@ -1,8 +1,8 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Rectangle {
     id: root
@@ -43,14 +43,14 @@ Rectangle {
         RowLayout {
             spacing: Theme.AppTheme.spacingXs
 
-            Label {
+            AppControls.Label {
                 text:           "Rows per page:"
                 color:          Theme.AppTheme.textMuted
                 font.family:    Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.captionSize
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: _pageSizeBox
                 model:         root.pageSizeOptions
                 enabled:       !root.busy
@@ -75,7 +75,7 @@ Rectangle {
         Item { Layout.fillWidth: true }
 
         // ── Showing X–Y of Z ──────────────────────────────────────────
-        Label {
+        AppControls.Label {
             text: root.totalItems === 0
                 ? "No records"
                 : "Showing " + root._pageStart + "–" + root._pageEnd + " of " + root.totalItems
@@ -97,7 +97,7 @@ Rectangle {
                 color: _prevHover.containsMouse && !_prevBtn._disabled
                     ? Theme.AppTheme.hoverSurface : Theme.AppTheme.surfaceOverlay
 
-                Label {
+                AppControls.Label {
                     anchors.centerIn: parent
                     text:           "‹ Prev"
                     color:          _prevBtn._disabled
@@ -125,7 +125,7 @@ Rectangle {
                 color: _nextHover.containsMouse && !_nextBtn._disabled
                     ? Theme.AppTheme.hoverSurface : Theme.AppTheme.surfaceOverlay
 
-                Label {
+                AppControls.Label {
                     anchors.centerIn: parent
                     text:           "Next ›"
                     color:          _nextBtn._disabled

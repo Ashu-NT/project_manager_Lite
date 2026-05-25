@@ -45,7 +45,7 @@ Item {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "New Scenario"
             color: Theme.AppTheme.textPrimary
@@ -60,12 +60,12 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            TextField { id: scenarioName; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "Balanced Q3 Plan" }
-            TextField { id: budgetLimit; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "750000.00" }
-            TextField { id: capacityLimit; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "320.0" }
+            AppControls.TextField { id: scenarioName; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "Balanced Q3 Plan" }
+            AppControls.TextField { id: budgetLimit; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "750000.00" }
+            AppControls.TextField { id: capacityLimit; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "320.0" }
         }
 
-        TextArea {
+        AppControls.TextArea {
             id: scenarioNotes
             Layout.fillWidth: true
             Layout.preferredHeight: 80
@@ -74,7 +74,7 @@ Item {
             wrapMode: TextEdit.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Include projects"
             color: Theme.AppTheme.textSecondary
@@ -89,7 +89,7 @@ Item {
             Repeater {
                 model: root.projectOptions
 
-                delegate: CheckBox {
+                delegate: AppControls.CheckBox {
                     id: projectOptionDelegate
 
                     required property var modelData
@@ -110,7 +110,7 @@ Item {
             }
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Include intake items"
             color: Theme.AppTheme.textSecondary
@@ -125,7 +125,7 @@ Item {
             Repeater {
                 model: root.intakeItemsModel.items || []
 
-                delegate: CheckBox {
+                delegate: AppControls.CheckBox {
                     id: intakeOptionDelegate
 
                     required property var modelData

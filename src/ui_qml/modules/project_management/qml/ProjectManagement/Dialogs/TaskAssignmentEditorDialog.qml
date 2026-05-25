@@ -78,7 +78,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.mode === "create"
                 ? "Link a project resource to the selected task and set the starting allocation."
@@ -89,14 +89,14 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Task"
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
         }
 
-        Label {
+        AppControls.Label {
             id: taskLabel
 
             Layout.fillWidth: true
@@ -107,7 +107,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.mode === "create"
             text: "Project resource"
@@ -115,7 +115,7 @@ AppControls.CenteredDialog {
             font.family: Theme.AppTheme.fontFamily
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             id: resourceCombo
 
             Layout.fillWidth: true
@@ -124,7 +124,7 @@ AppControls.CenteredDialog {
             textRole: "label"
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.mode !== "create"
             text: String(root.selectedAssignmentState().resourceName || "")
@@ -134,20 +134,20 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             text: "Allocation (%)"
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
         }
 
-        TextField {
+        AppControls.TextField {
             id: allocationField
 
             Layout.fillWidth: true
             placeholderText: "0.1 - 100.0"
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.mode === "create" && (root.resourceOptions || []).length === 0
             text: "No active project resources are available for this project yet."

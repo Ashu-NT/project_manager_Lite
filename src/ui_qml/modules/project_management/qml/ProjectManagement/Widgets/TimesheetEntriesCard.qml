@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Mock 1.0 as AppMock
@@ -65,7 +64,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingXs
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: root.assignmentSummary.title || "Assignment Period"
                     color: Theme.AppTheme.textPrimary
@@ -75,7 +74,7 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: String(root.assignmentSummary.subtitle || "").length > 0
                     text: root.assignmentSummary.subtitle || ""
@@ -86,7 +85,7 @@ Item {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 Layout.preferredWidth: 180
                 visible: root.showPeriodSelector && root.periodOptions.length > 0
                 model: root.periodOptions
@@ -103,7 +102,7 @@ Item {
             }
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: (root.assignmentSummary.fields || []).length === 0 && String(root.assignmentSummary.emptyState || "").length > 0
             text: root.assignmentSummary.emptyState || ""
@@ -123,7 +122,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingXs
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: String(assignmentFieldRow.modelData.label || "")
                     color: Theme.AppTheme.textSecondary
@@ -131,7 +130,7 @@ Item {
                     font.pixelSize: Theme.AppTheme.smallSize
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: String(assignmentFieldRow.modelData.value || "")
                     color: Theme.AppTheme.textPrimary
@@ -141,7 +140,7 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: String(assignmentFieldRow.modelData.supportingText || "").length > 0
                     text: String(assignmentFieldRow.modelData.supportingText || "")
@@ -159,11 +158,11 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            TextField { id: entryDateField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "YYYY-MM-DD" }
-            TextField { id: hoursField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "8.00" }
+            AppControls.DateField { id: entryDateField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "YYYY-MM-DD" }
+            AppControls.TextField { id: hoursField; Layout.fillWidth: true; enabled: !root.isBusy; placeholderText: "8.00" }
         }
 
-        TextArea {
+        AppControls.TextArea {
             id: noteArea
             Layout.fillWidth: true
             Layout.preferredHeight: 96
@@ -227,7 +226,7 @@ Item {
             }
         }
 
-        TextArea {
+        AppControls.TextArea {
             id: periodNoteArea
             Layout.fillWidth: true
             Layout.preferredHeight: 80

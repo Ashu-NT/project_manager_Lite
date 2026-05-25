@@ -81,7 +81,7 @@ Item {
         contentItem: ColumnLayout {
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.deleteTarget && root.deleteTarget.title
                     ? "Delete " + root.deleteTarget.title + " and its related assignments?"
@@ -92,7 +92,7 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "This action removes the resource record and any PM assignments or linked allocation history that depends on it."
                 color: Theme.AppTheme.textSecondary

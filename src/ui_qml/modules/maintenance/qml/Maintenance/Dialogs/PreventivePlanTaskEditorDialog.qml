@@ -123,44 +123,44 @@ AppControls.CenteredDialog {
                 columnSpacing: 12
                 rowSpacing: 12
 
-                Label { text: "Task Template" }
-                ComboBox { id: taskTemplateCombo; Layout.fillWidth: true; model: root.optionsFor("taskTemplateOptions"); textRole: "label" }
+                AppControls.Label { text: "Task Template" }
+                AppControls.ComboBox { id: taskTemplateCombo; Layout.fillWidth: true; model: root.optionsFor("taskTemplateOptions"); textRole: "label" }
 
-                Label { text: "Sequence" }
-                TextField { id: sequenceNoField; Layout.fillWidth: true; placeholderText: "1" }
+                AppControls.Label { text: "Sequence" }
+                AppControls.TextField { id: sequenceNoField; Layout.fillWidth: true; placeholderText: "1" }
 
-                Label { text: "Trigger Scope" }
-                ComboBox { id: triggerScopeCombo; Layout.fillWidth: true; model: root.optionsFor("triggerScopeOptions"); textRole: "label" }
+                AppControls.Label { text: "Trigger Scope" }
+                AppControls.ComboBox { id: triggerScopeCombo; Layout.fillWidth: true; model: root.optionsFor("triggerScopeOptions"); textRole: "label" }
 
-                Label { text: "Trigger Mode Override" }
-                ComboBox { id: triggerModeOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("triggerModeOptions"); textRole: "label" }
+                AppControls.Label { text: "Trigger Mode Override" }
+                AppControls.ComboBox { id: triggerModeOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("triggerModeOptions"); textRole: "label" }
 
-                Label { text: "Calendar Unit Override" }
-                ComboBox { id: calendarUnitOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("calendarFrequencyUnitOptions"); textRole: "label" }
+                AppControls.Label { text: "Calendar Unit Override" }
+                AppControls.ComboBox { id: calendarUnitOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("calendarFrequencyUnitOptions"); textRole: "label" }
 
-                Label { text: "Calendar Value Override" }
-                TextField { id: calendarValueOverrideField; Layout.fillWidth: true; placeholderText: "Optional" }
+                AppControls.Label { text: "Calendar Value Override" }
+                AppControls.TextField { id: calendarValueOverrideField; Layout.fillWidth: true; placeholderText: "Optional" }
 
-                Label { text: "Sensor Override" }
-                ComboBox { id: sensorOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("sensorOptions"); textRole: "label" }
+                AppControls.Label { text: "Sensor Override" }
+                AppControls.ComboBox { id: sensorOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("sensorOptions"); textRole: "label" }
 
-                Label { text: "Sensor Threshold Override" }
-                TextField { id: sensorThresholdOverrideField; Layout.fillWidth: true; placeholderText: "Optional" }
+                AppControls.Label { text: "Sensor Threshold Override" }
+                AppControls.TextField { id: sensorThresholdOverrideField; Layout.fillWidth: true; placeholderText: "Optional" }
 
-                Label { text: "Sensor Direction Override" }
-                ComboBox { id: sensorDirectionOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("sensorDirectionOptions"); textRole: "label" }
+                AppControls.Label { text: "Sensor Direction Override" }
+                AppControls.ComboBox { id: sensorDirectionOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("sensorDirectionOptions"); textRole: "label" }
 
-                Label { text: "Assigned Team" }
-                TextField { id: assignedTeamField; Layout.fillWidth: true; placeholderText: "MECH-A" }
+                AppControls.Label { text: "Assigned Team" }
+                AppControls.TextField { id: assignedTeamField; Layout.fillWidth: true; placeholderText: "MECH-A" }
 
-                Label { text: "Estimated Minutes Override" }
-                TextField { id: estimateField; Layout.fillWidth: true; placeholderText: "45" }
+                AppControls.Label { text: "Estimated Minutes Override" }
+                AppControls.TextField { id: estimateField; Layout.fillWidth: true; placeholderText: "45" }
             }
 
-            CheckBox { id: mandatoryCheck; text: "Mandatory" }
+            AppControls.CheckBox { id: mandatoryCheck; text: "Mandatory" }
 
-            Label { text: "Notes" }
-            TextArea {
+            AppControls.Label { text: "Notes" }
+            AppControls.TextArea {
                 id: notesArea
                 Layout.fillWidth: true
                 Layout.preferredHeight: 100

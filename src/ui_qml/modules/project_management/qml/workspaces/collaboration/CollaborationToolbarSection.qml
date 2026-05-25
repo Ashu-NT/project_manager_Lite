@@ -23,7 +23,7 @@ Item {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingXs
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Collaboration inbox and workflow feed"
                 color: Theme.AppTheme.textPrimary
@@ -33,7 +33,7 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "QML now covers the workspace-level mention inbox, workflow notifications, recent activity, and active presence. Task-by-task posting still remains in the legacy task dialog for now."
                 color: Theme.AppTheme.textSecondary

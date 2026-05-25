@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -140,7 +141,7 @@ Item {
                         anchors.margins: Theme.AppTheme.spacingMd
                         spacing: Theme.AppTheme.spacingXs
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             text: String(_historyRow.modelData.label || "")
                             color: Theme.AppTheme.textMuted
@@ -148,7 +149,7 @@ Item {
                             font.pixelSize: Theme.AppTheme.captionSize
                         }
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             text: String(_historyRow.modelData.value || "")
                             color: Theme.AppTheme.textPrimary
@@ -158,7 +159,7 @@ Item {
                             wrapMode: Text.WordWrap
                         }
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             visible: String(_historyRow.modelData.supportingText || "").length > 0
                             text: String(_historyRow.modelData.supportingText || "")
@@ -228,7 +229,7 @@ Item {
                         anchors.margins: Theme.AppTheme.spacingMd
                         spacing: Theme.AppTheme.spacingXs
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             text: String(_noteRow.modelData.label || "")
                             color: Theme.AppTheme.textMuted
@@ -236,7 +237,7 @@ Item {
                             font.pixelSize: Theme.AppTheme.captionSize
                         }
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             text: String(_noteRow.modelData.value || "")
                             color: Theme.AppTheme.textPrimary
@@ -245,7 +246,7 @@ Item {
                             wrapMode: Text.WordWrap
                         }
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             visible: String(_noteRow.modelData.supportingText || "").length > 0
                             text: String(_noteRow.modelData.supportingText || "")

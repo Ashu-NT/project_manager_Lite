@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -19,7 +20,7 @@ Item {
         anchors.fill: parent
         spacing: 0
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             Layout.bottomMargin: Theme.AppTheme.spacingSm
             text: root.title
@@ -29,7 +30,7 @@ Item {
             font.bold: true
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.rows.length === 0 && root.emptyState.length > 0
             text: root.emptyState
@@ -55,7 +56,7 @@ Item {
                     Layout.bottomMargin: Theme.AppTheme.spacingXs
                     spacing: 2
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: sectionRow.modelData.label
                         color: Theme.AppTheme.textPrimary
@@ -65,7 +66,7 @@ Item {
                         elide: Text.ElideRight
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: sectionRow.modelData.value
                         color: Theme.AppTheme.accent
@@ -75,7 +76,7 @@ Item {
                         elide: Text.ElideRight
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: sectionRow.modelData.supportingText
                         color: Theme.AppTheme.textSecondary

@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -68,7 +69,7 @@ Item {
                             Layout.alignment: Qt.AlignHCenter
                             spacing: Theme.AppTheme.spacingXs
 
-                            Label {
+                            AppControls.Label {
                                 text: kpiCell.modelData.value || "—"
                                 color: {
                                     const hint = kpiCell.modelData.colorHint || ""
@@ -89,7 +90,7 @@ Item {
                                 font.pixelSize: Theme.AppTheme.iconXs
                             }
 
-                            Label {
+                            AppControls.Label {
                                 visible: (kpiCell.modelData.trendLabel || "") !== "" && kpiCell._trendArrow !== ""
                                 text: kpiCell.modelData.trendLabel || ""
                                 color: kpiCell._trendColor
@@ -98,7 +99,7 @@ Item {
                             }
                         }
 
-                        Label {
+                        AppControls.Label {
                             Layout.alignment: Qt.AlignHCenter
                             text: kpiCell.modelData.label || ""
                             color: Theme.AppTheme.textMuted

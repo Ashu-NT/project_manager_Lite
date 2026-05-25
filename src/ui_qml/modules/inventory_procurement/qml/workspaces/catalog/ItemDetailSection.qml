@@ -42,7 +42,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingXs
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: root.itemDetail.title || "Item Detail"
                     color: Theme.AppTheme.textPrimary
@@ -52,7 +52,7 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: root.itemDetail.subtitle || "Select an item to inspect details."
                     color: Theme.AppTheme.textSecondary
@@ -68,7 +68,7 @@ Item {
             }
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: String(root.itemDetail.emptyState || "").length > 0 && String(root.itemDetail.id || "").length === 0
             text: root.itemDetail.emptyState
@@ -78,7 +78,7 @@ Item {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: String(root.itemDetail.id || "").length > 0
             text: root.itemDetail.description || ""
@@ -106,7 +106,7 @@ Item {
                     anchors.margins: Theme.AppTheme.marginMd
                     spacing: Theme.AppTheme.spacingXs
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: String(fieldCard.modelData.label || "")
                         color: Theme.AppTheme.textMuted
@@ -115,7 +115,7 @@ Item {
                         font.bold: true
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: String(fieldCard.modelData.value || "")
                         color: Theme.AppTheme.textPrimary
@@ -124,7 +124,7 @@ Item {
                         wrapMode: Text.WordWrap
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: String(fieldCard.modelData.supportingText || "").length > 0
                         text: String(fieldCard.modelData.supportingText || "")
@@ -153,7 +153,7 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: "Linked Documents"
                         color: Theme.AppTheme.textPrimary
@@ -170,7 +170,7 @@ Item {
                     }
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: (root.itemDetail.linkedDocuments || []).length === 0
                     text: "No linked documents"
@@ -201,7 +201,7 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: Theme.AppTheme.spacingXs
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text: String(docCard.modelData.label || "")
                                     color: Theme.AppTheme.textPrimary
@@ -211,7 +211,7 @@ Item {
                                     wrapMode: Text.WordWrap
                                 }
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text: String(docCard.modelData.documentType || "") + " | " + String(docCard.modelData.storageKind || "")
                                     color: Theme.AppTheme.textSecondary

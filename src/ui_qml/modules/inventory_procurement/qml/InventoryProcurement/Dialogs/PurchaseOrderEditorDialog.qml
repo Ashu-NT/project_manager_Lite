@@ -82,7 +82,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Commit approved demand to a supplier with a clear site scope, expected delivery date, and shared source-requisition context."
             color: Theme.AppTheme.textSecondary
@@ -91,7 +91,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.validationMessage.length > 0
             text: root.validationMessage
@@ -107,32 +107,32 @@ AppControls.CenteredDialog {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Site" }
-            ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+            AppControls.Label { text: "Site" }
+            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
 
-            Label { text: "Supplier" }
-            ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
+            AppControls.Label { text: "Supplier" }
+            AppControls.ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
 
-            Label { text: "Source requisition" }
-            ComboBox { id: sourceRequisitionCombo; Layout.fillWidth: true; model: root.formRequisitionOptions; textRole: "label" }
+            AppControls.Label { text: "Source requisition" }
+            AppControls.ComboBox { id: sourceRequisitionCombo; Layout.fillWidth: true; model: root.formRequisitionOptions; textRole: "label" }
 
-            Label { text: "Currency" }
-            TextField { id: currencyCodeField; Layout.fillWidth: true; placeholderText: "EUR" }
+            AppControls.Label { text: "Currency" }
+            AppControls.TextField { id: currencyCodeField; Layout.fillWidth: true; placeholderText: "EUR" }
 
-            Label { text: "Expected delivery (YYYY-MM-DD)" }
-            TextField { id: expectedDeliveryDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+            AppControls.Label { text: "Expected delivery (YYYY-MM-DD)" }
+            AppControls.DateField { id: expectedDeliveryDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
 
-            Label { text: "Supplier reference" }
-            TextField { id: supplierReferenceField; Layout.fillWidth: true; placeholderText: "Quote, reference, or contract number" }
+            AppControls.Label { text: "Supplier reference" }
+            AppControls.TextField { id: supplierReferenceField; Layout.fillWidth: true; placeholderText: "Quote, reference, or contract number" }
         }
 
-        Label {
+        AppControls.Label {
             text: "Notes"
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
         }
 
-        TextArea {
+        AppControls.TextArea {
             id: notesField
             Layout.fillWidth: true
             Layout.preferredHeight: 100

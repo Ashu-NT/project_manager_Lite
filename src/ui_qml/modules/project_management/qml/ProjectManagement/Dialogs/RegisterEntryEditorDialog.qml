@@ -117,7 +117,7 @@ AppControls.CenteredDialog {
             width: dialogFlickable.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.typeFieldVisible
                     ? "Capture the project, entry type, severity, status, and response context for this governance item."
@@ -128,7 +128,7 @@ AppControls.CenteredDialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.validationMessage.length > 0
                 text: root.validationMessage
@@ -144,21 +144,21 @@ AppControls.CenteredDialog {
                 columnSpacing: Theme.AppTheme.spacingMd
                 rowSpacing: Theme.AppTheme.spacingSm
 
-                Label { text: "Project"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                ComboBox {
+                AppControls.Label { text: "Project"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+                AppControls.ComboBox {
                     id: projectCombo
                     Layout.fillWidth: true
                     model: root.editableProjectOptions
                     textRole: "label"
                 }
 
-                Label {
+                AppControls.Label {
                     visible: root.typeFieldVisible
                     text: "Entry type"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
-                ComboBox {
+                AppControls.ComboBox {
                     id: typeCombo
                     visible: root.typeFieldVisible
                     Layout.fillWidth: true
@@ -166,52 +166,52 @@ AppControls.CenteredDialog {
                     textRole: "label"
                 }
 
-                Label { text: "Title"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                TextField {
+                AppControls.Label { text: "Title"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+                AppControls.TextField {
                     id: titleField
                     Layout.fillWidth: true
                     placeholderText: root.typeFieldVisible ? "Critical supplier dependency" : "Late switchgear delivery"
                 }
 
-                Label { text: "Severity"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                ComboBox {
+                AppControls.Label { text: "Severity"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+                AppControls.ComboBox {
                     id: severityCombo
                     Layout.fillWidth: true
                     model: root.editableSeverityOptions
                     textRole: "label"
                 }
 
-                Label { text: "Status"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                ComboBox {
+                AppControls.Label { text: "Status"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+                AppControls.ComboBox {
                     id: statusCombo
                     Layout.fillWidth: true
                     model: root.editableStatusOptions
                     textRole: "label"
                 }
 
-                Label { text: "Owner"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                TextField {
+                AppControls.Label { text: "Owner"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+                AppControls.TextField {
                     id: ownerField
                     Layout.fillWidth: true
                     placeholderText: "PM Lead"
                 }
 
-                Label { text: "Due date"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                TextField {
+                AppControls.Label { text: "Due date"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+                AppControls.DateField {
                     id: dueDateField
                     Layout.fillWidth: true
                     placeholderText: "YYYY-MM-DD"
                 }
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Description"
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
             }
 
-            TextArea {
+            AppControls.TextArea {
                 id: descriptionField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 120
@@ -219,14 +219,14 @@ AppControls.CenteredDialog {
                 wrapMode: TextEdit.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Impact summary"
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
             }
 
-            TextArea {
+            AppControls.TextArea {
                 id: impactField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 110
@@ -234,14 +234,14 @@ AppControls.CenteredDialog {
                 wrapMode: TextEdit.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Response plan"
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
             }
 
-            TextArea {
+            AppControls.TextArea {
                 id: responseField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 130

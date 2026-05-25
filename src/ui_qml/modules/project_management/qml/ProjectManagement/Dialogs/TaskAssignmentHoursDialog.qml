@@ -38,7 +38,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.assignmentData && root.assignmentData.title
                 ? "Set aggregate effort for " + root.assignmentData.title + "."
@@ -49,13 +49,13 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             text: "Hours logged"
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
         }
 
-        TextField {
+        AppControls.TextField {
             id: hoursField
 
             Layout.fillWidth: true

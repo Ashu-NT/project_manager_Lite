@@ -1,4 +1,5 @@
 pragma ComponentBehavior: Bound
+import App.Controls 1.0 as AppControls
 
 import QtQuick
 import QtQuick.Controls
@@ -57,7 +58,7 @@ Item {
                 anchors.rightMargin: Theme.AppTheme.marginMd
                 spacing: Theme.AppTheme.spacingMd
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: !root._hasItem
                     text: "Select a project from the portfolio table to view delivery pressure, scenarios, and analysis."
@@ -67,7 +68,7 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: root._hasItem
                     text: String(root.heatmapItem ? root.heatmapItem.title || "" : "")
@@ -109,14 +110,14 @@ Item {
                         Layout.fillWidth: true
                         spacing: 2
 
-                        Label {
+                        AppControls.Label {
                             text: "Delivery Pressure"
                             color: Theme.AppTheme.textSecondary
                             font.family: Theme.AppTheme.fontFamily
                             font.pixelSize: Theme.AppTheme.smallSize
                         }
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             text: String(root.heatmapItem ? root.heatmapItem.statusLabel || "—" : "—")
                             color: Theme.AppTheme.textPrimary
@@ -130,14 +131,14 @@ Item {
                         Layout.fillWidth: true
                         spacing: 2
 
-                        Label {
+                        AppControls.Label {
                             text: "Late / Critical / Peak Util"
                             color: Theme.AppTheme.textSecondary
                             font.family: Theme.AppTheme.fontFamily
                             font.pixelSize: Theme.AppTheme.smallSize
                         }
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             text: String(root.heatmapItem ? root.heatmapItem.supportingText || "—" : "—")
                             color: Theme.AppTheme.textPrimary
@@ -152,14 +153,14 @@ Item {
                         Layout.fillWidth: true
                         spacing: 2
 
-                        Label {
+                        AppControls.Label {
                             text: "Cost Variance"
                             color: Theme.AppTheme.textSecondary
                             font.family: Theme.AppTheme.fontFamily
                             font.pixelSize: Theme.AppTheme.smallSize
                         }
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             text: String(root.heatmapItem ? root.heatmapItem.metaText || "—" : "—")
                             color: Theme.AppTheme.textPrimary
@@ -189,7 +190,7 @@ Item {
                 anchors.rightMargin: Theme.AppTheme.marginMd
                 spacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     text: "SCENARIOS"
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
@@ -198,7 +199,7 @@ Item {
                     font.letterSpacing: 0.5
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "What-if portfolios that include this project in their selection."
                     color: Theme.AppTheme.textMuted
@@ -240,7 +241,7 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: Theme.AppTheme.spacingSm
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text: String(_s1Row.modelData.title || "")
                                     color: Theme.AppTheme.textPrimary
@@ -255,7 +256,7 @@ Item {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: String(_s1Row.modelData.subtitle || "")
                                 color: Theme.AppTheme.textSecondary
@@ -267,7 +268,7 @@ Item {
                     }
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: {
                         const pid = root.heatmapItem ? String(root.heatmapItem.id || "") : ""
@@ -302,7 +303,7 @@ Item {
                 anchors.rightMargin: Theme.AppTheme.marginMd
                 spacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     text: "DEPENDENCIES"
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
@@ -311,7 +312,7 @@ Item {
                     font.letterSpacing: 0.5
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Cross-project links where this project is predecessor or successor."
                     color: Theme.AppTheme.textMuted
@@ -353,7 +354,7 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: Theme.AppTheme.spacingSm
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text: String(_s2Row.modelData.title || "")
                                     color: Theme.AppTheme.textPrimary
@@ -368,7 +369,7 @@ Item {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: String(_s2Row.modelData.subtitle || "")
                                 color: Theme.AppTheme.textSecondary
@@ -377,7 +378,7 @@ Item {
                                 elide: Text.ElideRight
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: String(_s2Row.modelData.supportingText || "")
                                 color: Theme.AppTheme.textSecondary
@@ -389,7 +390,7 @@ Item {
                     }
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: {
                         const pid = root.heatmapItem ? String(root.heatmapItem.id || "") : ""
@@ -425,7 +426,7 @@ Item {
                 anchors.rightMargin: Theme.AppTheme.marginMd
                 spacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     text: "FUNDING"
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
@@ -434,7 +435,7 @@ Item {
                     font.letterSpacing: 0.5
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Portfolio intake items — proposed work with budget and capacity demand."
                     color: Theme.AppTheme.textMuted
@@ -469,7 +470,7 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: Theme.AppTheme.spacingSm
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text: String(_s3Row.modelData.title || "")
                                     color: Theme.AppTheme.textPrimary
@@ -484,7 +485,7 @@ Item {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: String(_s3Row.modelData.subtitle || "")
                                 color: Theme.AppTheme.textSecondary
@@ -493,7 +494,7 @@ Item {
                                 elide: Text.ElideRight
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: String(_s3Row.modelData.supportingText || "")
                                 color: Theme.AppTheme.textSecondary
@@ -505,7 +506,7 @@ Item {
                     }
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: (root.intakeItemsModel.items || []).length === 0
                     text: root.intakeItemsModel.emptyState || "No intake items are available yet."
@@ -534,7 +535,7 @@ Item {
                 anchors.rightMargin: Theme.AppTheme.marginMd
                 spacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     text: "ACTIVITY"
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily

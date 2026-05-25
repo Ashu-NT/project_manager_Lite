@@ -49,7 +49,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Work Order Filters"
                 color: Theme.AppTheme.textPrimary
@@ -79,8 +79,8 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Search" }
-            TextField {
+            AppControls.Label { text: "Search" }
+            AppControls.TextField {
                 Layout.fillWidth: true
                 placeholderText: "Code, title, type, source, asset, or vendor"
                 text: root.searchText
@@ -88,8 +88,8 @@ Item {
                 onEditingFinished: root.searchTextUpdated(text)
             }
 
-            Label { text: "Site" }
-            ComboBox {
+            AppControls.Label { text: "Site" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.siteOptions
                 textRole: "label"
@@ -101,8 +101,8 @@ Item {
                 }
             }
 
-            Label { text: "Status" }
-            ComboBox {
+            AppControls.Label { text: "Status" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.statusOptions
                 textRole: "label"
@@ -114,8 +114,8 @@ Item {
                 }
             }
 
-            Label { text: "Priority" }
-            ComboBox {
+            AppControls.Label { text: "Priority" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.priorityOptions
                 textRole: "label"
@@ -127,8 +127,8 @@ Item {
                 }
             }
 
-            Label { text: "Type" }
-            ComboBox {
+            AppControls.Label { text: "Type" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.workOrderTypeOptions
                 textRole: "label"
@@ -140,8 +140,8 @@ Item {
                 }
             }
 
-            Label { text: "Asset" }
-            ComboBox {
+            AppControls.Label { text: "Asset" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.assetOptions
                 textRole: "label"

@@ -23,7 +23,7 @@ Item {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Report Packages"
             color: Theme.AppTheme.textPrimary
@@ -32,7 +32,7 @@ Item {
             font.bold: true
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Export the same stock-status and procurement-overview packages that the legacy reports tab generated, but now through the typed pricing controller."
             color: Theme.AppTheme.textSecondary
@@ -41,7 +41,7 @@ Item {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: !root.canExport
             text: "Export permission is required to generate files from this workspace."
@@ -70,7 +70,7 @@ Item {
                     anchors.margins: Theme.AppTheme.marginMd
                     spacing: Theme.AppTheme.spacingSm
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: "Stock Status"
                         color: Theme.AppTheme.textPrimary
@@ -79,7 +79,7 @@ Item {
                         font.bold: true
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: "Site and storeroom filtered stock position package with summary metrics and detailed balance rows."
                         color: Theme.AppTheme.textSecondary
@@ -122,7 +122,7 @@ Item {
                     anchors.margins: Theme.AppTheme.marginMd
                     spacing: Theme.AppTheme.spacingSm
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: "Procurement Overview"
                         color: Theme.AppTheme.textPrimary
@@ -131,7 +131,7 @@ Item {
                         font.bold: true
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: "Supplier-facing overview package for requisitions, purchase orders, receipts, and open quantity pressure."
                         color: Theme.AppTheme.textSecondary

@@ -93,7 +93,7 @@ AppControls.CenteredDialog {
             width: dialogFlickable.width
             spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: root.editingExistingCost
                     ? "Adjust the commercial line, amounts, or finance coding for this cost item."
@@ -104,7 +104,7 @@ AppControls.CenteredDialog {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.validationMessage.length > 0
                 text: root.validationMessage
@@ -120,26 +120,26 @@ AppControls.CenteredDialog {
                 columnSpacing: Theme.AppTheme.spacingMd
                 rowSpacing: Theme.AppTheme.spacingSm
 
-                Label {
+                AppControls.Label {
                     text: "Description"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: descriptionField
 
                     Layout.fillWidth: true
                     placeholderText: "Electrical material package"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Task"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                ComboBox {
+                AppControls.ComboBox {
                     id: taskCombo
 
                     Layout.fillWidth: true
@@ -148,13 +148,13 @@ AppControls.CenteredDialog {
                     enabled: !root.editingExistingCost
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Cost type"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                ComboBox {
+                AppControls.ComboBox {
                     id: costTypeCombo
 
                     Layout.fillWidth: true
@@ -162,13 +162,13 @@ AppControls.CenteredDialog {
                     textRole: "label"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Planned"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: plannedAmountField
 
                     Layout.fillWidth: true
@@ -176,13 +176,13 @@ AppControls.CenteredDialog {
                     placeholderText: "0.00"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Committed"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: committedAmountField
 
                     Layout.fillWidth: true
@@ -190,13 +190,13 @@ AppControls.CenteredDialog {
                     placeholderText: "0.00"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Actual"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: actualAmountField
 
                     Layout.fillWidth: true
@@ -204,26 +204,26 @@ AppControls.CenteredDialog {
                     placeholderText: "0.00"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Currency"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: currencyField
 
                     Layout.fillWidth: true
                     placeholderText: "EUR"
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Incurred date"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                 }
 
-                TextField {
+                AppControls.DateField {
                     id: incurredDateField
 
                     Layout.fillWidth: true

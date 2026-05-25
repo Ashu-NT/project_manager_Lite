@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
+import App.Controls 1.0 as AppControls
 
 Rectangle {
     id: root
@@ -31,7 +32,7 @@ Rectangle {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: String(root.model.title || "")
                 color: Theme.AppTheme.textSecondary
@@ -52,7 +53,7 @@ Rectangle {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 text: String(root.model.metricValue || "—")
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
@@ -60,7 +61,7 @@ Rectangle {
                 font.bold: true
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: String(root.model.metricLabel || "")
                 color: Theme.AppTheme.textMuted
@@ -71,7 +72,7 @@ Rectangle {
             }
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: String(root.model.supportingText || "")
             color: Theme.AppTheme.textSecondary
@@ -91,7 +92,7 @@ Rectangle {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: String(root.model.metaText || "")
                 color: Theme.AppTheme.textMuted
@@ -101,7 +102,7 @@ Rectangle {
                 maximumLineCount: 1
             }
 
-            Label {
+            AppControls.Label {
                 visible: root._clickable
                 text: "Open"
                 color: Theme.AppTheme.accent

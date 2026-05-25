@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -91,14 +92,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Client"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("clientName") || "—"
                                 color: Theme.AppTheme.textPrimary
@@ -111,14 +112,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Contact"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("clientContact") || "—"
                                 color: Theme.AppTheme.textPrimary
@@ -131,14 +132,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Start"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("startDateLabel") || "—"
                                 color: Theme.AppTheme.textPrimary
@@ -150,14 +151,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Finish"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("endDateLabel") || "—"
                                 color: Theme.AppTheme.textPrimary
@@ -183,14 +184,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Budget"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("plannedBudgetLabel") || "—"
                                 color: Theme.AppTheme.textPrimary
@@ -203,14 +204,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Currency"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("currency") || "—"
                                 color: Theme.AppTheme.textPrimary
@@ -222,7 +223,7 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Status"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
@@ -237,14 +238,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Version"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("version") ? "v" + root._sv("version") : "—"
                                 color: Theme.AppTheme.textMuted
@@ -254,7 +255,7 @@ Item {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: root._hasProject
                         text: root.projectDetail.description
@@ -323,14 +324,14 @@ Item {
                             columnSpacing: Theme.AppTheme.spacingMd
                             rowSpacing: Theme.AppTheme.spacingXs
 
-                            Label {
+                            AppControls.Label {
                                 text: "Start Date"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("startDateLabel") || "Not scheduled"
                                 color: Theme.AppTheme.textPrimary
@@ -338,14 +339,14 @@ Item {
                                 font.pixelSize: Theme.AppTheme.smallSize
                             }
 
-                            Label {
+                            AppControls.Label {
                                 text: "Finish Date"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("endDateLabel") || "Not scheduled"
                                 color: Theme.AppTheme.textPrimary
@@ -473,14 +474,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Planned Budget"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("plannedBudgetLabel") || "—"
                                 color: Theme.AppTheme.textPrimary
@@ -493,14 +494,14 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Label {
+                            AppControls.Label {
                                 text: "Currency"
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.bold: true
                             }
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: root._sv("currency") || "—"
                                 color: Theme.AppTheme.textPrimary

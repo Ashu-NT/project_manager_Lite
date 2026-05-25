@@ -65,7 +65,7 @@ ColumnLayout {
             rowSpacing: Theme.AppTheme.spacingSm
             columnSpacing: Theme.AppTheme.spacingSm
 
-            ComboBox {
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.templateLibraryState.activeOptions || []
                 textRole: "label"
@@ -76,7 +76,7 @@ ColumnLayout {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.templateLibraryState.maintenanceTypeOptions || []
                 textRole: "label"
@@ -87,7 +87,7 @@ ColumnLayout {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.templateLibraryState.statusOptions || []
                 textRole: "label"
@@ -98,7 +98,7 @@ ColumnLayout {
                 }
             }
 
-            TextField {
+            AppControls.TextField {
                 Layout.fillWidth: true
                 text: root.templateLibraryState.searchText || ""
                 placeholderText: "Template code, name, skill, or description"

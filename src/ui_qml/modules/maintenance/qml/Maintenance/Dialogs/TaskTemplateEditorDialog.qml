@@ -116,34 +116,34 @@ AppControls.CenteredDialog {
                 columnSpacing: 12
                 rowSpacing: 12
 
-                Label { text: "Template Code" }
-                TextField { id: taskTemplateCodeField; Layout.fillWidth: true; placeholderText: "PM-SEAL-CHECK" }
+                AppControls.Label { text: "Template Code" }
+                AppControls.TextField { id: taskTemplateCodeField; Layout.fillWidth: true; placeholderText: "PM-SEAL-CHECK" }
 
-                Label { text: "Name" }
-                TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Seal Inspection Route" }
+                AppControls.Label { text: "Name" }
+                AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Seal Inspection Route" }
 
-                Label { text: "Maintenance Type" }
-                ComboBox { id: maintenanceTypeCombo; Layout.fillWidth: true; model: root.optionsFor("maintenanceTypeOptions"); textRole: "label" }
+                AppControls.Label { text: "Maintenance Type" }
+                AppControls.ComboBox { id: maintenanceTypeCombo; Layout.fillWidth: true; model: root.optionsFor("maintenanceTypeOptions"); textRole: "label" }
 
-                Label { text: "Revision" }
-                TextField { id: revisionNoField; Layout.fillWidth: true; placeholderText: "1" }
+                AppControls.Label { text: "Revision" }
+                AppControls.TextField { id: revisionNoField; Layout.fillWidth: true; placeholderText: "1" }
 
-                Label { text: "Template Status" }
-                ComboBox { id: templateStatusCombo; Layout.fillWidth: true; model: root.optionsFor("statusOptions"); textRole: "label" }
+                AppControls.Label { text: "Template Status" }
+                AppControls.ComboBox { id: templateStatusCombo; Layout.fillWidth: true; model: root.optionsFor("statusOptions"); textRole: "label" }
 
-                Label { text: "Estimated Minutes" }
-                TextField { id: estimatedMinutesField; Layout.fillWidth: true; placeholderText: "45" }
+                AppControls.Label { text: "Estimated Minutes" }
+                AppControls.TextField { id: estimatedMinutesField; Layout.fillWidth: true; placeholderText: "45" }
 
-                Label { text: "Required Skill" }
-                TextField { id: requiredSkillField; Layout.fillWidth: true; placeholderText: "Mechanical" }
+                AppControls.Label { text: "Required Skill" }
+                AppControls.TextField { id: requiredSkillField; Layout.fillWidth: true; placeholderText: "Mechanical" }
             }
 
-            CheckBox { id: requiresShutdownCheck; text: "Requires shutdown" }
-            CheckBox { id: requiresPermitCheck; text: "Requires permit" }
-            CheckBox { id: activeCheck; text: "Active" }
+            AppControls.CheckBox { id: requiresShutdownCheck; text: "Requires shutdown" }
+            AppControls.CheckBox { id: requiresPermitCheck; text: "Requires permit" }
+            AppControls.CheckBox { id: activeCheck; text: "Active" }
 
-            Label { text: "Description" }
-            TextArea {
+            AppControls.Label { text: "Description" }
+            AppControls.TextArea {
                 id: descriptionArea
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90
@@ -151,8 +151,8 @@ AppControls.CenteredDialog {
                 wrapMode: TextEdit.WordWrap
             }
 
-            Label { text: "Notes" }
-            TextArea {
+            AppControls.Label { text: "Notes" }
+            AppControls.TextArea {
                 id: notesArea
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90

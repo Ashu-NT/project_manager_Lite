@@ -42,7 +42,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: root.projectData && root.projectData.title
                 ? "Update the lifecycle state for " + root.projectData.title + "."
@@ -53,7 +53,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             id: statusCombo
 
             Layout.fillWidth: true

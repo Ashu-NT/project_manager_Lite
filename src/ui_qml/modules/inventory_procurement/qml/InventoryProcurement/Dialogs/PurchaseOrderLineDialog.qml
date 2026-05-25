@@ -88,7 +88,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Create a supplier commitment line with the final receiving destination and, when useful, the originating requisition line."
             color: Theme.AppTheme.textSecondary
@@ -97,7 +97,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.validationMessage.length > 0
             text: root.validationMessage
@@ -113,35 +113,35 @@ AppControls.CenteredDialog {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Item" }
-            ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+            AppControls.Label { text: "Item" }
+            AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
 
-            Label { text: "Destination storeroom" }
-            ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+            AppControls.Label { text: "Destination storeroom" }
+            AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
 
-            Label { text: "Quantity" }
-            TextField { id: quantityField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+            AppControls.Label { text: "Quantity" }
+            AppControls.TextField { id: quantityField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
 
-            Label { text: "Unit price" }
-            TextField { id: unitPriceField; Layout.fillWidth: true; placeholderText: "0.0000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+            AppControls.Label { text: "Unit price" }
+            AppControls.TextField { id: unitPriceField; Layout.fillWidth: true; placeholderText: "0.0000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
 
-            Label { text: "Source requisition line" }
-            ComboBox { id: sourceRequisitionLineCombo; Layout.fillWidth: true; model: root.formRequisitionLineOptions; textRole: "label" }
+            AppControls.Label { text: "Source requisition line" }
+            AppControls.ComboBox { id: sourceRequisitionLineCombo; Layout.fillWidth: true; model: root.formRequisitionLineOptions; textRole: "label" }
 
-            Label { text: "Expected delivery (YYYY-MM-DD)" }
-            TextField { id: expectedDeliveryDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+            AppControls.Label { text: "Expected delivery (YYYY-MM-DD)" }
+            AppControls.DateField { id: expectedDeliveryDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
 
-            Label { text: "Description" }
-            TextField { id: descriptionField; Layout.fillWidth: true; placeholderText: "Line description or supplier note" }
+            AppControls.Label { text: "Description" }
+            AppControls.TextField { id: descriptionField; Layout.fillWidth: true; placeholderText: "Line description or supplier note" }
         }
 
-        Label {
+        AppControls.Label {
             text: "Notes"
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
         }
 
-        TextArea {
+        AppControls.TextArea {
             id: notesField
             Layout.fillWidth: true
             Layout.preferredHeight: 100

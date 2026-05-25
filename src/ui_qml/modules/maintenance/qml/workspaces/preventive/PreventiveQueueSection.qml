@@ -60,7 +60,7 @@ ColumnLayout {
             rowSpacing: Theme.AppTheme.spacingSm
             columnSpacing: Theme.AppTheme.spacingSm
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: siteCombo
                 Layout.fillWidth: true
                 model: root.queueState.siteOptions || []
@@ -72,7 +72,7 @@ ColumnLayout {
                 }
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: dueStateCombo
                 Layout.fillWidth: true
                 model: root.queueState.dueStateOptions || []
@@ -84,7 +84,7 @@ ColumnLayout {
                 }
             }
 
-            TextField {
+            AppControls.TextField {
                 id: searchField
                 Layout.fillWidth: true
                 text: root.queueState.searchText || ""

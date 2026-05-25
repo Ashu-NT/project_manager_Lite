@@ -87,7 +87,7 @@ Item {
         contentItem: ColumnLayout {
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 text: "Save Baseline"
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
@@ -95,7 +95,7 @@ Item {
                 font.bold: true
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Create a controlled schedule snapshot for comparison and governance."
                 color: Theme.AppTheme.textMuted
@@ -104,7 +104,7 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            TextField {
+            AppControls.TextField {
                 id: baselineNameField
                 Layout.fillWidth: true
                 placeholderText: "Baseline name"
@@ -156,7 +156,7 @@ Item {
         contentItem: ColumnLayout {
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 id: dependencyDialogTitle
                 text: "Create Dependency"
                 color: Theme.AppTheme.textPrimary
@@ -165,7 +165,7 @@ Item {
                 font.bold: true
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: dependencyEditorDialog.mode === "create"
                     ? "Connect the selected activity to a predecessor or successor."
@@ -176,7 +176,7 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: dependencyTaskCombo
                 Layout.fillWidth: true
                 model: root.dependencyTaskOptions
@@ -184,7 +184,7 @@ Item {
                 enabled: dependencyEditorDialog.mode === "create"
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: dependencyDirectionCombo
                 Layout.fillWidth: true
                 model: [
@@ -195,14 +195,14 @@ Item {
                 enabled: dependencyEditorDialog.mode === "create"
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: dependencyTypeCombo
                 Layout.fillWidth: true
                 model: root.dependencyTypeOptions
                 textRole: "label"
             }
 
-            TextField {
+            AppControls.TextField {
                 id: dependencyLagField
                 Layout.fillWidth: true
                 placeholderText: "Lag (days)"
@@ -272,7 +272,7 @@ Item {
         contentItem: ColumnLayout {
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 text: "Remove Dependency"
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
@@ -280,7 +280,7 @@ Item {
                 font.bold: true
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: String((root.dependencyTarget.state || {}).relatedActivityName || "")
                     ? "Remove the dependency link to " + String((root.dependencyTarget.state || {}).relatedActivityName || "") + "?"

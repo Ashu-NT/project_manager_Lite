@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -115,14 +116,14 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: Theme.AppTheme.spacingXs
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text: String(_budgetCell.modelData.lbl)
                                     color: Theme.AppTheme.textMuted
                                     font.family: Theme.AppTheme.fontFamily
                                     font.pixelSize: Theme.AppTheme.captionSize
                                 }
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text: String(_budgetCell.modelData.val)
                                     color: Theme.AppTheme.textPrimary
@@ -160,14 +161,14 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: Theme.AppTheme.spacingXs
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text: String(_metaCell.modelData.lbl)
                                     color: Theme.AppTheme.textMuted
                                     font.family: Theme.AppTheme.fontFamily
                                     font.pixelSize: Theme.AppTheme.captionSize
                                 }
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text: String(_metaCell.modelData.val) || "—"
                                     color: Theme.AppTheme.textSecondary
@@ -180,7 +181,7 @@ Item {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: String(root.costDetail.description || "").length > 0
                         text: root.costDetail.description || ""
@@ -425,14 +426,14 @@ Item {
                                 anchors.margins: Theme.AppTheme.spacingMd
                                 spacing: Theme.AppTheme.spacingXs
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text: String(_evCard.modelData.label || "")
                                     color: Theme.AppTheme.textMuted
                                     font.family: Theme.AppTheme.fontFamily
                                     font.pixelSize: Theme.AppTheme.captionSize
                                 }
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text: String(_evCard.modelData.value || "—")
                                     color: Theme.AppTheme.textPrimary
@@ -440,7 +441,7 @@ Item {
                                     font.pixelSize: Theme.AppTheme.bodySize
                                     font.bold: true
                                 }
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     visible: String(_evCard.modelData.supportingText || "").length > 0
                                     text: String(_evCard.modelData.supportingText || "")

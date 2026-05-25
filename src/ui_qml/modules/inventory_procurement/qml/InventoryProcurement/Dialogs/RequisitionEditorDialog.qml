@@ -84,7 +84,7 @@ AppControls.CenteredDialog {
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             text: "Capture internal supply demand against a real site and storeroom before the approval and sourcing flow starts."
             color: Theme.AppTheme.textSecondary
@@ -93,7 +93,7 @@ AppControls.CenteredDialog {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: root.validationMessage.length > 0
             text: root.validationMessage
@@ -109,29 +109,29 @@ AppControls.CenteredDialog {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Site" }
-            ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+            AppControls.Label { text: "Site" }
+            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
 
-            Label { text: "Storeroom" }
-            ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+            AppControls.Label { text: "Storeroom" }
+            AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
 
-            Label { text: "Priority" }
-            ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
+            AppControls.Label { text: "Priority" }
+            AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
 
-            Label { text: "Purpose" }
-            TextField { id: purposeField; Layout.fillWidth: true; placeholderText: "Why is the supply needed?" }
+            AppControls.Label { text: "Purpose" }
+            AppControls.TextField { id: purposeField; Layout.fillWidth: true; placeholderText: "Why is the supply needed?" }
 
-            Label { text: "Needed by (YYYY-MM-DD)" }
-            TextField { id: neededByDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+            AppControls.Label { text: "Needed by (YYYY-MM-DD)" }
+            AppControls.DateField { id: neededByDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
         }
 
-        Label {
+        AppControls.Label {
             text: "Notes"
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
         }
 
-        TextArea {
+        AppControls.TextArea {
             id: notesField
             Layout.fillWidth: true
             Layout.preferredHeight: 100

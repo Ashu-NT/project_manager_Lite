@@ -40,7 +40,7 @@ AnchoredPopup {
         width:   parent.width
         spacing: Theme.AppTheme.spacingSm
 
-        Label {
+        AppControls.Label {
             text:           root.title
             font.bold:      true
             font.pixelSize: Theme.AppTheme.bodySize
@@ -48,7 +48,7 @@ AnchoredPopup {
             color:          Theme.AppTheme.textPrimary
         }
 
-        Label {
+        AppControls.Label {
             visible:        root.selectedCount > 0
             text:           root.selectedCount + " records will be updated"
             font.pixelSize: Theme.AppTheme.captionSize
@@ -56,7 +56,7 @@ AnchoredPopup {
             color:          Theme.AppTheme.textMuted
         }
 
-        Label {
+        AppControls.Label {
             text:           "Property"
             font.pixelSize: Theme.AppTheme.captionSize
             font.family:    Theme.AppTheme.fontFamily
@@ -64,7 +64,7 @@ AnchoredPopup {
             font.bold:      true
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             id: _propCombo
             Layout.fillWidth: true
             model:    root.properties
@@ -72,7 +72,7 @@ AnchoredPopup {
             enabled:  !root.busy
         }
 
-        Label {
+        AppControls.Label {
             text:           "Value"
             font.pixelSize: Theme.AppTheme.captionSize
             font.family:    Theme.AppTheme.fontFamily
@@ -80,7 +80,7 @@ AnchoredPopup {
             font.bold:      true
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             id: _valueCombo
             Layout.fillWidth: true
             enabled: !root.busy
@@ -93,7 +93,7 @@ AnchoredPopup {
             textRole: "label"
         }
 
-        Label {
+        AppControls.Label {
             text:           "Note (optional)"
             font.pixelSize: Theme.AppTheme.captionSize
             font.family:    Theme.AppTheme.fontFamily
@@ -101,7 +101,7 @@ AnchoredPopup {
             font.bold:      true
         }
 
-        TextField {
+        AppControls.TextField {
             id: _noteField
             Layout.fillWidth: true
             placeholderText: "Reason for change..."

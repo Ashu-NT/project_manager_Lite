@@ -386,7 +386,7 @@ AppLayouts.WorkspaceFrame {
                                     anchors.centerIn: parent
                                     spacing: Theme.AppTheme.spacingXs
 
-                                    Label {
+                                    AppControls.Label {
                                         text: String(tabButton.modelData.label || "")
                                         color: tabButton._active
                                             ? Theme.AppTheme.navSelectedText
@@ -405,7 +405,7 @@ AppLayouts.WorkspaceFrame {
                                         implicitWidth: countLabel.implicitWidth + 8
                                         implicitHeight: 16
 
-                                        Label {
+                                        AppControls.Label {
                                             id: countLabel
                                             anchors.centerIn: parent
                                             text: String(tabButton.modelData.count || "")
@@ -459,7 +459,7 @@ AppLayouts.WorkspaceFrame {
                                         { "id": "run_cpm", "label": "Run CPM", "icon": "approve", "enabled": String(root.workspaceController ? root.workspaceController.selectedProjectId : "").length > 0 }
                                     ]
 
-                                    ComboBox {
+                                    AppControls.ComboBox {
                                         Layout.preferredWidth: 210
                                         model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
                                         textRole: "label"
@@ -476,7 +476,7 @@ AppLayouts.WorkspaceFrame {
                                         }
                                     }
 
-                                    ComboBox {
+                                    AppControls.ComboBox {
                                         Layout.preferredWidth: 180
                                         model: root.workspaceController ? (root.workspaceController.baselineOptions || []) : []
                                         textRole: "label"
@@ -494,7 +494,7 @@ AppLayouts.WorkspaceFrame {
                                         }
                                     }
 
-                                    ComboBox {
+                                    AppControls.ComboBox {
                                         Layout.preferredWidth: 170
                                         model: root.workspaceController ? (root.workspaceController.calendarOptions || []) : []
                                         textRole: "label"
@@ -620,7 +620,7 @@ AppLayouts.WorkspaceFrame {
                                             contentItem: ColumnLayout {
                                                 spacing: Theme.AppTheme.spacingSm
 
-                                                Label {
+                                                AppControls.Label {
                                                     text: "Filters"
                                                     font.bold: true
                                                     font.family: Theme.AppTheme.fontFamily
@@ -628,7 +628,7 @@ AppLayouts.WorkspaceFrame {
                                                     color: Theme.AppTheme.textMuted
                                                 }
 
-                                                Label {
+                                                AppControls.Label {
                                                     text: "Status"
                                                     font.bold: true
                                                     font.family: Theme.AppTheme.fontFamily
@@ -636,7 +636,7 @@ AppLayouts.WorkspaceFrame {
                                                     color: Theme.AppTheme.textMuted
                                                 }
 
-                                                ComboBox {
+                                                AppControls.ComboBox {
                                                     Layout.fillWidth: true
                                                     model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                                                     textRole: "label"
@@ -653,7 +653,7 @@ AppLayouts.WorkspaceFrame {
                                                     }
                                                 }
 
-                                                CheckBox {
+                                                AppControls.CheckBox {
                                                     text: "Critical only"
                                                     checked: root.workspaceController ? root.workspaceController.showCriticalOnly : false
                                                     enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
@@ -664,7 +664,7 @@ AppLayouts.WorkspaceFrame {
                                                     }
                                                 }
 
-                                                CheckBox {
+                                                AppControls.CheckBox {
                                                     text: "Delayed only"
                                                     checked: root.workspaceController ? root.workspaceController.showDelayedOnly : false
                                                     enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
@@ -863,7 +863,7 @@ AppLayouts.WorkspaceFrame {
                                         { "id": "export", "label": "Export", "icon": "export", "enabled": true }
                                     ]
 
-                                    ComboBox {
+                                    AppControls.ComboBox {
                                         Layout.preferredWidth: 180
                                         model: root.baselinesModel.options || []
                                         textRole: "label"
@@ -881,7 +881,7 @@ AppLayouts.WorkspaceFrame {
                                         }
                                     }
 
-                                    ComboBox {
+                                    AppControls.ComboBox {
                                         Layout.preferredWidth: 180
                                         model: root.baselinesModel.options || []
                                         textRole: "label"
@@ -899,7 +899,7 @@ AppLayouts.WorkspaceFrame {
                                         }
                                     }
 
-                                    CheckBox {
+                                    AppControls.CheckBox {
                                         text: "Include unchanged"
                                         checked: Boolean(root.baselinesModel.includeUnchanged)
                                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
@@ -1072,7 +1072,7 @@ AppLayouts.WorkspaceFrame {
                                         { "id": "calculate", "label": "Calculate Days", "icon": "refresh", "enabled": true }
                                     ]
 
-                                    ComboBox {
+                                    AppControls.ComboBox {
                                         Layout.preferredWidth: 190
                                         model: root.workspaceController ? (root.workspaceController.calendarOptions || []) : []
                                         textRole: "label"
@@ -1133,7 +1133,7 @@ AppLayouts.WorkspaceFrame {
                                             anchors.margins: Theme.AppTheme.marginMd
                                             spacing: Theme.AppTheme.spacingSm
 
-                                            Label {
+                                            AppControls.Label {
                                                 Layout.fillWidth: true
                                                 text: "Working Week"
                                                 color: Theme.AppTheme.textSecondary
@@ -1149,7 +1149,7 @@ AppLayouts.WorkspaceFrame {
                                                 Repeater {
                                                     model: root.calendarModel.workingDays || []
 
-                                                    delegate: CheckBox {
+                                                    delegate: AppControls.CheckBox {
                                                         required property var modelData
                                                         text: String(modelData.label || "")
                                                         checked: (root.workingDayDraft || []).indexOf(modelData.index) >= 0
@@ -1172,14 +1172,14 @@ AppLayouts.WorkspaceFrame {
                                                 Layout.fillWidth: true
                                                 spacing: Theme.AppTheme.spacingSm
 
-                                                Label {
+                                                AppControls.Label {
                                                     text: "Hours/Day"
                                                     color: Theme.AppTheme.textMuted
                                                     font.family: Theme.AppTheme.fontFamily
                                                     font.pixelSize: Theme.AppTheme.captionSize
                                                 }
 
-                                                TextField {
+                                                AppControls.TextField {
                                                     Layout.preferredWidth: 96
                                                     text: root.hoursPerDayDraft
                                                     enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
@@ -1203,7 +1203,7 @@ AppLayouts.WorkspaceFrame {
                                             anchors.margins: Theme.AppTheme.marginMd
                                             spacing: Theme.AppTheme.spacingSm
 
-                                            Label {
+                                            AppControls.Label {
                                                 Layout.fillWidth: true
                                                 text: "Exceptions & Calculator"
                                                 color: Theme.AppTheme.textSecondary
@@ -1212,14 +1212,14 @@ AppLayouts.WorkspaceFrame {
                                                 font.bold: true
                                             }
 
-                                            TextField {
+                                            AppControls.DateField {
                                                 id: holidayDateField
                                                 Layout.fillWidth: true
                                                 placeholderText: "Holiday date (YYYY-MM-DD)"
                                                 enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
                                             }
 
-                                            TextField {
+                                            AppControls.TextField {
                                                 id: holidayNameField
                                                 Layout.fillWidth: true
                                                 placeholderText: "Exception label"
@@ -1230,14 +1230,14 @@ AppLayouts.WorkspaceFrame {
                                                 Layout.fillWidth: true
                                                 spacing: Theme.AppTheme.spacingSm
 
-                                                TextField {
+                                                AppControls.DateField {
                                                     id: calcStartField
                                                     Layout.fillWidth: true
                                                     placeholderText: "Calc start (YYYY-MM-DD)"
                                                     enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
                                                 }
 
-                                                TextField {
+                                                AppControls.TextField {
                                                     id: calcDaysField
                                                     Layout.preferredWidth: 96
                                                     placeholderText: "Days"

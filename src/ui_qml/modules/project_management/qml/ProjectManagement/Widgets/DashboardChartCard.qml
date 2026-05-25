@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -175,7 +176,7 @@ Item {
             spacing: Theme.AppTheme.spacingXs
             visible: root.title.length > 0 || root.subtitle.length > 0
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.title.length > 0
                 text: root.title
@@ -186,7 +187,7 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 visible: root.subtitle.length > 0
                 text: root.subtitle
@@ -197,7 +198,7 @@ Item {
             }
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: (root.points || []).length === 0 && root.emptyState.length > 0
             text: root.emptyState
@@ -223,7 +224,7 @@ Item {
                 Repeater {
                     model: root.lineAxisTicks
 
-                    delegate: Label {
+                    delegate: AppControls.Label {
                         required property var modelData
                         required property int index
 
@@ -383,7 +384,7 @@ Item {
             Repeater {
                 model: root.points || []
 
-                delegate: Label {
+                delegate: AppControls.Label {
                     required property var modelData
                     Layout.fillWidth: true
                     text: String(modelData.label || modelData.supportingText || "")
@@ -413,7 +414,7 @@ Item {
                     color: Theme.AppTheme.accent
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Actual"
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
@@ -434,7 +435,7 @@ Item {
                     color: Theme.AppTheme.textMuted
                 }
 
-                Label {
+                AppControls.Label {
                     text: "Target"
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
@@ -476,7 +477,7 @@ Item {
                             Layout.fillWidth: true
                             spacing: Theme.AppTheme.spacingSm
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 text: barDelegate.modelData.label || ""
                                 color: Theme.AppTheme.textPrimary
@@ -486,7 +487,7 @@ Item {
                                 wrapMode: Text.WordWrap
                             }
 
-                            Label {
+                            AppControls.Label {
                                 text: barDelegate.modelData.valueLabel || ""
                                 color: root.toneColor(barDelegate.modelData.tone)
                                 font.family: Theme.AppTheme.fontFamily
@@ -517,7 +518,7 @@ Item {
                             }
                         }
 
-                        Label {
+                        AppControls.Label {
                             Layout.fillWidth: true
                             visible: String(barDelegate.modelData.supportingText || "").length > 0
                             text: barDelegate.modelData.supportingText || ""

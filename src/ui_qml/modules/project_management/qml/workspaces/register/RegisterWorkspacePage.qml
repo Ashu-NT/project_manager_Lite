@@ -315,14 +315,14 @@ AppLayouts.WorkspaceFrame {
                         contentItem: ColumnLayout {
                             spacing: Theme.AppTheme.spacingSm
 
-                            Label {
+                            AppControls.Label {
                                 text: "Project"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.family: Theme.AppTheme.fontFamily
                                 color: Theme.AppTheme.textMuted
                             }
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
                                 textRole: "label"
@@ -338,14 +338,14 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 text: "Type"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.family: Theme.AppTheme.fontFamily
                                 color: Theme.AppTheme.textMuted
                             }
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.typeOptions || []) : []
                                 textRole: "label"
@@ -361,14 +361,14 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 text: "Status"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.family: Theme.AppTheme.fontFamily
                                 color: Theme.AppTheme.textMuted
                             }
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                                 textRole: "label"
@@ -384,14 +384,14 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 text: "Severity"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.family: Theme.AppTheme.fontFamily
                                 color: Theme.AppTheme.textMuted
                             }
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.severityOptions || []) : []
                                 textRole: "label"
@@ -453,7 +453,7 @@ AppLayouts.WorkspaceFrame {
                         contentItem: ColumnLayout {
                             spacing: Theme.AppTheme.spacingSm
 
-                            Label {
+                            AppControls.Label {
                                 text: "View by Type"
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.captionSize
@@ -461,7 +461,7 @@ AppLayouts.WorkspaceFrame {
                                 color: Theme.AppTheme.textMuted
                             }
 
-                            ComboBox {
+                            AppControls.ComboBox {
                                 Layout.fillWidth: true
                                 model: root.workspaceController ? (root.workspaceController.typeOptions || []) : []
                                 textRole: "label"

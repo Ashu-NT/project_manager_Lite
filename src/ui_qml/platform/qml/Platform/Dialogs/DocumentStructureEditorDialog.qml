@@ -121,14 +121,14 @@ AppControls.CenteredDialog {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                TextField {
+                AppControls.TextField {
                     id: structureCodeField
 
                     Layout.preferredWidth: 180
                     placeholderText: "Structure code"
                 }
 
-                TextField {
+                AppControls.TextField {
                     id: nameField
 
                     Layout.fillWidth: true
@@ -136,14 +136,14 @@ AppControls.CenteredDialog {
                 }
             }
 
-            TextField {
+            AppControls.TextField {
                 id: descriptionField
 
                 Layout.fillWidth: true
                 placeholderText: "Description"
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: parentCombo
 
                 Layout.fillWidth: true
@@ -151,7 +151,7 @@ AppControls.CenteredDialog {
                 textRole: "label"
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: scopeCombo
 
                 Layout.fillWidth: true
@@ -159,7 +159,7 @@ AppControls.CenteredDialog {
                 textRole: "label"
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: typeCombo
 
                 Layout.fillWidth: true
@@ -175,7 +175,7 @@ AppControls.CenteredDialog {
                 to: 9999
             }
 
-            TextArea {
+            AppControls.TextArea {
                 id: notesField
 
                 Layout.fillWidth: true
@@ -184,7 +184,7 @@ AppControls.CenteredDialog {
                 wrapMode: TextEdit.WordWrap
             }
 
-            CheckBox {
+            AppControls.CheckBox {
                 id: activeCheck
 
                 text: "Active structure"

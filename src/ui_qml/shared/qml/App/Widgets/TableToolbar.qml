@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Icons 1.0 as AppIcons
@@ -42,54 +41,14 @@ Rectangle {
         anchors.rightMargin: Theme.AppTheme.marginMd
         spacing: Theme.AppTheme.spacingSm
 
-        Rectangle {
+        AppControls.SearchField {
+            id: searchInput
             Layout.preferredWidth: 260
-            implicitHeight: Theme.AppTheme.inputHeight
-            radius: Theme.AppTheme.radiusSm
-            color: Theme.AppTheme.surface
-            border.color: searchInput.activeFocus
-                ? Theme.AppTheme.focusBorder
-                : Theme.AppTheme.subtleBorder
-            border.width: 1
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Theme.AppTheme.spacingSm
-                anchors.rightMargin: Theme.AppTheme.spacingSm
-                spacing: Theme.AppTheme.spacingXs
-
-                AppIcons.AppIcon {
-                    name: "search"
-                    size: Theme.AppTheme.toolbarIconSize
-                    iconColor: Theme.AppTheme.textMuted
-                }
-
-                TextField {
-                    id: searchInput
-                    Layout.fillWidth: true
-                    placeholderText: root.searchPlaceholder
-                    enabled: !root.isBusy
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
-                    color: Theme.AppTheme.textPrimary
-                    leftPadding: 0
-                    rightPadding: 0
-                    topPadding: 0
-                    bottomPadding: 0
-                    background: Item {}
-
-                    Timer {
-                        id: debounce
-                        interval: 280
-                        onTriggered: root.searchChanged(searchInput.text)
-                    }
-
-                    onTextChanged: debounce.restart()
-                    Keys.onReturnPressed: {
-                        debounce.stop()
-                        root.searchChanged(searchInput.text)
-                    }
-                }
+            placeholderText: root.searchPlaceholder
+            enabled: !root.isBusy
+            debounceInterval: 280
+            onSearchTriggered: function(text) {
+                root.searchChanged(text)
             }
         }
 

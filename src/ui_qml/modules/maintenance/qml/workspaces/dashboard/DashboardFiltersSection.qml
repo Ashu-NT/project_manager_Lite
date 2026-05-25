@@ -47,7 +47,7 @@ Item {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingSm
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text: "Dashboard Filters"
                 color: Theme.AppTheme.textPrimary
@@ -70,8 +70,8 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Site" }
-            ComboBox {
+            AppControls.Label { text: "Site" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.siteOptions
                 textRole: "label"
@@ -83,8 +83,8 @@ Item {
                 }
             }
 
-            Label { text: "Asset" }
-            ComboBox {
+            AppControls.Label { text: "Asset" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.assetOptions
                 textRole: "label"
@@ -96,8 +96,8 @@ Item {
                 }
             }
 
-            Label { text: "System" }
-            ComboBox {
+            AppControls.Label { text: "System" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.systemOptions
                 textRole: "label"
@@ -109,8 +109,8 @@ Item {
                 }
             }
 
-            Label { text: "Location" }
-            ComboBox {
+            AppControls.Label { text: "Location" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.locationOptions
                 textRole: "label"
@@ -122,8 +122,8 @@ Item {
                 }
             }
 
-            Label { text: "Window" }
-            ComboBox {
+            AppControls.Label { text: "Window" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.windowOptions
                 textRole: "label"

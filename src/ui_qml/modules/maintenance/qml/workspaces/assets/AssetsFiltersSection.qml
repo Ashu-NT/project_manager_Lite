@@ -43,7 +43,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingXs
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Asset Library Filters"
                     color: Theme.AppTheme.textPrimary
@@ -52,7 +52,7 @@ Item {
                     font.bold: true
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: "Location selection scopes systems and assets. Asset selection scopes components."
                     color: Theme.AppTheme.textSecondary
@@ -76,8 +76,8 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            Label { text: "Search" }
-            TextField {
+            AppControls.Label { text: "Search" }
+            AppControls.TextField {
                 Layout.fillWidth: true
                 placeholderText: "Code, name, anchor, type, vendor, or notes"
                 text: root.searchText
@@ -86,8 +86,8 @@ Item {
             }
             Item { Layout.fillWidth: true }
 
-            Label { text: "Site" }
-            ComboBox {
+            AppControls.Label { text: "Site" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.siteOptions
                 textRole: "label"
@@ -99,8 +99,8 @@ Item {
                 }
             }
 
-            Label { text: "State" }
-            ComboBox {
+            AppControls.Label { text: "State" }
+            AppControls.ComboBox {
                 Layout.fillWidth: true
                 model: root.activeFilterOptions
                 textRole: "label"

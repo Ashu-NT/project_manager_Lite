@@ -31,7 +31,7 @@ Item {
             columnSpacing: Theme.AppTheme.spacingMd
             rowSpacing: Theme.AppTheme.spacingSm
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: predecessorCombo
                 Layout.fillWidth: true
                 model: root.projectOptions
@@ -39,7 +39,7 @@ Item {
                 enabled: !root.isBusy
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: successorCombo
                 Layout.fillWidth: true
                 model: root.projectOptions
@@ -47,7 +47,7 @@ Item {
                 enabled: !root.isBusy
             }
 
-            ComboBox {
+            AppControls.ComboBox {
                 id: dependencyTypeCombo
                 Layout.fillWidth: true
                 model: root.dependencyTypeOptions
@@ -55,7 +55,7 @@ Item {
                 enabled: !root.isBusy
             }
 
-            TextField {
+            AppControls.TextField {
                 id: summaryField
                 Layout.fillWidth: true
                 enabled: !root.isBusy

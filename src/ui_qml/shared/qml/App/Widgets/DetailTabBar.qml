@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import App.Theme 1.0 as Theme
+import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -63,7 +64,7 @@ Item {
                         visible: tabItem.isActive
                     }
 
-                    Label {
+                    AppControls.Label {
                         id: tabText
                         anchors.centerIn: parent
                         text: tabItem.tabLabel

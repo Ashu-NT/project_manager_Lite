@@ -47,7 +47,7 @@ ColumnLayout {
             height: 1; color: Theme.AppTheme.divider
         }
 
-        Label {
+        AppControls.Label {
             anchors.left:           parent.left
             anchors.leftMargin:     Theme.AppTheme.marginMd
             anchors.verticalCenter: parent.verticalCenter
@@ -177,7 +177,7 @@ ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing:          Theme.AppTheme.spacingXs
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text:           _actRow.modelData.title || ""
                                     color:          Theme.AppTheme.textPrimary
@@ -192,7 +192,7 @@ ColumnLayout {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 visible:        (_actRow.modelData.metaText || "").length > 0
                                 text:           _actRow.modelData.metaText || ""
                                 color:          Theme.AppTheme.textMuted
@@ -263,7 +263,7 @@ ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: Theme.AppTheme.spacingXs
 
-                                Label {
+                                AppControls.Label {
                                     text:           _rtRow.modelData.label || ""
                                     color:          Theme.AppTheme.textMuted
                                     font.family:    Theme.AppTheme.fontFamily
@@ -272,7 +272,7 @@ ColumnLayout {
                                     Layout.preferredWidth: 130
                                 }
 
-                                Label {
+                                AppControls.Label {
                                     Layout.fillWidth: true
                                     text:           _rtRow.modelData.value || "-"
                                     color:          Theme.AppTheme.textPrimary
@@ -283,7 +283,7 @@ ColumnLayout {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 visible:        String(_rtRow.modelData.supportingText || "").length > 0
                                 text:           _rtRow.modelData.supportingText || ""
@@ -301,7 +301,7 @@ ColumnLayout {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: (root._runtimeSection.rows || []).length === 0
                         text:    root._runtimeSection.emptyState || "No runtime data"
@@ -341,7 +341,7 @@ ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: Theme.AppTheme.spacingXs
 
-                                Label {
+                                AppControls.Label {
                                     text:           _wfRow.modelData.label || ""
                                     color:          Theme.AppTheme.textMuted
                                     font.family:    Theme.AppTheme.fontFamily
@@ -350,7 +350,7 @@ ColumnLayout {
                                     Layout.preferredWidth: 130
                                 }
 
-                                Label {
+                                AppControls.Label {
                                     text:           _wfRow.modelData.value || "-"
                                     color:          Theme.AppTheme.textPrimary
                                     font.family:    Theme.AppTheme.fontFamily
@@ -359,7 +359,7 @@ ColumnLayout {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 visible:        String(_wfRow.modelData.supportingText || "").length > 0
                                 text:           _wfRow.modelData.supportingText || ""
@@ -377,7 +377,7 @@ ColumnLayout {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: (root._workforceSection.rows || []).length === 0
                         text:    root._workforceSection.emptyState || "No identity data"
@@ -417,7 +417,7 @@ ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: Theme.AppTheme.spacingXs
 
-                                Label {
+                                AppControls.Label {
                                     text:           _mdRow.modelData.label || ""
                                     color:          Theme.AppTheme.textMuted
                                     font.family:    Theme.AppTheme.fontFamily
@@ -426,7 +426,7 @@ ColumnLayout {
                                     Layout.preferredWidth: 130
                                 }
 
-                                Label {
+                                AppControls.Label {
                                     text:           _mdRow.modelData.value || "-"
                                     color:          Theme.AppTheme.textPrimary
                                     font.family:    Theme.AppTheme.fontFamily
@@ -435,7 +435,7 @@ ColumnLayout {
                                 }
                             }
 
-                            Label {
+                            AppControls.Label {
                                 Layout.fillWidth: true
                                 visible:        String(_mdRow.modelData.supportingText || "").length > 0
                                 text:           _mdRow.modelData.supportingText || ""
@@ -453,7 +453,7 @@ ColumnLayout {
                         }
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: (root._masterSection.rows || []).length === 0
                         text:    root._masterSection.emptyState || "No master data"
@@ -484,7 +484,7 @@ ColumnLayout {
         ColumnLayout {
             width: parent.width; spacing: Theme.AppTheme.spacingMd
 
-            Label {
+            AppControls.Label {
                 text:           "Filter Governance"
                 color:          Theme.AppTheme.textPrimary
                 font.family:    Theme.AppTheme.fontFamily
@@ -492,7 +492,7 @@ ColumnLayout {
                 font.bold:      true
             }
 
-            Label {
+            AppControls.Label {
                 Layout.fillWidth: true
                 text:    "Event type and date filters will appear here."
                 color:   Theme.AppTheme.textMuted
@@ -543,7 +543,7 @@ ColumnLayout {
                     radius: Theme.AppTheme.radiusMd
                     color:  _avMA.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
 
-                    Label {
+                    AppControls.Label {
                         anchors {
                             left:           parent.left
                             leftMargin:     Theme.AppTheme.spacingMd

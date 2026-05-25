@@ -33,7 +33,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingXs
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: root.requisitionDetail.title || "Requisition Detail"
                     color: Theme.AppTheme.textPrimary
@@ -43,7 +43,7 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     text: root.requisitionDetail.subtitle || "Select a requisition to review demand details."
                     color: Theme.AppTheme.textSecondary
@@ -59,7 +59,7 @@ Item {
             }
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: String(root.requisitionDetail.emptyState || "").length > 0 && String(root.requisitionDetail.id || "").length === 0
             text: root.requisitionDetail.emptyState
@@ -69,7 +69,7 @@ Item {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        AppControls.Label {
             Layout.fillWidth: true
             visible: String(root.requisitionDetail.id || "").length > 0
             text: root.requisitionDetail.description || ""
@@ -99,7 +99,7 @@ Item {
                     anchors.topMargin: Theme.AppTheme.spacingSm
                     spacing: Theme.AppTheme.spacingXs
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: String(fieldRow.modelData.label || "")
                         color: Theme.AppTheme.textMuted
@@ -108,7 +108,7 @@ Item {
                         font.bold: true
                     }
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         text: String(fieldRow.modelData.value || "")
                         color: Theme.AppTheme.textPrimary

@@ -43,7 +43,7 @@ Rectangle {
         anchors.rightMargin: Theme.AppTheme.marginMd
         spacing: Theme.AppTheme.spacingSm
 
-        ComboBox {
+        AppControls.ComboBox {
             Layout.preferredWidth: 210
             model: root.projectOptions
             textRole: "label"
@@ -58,7 +58,7 @@ Rectangle {
             }
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             Layout.preferredWidth: 190
             model: root.baselineOptions
             textRole: "label"
@@ -73,7 +73,7 @@ Rectangle {
             }
         }
 
-        ComboBox {
+        AppControls.ComboBox {
             Layout.preferredWidth: 170
             model: root.calendarOptions
             textRole: "label"

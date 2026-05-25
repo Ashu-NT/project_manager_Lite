@@ -1,4 +1,5 @@
 pragma ComponentBehavior: Bound
+import App.Controls 1.0 as AppControls
 
 import QtQuick
 import QtQuick.Controls
@@ -48,7 +49,7 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: Theme.AppTheme.spacingSm
 
-                    Label {
+                    AppControls.Label {
                         Layout.fillWidth: true
                         visible: root.title.length > 0
                         text: root.title
@@ -74,7 +75,7 @@ Rectangle {
                                 ? Theme.AppTheme.hoverSurface
                                 : Theme.AppTheme.surfaceOverlay
 
-                            Label {
+                            AppControls.Label {
                                 id: _actionLabel
                                 anchors.centerIn: parent
                                 text: String(modelData.label || "")
@@ -95,7 +96,7 @@ Rectangle {
                     }
                 }
 
-                Label {
+                AppControls.Label {
                     Layout.fillWidth: true
                     visible: root.subtitle.length > 0
                     text: root.subtitle
