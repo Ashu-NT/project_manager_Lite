@@ -59,6 +59,11 @@ class ProjectManagementWorkspaceCatalog(QObject):
             "project_management_collaboration",
             None,
         )
+        approval_api = getattr(
+            desktop_api_registry,
+            "platform_approval",
+            None,
+        )
         projects_api = getattr(
             desktop_api_registry,
             "project_management_projects",
@@ -176,7 +181,8 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._collaboration_workspace = (
             ProjectManagementCollaborationWorkspaceController(
                 collaboration_workspace_presenter=ProjectCollaborationWorkspacePresenter(
-                    desktop_api=collaboration_api
+                    desktop_api=collaboration_api,
+                    approval_api=approval_api,
                 ),
                 parent=self,
             )
