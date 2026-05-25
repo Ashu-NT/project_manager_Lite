@@ -111,21 +111,46 @@ Item {
     readonly property real _minDataW: {
         let w = 0
         for (let i = 0; i < root._visCols.length; i++) {
-            const mw = root._visCols[i].minWidth
-            w += (mw !== undefined ? mw : 80)
+            w += root._columnBaseWidth(root._visCols[i])
         }
         return w
     }
 
-    // Effective data width: at least fills viewport, scrolls when columns are wider
-    readonly property real _dataW: Math.max(root._dataAreaW, root._minDataW)
+    // Preserve natural widths first, then distribute spare room to flexible columns.
+    readonly property real _extraFlexSpace: Math.max(0, root._dataAreaW - root._minDataW)
+
+    function _columnBaseWidth(col) {
+        if (!col) return Theme.AppTheme.tableColumnDefaultWidth
+        if (col.preferredWidth !== undefined) return col.preferredWidth
+        if (col.minWidth !== undefined && col.flex === 0) return col.minWidth
+
+        const type = String(col.type || "text")
+        let naturalWidth = Theme.AppTheme.tableColumnDefaultWidth
+        if (type === "status") {
+            naturalWidth = Theme.AppTheme.tableStatusColumnWidth
+        } else if (type === "progress") {
+            naturalWidth = Theme.AppTheme.tableProgressColumnWidth
+        } else if (String(col.key || "").toLowerCase().indexOf("description") >= 0
+                || String(col.key || "").toLowerCase().indexOf("summary") >= 0
+                || String(col.key || "").toLowerCase().indexOf("title") >= 0
+                || String(col.label || "").toLowerCase().indexOf("name") >= 0) {
+            naturalWidth = Theme.AppTheme.tableColumnWideWidth
+        }
+        if (col.minWidth !== undefined) {
+            naturalWidth = Math.max(naturalWidth, col.minWidth)
+        }
+        return naturalWidth
+    }
 
     function _colWidth(col) {
-        if (!col) return 80
-        const minW = col.minWidth !== undefined ? col.minWidth : 80
+        if (!col) return Theme.AppTheme.tableColumnDefaultWidth
+        const minW = root._columnBaseWidth(col)
         const flex  = col.flex    !== undefined ? col.flex    : 1
         if (flex === 0) return minW
-        return Math.max(minW, (root._dataW * flex) / root._flexTotal)
+        if (root._minDataW >= root._dataAreaW) {
+            return minW
+        }
+        return Math.max(minW, minW + (root._extraFlexSpace * flex) / root._flexTotal)
     }
 
     function _applyColumnVisibility(draft) {

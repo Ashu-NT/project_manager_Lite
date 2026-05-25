@@ -130,4 +130,11 @@ QtObject {
     readonly property int dialogMaxWidth: 920
     readonly property int dialogFormWidth: 640
     readonly property int dialogCompactWidth: 420
+
+    // Tables
+    readonly property int tableColumnCompactWidth: 120
+    readonly property int tableColumnDefaultWidth: 160
+    readonly property int tableColumnWideWidth: 220
+    readonly property int tableStatusColumnWidth: 120
+    readonly property int tableProgressColumnWidth: 150
 }
