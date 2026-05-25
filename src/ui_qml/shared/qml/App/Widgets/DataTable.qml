@@ -71,6 +71,14 @@ Item {
         _colCustomizer.open()
     }
 
+    function _scheduleMainViewLayout() {
+        Qt.callLater(function() {
+            if (_mainView.width > 0 && _mainView.height > 0) {
+                _mainView.forceLayout()
+            }
+        })
+    }
+
     onSelectedRowIdsChanged: root._rebuildSelectedLookup()
     Component.onCompleted: root._rebuildSelectedLookup()
 
@@ -142,7 +150,7 @@ Item {
     }
 
     // Notify the header's columnWidthProvider when visible-column set changes.
-    on_VisColsChanged: Qt.callLater(function() { _mainView.forceLayout() })
+    on_VisColsChanged: root._scheduleMainViewLayout()
 
     Item {
         id: _columnCustomizerAnchor
@@ -467,7 +475,7 @@ Item {
             return c ? root._colWidth(c) : 0
         }
 
-        onWidthChanged:  forceLayout()
+        onWidthChanged:  root._scheduleMainViewLayout()
 
         ScrollBar.vertical:   ScrollBar { policy: ScrollBar.AsNeeded }
         ScrollBar.horizontal: _hScrollBar

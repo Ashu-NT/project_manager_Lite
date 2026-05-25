@@ -289,16 +289,20 @@ AppLayouts.WorkspaceFrame {
     onCalendarModelChanged: root._syncCalendarDraft()
     Component.onCompleted: root._syncCalendarDraft()
 
-    SchedulingDialogHost {
-        id: dialogHost
-        selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
-        selectedActivityData: root.selectedActivityModel
-        dependencyTypeOptions: root.workspaceController ? (root.workspaceController.dependencyTypeOptions || []) : []
-        dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
+    AppWidgets.LazyObjectLoader {
+        id: dialogHostLoader
+        sourceComponent: Component {
+            SchedulingDialogHost {
+                selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
+                selectedActivityData: root.selectedActivityModel
+                dependencyTypeOptions: root.workspaceController ? (root.workspaceController.dependencyTypeOptions || []) : []
+                dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
 
-        onCreateBaselineRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createBaseline(payload)
+                onCreateBaselineRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.createBaseline(payload)
+                    }
+                }
             }
         }
     }
@@ -922,7 +926,7 @@ AppLayouts.WorkspaceFrame {
                                             return
                                         }
                                         if (actionId === "save") {
-                                            dialogHost.openCreateBaselineDialog()
+                                            dialogHostLoader.invoke("openCreateBaselineDialog")
                                         } else if (actionId === "compare") {
                                             root.workspaceController.refresh()
                                         } else if (actionId === "archive" && root.selectedBaselineRegisterId.length > 0) {

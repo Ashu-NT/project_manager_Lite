@@ -120,22 +120,25 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    ProjectsDialogHost {
-        id: dialogHost
+    AppWidgets.LazyObjectLoader {
+        id: dialogHostLoader
+        sourceComponent: Component {
+            ProjectsDialogHost {
+                statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
 
-        statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-
-        onCreateRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.createProject(payload)
-        }
-        onUpdateRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.updateProject(payload)
-        }
-        onStatusChangeRequested: function(projectId, statusValue) {
-            if (root.workspaceController !== null) root.workspaceController.setProjectStatus(projectId, statusValue)
-        }
-        onDeleteRequested: function(projectId) {
-            if (root.workspaceController !== null) root.workspaceController.deleteProject(projectId)
+                onCreateRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.createProject(payload)
+                }
+                onUpdateRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.updateProject(payload)
+                }
+                onStatusChangeRequested: function(projectId, statusValue) {
+                    if (root.workspaceController !== null) root.workspaceController.setProjectStatus(projectId, statusValue)
+                }
+                onDeleteRequested: function(projectId) {
+                    if (root.workspaceController !== null) root.workspaceController.deleteProject(projectId)
+                }
+            }
         }
     }
 
@@ -215,7 +218,7 @@ AppLayouts.WorkspaceFrame {
                     onExportRequested: {
                         if (root.workspaceController !== null) root.workspaceController.exportProjects()
                     }
-                    onCreateRequested: dialogHost.openCreateDialog()
+                    onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
                 }
 
                 Item {
@@ -489,11 +492,11 @@ AppLayouts.WorkspaceFrame {
                     }
                     onActionTriggered: function(actionId) {
                         if (actionId === "edit") {
-                            dialogHost.openEditDialog(root.selectedProjectModel)
+                            dialogHostLoader.invoke("openEditDialog", root.selectedProjectModel)
                         } else if (actionId === "status") {
-                            dialogHost.openStatusDialog(root.selectedProjectModel)
+                            dialogHostLoader.invoke("openStatusDialog", root.selectedProjectModel)
                         } else if (actionId === "delete") {
-                            dialogHost.openDeleteDialog(root.selectedProjectModel)
+                            dialogHostLoader.invoke("openDeleteDialog", root.selectedProjectModel)
                         }
                     }
                 }
@@ -503,9 +506,9 @@ AppLayouts.WorkspaceFrame {
                     detailPage: detailPageLoader.item
                     projectDetail: root.selectedProjectModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                    onEditRequested: dialogHost.openEditDialog(root.selectedProjectModel)
-                    onStatusRequested: dialogHost.openStatusDialog(root.selectedProjectModel)
-                    onDeleteRequested: dialogHost.openDeleteDialog(root.selectedProjectModel)
+                    onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedProjectModel)
+                    onStatusRequested: dialogHostLoader.invoke("openStatusDialog", root.selectedProjectModel)
+                    onDeleteRequested: dialogHostLoader.invoke("openDeleteDialog", root.selectedProjectModel)
                 }
             }
         }

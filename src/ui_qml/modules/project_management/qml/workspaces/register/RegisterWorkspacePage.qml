@@ -107,25 +107,28 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    ProjectManagementWidgets.RegisterDialogHost {
-        id: dialogHost
+    AppWidgets.LazyObjectLoader {
+        id: dialogHostLoader
+        sourceComponent: Component {
+            ProjectManagementWidgets.RegisterDialogHost {
+                projectOptions: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+                typeOptions: root.workspaceController ? (root.workspaceController.typeOptions || []) : []
+                statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                severityOptions: root.workspaceController ? (root.workspaceController.severityOptions || []) : []
+                typeFieldVisible: true
+                fixedTypeValue: "RISK"
+                entryLabel: "Register Entry"
 
-        projectOptions: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-        typeOptions: root.workspaceController ? (root.workspaceController.typeOptions || []) : []
-        statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-        severityOptions: root.workspaceController ? (root.workspaceController.severityOptions || []) : []
-        typeFieldVisible: true
-        fixedTypeValue: "RISK"
-        entryLabel: "Register Entry"
-
-        onCreateRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.createEntry(payload)
-        }
-        onUpdateRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.updateEntry(payload)
-        }
-        onDeleteRequested: function(entryId) {
-            if (root.workspaceController !== null) root.workspaceController.deleteEntry(entryId)
+                onCreateRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.createEntry(payload)
+                }
+                onUpdateRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.updateEntry(payload)
+                }
+                onDeleteRequested: function(entryId) {
+                    if (root.workspaceController !== null) root.workspaceController.deleteEntry(entryId)
+                }
+            }
         }
     }
 
@@ -204,7 +207,7 @@ AppLayouts.WorkspaceFrame {
                         if (root.workspaceController !== null) root.workspaceController.refresh()
                     }
                     onExportRequested: {}
-                    onCreateRequested: dialogHost.openCreateDialog()
+                    onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
                 }
 
                 Item {
@@ -530,9 +533,9 @@ AppLayouts.WorkspaceFrame {
                     onBackRequested: root._detailOpen = false
                     onActionTriggered: function(actionId) {
                         if (actionId === "edit") {
-                            dialogHost.openEditDialog(root.selectedEntryModel)
+                            dialogHostLoader.invoke("openEditDialog", root.selectedEntryModel)
                         } else if (actionId === "delete") {
-                            dialogHost.openDeleteDialog(root.selectedEntryModel)
+                            dialogHostLoader.invoke("openDeleteDialog", root.selectedEntryModel)
                         }
                     }
                 }
@@ -544,8 +547,8 @@ AppLayouts.WorkspaceFrame {
                     urgentModel: root.urgentModel
                     selectedEntryId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                    onEditRequested: dialogHost.openEditDialog(root.selectedEntryModel)
-                    onDeleteRequested: dialogHost.openDeleteDialog(root.selectedEntryModel)
+                    onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedEntryModel)
+                    onDeleteRequested: dialogHostLoader.invoke("openDeleteDialog", root.selectedEntryModel)
                     onUrgentEntrySelected: function(entryId) {
                         if (root.workspaceController !== null) root.workspaceController.selectEntry(entryId)
                     }

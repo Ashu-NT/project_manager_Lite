@@ -121,32 +121,32 @@ AppLayouts.WorkspaceFrame {
 
     function openOrganizationEdit(itemId) {
         const item = root.catalogItemById(root.organizationCatalog, itemId)
-        if (item !== null) dialogHost.openOrganizationEdit(item.state || {})
+        if (item !== null) dialogHostLoader.invoke("openOrganizationEdit", item.state || {})
     }
 
     function openSiteEdit(itemId) {
         const item = root.catalogItemById(root.siteCatalog, itemId)
-        if (item !== null) dialogHost.openSiteEdit(item.state || {})
+        if (item !== null) dialogHostLoader.invoke("openSiteEdit", item.state || {})
     }
 
     function openDepartmentEdit(itemId) {
         const item = root.catalogItemById(root.departmentCatalog, itemId)
-        if (item !== null) dialogHost.openDepartmentEdit(item.state || {})
+        if (item !== null) dialogHostLoader.invoke("openDepartmentEdit", item.state || {})
     }
 
     function openEmployeeEdit(itemId) {
         const item = root.catalogItemById(root.employeeCatalog, itemId)
-        if (item !== null) dialogHost.openEmployeeEdit(item.state || {})
+        if (item !== null) dialogHostLoader.invoke("openEmployeeEdit", item.state || {})
     }
 
     function openUserEdit(itemId) {
         const item = root.catalogItemById(root.userCatalog, itemId)
-        if (item !== null) dialogHost.openUserEdit(item.state || {})
+        if (item !== null) dialogHostLoader.invoke("openUserEdit", item.state || {})
     }
 
     function openPartyEdit(itemId) {
         const item = root.catalogItemById(root.partyCatalog, itemId)
-        if (item !== null) dialogHost.openPartyEdit(item.state || {})
+        if (item !== null) dialogHostLoader.invoke("openPartyEdit", item.state || {})
     }
 
     function inspectDocument(itemId) {
@@ -157,18 +157,18 @@ AppLayouts.WorkspaceFrame {
         const item = root.catalogItemById(root.documentCatalog, itemId)
         if (item !== null) {
             root.inspectDocument(itemId)
-            dialogHost.openDocumentEdit(item.state || {})
+            dialogHostLoader.invoke("openDocumentEdit", item.state || {})
         }
     }
 
     function openDocumentLinkCreate() {
         if (root.selectedDocument.hasSelection)
-            dialogHost.openDocumentLinkCreate(root.selectedDocument.documentId || "")
+            dialogHostLoader.invoke("openDocumentLinkCreate", root.selectedDocument.documentId || "")
     }
 
     function openDocumentStructureEdit(itemId) {
         const item = root.catalogItemById(root.documentStructureCatalog, itemId)
-        if (item !== null) dialogHost.openDocumentStructureEdit(item.state || {})
+        if (item !== null) dialogHostLoader.invoke("openDocumentStructureEdit", item.state || {})
     }
 
     title: root.workspaceController
@@ -212,7 +212,7 @@ AppLayouts.WorkspaceFrame {
                 feedbackMessage: root._ok
                 selectedRowId:   root._selectedRowId
 
-                onCreateRequested:  dialogHost.openOrganizationCreate()
+                onCreateRequested:  dialogHostLoader.invoke("openOrganizationCreate")
                 onRowSelected:      function(id) { root._selectedRowId = id }
                 onRowActivated:     function(id) { root.openOrganizationEdit(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
@@ -232,7 +232,7 @@ AppLayouts.WorkspaceFrame {
                 feedbackMessage: root._ok
                 selectedRowId:   root._selectedRowId
 
-                onCreateRequested:  dialogHost.openSiteCreate()
+                onCreateRequested:  dialogHostLoader.invoke("openSiteCreate")
                 onRowSelected:      function(id) { root._selectedRowId = id }
                 onRowActivated:     function(id) { root.openSiteEdit(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
@@ -252,7 +252,7 @@ AppLayouts.WorkspaceFrame {
                 feedbackMessage: root._ok
                 selectedRowId:   root._selectedRowId
 
-                onCreateRequested:  dialogHost.openDepartmentCreate()
+                onCreateRequested:  dialogHostLoader.invoke("openDepartmentCreate")
                 onRowSelected:      function(id) { root._selectedRowId = id }
                 onRowActivated:     function(id) { root.openDepartmentEdit(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
@@ -272,7 +272,7 @@ AppLayouts.WorkspaceFrame {
                 feedbackMessage: root._ok
                 selectedRowId:   root._selectedRowId
 
-                onCreateRequested:  dialogHost.openEmployeeCreate()
+                onCreateRequested:  dialogHostLoader.invoke("openEmployeeCreate")
                 onRowSelected:      function(id) { root._selectedRowId = id }
                 onRowActivated:     function(id) { root.openEmployeeEdit(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
@@ -292,7 +292,7 @@ AppLayouts.WorkspaceFrame {
                 feedbackMessage: root._ok
                 selectedRowId:   root._selectedRowId
 
-                onCreateRequested:  dialogHost.openUserCreate()
+                onCreateRequested:  dialogHostLoader.invoke("openUserCreate")
                 onRowSelected:      function(id) { root._selectedRowId = id }
                 onRowActivated:     function(id) { root.openUserEdit(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
@@ -312,7 +312,7 @@ AppLayouts.WorkspaceFrame {
                 feedbackMessage: root._ok
                 selectedRowId:   root._selectedRowId
 
-                onCreateRequested:  dialogHost.openPartyCreate()
+                onCreateRequested:  dialogHostLoader.invoke("openPartyCreate")
                 onRowSelected:      function(id) { root._selectedRowId = id }
                 onRowActivated:     function(id) { root.openPartyEdit(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
@@ -332,7 +332,7 @@ AppLayouts.WorkspaceFrame {
                 feedbackMessage: root._ok
                 selectedRowId:   root._selectedRowId
 
-                onCreateRequested:  dialogHost.openDocumentCreate()
+                onCreateRequested:  dialogHostLoader.invoke("openDocumentCreate")
                 onRowSelected:      function(id) {
                     root._selectedRowId = id
                     root.inspectDocument(id)
@@ -355,7 +355,7 @@ AppLayouts.WorkspaceFrame {
                 feedbackMessage: root._ok
                 selectedRowId:   root._selectedRowId
 
-                onCreateRequested:  dialogHost.openDocumentStructureCreate()
+                onCreateRequested:  dialogHostLoader.invoke("openDocumentStructureCreate")
                 onRowSelected:      function(id) { root._selectedRowId = id }
                 onRowActivated:     function(id) { root.openDocumentStructureEdit(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
@@ -795,8 +795,12 @@ AppLayouts.WorkspaceFrame {
     }
 
     // ── Dialog host ───────────────────────────────────────────────
-    AdminDialogHost {
-        id: dialogHost
-        workspaceController: root.workspaceController
+    AppWidgets.LazyObjectLoader {
+        id: dialogHostLoader
+        sourceComponent: Component {
+            AdminDialogHost {
+                workspaceController: root.workspaceController
+            }
+        }
     }
 }

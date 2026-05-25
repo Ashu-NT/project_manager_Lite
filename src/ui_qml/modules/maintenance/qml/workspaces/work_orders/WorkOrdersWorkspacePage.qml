@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -65,8 +66,10 @@ AppLayouts.WorkspaceFrame {
         { "key": "plannedStart",       "label": "Planned",  "flex": 0,   "minWidth": 100   }
     ]
 
-    WorkOrdersDialogHost {
-        id: dialogHost
+    AppWidgets.LazyObjectLoader {
+        id: dialogHostLoader
+        sourceComponent: Component {
+            WorkOrdersDialogHost {
 
         siteOptions: root.workspaceController ? (root.workspaceController.formSiteOptions || []) : []
         locationOptions: root.workspaceController ? (root.workspaceController.formLocationOptions || []) : []
@@ -80,15 +83,17 @@ AppLayouts.WorkspaceFrame {
         statusOptions: root.workspaceController ? (root.workspaceController.formStatusOptions || []) : []
         vendorOptions: root.workspaceController ? (root.workspaceController.formVendorOptions || []) : []
 
-        onCreateRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.createWorkOrder(payload)
-        }
-        onUpdateRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.updateWorkOrder(payload)
-        }
-        onStatusChangeRequested: function(workOrderId, statusValue, expectedVersion) {
-            if (root.workspaceController !== null)
-                root.workspaceController.setWorkOrderStatus(workOrderId, statusValue, expectedVersion)
+                onCreateRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.createWorkOrder(payload)
+                }
+                onUpdateRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.updateWorkOrder(payload)
+                }
+                onStatusChangeRequested: function(workOrderId, statusValue, expectedVersion) {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.setWorkOrderStatus(workOrderId, statusValue, expectedVersion)
+                }
+            }
         }
     }
 
@@ -135,7 +140,7 @@ AppLayouts.WorkspaceFrame {
             onRefreshRequested: {
                 if (root.workspaceController !== null) root.workspaceController.refresh()
             }
-            onCreateRequested: dialogHost.openCreateDialog()
+            onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
         }
 
         // ── Full-width table with full-page detail view ───────────────
@@ -283,7 +288,7 @@ AppLayouts.WorkspaceFrame {
                 sections: ["Overview", "Details", "Actions"]
 
                 onBackRequested: detailPage.open = false
-                onEditRequested: dialogHost.openEditDialog(root.selectedWorkOrderModel)
+                onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedWorkOrderModel)
                 onDeleteRequested: detailPage.open = false
 
                 WorkOrderDetailSection {
@@ -291,8 +296,8 @@ AppLayouts.WorkspaceFrame {
                     detailPage: detailPage
                     workOrderDetail: root.selectedWorkOrderModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                    onEditRequested: dialogHost.openEditDialog(root.selectedWorkOrderModel)
-                    onStatusRequested: dialogHost.openStatusDialog(root.selectedWorkOrderModel)
+                    onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedWorkOrderModel)
+                    onStatusRequested: dialogHostLoader.invoke("openStatusDialog", root.selectedWorkOrderModel)
                 }
             }
         }

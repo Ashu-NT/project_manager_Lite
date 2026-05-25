@@ -1,19 +1,15 @@
 import QtQuick
 import QtQuick.Controls
-import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
-import Maintenance.Controllers 1.0 as MaintenanceControllers
-import Platform.Controllers 1.0 as PlatformControllers
-import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import Shell.Context 1.0 as ShellContexts
 import App.Theme 1.0 as Theme
 
 ApplicationWindow {
     id: app
     property ShellContexts.ShellContext shellModel
-    property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
-    property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
-    property InventoryProcurementControllers.InventoryProcurementWorkspaceCatalog inventoryCatalog
-    property MaintenanceControllers.MaintenanceWorkspaceCatalog maintenanceCatalog
+    property var platformCatalog
+    property var pmCatalog
+    property var inventoryCatalog
+    property var maintenanceCatalog
 
     width: 1280
     height: 800

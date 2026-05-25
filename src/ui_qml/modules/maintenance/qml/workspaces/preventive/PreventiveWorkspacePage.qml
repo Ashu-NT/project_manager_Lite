@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -37,59 +38,63 @@ AppLayouts.WorkspaceFrame {
         return recordData && recordData.state ? recordData.state : (recordData || {})
     }
 
-    PreventiveDialogHost {
-        id: dialogHost
+    AppWidgets.LazyObjectLoader {
+        id: dialogHostLoader
+        sourceComponent: Component {
+            PreventiveDialogHost {
 
         planFormOptions: root.workspaceController ? (root.workspaceController.planFormOptions || {}) : ({})
         planTaskFormOptions: root.workspaceController ? (root.workspaceController.planTaskFormOptions || {}) : ({})
         templateFormOptions: root.workspaceController ? (root.workspaceController.templateFormOptions || {}) : ({})
         stepFormOptions: root.workspaceController ? (root.workspaceController.stepFormOptions || {}) : ({})
 
-        onCreatePlanRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createPlan(payload)
-            }
-        }
+                onCreatePlanRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.createPlan(payload)
+                    }
+                }
 
-        onUpdatePlanRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updatePlan(payload)
-            }
-        }
+                onUpdatePlanRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.updatePlan(payload)
+                    }
+                }
 
-        onCreatePlanTaskRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createPlanTask(payload)
-            }
-        }
+                onCreatePlanTaskRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.createPlanTask(payload)
+                    }
+                }
 
-        onUpdatePlanTaskRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updatePlanTask(payload)
-            }
-        }
+                onUpdatePlanTaskRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.updatePlanTask(payload)
+                    }
+                }
 
-        onCreateTaskTemplateRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createTaskTemplate(payload)
-            }
-        }
+                onCreateTaskTemplateRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.createTaskTemplate(payload)
+                    }
+                }
 
-        onUpdateTaskTemplateRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateTaskTemplate(payload)
-            }
-        }
+                onUpdateTaskTemplateRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.updateTaskTemplate(payload)
+                    }
+                }
 
-        onCreateTaskStepRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createTaskStep(payload)
-            }
-        }
+                onCreateTaskStepRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.createTaskStep(payload)
+                    }
+                }
 
-        onUpdateTaskStepRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateTaskStep(payload)
+                onUpdateTaskStepRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.updateTaskStep(payload)
+                    }
+                }
             }
         }
     }
@@ -248,7 +253,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    onCreatePlanRequested: dialogHost.openCreatePlanDialog()
+                    onCreatePlanRequested: dialogHostLoader.invoke("openCreatePlanDialog")
 
                     onPlanSelected: function(planId) {
                         if (root.workspaceController !== null) {
@@ -257,7 +262,7 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     onEditPlanRequested: function(planData) {
-                        dialogHost.openEditPlanDialog(planData)
+                        dialogHostLoader.invoke("openEditPlanDialog", planData)
                     }
 
                     onTogglePlanRequested: function(planData) {
@@ -272,7 +277,7 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     onCreatePlanTaskRequested: function(planId) {
-                        dialogHost.openCreatePlanTaskDialog(planId)
+                        dialogHostLoader.invoke("openCreatePlanTaskDialog", planId)
                     }
 
                     onPlanTaskSelected: function(planTaskId) {
@@ -282,7 +287,7 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     onEditPlanTaskRequested: function(planTaskData) {
-                        dialogHost.openEditPlanTaskDialog(planTaskData)
+                        dialogHostLoader.invoke("openEditPlanTaskDialog", planTaskData)
                     }
                 }
 
@@ -320,7 +325,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    onCreateTaskTemplateRequested: dialogHost.openCreateTaskTemplateDialog()
+                    onCreateTaskTemplateRequested: dialogHostLoader.invoke("openCreateTaskTemplateDialog")
 
                     onTaskTemplateSelected: function(taskTemplateId) {
                         if (root.workspaceController !== null) {
@@ -329,7 +334,7 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     onEditTaskTemplateRequested: function(taskTemplateData) {
-                        dialogHost.openEditTaskTemplateDialog(taskTemplateData)
+                        dialogHostLoader.invoke("openEditTaskTemplateDialog", taskTemplateData)
                     }
 
                     onToggleTaskTemplateRequested: function(taskTemplateData) {
@@ -344,7 +349,7 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     onCreateTaskStepRequested: function(taskTemplateId) {
-                        dialogHost.openCreateTaskStepDialog(taskTemplateId)
+                        dialogHostLoader.invoke("openCreateTaskStepDialog", taskTemplateId)
                     }
 
                     onTaskStepSelected: function(taskStepTemplateId) {
@@ -354,7 +359,7 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     onEditTaskStepRequested: function(taskStepData) {
-                        dialogHost.openEditTaskStepDialog(taskStepData)
+                        dialogHostLoader.invoke("openEditTaskStepDialog", taskStepData)
                     }
 
                     onToggleTaskStepRequested: function(taskStepData) {

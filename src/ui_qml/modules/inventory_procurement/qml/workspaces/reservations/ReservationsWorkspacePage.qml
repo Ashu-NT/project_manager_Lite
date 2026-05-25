@@ -1,6 +1,8 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
+import App.Widgets 1.0 as AppWidgets
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
 import InventoryProcurement.Widgets 1.0 as InventoryWidgets
 
@@ -51,33 +53,36 @@ AppLayouts.WorkspaceFrame {
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
-    ReservationsDialogHost {
-        id: dialogHost
+    AppWidgets.LazyObjectLoader {
+        id: dialogHostLoader
+        sourceComponent: Component {
+            ReservationsDialogHost {
+                itemOptions: root.workspaceController ? (root.workspaceController.itemOptions || []) : []
+                storeroomOptions: root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
 
-        itemOptions: root.workspaceController ? (root.workspaceController.itemOptions || []) : []
-        storeroomOptions: root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
+                onCreateReservationRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.createReservation(payload)
+                    }
+                }
 
-        onCreateReservationRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createReservation(payload)
-            }
-        }
+                onIssueReservationRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.issueReservation(payload)
+                    }
+                }
 
-        onIssueReservationRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.issueReservation(payload)
-            }
-        }
+                onReleaseReservationRequested: function(reservationId) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.releaseReservation(reservationId)
+                    }
+                }
 
-        onReleaseReservationRequested: function(reservationId) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.releaseReservation(reservationId)
-            }
-        }
-
-        onCancelReservationRequested: function(reservationId) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.cancelReservation(reservationId)
+                onCancelReservationRequested: function(reservationId) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.cancelReservation(reservationId)
+                    }
+                }
             }
         }
     }
@@ -158,7 +163,8 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                onCreateReservationRequested: dialogHost.openCreateReservationDialog(
+                onCreateReservationRequested: dialogHostLoader.invoke(
+                    "openCreateReservationDialog",
                     root.workspaceController ? root.workspaceController.selectedItemFilter : "all",
                     root.workspaceController ? root.workspaceController.selectedStoreroomFilter : "all"
                 )
@@ -187,21 +193,21 @@ AppLayouts.WorkspaceFrame {
                         if (reservationData && reservationData.id && root.workspaceController !== null) {
                             root.workspaceController.selectReservation(reservationData.id)
                         }
-                        dialogHost.openIssueReservationDialog(reservationData)
+                        dialogHostLoader.invoke("openIssueReservationDialog", reservationData)
                     }
 
                     onReleaseRequested: function(reservationData) {
                         if (reservationData && reservationData.id && root.workspaceController !== null) {
                             root.workspaceController.selectReservation(reservationData.id)
                         }
-                        dialogHost.openReleaseConfirmation(reservationData)
+                        dialogHostLoader.invoke("openReleaseConfirmation", reservationData)
                     }
 
                     onCancelRequested: function(reservationData) {
                         if (reservationData && reservationData.id && root.workspaceController !== null) {
                             root.workspaceController.selectReservation(reservationData.id)
                         }
-                        dialogHost.openCancelConfirmation(reservationData)
+                        dialogHostLoader.invoke("openCancelConfirmation", reservationData)
                     }
                 }
 
@@ -211,12 +217,11 @@ AppLayouts.WorkspaceFrame {
                     reservationDetail: root.selectedReservationModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
-                    onIssueRequested: dialogHost.openIssueReservationDialog(root.selectedReservationModel)
-                    onReleaseRequested: dialogHost.openReleaseConfirmation(root.selectedReservationModel)
-                    onCancelRequested: dialogHost.openCancelConfirmation(root.selectedReservationModel)
+                    onIssueRequested: dialogHostLoader.invoke("openIssueReservationDialog", root.selectedReservationModel)
+                    onReleaseRequested: dialogHostLoader.invoke("openReleaseConfirmation", root.selectedReservationModel)
+                    onCancelRequested: dialogHostLoader.invoke("openCancelConfirmation", root.selectedReservationModel)
                 }
             }
         }
     }
 }
-

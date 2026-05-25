@@ -1,9 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
-import Maintenance.Controllers 1.0 as MaintenanceControllers
-import Platform.Controllers 1.0 as PlatformControllers
-import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import Shell.Context 1.0 as ShellContexts
 import App.Theme 1.0 as Theme
 
@@ -11,10 +7,13 @@ Item {
     id: root
 
     property ShellContexts.ShellContext shellModel
-    property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
-    property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
-    property InventoryProcurementControllers.InventoryProcurementWorkspaceCatalog inventoryCatalog
-    property MaintenanceControllers.MaintenanceWorkspaceCatalog maintenanceCatalog
+    property var platformCatalog
+    property var pmCatalog
+    property var inventoryCatalog
+    property var maintenanceCatalog
+    readonly property string _currentRouteSource: root.shellModel
+        ? String(root.shellModel.currentRouteSource || "")
+        : ""
 
     Rectangle {
         anchors.fill: parent
@@ -58,7 +57,9 @@ Item {
                 Loader {
                     id: workspaceLoader
                     anchors.fill: parent
-                    source: root.shellModel ? root.shellModel.currentRouteSource : ""
+                    active: root._currentRouteSource.length > 0
+                    asynchronous: true
+                    source: root._currentRouteSource
 
                     onLoaded: {
                         if (item === null) {

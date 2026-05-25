@@ -1,6 +1,8 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
+import App.Widgets 1.0 as AppWidgets
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
 import InventoryProcurement.Widgets 1.0 as InventoryWidgets
 
@@ -79,54 +81,57 @@ AppLayouts.WorkspaceFrame {
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
-    InventoryDialogHost {
-        id: dialogHost
+    AppWidgets.LazyObjectLoader {
+        id: dialogHostLoader
+        sourceComponent: Component {
+            InventoryDialogHost {
+                siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
+                storeroomStatusOptions: root.workspaceController ? (root.workspaceController.storeroomStatusOptions || []) : []
+                managerPartyOptions: root.workspaceController ? (root.workspaceController.managerPartyOptions || []) : []
+                itemOptions: root.workspaceController ? (root.workspaceController.itemOptions || []) : []
+                storeroomOptions: root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
 
-        siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
-        storeroomStatusOptions: root.workspaceController ? (root.workspaceController.storeroomStatusOptions || []) : []
-        managerPartyOptions: root.workspaceController ? (root.workspaceController.managerPartyOptions || []) : []
-        itemOptions: root.workspaceController ? (root.workspaceController.itemOptions || []) : []
-        storeroomOptions: root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
+                onCreateStoreroomRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.createStoreroom(payload)
+                    }
+                }
 
-        onCreateStoreroomRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createStoreroom(payload)
-            }
-        }
+                onUpdateStoreroomRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.updateStoreroom(payload)
+                    }
+                }
 
-        onUpdateStoreroomRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateStoreroom(payload)
-            }
-        }
+                onPostOpeningBalanceRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.postOpeningBalance(payload)
+                    }
+                }
 
-        onPostOpeningBalanceRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.postOpeningBalance(payload)
-            }
-        }
+                onPostAdjustmentRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.postAdjustment(payload)
+                    }
+                }
 
-        onPostAdjustmentRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.postAdjustment(payload)
-            }
-        }
+                onIssueStockRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.issueStock(payload)
+                    }
+                }
 
-        onIssueStockRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.issueStock(payload)
-            }
-        }
+                onReturnStockRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.returnStock(payload)
+                    }
+                }
 
-        onReturnStockRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.returnStock(payload)
-            }
-        }
-
-        onTransferStockRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.transferStock(payload)
+                onTransferStockRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.transferStock(payload)
+                    }
+                }
             }
         }
     }
@@ -223,9 +228,10 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                onCreateStoreroomRequested: dialogHost.openCreateStoreroomDialog()
+                onCreateStoreroomRequested: dialogHostLoader.invoke("openCreateStoreroomDialog")
 
-                onOpenOpeningBalanceRequested: dialogHost.openOpeningBalanceDialog(
+                onOpenOpeningBalanceRequested: dialogHostLoader.invoke(
+                    "openOpeningBalanceDialog",
                     root.selectedBalanceModel,
                     root.selectedStoreroomModel,
                     root.workspaceController ? root.workspaceController.selectedItemFilter : "all"
@@ -255,7 +261,7 @@ AppLayouts.WorkspaceFrame {
                         if (storeroomData && storeroomData.id && root.workspaceController !== null) {
                             root.workspaceController.selectStoreroom(storeroomData.id)
                         }
-                        dialogHost.openEditStoreroomDialog(storeroomData)
+                        dialogHostLoader.invoke("openEditStoreroomDialog", storeroomData)
                     }
 
                     onToggleRequested: function(storeroomData) {
@@ -275,7 +281,7 @@ AppLayouts.WorkspaceFrame {
                     storeroomDetail: root.selectedStoreroomModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
-                    onEditRequested: dialogHost.openEditStoreroomDialog(root.selectedStoreroomModel)
+                    onEditRequested: dialogHostLoader.invoke("openEditStoreroomDialog", root.selectedStoreroomModel)
 
                     onToggleRequested: {
                         var state = root.selectedStoreroomModel && root.selectedStoreroomModel.state
@@ -289,7 +295,8 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    onOpeningBalanceRequested: dialogHost.openOpeningBalanceDialog(
+                    onOpeningBalanceRequested: dialogHostLoader.invoke(
+                        "openOpeningBalanceDialog",
                         root.selectedBalanceModel,
                         root.selectedStoreroomModel,
                         root.workspaceController ? root.workspaceController.selectedItemFilter : "all"
@@ -320,21 +327,21 @@ AppLayouts.WorkspaceFrame {
                         if (balanceData && balanceData.id && root.workspaceController !== null) {
                             root.workspaceController.selectBalance(balanceData.id)
                         }
-                        dialogHost.openIssueDialog(balanceData)
+                        dialogHostLoader.invoke("openIssueDialog", balanceData)
                     }
 
                     onAdjustmentRequested: function(balanceData) {
                         if (balanceData && balanceData.id && root.workspaceController !== null) {
                             root.workspaceController.selectBalance(balanceData.id)
                         }
-                        dialogHost.openAdjustmentDialog(balanceData)
+                        dialogHostLoader.invoke("openAdjustmentDialog", balanceData)
                     }
 
                     onTransferRequested: function(balanceData) {
                         if (balanceData && balanceData.id && root.workspaceController !== null) {
                             root.workspaceController.selectBalance(balanceData.id)
                         }
-                        dialogHost.openTransferDialog(balanceData)
+                        dialogHostLoader.invoke("openTransferDialog", balanceData)
                     }
                 }
 
@@ -344,10 +351,10 @@ AppLayouts.WorkspaceFrame {
                     balanceDetail: root.selectedBalanceModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
-                    onAdjustmentRequested: dialogHost.openAdjustmentDialog(root.selectedBalanceModel)
-                    onIssueRequested: dialogHost.openIssueDialog(root.selectedBalanceModel)
-                    onReturnRequested: dialogHost.openReturnDialog(root.selectedBalanceModel)
-                    onTransferRequested: dialogHost.openTransferDialog(root.selectedBalanceModel)
+                    onAdjustmentRequested: dialogHostLoader.invoke("openAdjustmentDialog", root.selectedBalanceModel)
+                    onIssueRequested: dialogHostLoader.invoke("openIssueDialog", root.selectedBalanceModel)
+                    onReturnRequested: dialogHostLoader.invoke("openReturnDialog", root.selectedBalanceModel)
+                    onTransferRequested: dialogHostLoader.invoke("openTransferDialog", root.selectedBalanceModel)
                 }
             }
 
@@ -358,4 +365,3 @@ AppLayouts.WorkspaceFrame {
         }
     }
 }
-

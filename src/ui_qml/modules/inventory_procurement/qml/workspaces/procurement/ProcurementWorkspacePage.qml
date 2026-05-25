@@ -1,6 +1,8 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
+import App.Widgets 1.0 as AppWidgets
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
 import InventoryProcurement.Widgets 1.0 as InventoryWidgets
 
@@ -95,55 +97,58 @@ AppLayouts.WorkspaceFrame {
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
-    ProcurementDialogHost {
-        id: dialogHost
+    AppWidgets.LazyObjectLoader {
+        id: dialogHostLoader
+        sourceComponent: Component {
+            ProcurementDialogHost {
+                siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
+                storeroomOptions: root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
+                supplierOptions: root.workspaceController ? (root.workspaceController.supplierOptions || []) : []
+                itemOptions: root.workspaceController ? (root.workspaceController.itemOptions || []) : []
+                requisitionOptions: root.workspaceController ? (root.workspaceController.requisitionOptions || []) : []
+                requisitionLineOptions: root.workspaceController ? (root.workspaceController.requisitionLineOptions || []) : []
 
-        siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
-        storeroomOptions: root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
-        supplierOptions: root.workspaceController ? (root.workspaceController.supplierOptions || []) : []
-        itemOptions: root.workspaceController ? (root.workspaceController.itemOptions || []) : []
-        requisitionOptions: root.workspaceController ? (root.workspaceController.requisitionOptions || []) : []
-        requisitionLineOptions: root.workspaceController ? (root.workspaceController.requisitionLineOptions || []) : []
+                onCreateRequisitionRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.createRequisition(payload)
+                    }
+                }
 
-        onCreateRequisitionRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createRequisition(payload)
-            }
-        }
+                onUpdateRequisitionRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.updateRequisition(payload)
+                    }
+                }
 
-        onUpdateRequisitionRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateRequisition(payload)
-            }
-        }
+                onAddRequisitionLineRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.addRequisitionLine(payload)
+                    }
+                }
 
-        onAddRequisitionLineRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.addRequisitionLine(payload)
-            }
-        }
+                onCreatePurchaseOrderRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.createPurchaseOrder(payload)
+                    }
+                }
 
-        onCreatePurchaseOrderRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createPurchaseOrder(payload)
-            }
-        }
+                onUpdatePurchaseOrderRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.updatePurchaseOrder(payload)
+                    }
+                }
 
-        onUpdatePurchaseOrderRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updatePurchaseOrder(payload)
-            }
-        }
+                onAddPurchaseOrderLineRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.addPurchaseOrderLine(payload)
+                    }
+                }
 
-        onAddPurchaseOrderLineRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.addPurchaseOrderLine(payload)
-            }
-        }
-
-        onPostReceiptRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.postReceipt(payload)
+                onPostReceiptRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.postReceipt(payload)
+                    }
+                }
             }
         }
     }
@@ -240,12 +245,14 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                onCreateRequisitionRequested: dialogHost.openCreateRequisitionDialog(
+                onCreateRequisitionRequested: dialogHostLoader.invoke(
+                    "openCreateRequisitionDialog",
                     root.workspaceController ? root.workspaceController.selectedSiteFilter : "all",
                     root.workspaceController ? root.workspaceController.selectedStoreroomFilter : "all"
                 )
 
-                onCreatePurchaseOrderRequested: dialogHost.openCreatePurchaseOrderDialog(
+                onCreatePurchaseOrderRequested: dialogHostLoader.invoke(
+                    "openCreatePurchaseOrderDialog",
                     root.selectedRequisitionModel,
                     root.workspaceController ? root.workspaceController.selectedSiteFilter : "all"
                 )
@@ -276,8 +283,8 @@ AppLayouts.WorkspaceFrame {
                     requisitionDetail: root.selectedRequisitionModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
-                    onEditRequested: dialogHost.openEditRequisitionDialog(root.selectedRequisitionModel)
-                    onAddLineRequested: dialogHost.openRequisitionLineDialog(root.selectedRequisitionModel)
+                    onEditRequested: dialogHostLoader.invoke("openEditRequisitionDialog", root.selectedRequisitionModel)
+                    onAddLineRequested: dialogHostLoader.invoke("openRequisitionLineDialog", root.selectedRequisitionModel)
 
                     onSubmitRequested: {
                         var state = root.selectedRequisitionModel && root.selectedRequisitionModel.state
@@ -329,8 +336,8 @@ AppLayouts.WorkspaceFrame {
                     purchaseOrderDetail: root.selectedPurchaseOrderModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
-                    onEditRequested: dialogHost.openEditPurchaseOrderDialog(root.selectedPurchaseOrderModel)
-                    onAddLineRequested: dialogHost.openPurchaseOrderLineDialog(root.selectedPurchaseOrderModel)
+                    onEditRequested: dialogHostLoader.invoke("openEditPurchaseOrderDialog", root.selectedPurchaseOrderModel)
+                    onAddLineRequested: dialogHostLoader.invoke("openPurchaseOrderLineDialog", root.selectedPurchaseOrderModel)
 
                     onSubmitRequested: {
                         var state = root.selectedPurchaseOrderModel && root.selectedPurchaseOrderModel.state
@@ -368,7 +375,8 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    onPostReceiptRequested: dialogHost.openReceiptPostDialog(
+                    onPostReceiptRequested: dialogHostLoader.invoke(
+                        "openReceiptPostDialog",
                         root.selectedPurchaseOrderModel,
                         root.purchaseOrderLinesModel.items || []
                     )
@@ -396,4 +404,3 @@ AppLayouts.WorkspaceFrame {
         }
     }
 }
-

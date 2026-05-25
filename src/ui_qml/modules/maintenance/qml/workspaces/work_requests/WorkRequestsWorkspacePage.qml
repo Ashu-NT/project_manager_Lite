@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -64,8 +65,10 @@ AppLayouts.WorkspaceFrame {
         { "key": "requestedAt",    "label": "Requested",   "flex": 0,   "minWidth": 100   }
     ]
 
-    WorkRequestsDialogHost {
-        id: dialogHost
+    AppWidgets.LazyObjectLoader {
+        id: dialogHostLoader
+        sourceComponent: Component {
+            WorkRequestsDialogHost {
 
         siteOptions: root.workspaceController ? (root.workspaceController.formSiteOptions || []) : []
         locationOptions: root.workspaceController ? (root.workspaceController.formLocationOptions || []) : []
@@ -76,15 +79,17 @@ AppLayouts.WorkspaceFrame {
         priorityOptions: root.workspaceController ? (root.workspaceController.formPriorityOptions || []) : []
         statusOptions: root.workspaceController ? (root.workspaceController.formStatusOptions || []) : []
 
-        onCreateRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.createWorkRequest(payload)
-        }
-        onUpdateRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.updateWorkRequest(payload)
-        }
-        onStatusChangeRequested: function(workRequestId, statusValue, expectedVersion) {
-            if (root.workspaceController !== null)
-                root.workspaceController.setWorkRequestStatus(workRequestId, statusValue, expectedVersion)
+                onCreateRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.createWorkRequest(payload)
+                }
+                onUpdateRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.updateWorkRequest(payload)
+                }
+                onStatusChangeRequested: function(workRequestId, statusValue, expectedVersion) {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.setWorkRequestStatus(workRequestId, statusValue, expectedVersion)
+                }
+            }
         }
     }
 
@@ -131,7 +136,7 @@ AppLayouts.WorkspaceFrame {
             onRefreshRequested: {
                 if (root.workspaceController !== null) root.workspaceController.refresh()
             }
-            onCreateRequested: dialogHost.openCreateDialog()
+            onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
         }
 
         // ── Full-width table with full-page detail view ───────────────
@@ -260,7 +265,7 @@ AppLayouts.WorkspaceFrame {
                 sections: ["Overview", "Details", "Actions"]
 
                 onBackRequested: detailPage.open = false
-                onEditRequested: dialogHost.openEditDialog(root.selectedWorkRequestModel)
+                onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedWorkRequestModel)
                 onDeleteRequested: detailPage.open = false
 
                 WorkRequestDetailSection {
@@ -268,8 +273,8 @@ AppLayouts.WorkspaceFrame {
                     detailPage: detailPage
                     workRequestDetail: root.selectedWorkRequestModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                    onEditRequested: dialogHost.openEditDialog(root.selectedWorkRequestModel)
-                    onStatusRequested: dialogHost.openStatusDialog(root.selectedWorkRequestModel)
+                    onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedWorkRequestModel)
+                    onStatusRequested: dialogHostLoader.invoke("openStatusDialog", root.selectedWorkRequestModel)
                 }
             }
         }

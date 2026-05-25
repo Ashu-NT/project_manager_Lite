@@ -95,21 +95,24 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    ResourcesDialogHost {
-        id: dialogHost
+    AppWidgets.LazyObjectLoader {
+        id: dialogHostLoader
+        sourceComponent: Component {
+            ResourcesDialogHost {
+                workerTypeOptions: root.workspaceController ? (root.workspaceController.workerTypeOptions || []) : []
+                categoryOptions: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
+                employeeOptions: root.workspaceController ? (root.workspaceController.employeeOptions || []) : []
 
-        workerTypeOptions: root.workspaceController ? (root.workspaceController.workerTypeOptions || []) : []
-        categoryOptions: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
-        employeeOptions: root.workspaceController ? (root.workspaceController.employeeOptions || []) : []
-
-        onCreateRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.createResource(payload)
-        }
-        onUpdateRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.updateResource(payload)
-        }
-        onDeleteRequested: function(resourceId) {
-            if (root.workspaceController !== null) root.workspaceController.deleteResource(resourceId)
+                onCreateRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.createResource(payload)
+                }
+                onUpdateRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.updateResource(payload)
+                }
+                onDeleteRequested: function(resourceId) {
+                    if (root.workspaceController !== null) root.workspaceController.deleteResource(resourceId)
+                }
+            }
         }
     }
 
@@ -189,7 +192,7 @@ AppLayouts.WorkspaceFrame {
                     onExportRequested: {
                         if (root.workspaceController !== null) root.workspaceController.exportResources()
                     }
-                    onCreateRequested: dialogHost.openCreateDialog()
+                    onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
                 }
 
                 Item {
@@ -459,7 +462,7 @@ AppLayouts.WorkspaceFrame {
                     onBackRequested: root._detailOpen = false
                     onActionTriggered: function(actionId) {
                         if (actionId === "edit") {
-                            dialogHost.openEditDialog(root.selectedResourceModel)
+                            dialogHostLoader.invoke("openEditDialog", root.selectedResourceModel)
                         } else if (actionId === "toggle") {
                             const state = root.selectedResourceModel
                                 ? (root.selectedResourceModel.state || {}) : {}
@@ -470,7 +473,7 @@ AppLayouts.WorkspaceFrame {
                                 )
                             }
                         } else if (actionId === "delete") {
-                            dialogHost.openDeleteDialog(root.selectedResourceModel)
+                            dialogHostLoader.invoke("openDeleteDialog", root.selectedResourceModel)
                         }
                     }
                 }
@@ -480,8 +483,8 @@ AppLayouts.WorkspaceFrame {
                     detailPage: detailPageLoader.item
                     resourceDetail: root.selectedResourceModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                    onEditRequested: dialogHost.openEditDialog(root.selectedResourceModel)
-                    onDeleteRequested: dialogHost.openDeleteDialog(root.selectedResourceModel)
+                    onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedResourceModel)
+                    onDeleteRequested: dialogHostLoader.invoke("openDeleteDialog", root.selectedResourceModel)
                 }
             }
         }

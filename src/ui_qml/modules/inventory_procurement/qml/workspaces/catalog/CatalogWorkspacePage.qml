@@ -1,6 +1,8 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
+import App.Widgets 1.0 as AppWidgets
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
 import InventoryProcurement.Widgets 1.0 as InventoryWidgets
 
@@ -73,42 +75,45 @@ AppLayouts.WorkspaceFrame {
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
-    CatalogDialogHost {
-        id: dialogHost
+    AppWidgets.LazyObjectLoader {
+        id: dialogHostLoader
+        sourceComponent: Component {
+            CatalogDialogHost {
+                categoryTypeOptions: root.workspaceController ? (root.workspaceController.categoryTypeOptions || []) : []
+                categoryOptions: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
+                itemStatusOptions: root.workspaceController ? (root.workspaceController.itemStatusOptions || []) : []
+                businessPartyOptions: root.workspaceController ? (root.workspaceController.businessPartyOptions || []) : []
+                availableDocuments: root.workspaceController ? (root.workspaceController.availableDocuments || []) : []
 
-        categoryTypeOptions: root.workspaceController ? (root.workspaceController.categoryTypeOptions || []) : []
-        categoryOptions: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
-        itemStatusOptions: root.workspaceController ? (root.workspaceController.itemStatusOptions || []) : []
-        businessPartyOptions: root.workspaceController ? (root.workspaceController.businessPartyOptions || []) : []
-        availableDocuments: root.workspaceController ? (root.workspaceController.availableDocuments || []) : []
+                onCreateCategoryRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.createCategory(payload)
+                    }
+                }
 
-        onCreateCategoryRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createCategory(payload)
-            }
-        }
+                onUpdateCategoryRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.updateCategory(payload)
+                    }
+                }
 
-        onUpdateCategoryRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateCategory(payload)
-            }
-        }
+                onCreateItemRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.createItem(payload)
+                    }
+                }
 
-        onCreateItemRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createItem(payload)
-            }
-        }
+                onUpdateItemRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.updateItem(payload)
+                    }
+                }
 
-        onUpdateItemRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateItem(payload)
-            }
-        }
-
-        onLinkDocumentRequested: function(itemId, documentId) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.linkDocument(itemId, documentId)
+                onLinkDocumentRequested: function(itemId, documentId) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.linkDocument(itemId, documentId)
+                    }
+                }
             }
         }
     }
@@ -197,8 +202,8 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                onCreateCategoryRequested: dialogHost.openCreateCategoryDialog()
-                onCreateItemRequested: dialogHost.openCreateItemDialog()
+                onCreateCategoryRequested: dialogHostLoader.invoke("openCreateCategoryDialog")
+                onCreateItemRequested: dialogHostLoader.invoke("openCreateItemDialog")
             }
 
             GridLayout {
@@ -224,7 +229,7 @@ AppLayouts.WorkspaceFrame {
                         if (categoryData && categoryData.id && root.workspaceController !== null) {
                             root.workspaceController.selectCategory(categoryData.id)
                         }
-                        dialogHost.openEditCategoryDialog(categoryData)
+                        dialogHostLoader.invoke("openEditCategoryDialog", categoryData)
                     }
 
                     onToggleRequested: function(categoryData) {
@@ -255,7 +260,7 @@ AppLayouts.WorkspaceFrame {
                         if (itemData && itemData.id && root.workspaceController !== null) {
                             root.workspaceController.selectItem(itemData.id)
                         }
-                        dialogHost.openEditItemDialog(itemData)
+                        dialogHostLoader.invoke("openEditItemDialog", itemData)
                     }
 
                     onToggleRequested: function(itemData) {
@@ -275,7 +280,7 @@ AppLayouts.WorkspaceFrame {
                     categoryDetail: root.selectedCategoryModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
-                    onEditRequested: dialogHost.openEditCategoryDialog(root.selectedCategoryModel)
+                    onEditRequested: dialogHostLoader.invoke("openEditCategoryDialog", root.selectedCategoryModel)
 
                     onToggleRequested: {
                         var state = root.selectedCategoryModel && root.selectedCategoryModel.state
@@ -296,7 +301,7 @@ AppLayouts.WorkspaceFrame {
                     itemDetail: root.selectedItemModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
-                    onEditRequested: dialogHost.openEditItemDialog(root.selectedItemModel)
+                    onEditRequested: dialogHostLoader.invoke("openEditItemDialog", root.selectedItemModel)
 
                     onToggleRequested: {
                         var state = root.selectedItemModel && root.selectedItemModel.state
@@ -310,7 +315,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    onLinkDocumentRequested: dialogHost.openLinkDocumentDialog(root.selectedItemModel)
+                    onLinkDocumentRequested: dialogHostLoader.invoke("openLinkDocumentDialog", root.selectedItemModel)
 
                     onUnlinkDocumentRequested: function(documentData) {
                         var state = root.selectedItemModel && root.selectedItemModel.state
@@ -328,4 +333,3 @@ AppLayouts.WorkspaceFrame {
         }
     }
 }
-

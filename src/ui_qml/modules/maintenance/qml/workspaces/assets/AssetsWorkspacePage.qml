@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -154,20 +155,20 @@ AppLayouts.WorkspaceFrame {
 
     function openCreateDialogForCurrentTab() {
         switch (libraryTabs.currentIndex) {
-        case 0: dialogHost.openCreateLocationDialog(); break
-        case 1: dialogHost.openCreateSystemDialog(); break
-        case 2: dialogHost.openCreateAssetDialog(); break
-        default: dialogHost.openCreateComponentDialog(); break
+        case 0: dialogHostLoader.invoke("openCreateLocationDialog"); break
+        case 1: dialogHostLoader.invoke("openCreateSystemDialog"); break
+        case 2: dialogHostLoader.invoke("openCreateAssetDialog"); break
+        default: dialogHostLoader.invoke("openCreateComponentDialog"); break
         }
     }
 
     function _openEditDialogForCurrentTab() {
         const mdl = root._activeDetailModel
         switch (libraryTabs.currentIndex) {
-        case 0: dialogHost.openEditLocationDialog(mdl); break
-        case 1: dialogHost.openEditSystemDialog(mdl); break
-        case 2: dialogHost.openEditAssetDialog(mdl); break
-        default: dialogHost.openEditComponentDialog(mdl); break
+        case 0: dialogHostLoader.invoke("openEditLocationDialog", mdl); break
+        case 1: dialogHostLoader.invoke("openEditSystemDialog", mdl); break
+        case 2: dialogHostLoader.invoke("openEditAssetDialog", mdl); break
+        default: dialogHostLoader.invoke("openEditComponentDialog", mdl); break
         }
     }
 
@@ -208,46 +209,49 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    AssetsDialogHost {
-        id: dialogHost
+    AppWidgets.LazyObjectLoader {
+        id: dialogHostLoader
+        sourceComponent: Component {
+            AssetsDialogHost {
+                siteOptions: root.workspaceController ? (root.workspaceController.formSiteOptions || []) : []
+                locationOptions: root.workspaceController ? (root.workspaceController.formLocationOptions || []) : []
+                parentLocationOptions: root.workspaceController ? (root.workspaceController.formParentLocationOptions || []) : []
+                systemOptions: root.workspaceController ? (root.workspaceController.formSystemOptions || []) : []
+                parentSystemOptions: root.workspaceController ? (root.workspaceController.formParentSystemOptions || []) : []
+                assetOptions: root.workspaceController ? (root.workspaceController.formAssetOptions || []) : []
+                parentAssetOptions: root.workspaceController ? (root.workspaceController.formParentAssetOptions || []) : []
+                componentOptions: root.workspaceController ? (root.workspaceController.formComponentOptions || []) : []
+                parentComponentOptions: root.workspaceController ? (root.workspaceController.formParentComponentOptions || []) : []
+                statusOptions: root.workspaceController ? (root.workspaceController.formStatusOptions || []) : []
+                criticalityOptions: root.workspaceController ? (root.workspaceController.formCriticalityOptions || []) : []
+                manufacturerOptions: root.workspaceController ? (root.workspaceController.formManufacturerOptions || []) : []
+                supplierOptions: root.workspaceController ? (root.workspaceController.formSupplierOptions || []) : []
 
-        siteOptions: root.workspaceController ? (root.workspaceController.formSiteOptions || []) : []
-        locationOptions: root.workspaceController ? (root.workspaceController.formLocationOptions || []) : []
-        parentLocationOptions: root.workspaceController ? (root.workspaceController.formParentLocationOptions || []) : []
-        systemOptions: root.workspaceController ? (root.workspaceController.formSystemOptions || []) : []
-        parentSystemOptions: root.workspaceController ? (root.workspaceController.formParentSystemOptions || []) : []
-        assetOptions: root.workspaceController ? (root.workspaceController.formAssetOptions || []) : []
-        parentAssetOptions: root.workspaceController ? (root.workspaceController.formParentAssetOptions || []) : []
-        componentOptions: root.workspaceController ? (root.workspaceController.formComponentOptions || []) : []
-        parentComponentOptions: root.workspaceController ? (root.workspaceController.formParentComponentOptions || []) : []
-        statusOptions: root.workspaceController ? (root.workspaceController.formStatusOptions || []) : []
-        criticalityOptions: root.workspaceController ? (root.workspaceController.formCriticalityOptions || []) : []
-        manufacturerOptions: root.workspaceController ? (root.workspaceController.formManufacturerOptions || []) : []
-        supplierOptions: root.workspaceController ? (root.workspaceController.formSupplierOptions || []) : []
-
-        onCreateLocationRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.createLocation(payload)
-        }
-        onUpdateLocationRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.updateLocation(payload)
-        }
-        onCreateSystemRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.createSystem(payload)
-        }
-        onUpdateSystemRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.updateSystem(payload)
-        }
-        onCreateAssetRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.createAsset(payload)
-        }
-        onUpdateAssetRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.updateAsset(payload)
-        }
-        onCreateComponentRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.createComponent(payload)
-        }
-        onUpdateComponentRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.updateComponent(payload)
+                onCreateLocationRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.createLocation(payload)
+                }
+                onUpdateLocationRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.updateLocation(payload)
+                }
+                onCreateSystemRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.createSystem(payload)
+                }
+                onUpdateSystemRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.updateSystem(payload)
+                }
+                onCreateAssetRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.createAsset(payload)
+                }
+                onUpdateAssetRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.updateAsset(payload)
+                }
+                onCreateComponentRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.createComponent(payload)
+                }
+                onUpdateComponentRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.updateComponent(payload)
+                }
+            }
         }
     }
 

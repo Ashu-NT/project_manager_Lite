@@ -110,21 +110,24 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    FinancialsDialogHost {
-        id: dialogHost
+    AppWidgets.LazyObjectLoader {
+        id: dialogHostLoader
+        sourceComponent: Component {
+            FinancialsDialogHost {
+                selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
+                taskOptions: root.workspaceController ? (root.workspaceController.taskOptions || []) : []
+                costTypeOptions: root.workspaceController ? (root.workspaceController.costTypeOptions || []) : []
 
-        selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
-        taskOptions: root.workspaceController ? (root.workspaceController.taskOptions || []) : []
-        costTypeOptions: root.workspaceController ? (root.workspaceController.costTypeOptions || []) : []
-
-        onCreateRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.createCostItem(payload)
-        }
-        onUpdateRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.updateCostItem(payload)
-        }
-        onDeleteRequested: function(costId) {
-            if (root.workspaceController !== null) root.workspaceController.deleteCostItem(costId)
+                onCreateRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.createCostItem(payload)
+                }
+                onUpdateRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.updateCostItem(payload)
+                }
+                onDeleteRequested: function(costId) {
+                    if (root.workspaceController !== null) root.workspaceController.deleteCostItem(costId)
+                }
+            }
         }
     }
 
@@ -206,7 +209,7 @@ AppLayouts.WorkspaceFrame {
                     onExportRequested: {
                         if (root.workspaceController !== null) root.workspaceController.exportFinancials()
                     }
-                    onCreateRequested: dialogHost.openCreateDialog()
+                    onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
                 }
 
                 Item {
@@ -495,13 +498,13 @@ AppLayouts.WorkspaceFrame {
                     onBackRequested: root._detailOpen = false
                     onActionTriggered: function(actionId) {
                         if (actionId === "edit") {
-                            dialogHost.openEditDialog(root.selectedCostModel)
+                            dialogHostLoader.invoke("openEditDialog", root.selectedCostModel)
                         } else if (actionId === "add") {
-                            dialogHost.openCreateDialog()
+                            dialogHostLoader.invoke("openCreateDialog")
                         } else if (actionId === "export") {
                             if (root.workspaceController !== null) root.workspaceController.exportFinancials()
                         } else if (actionId === "delete") {
-                            dialogHost.openDeleteDialog(root.selectedCostModel)
+                            dialogHostLoader.invoke("openDeleteDialog", root.selectedCostModel)
                         }
                     }
                 }

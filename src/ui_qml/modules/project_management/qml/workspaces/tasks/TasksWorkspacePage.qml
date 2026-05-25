@@ -187,87 +187,90 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    TasksDialogHost {
-        id: dialogHost
+    AppWidgets.LazyObjectLoader {
+        id: dialogHostLoader
+        sourceComponent: Component {
+            TasksDialogHost {
+                selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
+                selectedTaskData: root.selectedTaskModel
+                statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                assignmentOptions: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
+                dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
+                dependencyTypeOptions: root.workspaceController ? (root.workspaceController.dependencyTypeOptions || []) : []
+                collaborationMentionOptions: root.workspaceController ? (root.workspaceController.collaborationMentionOptions || []) : []
+                collaborationDocumentOptions: root.workspaceController ? (root.workspaceController.collaborationDocumentOptions || []) : []
+                selectedTaskIds: root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
 
-        selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
-        selectedTaskData: root.selectedTaskModel
-        statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-        assignmentOptions: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
-        dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
-        dependencyTypeOptions: root.workspaceController ? (root.workspaceController.dependencyTypeOptions || []) : []
-        collaborationMentionOptions: root.workspaceController ? (root.workspaceController.collaborationMentionOptions || []) : []
-        collaborationDocumentOptions: root.workspaceController ? (root.workspaceController.collaborationDocumentOptions || []) : []
-        selectedTaskIds: root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
-
-        onCreateRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createTask(payload)
-            }
-        }
-        onUpdateRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateTask(payload)
-            }
-        }
-        onProgressRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateProgress(payload)
-            }
-        }
-        onDeleteRequested: function(taskId) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.deleteTask(taskId)
-            }
-        }
-        onCreateAssignmentRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createAssignment(payload)
-            }
-        }
-        onUpdateAssignmentAllocationRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateAssignmentAllocation(payload)
-            }
-        }
-        onSetAssignmentHoursRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.setAssignmentHours(payload)
-            }
-        }
-        onDeleteAssignmentRequested: function(assignmentId) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.deleteAssignment(assignmentId)
-            }
-        }
-        onCreateDependencyRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createDependency(payload)
-            }
-        }
-        onDeleteDependencyRequested: function(dependencyId) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.deleteDependency(dependencyId)
-            }
-        }
-        onPostTaskCommentRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.postTaskComment(payload)
-            }
-        }
-        onBulkDeleteRequested: function(taskIds) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.bulkDeleteTasks(taskIds)
-            }
-        }
-        onTaskPresenceStarted: function(taskId, activity) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.beginTaskPresence(taskId, activity)
-            }
-        }
-        onTaskPresenceEnded: function(taskId) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.endTaskPresence(taskId)
+                onCreateRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.createTask(payload)
+                    }
+                }
+                onUpdateRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.updateTask(payload)
+                    }
+                }
+                onProgressRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.updateProgress(payload)
+                    }
+                }
+                onDeleteRequested: function(taskId) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.deleteTask(taskId)
+                    }
+                }
+                onCreateAssignmentRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.createAssignment(payload)
+                    }
+                }
+                onUpdateAssignmentAllocationRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.updateAssignmentAllocation(payload)
+                    }
+                }
+                onSetAssignmentHoursRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.setAssignmentHours(payload)
+                    }
+                }
+                onDeleteAssignmentRequested: function(assignmentId) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.deleteAssignment(assignmentId)
+                    }
+                }
+                onCreateDependencyRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.createDependency(payload)
+                    }
+                }
+                onDeleteDependencyRequested: function(dependencyId) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.deleteDependency(dependencyId)
+                    }
+                }
+                onPostTaskCommentRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.postTaskComment(payload)
+                    }
+                }
+                onBulkDeleteRequested: function(taskIds) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.bulkDeleteTasks(taskIds)
+                    }
+                }
+                onTaskPresenceStarted: function(taskId, activity) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.beginTaskPresence(taskId, activity)
+                    }
+                }
+                onTaskPresenceEnded: function(taskId) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.endTaskPresence(taskId)
+                    }
+                }
             }
         }
     }
@@ -356,7 +359,7 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.exportTasks()
                         }
                     }
-                    onCreateRequested: dialogHost.openCreateDialog()
+                    onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
                 }
 
                 Item {
@@ -689,7 +692,8 @@ AppLayouts.WorkspaceFrame {
                         }
                         onActionTriggered: function(actionId) {
                             if (actionId === "delete") {
-                                dialogHost.openBulkDeleteDialog(
+                                dialogHostLoader.invoke(
+                                    "openBulkDeleteDialog",
                                     root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
                                 )
                             } else if (actionId === "change_property") {
@@ -768,11 +772,11 @@ AppLayouts.WorkspaceFrame {
                     }
                     onActionTriggered: function(actionId) {
                         if (actionId === "edit") {
-                            dialogHost.openEditDialog(root.selectedTaskModel)
+                            dialogHostLoader.invoke("openEditDialog", root.selectedTaskModel)
                         } else if (actionId === "progress") {
-                            dialogHost.openProgressDialog(root.selectedTaskModel)
+                            dialogHostLoader.invoke("openProgressDialog", root.selectedTaskModel)
                         } else if (actionId === "delete") {
-                            dialogHost.openDeleteDialog(root.selectedTaskModel)
+                            dialogHostLoader.invoke("openDeleteDialog", root.selectedTaskModel)
                         }
                     }
                 }
@@ -801,25 +805,25 @@ AppLayouts.WorkspaceFrame {
                     collaborationPresenceModel: root.collaborationPresenceModel
                     selectedTaskId: root.workspaceController ? root.workspaceController.selectedTaskId : ""
 
-                    onCreateAssignmentRequested: dialogHost.openCreateAssignmentDialog(root.selectedTaskModel)
+                    onCreateAssignmentRequested: dialogHostLoader.invoke("openCreateAssignmentDialog", root.selectedTaskModel)
                     onAssignmentSelected: function(assignmentId) {
                         if (root.workspaceController !== null) {
                             root.workspaceController.selectAssignment(assignmentId)
                         }
                     }
                     onEditAllocationRequested: function(assignmentData) {
-                        dialogHost.openEditAssignmentAllocationDialog(assignmentData, root.selectedTaskModel)
+                        dialogHostLoader.invoke("openEditAssignmentAllocationDialog", assignmentData, root.selectedTaskModel)
                     }
                     onSetHoursRequested: function(assignmentData) {
-                        dialogHost.openAssignmentHoursDialog(assignmentData)
+                        dialogHostLoader.invoke("openAssignmentHoursDialog", assignmentData)
                     }
                     onDeleteAssignmentRequested: function(assignmentData) {
-                        dialogHost.openDeleteAssignmentDialog(assignmentData)
+                        dialogHostLoader.invoke("openDeleteAssignmentDialog", assignmentData)
                     }
 
-                    onCreateDependencyRequested: dialogHost.openCreateDependencyDialog(root.selectedTaskModel)
+                    onCreateDependencyRequested: dialogHostLoader.invoke("openCreateDependencyDialog", root.selectedTaskModel)
                     onDeleteDependencyRequested: function(dependencyData) {
-                        dialogHost.openDeleteDependencyDialog(dependencyData)
+                        dialogHostLoader.invoke("openDeleteDependencyDialog", dependencyData)
                     }
 
                     onPeriodChanged: function(periodStart) {
@@ -863,7 +867,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    onComposeRequested: dialogHost.openTaskCollaborationDialog(root.selectedTaskModel)
+                    onComposeRequested: dialogHostLoader.invoke("openTaskCollaborationDialog", root.selectedTaskModel)
                     onMarkReadRequested: function(taskId) {
                         if (root.workspaceController !== null) {
                             root.workspaceController.markTaskCollaborationRead(taskId)
