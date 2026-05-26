@@ -155,16 +155,11 @@ AppLayouts.WorkspaceFrame {
     readonly property bool _hasProcReqCap: root.pmCatalog
         ? root.pmCatalog.hasCapability("procurement.requisitions.create") : false
     readonly property var _detailSections: {
-        const secs = [
-            "Details",
-            { "label": "Assignments",  "count": (root.assignmentsModel.items   || []).length },
-            { "label": "Dependencies", "count": (root.dependenciesModel.items  || []).length },
-            { "label": "Time",         "count": (root.timeEntriesModel.items   || []).length }
-        ]
+        const secs = ["Details", "Assignments", "Dependencies", "Time"]
         if (root._hasInvStockCap)  secs.push("Material Demand")
         if (root._hasInvResCap)    secs.push("Reservations")
         if (root._hasProcReqCap)   secs.push("Procurement")
-        secs.push({ "label": "Activity", "count": (root.collaborationCommentsModel.items || []).length })
+        secs.push("Activity")
         return secs
     }
 
@@ -204,7 +199,9 @@ AppLayouts.WorkspaceFrame {
         const page = detailPageLoader.item
         const entry = page ? (page.sections[sectionIndex] || "") : ""
         const label = (typeof entry === "string") ? entry : (entry.label || "")
-        if      (label === "Time")     root.workspaceController.loadSelectedTaskTime()
+        if      (label === "Assignments" || label === "Dependencies")
+                                       root.workspaceController.loadTaskAssignmentsAndDependencies()
+        else if (label === "Time")     root.workspaceController.loadSelectedTaskTime()
         else if (label === "Activity") root.workspaceController.loadSelectedTaskCollaboration()
     }
 

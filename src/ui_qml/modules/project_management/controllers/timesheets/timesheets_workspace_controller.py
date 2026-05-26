@@ -274,7 +274,29 @@ class ProjectManagementTimesheetsWorkspaceController(
         if normalized_value == self._selected_entry_id:
             return
         self._set_selected_entry_id(normalized_value)
-        self.refresh()
+        # Build entry detail from already-loaded entries — no API call needed
+        items = self._entries.get("items") or []
+        entry = next((e for e in items if str(e.get("id", "")) == normalized_value), None)
+        if entry:
+            self._set_selected_entry({
+                "id": str(entry.get("id", "")),
+                "title": str(entry.get("title", "")),
+                "statusLabel": str(entry.get("statusLabel", "")),
+                "subtitle": str(entry.get("subtitle", "")),
+                "description": str(entry.get("description", "")),
+                "emptyState": "",
+                "fields": [
+                    {"label": "Date",   "value": str(entry.get("title", "")),       "supportingText": ""},
+                    {"label": "Hours",  "value": str(entry.get("statusLabel", "")), "supportingText": ""},
+                    {"label": "Author", "value": str(entry.get("subtitle", "")),    "supportingText": ""},
+                ],
+                "state": dict(entry.get("state") or {}),
+            })
+        else:
+            self._set_selected_entry({
+                "id": "", "title": "", "statusLabel": "", "subtitle": "",
+                "description": "", "emptyState": "Entry not found.", "fields": [], "state": {},
+            })
 
     @Slot(str)
     def selectQueuePeriod(self, period_id: str) -> None:
@@ -282,7 +304,21 @@ class ProjectManagementTimesheetsWorkspaceController(
         if normalized_value == self._selected_queue_period_id:
             return
         self._set_selected_queue_period_id(normalized_value)
-        self.refresh()
+        self._load_queue_period_detail(normalized_value)
+
+    def _load_queue_period_detail(self, period_id: str) -> None:
+        """Load review detail for a single period — one API call, no workspace rebuild."""
+        self._set_is_loading(True)
+        try:
+            self._set_error_message("")
+            review_detail = self._timesheets_workspace_presenter.build_review_period_detail(
+                period_id
+            )
+            self._set_review_detail(serialize_timesheet_detail_view_model(review_detail))
+        except Exception as exc:
+            self._set_error_message(str(exc))
+        finally:
+            self._set_is_loading(False)
 
     @Slot(int)
     def setQueuePage(self, page: int) -> None:

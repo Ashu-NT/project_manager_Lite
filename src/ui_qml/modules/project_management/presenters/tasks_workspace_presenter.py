@@ -192,6 +192,37 @@ class ProjectTasksWorkspacePresenter:
                 ),
             )
 
+    def build_task_basic_detail_state(
+        self,
+        *,
+        task_id: str,
+        project_id: str | None = None,
+    ) -> TaskCatalogWorkspaceViewModel:
+        """
+        Fastest detail state: only the selected task record.
+
+        Skips assignments, dependencies, timesheets, and collaboration.
+        Use this for activateTask so the detail page renders immediately.
+        Assignments and dependencies load on demand via build_task_detail_state().
+        """
+        normalized_task_id = (task_id or "").strip()
+        all_tasks = self._load_tasks_for_project(project_id or "")
+        selected_task = self._find_task(all_tasks, normalized_task_id)
+
+        if selected_task is None:
+            return self._build_empty_task_detail_state(project_id=project_id)
+
+        return TaskCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_project_id=project_id or "",
+            selected_task_id=normalized_task_id,
+            selected_task_detail=self._build_detail_view_model(
+                selected_task,
+                assignment_count=0,
+                dependency_count=0,
+            ),
+        )
+
     def build_task_detail_state(
         self,
         *,
@@ -199,9 +230,9 @@ class ProjectTasksWorkspacePresenter:
         project_id: str | None = None,
     ) -> TaskCatalogWorkspaceViewModel:
         """
-        Build lightweight detail state for one selected task.
+        Full detail state for one selected task.
 
-        Loads only:
+        Loads:
         - selected task detail
         - assignments
         - dependencies
@@ -210,7 +241,6 @@ class ProjectTasksWorkspacePresenter:
         - timesheets
         - collaboration comments
         - collaboration presence
-        - global collaboration snapshot
         """
         normalized_task_id = (task_id or "").strip()
         all_tasks = self._load_tasks_for_project(project_id or "")

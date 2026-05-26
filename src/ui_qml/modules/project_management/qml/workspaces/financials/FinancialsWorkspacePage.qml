@@ -69,13 +69,7 @@ AppLayouts.WorkspaceFrame {
     readonly property bool _hasProcPoCap: root.pmCatalog
         ? root.pmCatalog.hasCapability("procurement.purchase_orders.read") : false
     readonly property var _detailSections: {
-        const secs = [
-            "Budget",
-            { "label": "Actuals",     "count": (root.ledgerModel.items         || []).length },
-            { "label": "Forecast",    "count": (root.cashflowModel.items        || []).length },
-            { "label": "Commitments", "count": (root.sourceAnalyticsModel.items || []).length },
-            "Invoices"
-        ]
+        const secs = ["Budget", "Actuals", "Forecast", "Commitments", "Invoices"]
         if (root._hasProcPoCap) secs.push("Purchase Orders")
         secs.push("Earned Value")
         secs.push("Activity")

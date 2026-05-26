@@ -470,7 +470,7 @@ AppLayouts.WorkspaceFrame {
                 showDelete: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 sections: [
-                    { "label": "Entries",          "count": (root.entriesModel.items || []).length },
+                    "Entries",
                     "Approval History",
                     "Labor Notes",
                     "Audit Trail"

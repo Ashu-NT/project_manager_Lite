@@ -112,6 +112,7 @@ class ProjectManagementTasksWorkspaceController(
         self._selected_time_entry_id = ""
         self._time_section_loaded_for_task_id  = ""
         self._collaboration_section_loaded_for_task_id = ""
+        self._assignments_dependencies_loaded_for_task_id = ""
         # ── Saved views ────────────────────────────────────────────────
         self._task_view_store = task_view_store or ProjectManagementTaskViewStore()
         self._saved_task_views: dict[str, dict[str, object]] = (
@@ -537,6 +538,7 @@ class ProjectManagementTasksWorkspaceController(
             self._tasks_workspace_presenter.build_empty_task_time_state()
         )
         self._set_collaboration_section_loaded_for_task_id("")
+        self._assignments_dependencies_loaded_for_task_id = ""
 
     @Slot(int)
     def setTaskPage(self, page: int) -> None:
@@ -566,43 +568,57 @@ class ProjectManagementTasksWorkspaceController(
         self._set_selected_assignment_id("")
         self._set_selected_time_period_start("")
         self._set_selected_time_entry_id("")
-        
         self._set_time_section_loaded_for_task_id("")
         self._time_ctrl._update(
             self._tasks_workspace_presenter.build_empty_task_time_state()
         )
         self._set_collaboration_section_loaded_for_task_id("")
+        self._assignments_dependencies_loaded_for_task_id = ""
 
         self._set_is_loading(True)
-
         try:
             self._set_error_message("")
-
-            ws = self._tasks_workspace_presenter.build_task_detail_state(
+            # Lightweight: only load the task detail record — no assignments/dependencies.
+            # Those sections load on demand when the user navigates to them.
+            ws = self._tasks_workspace_presenter.build_task_basic_detail_state(
                 task_id=normalized,
                 project_id=self._selected_project_id or None,
             )
             self._task_list.updateSelectedTaskOnly(ws)
-            self._assignments_ctrl._update(ws)
-            self._dependencies_ctrl._update(ws)
-
             self._set_selected_task_id(ws.selected_task_id)
-
-            # Pick the first assignment for this task, if available.
-            assignment_items = getattr(ws.assignments, "items", ()) or ()
-            first_assignment_id = ""
-
-            if assignment_items:
-                first_assignment = assignment_items[0]
-                first_assignment_id = str(getattr(first_assignment, "id", "") or "")
-
-            self._set_selected_assignment_id(first_assignment_id)
-            self._set_selected_time_period_start("")
-            self._set_selected_time_entry_id("")
-
         except Exception as exc:
             self._set_error_message(str(exc))
+        finally:
+            self._set_is_loading(False)
 
+    @Slot()
+    def loadTaskAssignmentsAndDependencies(self) -> None:
+        """Lazy-load assignments and dependencies for the selected task."""
+        if not self._selected_task_id:
+            return
+        if self._assignments_dependencies_loaded_for_task_id == self._selected_task_id:
+            return
+
+        self._set_is_loading(True)
+        try:
+            self._set_error_message("")
+            ws = self._tasks_workspace_presenter.build_task_detail_state(
+                task_id=self._selected_task_id,
+                project_id=self._selected_project_id or None,
+            )
+            self._assignments_ctrl._update(ws)
+            self._dependencies_ctrl._update(ws)
+            self._assignments_dependencies_loaded_for_task_id = self._selected_task_id
+            # Pick the first assignment if none is currently selected.
+            if not self._selected_assignment_id:
+                assignment_items = getattr(ws.assignments, "items", ()) or ()
+                if assignment_items:
+                    first = assignment_items[0]
+                    self._set_selected_assignment_id(
+                        str(getattr(first, "id", "") or "")
+                    )
+        except Exception as exc:
+            self._set_error_message(str(exc))
         finally:
             self._set_is_loading(False)
 

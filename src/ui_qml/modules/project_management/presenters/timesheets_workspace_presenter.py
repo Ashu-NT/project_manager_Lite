@@ -192,6 +192,10 @@ class ProjectTimesheetsWorkspacePresenter:
             empty_state=empty_state,
         )
 
+    def build_review_period_detail(self, period_id: str) -> TimesheetDetailViewModel:
+        """Lightweight: load review detail for a single period without rebuilding workspace state."""
+        return self._build_review_detail(period_id)
+
     def add_time_entry(self, payload: dict[str, Any]) -> None:
         command = TimesheetEntryCreateCommand(
             assignment_id=self._require_text(payload, "assignmentId", "Choose an assignment first."),

@@ -860,10 +860,10 @@ AppLayouts.WorkspaceFrame {
                         showEdit: false
                         showDelete: false
                         sections: [
-                            { "label": "Overview" },
-                            { "label": "Activity", "count": (root.selectedDetailModel.activity ? (root.selectedDetailModel.activity.items || []).length : 0) },
-                            { "label": "Related Items", "count": (root.selectedDetailModel.relatedItems ? (root.selectedDetailModel.relatedItems.items || []).length : 0) },
-                            { "label": "Audit", "count": (root.selectedDetailModel.audit ? (root.selectedDetailModel.audit.items || []).length : 0) }
+                            "Overview",
+                            "Activity",
+                            "Related Items",
+                            "Audit"
                         ]
                         onBackRequested: root._handleDetailAction("back")
 

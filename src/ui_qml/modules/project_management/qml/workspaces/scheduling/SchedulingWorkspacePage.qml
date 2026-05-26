@@ -196,12 +196,12 @@ AppLayouts.WorkspaceFrame {
     ]
     readonly property var _panelTabs: [
         { "id": "activity_timeline", "label": "Activity & Timeline" },
-        { "id": "diagnostics", "label": "Diagnostics", "count": (root.diagnosticsRows || []).length },
-        { "id": "resources", "label": "Resources", "count": (root.resourceRows || []).length },
-        { "id": "baselines", "label": "Baselines", "count": (root.baselineRegisterRows || []).length },
-        { "id": "delays", "label": "Delays", "count": (root.delayedRows || []).length },
-        { "id": "calendars", "label": "Calendars", "count": (root.holidayRows || []).length },
-        { "id": "activity_feed", "label": "Activity Feed", "count": (root.activityFeedModel.items || []).length }
+        { "id": "diagnostics",       "label": "Diagnostics" },
+        { "id": "resources",         "label": "Resources" },
+        { "id": "baselines",         "label": "Baselines" },
+        { "id": "delays",            "label": "Delays" },
+        { "id": "calendars",         "label": "Calendars" },
+        { "id": "activity_feed",     "label": "Activity Feed" }
     ]
 
     title: root.overviewModel.title || root.workspaceModel.title
@@ -1394,12 +1394,12 @@ AppLayouts.WorkspaceFrame {
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 sections: [
                     "Overview",
-                    { "label": "Dependencies", "count": (root.dependencyRows || []).length },
-                    { "label": "Constraints", "count": (root.constraintRows || []).length },
-                    { "label": "Calendars", "count": (root.holidayRows || []).length },
-                    { "label": "Baselines", "count": (root.baselineRegisterRows || []).length },
-                    { "label": "Resources", "count": (root.resourceRows || []).length },
-                    { "label": "Activity Feed", "count": (root.activityFeedModel.items || []).length }
+                    "Dependencies",
+                    "Constraints",
+                    "Calendars",
+                    "Baselines",
+                    "Resources",
+                    "Activity Feed"
                 ]
                 z: 20
                 Component.onCompleted: scrollToSection(root._pendingDetailSection)

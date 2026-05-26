@@ -882,9 +882,9 @@ AppLayouts.WorkspaceFrame {
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 sections: [
                     "Overview",
-                    { "label": "Scenarios",    "count": (root._scenariosModel.items    || []).length },
-                    { "label": "Dependencies", "count": (root._dependenciesModel.items || []).length },
-                    { "label": "Funding",      "count": (root._intakeModel.items       || []).length },
+                    "Scenarios",
+                    "Dependencies",
+                    "Funding",
                     "Activity"
                 ]
                 z: 20
