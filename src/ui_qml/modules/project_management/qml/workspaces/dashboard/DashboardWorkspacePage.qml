@@ -19,9 +19,7 @@ AppLayouts.WorkspaceFrame {
         : ({
             "routeId": "project_management.dashboard",
             "title": "Dashboard",
-            "summary": "Project KPIs, health summaries, and executive delivery views.",
-            "migrationStatus": "QML read-only dashboard slice active",
-            "legacyRuntimeStatus": "Existing QWidget dashboard remains active"
+            "summary": "Project KPIs, health summaries, and executive delivery views."
         })
     readonly property var overviewModel: root.workspaceController
         ? root.workspaceController.overview

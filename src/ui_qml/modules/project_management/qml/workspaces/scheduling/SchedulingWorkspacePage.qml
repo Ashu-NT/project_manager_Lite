@@ -22,9 +22,7 @@ AppLayouts.WorkspaceFrame {
         : ({
             "routeId": "project_management.scheduling",
             "title": "Scheduling",
-            "summary": "Enterprise planning and schedule control workspace.",
-            "migrationStatus": "QML scheduling operations slice active",
-            "legacyRuntimeStatus": "QML runtime is active"
+            "summary": "Enterprise planning and schedule control workspace."
         })
     readonly property var overviewModel: root.workspaceController
         ? root.workspaceController.overview
