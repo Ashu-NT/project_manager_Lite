@@ -6,6 +6,8 @@ from pathlib import Path
 from src.api.desktop.runtime import build_desktop_api_registry
 from src.core.modules.inventory_procurement.api.desktop import (
     InventoryAdjustmentCommand,
+    InventoryCycleCountCreateCommand,
+    InventoryLocationCreateCommand,
     InventoryCategoryCreateCommand,
     InventoryIssueCommand,
     InventoryItemCreateCommand,
@@ -13,6 +15,7 @@ from src.core.modules.inventory_procurement.api.desktop import (
     InventoryOpeningBalanceCommand,
     InventoryProcurementDashboardDesktopApi,
     InventoryProcurementPricingDesktopApi,
+    InventoryReorderPolicyUpsertCommand,
     InventoryPurchaseOrderCreateCommand,
     InventoryPurchaseOrderLineCreateCommand,
     InventoryReceiptLineCommand,
@@ -79,6 +82,12 @@ def _build_inventory_api(services):
         stock_service=services["inventory_stock_service"],
         item_service=services["inventory_item_service"],
         reference_service=services["inventory_reference_service"],
+        foundation_service=services["inventory_foundation_service"],
+        reservation_service=services["inventory_reservation_service"],
+        procurement_service=services["inventory_procurement_service"],
+        purchasing_service=services["inventory_purchasing_service"],
+        reporting_service=services["inventory_reporting_service"],
+        module_runtime_service=services["module_runtime_service"],
     )
 
 
@@ -277,6 +286,86 @@ def test_inventory_inventory_desktop_api_mutates_storerooms_and_stock_flows(serv
         "AUX - Aux Storeroom",
         "MAIN - Main Storeroom",
     }
+
+
+def test_inventory_inventory_desktop_api_builds_enterprise_foundation_snapshot(services) -> None:
+    site, supplier, _ = _create_shared_inventory_references(services)
+    catalog_api = _build_catalog_api(services)
+    inventory_api = _build_inventory_api(services)
+    auth = services["auth_service"]
+    auth.register_user("inventory-foundation-api-user", "StrongPass123", role_names=["inventory_manager"])
+    login_as(services, "inventory-foundation-api-user", "StrongPass123")
+
+    item = catalog_api.create_item(
+        InventoryItemCreateCommand(
+            item_code="FOUND-API-ITEM",
+            name="Foundation API Item",
+            status="ACTIVE",
+            stock_uom="EA",
+            preferred_party_id=supplier.id,
+        )
+    )
+    storeroom = inventory_api.create_storeroom(
+        InventoryStoreroomCreateCommand(
+            storeroom_code="FOUND-API-MAIN",
+            name="Foundation API Main",
+            site_id=site.id,
+            status="ACTIVE",
+            storeroom_type="MAIN",
+        )
+    )
+    inventory_api.post_opening_balance(
+        InventoryOpeningBalanceCommand(
+            stock_item_id=item.id,
+            storeroom_id=storeroom.id,
+            quantity=15,
+            uom="EA",
+            unit_cost=10.0,
+        )
+    )
+    location = inventory_api.create_storage_location(
+        InventoryLocationCreateCommand(
+            storeroom_id=storeroom.id,
+            location_code="BIN-F1",
+            name="Foundation Bin",
+            location_type="BIN",
+        )
+    )
+    policy = inventory_api.upsert_reorder_policy(
+        InventoryReorderPolicyUpsertCommand(
+            stock_item_id=item.id,
+            storeroom_id=storeroom.id,
+            location_id=location.id,
+            policy_name="Bin replenishment",
+            min_qty=2,
+            max_qty=10,
+            reorder_point=4,
+            reorder_qty=5,
+            preferred_supplier_party_id=supplier.id,
+        )
+    )
+    cycle_count = inventory_api.schedule_cycle_count(
+        InventoryCycleCountCreateCommand(
+            stock_item_id=item.id,
+            storeroom_id=storeroom.id,
+            location_id=location.id,
+            scheduled_count_date="2026-06-05",
+        )
+    )
+
+    snapshot = inventory_api.build_foundation_snapshot(
+        site_id=site.id,
+        storeroom_id=storeroom.id,
+        stock_item_id=item.id,
+    )
+
+    assert snapshot.title == "Enterprise Inventory Backbone"
+    assert snapshot.locations[0].location_code == "BIN-F1"
+    assert snapshot.reorder_policies[0].id == policy.id
+    assert snapshot.cycle_counts[0].id == cycle_count.id
+    module_status = {entry.code: entry.is_enabled for entry in snapshot.module_links}
+    assert module_status["project_management"] is True
+    assert module_status["maintenance_management"] is False
 
 
 def test_inventory_reservations_desktop_api_manages_reservation_flows(services) -> None:

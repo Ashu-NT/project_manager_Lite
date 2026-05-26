@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from sqlalchemy import select
-from sqlalchemy.sql import ColumnElement
 from sqlalchemy.orm import Session
 
 from src.core.modules.inventory_procurement.contracts.repositories.inventory import (

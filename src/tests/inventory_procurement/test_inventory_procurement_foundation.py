@@ -256,3 +256,99 @@ def test_inventory_item_service_requires_active_category_master_when_assigning_c
             stock_uom="EA",
             category_code="UNKNOWN",
         )
+
+
+def test_inventory_foundation_service_supports_locations_reorder_policies_and_cycle_counts(
+    services,
+):
+    auth = services["auth_service"]
+    auth.register_user("inventory-foundation-user", "StrongPass123", role_names=["inventory_manager"])
+    site = services["site_service"].create_site(
+        site_code="INV-FND",
+        name="Inventory Foundation Site",
+        city="Bremen",
+        currency_code="EUR",
+    )
+    supplier = services["party_service"].create_party(
+        party_code="SUP-FND",
+        party_name="Foundation Supplier",
+        party_type=PartyType.SUPPLIER,
+    )
+    login_as(services, "inventory-foundation-user", "StrongPass123")
+
+    item = services["inventory_item_service"].create_item(
+        item_code="INV-FND-ITEM",
+        name="Foundation Valve",
+        status="ACTIVE",
+        stock_uom="EA",
+        preferred_party_id=supplier.id,
+    )
+    storeroom = services["inventory_service"].create_storeroom(
+        storeroom_code="INV-FND-MAIN",
+        name="Foundation Main",
+        site_id=site.id,
+        status="ACTIVE",
+        storeroom_type="MAIN",
+    )
+    services["inventory_stock_service"].post_opening_balance(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+        quantity=20,
+        uom="EA",
+        unit_cost=8.0,
+    )
+
+    foundation_service = services["inventory_foundation_service"]
+    zone = foundation_service.create_storage_location(
+        storeroom_id=storeroom.id,
+        location_code="ZONE-A",
+        name="Zone A",
+        location_type="ZONE",
+    )
+    bin_location = foundation_service.create_storage_location(
+        storeroom_id=storeroom.id,
+        location_code="BIN-A1",
+        name="Bin A1",
+        parent_location_id=zone.id,
+        location_type="BIN",
+    )
+    policy = foundation_service.upsert_reorder_policy(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+        location_id=bin_location.id,
+        policy_name="Primary bin replenishment",
+        min_qty=2,
+        max_qty=12,
+        reorder_point=4,
+        reorder_qty=6,
+        preferred_supplier_party_id=supplier.id,
+    )
+    cycle_count = foundation_service.schedule_cycle_count(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+        location_id=bin_location.id,
+        scheduled_count_date="2026-06-01",
+        notes="Monthly verification",
+    )
+    completed = foundation_service.complete_cycle_count(
+        cycle_count.id,
+        counted_qty=18,
+        notes="Found 2 short during cycle count.",
+        expected_version=cycle_count.version,
+    )
+
+    balance = services["inventory_stock_service"].get_balance_for_stock_position(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+    )
+
+    assert [row.location_code for row in foundation_service.list_storage_locations(storeroom_id=storeroom.id)] == [
+        "BIN-A1",
+        "ZONE-A",
+    ]
+    assert policy.reorder_point == 4.0
+    assert policy.preferred_supplier_party_id == supplier.id
+    assert completed.status.value == "COMPLETED"
+    assert completed.variance_qty == -2.0
+    assert balance is not None
+    assert balance.on_hand_qty == 18.0
