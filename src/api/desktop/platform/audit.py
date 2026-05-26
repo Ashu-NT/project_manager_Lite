@@ -16,6 +16,23 @@ from src.core.modules.project_management.application.scheduling.baseline_service
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.tasks import TaskService
 
+try:
+    from src.core.modules.inventory_procurement.application.inventory.reservation_service import (
+        ReservationService,
+    )
+    from src.core.modules.inventory_procurement.application.procurement.service import (
+        ProcurementService,
+    )
+    from src.core.modules.inventory_procurement.application.procurement.purchasing_service import (
+        PurchasingService,
+    )
+    _INVENTORY_AVAILABLE = True
+except ImportError:
+    ReservationService = None  # type: ignore[assignment,misc]
+    ProcurementService = None  # type: ignore[assignment,misc]
+    PurchasingService = None  # type: ignore[assignment,misc]
+    _INVENTORY_AVAILABLE = False
+
 
 @dataclass(frozen=True)
 class _AuditReferenceMaps:
@@ -24,6 +41,9 @@ class _AuditReferenceMaps:
     resource_name_by_id: dict[str, str] = field(default_factory=dict)
     cost_label_by_id: dict[str, str] = field(default_factory=dict)
     baseline_name_by_id: dict[str, str] = field(default_factory=dict)
+    reservation_number_by_id: dict[str, str] = field(default_factory=dict)
+    requisition_number_by_id: dict[str, str] = field(default_factory=dict)
+    po_number_by_id: dict[str, str] = field(default_factory=dict)
 
 
 class PlatformAuditDesktopApi:
@@ -38,6 +58,9 @@ class PlatformAuditDesktopApi:
         resource_service: ResourceService | None = None,
         cost_service: CostService | None = None,
         baseline_service: BaselineService | None = None,
+        reservation_service: ReservationService | None = None,
+        procurement_service: ProcurementService | None = None,
+        purchasing_service: PurchasingService | None = None,
     ) -> None:
         self._audit_service = audit_service
         self._project_service = project_service
@@ -45,6 +68,9 @@ class PlatformAuditDesktopApi:
         self._resource_service = resource_service
         self._cost_service = cost_service
         self._baseline_service = baseline_service
+        self._reservation_service = reservation_service
+        self._procurement_service = procurement_service
+        self._purchasing_service = purchasing_service
 
     def list_recent(
         self,
@@ -73,6 +99,9 @@ class PlatformAuditDesktopApi:
         resource_name_by_id: dict[str, str] = {}
         cost_label_by_id: dict[str, str] = {}
         baseline_name_by_id: dict[str, str] = {}
+        reservation_number_by_id: dict[str, str] = {}
+        requisition_number_by_id: dict[str, str] = {}
+        po_number_by_id: dict[str, str] = {}
 
         projects = self._safe_list_projects()
         for project in projects:
@@ -97,12 +126,24 @@ class PlatformAuditDesktopApi:
                 for baseline in self._safe_list_baselines(project.id):
                     baseline_name_by_id[baseline.id] = baseline.name
 
+        for reservation in self._safe_list_reservations():
+            reservation_number_by_id[reservation.id] = reservation.reservation_number
+
+        for requisition in self._safe_list_requisitions():
+            requisition_number_by_id[requisition.id] = requisition.requisition_number
+
+        for po in self._safe_list_purchase_orders():
+            po_number_by_id[po.id] = po.po_number
+
         return _AuditReferenceMaps(
             project_name_by_id=project_name_by_id,
             task_name_by_id=task_name_by_id,
             resource_name_by_id=resource_name_by_id,
             cost_label_by_id=cost_label_by_id,
             baseline_name_by_id=baseline_name_by_id,
+            reservation_number_by_id=reservation_number_by_id,
+            requisition_number_by_id=requisition_number_by_id,
+            po_number_by_id=po_number_by_id,
         )
 
     def _serialize_entry(
@@ -168,6 +209,12 @@ class PlatformAuditDesktopApi:
             return references.cost_label_by_id.get(raw, raw)
         if key == "baseline_id":
             return references.baseline_name_by_id.get(raw, raw)
+        if key == "reservation_id":
+            return references.reservation_number_by_id.get(raw, raw)
+        if key == "requisition_id":
+            return references.requisition_number_by_id.get(raw, raw)
+        if key == "purchase_order_id":
+            return references.po_number_by_id.get(raw, raw)
         if key == "entity_id":
             if entry.entity_type == "task":
                 return references.task_name_by_id.get(raw, raw)
@@ -179,6 +226,12 @@ class PlatformAuditDesktopApi:
                 return references.cost_label_by_id.get(raw, raw)
             if entry.entity_type == "project_baseline":
                 return references.baseline_name_by_id.get(raw, raw)
+            if entry.entity_type == "stock_reservation":
+                return references.reservation_number_by_id.get(raw, raw)
+            if entry.entity_type == "purchase_requisition":
+                return references.requisition_number_by_id.get(raw, raw)
+            if entry.entity_type in {"purchase_order", "inventory_stock_transaction"}:
+                return references.po_number_by_id.get(raw, raw)
         return raw
 
     @staticmethod
@@ -226,6 +279,30 @@ class PlatformAuditDesktopApi:
             return []
         try:
             return list(self._baseline_service.list_baselines(project_id))
+        except Exception:
+            return []
+
+    def _safe_list_reservations(self) -> list[object]:
+        if self._reservation_service is None:
+            return []
+        try:
+            return list(self._reservation_service.list_reservations(limit=500))
+        except Exception:
+            return []
+
+    def _safe_list_requisitions(self) -> list[object]:
+        if self._procurement_service is None:
+            return []
+        try:
+            return list(self._procurement_service.list_requisitions(limit=500))
+        except Exception:
+            return []
+
+    def _safe_list_purchase_orders(self) -> list[object]:
+        if self._purchasing_service is None:
+            return []
+        try:
+            return list(self._purchasing_service.list_purchase_orders(limit=500))
         except Exception:
             return []
 

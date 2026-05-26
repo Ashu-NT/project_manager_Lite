@@ -163,6 +163,7 @@ def build_inventory_procurement_service_bundle(
         approval_service=platform_services.approval_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
+        document_integration_service=platform_services.document_integration_service,
     )
     inventory_reservation_service = ReservationService(
         platform_services.session,
@@ -173,6 +174,7 @@ def build_inventory_procurement_service_bundle(
         stock_service=inventory_stock_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
+        document_integration_service=platform_services.document_integration_service,
     )
     inventory_foundation_service = InventoryFoundationService(
         platform_services.session,

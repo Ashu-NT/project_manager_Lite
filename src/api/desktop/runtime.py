@@ -500,6 +500,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             resource_service=resource_service,
             cost_service=cost_service,
             baseline_service=baseline_service,
+            reservation_service=inventory_reservation_service,
+            procurement_service=inventory_procurement_service,
+            purchasing_service=inventory_purchasing_service,
         ),
         platform_document=PlatformDocumentDesktopApi(
             document_service=document_service,

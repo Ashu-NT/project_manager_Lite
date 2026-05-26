@@ -32,6 +32,7 @@ from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
+from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink
 from src.core.platform.notifications.domain_events import domain_events
 
 
@@ -51,6 +52,7 @@ class ReservationService:
         stock_service: StockControlService,
         user_session=None,
         audit_service=None,
+        document_integration_service: DocumentIntegrationService | None = None,
     ):
         self._session = session
         self._reservation_repo = reservation_repo
@@ -60,6 +62,7 @@ class ReservationService:
         self._stock_service = stock_service
         self._user_session = user_session
         self._audit_service = audit_service
+        self._document_integration_service = document_integration_service
 
     def list_reservations(
         self,
@@ -271,6 +274,93 @@ class ReservationService:
             domain_events.inventory_balances_changed.emit(balance.id)
         domain_events.inventory_reservations_changed.emit(reservation.id)
         return reservation
+
+    def list_reservation_documents(
+        self,
+        reservation_id: str,
+        *,
+        active_only: bool | None = None,
+    ) -> list[Document]:
+        if self._document_integration_service is None:
+            return []
+        reservation = self.get_reservation(reservation_id)
+        return self._document_integration_service.list_documents_for_entity(
+            required_permission="inventory.read",
+            operation_label="list reservation documents",
+            module_code="inventory_procurement",
+            entity_type="stock_reservation",
+            entity_id=reservation.id,
+            active_only=active_only,
+        )
+
+    def link_document(
+        self,
+        reservation_id: str,
+        *,
+        document_id: str,
+        link_role: str = "reference",
+    ) -> DocumentLink:
+        if self._document_integration_service is None:
+            raise ValidationError(
+                "Document integration is not available.",
+                code="DOCUMENT_INTEGRATION_UNAVAILABLE",
+            )
+        reservation = self.get_reservation(reservation_id)
+        link = self._document_integration_service.link_existing_document(
+            required_permission="inventory.manage",
+            operation_label="link reservation document",
+            module_code="inventory_procurement",
+            entity_type="stock_reservation",
+            entity_id=reservation.id,
+            document_id=document_id,
+            link_role=link_role,
+        )
+        record_audit(
+            self,
+            action="inventory_reservation.link_document",
+            entity_type="stock_reservation",
+            entity_id=reservation.id,
+            details={
+                "document_id": document_id,
+                "link_role": normalize_optional_text(link_role) or "reference",
+            },
+        )
+        domain_events.inventory_reservations_changed.emit(reservation.id)
+        return link
+
+    def unlink_document(
+        self,
+        reservation_id: str,
+        *,
+        document_id: str,
+        link_role: str = "reference",
+    ) -> None:
+        if self._document_integration_service is None:
+            raise ValidationError(
+                "Document integration is not available.",
+                code="DOCUMENT_INTEGRATION_UNAVAILABLE",
+            )
+        reservation = self.get_reservation(reservation_id)
+        self._document_integration_service.unlink_existing_document(
+            required_permission="inventory.manage",
+            operation_label="unlink reservation document",
+            module_code="inventory_procurement",
+            entity_type="stock_reservation",
+            entity_id=reservation.id,
+            document_id=document_id,
+            link_role=link_role,
+        )
+        record_audit(
+            self,
+            action="inventory_reservation.unlink_document",
+            entity_type="stock_reservation",
+            entity_id=reservation.id,
+            details={
+                "document_id": document_id,
+                "link_role": normalize_optional_text(link_role) or "reference",
+            },
+        )
+        domain_events.inventory_reservations_changed.emit(reservation.id)
 
     def _close_reservation(
         self,

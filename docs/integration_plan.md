@@ -372,12 +372,12 @@ All four cross-module workspace pages now declare `property var platformCatalog`
 - **ProcurementWorkspacePage.qml** — `platformCatalog` + `_caps` wired
 - **WorkOrdersWorkspacePage.qml** — `platformCatalog` + `_caps` wired (`canMaintenanceLinkInventory`)
 
-### Phase 9 — Audit + Approval integration enrichment (Future sprint)
+### Phase 9 — Audit + Approval integration enrichment (COMPLETE — 2026-05-26)
 
 `platform/audit.py` currently enriches audit with PM entity names.
 Extend to also pull Inventory entity names for reservation/PO audit events.
 
-### Phase 10 — Document links for cross-module entities (Future sprint)
+### Phase 10 — Document links for cross-module entities (COMPLETE — 2026-05-26)
 
 `DocumentLinkORM` already supports entity_type + entity_id cross-module links.
 Wire `DocumentIntegrationService` calls into:
