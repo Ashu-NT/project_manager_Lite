@@ -206,6 +206,58 @@ def test_inventory_qml_inventory_presenter_builds_workspace_state(services) -> N
     assert snapshot.selected_site_filter == site.id
 
 
+def test_inventory_qml_inventory_presenter_exposes_foundation_snapshot(services) -> None:
+    site = services["site_service"].create_site(
+        site_code="INV-FND-PRES",
+        name="Inventory Foundation Presenter Site",
+        city="Dusseldorf",
+        currency_code="EUR",
+    )
+    supplier = services["party_service"].create_party(
+        party_code="INV-FND-SUP",
+        party_name="Presenter Foundation Supplier",
+        party_type=PartyType.SUPPLIER,
+    )
+    storeroom = services["inventory_service"].create_storeroom(
+        storeroom_code="INV-FND-PRES-MAIN",
+        name="Presenter Foundation Main",
+        site_id=site.id,
+        status="ACTIVE",
+        storeroom_type="MAIN",
+    )
+    item = services["inventory_item_service"].create_item(
+        item_code="INV-FND-PRES-ITEM",
+        name="Presenter Foundation Item",
+        status="ACTIVE",
+        stock_uom="EA",
+        preferred_party_id=supplier.id,
+    )
+    services["inventory_stock_service"].post_opening_balance(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+        quantity=12,
+        uom="EA",
+        unit_cost=4.5,
+    )
+    services["inventory_foundation_service"].create_storage_location(
+        storeroom_id=storeroom.id,
+        location_code="BIN-P1",
+        name="Presenter Bin",
+        location_type="BIN",
+    )
+    registry = build_desktop_api_registry(services)
+    presenter = InventoryInventoryWorkspacePresenter(
+        desktop_api=registry.inventory_procurement_inventory
+    )
+
+    snapshot = presenter.build_workspace_state(site_filter=site.id, item_filter=item.id)
+
+    assert snapshot.foundation.title == "Enterprise Inventory Backbone"
+    assert snapshot.foundation.locations[0].title == "BIN-P1 - Presenter Bin"
+    module_status = {entry.code: entry.is_enabled for entry in snapshot.foundation.module_links}
+    assert module_status["project_management"] is True
+
+
 def test_inventory_qml_workspace_catalog_exposes_reservations_workspace(services) -> None:
     site = services["site_service"].create_site(
         site_code="RES-QML",
