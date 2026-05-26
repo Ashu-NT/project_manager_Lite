@@ -563,7 +563,6 @@ class ProjectManagementTasksWorkspaceController(
     @Slot(str)
     def activateTask(self, task_id: str) -> None:
         normalized = (task_id or "").strip()
-
         if not normalized:
             return
 
@@ -571,42 +570,50 @@ class ProjectManagementTasksWorkspaceController(
         self._set_selected_assignment_id("")
         self._set_selected_time_period_start("")
         self._set_selected_time_entry_id("")
-        
         self._set_time_section_loaded_for_task_id("")
         self._time_ctrl._update(
             self._tasks_workspace_presenter.build_empty_task_time_state()
         )
         self._set_collaboration_section_loaded_for_task_id("")
+        self._assignments_dependencies_loaded_for_task_id = ""
 
         self._set_is_loading(True)
         try:
             self._set_error_message("")
-
-            ws = self._tasks_workspace_presenter.build_task_detail_state(
+            ws = self._tasks_workspace_presenter.build_task_basic_detail_state(
                 task_id=normalized,
                 project_id=self._selected_project_id or None,
             )
             self._task_list.updateSelectedTaskOnly(ws)
-            self._assignments_ctrl._update(ws)
-            self._dependencies_ctrl._update(ws)
-
             self._set_selected_task_id(ws.selected_task_id)
-
-            # Pick the first assignment for this task, if available.
-            assignment_items = getattr(ws.assignments, "items", ()) or ()
-            first_assignment_id = ""
-
-            if assignment_items:
-                first_assignment = assignment_items[0]
-                first_assignment_id = str(getattr(first_assignment, "id", "") or "")
-
-            self._set_selected_assignment_id(first_assignment_id)
-            self._set_selected_time_period_start("")
-            self._set_selected_time_entry_id("")
-
         except Exception as exc:
             self._set_error_message(str(exc))
+        finally:
+            self._set_is_loading(False)
 
+    @Slot()
+    def loadTaskAssignmentsAndDependencies(self) -> None:
+        if not self._selected_task_id:
+            return
+        if self._assignments_dependencies_loaded_for_task_id == self._selected_task_id:
+            return
+        self._set_is_loading(True)
+        try:
+            self._set_error_message("")
+            ws = self._tasks_workspace_presenter.build_task_detail_state(
+                task_id=self._selected_task_id,
+                project_id=self._selected_project_id or None,
+            )
+            self._assignments_ctrl._update(ws)
+            self._dependencies_ctrl._update(ws)
+            self._assignments_dependencies_loaded_for_task_id = self._selected_task_id
+            if not self._selected_assignment_id:
+                assignment_items = getattr(ws.assignments, "items", ()) or ()
+                if assignment_items:
+                    first = assignment_items[0]
+                    self._set_selected_assignment_id(str(getattr(first, "id", "") or ""))
+        except Exception as exc:
+            self._set_error_message(str(exc))
         finally:
             self._set_is_loading(False)
 

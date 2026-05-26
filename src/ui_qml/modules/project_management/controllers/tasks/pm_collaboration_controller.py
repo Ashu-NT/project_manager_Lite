@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
 from src.ui_qml.modules.project_management.controllers.common import (
     run_mutation,
@@ -76,9 +76,10 @@ class PMCollaborationController(QObject):
         if self._presence_override_task_id:
             return
         if self._last_selected_task_id:
-            self._set_task_presence(self._last_selected_task_id, "reviewing")
+            task_id = self._last_selected_task_id
+            QTimer.singleShot(0, lambda: self._set_task_presence(task_id, "reviewing"))
             return
-        self._clear_current_task_presence()
+        QTimer.singleShot(0, self._clear_current_task_presence)
 
     def on_destroyed_cleanup(self, *_args: object) -> None:
         try:

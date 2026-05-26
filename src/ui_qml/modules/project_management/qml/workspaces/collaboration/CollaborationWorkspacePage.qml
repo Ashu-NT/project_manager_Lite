@@ -702,7 +702,7 @@ AppLayouts.WorkspaceFrame {
 
             Rectangle {
                 anchors.fill: parent
-                visible: !root._detailOpen
+                visible: !root._detailOpen || detailPageLoader.status !== Loader.Ready
                 radius: Theme.AppTheme.radiusMd
                 color: Theme.AppTheme.surfaceRaised
                 border.color: Theme.AppTheme.subtleBorder
@@ -849,6 +849,7 @@ AppLayouts.WorkspaceFrame {
                 id: detailPageLoader
                 anchors.fill: parent
                 active: root._detailOpen
+                visible: root._detailOpen && status === Loader.Ready
                 asynchronous: true
                 sourceComponent: Component {
                     AppWidgets.SectionDetailPage {

@@ -205,8 +205,10 @@ AppLayouts.WorkspaceFrame {
         const page = detailPageLoader.item
         const entry = page ? (page.sections[sectionIndex] || "") : ""
         const label = (typeof entry === "string") ? entry : (entry.label || "")
-        if      (label === "Time")     root.workspaceController.loadSelectedTaskTime()
-        else if (label === "Activity") root.workspaceController.loadSelectedTaskCollaboration()
+        if      (label === "Assignments" || label === "Dependencies")
+                                           root.workspaceController.loadTaskAssignmentsAndDependencies()
+        else if (label === "Time")         root.workspaceController.loadSelectedTaskTime()
+        else if (label === "Activity")     root.workspaceController.loadSelectedTaskCollaboration()
     }
 
     function _openDetail(sectionIndex) {
@@ -901,7 +903,7 @@ AppLayouts.WorkspaceFrame {
                     }
                     onCollaborationRefreshRequested: {
                         if (root.workspaceController !== null) {
-                            root.workspaceController.refresh()
+                            root.workspaceController.loadSelectedTaskCollaboration()
                         }
                     }
                 }
