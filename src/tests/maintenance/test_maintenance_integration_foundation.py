@@ -71,3 +71,4 @@ def test_maintenance_integration_source_service_tracks_sync_status(session) -> N
     assert recovered.last_successful_sync_at is not None
     assert recovered.last_error_message == ""
     assert service.find_source_by_code("IOT-GATEWAY-1") is not None
+

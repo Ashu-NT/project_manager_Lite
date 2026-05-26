@@ -51,3 +51,4 @@ def test_diagnostics_bundle_includes_metadata(tmp_path):
 def test_default_manifest_source_uses_env_override(monkeypatch):
     monkeypatch.setenv("PM_UPDATE_MANIFEST_URL", "https://example.com/manifest.json")
     assert default_update_manifest_source() == "https://example.com/manifest.json"
+

@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.platform.common.exceptions import ValidationError
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 def _create_movement_context(services):
@@ -160,3 +160,4 @@ def test_movement_rules_block_over_issue_and_overconsume_reservation(services):
 
     with pytest.raises(ValidationError, match="exceeds the reservation remaining quantity"):
         reservations.issue_reserved_stock(reservation.id, quantity=3)
+

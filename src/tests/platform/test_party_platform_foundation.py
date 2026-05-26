@@ -67,3 +67,4 @@ def test_party_service_updates_party_metadata(services):
     assert updated.country == "Germany"
     assert updated.city == "Hamburg"
     assert updated.is_active is False
+

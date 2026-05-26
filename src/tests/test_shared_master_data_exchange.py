@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 def test_master_data_exchange_service_imports_and_exports_shared_sites_and_parties(services, tmp_path):
@@ -59,3 +59,4 @@ def test_master_data_exchange_service_requires_settings_manage_for_imports(servi
         assert "settings.manage" in str(exc)
     else:
         raise AssertionError("Expected shared master import to require settings.manage.")
+

@@ -90,3 +90,4 @@ def test_resource_load_summary_uses_peak_concurrent_allocation(services):
     row = next(r for r in rows if r.resource_id == resource.id)
     assert row.total_allocation_percent == pytest.approx(60.0)
     assert row.utilization_percent == pytest.approx(60.0)
+

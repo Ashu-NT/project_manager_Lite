@@ -466,3 +466,4 @@ def test_reporting_api_requires_report_export_permission_from_live_session(servi
         )
 
     assert exc.value.code == "PERMISSION_DENIED"
+

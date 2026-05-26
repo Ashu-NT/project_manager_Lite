@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 PATH_REWRITE_EXACT = {
     "core/domain/__init__.py": "src/core/modules/project_management/domain/__init__.py",
@@ -378,3 +378,4 @@ __all__ = [
     "REPO_ROOT",
     "resolve_repo_path",
 ]
+

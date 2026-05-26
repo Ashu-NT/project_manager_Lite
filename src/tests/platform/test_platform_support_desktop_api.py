@@ -202,3 +202,4 @@ def test_platform_support_desktop_api_can_launch_windows_update_handoff(tmp_path
     assert activity_result.ok is True
     assert activity_result.data is not None
     assert activity_result.data[0].event_type == "support.update.handoff_started"
+

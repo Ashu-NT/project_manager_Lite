@@ -497,3 +497,4 @@ def test_maintenance_routes_are_in_desktop_registry(services) -> None:
     assert registry.maintenance_reliability.build_snapshot().overview.title == "Reliability"
     assert registry.maintenance_work_requests.list_statuses()[0].value == "NEW"
     assert registry.maintenance_work_orders.list_statuses()[0].value == "DRAFT"
+

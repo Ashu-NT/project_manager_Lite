@@ -81,3 +81,4 @@ def test_site_service_updates_site_metadata(services):
     assert updated.closed_at is not None
     assert updated.is_active is False
     assert [site.name for site in site_service.list_sites(active_only=False)] == ["North Yard"]
+

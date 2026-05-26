@@ -174,3 +174,4 @@ def test_main_qt_skip_login_does_not_bypass_unauthenticated_services(
 
     assert ("login", True, False) in calls
     assert not any(call[0] == "load" for call in calls)
+

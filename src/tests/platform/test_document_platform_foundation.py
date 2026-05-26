@@ -222,3 +222,4 @@ def test_document_service_manages_document_structures_and_business_version_label
 
     assert updated_child.name == "Calibration and Test Certificates"
     assert updated_child.is_active is False
+

@@ -259,3 +259,4 @@ def test_maintenance_reporting_service_requires_runtime_permissions(services, tm
         services["maintenance_reporting_service"].generate_backlog_excel(tmp_path / "denied-maintenance.xlsx")
 
     assert exc.value.code == "PERMISSION_DENIED"
+

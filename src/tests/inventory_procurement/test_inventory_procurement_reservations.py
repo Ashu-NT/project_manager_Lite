@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.platform.common.exceptions import ValidationError
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 def _create_reservation_context(services):
@@ -121,3 +121,4 @@ def test_reservations_validate_source_reference_and_available_qty(services):
             source_reference_type="work_order",
             source_reference_id="WO-200",
         )
+

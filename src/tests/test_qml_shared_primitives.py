@@ -421,3 +421,4 @@ def test_qml_workspace_frame_exposes_default_content_slot() -> None:
     )
 
     assert "default property alias content: contentSlot.data" in frame_qml
+

@@ -125,3 +125,4 @@ def test_report_runtime_records_artifact_metadata_and_list_filters(services, tmp
     assert execution.output_file_name == "runtime-report.pdf"
     assert execution.output_media_type == "application/pdf"
     assert running == []
+

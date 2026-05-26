@@ -222,3 +222,4 @@ def test_domain_events_reset_rewires_generic_event_bridges():
             source_event="documents_changed",
         )
     ]
+

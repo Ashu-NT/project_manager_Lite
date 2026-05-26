@@ -919,3 +919,4 @@ def test_maintenance_reliability_service_summarizes_persisted_patterns(services)
     assert recurring[0].occurrence_count == 2
     assert recurring[0].leading_root_cause_code == cause_code.failure_code
     assert suggestions[0].root_cause_code == cause_code.failure_code
+

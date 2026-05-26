@@ -133,3 +133,4 @@ def test_department_service_rejects_default_location_from_other_site(services):
         assert exc.code == "DEPARTMENT_LOCATION_SITE_INVALID"
     else:
         raise AssertionError("Expected department default-location site validation error.")
+

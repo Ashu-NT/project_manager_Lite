@@ -1001,3 +1001,4 @@ def test_maintenance_desktop_api_does_not_import_qml_or_legacy_ui() -> None:
 
     assert "src.ui_qml" not in combined
     assert "ui.modules.maintenance_management" not in combined
+

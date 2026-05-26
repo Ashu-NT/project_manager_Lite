@@ -38,3 +38,4 @@ def test_dynamic_table_model_skips_reset_for_identical_rows_and_columns() -> Non
 
     assert resets == ["reset", "reset", "reset"]
     assert row_events == ["rows", "rows"]
+

@@ -61,3 +61,4 @@ def test_set_status_updates_percent_complete_defaults(services):
     ts.set_status(task.id, TaskStatus.IN_PROGRESS)
     task = ts.get_task(task.id)
     assert 0.0 < float(task.percent_complete or 0.0) < 100.0
+

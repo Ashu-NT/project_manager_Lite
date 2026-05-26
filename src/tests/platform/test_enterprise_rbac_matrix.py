@@ -9,7 +9,7 @@ from src.core.modules.project_management.access.policy import (
     normalize_project_scope_role,
     resolve_project_scope_permissions,
 )
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 def _platform_access_api(services) -> PlatformAccessDesktopApi:
@@ -118,3 +118,4 @@ def test_project_scope_roles_are_canonical_and_editor_is_compatibility_alias():
     assert "cost.manage" in resolve_project_scope_permissions("lead")
     assert "project.manage" not in resolve_project_scope_permissions("lead")
     assert "project.manage" in resolve_project_scope_permissions("owner")
+

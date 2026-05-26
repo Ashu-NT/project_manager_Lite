@@ -3209,3 +3209,4 @@ def _derive_end_date(
     if start_date is None or duration_days is None:
         return None
     return start_date + timedelta(days=max(duration_days - 1, 0))
+

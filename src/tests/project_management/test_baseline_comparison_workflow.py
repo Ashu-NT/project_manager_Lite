@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from tests.path_rewrites import REPO_ROOT
+from src.tests.path_rewrites import REPO_ROOT
 
 
 def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services):
@@ -115,3 +115,4 @@ def test_report_tab_wires_baseline_comparison_action():
     assert "self.btn_show_baseline_compare.clicked.connect(self.show_baseline_comparison)" in surface_text
     assert "def show_baseline_comparison" in actions_text
     assert "BaselineCompareDialog" in actions_text
+

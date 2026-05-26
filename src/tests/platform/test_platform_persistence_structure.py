@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from tests.path_rewrites import REPO_ROOT
+from src.tests.path_rewrites import REPO_ROOT
 
 ROOT = REPO_ROOT
 PERSISTENCE_ROOT = ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence"
@@ -36,3 +36,4 @@ def test_platform_persistence_uses_module_style_layout() -> None:
         "modules",
         "runtime_tracking",
     }
+

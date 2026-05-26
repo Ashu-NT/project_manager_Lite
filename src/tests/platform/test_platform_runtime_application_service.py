@@ -84,3 +84,4 @@ def test_platform_runtime_application_service_provisions_organization_with_initi
     app_service.set_active_organization(provisioned.id)
     assert app_service.current_context_label() == "Operations Hub"
     assert app_service.is_enabled("project_management") is False
+

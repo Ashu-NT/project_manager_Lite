@@ -28,3 +28,4 @@ def test_module_entitlements_are_scoped_by_active_organization(services):
     organization_service.set_active_organization(second_organization.id)
     assert module_catalog.current_context_label() == "North Division"
     assert module_catalog.is_enabled("project_management") is False
+

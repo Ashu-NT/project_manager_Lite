@@ -185,3 +185,4 @@ def test_build_desktop_api_registry_exposes_platform_master_data_adapters(servic
 
     assert result.ok is True
     assert result.data == ()
+

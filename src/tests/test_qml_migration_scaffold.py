@@ -80,3 +80,4 @@ def test_qml_login_view_model_is_display_only():
     assert view_model.username_label == "Username"
     assert view_model.password_label == "Password"
     assert view_model.submit_label == "Continue"
+

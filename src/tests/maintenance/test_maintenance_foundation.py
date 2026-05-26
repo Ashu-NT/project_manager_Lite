@@ -1054,3 +1054,4 @@ def test_maintenance_work_order_task_service_creates_and_progresses_tasks(sessio
 def test_maintenance_support_helpers_cover_priority_and_trigger_modes() -> None:
     assert coerce_priority("emergency").value == "EMERGENCY"
     assert coerce_trigger_mode("hybrid").value == "HYBRID"
+

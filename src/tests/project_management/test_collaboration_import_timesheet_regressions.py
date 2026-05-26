@@ -8,7 +8,7 @@ import pytest
 from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.core.platform.infrastructure.persistence.orm.time import TimeEntryORM
-from tests.temp_dirs import cleanup_test_workspace, create_test_workspace
+from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
 
 @pytest.fixture
@@ -339,3 +339,4 @@ def test_time_entry_hours_must_be_greater_than_zero(services):
 
     with pytest.raises(ValidationError, match="greater than zero"):
         ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 17), hours=0.0, note="Invalid")
+

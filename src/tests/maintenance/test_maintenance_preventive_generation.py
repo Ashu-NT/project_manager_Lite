@@ -358,3 +358,4 @@ def test_preventive_request_conversion_completion_updates_preventive_instance(se
     assert matching_rows[0].generated_work_order_id == work_order.id
     assert matching_rows[0].instance_status == "COMPLETED"
     assert matching_rows[0].completed_at is not None
+

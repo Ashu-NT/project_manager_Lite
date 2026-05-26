@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 def test_resource_manager_can_query_shared_sites_and_departments_without_settings_manage(services):
@@ -68,3 +68,4 @@ def test_viewer_cannot_read_shared_sites_departments_or_parties(services):
         services["department_service"].list_departments(active_only=True)
     with pytest.raises(BusinessRuleError, match="party.read"):
         services["party_service"].list_parties(active_only=True)
+

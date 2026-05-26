@@ -49,3 +49,4 @@ def test_registered_qml_routes_load_offscreen() -> None:
             }
         load_qml(engine, route.qml_path, initial_properties=initial_properties)
         assert len(engine.rootObjects()) == 1
+

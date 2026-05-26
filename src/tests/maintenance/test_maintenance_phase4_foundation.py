@@ -221,3 +221,4 @@ def test_phase4_services_raise_and_resolve_sensor_exceptions(session) -> None:
     assert resolved.status.value == "RESOLVED"
     assert resolved.resolved_at is not None
     assert reading.sensor_id == sensor.id
+

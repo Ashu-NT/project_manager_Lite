@@ -9,7 +9,7 @@ from src.core.modules.maintenance.access import resolve_maintenance_scope_permis
 from src.core.modules.inventory_procurement.access.policy import resolve_storeroom_scope_permissions
 from src.core.modules.project_management.access.policy import resolve_project_scope_permissions
 from src.core.platform.org.access_policy import resolve_site_scope_permissions
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 def test_user_session_supports_generic_scoped_access_and_project_compatibility():
@@ -289,3 +289,4 @@ def test_storeroom_scoped_access_filters_inventory_and_stock_queries(services):
             stock_item_id=item.id,
             storeroom_id=blocked.id,
         )
+

@@ -23,3 +23,4 @@ def test_cost_items_and_summary(services):
     assert summary["total_planned"] == 500.0 + 2000.0 + 800.0
     assert summary["total_actual"] == 2200.0 + 700.0
     assert summary["variance"] == summary["total_actual"] - summary["total_planned"]
+

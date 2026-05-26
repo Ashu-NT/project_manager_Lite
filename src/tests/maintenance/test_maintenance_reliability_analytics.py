@@ -314,3 +314,4 @@ def test_reliability_service_requires_report_view_permission() -> None:
 
     with pytest.raises(BusinessRuleError):
         service.build_reliability_dashboard(asset_id=asset.id, days=30)
+

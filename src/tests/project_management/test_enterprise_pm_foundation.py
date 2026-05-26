@@ -7,7 +7,7 @@ import pytest
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.modules.project_management.domain.enums import DependencyType
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 def test_auth_service_locks_accounts_and_expires_sessions(services, monkeypatch):
@@ -414,3 +414,4 @@ def test_portfolio_project_dependencies_track_cross_project_links(services):
 
     portfolio.remove_project_dependency(dependency.id)
     assert portfolio.list_project_dependencies() == []
+

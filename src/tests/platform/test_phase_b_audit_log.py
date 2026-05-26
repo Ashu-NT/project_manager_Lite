@@ -244,3 +244,4 @@ def test_auth_login_attempts_are_audited(services):
     actions = [entry.action for entry in entries]
     assert "auth.login.success" in actions
     assert "auth.login.failed" in actions
+

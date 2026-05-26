@@ -5,7 +5,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import src.infra.platform.diagnostics as diagnostics
-from tests.path_rewrites import REPO_ROOT
+from src.tests.path_rewrites import REPO_ROOT
 from src.infra.platform.operational_support import (
     REDACTED,
     REDACTED_EMAIL,
@@ -162,3 +162,4 @@ def test_support_tab_wires_incident_tracing_and_operational_support():
     assert "SupportIncidentReportMixin" in diagnostics_text
     assert "SupportDiagnosticsExportMixin" in diagnostics_text
     assert "btn_report_incident" in layout_text
+

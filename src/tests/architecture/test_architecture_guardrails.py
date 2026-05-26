@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from tests.path_rewrites import REPO_ROOT
+from src.tests.path_rewrites import REPO_ROOT
 
 ROOT = REPO_ROOT
 
@@ -686,3 +686,4 @@ def test_known_large_modules_have_growth_budgets():
             breaches.append((rel_path, lines, max_lines))
 
     assert not breaches, f"Large-module budgets exceeded: {breaches}"
+

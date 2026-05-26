@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from src.core.platform.common.exceptions import ValidationError
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 def _create_active_item_and_storeroom(services):
@@ -246,3 +246,4 @@ def test_inventory_ledger_enforces_reservation_required_issue_policy(services):
     assert issued.status.value == "FULLY_ISSUED"
     assert balance is not None
     assert balance.on_hand_qty == pytest.approx(4.0)
+

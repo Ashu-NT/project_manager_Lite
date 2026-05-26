@@ -120,3 +120,4 @@ def test_manual_resource_leveling_shifts_leaf_task_dates(services):
     assert action.new_start == wc.add_working_days(old_start, 3)
     assert updated.start_date == action.new_start
     assert updated.end_date == action.new_end
+

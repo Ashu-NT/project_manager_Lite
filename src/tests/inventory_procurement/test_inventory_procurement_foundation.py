@@ -4,7 +4,7 @@ import pytest
 
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.party.domain import PartyType
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 def test_inventory_manager_can_create_items_with_shared_party_and_document_links(services):
@@ -352,3 +352,4 @@ def test_inventory_foundation_service_supports_locations_reorder_policies_and_cy
     assert completed.variance_qty == -2.0
     assert balance is not None
     assert balance.on_hand_qty == 18.0
+

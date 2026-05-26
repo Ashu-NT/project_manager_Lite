@@ -154,3 +154,4 @@ def test_qml_shell_replaces_widget_entrypoint() -> None:
 
     assert "from src.ui_qml.shell.app import main" in entrypoint
     assert "src.ui.shell.app" not in entrypoint
+

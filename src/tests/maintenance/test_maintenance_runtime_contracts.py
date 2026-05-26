@@ -197,3 +197,4 @@ def test_maintenance_runtime_contract_catalog_service_builds_report_document() -
     workbook_table = report.sections[1].blocks[0]
     assert summary_metric_block.rows[0].value == len(MAINTENANCE_WORKBOOK_SHEETS)
     assert workbook_table.rows[0][0] == "Locations"
+

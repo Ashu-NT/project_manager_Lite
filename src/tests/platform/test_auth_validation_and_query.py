@@ -52,3 +52,4 @@ def test_auth_query_returns_roles_and_permissions(services):
     assert "planner" in role_names
     assert auth.has_permission(user.id, "task.manage")
     assert not auth.has_permission(user.id, "auth.manage")
+

@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 from uuid import uuid4
 
-from tests.path_rewrites import REPO_ROOT
+from src.tests.path_rewrites import REPO_ROOT
 
 
 TEST_TEMP_ROOT = REPO_ROOT / ".pytest_workspaces"
@@ -26,3 +26,4 @@ def cleanup_test_workspace(workspace: Path) -> None:
 
 
 __all__ = ["TEST_TEMP_ROOT", "cleanup_test_workspace", "create_test_workspace"]
+

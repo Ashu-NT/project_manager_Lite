@@ -13,7 +13,7 @@ from src.core.platform.org import DepartmentService, EmployeeService, Organizati
 from src.core.platform.party import PartyService
 from src.application.runtime.entitlement_runtime import ModuleRuntimeService
 from src.core.platform.time.application import TimeService
-from tests.path_rewrites import REPO_ROOT
+from src.tests.path_rewrites import REPO_ROOT
 from src.core.modules.inventory_procurement import (
     InventoryDataExchangeService,
     MaintenanceMaterialService,
@@ -310,3 +310,4 @@ def test_service_registration_package_is_split_by_platform_and_module():
     assert (root / "inventory_registry.py").exists()
     assert (root / "maintenance_registry.py").exists()
     assert (root / "project_registry.py").exists()
+

@@ -32,3 +32,4 @@ def test_project_management_qml_routes_are_registered_for_navigation() -> None:
 
     for route_id in EXPECTED_PM_ROUTE_IDS:
         assert route_id in route_ids
+

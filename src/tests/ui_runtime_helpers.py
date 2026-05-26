@@ -50,3 +50,4 @@ def wait_until(qapp, predicate, *, timeout_ms: int = 3000, step_ms: int = 25) ->
         time.sleep(step_ms / 1000.0)
     qapp.processEvents()
     assert predicate()
+

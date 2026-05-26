@@ -301,3 +301,4 @@ def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
     )
     assert second.work_allocation_id == assignment.id
     assert len(timesheet_service.list_time_entries_for_work_allocation(assignment.id)) == 2
+

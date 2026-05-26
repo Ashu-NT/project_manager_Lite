@@ -367,3 +367,4 @@ def test_add_dependency_uses_diagnostics_for_cycle_rule(services):
         ts.add_dependency(t2.id, t1.id, DependencyType.FINISH_TO_START, lag_days=0)
     assert exc.value.code == "DEPENDENCY_CYCLE"
     assert "Cycle path" in str(exc.value)
+

@@ -20,3 +20,4 @@ def test_platform_qml_routes_are_registered_for_navigation() -> None:
     assert "platform.admin" in route_ids
     assert "platform.control" in route_ids
     assert "platform.settings" in route_ids
+

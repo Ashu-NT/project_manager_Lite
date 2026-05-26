@@ -6,7 +6,7 @@ import pytest
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.party.domain import PartyType
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 def _create_requisition_context(services):
@@ -197,3 +197,4 @@ def test_requisition_service_can_update_and_cancel_draft_requisition(services):
     assert cancelled.status.value == "CANCELLED"
     assert cancelled.cancelled_at is not None
     assert [line.status.value for line in lines] == ["CANCELLED"]
+

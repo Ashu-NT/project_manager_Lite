@@ -103,3 +103,4 @@ def test_module_catalog_service_supports_trial_and_suspended_lifecycle_states(se
     with pytest.raises(BusinessRuleError, match="suspended") as suspended_exc:
         services["project_service"].list_projects()
     assert suspended_exc.value.code == "MODULE_DISABLED"
+

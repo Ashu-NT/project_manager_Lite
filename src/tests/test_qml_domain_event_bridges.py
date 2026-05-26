@@ -375,3 +375,4 @@ def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None
         text = (root / relative_path).read_text(encoding="utf-8", errors="ignore")
         for fragment in expected_fragments:
             assert fragment in text
+

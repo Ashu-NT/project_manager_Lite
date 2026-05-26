@@ -30,3 +30,4 @@ def test_work_calendar_and_holiday_effect(services):
     # Working days: Tue(7), Thu(9), Fri(10)  -> because Wed(8) is holiday
     assert info.earliest_start == date(2023, 11, 7)
     assert info.earliest_finish == date(2023, 11, 10)
+

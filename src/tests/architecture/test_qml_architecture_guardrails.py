@@ -5,7 +5,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from tests.path_rewrites import REPO_ROOT
+from src.tests.path_rewrites import REPO_ROOT
 
 ROOT = REPO_ROOT
 SRC_ROOT = ROOT / "src"
@@ -580,3 +580,4 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
 def test_legacy_widget_ui_roots_are_removed() -> None:
     assert not LEGACY_SRC_UI_ROOT.exists()
     assert not LEGACY_TOPLEVEL_UI_ROOT.exists()
+

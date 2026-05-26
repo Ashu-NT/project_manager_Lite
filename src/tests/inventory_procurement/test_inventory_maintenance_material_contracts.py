@@ -252,3 +252,4 @@ def test_maintenance_material_service_rejects_items_not_enabled_for_maintenance_
             source_reference_type="maintenance_work_order",
             source_reference_id="MWO-400",
         )
+

@@ -2450,3 +2450,4 @@ def test_platform_workspace_catalog_runs_access_security_actions() -> None:
     assert [item["title"] for item in grants["items"]] == ["Ada Lovelace"]
     assert security_users["user-2"]["statusLabel"] == "Inactive"
     assert catalog.adminAccessWorkspace.feedbackMessage == "User sessions revoked."
+

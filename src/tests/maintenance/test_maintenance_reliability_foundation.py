@@ -313,3 +313,4 @@ def test_downtime_event_service_tracks_duration_and_syncs_work_order(session) ->
     assert reloaded.duration_minutes == 75
     assert synced_work_order is not None
     assert synced_work_order.downtime_minutes == 75
+

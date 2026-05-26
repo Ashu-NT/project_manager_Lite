@@ -29,3 +29,4 @@ def test_inventory_procurement_qml_routes_are_registered_for_navigation() -> Non
 
     for route_id in EXPECTED_INVENTORY_ROUTE_IDS:
         assert route_id in route_ids
+

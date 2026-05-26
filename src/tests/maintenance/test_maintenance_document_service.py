@@ -136,3 +136,4 @@ def test_maintenance_document_service_lists_structures_and_registers_work_order_
     assert records[0].structure is not None
     assert records[0].structure.id == structure.id
     assert "WO-DOC" in records[0].entity_label
+

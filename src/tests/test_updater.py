@@ -46,3 +46,4 @@ def test_prepare_windows_update_handoff_writes_script(monkeypatch, tmp_path):
     assert "Get-Process -Id $targetPid" in script_text
     assert "Start-Process -FilePath $installer -Wait -PassThru" in script_text
     assert "Start-Process -FilePath $relaunchExe" in script_text
+

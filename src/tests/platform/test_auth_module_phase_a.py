@@ -233,3 +233,4 @@ def test_auth_service_persists_sessions_and_supports_single_session_revocation(s
 
     assert auth.validate_session_principal(desktop_principal) is None
     assert auth.validate_session_principal(browser_principal) is not None
+

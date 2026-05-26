@@ -181,3 +181,4 @@ def test_work_order_dialog_host_cancel_button_does_not_emit_create() -> None:
     assert QMetaObject.invokeMethod(cancel_button, "click")
 
     assert created == []
+

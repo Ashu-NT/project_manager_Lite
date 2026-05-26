@@ -256,3 +256,4 @@ def test_preventive_forecast_preview_exposes_generation_window_and_regeneration_
     assert preview[0].generation_window_opens_at == first_due - timedelta(days=10)
     assert preview[0].planner_state == "READY_WINDOW"
     assert preview[1].planner_state == "UPCOMING"
+

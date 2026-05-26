@@ -82,3 +82,4 @@ def test_build_desktop_api_registry_exposes_platform_runtime_adapter(services):
     assert result.ok is True
     assert result.data is not None
     assert any(module.code == "project_management" for module in result.data)
+

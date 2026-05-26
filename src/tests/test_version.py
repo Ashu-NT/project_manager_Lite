@@ -26,3 +26,4 @@ def test_get_app_version_falls_back_when_file_missing(monkeypatch, tmp_path):
     monkeypatch.delenv("PM_APP_VERSION", raising=False)
 
     assert version_mod.get_app_version() == version_mod._DEFAULT_APP_VERSION
+

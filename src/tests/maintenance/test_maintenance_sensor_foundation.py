@@ -204,3 +204,4 @@ def test_maintenance_sensor_reading_service_updates_sensor_snapshot(session) -> 
     assert refreshed_sensor.current_value == Decimal("82.4")
     assert refreshed_sensor.last_read_at == reading.reading_timestamp
     assert rows[0].id == reading.id
+

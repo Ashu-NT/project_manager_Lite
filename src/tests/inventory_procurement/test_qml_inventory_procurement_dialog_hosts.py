@@ -315,3 +315,4 @@ def test_reservations_dialog_host_release_confirmation_submit_button_emits_relea
     assert QMetaObject.invokeMethod(submit_button, "click")
 
     assert captured == ["RSV-1"]
+

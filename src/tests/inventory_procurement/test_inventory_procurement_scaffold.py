@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.platform.party.domain import PartyType
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 def test_inventory_manager_can_consume_shared_sites_and_business_parties(services):
@@ -45,3 +45,4 @@ def test_inventory_manager_role_exposes_inventory_shared_reference_permissions(s
     assert "party.read" in permissions
     assert "approval.request" in permissions
     assert "settings.manage" not in permissions
+

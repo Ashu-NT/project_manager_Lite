@@ -57,3 +57,4 @@ def test_organization_provisioning_seeds_requested_modules_without_changing_defa
     organization_service.set_active_organization(created.id)
     assert module_catalog.current_context_label() == "Empty Module Org"
     assert module_catalog.is_enabled("project_management") is False
+

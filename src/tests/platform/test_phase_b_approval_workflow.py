@@ -142,3 +142,4 @@ def test_duplicate_approval_requests_are_prevented(services, monkeypatch):
             project_id="p-1",
             payload={"project_id": "p-1", "name": "Baseline 2"},
         )
+

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.path_rewrites import REPO_ROOT
+from src.tests.path_rewrites import REPO_ROOT
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.exporting import ExportDefinitionRegistry, ExportRuntime
@@ -217,3 +217,4 @@ def test_platform_runtime_packages_do_not_import_module_code() -> None:
                         violations.append((str(path.relative_to(ROOT)), mod))
 
     assert not violations, f"Platform runtime packages import module code: {violations}"
+

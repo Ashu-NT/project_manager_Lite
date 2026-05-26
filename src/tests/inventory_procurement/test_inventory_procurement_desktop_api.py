@@ -35,7 +35,7 @@ from src.core.modules.inventory_procurement.api.desktop import (
     build_inventory_procurement_workspace_desktop_api,
 )
 from src.core.platform.party.domain import PartyType
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 EXPECTED_INVENTORY_WORKSPACE_KEYS = [
@@ -779,3 +779,4 @@ def test_inventory_procurement_desktop_api_does_not_import_qml_or_legacy_ui() ->
     assert "src.ui_qml" not in combined
     assert "ui.modules.inventory_procurement" not in combined
     assert "src.ui." not in combined
+

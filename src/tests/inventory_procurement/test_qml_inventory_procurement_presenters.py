@@ -11,7 +11,7 @@ from src.ui_qml.modules.inventory_procurement.presenters import (
     InventoryProcurementProcurementWorkspacePresenter,
     InventoryReservationsWorkspacePresenter,
 )
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 def test_inventory_qml_workspace_catalog_exposes_dashboard_workspace(services) -> None:
@@ -707,3 +707,4 @@ def test_inventory_qml_pricing_presenter_builds_workspace_state(services) -> Non
     assert snapshot.selected_supplier_filter == supplier.id
     assert snapshot.stock_rows[0].title.startswith("PRICE-PRES-ITEM")
     assert snapshot.supplier_price_rows[0].status_label.startswith("EUR")
+

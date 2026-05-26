@@ -309,3 +309,4 @@ def test_maintenance_material_requirement_service_tracks_stock_demand_and_availa
     assert str(refreshed.last_missing_qty) == "0.0"
     assert captured[-1].entity_type == "maintenance_material_requirement"
     assert captured[-1].source_event == "maintenance_material_requirements_changed"
+

@@ -111,3 +111,4 @@ def test_maintenance_labor_service_requires_assigned_employee_for_booking(servic
             hours=1.0,
             note="Should fail without an assigned technician.",
         )
+

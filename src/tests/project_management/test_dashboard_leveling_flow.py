@@ -2,7 +2,7 @@ from datetime import date
 from pathlib import Path
 
 from src.core.platform.notifications.domain_events import domain_events
-from tests.path_rewrites import REPO_ROOT
+from src.tests.path_rewrites import REPO_ROOT
 
 
 def test_dashboard_service_preview_resource_conflicts(services):
@@ -157,3 +157,4 @@ def test_dashboard_tab_wires_leveling_actions_and_conflict_grid():
     assert "def _update_conflicts_from_load" in rendering_alerts_text
     assert "self.btn_open_alerts.set_badge(" in rendering_alerts_text
     assert "self.btn_open_upcoming.set_badge(" in rendering_charts_text
+

@@ -8,7 +8,7 @@ from src.core.platform.modules import (
     DEFAULT_ENTERPRISE_MODULES,
     build_default_module_catalog,
 )
-from tests.path_rewrites import REPO_ROOT
+from src.tests.path_rewrites import REPO_ROOT
 
 
 def test_service_graph_exposes_project_management_as_enabled_module(services):
@@ -76,3 +76,4 @@ def test_module_catalog_accepts_legacy_payroll_code_as_hr_management_alias():
     assert catalog.is_licensed("hr_management") is True
     assert catalog.is_enabled("payroll") is True
     assert catalog.is_licensed("payroll") is True
+

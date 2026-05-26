@@ -7,7 +7,7 @@ import pytest
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.party.domain import PartyType
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 def _create_procurement_context(services):
@@ -543,3 +543,4 @@ def test_purchase_order_workflow_converts_between_issue_and_order_uoms(services)
     assert balance_after_receipt is not None
     assert balance_after_receipt.on_hand_qty == pytest.approx(10.0)
     assert balance_after_receipt.on_order_qty == pytest.approx(0.0)
+

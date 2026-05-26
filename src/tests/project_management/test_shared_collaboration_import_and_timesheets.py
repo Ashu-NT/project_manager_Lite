@@ -11,7 +11,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.time.domain import TimesheetPeriodStatus
 from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.domain.enums import WorkerType
-from tests.temp_dirs import cleanup_test_workspace, create_test_workspace
+from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
 
 def test_db_backed_collaboration_store_persists_and_marks_mentions(services):
@@ -386,3 +386,4 @@ def test_data_import_service_requires_import_manage_permission_from_live_session
         importer.get_import_schema("projects")
 
     assert exc.value.code == "PERMISSION_DENIED"
+

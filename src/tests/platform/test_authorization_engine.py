@@ -104,3 +104,4 @@ def test_authorization_helpers_delegate_to_shared_engine_override():
         assert [row.scope_id for row in rows] == ["scope-a", "scope-b"]
     finally:
         set_authorization_engine(previous_engine)
+

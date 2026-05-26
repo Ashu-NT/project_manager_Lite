@@ -23,3 +23,4 @@ def test_verify_password_rejects_unknown_scheme():
     encoded_hash = "pbkdf2_unknown$100000$AAAAAAAAAAAAAAAAAAAAAA==$BBBBBBBBBBBBBBBBBBBBBB=="
 
     assert verify_password(raw_password, encoded_hash) is False
+

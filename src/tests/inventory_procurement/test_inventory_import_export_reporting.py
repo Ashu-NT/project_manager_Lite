@@ -9,7 +9,7 @@ from openpyxl import load_workbook
 from src.core.platform.auth.domain.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.party.domain import PartyType
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 def _suffix() -> str:
@@ -336,3 +336,4 @@ def test_inventory_data_exchange_imports_procurement_documents_and_records_runti
         ("import", "purchase_orders", "COMPLETED"),
         ("import", "receipts", "COMPLETED"),
     }
+

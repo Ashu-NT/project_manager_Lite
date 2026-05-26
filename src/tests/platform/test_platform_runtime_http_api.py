@@ -64,3 +64,4 @@ def test_platform_runtime_http_api_maps_validation_errors(services):
 
     assert response.status_code == 422
     assert response.body["error"]["code"] == "MODULE_NOT_AVAILABLE"
+

@@ -95,3 +95,4 @@ def test_organization_editor_dialog_submit_button_emits_save_requested() -> None
     assert captured[0][1]["organizationId"] == "ORG-1"
     assert captured[0][1]["organizationCode"] == "ACME"
     assert captured[0][1]["baseCurrency"] == "EUR"
+

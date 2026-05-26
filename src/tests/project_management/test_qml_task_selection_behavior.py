@@ -14,3 +14,4 @@ def test_task_bulk_selection_methods_do_not_refresh_workspace(monkeypatch) -> No
     controller.clearTaskBulkSelection()
 
     assert refresh_calls == []
+

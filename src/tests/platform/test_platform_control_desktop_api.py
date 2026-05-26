@@ -10,7 +10,7 @@ from src.api.desktop.platform import (
     ScopedAccessGrantRemoveCommand,
 )
 from src.api.desktop.runtime import build_desktop_api_registry
-from tests.ui_runtime_helpers import login_as
+from src.tests.ui_runtime_helpers import login_as
 
 
 def _access_api(services) -> PlatformAccessDesktopApi:
@@ -144,3 +144,4 @@ def test_build_desktop_api_registry_exposes_platform_control_adapters(services):
     assert registry.platform_access.list_scope_role_choices("project").ok is True
     assert registry.platform_approval.list_requests(status=ApprovalStatus.PENDING).ok is True
     assert registry.platform_audit.list_recent(limit=5).ok is True
+

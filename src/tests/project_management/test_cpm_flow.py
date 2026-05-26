@@ -72,3 +72,4 @@ def test_cpm_cycle_detection(services):
     # Optional: CPM should now run fine (since cycle was blocked)
     schedule = sched.recalculate_project_schedule(pid)
     assert t1.id in schedule and t2.id in schedule
+

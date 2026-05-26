@@ -33,3 +33,4 @@ def test_resource_assignment_and_overload(services):
     # Check tasks for resource in project
     tasks_for_res = ts.query_tasks(project_id=pid, resource_id=r.id)
     assert len(tasks_for_res) == 2
+

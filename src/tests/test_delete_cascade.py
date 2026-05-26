@@ -40,3 +40,4 @@ def test_project_delete_cascade(services):
 
     # Resource still exists (we decided project delete does not delete resources globally)
     assert rs.list_resources()
+

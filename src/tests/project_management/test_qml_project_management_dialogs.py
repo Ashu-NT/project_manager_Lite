@@ -212,3 +212,4 @@ def test_tasks_dialog_host_open_create_dialog_prepares_editor() -> None:
     assert str(editor_dialog.property("modeTitle")) == "Create Task"
     task_data = _variant(editor_dialog.property("taskData"))
     assert task_data["state"]["status"] == "TODO"
+

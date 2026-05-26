@@ -29,3 +29,4 @@ def test_maintenance_qml_routes_are_registered_for_navigation() -> None:
         for route in registry.list_navigation_routes()
         if route.module_code == "maintenance"
     ] == EXPECTED_ROUTE_IDS
+
