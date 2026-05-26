@@ -4,9 +4,14 @@ from typing import Any
 
 from src.core.modules.inventory_procurement.api.desktop import (
     InventoryAdjustmentCommand,
+    InventoryCycleCountCompleteCommand,
+    InventoryCycleCountCreateCommand,
     InventoryIssueCommand,
+    InventoryLocationCreateCommand,
+    InventoryLocationUpdateCommand,
     InventoryOpeningBalanceCommand,
     InventoryProcurementInventoryDesktopApi,
+    InventoryReorderPolicyUpsertCommand,
     InventoryReturnCommand,
     InventoryStoreroomCreateCommand,
     InventoryStoreroomUpdateCommand,
@@ -477,6 +482,135 @@ class InventoryInventoryWorkspacePresenter:
             notes=self._optional_text(payload, "notes") or "",
         )
         self._desktop_api.transfer_stock(command)
+
+    def create_location(self, payload: dict[str, Any]) -> None:
+        command = InventoryLocationCreateCommand(
+            storeroom_id=self._require_text(
+                payload,
+                "storeroomId",
+                "Choose a storeroom before saving a storage location.",
+            ),
+            location_code=self._require_text(
+                payload,
+                "locationCode",
+                "Location code is required.",
+            ),
+            name=self._require_text(payload, "name", "Location name is required."),
+            parent_location_id=self._optional_text(payload, "parentLocationId"),
+            location_type=self._require_text(
+                payload,
+                "locationType",
+                "Location type is required.",
+            ),
+            is_active=self._optional_bool(payload, "isActive", default=True),
+            is_quarantine=self._optional_bool(payload, "isQuarantine", default=False),
+            allows_issue=self._optional_bool(payload, "allowsIssue", default=True),
+            allows_putaway=self._optional_bool(payload, "allowsPutaway", default=True),
+            notes=self._optional_text(payload, "notes") or "",
+        )
+        self._desktop_api.create_storage_location(command)
+
+    def update_location(self, payload: dict[str, Any]) -> None:
+        command = InventoryLocationUpdateCommand(
+            location_id=self._require_text(
+                payload,
+                "locationId",
+                "Location ID is required for updates.",
+            ),
+            location_code=self._require_text(
+                payload,
+                "locationCode",
+                "Location code is required.",
+            ),
+            name=self._require_text(payload, "name", "Location name is required."),
+            parent_location_id=self._optional_text(payload, "parentLocationId"),
+            location_type=self._require_text(
+                payload,
+                "locationType",
+                "Location type is required.",
+            ),
+            is_active=self._optional_bool(payload, "isActive", default=True),
+            is_quarantine=self._optional_bool(payload, "isQuarantine", default=False),
+            allows_issue=self._optional_bool(payload, "allowsIssue", default=True),
+            allows_putaway=self._optional_bool(payload, "allowsPutaway", default=True),
+            notes=self._optional_text(payload, "notes") or "",
+            expected_version=self._optional_int(payload, "expectedVersion"),
+        )
+        self._desktop_api.update_storage_location(command)
+
+    def upsert_reorder_policy(self, payload: dict[str, Any]) -> None:
+        command = InventoryReorderPolicyUpsertCommand(
+            stock_item_id=self._require_text(
+                payload,
+                "stockItemId",
+                "Choose an item before saving a reorder policy.",
+            ),
+            storeroom_id=self._require_text(
+                payload,
+                "storeroomId",
+                "Choose a storeroom before saving a reorder policy.",
+            ),
+            location_id=self._optional_text(payload, "locationId"),
+            policy_name=self._optional_text(payload, "policyName") or "",
+            is_active=self._optional_bool(payload, "isActive", default=True),
+            min_qty=self._optional_float(payload, "minQty", default=0.0) or 0.0,
+            max_qty=self._optional_float(payload, "maxQty", default=0.0) or 0.0,
+            reorder_point=self._optional_float(payload, "reorderPoint", default=0.0) or 0.0,
+            reorder_qty=self._optional_float(payload, "reorderQty", default=0.0) or 0.0,
+            economic_order_qty=self._optional_float(
+                payload,
+                "economicOrderQty",
+                default=0.0,
+            )
+            or 0.0,
+            lead_time_days=self._optional_int(payload, "leadTimeDays"),
+            review_period_days=self._optional_int(payload, "reviewPeriodDays"),
+            preferred_supplier_party_id=self._optional_text(
+                payload,
+                "preferredSupplierPartyId",
+            ),
+            policy_id=self._optional_text(payload, "policyId"),
+            expected_version=self._optional_int(payload, "expectedVersion"),
+        )
+        self._desktop_api.upsert_reorder_policy(command)
+
+    def schedule_cycle_count(self, payload: dict[str, Any]) -> None:
+        command = InventoryCycleCountCreateCommand(
+            stock_item_id=self._require_text(
+                payload,
+                "stockItemId",
+                "Choose an item before scheduling a cycle count.",
+            ),
+            storeroom_id=self._require_text(
+                payload,
+                "storeroomId",
+                "Choose a storeroom before scheduling a cycle count.",
+            ),
+            location_id=self._optional_text(payload, "locationId"),
+            scheduled_count_date=self._optional_text(payload, "scheduledCountDate"),
+            notes=self._optional_text(payload, "notes") or "",
+        )
+        self._desktop_api.schedule_cycle_count(command)
+
+    def complete_cycle_count(self, payload: dict[str, Any]) -> None:
+        counted_qty = self._optional_float(
+            payload,
+            "countedQty",
+            "Counted quantity must be a valid number.",
+        )
+        if counted_qty is None or counted_qty < 0:
+            raise ValueError("Counted quantity must be zero or greater.")
+        command = InventoryCycleCountCompleteCommand(
+            cycle_count_id=self._require_text(
+                payload,
+                "cycleCountId",
+                "Cycle count ID is required.",
+            ),
+            counted_qty=counted_qty,
+            notes=self._optional_text(payload, "notes") or "",
+            expected_version=self._optional_int(payload, "expectedVersion"),
+        )
+        self._desktop_api.complete_cycle_count(command)
 
     @staticmethod
     def _build_overview(

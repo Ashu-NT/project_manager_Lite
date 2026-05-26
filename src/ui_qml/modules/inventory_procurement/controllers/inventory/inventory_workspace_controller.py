@@ -497,6 +497,71 @@ class InventoryProcurementInventoryWorkspaceController(
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot("QVariantMap", result="QVariantMap")
+    def createLocation(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._inventory_workspace_presenter.create_location(
+                dict(payload)
+            ),
+            success_message="Storage location created.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateLocation(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._inventory_workspace_presenter.update_location(
+                dict(payload)
+            ),
+            success_message="Storage location updated.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def upsertReorderPolicy(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._inventory_workspace_presenter.upsert_reorder_policy(
+                dict(payload)
+            ),
+            success_message="Reorder policy saved.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def scheduleCycleCount(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._inventory_workspace_presenter.schedule_cycle_count(
+                dict(payload)
+            ),
+            success_message="Cycle count scheduled.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def completeCycleCount(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._inventory_workspace_presenter.complete_cycle_count(
+                dict(payload)
+            ),
+            success_message="Cycle count completed.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(scope_code="inventory_procurement")
         self._subscribe_domain_change("party", scope_code="platform")
