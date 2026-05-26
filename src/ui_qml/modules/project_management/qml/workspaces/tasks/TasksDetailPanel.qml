@@ -356,7 +356,7 @@ Item {
                     width: parent ? parent.width : 0
                     implicitHeight: 120
                     title: "Material demand is tracked at the task level."
-                    subtitle: "Use Inventory › Reservations to manage stock reservations linked to this task."
+                    message: "Use Inventory › Reservations to manage stock reservations linked to this task."
                 }
             }
         }
@@ -369,7 +369,7 @@ Item {
                     width: parent ? parent.width : 0
                     implicitHeight: 120
                     title: "Stock reservations linked to this task."
-                    subtitle: "Open Inventory › Reservations and filter by this task to review or create reservations."
+                    message: "Open Inventory › Reservations and filter by this task to review or create reservations."
                 }
             }
         }
@@ -382,7 +382,7 @@ Item {
                     width: parent ? parent.width : 0
                     implicitHeight: 120
                     title: "Procurement commitments for this task."
-                    subtitle: "Open Procurement › Requisitions and filter by this task to review linked purchase requests."
+                    message: "Open Procurement › Requisitions and filter by this task to review linked purchase requests."
                 }
             }
         }

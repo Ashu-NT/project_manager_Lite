@@ -37,6 +37,7 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryType,
 )
 from src.core.platform.documents import DocumentStorageKind
+from src.tests.ui_runtime_helpers import wait_until
 
 
 def test_project_management_workspace_presenters_match_qml_routes() -> None:
@@ -838,6 +839,7 @@ def test_project_management_workspace_catalog_exposes_typed_risk_and_register_co
 
 def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
     tmp_path: Path,
+    qapp,
 ) -> None:
     class _FakeTaskTimesheetsDesktopApi:
         def __init__(self) -> None:
@@ -1091,13 +1093,34 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
     assert controller.collaborationDocumentOptions == []
     assert controller.collaborationComments["items"] == []
     assert controller.collaborationPresence["items"] == []
-    assert collaboration_service.touched_presence[0] == ("task-1", "reviewing")
+    assert collaboration_service.touched_presence == []
 
     controller.activateTask("task-1")
+    wait_until(
+        qapp,
+        lambda: controller.selectedTask["description"]
+        == "Primary feeder cable installation.",
+    )
+
+    assert controller.assignmentOptions == []
+    assert controller.assignments["items"] == []
+    assert controller.selectedAssignmentId == ""
+    assert controller.dependencies["items"] == []
+    assert controller.dependencyTypeOptions == []
+    assert controller.dependencyTaskOptions == []
+    assert collaboration_service.touched_presence == []
+
+    controller.setTaskReviewActive(True)
+    assert collaboration_service.touched_presence[-1] == ("task-1", "reviewing")
+
+    controller.loadSelectedTaskAssignments()
 
     assert controller.assignmentOptions[0]["label"] == "Alex Taylor (90.00 EUR/hr)"
     assert controller.assignments["items"][0]["title"] == "Alex Taylor"
     assert controller.selectedAssignmentId == "assign-1"
+
+    controller.loadSelectedTaskDependencies()
+
     assert controller.dependencies["items"][0]["title"] == "Punchlist Closeout"
     assert controller.dependencyTypeOptions[0]["value"] == "FS"
     assert controller.dependencyTaskOptions[0]["value"] == "task-2"
@@ -1604,16 +1627,16 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "import ProjectManagement.Widgets 1.0" in qml_text
     assert "property var pmCatalog" not in qml_text
     assert "QML landing zone ready" in qml_text
-    assert "QML risk register slice active" in qml_text
-    assert "QML task execution workspace active" in qml_text
-    assert "QML scheduling operations slice active" in qml_text
+    assert "Project risk register, mitigation, severity, and review workflows." in qml_text
+    assert "Task planning, progress, dependencies, assignments, and execution state." in qml_text
+    assert "Enterprise planning and schedule control workspace." in qml_text
     assert 'searchPlaceholder: "Search tasks..."' in qml_text
     assert "showCustomize: true" in qml_text
     assert "showViews: true" in qml_text
     assert "showExport: true" in qml_text
     assert "AppWidgets.BulkActionBar {" in qml_text
     assert "AppWidgets.BulkChangePropertyPopup {" in qml_text
-    assert "QML read-only dashboard slice active" in qml_text
+    assert "Project KPIs, health summaries, and executive delivery views." in qml_text
 
 
 class _FakeEmployeeService:

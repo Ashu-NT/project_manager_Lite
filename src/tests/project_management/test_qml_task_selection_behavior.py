@@ -15,3 +15,19 @@ def test_task_bulk_selection_methods_do_not_refresh_workspace(monkeypatch) -> No
 
     assert refresh_calls == []
 
+
+def test_task_list_selection_does_not_start_review_presence(monkeypatch) -> None:
+    catalog = ProjectManagementWorkspaceCatalog()
+    controller = catalog.tasksWorkspace
+    sync_calls: list[str] = []
+
+    monkeypatch.setattr(
+        controller.collaborationController,
+        "sync_review_presence",
+        lambda task_id: sync_calls.append(str(task_id)),
+    )
+
+    controller.selectTask("task-1")
+
+    assert sync_calls == []
+

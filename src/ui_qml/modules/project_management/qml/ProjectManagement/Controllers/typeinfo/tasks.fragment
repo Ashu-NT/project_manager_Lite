@@ -90,7 +90,10 @@ Component {
     Method { name: "activateTask"; Parameter { name: "task_id"; type: "QString" } }
     Method { name: "setTaskPage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setTaskPageSize"; Parameter { name: "page_size"; type: "int" } }
+    Method { name: "loadSelectedTaskAssignments" }
+    Method { name: "loadSelectedTaskDependencies" }
     Method { name: "loadSelectedTaskTime"}
     Method { name: "loadSelectedTaskCollaboration"}
+    Method { name: "setTaskReviewActive"; Parameter { name: "active"; type: "bool" } }
     Method { name: "markTaskCollaborationRead"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
 }

@@ -148,6 +148,12 @@ AppLayouts.WorkspaceFrame {
     property int _pendingDetailSection: 0
     readonly property var detailPage: detailPageLoader.item
 
+    on_DetailOpenChanged: {
+        if (root.workspaceController !== null) {
+            root.workspaceController.setTaskReviewActive(root._detailOpen)
+        }
+    }
+
     readonly property bool _hasInvStockCap: root.pmCatalog
         ? root.pmCatalog.hasCapability("inventory.stock.read") : false
     readonly property bool _hasInvResCap: root.pmCatalog
@@ -199,9 +205,7 @@ AppLayouts.WorkspaceFrame {
         const page = detailPageLoader.item
         const entry = page ? (page.sections[sectionIndex] || "") : ""
         const label = (typeof entry === "string") ? entry : (entry.label || "")
-        if      (label === "Assignments" || label === "Dependencies")
-                                       root.workspaceController.loadTaskAssignmentsAndDependencies()
-        else if (label === "Time")     root.workspaceController.loadSelectedTaskTime()
+        if      (label === "Time")     root.workspaceController.loadSelectedTaskTime()
         else if (label === "Activity") root.workspaceController.loadSelectedTaskCollaboration()
     }
 

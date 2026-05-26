@@ -108,6 +108,14 @@ class PMTaskListController(QObject):
             serialize_task_detail_view_model(workspace_state.selected_task_detail)
         )
 
+    def selectTaskPreview(self, task_id: str) -> None:
+        normalized = (task_id or "").strip()
+        if not normalized:
+            return
+        preview = self._build_task_preview(normalized)
+        if preview is not None:
+            self._set_selected_task(preview)
+
     # ── Properties ───────────────────────────────────────────────────
 
     @Property("QVariantMap", notify=overviewChanged)
@@ -406,6 +414,54 @@ class PMTaskListController(QObject):
             redo=lambda: _apply(changes, 1),
             undo=lambda: _apply(changes, 0),
         )
+
+    def _build_task_preview(self, task_id: str) -> dict[str, object] | None:
+        selected_item = next(
+            (
+                item
+                for item in self._tasks.get("items", [])
+                if str(item.get("id", "") or "").strip() == task_id
+            ),
+            None,
+        )
+        if selected_item is None:
+            return None
+        state = (
+            dict(selected_item.get("state", {}))
+            if isinstance(selected_item.get("state"), dict)
+            else {}
+        )
+        return {
+            "id": task_id,
+            "title": str(selected_item.get("title", "") or ""),
+            "statusLabel": str(selected_item.get("statusLabel", "") or ""),
+            "subtitle": str(selected_item.get("subtitle", "") or ""),
+            "description": "",
+            "emptyState": "",
+            "fields": [
+                {
+                    "label": "Project",
+                    "value": str(state.get("projectName", "") or "—"),
+                    "supportingText": "",
+                },
+                {
+                    "label": "Start",
+                    "value": str(state.get("startDateLabel", "") or "—"),
+                    "supportingText": "",
+                },
+                {
+                    "label": "Finish",
+                    "value": str(state.get("endDateLabel", "") or "—"),
+                    "supportingText": "",
+                },
+                {
+                    "label": "Priority",
+                    "value": str(state.get("priorityLabel", "") or "—"),
+                    "supportingText": "",
+                },
+            ],
+            "state": state,
+        }
 
     # ── Private setters ───────────────────────────────────────────────
 

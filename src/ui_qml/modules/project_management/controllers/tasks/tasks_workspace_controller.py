@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.tasks.pm_assignment_controller import (
@@ -110,6 +110,10 @@ class ProjectManagementTasksWorkspaceController(
         self._selected_assignment_id = ""
         self._selected_time_period_start = ""
         self._selected_time_entry_id = ""
+        self._task_review_active = False
+        self._task_activation_request_id = 0
+        self._assignments_section_loaded_for_task_id = ""
+        self._dependencies_section_loaded_for_task_id = ""
         self._time_section_loaded_for_task_id  = ""
         self._collaboration_section_loaded_for_task_id = ""
         self._assignments_dependencies_loaded_for_task_id = ""
@@ -538,7 +542,6 @@ class ProjectManagementTasksWorkspaceController(
             self._tasks_workspace_presenter.build_empty_task_time_state()
         )
         self._set_collaboration_section_loaded_for_task_id("")
-        self._assignments_dependencies_loaded_for_task_id = ""
 
     @Slot(int)
     def setTaskPage(self, page: int) -> None:
@@ -568,66 +571,48 @@ class ProjectManagementTasksWorkspaceController(
         self._set_selected_assignment_id("")
         self._set_selected_time_period_start("")
         self._set_selected_time_entry_id("")
+        
         self._set_time_section_loaded_for_task_id("")
         self._time_ctrl._update(
             self._tasks_workspace_presenter.build_empty_task_time_state()
         )
         self._set_collaboration_section_loaded_for_task_id("")
-        self._assignments_dependencies_loaded_for_task_id = ""
 
         self._set_is_loading(True)
         try:
             self._set_error_message("")
-            # Lightweight: only load the task detail record — no assignments/dependencies.
-            # Those sections load on demand when the user navigates to them.
-            ws = self._tasks_workspace_presenter.build_task_basic_detail_state(
+
+            ws = self._tasks_workspace_presenter.build_task_detail_state(
                 task_id=normalized,
                 project_id=self._selected_project_id or None,
             )
             self._task_list.updateSelectedTaskOnly(ws)
-            self._set_selected_task_id(ws.selected_task_id)
-        except Exception as exc:
-            self._set_error_message(str(exc))
-        finally:
-            self._set_is_loading(False)
-
-    @Slot()
-    def loadTaskAssignmentsAndDependencies(self) -> None:
-        """Lazy-load assignments and dependencies for the selected task."""
-        if not self._selected_task_id:
-            return
-        if self._assignments_dependencies_loaded_for_task_id == self._selected_task_id:
-            return
-
-        self._set_is_loading(True)
-        try:
-            self._set_error_message("")
-            ws = self._tasks_workspace_presenter.build_task_detail_state(
-                task_id=self._selected_task_id,
-                project_id=self._selected_project_id or None,
-            )
             self._assignments_ctrl._update(ws)
             self._dependencies_ctrl._update(ws)
-            self._assignments_dependencies_loaded_for_task_id = self._selected_task_id
-            # Pick the first assignment if none is currently selected.
-            if not self._selected_assignment_id:
-                assignment_items = getattr(ws.assignments, "items", ()) or ()
-                if assignment_items:
-                    first = assignment_items[0]
-                    self._set_selected_assignment_id(
-                        str(getattr(first, "id", "") or "")
-                    )
+
+            self._set_selected_task_id(ws.selected_task_id)
+
+            # Pick the first assignment for this task, if available.
+            assignment_items = getattr(ws.assignments, "items", ()) or ()
+            first_assignment_id = ""
+
+            if assignment_items:
+                first_assignment = assignment_items[0]
+                first_assignment_id = str(getattr(first_assignment, "id", "") or "")
+
+            self._set_selected_assignment_id(first_assignment_id)
+            self._set_selected_time_period_start("")
+            self._set_selected_time_entry_id("")
+
         except Exception as exc:
             self._set_error_message(str(exc))
+
         finally:
             self._set_is_loading(False)
 
     @Slot()
     def loadSelectedTaskTime(self) -> None:
         if not self._selected_task_id:
-            return
-
-        if self.isTimeSectionLoaded:
             return
 
         self._set_is_loading(True)
@@ -684,6 +669,16 @@ class ProjectManagementTasksWorkspaceController(
 
         finally:
             self._set_is_loading(False)
+
+    @Slot(bool)
+    def setTaskReviewActive(self, active: bool) -> None:
+        normalized = bool(active)
+        if normalized == self._task_review_active:
+            return
+        self._task_review_active = normalized
+        self._collab_ctrl.sync_review_presence(
+            self._selected_task_id if normalized else ""
+        )
 
     @Slot(str, bool)
     def setTaskBulkSelection(self, task_id: str, selected: bool) -> None:
@@ -944,7 +939,59 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._selected_task_id = v
         self.selectedTaskIdChanged.emit()
-        self._collab_ctrl.sync_review_presence(v)
+        if self._task_review_active:
+            self._collab_ctrl.sync_review_presence(v)
+
+    def _prepare_task_activation(self, task_id: str) -> None:
+        self._set_selected_task_id(task_id)
+        self._task_list.selectTaskPreview(task_id)
+        self._set_selected_assignment_id("")
+        self._set_selected_time_period_start("")
+        self._set_selected_time_entry_id("")
+        self._assignments_section_loaded_for_task_id = ""
+        self._dependencies_section_loaded_for_task_id = ""
+        self._set_time_section_loaded_for_task_id("")
+        self._set_collaboration_section_loaded_for_task_id("")
+        self._assignments_ctrl._update(
+            self._tasks_workspace_presenter.build_task_assignments_state(
+                task_id="",
+                project_id=self._selected_project_id or None,
+            )
+        )
+        self._dependencies_ctrl._update(
+            self._tasks_workspace_presenter.build_task_dependencies_state(
+                task_id="",
+                project_id=self._selected_project_id or None,
+            )
+        )
+        self._time_ctrl._update(
+            self._tasks_workspace_presenter.build_empty_task_time_state()
+        )
+        self._collab_ctrl._update(
+            self._tasks_workspace_presenter.build_task_collaboration_state(task_id="")
+        )
+
+    def _finish_task_activation(self, request_id: int, task_id: str) -> None:
+        if request_id != self._task_activation_request_id:
+            return
+        if task_id != self._selected_task_id:
+            return
+
+        try:
+            ws = self._tasks_workspace_presenter.build_task_detail_state(
+                task_id=task_id,
+                project_id=self._selected_project_id or None,
+            )
+            if request_id != self._task_activation_request_id:
+                return
+            self._task_list.updateSelectedTaskOnly(ws)
+            self._set_selected_task_id(ws.selected_task_id)
+        except Exception as exc:
+            if request_id == self._task_activation_request_id:
+                self._set_error_message(str(exc))
+        finally:
+            if request_id == self._task_activation_request_id:
+                self._set_is_loading(False)
 
     def _set_selected_assignment_id(self, v: str) -> None:
         if v == self._selected_assignment_id:

@@ -234,10 +234,10 @@ class ProjectTasksWorkspacePresenter:
 
         Loads:
         - selected task detail
-        - assignments
-        - dependencies
 
         Does not load:
+        - assignments
+        - dependencies
         - timesheets
         - collaboration comments
         - collaboration presence
@@ -250,37 +250,117 @@ class ProjectTasksWorkspacePresenter:
         if selected_task is None:
             return self._build_empty_task_detail_state(project_id=project_id)
 
-        assignments = self._desktop_api.list_assignments(normalized_task_id)
-        dependencies = self._desktop_api.list_dependencies(normalized_task_id)
-
-        assignment_options = self._build_assignment_options(
-            selected_task.project_id or project_id,
-        )
-
-        dependency_type_options = self._build_dependency_type_options()
-
-        dependency_task_options = self._build_dependency_task_options(
-            all_tasks,
-            selected_task_id=normalized_task_id,
-        )
-
         return TaskCatalogWorkspaceViewModel(
             overview=self._build_empty_overview(),
             selected_project_id=project_id or "",
             selected_task_id=normalized_task_id,
             selected_task_detail=self._build_detail_view_model(
                 selected_task,
-                assignment_count=len(assignments),
-                dependency_count=len(dependencies),
+                assignment_count=0,
+                dependency_count=0,
             ),
+        )
+
+    def build_task_assignments_state(
+        self,
+        *,
+        task_id: str,
+        project_id: str | None = None,
+    ) -> TaskCatalogWorkspaceViewModel:
+        normalized_task_id = (task_id or "").strip()
+        if not normalized_task_id:
+            return TaskCatalogWorkspaceViewModel(
+                overview=self._build_empty_overview(),
+                selected_project_id=project_id or "",
+                selected_task_id="",
+                assignment_options=(),
+                assignments=self._build_assignments_collection(
+                    selected_task=None,
+                    assignments=(),
+                    assignment_options=(),
+                ),
+            )
+
+        all_tasks = self._load_tasks_for_project(project_id or "")
+        selected_task = self._find_task(all_tasks, normalized_task_id)
+        if selected_task is None:
+            return TaskCatalogWorkspaceViewModel(
+                overview=self._build_empty_overview(),
+                selected_project_id=project_id or "",
+                selected_task_id="",
+                assignment_options=(),
+                assignments=self._build_assignments_collection(
+                    selected_task=None,
+                    assignments=(),
+                    assignment_options=(),
+                ),
+            )
+
+        assignments = self._desktop_api.list_assignments(normalized_task_id)
+        assignment_options = self._build_assignment_options(
+            selected_task.project_id or project_id,
+        )
+        return TaskCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_project_id=project_id or "",
+            selected_task_id=normalized_task_id,
             assignment_options=assignment_options,
-            dependency_task_options=dependency_task_options,
-            dependency_type_options=dependency_type_options,
             assignments=self._build_assignments_collection(
                 selected_task=selected_task,
                 assignments=assignments,
                 assignment_options=assignment_options,
             ),
+        )
+
+    def build_task_dependencies_state(
+        self,
+        *,
+        task_id: str,
+        project_id: str | None = None,
+    ) -> TaskCatalogWorkspaceViewModel:
+        normalized_task_id = (task_id or "").strip()
+        if not normalized_task_id:
+            return TaskCatalogWorkspaceViewModel(
+                overview=self._build_empty_overview(),
+                selected_project_id=project_id or "",
+                selected_task_id="",
+                dependency_task_options=(),
+                dependency_type_options=(),
+                dependencies=self._build_dependencies_collection(
+                    selected_task=None,
+                    all_tasks=(),
+                    dependencies=(),
+                ),
+            )
+
+        all_tasks = self._load_tasks_for_project(project_id or "")
+        selected_task = self._find_task(all_tasks, normalized_task_id)
+        if selected_task is None:
+            return TaskCatalogWorkspaceViewModel(
+                overview=self._build_empty_overview(),
+                selected_project_id=project_id or "",
+                selected_task_id="",
+                dependency_task_options=(),
+                dependency_type_options=(),
+                dependencies=self._build_dependencies_collection(
+                    selected_task=None,
+                    all_tasks=(),
+                    dependencies=(),
+                ),
+            )
+
+        dependencies = self._desktop_api.list_dependencies(normalized_task_id)
+        dependency_type_options = self._build_dependency_type_options()
+        dependency_task_options = self._build_dependency_task_options(
+            all_tasks,
+            selected_task_id=normalized_task_id,
+        )
+        return TaskCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_project_id=project_id or "",
+            selected_task_id=normalized_task_id,
+            dependency_task_options=dependency_task_options,
+            dependency_type_options=dependency_type_options,
             dependencies=self._build_dependencies_collection(
                 selected_task=selected_task,
                 all_tasks=all_tasks,
