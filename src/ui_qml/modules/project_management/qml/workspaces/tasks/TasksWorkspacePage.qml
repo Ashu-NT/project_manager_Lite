@@ -312,11 +312,11 @@ AppLayouts.WorkspaceFrame {
     Item {
         anchors.fill: parent
 
-        // ── List page (hidden when detail is open) ────────────────
+        // ── List page (stays visible until detail loader is ready) ───
         Item {
             id: _listPage
             anchors.fill: parent
-            visible: !root._detailOpen
+            visible: !root._detailOpen || detailPageLoader.status !== Loader.Ready
 
             ColumnLayout {
                 anchors.fill: parent
@@ -759,7 +759,7 @@ AppLayouts.WorkspaceFrame {
         Loader {
             id: detailPageLoader
             anchors.fill: parent
-            active: true
+            active: root._detailOpen
             visible: root._detailOpen && status === Loader.Ready
             asynchronous: true
             sourceComponent: _detailPageComponent

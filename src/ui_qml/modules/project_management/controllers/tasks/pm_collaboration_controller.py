@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
+from PySide6.QtCore import Property, QObject, QRunnable, QThreadPool, QTimer, Signal, Slot
 
 from src.ui_qml.modules.project_management.controllers.common import (
     run_mutation,
@@ -12,6 +12,21 @@ from src.ui_qml.modules.project_management.controllers.common import (
 from src.ui_qml.modules.project_management.presenters import (
     ProjectTasksWorkspacePresenter,
 )
+
+
+class _PresenceWorker(QRunnable):
+    """Fire-and-forget: runs a single presence API call in a pool thread."""
+
+    def __init__(self, fn: Callable[[], None]) -> None:
+        super().__init__()
+        self.setAutoDelete(True)
+        self._fn = fn
+
+    def run(self) -> None:
+        try:
+            self._fn()
+        except Exception:
+            pass
 
 
 class PMCollaborationController(QObject):
@@ -181,23 +196,36 @@ class PMCollaborationController(QObject):
             self._presence_session_task_id != norm_id
             or self._presence_session_activity != norm_act
         ):
-            self._presenter.clear_task_collaboration_presence(
-                self._presence_session_task_id
-            )
+            old_id = self._presence_session_task_id
             self._presence_session_task_id = ""
             self._presence_session_activity = ""
-        self._presenter.touch_task_collaboration_presence(norm_id, activity=norm_act)
+            QThreadPool.globalInstance().start(
+                _PresenceWorker(
+                    lambda: self._presenter.clear_task_collaboration_presence(old_id)
+                )
+            )
+        touch_id, touch_act = norm_id, norm_act
         self._presence_session_task_id = norm_id
         self._presence_session_activity = norm_act
+        QThreadPool.globalInstance().start(
+            _PresenceWorker(
+                lambda: self._presenter.touch_task_collaboration_presence(
+                    touch_id, activity=touch_act
+                )
+            )
+        )
 
     def _clear_current_task_presence(self) -> None:
         if not self._presence_session_task_id:
             return
-        self._presenter.clear_task_collaboration_presence(
-            self._presence_session_task_id
-        )
+        clear_id = self._presence_session_task_id
         self._presence_session_task_id = ""
         self._presence_session_activity = ""
+        QThreadPool.globalInstance().start(
+            _PresenceWorker(
+                lambda: self._presenter.clear_task_collaboration_presence(clear_id)
+            )
+        )
 
     # ── Private setters ───────────────────────────────────────────────
 
