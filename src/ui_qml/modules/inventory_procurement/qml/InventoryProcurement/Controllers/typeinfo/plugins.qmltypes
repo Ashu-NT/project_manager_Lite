@@ -94,6 +94,7 @@ Module {
         Property { name: "selectedBalance"; type: "QVariantMap"; isReadonly: true }
         Property { name: "selectedBalanceId"; type: "QString"; isReadonly: true }
         Property { name: "transactions"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "foundation"; type: "QVariantMap"; isReadonly: true }
         Method { name: "refresh" }
         Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
         Method { name: "setSiteFilter"; Parameter { name: "siteId"; type: "QString" } }
@@ -111,6 +112,11 @@ Module {
         Method { name: "issueStock"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "returnStock"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "transferStock"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "createLocation"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateLocation"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "upsertReorderPolicy"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "scheduleCycleCount"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "completeCycleCount"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     }
 
     Component {
