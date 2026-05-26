@@ -133,6 +133,9 @@ def test_domain_changed_bridges_inventory_module_events():
         domain_events.inventory_balances_changed.emit("balance-1")
         domain_events.inventory_reservations_changed.emit("reservation-1")
         domain_events.inventory_maintenance_materials_changed.emit("maintenance_work_order:MWO-1")
+        domain_events.inventory_locations_changed.emit("location-1")
+        domain_events.inventory_reorder_policies_changed.emit("policy-1")
+        domain_events.inventory_cycle_counts_changed.emit("cycle-count-1")
     finally:
         domain_events.domain_changed.disconnect(_handler)
 
@@ -171,6 +174,27 @@ def test_domain_changed_bridges_inventory_module_events():
             entity_type="maintenance_material_contract",
             entity_id="maintenance_work_order:MWO-1",
             source_event="inventory_maintenance_materials_changed",
+        ),
+        DomainChangeEvent(
+            category="module",
+            scope_code="inventory_procurement",
+            entity_type="storage_location",
+            entity_id="location-1",
+            source_event="inventory_locations_changed",
+        ),
+        DomainChangeEvent(
+            category="module",
+            scope_code="inventory_procurement",
+            entity_type="reorder_policy",
+            entity_id="policy-1",
+            source_event="inventory_reorder_policies_changed",
+        ),
+        DomainChangeEvent(
+            category="module",
+            scope_code="inventory_procurement",
+            entity_type="cycle_count",
+            entity_id="cycle-count-1",
+            source_event="inventory_cycle_counts_changed",
         ),
     ]
 

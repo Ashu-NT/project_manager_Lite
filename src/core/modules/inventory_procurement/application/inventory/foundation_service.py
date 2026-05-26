@@ -35,6 +35,7 @@ from src.core.platform.access.authorization import filter_scope_rows, require_sc
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.ids import generate_id
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
@@ -526,7 +527,7 @@ class InventoryFoundationService:
             storeroom_id=storeroom.id,
             location_id=location_id,
         )
-        balance = self._stock_service.find_balance(
+        balance = self._stock_service.get_balance_for_stock_position(
             stock_item_id=item.id,
             storeroom_id=storeroom.id,
         )
@@ -618,7 +619,7 @@ class InventoryFoundationService:
                     notes=normalize_optional_text(notes) or cycle_count.notes,
                     commit=False,
                 )
-                balance = self._stock_service.find_balance(
+                balance = self._stock_service.get_balance_for_stock_position(
                     stock_item_id=cycle_count.stock_item_id,
                     storeroom_id=cycle_count.storeroom_id,
                 )
@@ -791,7 +792,7 @@ class InventoryFoundationService:
             ) from exc
 
     def _build_cycle_count_number(self) -> str:
-        return f"CC-{datetime.now(timezone.utc):%Y%m%d%H%M%S}"
+        return f"CC-{datetime.now(timezone.utc):%Y%m%d%H%M%S}-{generate_id()[:6].upper()}"
 
     def _require_read(self, operation_label: str) -> None:
         require_permission(self._user_session, "inventory.read", operation_label=operation_label)

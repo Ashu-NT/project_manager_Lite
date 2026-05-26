@@ -105,6 +105,27 @@ class DomainEvents:
             "maintenance_material_contract",
             "inventory_maintenance_materials_changed",
         ),
+        (
+            "inventory_locations_changed",
+            "module",
+            "inventory_procurement",
+            "storage_location",
+            "inventory_locations_changed",
+        ),
+        (
+            "inventory_reorder_policies_changed",
+            "module",
+            "inventory_procurement",
+            "reorder_policy",
+            "inventory_reorder_policies_changed",
+        ),
+        (
+            "inventory_cycle_counts_changed",
+            "module",
+            "inventory_procurement",
+            "cycle_count",
+            "inventory_cycle_counts_changed",
+        ),
         ("modules_changed", "platform", "platform", "module_runtime", "modules_changed"),
     )
 
@@ -135,6 +156,9 @@ class DomainEvents:
     inventory_purchase_orders_changed: Signal[str] = field(default_factory=Signal)
     inventory_receipts_changed: Signal[str] = field(default_factory=Signal)
     inventory_maintenance_materials_changed: Signal[str] = field(default_factory=Signal)
+    inventory_locations_changed: Signal[str] = field(default_factory=Signal)
+    inventory_reorder_policies_changed: Signal[str] = field(default_factory=Signal)
+    inventory_cycle_counts_changed: Signal[str] = field(default_factory=Signal)
     modules_changed: Signal[str] = field(default_factory=Signal)
     shared_master_changed: Signal[DomainChangeEvent] = field(default_factory=Signal)
     domain_changed: Signal[DomainChangeEvent] = field(default_factory=Signal)
