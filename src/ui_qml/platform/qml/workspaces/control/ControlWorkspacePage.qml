@@ -251,22 +251,22 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    // Approval queue pagination footer
-                    Rectangle {
+                    AppWidgets.TablePaginationBar {
                         Layout.fillWidth: true
-                        height: 34
-                        color:  Theme.AppTheme.surfaceRaised
+                        currentPage: root._queueCurrentPage + 1
+                        pageSize: root._queuePageSize
+                        totalItems: root._queueTotalCount
 
-                        Rectangle {
-                            anchors { top: parent.top; left: parent.left; right: parent.right }
-                            height: 1; color: Theme.AppTheme.divider
+                        pageSizeOptions: [25, 50, 100]
+                        busy: root._busy || root._load
+                        onPageRequested: function(page) {
+                            root._queueCurrentPage = Math.max(0, page - 1)
                         }
-
-                        RowLayout {
-                            anchors.fill:        parent
-                            anchors.leftMargin:  Theme.AppTheme.marginMd
-                            anchors.rightMargin: Theme.AppTheme.marginMd
-                            spacing:             Theme.AppTheme.spacingSm
+                        onPageSizeRequested: function(pageSize) {
+                            root._queuePageSize = pageSize
+                            root._queueCurrentPage = 0
+                        }
+                        /*
 
                             AppControls.Label {
                                 text: {
@@ -363,7 +363,7 @@ AppLayouts.WorkspaceFrame {
                                     onClicked: root._queueCurrentPage += 1
                                 }
                             }
-                        }
+                        */
                     }
                 }
 
