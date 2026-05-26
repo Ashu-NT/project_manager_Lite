@@ -28,6 +28,7 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
     moduleEntitlementsChanged = Signal()
     organizationProfilesChanged = Signal()
     lifecycleOptionsChanged = Signal()
+    integrationCapabilitiesChanged = Signal()
 
     def __init__(
         self,
@@ -41,6 +42,7 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
         self._catalog_presenter = catalog_presenter
         self._module_entitlements: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._organization_profiles: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
+        self._integration_capabilities: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._lifecycle_options = [dict(option) for option in self._catalog_presenter.lifecycle_options()]
         self._bind_domain_events()
         self.refresh()
@@ -57,6 +59,10 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
     def lifecycleOptions(self) -> list[dict[str, str]]:
         return self._lifecycle_options
 
+    @Property("QVariantMap", notify=integrationCapabilitiesChanged)
+    def integrationCapabilities(self) -> dict[str, object]:
+        return self._integration_capabilities
+
     @Slot()
     def refresh(self) -> None:
         self._set_is_loading(True)
@@ -64,6 +70,7 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
         self._set_overview(serialize_workspace_overview(self._overview_presenter.build_overview()))
         self._set_module_entitlements(serialize_action_list(self._catalog_presenter.build_module_entitlements()))
         self._set_organization_profiles(serialize_action_list(self._catalog_presenter.build_organization_profiles()))
+        self._set_integration_capabilities(serialize_action_list(self._catalog_presenter.build_integration_capabilities()))
         has_items = bool(self._module_entitlements.get("items") or self._organization_profiles.get("items"))
         self._set_empty_state("" if has_items else str(self._module_entitlements.get("emptyState") or self._organization_profiles.get("emptyState") or ""))
         self._set_is_loading(False)
@@ -225,6 +232,12 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
             return
         self._organization_profiles = organization_profiles
         self.organizationProfilesChanged.emit()
+
+    def _set_integration_capabilities(self, integration_capabilities: dict[str, object]) -> None:
+        if integration_capabilities == self._integration_capabilities:
+            return
+        self._integration_capabilities = integration_capabilities
+        self.integrationCapabilitiesChanged.emit()
 
 
 __all__ = ["PlatformSettingsWorkspaceController"]

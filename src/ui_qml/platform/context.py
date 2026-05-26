@@ -79,7 +79,10 @@ class PlatformWorkspaceCatalog(QObject):
             audit_api=getattr(desktop_api_registry, "platform_audit", None),
         )
         settings_presenter = PlatformSettingsWorkspacePresenter(runtime_api=runtime_api)
-        settings_catalog_presenter = PlatformSettingsCatalogPresenter(runtime_api=runtime_api)
+        settings_catalog_presenter = PlatformSettingsCatalogPresenter(
+            runtime_api=runtime_api,
+            integration_api=self._integration_api,
+        )
         self._admin_workspace = PlatformAdminWorkspaceController(
             overview_presenter=admin_overview_presenter,
             organization_presenter=PlatformOrganizationCatalogPresenter(runtime_api=runtime_api),

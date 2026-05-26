@@ -14,8 +14,14 @@ from src.ui_qml.platform.view_models import (
 
 
 class PlatformSettingsCatalogPresenter:
-    def __init__(self, *, runtime_api: PlatformRuntimeDesktopApi | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        runtime_api: PlatformRuntimeDesktopApi | None = None,
+        integration_api: object | None = None,
+    ) -> None:
         self._runtime_api = runtime_api
+        self._integration_api = integration_api
 
     @staticmethod
     def lifecycle_options() -> tuple[dict[str, str], ...]:
@@ -119,6 +125,33 @@ class PlatformSettingsCatalogPresenter:
                     },
                 )
                 for org in result.data
+            ),
+        )
+
+    def build_integration_capabilities(self) -> PlatformWorkspaceActionListViewModel:
+        if self._integration_api is None:
+            return PlatformWorkspaceActionListViewModel(
+                title="Integration Capabilities",
+                subtitle="Integration capability data will appear once the platform runtime is connected.",
+                empty_state="Integration layer is not connected in this QML preview.",
+            )
+        try:
+            rows = self._integration_api.list_integration_capabilities()
+        except Exception:
+            rows = []
+        return PlatformWorkspaceActionListViewModel(
+            title="Integration Capabilities",
+            subtitle=f"{len(rows)} registered capabilities across platform and optional modules.",
+            empty_state="No integration capabilities are configured.",
+            items=tuple(
+                PlatformWorkspaceActionItemViewModel(
+                    id=row["id"],
+                    title=row["title"],
+                    status_label=row["statusLabel"],
+                    subtitle=row["subtitle"],
+                    meta_text=row["metaText"],
+                )
+                for row in rows
             ),
         )
 
