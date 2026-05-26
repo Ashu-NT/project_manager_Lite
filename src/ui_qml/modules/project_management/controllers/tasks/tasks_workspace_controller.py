@@ -626,9 +626,6 @@ class ProjectManagementTasksWorkspaceController(
         if not self._selected_task_id:
             return
 
-        if self.isTimeSectionLoaded:
-            return
-
         self._set_is_loading(True)
 
         try:

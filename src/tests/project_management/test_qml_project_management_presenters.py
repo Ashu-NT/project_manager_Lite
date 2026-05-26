@@ -1627,16 +1627,16 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "import ProjectManagement.Widgets 1.0" in qml_text
     assert "property var pmCatalog" not in qml_text
     assert "QML landing zone ready" in qml_text
-    assert "QML risk register slice active" in qml_text
-    assert "QML task execution workspace active" in qml_text
-    assert "QML scheduling operations slice active" in qml_text
+    assert "Project risk register, mitigation, severity, and review workflows." in qml_text
+    assert "Task planning, progress, dependencies, assignments, and execution state." in qml_text
+    assert "Enterprise planning and schedule control workspace." in qml_text
     assert 'searchPlaceholder: "Search tasks..."' in qml_text
     assert "showCustomize: true" in qml_text
     assert "showViews: true" in qml_text
     assert "showExport: true" in qml_text
     assert "AppWidgets.BulkActionBar {" in qml_text
     assert "AppWidgets.BulkChangePropertyPopup {" in qml_text
-    assert "QML read-only dashboard slice active" in qml_text
+    assert "Project KPIs, health summaries, and executive delivery views." in qml_text
 
 
 class _FakeEmployeeService:
