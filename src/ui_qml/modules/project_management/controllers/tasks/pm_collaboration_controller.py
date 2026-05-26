@@ -14,17 +14,27 @@ from src.ui_qml.modules.project_management.presenters import (
 )
 
 
+class _PresenceWorkerSignals(QObject):
+    succeeded = Signal()
+
+
 class _PresenceWorker(QRunnable):
-    """Fire-and-forget: runs a single presence API call in a pool thread."""
+    """Runs a single presence API call in a pool thread; emits succeeded only on success."""
 
     def __init__(self, fn: Callable[[], None]) -> None:
         super().__init__()
         self.setAutoDelete(True)
         self._fn = fn
+        self._signals = _PresenceWorkerSignals()
+
+    @property
+    def signals(self) -> _PresenceWorkerSignals:
+        return self._signals
 
     def run(self) -> None:
         try:
             self._fn()
+            self._signals.succeeded.emit()
         except Exception:
             pass
 
@@ -205,15 +215,22 @@ class PMCollaborationController(QObject):
                 )
             )
         touch_id, touch_act = norm_id, norm_act
-        self._presence_session_task_id = norm_id
-        self._presence_session_activity = norm_act
-        QThreadPool.globalInstance().start(
-            _PresenceWorker(
-                lambda: self._presenter.touch_task_collaboration_presence(
-                    touch_id, activity=touch_act
-                )
+        worker = _PresenceWorker(
+            lambda: self._presenter.touch_task_collaboration_presence(
+                touch_id, activity=touch_act
             )
         )
+        # Only record session state after the touch actually succeeds — if touch
+        # fails (e.g. permission error), _presence_session_task_id stays empty so
+        # the matching clear call is never attempted and no spurious domain events fire.
+        worker.signals.succeeded.connect(
+            lambda: self._on_touch_presence_succeeded(touch_id, touch_act)
+        )
+        QThreadPool.globalInstance().start(worker)
+
+    def _on_touch_presence_succeeded(self, task_id: str, activity: str) -> None:
+        self._presence_session_task_id = task_id
+        self._presence_session_activity = activity
 
     def _clear_current_task_presence(self) -> None:
         if not self._presence_session_task_id:
