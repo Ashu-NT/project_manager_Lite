@@ -21,9 +21,7 @@ AppLayouts.WorkspaceFrame {
         : ({
             "routeId": "project_management.risk",
             "title": "Risk",
-            "summary": "Project risk register, mitigation, severity, and review workflows.",
-            "migrationStatus": "QML landing zone ready",
-            "legacyRuntimeStatus": "Existing QWidget risk workspace remains active"
+            "summary": "Project risk register, mitigation, severity, and review workflows."
         })
     readonly property var overviewModel: root.workspaceController
         ? root.workspaceController.overview
@@ -118,17 +116,6 @@ AppLayouts.WorkspaceFrame {
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
             errorMessage: root.workspaceController ? root.workspaceController.errorMessage : ""
             feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
-        }
-
-        ProjectManagementWidgets.WorkspaceStatusSection {
-            visible: false
-            Layout.fillWidth: true
-            migrationStatus: root.workspaceController
-                ? "QML risk register slice active"
-                : (root.workspaceModel.migrationStatus || "")
-            legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
-            architectureStatus: "Desktop API + typed controller"
-            architectureSummary: "Project risk triage, severity filters, mitigation detail, and create/edit/delete flows now run through a typed PM controller backed by the register desktop API."
         }
 
         AppWidgets.TableToolbar {

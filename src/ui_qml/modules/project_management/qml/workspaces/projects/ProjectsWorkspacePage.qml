@@ -20,9 +20,7 @@ AppLayouts.WorkspaceFrame {
         : ({
             "routeId": "project_management.projects",
             "title": "Projects",
-            "summary": "Project lifecycle, ownership, status, and project list workflows.",
-            "migrationStatus": "QML landing zone ready",
-            "legacyRuntimeStatus": "Existing QWidget projects workspace remains active"
+            "summary": "Project lifecycle, ownership, status, and project list workflows."
         })
     readonly property var overviewModel: root.workspaceController
         ? root.workspaceController.overview

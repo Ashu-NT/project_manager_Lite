@@ -20,9 +20,7 @@ AppLayouts.WorkspaceFrame {
         : ({
             "routeId": "project_management.resources",
             "title": "Resources",
-            "summary": "Resource capacity, allocation, project assignments, and utilization views.",
-            "migrationStatus": "QML landing zone ready",
-            "legacyRuntimeStatus": "Existing QWidget resources workspace remains active"
+            "summary": "Resource capacity, allocation, project assignments, and utilization views."
         })
     readonly property var overviewModel: root.workspaceController
         ? root.workspaceController.overview

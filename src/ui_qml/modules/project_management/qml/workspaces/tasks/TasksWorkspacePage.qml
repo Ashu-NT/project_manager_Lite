@@ -21,9 +21,7 @@ AppLayouts.WorkspaceFrame {
         : ({
             "routeId": "project_management.tasks",
             "title": "Tasks",
-            "summary": "Task planning, progress, dependencies, assignments, and execution state.",
-            "migrationStatus": "QML task execution workspace active",
-            "legacyRuntimeStatus": "QML runtime is active"
+            "summary": "Task planning, progress, dependencies, assignments, and execution state."
         })
     readonly property var overviewModel: root.workspaceController
         ? root.workspaceController.overview
