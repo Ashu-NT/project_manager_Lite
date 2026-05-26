@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from src.api.desktop.integration import IntegrationCapabilityDesktopApi
+from src.api.desktop.integration.capability_api import build_integration_capability_api
 from src.api.desktop.platform import (
     PlatformAccessDesktopApi,
     PlatformApprovalDesktopApi,
@@ -134,6 +136,7 @@ from src.core.modules.project_management.application.tasks import (
 )
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.platform.access import AccessControlService
+from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import AuditService
 from src.core.platform.auth.application import AuthService
@@ -144,6 +147,7 @@ from src.core.platform.party import PartyService
 
 @dataclass(frozen=True)
 class DesktopApiRegistry:
+    integration_capability: IntegrationCapabilityDesktopApi
     platform_runtime: PlatformRuntimeDesktopApi
     platform_site: PlatformSiteDesktopApi
     platform_department: PlatformDepartmentDesktopApi
@@ -451,7 +455,25 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         project_service=pm_project_service,
         register_service=pm_register_service,
     )
+    _module_registry = services.get("module_registry")
+    if not isinstance(_module_registry, ModuleRegistry):
+        from src.core.platform.integration.module_registry import ModuleRegistry as _MR
+        from src.application.runtime.entitlement_runtime import ModuleRuntimeService as _MRS
+        _mrt = services.get("module_runtime_service")
+        _module_registry = _MR(_mrt) if isinstance(_mrt, _MRS) else None
+    _integration_capability = (
+        build_integration_capability_api(_module_registry) if _module_registry is not None else None
+    )
+    if _integration_capability is None:
+        from src.core.platform.integration.module_registry import ModuleRegistry as _FallbackMR
+        from src.application.runtime.entitlement_runtime import ModuleRuntimeService as _FallbackMRS
+        from src.core.platform.modules import build_default_module_catalog
+        _fallback_catalog = build_default_module_catalog()
+        from src.application.runtime.entitlement_runtime import ModuleRuntimeService as _FMRS
+        _fallback_registry = _FallbackMR(_FMRS(_fallback_catalog))
+        _integration_capability = build_integration_capability_api(_fallback_registry)
     return DesktopApiRegistry(
+        integration_capability=_integration_capability,
         platform_runtime=PlatformRuntimeDesktopApi(
             platform_runtime_application_service=platform_runtime_application_service,
         ),

@@ -186,6 +186,11 @@ class StockReservationORM(Base):
     need_by_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     source_reference_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     source_reference_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    source_module: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    source_entity_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    source_code_snapshot: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    source_title_snapshot: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    source_status_snapshot: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     requested_by_user_id: Mapped[Optional[str]] = mapped_column(
         String,
         ForeignKey("users.id", ondelete="SET NULL"),
