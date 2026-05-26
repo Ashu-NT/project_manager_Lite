@@ -282,7 +282,7 @@ def test_maintenance_preventive_workspace_refreshes_on_maintenance_and_site_even
 
 
 def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None:
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     controller_expectations = {
         "src/ui_qml/modules/project_management/controllers/dashboard/dashboard_workspace_controller.py": (
             "self._bind_domain_events()",

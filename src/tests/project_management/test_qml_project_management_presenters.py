@@ -504,8 +504,8 @@ def test_project_management_workspace_catalog_exposes_typed_financials_controlle
 
     assert controller.workspace["routeId"] == "project_management.financials"
     assert controller.overview["title"] == "Financials"
-    assert controller.projectOptions[0]["label"] == "All Projects"
-    assert controller.projectOptions[1]["label"] == "Plant Upgrade"
+    assert controller.projectOptions[0]["label"] == "Plant Upgrade"
+    assert controller.projectOptions[1]["label"] == "Warehouse Retrofit"
     assert controller.costTypeOptions[1]["value"] == "LABOR"
     assert controller.costs["items"][0]["title"] == "Electrical material package"
     assert controller.selectedCost["title"] == "Electrical material package"

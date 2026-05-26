@@ -70,6 +70,13 @@ def test_qml_main_window_navigation_uses_registry_routes():
         "Reservations",
         "Procurement",
         "Pricing",
+        "Maintenance Dashboard",
+        "Assets",
+        "Work Requests",
+        "Work Orders",
+        "Preventive",
+        "Reliability",
+        "Planner",
     ]
 
 

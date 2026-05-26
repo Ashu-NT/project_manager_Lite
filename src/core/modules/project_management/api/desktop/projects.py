@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+import inspect
 
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.domain.enums import ProjectStatus
@@ -94,7 +95,8 @@ class ProjectManagementProjectsDesktopApi:
 
     def create_project(self, command: ProjectCreateCommand) -> ProjectDesktopDto:
         service = self._require_project_service()
-        project = service.create_project(
+        project = _call_with_supported_kwargs(
+            service.create_project,
             name=command.name,
             description=command.description,
             client_name=command.client_name,
@@ -103,10 +105,10 @@ class ProjectManagementProjectsDesktopApi:
             currency=command.currency,
             start_date=command.start_date,
             end_date=command.end_date,
-            organization_id=command.organization_id,
-            site_id=command.site_id,
-            client_party_id=command.client_party_id,
-            manager_user_id=command.manager_user_id,
+            organization_id=getattr(command, "organization_id", None),
+            site_id=getattr(command, "site_id", None),
+            client_party_id=getattr(command, "client_party_id", None),
+            manager_user_id=getattr(command, "manager_user_id", None),
         )
         desired_status = _coerce_project_status(command.status)
         if desired_status != project.status:
@@ -116,7 +118,8 @@ class ProjectManagementProjectsDesktopApi:
 
     def update_project(self, command: ProjectUpdateCommand) -> ProjectDesktopDto:
         service = self._require_project_service()
-        project = service.update_project(
+        project = _call_with_supported_kwargs(
+            service.update_project,
             command.project_id,
             expected_version=command.expected_version,
             name=command.name,
@@ -128,10 +131,10 @@ class ProjectManagementProjectsDesktopApi:
             client_contact=command.client_contact,
             planned_budget=command.planned_budget,
             currency=command.currency,
-            organization_id=command.organization_id,
-            site_id=command.site_id,
-            client_party_id=command.client_party_id,
-            manager_user_id=command.manager_user_id,
+            organization_id=getattr(command, "organization_id", None),
+            site_id=getattr(command, "site_id", None),
+            client_party_id=getattr(command, "client_party_id", None),
+            manager_user_id=getattr(command, "manager_user_id", None),
         )
         return self._serialize_project(project)
 
@@ -195,6 +198,21 @@ def _coerce_project_status(value: str | ProjectStatus | None) -> ProjectStatus:
         return ProjectStatus(normalized_value)
     except ValueError as exc:
         raise ValueError(f"Unsupported project status: {normalized_value}.") from exc
+
+
+def _call_with_supported_kwargs(method, *args, **kwargs):
+    parameters = inspect.signature(method).parameters
+    if any(
+        parameter.kind == inspect.Parameter.VAR_KEYWORD
+        for parameter in parameters.values()
+    ):
+        return method(*args, **kwargs)
+    supported_kwargs = {
+        name: value
+        for name, value in kwargs.items()
+        if name in parameters
+    }
+    return method(*args, **supported_kwargs)
 
 
 def _format_budget(value: float | None, currency: str | None) -> str:
