@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
+from PySide6.QtCore import Property, QObject, QRunnable, QThreadPool, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.tasks.pm_assignment_controller import (
@@ -30,6 +30,45 @@ from src.ui_qml.modules.project_management.presenters import (
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
+
+
+class _TaskDetailWorkerSignals(QObject):
+    finished = Signal(object)  # emits (request_id: int, workspace_state)
+    failed = Signal(object)    # emits (request_id: int, error_message: str)
+
+
+class _TaskDetailWorker(QRunnable):
+    """Runs build_task_basic_detail_state in a thread-pool thread."""
+
+    def __init__(
+        self,
+        *,
+        presenter: ProjectTasksWorkspacePresenter,
+        task_id: str,
+        project_id: str | None,
+        request_id: int,
+    ) -> None:
+        super().__init__()
+        self.setAutoDelete(True)
+        self._signals = _TaskDetailWorkerSignals()
+        self._presenter = presenter
+        self._task_id = task_id
+        self._project_id = project_id
+        self._request_id = request_id
+
+    @property
+    def signals(self) -> _TaskDetailWorkerSignals:
+        return self._signals
+
+    def run(self) -> None:
+        try:
+            ws = self._presenter.build_task_basic_detail_state(
+                task_id=self._task_id,
+                project_id=self._project_id,
+            )
+            self._signals.finished.emit((self._request_id, ws))
+        except Exception as exc:
+            self._signals.failed.emit((self._request_id, str(exc)))
 
 
 @QmlElement
@@ -566,6 +605,7 @@ class ProjectManagementTasksWorkspaceController(
         if not normalized:
             return
 
+        # ── Reset state ───────────────────────────────────────────────
         self._set_selected_task_id(normalized)
         self._set_selected_assignment_id("")
         self._set_selected_time_period_start("")
@@ -577,19 +617,45 @@ class ProjectManagementTasksWorkspaceController(
         self._set_collaboration_section_loaded_for_task_id("")
         self._assignments_dependencies_loaded_for_task_id = ""
 
+        # ── Stage 1: instant preview from in-memory task list (0 API calls) ──
+        self._task_list.selectTaskPreview(normalized)
+
+        # ── Stage 2: full basic detail in background thread ───────────
         self._set_is_loading(True)
+        self._set_error_message("")
+        self._task_activation_request_id += 1
+        req_id = self._task_activation_request_id
+
+        worker = _TaskDetailWorker(
+            presenter=self._tasks_workspace_presenter,
+            task_id=normalized,
+            project_id=self._selected_project_id or None,
+            request_id=req_id,
+        )
+        worker.signals.finished.connect(self._on_task_detail_loaded)
+        worker.signals.failed.connect(self._on_task_detail_error)
+        QThreadPool.globalInstance().start(worker)
+
+    def _on_task_detail_loaded(self, data: object) -> None:
         try:
-            self._set_error_message("")
-            ws = self._tasks_workspace_presenter.build_task_basic_detail_state(
-                task_id=normalized,
-                project_id=self._selected_project_id or None,
-            )
-            self._task_list.updateSelectedTaskOnly(ws)
-            self._set_selected_task_id(ws.selected_task_id)
-        except Exception as exc:
-            self._set_error_message(str(exc))
-        finally:
-            self._set_is_loading(False)
+            request_id, ws = data  # type: ignore[misc]
+        except (TypeError, ValueError):
+            return
+        if request_id != self._task_activation_request_id:
+            return  # stale result from a superseded task click
+        self._task_list.updateSelectedTaskOnly(ws)
+        self._set_selected_task_id(ws.selected_task_id)
+        self._set_is_loading(False)
+
+    def _on_task_detail_error(self, data: object) -> None:
+        try:
+            request_id, message = data  # type: ignore[misc]
+        except (TypeError, ValueError):
+            return
+        if request_id != self._task_activation_request_id:
+            return
+        self._set_error_message(str(message))
+        self._set_is_loading(False)
 
     @Slot()
     def loadTaskAssignmentsAndDependencies(self) -> None:

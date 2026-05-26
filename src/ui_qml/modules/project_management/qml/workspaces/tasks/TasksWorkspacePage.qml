@@ -759,7 +759,7 @@ AppLayouts.WorkspaceFrame {
         Loader {
             id: detailPageLoader
             anchors.fill: parent
-            active: root._detailOpen
+            active: true
             visible: root._detailOpen && status === Loader.Ready
             asynchronous: true
             sourceComponent: _detailPageComponent
