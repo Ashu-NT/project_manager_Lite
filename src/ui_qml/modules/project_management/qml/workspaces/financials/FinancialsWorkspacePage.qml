@@ -66,13 +66,30 @@ AppLayouts.WorkspaceFrame {
     property int _pendingDetailSection: 0
     readonly property var detailPage: detailPageLoader.item
 
+    readonly property bool _hasProcPoCap: root.pmCatalog
+        ? root.pmCatalog.hasCapability("procurement.purchase_orders.read") : false
+    readonly property var _detailSections: {
+        const secs = [
+            "Budget",
+            { "label": "Actuals",     "count": (root.ledgerModel.items         || []).length },
+            { "label": "Forecast",    "count": (root.cashflowModel.items        || []).length },
+            { "label": "Commitments", "count": (root.sourceAnalyticsModel.items || []).length },
+            "Invoices"
+        ]
+        if (root._hasProcPoCap) secs.push("Purchase Orders")
+        secs.push("Earned Value")
+        secs.push("Activity")
+        return secs
+    }
+
     readonly property var _tableColumns: [
         { "key": "title",               "label": "Description", "flex": 2,   "sortable": true  },
         { "key": "statusLabel",         "label": "Cost Type",   "flex": 0,   "minWidth": 110, "type": "status" },
         { "key": "subtitle",            "label": "Task",        "flex": 1.5, "sortable": true  },
         { "key": "plannedAmountLabel",  "label": "Budget",      "flex": 0,   "minWidth": 110  },
-        { "key": "committedAmountLabel","label": "Committed",   "flex": 0,   "minWidth": 110  },
+        { "key": "forecastAmountLabel", "label": "Forecast",    "flex": 0,   "minWidth": 110  },
         { "key": "actualAmountLabel",   "label": "Actual",      "flex": 0,   "minWidth": 110  },
+        { "key": "committedAmountLabel","label": "Committed",   "flex": 0,   "minWidth": 110  },
         { "key": "incurredDateLabel",   "label": "Date",        "flex": 0,   "minWidth": 90   }
     ]
 
@@ -474,16 +491,7 @@ AppLayouts.WorkspaceFrame {
                 showEdit: false
                 showDelete: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                sections: [
-                    "Budget",
-                    { "label": "Actuals",     "count": (root.ledgerModel.items     || []).length },
-                    { "label": "Forecast",    "count": (root.cashflowModel.items    || []).length },
-                    { "label": "Commitments", "count": (root.sourceAnalyticsModel.items || []).length },
-                    "Invoices",
-                    "Purchase Orders",
-                    "Earned Value",
-                    "Activity"
-                ]
+                sections: root._detailSections
                 z: 20
                 Component.onCompleted: scrollToSection(root._pendingDetailSection)
 

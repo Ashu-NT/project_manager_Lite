@@ -21,15 +21,31 @@ Item {
 
     readonly property bool _hasCost: String(root.costDetail.id || "").length > 0
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
+    readonly property var _sections: root.detailPage ? (root.detailPage.sections || []) : []
+
+    function _secIdx(name) {
+        const secs = root._sections
+        for (let i = 0; i < secs.length; i++) {
+            const s = secs[i]
+            const sLabel = (typeof s === "string") ? s : (s.label || "")
+            if (sLabel === name) return i
+        }
+        return -1
+    }
+
     readonly property int _activeSectionH: {
-        if (root._idx === 0) return _sec0.implicitHeight
-        if (root._idx === 1) return _sec1.implicitHeight
-        if (root._idx === 2) return _sec2.implicitHeight
-        if (root._idx === 3) return _sec3.implicitHeight
-        if (root._idx === 4) return _sec4.implicitHeight
-        if (root._idx === 5) return _sec5.implicitHeight
-        if (root._idx === 6) return _sec6.implicitHeight
-        return _sec7.implicitHeight
+        const secs = root._sections
+        const entry = (secs.length > root._idx) ? secs[root._idx] : null
+        const name = entry ? ((typeof entry === "string") ? entry : (entry.label || "")) : ""
+        if (name === "Budget")          return _sec0.implicitHeight
+        if (name === "Actuals")         return _sec1.implicitHeight
+        if (name === "Forecast")        return _sec2.implicitHeight
+        if (name === "Commitments")     return _sec3.implicitHeight
+        if (name === "Invoices")        return _sec4.implicitHeight
+        if (name === "Purchase Orders") return _sec5.implicitHeight
+        if (name === "Earned Value")    return _sec6.implicitHeight
+        if (name === "Activity")        return _sec7.implicitHeight
+        return 0
     }
 
     readonly property var _ledgerColumns: [
@@ -63,7 +79,7 @@ Item {
         id: _sec0
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 0
+        active: root._idx === root._secIdx("Budget")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -193,7 +209,7 @@ Item {
         id: _sec1
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 1
+        active: root._idx === root._secIdx("Actuals")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -226,7 +242,7 @@ Item {
         id: _sec2
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 2
+        active: root._idx === root._secIdx("Forecast")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -259,7 +275,7 @@ Item {
         id: _sec3
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 3
+        active: root._idx === root._secIdx("Commitments")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -292,7 +308,7 @@ Item {
         id: _sec4
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 4
+        active: root._idx === root._secIdx("Invoices")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -311,7 +327,7 @@ Item {
         id: _sec5
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 5
+        active: root._idx === root._secIdx("Purchase Orders")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -330,7 +346,7 @@ Item {
         id: _sec6
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 6
+        active: root._idx === root._secIdx("Earned Value")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -413,7 +429,7 @@ Item {
         id: _sec7
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 7
+        active: root._idx === root._secIdx("Activity")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0

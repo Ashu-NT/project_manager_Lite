@@ -144,7 +144,7 @@ Detail sections: Overview, Schedule, Dependencies, Resources, Material Demand*, 
 ---
 
 ### PHASE 6 — Scheduling Workspace Panel Architecture
-**Status:** `[ ] pending`
+**Status:** `[x] complete`
 **File:** `src/ui_qml/modules/project_management/qml/ProjectManagement/Workspaces/Scheduling/SchedulingWorkspacePage.qml`
 
 Target panel-nav architecture (one panel visible at a time):
@@ -160,7 +160,7 @@ Target panel-nav architecture (one panel visible at a time):
 ---
 
 ### PHASE 7 — Dashboard Workspace as PMO Command Center
-**Status:** `[ ] pending`
+**Status:** `[x] complete`
 **File:** `src/ui_qml/modules/project_management/qml/ProjectManagement/Workspaces/Dashboard/DashboardWorkspacePage.qml`
 
 Dashboard already has rich backing (110KB API, EVM, burndown, health cards).
@@ -176,7 +176,7 @@ Modernize UX:
 ---
 
 ### PHASE 8 — Resources Workspace Modernization
-**Status:** `[ ] pending`
+**Status:** `[x] complete`
 **File:** `src/ui_qml/modules/project_management/qml/ProjectManagement/Workspaces/Resources/ResourcesWorkspacePage.qml`
 
 - Reference Platform Employee entities (not standalone resource records)
@@ -187,7 +187,7 @@ Modernize UX:
 ---
 
 ### PHASE 9 — Timesheets Workspace Modernization
-**Status:** `[ ] pending`
+**Status:** `[x] complete`
 **File:** `src/ui_qml/modules/project_management/qml/ProjectManagement/Workspaces/Timesheets/TimesheetsWorkspacePage.qml`
 
 - Route approvals through Platform Approval Queue
@@ -198,7 +198,7 @@ Modernize UX:
 ---
 
 ### PHASE 10 — Financials Workspace Modernization
-**Status:** `[ ] pending`
+**Status:** `[x] complete`
 **File:** `src/ui_qml/modules/project_management/qml/ProjectManagement/Workspaces/Financials/FinancialsWorkspacePage.qml`
 
 - Budget vs Forecast vs Actual vs Committed columns
@@ -211,7 +211,7 @@ Modernize UX:
 ---
 
 ### PHASE 11 — Portfolio Workspace Modernization
-**Status:** `[ ] pending`
+**Status:** `[x] complete`
 **File:** `src/ui_qml/modules/project_management/qml/ProjectManagement/Workspaces/Portfolio/PortfolioWorkspacePage.qml`
 
 - Portfolio KPI strip
@@ -226,7 +226,7 @@ Modernize UX:
 ---
 
 ### PHASE 12 — Risks Workspace Modernization
-**Status:** `[ ] pending`
+**Status:** `[x] complete`
 **File:** `src/ui_qml/modules/project_management/qml/ProjectManagement/Workspaces/Risk/RiskWorkspace.qml`
 
 - Severity/status chips (Critical / High / Medium / Low)
@@ -238,7 +238,7 @@ Modernize UX:
 ---
 
 ### PHASE 13 — Collaboration Workspace Modernization
-**Status:** `[ ] pending`
+**Status:** `[x] complete`
 **File:** `src/ui_qml/modules/project_management/qml/ProjectManagement/Workspaces/Collaboration/CollaborationWorkspacePage.qml`
 
 Already has good structure (Inbox, Mentions, Approvals, Activity, Team Updates, Audit).

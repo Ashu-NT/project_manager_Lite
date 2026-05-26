@@ -59,13 +59,14 @@ AppLayouts.WorkspaceFrame {
     readonly property var detailPage: detailPageLoader.item
 
     readonly property var _tableColumns: [
-        { "key": "title",            "label": "Resource",   "flex": 2,   "sortable": true  },
-        { "key": "statusLabel",      "label": "Status",     "flex": 0,   "minWidth": 100, "type": "status" },
-        { "key": "role",             "label": "Role",       "flex": 1.5, "sortable": true  },
-        { "key": "workerTypeLabel",  "label": "Type",       "flex": 1                       },
-        { "key": "costTypeLabel",    "label": "Cost Type",  "flex": 1                       },
-        { "key": "hourlyRateLabel",  "label": "Rate",       "flex": 0,   "minWidth": 90    },
-        { "key": "utilizationValue", "label": "Capacity",   "flex": 0,   "minWidth": 110, "type": "progress" }
+        { "key": "title",              "label": "Employee",      "flex": 2,   "sortable": true  },
+        { "key": "statusLabel",        "label": "Load",          "flex": 0,   "minWidth": 110, "type": "status" },
+        { "key": "department",         "label": "Department",    "flex": 1.2, "sortable": true  },
+        { "key": "site",               "label": "Site",          "flex": 1,   "sortable": true  },
+        { "key": "role",               "label": "Role",          "flex": 1.2, "sortable": true  },
+        { "key": "assignedHoursLabel", "label": "Assigned Hrs",  "flex": 0,   "minWidth": 100   },
+        { "key": "availabilityLabel",  "label": "Availability",  "flex": 0,   "minWidth": 100   },
+        { "key": "utilizationValue",   "label": "Utilization",   "flex": 1,   "minWidth": 110, "type": "progress" }
     ]
 
     readonly property var _detailActions: {

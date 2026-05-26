@@ -68,12 +68,14 @@ AppLayouts.WorkspaceFrame {
     readonly property var detailPage: detailPageLoader.item
 
     readonly property var _tableColumns: [
-        { "key": "title",        "label": "Risk",     "flex": 2,   "sortable": true  },
-        { "key": "statusLabel",  "label": "Severity", "flex": 0,   "minWidth": 100, "type": "status" },
-        { "key": "entryStatus",  "label": "Status",   "flex": 0,   "minWidth": 90,  "type": "status" },
-        { "key": "projectName",  "label": "Project",  "flex": 1.5, "sortable": true  },
-        { "key": "ownerName",    "label": "Owner",    "flex": 1.5                    },
-        { "key": "dueDateLabel", "label": "Due",      "flex": 0,   "minWidth": 90    }
+        { "key": "title",              "label": "Risk",        "flex": 2,   "sortable": true  },
+        { "key": "projectName",        "label": "Project",     "flex": 1.5, "sortable": true  },
+        { "key": "ownerName",          "label": "Owner",       "flex": 1.5                    },
+        { "key": "probabilityLabel",   "label": "Probability", "flex": 0,   "minWidth": 100   },
+        { "key": "impactLabel",        "label": "Impact",      "flex": 0,   "minWidth": 90    },
+        { "key": "statusLabel",        "label": "Severity",    "flex": 0,   "minWidth": 100, "type": "status" },
+        { "key": "entryStatus",        "label": "Status",      "flex": 0,   "minWidth": 90,  "type": "status" },
+        { "key": "dueDateLabel",       "label": "Due",         "flex": 0,   "minWidth": 90    }
     ]
 
     AppWidgets.LazyObjectLoader {
@@ -135,14 +137,22 @@ AppLayouts.WorkspaceFrame {
             searchPlaceholder: "Search risks…"
             showCreate: true
             createLabel: "New Risk"
+            showFilter: true
+            showCustomize: true
             showRefresh: true
+            showExport: true
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
             onSearchChanged: function(text) {
                 if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
             }
+            onFilterClicked: filterPopup.open()
+            onCustomizeClicked: riskTable.openColumnCustomizer(tableToolbar.customizeButtonItem)
             onRefreshRequested: {
                 if (root.workspaceController !== null) root.workspaceController.refresh()
+            }
+            onExportRequested: {
+                if (root.workspaceController !== null) root.workspaceController.exportRegister()
             }
             onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
         }
@@ -156,13 +166,16 @@ AppLayouts.WorkspaceFrame {
 
             AppWidgets.DataTable {
                 id: riskTable
-                anchors.fill: parent
+                anchors.top:    parent.top
+                anchors.left:   parent.left
+                anchors.right:  parent.right
+                anchors.bottom: _paginationBar.top
                 columns: root._tableColumns
                 rows: root.entriesModel.items || []
+                loading: root.workspaceController ? root.workspaceController.isLoading : false
+                emptyText: root.entriesModel.emptyState || "No risk entries available."
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
-                showFilter: true
 
-                onFilterClicked: filterPopup.open()
                 onRowSelected: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)
                 }
@@ -175,6 +188,23 @@ AppLayouts.WorkspaceFrame {
                     root._detailOpen = true
                 }
                 onSortRequested: function(key) {}
+            }
+
+            AppWidgets.TablePaginationBar {
+                id: _paginationBar
+                anchors.left:   parent.left
+                anchors.right:  parent.right
+                anchors.bottom: parent.bottom
+                currentPage:  root.workspaceController ? root.workspaceController.riskPage       : 1
+                pageSize:     root.workspaceController ? root.workspaceController.riskPageSize    : 25
+                totalItems:   root.workspaceController ? root.workspaceController.riskTotalCount  : 0
+                busy:         root.workspaceController ? root.workspaceController.isBusy          : false
+                onPageRequested: function(page) {
+                    if (root.workspaceController !== null) root.workspaceController.setRiskPage(page)
+                }
+                onPageSizeRequested: function(pageSize) {
+                    if (root.workspaceController !== null) root.workspaceController.setRiskPageSize(pageSize)
+                }
             }
 
             // Filter flyout popup — anchored to DataTable

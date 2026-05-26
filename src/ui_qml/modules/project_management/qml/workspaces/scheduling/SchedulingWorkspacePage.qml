@@ -295,9 +295,6 @@ AppLayouts.WorkspaceFrame {
             SchedulingDialogHost {
                 selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
                 selectedActivityData: root.selectedActivityModel
-                dependencyTypeOptions: root.workspaceController ? (root.workspaceController.dependencyTypeOptions || []) : []
-                dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
-
                 onCreateBaselineRequested: function(payload) {
                     if (root.workspaceController !== null) {
                         root.workspaceController.createBaseline(payload)
