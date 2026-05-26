@@ -27,6 +27,10 @@ class ProjectDesktopDto:
     planned_budget: float | None
     planned_budget_label: str
     currency: str | None
+    organization_id: str | None
+    site_id: str | None
+    client_party_id: str | None
+    manager_user_id: str | None
     version: int
 
 
@@ -41,6 +45,10 @@ class ProjectCreateCommand:
     currency: str | None = None
     start_date: date | None = None
     end_date: date | None = None
+    organization_id: str | None = None
+    site_id: str | None = None
+    client_party_id: str | None = None
+    manager_user_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -55,6 +63,10 @@ class ProjectUpdateCommand:
     currency: str | None = None
     start_date: date | None = None
     end_date: date | None = None
+    organization_id: str | None = None
+    site_id: str | None = None
+    client_party_id: str | None = None
+    manager_user_id: str | None = None
     expected_version: int | None = None
 
 
@@ -91,6 +103,10 @@ class ProjectManagementProjectsDesktopApi:
             currency=command.currency,
             start_date=command.start_date,
             end_date=command.end_date,
+            organization_id=command.organization_id,
+            site_id=command.site_id,
+            client_party_id=command.client_party_id,
+            manager_user_id=command.manager_user_id,
         )
         desired_status = _coerce_project_status(command.status)
         if desired_status != project.status:
@@ -112,6 +128,10 @@ class ProjectManagementProjectsDesktopApi:
             client_contact=command.client_contact,
             planned_budget=command.planned_budget,
             currency=command.currency,
+            organization_id=command.organization_id,
+            site_id=command.site_id,
+            client_party_id=command.client_party_id,
+            manager_user_id=command.manager_user_id,
         )
         return self._serialize_project(project)
 
@@ -152,6 +172,10 @@ class ProjectManagementProjectsDesktopApi:
                 resolved_currency,
             ),
             currency=resolved_currency,
+            organization_id=getattr(project, "organization_id", None),
+            site_id=getattr(project, "site_id", None),
+            client_party_id=getattr(project, "client_party_id", None),
+            manager_user_id=getattr(project, "manager_user_id", None),
             version=project.version,
         )
 

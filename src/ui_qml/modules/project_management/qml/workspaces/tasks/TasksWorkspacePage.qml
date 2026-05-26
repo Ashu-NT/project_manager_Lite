@@ -139,6 +139,15 @@ AppLayouts.WorkspaceFrame {
         return properties
     }
 
+    property var platformCatalog
+    property var _caps: ({})
+
+    Component.onCompleted: {
+        if (root.platformCatalog) {
+            root._caps = root.platformCatalog.capabilitySnapshot()
+        }
+    }
+
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
     property bool _detailOpen: false
@@ -148,11 +157,21 @@ AppLayouts.WorkspaceFrame {
     readonly property var _detailActions: {
         const idx = detailPage ? detailPage.activeSectionIndex : 0
         if (idx === 0) {
-            return [
+            const actions = [
                 { "id": "edit",     "label": "Edit",     "icon": "edit",    "enabled": true, "danger": false },
                 { "id": "progress", "label": "Progress", "icon": "approve", "enabled": true, "danger": false },
                 { "id": "delete",   "label": "Delete",   "icon": "delete",  "enabled": true, "danger": true  }
             ]
+            if (root._caps.canPmLinkInventory) {
+                actions.splice(2, 0, {
+                    "id": "reserve_material",
+                    "label": "Reserve Material",
+                    "icon": "storage",
+                    "enabled": root.selectedTaskModel && root.selectedTaskModel.id ? true : false,
+                    "danger": false
+                })
+            }
+            return actions
         }
         return []
     }

@@ -31,6 +31,11 @@ class InventoryReservationDesktopDto:
     need_by_date_label: str
     source_reference_type: str
     source_reference_id: str
+    source_module: str
+    source_entity_type: str
+    source_code_snapshot: str
+    source_title_snapshot: str
+    source_status_snapshot: str
     requested_by_username: str
     created_at_label: str
     released_at_label: str
@@ -48,6 +53,11 @@ class InventoryReservationCreateCommand:
     need_by_date: date | None = None
     source_reference_type: str = ""
     source_reference_id: str = ""
+    source_module: str = ""
+    source_entity_type: str = ""
+    source_code_snapshot: str = ""
+    source_title_snapshot: str = ""
+    source_status_snapshot: str = ""
     notes: str = ""
 
 

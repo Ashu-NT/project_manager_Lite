@@ -9,6 +9,15 @@ import InventoryProcurement.Widgets 1.0 as InventoryWidgets
 AppLayouts.WorkspaceFrame {
     id: root
 
+    property var platformCatalog
+    property var _caps: ({})
+
+    Component.onCompleted: {
+        if (root.platformCatalog) {
+            root._caps = root.platformCatalog.capabilitySnapshot()
+        }
+    }
+
     property InventoryProcurementControllers.InventoryProcurementWorkspaceCatalog inventoryCatalog
     property InventoryProcurementControllers.InventoryProcurementProcurementWorkspaceController workspaceController: root.inventoryCatalog
         ? root.inventoryCatalog.procurementWorkspace

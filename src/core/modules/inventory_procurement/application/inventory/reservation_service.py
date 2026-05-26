@@ -100,6 +100,11 @@ class ReservationService:
         need_by_date: date | None = None,
         source_reference_type: str,
         source_reference_id: str,
+        source_module: str = "",
+        source_entity_type: str = "",
+        source_code_snapshot: str = "",
+        source_title_snapshot: str = "",
+        source_status_snapshot: str = "",
         notes: str = "",
     ) -> StockReservation:
         self._require_manage("create stock reservation")
@@ -133,6 +138,11 @@ class ReservationService:
             need_by_date=need_by_date,
             source_reference_type=normalized_source_type,
             source_reference_id=normalized_source_id,
+            source_module=source_module or "",
+            source_entity_type=source_entity_type or "",
+            source_code_snapshot=source_code_snapshot or "",
+            source_title_snapshot=source_title_snapshot or "",
+            source_status_snapshot=source_status_snapshot or "",
             requested_by_user_id=getattr(principal, "user_id", None),
             requested_by_username=str(getattr(principal, "username", "") or ""),
             notes=normalize_optional_text(notes),

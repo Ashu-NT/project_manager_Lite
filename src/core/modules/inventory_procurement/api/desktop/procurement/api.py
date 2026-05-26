@@ -327,6 +327,11 @@ class InventoryProcurementProcurementDesktopApi:
             priority=command.priority,
             source_reference_type=command.source_reference_type,
             source_reference_id=command.source_reference_id,
+            source_module=command.source_module,
+            source_entity_type=command.source_entity_type,
+            source_code_snapshot=command.source_code_snapshot,
+            source_title_snapshot=command.source_title_snapshot,
+            source_status_snapshot=command.source_status_snapshot,
             notes=command.notes,
             requisition_number=command.requisition_number,
         )
@@ -345,6 +350,11 @@ class InventoryProcurementProcurementDesktopApi:
             priority=command.priority,
             source_reference_type=command.source_reference_type,
             source_reference_id=command.source_reference_id,
+            source_module=command.source_module,
+            source_entity_type=command.source_entity_type,
+            source_code_snapshot=command.source_code_snapshot,
+            source_title_snapshot=command.source_title_snapshot,
+            source_status_snapshot=command.source_status_snapshot,
             notes=command.notes,
             expected_version=command.expected_version,
         )

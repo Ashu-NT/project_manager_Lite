@@ -69,6 +69,11 @@ class PurchaseRequisition:
     approval_request_id: str | None = None
     source_reference_type: str = ""
     source_reference_id: str = ""
+    source_module: str = ""
+    source_entity_type: str = ""
+    source_code_snapshot: str = ""
+    source_title_snapshot: str = ""
+    source_status_snapshot: str = ""
     submitted_at: datetime | None = None
     approved_at: datetime | None = None
     cancelled_at: datetime | None = None
@@ -93,6 +98,11 @@ class PurchaseRequisition:
         approval_request_id: str | None = None,
         source_reference_type: str = "",
         source_reference_id: str = "",
+        source_module: str = "",
+        source_entity_type: str = "",
+        source_code_snapshot: str = "",
+        source_title_snapshot: str = "",
+        source_status_snapshot: str = "",
         submitted_at: datetime | None = None,
         approved_at: datetime | None = None,
         cancelled_at: datetime | None = None,
@@ -114,6 +124,11 @@ class PurchaseRequisition:
             approval_request_id=approval_request_id,
             source_reference_type=source_reference_type,
             source_reference_id=source_reference_id,
+            source_module=source_module,
+            source_entity_type=source_entity_type,
+            source_code_snapshot=source_code_snapshot,
+            source_title_snapshot=source_title_snapshot,
+            source_status_snapshot=source_status_snapshot,
             submitted_at=submitted_at,
             approved_at=approved_at,
             cancelled_at=cancelled_at,

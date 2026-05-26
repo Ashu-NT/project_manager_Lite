@@ -213,6 +213,11 @@ class StockReservation:
     need_by_date: date | None = None
     source_reference_type: str = ""
     source_reference_id: str = ""
+    source_module: str = ""
+    source_entity_type: str = ""
+    source_code_snapshot: str = ""
+    source_title_snapshot: str = ""
+    source_status_snapshot: str = ""
     requested_by_user_id: str | None = None
     requested_by_username: str = ""
     created_at: datetime | None = None
@@ -236,6 +241,11 @@ class StockReservation:
         need_by_date: date | None = None,
         source_reference_type: str = "",
         source_reference_id: str = "",
+        source_module: str = "",
+        source_entity_type: str = "",
+        source_code_snapshot: str = "",
+        source_title_snapshot: str = "",
+        source_status_snapshot: str = "",
         requested_by_user_id: str | None = None,
         requested_by_username: str = "",
         released_at: datetime | None = None,
@@ -262,6 +272,11 @@ class StockReservation:
             need_by_date=need_by_date,
             source_reference_type=source_reference_type,
             source_reference_id=source_reference_id,
+            source_module=source_module,
+            source_entity_type=source_entity_type,
+            source_code_snapshot=source_code_snapshot,
+            source_title_snapshot=source_title_snapshot,
+            source_status_snapshot=source_status_snapshot,
             requested_by_user_id=requested_by_user_id,
             requested_by_username=requested_by_username,
             created_at=now,

@@ -31,6 +31,11 @@ class InventoryRequisitionDesktopDto:
     approval_request_id: str | None
     source_reference_type: str
     source_reference_id: str
+    source_module: str
+    source_entity_type: str
+    source_code_snapshot: str
+    source_title_snapshot: str
+    source_status_snapshot: str
     submitted_at_label: str
     approved_at_label: str
     cancelled_at_label: str
@@ -71,6 +76,11 @@ class InventoryRequisitionCreateCommand:
     priority: str = "NORMAL"
     source_reference_type: str = ""
     source_reference_id: str = ""
+    source_module: str = ""
+    source_entity_type: str = ""
+    source_code_snapshot: str = ""
+    source_title_snapshot: str = ""
+    source_status_snapshot: str = ""
     notes: str = ""
     requisition_number: str | None = None
 
@@ -85,6 +95,11 @@ class InventoryRequisitionUpdateCommand:
     priority: str = "NORMAL"
     source_reference_type: str = ""
     source_reference_id: str = ""
+    source_module: str = ""
+    source_entity_type: str = ""
+    source_code_snapshot: str = ""
+    source_title_snapshot: str = ""
+    source_status_snapshot: str = ""
     notes: str = ""
     expected_version: int | None = None
 
@@ -134,6 +149,11 @@ def serialize_requisition(
         approval_request_id=clean_text(getattr(row, "approval_request_id", "")) or None,
         source_reference_type=clean_text(getattr(row, "source_reference_type", "")),
         source_reference_id=clean_text(getattr(row, "source_reference_id", "")),
+        source_module=clean_text(getattr(row, "source_module", "")),
+        source_entity_type=clean_text(getattr(row, "source_entity_type", "")),
+        source_code_snapshot=clean_text(getattr(row, "source_code_snapshot", "")),
+        source_title_snapshot=clean_text(getattr(row, "source_title_snapshot", "")),
+        source_status_snapshot=clean_text(getattr(row, "source_status_snapshot", "")),
         submitted_at_label=format_datetime(getattr(row, "submitted_at", None)),
         approved_at_label=format_datetime(getattr(row, "approved_at", None)),
         cancelled_at_label=format_datetime(getattr(row, "cancelled_at", None)),

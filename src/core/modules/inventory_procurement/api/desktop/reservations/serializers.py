@@ -44,6 +44,11 @@ def serialize_reservation(
         need_by_date_label=format_date(getattr(row, "need_by_date", None)),
         source_reference_type=clean_text(getattr(row, "source_reference_type", "")),
         source_reference_id=clean_text(getattr(row, "source_reference_id", "")),
+        source_module=clean_text(getattr(row, "source_module", "")),
+        source_entity_type=clean_text(getattr(row, "source_entity_type", "")),
+        source_code_snapshot=clean_text(getattr(row, "source_code_snapshot", "")),
+        source_title_snapshot=clean_text(getattr(row, "source_title_snapshot", "")),
+        source_status_snapshot=clean_text(getattr(row, "source_status_snapshot", "")),
         requested_by_username=clean_text(
             getattr(row, "requested_by_username", ""),
             default="-",

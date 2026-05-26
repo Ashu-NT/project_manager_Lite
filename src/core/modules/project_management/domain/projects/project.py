@@ -20,6 +20,10 @@ class Project:
     client_contact: Optional[str] = None
     planned_budget: Optional[float] = None
     currency: Optional[str] = None
+    organization_id: Optional[str] = None
+    site_id: Optional[str] = None
+    client_party_id: Optional[str] = None
+    manager_user_id: Optional[str] = None
     version: int = 1
 
     @staticmethod

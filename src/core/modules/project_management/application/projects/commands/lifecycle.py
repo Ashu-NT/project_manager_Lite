@@ -51,6 +51,10 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         currency: str | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
+        organization_id: str | None = None,
+        site_id: str | None = None,
+        client_party_id: str | None = None,
+        manager_user_id: str | None = None,
     ) -> Project:
         require_permission(self._user_session, "project.manage", operation_label="create project")
         self._validate_project_name(name)
@@ -64,6 +68,10 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             currency=resolved_currency,
             start_date=start_date,
             end_date=end_date,
+            organization_id=(organization_id or "").strip() or None,
+            site_id=(site_id or "").strip() or None,
+            client_party_id=(client_party_id or "").strip() or None,
+            manager_user_id=(manager_user_id or "").strip() or None,
         )
 
         try:
@@ -145,6 +153,10 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         client_contact: str | None = None,
         planned_budget: float | None = None,
         currency: str | None = None,
+        organization_id: str | None = None,
+        site_id: str | None = None,
+        client_party_id: str | None = None,
+        manager_user_id: str | None = None,
     ) -> Project:
         require_permission(self._user_session, "project.manage", operation_label="update project")
         project = self._project_repo.get(project_id)
@@ -186,6 +198,14 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             project.planned_budget = planned_budget
         if currency is not None:
             project.currency = currency.strip().upper() or None
+        if organization_id is not None:
+            project.organization_id = (organization_id or "").strip() or None
+        if site_id is not None:
+            project.site_id = (site_id or "").strip() or None
+        if client_party_id is not None:
+            project.client_party_id = (client_party_id or "").strip() or None
+        if manager_user_id is not None:
+            project.manager_user_id = (manager_user_id or "").strip() or None
 
         try:
             self._project_repo.update(project)

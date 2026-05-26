@@ -41,6 +41,11 @@ class ProcurementLifecycleMixin:
         priority: str = "NORMAL",
         source_reference_type: str = "",
         source_reference_id: str = "",
+        source_module: str = "",
+        source_entity_type: str = "",
+        source_code_snapshot: str = "",
+        source_title_snapshot: str = "",
+        source_status_snapshot: str = "",
         notes: str = "",
         requisition_number: str | None = None,
     ) -> PurchaseRequisition:
@@ -75,6 +80,11 @@ class ProcurementLifecycleMixin:
             priority=normalize_priority(priority),
             source_reference_type=normalize_source_reference_type(source_reference_type),
             source_reference_id=normalize_optional_text(source_reference_id),
+            source_module=source_module or "",
+            source_entity_type=source_entity_type or "",
+            source_code_snapshot=source_code_snapshot or "",
+            source_title_snapshot=source_title_snapshot or "",
+            source_status_snapshot=source_status_snapshot or "",
             notes=normalize_optional_text(notes),
         )
         try:
@@ -244,6 +254,11 @@ class ProcurementLifecycleMixin:
         priority: str | None = None,
         source_reference_type: str | None = None,
         source_reference_id: str | None = None,
+        source_module: str | None = None,
+        source_entity_type: str | None = None,
+        source_code_snapshot: str | None = None,
+        source_title_snapshot: str | None = None,
+        source_status_snapshot: str | None = None,
         notes: str | None = None,
         expected_version: int | None = None,
     ) -> PurchaseRequisition:
@@ -284,6 +299,16 @@ class ProcurementLifecycleMixin:
             requisition.source_reference_type = normalize_source_reference_type(source_reference_type)
         if source_reference_id is not None:
             requisition.source_reference_id = normalize_optional_text(source_reference_id)
+        if source_module is not None:
+            requisition.source_module = source_module or ""
+        if source_entity_type is not None:
+            requisition.source_entity_type = source_entity_type or ""
+        if source_code_snapshot is not None:
+            requisition.source_code_snapshot = source_code_snapshot or ""
+        if source_title_snapshot is not None:
+            requisition.source_title_snapshot = source_title_snapshot or ""
+        if source_status_snapshot is not None:
+            requisition.source_status_snapshot = source_status_snapshot or ""
         if notes is not None:
             requisition.notes = normalize_optional_text(notes)
         requisition.updated_at = datetime.now(timezone.utc)

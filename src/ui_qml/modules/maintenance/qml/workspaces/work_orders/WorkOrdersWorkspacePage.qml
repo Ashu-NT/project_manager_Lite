@@ -12,6 +12,15 @@ import App.Controls 1.0 as AppControls
 AppLayouts.WorkspaceFrame {
     id: root
 
+    property var platformCatalog
+    property var _caps: ({})
+
+    Component.onCompleted: {
+        if (root.platformCatalog) {
+            root._caps = root.platformCatalog.capabilitySnapshot()
+        }
+    }
+
     property MaintenanceControllers.MaintenanceWorkspaceCatalog maintenanceCatalog
     property MaintenanceControllers.MaintenanceWorkOrdersWorkspaceController workspaceController: root.maintenanceCatalog
         ? root.maintenanceCatalog.workOrdersWorkspace

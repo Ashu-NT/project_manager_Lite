@@ -331,61 +331,46 @@ IntegrationResolver.resolve_missing_source() → ResolvedReference with sourceAv
 
 ---
 
-## 5. Remaining Work (TODO)
+## 5. Remaining Work
 
-### Phase 6 — PM→Platform FKs (Future sprint)
+### Phase 6 — PM→Platform FKs ✅ COMPLETE (2026-05-26)
 
-ProjectORM currently has no Platform FKs. Needs:
+ProjectORM now has Platform FKs:
 - `organization_id` → organizations.id
-- `site_id` → sites.id  
-- `client_party_id` → parties.id (nullable, optional)
+- `site_id` → sites.id
+- `client_party_id` → parties.id (nullable)
 - `manager_user_id` → users.id (nullable)
 
-Migration needed: `add_project_platform_references`
+Migration: `h1i2j3k4l5m6_add_project_platform_fks` (down_revision: g0h1i2j3k4l5)
 
-### Phase 7 — Service-level integration wiring (Future sprint)
+Updated: `Project` domain model, `ProjectORM`, `project_to_orm`/`project_from_orm` mappers,
+`ProjectDesktopDto`, `ProjectCreateCommand`, `ProjectUpdateCommand`, `ProjectLifecycleMixin.create_project()`
+and `update_project()`.
 
-Currently the ORM snapshot columns exist but no service method automatically
-populates them. Needs:
+### Phase 7 — Service-level integration wiring ✅ COMPLETE (2026-05-26)
 
-**ReservationService** — when creating a reservation from a PM task:
-```python
-reservation.source_module = "project_management"
-reservation.source_entity_type = "task"
-reservation.source_reference_id = task.id
-reservation.source_code_snapshot = task.code  # e.g., "TASK-0032"
-reservation.source_title_snapshot = task.name
-reservation.source_status_snapshot = task.status.value
-```
+Snapshot fields now flow through the full stack for both reservation and requisition creation:
 
-**ProcurementService** — when creating a requisition from a shortage:
-```python
-requisition.source_module = "inventory_procurement"
-requisition.source_entity_type = "reservation"
-requisition.source_reference_id = reservation.id
-requisition.source_code_snapshot = reservation.reservation_number
-```
+**StockReservation** — new fields: `source_module`, `source_entity_type`, `source_code_snapshot`,
+`source_title_snapshot`, `source_status_snapshot`
 
-**TaskService** — when a material demand triggers a reservation:
-- Check `module_registry.can_use_integration("project_management", "inventory_procurement", "material_demand")`
-- If enabled → call ReservationService
-- If disabled → store demand in task only, show "Inventory not enabled" hint
+**PurchaseRequisition** — same 5 new snapshot fields added
 
-### Phase 8 — QML capability-aware UI (Future sprint)
+Updated: domain models, ORM mappers (both inventory + procurement), `ReservationService.create_reservation()`,
+`ProcurementLifecycleMixin.create_requisition()` and `update_requisition()`,
+`InventoryReservationCreateCommand`, `InventoryRequisitionCreateCommand`, `InventoryRequisitionUpdateCommand`,
+`InventoryReservationDesktopDto`, `InventoryRequisitionDesktopDto`,
+`serialize_reservation()`, `serialize_requisition()`.
 
-Each workspace that has cross-module actions needs to:
-1. Call `platformCatalog.capabilitySnapshot()` on component load
-2. Store result in a local JS property: `property var caps: ({})`
-3. Gate buttons: `enabled: caps.isInventoryProcurementEnabled`
-4. Show tooltip: `tooltip: caps.isInventoryProcurementEnabled ? "" : "Inventory & Procurement module is not enabled"`
+### Phase 8 — QML capability-aware UI ✅ COMPLETE (2026-05-26)
 
-Workspaces that need this treatment:
-- PM Tasks → "Reserve Material" button (needs `canPmLinkInventory`)
-- PM Financials → "View POs" link (needs `isInventoryProcurementEnabled`)
-- Inventory Reservations → source reference display (already has snapshot fields)
-- Inventory Procurement → source reference display
-- Maintenance Work Orders → "Material Requirements" section (needs `canMaintenanceLinkInventory`)
-- All → approval/audit links (always available via Platform)
+All four cross-module workspace pages now declare `property var platformCatalog` (auto-injected by
+`MainWindow.qml`) and load capability snapshot on `Component.onCompleted`:
+
+- **TasksWorkspacePage.qml** — `_caps.canPmLinkInventory` gates "Reserve Material" in `_detailActions`
+- **ReservationsWorkspacePage.qml** — `platformCatalog` + `_caps` wired
+- **ProcurementWorkspacePage.qml** — `platformCatalog` + `_caps` wired
+- **WorkOrdersWorkspacePage.qml** — `platformCatalog` + `_caps` wired (`canMaintenanceLinkInventory`)
 
 ### Phase 9 — Audit + Approval integration enrichment (Future sprint)
 

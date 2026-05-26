@@ -63,6 +63,11 @@ class InventoryReservationsDesktopRecordMixin:
             need_by_date=command.need_by_date,
             source_reference_type=command.source_reference_type,
             source_reference_id=command.source_reference_id,
+            source_module=command.source_module,
+            source_entity_type=command.source_entity_type,
+            source_code_snapshot=command.source_code_snapshot,
+            source_title_snapshot=command.source_title_snapshot,
+            source_status_snapshot=command.source_status_snapshot,
             notes=command.notes,
         )
         return self._serialize_reservation(reservation)
