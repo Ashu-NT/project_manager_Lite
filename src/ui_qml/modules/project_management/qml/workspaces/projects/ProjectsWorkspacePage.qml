@@ -58,6 +58,19 @@ AppLayouts.WorkspaceFrame {
     property int _pendingDetailSection: 0
     readonly property var detailPage: detailPageLoader.item
 
+    readonly property bool _hasInvCap: root.pmCatalog
+        ? root.pmCatalog.hasCapability("inventory.reservations.create") : false
+    readonly property bool _hasProcCap: root.pmCatalog
+        ? root.pmCatalog.hasCapability("procurement.purchase_orders.read") : false
+    readonly property var _detailSections: {
+        const secs = ["Overview", "Schedule", "Tasks", "Resources", "Financials", "Risks"]
+        if (root._hasInvCap)  secs.push("Material Demand")
+        if (root._hasProcCap) secs.push("Procurement")
+        secs.push("Documents")
+        secs.push("Activity")
+        return secs
+    }
+
     readonly property var _tableColumns: [
         { "key": "title",              "label": "Project",  "flex": 2,   "sortable": true  },
         { "key": "statusLabel",        "label": "Status",   "flex": 0,   "minWidth": 110, "type": "status" },
@@ -92,23 +105,15 @@ AppLayouts.WorkspaceFrame {
     }
 
     function _loadLazyProjectSection(sectionIndex) {
-        if (root.workspaceController === null) {
-            return
-        }
-
-        if (sectionIndex === 2) {
-            root.workspaceController.loadProjectTasks()
-        } else if (sectionIndex === 3) {
-            root.workspaceController.loadProjectResources()
-        } else if (sectionIndex === 4) {
-            root.workspaceController.loadProjectFinancials()
-        } else if (sectionIndex === 5) {
-            root.workspaceController.loadProjectRisks()
-        } else if (sectionIndex === 6) {
-            root.workspaceController.loadProjectDocuments()
-        } else if (sectionIndex === 7) {
-            root.workspaceController.loadProjectActivity()
-        }
+        if (root.workspaceController === null) return
+        const page = detailPageLoader.item
+        const secName = page ? (page.sections[sectionIndex] || "") : ""
+        if      (secName === "Tasks")     root.workspaceController.loadProjectTasks()
+        else if (secName === "Resources") root.workspaceController.loadProjectResources()
+        else if (secName === "Financials") root.workspaceController.loadProjectFinancials()
+        else if (secName === "Risks")     root.workspaceController.loadProjectRisks()
+        else if (secName === "Documents") root.workspaceController.loadProjectDocuments()
+        else if (secName === "Activity")  root.workspaceController.loadProjectActivity()
     }
 
     function _openDetail(sectionIndex) {
@@ -464,7 +469,7 @@ AppLayouts.WorkspaceFrame {
                 showEdit: false
                 showDelete: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                sections: ["Overview", "Schedule", "Tasks", "Resources", "Financials", "Risks", "Documents", "Activity"]
+                sections: root._detailSections
                 z: 20
                 Component.onCompleted: {
                     scrollToSection(root._pendingDetailSection)
@@ -504,6 +509,7 @@ AppLayouts.WorkspaceFrame {
                 ProjectsDetailSection {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
+                    pmCatalog: root.pmCatalog
                     projectDetail: root.selectedProjectModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedProjectModel)

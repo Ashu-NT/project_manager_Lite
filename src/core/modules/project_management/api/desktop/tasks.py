@@ -150,6 +150,42 @@ class TaskBulkStatusCommand:
     reopen_percent_complete: float | None = None
 
 
+@dataclass(frozen=True)
+class TaskReservationDesktopDto:
+    id: str
+    reservation_number: str
+    stock_item_id: str
+    storeroom_id: str
+    reserved_qty: float
+    issued_qty: float
+    remaining_qty: float
+    uom: str
+    status: str
+    status_label: str
+    need_by_date: date | None
+    notes: str
+
+
+@dataclass(frozen=True)
+class TaskReservationCreateCommand:
+    task_id: str
+    stock_item_id: str
+    storeroom_id: str
+    reserved_qty: float
+    uom: str | None = None
+    need_by_date: date | None = None
+    notes: str = ""
+
+
+@dataclass(frozen=True)
+class TaskMaterialDemandSummary:
+    task_id: str
+    total_reserved: int
+    active_count: int
+    fulfilled_count: int
+    cancelled_count: int
+
+
 class ProjectManagementTasksDesktopApi:
     def __init__(
         self,
@@ -158,11 +194,13 @@ class ProjectManagementTasksDesktopApi:
         task_service: TaskService | None = None,
         project_resource_service: ProjectResourceService | None = None,
         resource_service: ResourceService | None = None,
+        reservation_service: object | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
         self._project_resource_service = project_resource_service
         self._resource_service = resource_service
+        self._reservation_service = reservation_service
 
     def list_projects(self) -> tuple[TaskProjectOptionDescriptor, ...]:
         if self._project_service is None:
@@ -547,6 +585,72 @@ class ProjectManagementTasksDesktopApi:
             deleted_ids.append(task_id)
         return tuple(deleted_ids)
 
+    def list_task_reservations(self, task_id: str) -> tuple[TaskReservationDesktopDto, ...]:
+        if not task_id or self._reservation_service is None:
+            return ()
+        list_reservations = getattr(self._reservation_service, "list_reservations", None)
+        if not callable(list_reservations):
+            return ()
+        try:
+            all_reservations = list_reservations(limit=500)
+        except Exception:
+            return ()
+        task_reservations = [
+            r for r in all_reservations
+            if getattr(r, "source_reference_type", "") == "task"
+            and getattr(r, "source_reference_id", "") == task_id
+        ]
+        return tuple(
+            self._serialize_reservation(r)
+            for r in sorted(
+                task_reservations,
+                key=lambda r: getattr(r, "created_at", None) or "",
+            )
+        )
+
+    def create_task_reservation(
+        self,
+        command: TaskReservationCreateCommand,
+    ) -> TaskReservationDesktopDto:
+        if self._reservation_service is None:
+            raise RuntimeError("Inventory reservation service is not connected.")
+        create_reservation = getattr(self._reservation_service, "create_reservation", None)
+        if not callable(create_reservation):
+            raise RuntimeError("Inventory reservation service does not support create_reservation.")
+        task = self._require_task_service().get_task(command.task_id)
+        if task is None:
+            raise RuntimeError("Task not found.")
+        reservation = create_reservation(
+            stock_item_id=command.stock_item_id,
+            storeroom_id=command.storeroom_id,
+            reserved_qty=command.reserved_qty,
+            uom=command.uom,
+            need_by_date=command.need_by_date,
+            source_reference_type="task",
+            source_reference_id=command.task_id,
+            source_module="project_management",
+            source_entity_type="task",
+            source_code_snapshot=str(getattr(task, "name", "") or ""),
+            source_status_snapshot=str(
+                getattr(getattr(task, "status", None), "value", "") or ""
+            ),
+            notes=command.notes,
+        )
+        return self._serialize_reservation(reservation)
+
+    def get_task_material_demand(self, task_id: str) -> TaskMaterialDemandSummary:
+        reservations = self.list_task_reservations(task_id)
+        active_statuses = {"ACTIVE", "PARTIALLY_ISSUED"}
+        fulfilled_statuses = {"FULLY_ISSUED"}
+        closed_statuses = {"RELEASED", "CANCELLED"}
+        return TaskMaterialDemandSummary(
+            task_id=task_id,
+            total_reserved=len(reservations),
+            active_count=sum(1 for r in reservations if r.status in active_statuses),
+            fulfilled_count=sum(1 for r in reservations if r.status in fulfilled_statuses),
+            cancelled_count=sum(1 for r in reservations if r.status in closed_statuses),
+        )
+
     def _require_task_service(self) -> TaskService:
         if self._task_service is None:
             raise RuntimeError("Project management tasks desktop API is not connected.")
@@ -660,18 +764,43 @@ class ProjectManagementTasksDesktopApi:
         )
 
 
+    @staticmethod
+    def _serialize_reservation(reservation) -> TaskReservationDesktopDto:
+        status_value = str(
+            getattr(getattr(reservation, "status", None), "value", None)
+            or getattr(reservation, "status", "")
+            or ""
+        )
+        return TaskReservationDesktopDto(
+            id=reservation.id,
+            reservation_number=str(getattr(reservation, "reservation_number", "") or ""),
+            stock_item_id=str(getattr(reservation, "stock_item_id", "") or ""),
+            storeroom_id=str(getattr(reservation, "storeroom_id", "") or ""),
+            reserved_qty=float(getattr(reservation, "reserved_qty", 0.0) or 0.0),
+            issued_qty=float(getattr(reservation, "issued_qty", 0.0) or 0.0),
+            remaining_qty=float(getattr(reservation, "remaining_qty", 0.0) or 0.0),
+            uom=str(getattr(reservation, "uom", "") or ""),
+            status=status_value,
+            status_label=status_value.replace("_", " ").title(),
+            need_by_date=getattr(reservation, "need_by_date", None),
+            notes=str(getattr(reservation, "notes", "") or ""),
+        )
+
+
 def build_project_management_tasks_desktop_api(
     *,
     project_service: ProjectService | None = None,
     task_service: TaskService | None = None,
     project_resource_service: ProjectResourceService | None = None,
     resource_service: ResourceService | None = None,
+    reservation_service: object | None = None,
 ) -> ProjectManagementTasksDesktopApi:
     return ProjectManagementTasksDesktopApi(
         project_service=project_service,
         task_service=task_service,
         project_resource_service=project_resource_service,
         resource_service=resource_service,
+        reservation_service=reservation_service,
     )
 
 
@@ -749,9 +878,12 @@ __all__ = [
     "TaskDependencyCreateCommand",
     "TaskDependencyDesktopDto",
     "TaskDependencyTypeDescriptor",
+    "TaskMaterialDemandSummary",
     "TaskProgressCommand",
     "TaskProjectOptionDescriptor",
     "TaskProjectResourceOptionDescriptor",
+    "TaskReservationCreateCommand",
+    "TaskReservationDesktopDto",
     "TaskStatusDescriptor",
     "TaskUpdateCommand",
     "build_project_management_tasks_desktop_api",

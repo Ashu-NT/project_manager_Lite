@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import App.Controls 1.0 as AppControls
+import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 
 Item {
     id: root
@@ -20,6 +21,7 @@ Item {
     })
     property bool isBusy: false
     property var detailPage: null
+    property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
 
     signal editRequested()
     signal statusRequested()
@@ -32,15 +34,23 @@ Item {
 
     readonly property bool _hasProject: String(root.projectDetail.id || "").length > 0
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
+    readonly property var _sections: root.detailPage ? (root.detailPage.sections || []) : []
+
+    function _secIdx(name) { return root._sections.indexOf(name) }
+
     readonly property int _activeSectionH: {
-        if (root._idx === 0) return _sec0.implicitHeight
-        if (root._idx === 1) return _sec1.implicitHeight
-        if (root._idx === 2) return _sec2.implicitHeight
-        if (root._idx === 3) return _sec3.implicitHeight
-        if (root._idx === 4) return _sec4.implicitHeight
-        if (root._idx === 5) return _sec5.implicitHeight
-        if (root._idx === 6) return _sec6.implicitHeight
-        return _sec7.implicitHeight
+        const name = root._sections[root._idx] || ""
+        if (name === "Overview")        return _sec0.implicitHeight
+        if (name === "Schedule")        return _sec1.implicitHeight
+        if (name === "Tasks")           return _sec2.implicitHeight
+        if (name === "Resources")       return _sec3.implicitHeight
+        if (name === "Financials")      return _sec4.implicitHeight
+        if (name === "Risks")           return _sec5.implicitHeight
+        if (name === "Documents")       return _sec6.implicitHeight
+        if (name === "Activity")        return _sec7.implicitHeight
+        if (name === "Material Demand") return _sec8.implicitHeight
+        if (name === "Procurement")     return _sec9.implicitHeight
+        return 0
     }
 
     implicitHeight: _activeSectionH
@@ -49,7 +59,7 @@ Item {
         id: _sec0
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 0
+        active: root._idx === root._secIdx("Overview")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -277,7 +287,7 @@ Item {
         id: _sec1
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 1
+        active: root._idx === root._secIdx("Schedule")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -362,7 +372,7 @@ Item {
         id: _sec2
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 2
+        active: root._idx === root._secIdx("Tasks")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -392,7 +402,7 @@ Item {
         id: _sec3
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 3
+        active: root._idx === root._secIdx("Resources")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -422,7 +432,7 @@ Item {
         id: _sec4
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 4
+        active: root._idx === root._secIdx("Financials")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -518,7 +528,7 @@ Item {
         id: _sec5
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 5
+        active: root._idx === root._secIdx("Risks")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -548,7 +558,7 @@ Item {
         id: _sec6
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 6
+        active: root._idx === root._secIdx("Documents")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -578,7 +588,7 @@ Item {
         id: _sec7
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 7
+        active: root._idx === root._secIdx("Activity")
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -603,6 +613,98 @@ Item {
                             return s.activityItems || []
                         }
                         emptyText: "No project activity recorded"
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Material Demand (capability-gated: inventory.reservations.create) ──
+    AppWidgets.LazySectionLoader {
+        id: _sec8
+        anchors.left: parent.left
+        anchors.right: parent.right
+        active: root._idx === root._secIdx("Material Demand")
+        sourceComponent: Component {
+            Column {
+                width: parent ? parent.width : 0
+                spacing: 0
+
+                AppWidgets.SectionHeading { width: parent.width; label: "Material Demand" }
+
+                Item {
+                    width: parent.width
+                    implicitHeight: _matDemandContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+                    ColumnLayout {
+                        id: _matDemandContent
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.topMargin: Theme.AppTheme.spacingMd
+                        anchors.leftMargin: Theme.AppTheme.spacingMd
+                        anchors.rightMargin: Theme.AppTheme.spacingMd
+                        spacing: Theme.AppTheme.spacingMd
+
+                        AppWidgets.EmptyState {
+                            Layout.fillWidth: true
+                            visible: !root._hasProject
+                            title: "No project selected"
+                            message: "Select a project to view material demand and reservations."
+                        }
+
+                        AppWidgets.EmptyState {
+                            Layout.fillWidth: true
+                            visible: root._hasProject
+                            title: "Material demand tracking"
+                            message: "Open the Tasks workspace and select a task to create or manage inventory reservations for this project."
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Procurement (capability-gated: procurement.purchase_orders.read) ──
+    AppWidgets.LazySectionLoader {
+        id: _sec9
+        anchors.left: parent.left
+        anchors.right: parent.right
+        active: root._idx === root._secIdx("Procurement")
+        sourceComponent: Component {
+            Column {
+                width: parent ? parent.width : 0
+                spacing: 0
+
+                AppWidgets.SectionHeading { width: parent.width; label: "Procurement" }
+
+                Item {
+                    width: parent.width
+                    implicitHeight: _procContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+                    ColumnLayout {
+                        id: _procContent
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.topMargin: Theme.AppTheme.spacingMd
+                        anchors.leftMargin: Theme.AppTheme.spacingMd
+                        anchors.rightMargin: Theme.AppTheme.spacingMd
+                        spacing: Theme.AppTheme.spacingMd
+
+                        AppWidgets.EmptyState {
+                            Layout.fillWidth: true
+                            visible: !root._hasProject
+                            title: "No project selected"
+                            message: "Select a project to view procurement commitments."
+                        }
+
+                        AppWidgets.EmptyState {
+                            Layout.fillWidth: true
+                            visible: root._hasProject
+                            title: "Procurement commitments"
+                            message: "Open the Financials workspace to review purchase requisitions and committed procurement costs linked to this project."
+                        }
                     }
                 }
             }

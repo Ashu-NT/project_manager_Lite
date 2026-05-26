@@ -125,6 +125,28 @@ class FinancialAnalyticsRowDto:
 
 
 @dataclass(frozen=True)
+class ProjectRequisitionDesktopDto:
+    id: str
+    requisition_number: str
+    status: str
+    status_label: str
+    purpose: str
+    needed_by_date: date | None
+    priority: str
+    notes: str
+
+
+@dataclass(frozen=True)
+class ProjectProcurementCommitmentSummary:
+    project_id: str
+    total_requisitions: int
+    open_count: int
+    approved_count: int
+    closed_count: int
+    cancelled_count: int
+
+
+@dataclass(frozen=True)
 class FinancialSnapshotDto:
     project_id: str
     project_currency: str | None
@@ -157,11 +179,13 @@ class ProjectManagementFinancialsDesktopApi:
         task_service: TaskService | None = None,
         cost_service: CostService | None = None,
         finance_service: FinanceService | None = None,
+        procurement_service: object | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
         self._cost_service = cost_service
         self._finance_service = finance_service
+        self._procurement_service = procurement_service
 
     def list_projects(self) -> tuple[FinancialProjectOptionDescriptor, ...]:
         if self._project_service is None:
@@ -323,6 +347,44 @@ class ProjectManagementFinancialsDesktopApi:
             notes=tuple(snapshot.notes or ()),
         )
 
+    def list_project_requisitions(self, project_id: str) -> tuple[ProjectRequisitionDesktopDto, ...]:
+        if not project_id or self._procurement_service is None:
+            return ()
+        list_requisitions = getattr(self._procurement_service, "list_requisitions", None)
+        if not callable(list_requisitions):
+            return ()
+        try:
+            all_requisitions = list_requisitions(limit=500)
+        except Exception:
+            return ()
+        project_requisitions = [
+            r for r in all_requisitions
+            if getattr(r, "source_reference_type", "") == "project"
+            and getattr(r, "source_reference_id", "") == project_id
+        ]
+        return tuple(
+            self._serialize_requisition(r)
+            for r in sorted(
+                project_requisitions,
+                key=lambda r: getattr(r, "needed_by_date", None) or date.max,
+            )
+        )
+
+    def get_project_procurement_commitments(self, project_id: str) -> ProjectProcurementCommitmentSummary:
+        requisitions = self.list_project_requisitions(project_id)
+        open_statuses = {"DRAFT", "SUBMITTED", "UNDER_REVIEW", "PARTIALLY_SOURCED"}
+        approved_statuses = {"APPROVED"}
+        closed_statuses = {"FULLY_SOURCED", "CLOSED"}
+        cancelled_statuses = {"REJECTED", "CANCELLED"}
+        return ProjectProcurementCommitmentSummary(
+            project_id=project_id,
+            total_requisitions=len(requisitions),
+            open_count=sum(1 for r in requisitions if r.status in open_statuses),
+            approved_count=sum(1 for r in requisitions if r.status in approved_statuses),
+            closed_count=sum(1 for r in requisitions if r.status in closed_statuses),
+            cancelled_count=sum(1 for r in requisitions if r.status in cancelled_statuses),
+        )
+
     def _require_cost_service(self) -> CostService:
         if self._cost_service is None:
             raise RuntimeError("Project management financials desktop API is not connected.")
@@ -373,18 +435,39 @@ class ProjectManagementFinancialsDesktopApi:
         )
 
 
+    @staticmethod
+    def _serialize_requisition(requisition) -> ProjectRequisitionDesktopDto:
+        status_value = str(
+            getattr(getattr(requisition, "status", None), "value", None)
+            or getattr(requisition, "status", "")
+            or ""
+        )
+        return ProjectRequisitionDesktopDto(
+            id=requisition.id,
+            requisition_number=str(getattr(requisition, "requisition_number", "") or ""),
+            status=status_value,
+            status_label=status_value.replace("_", " ").title(),
+            purpose=str(getattr(requisition, "purpose", "") or ""),
+            needed_by_date=getattr(requisition, "needed_by_date", None),
+            priority=str(getattr(requisition, "priority", "") or ""),
+            notes=str(getattr(requisition, "notes", "") or ""),
+        )
+
+
 def build_project_management_financials_desktop_api(
     *,
     project_service: ProjectService | None = None,
     task_service: TaskService | None = None,
     cost_service: CostService | None = None,
     finance_service: FinanceService | None = None,
+    procurement_service: object | None = None,
 ) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
         project_service=project_service,
         task_service=task_service,
         cost_service=cost_service,
         finance_service=finance_service,
+        procurement_service=procurement_service,
     )
 
 
@@ -482,5 +565,7 @@ __all__ = [
     "FinancialTaskOptionDescriptor",
     "FinancialUpdateCommand",
     "ProjectManagementFinancialsDesktopApi",
+    "ProjectProcurementCommitmentSummary",
+    "ProjectRequisitionDesktopDto",
     "build_project_management_financials_desktop_api",
 ]

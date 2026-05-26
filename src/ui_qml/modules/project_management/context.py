@@ -3,6 +3,8 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.api.desktop.integration import IntegrationCapabilityDesktopApi
+
 from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementCollaborationWorkspaceController,
     ProjectManagementDashboardWorkspaceController,
@@ -108,6 +110,10 @@ class ProjectManagementWorkspaceCatalog(QObject):
             desktop_api_registry,
             "project_management_timesheets",
             None,
+        )
+        self._integration_api: IntegrationCapabilityDesktopApi | None = (
+            getattr(desktop_api_registry, "integration_capability", None)
+            if desktop_api_registry is not None else None
         )
         self._projects_workspace = ProjectManagementProjectsWorkspaceController(
             projects_workspace_presenter=ProjectProjectsWorkspacePresenter(
@@ -256,6 +262,30 @@ class ProjectManagementWorkspaceCatalog(QObject):
     @Slot(result="QVariantMap")
     def dashboardOverview(self) -> dict[str, object]:
         return dict(self._dashboard_workspace.overview)
+
+    @Slot(str, result=bool)
+    def isModuleEnabled(self, module_code: str) -> bool:
+        if self._integration_api is None:
+            return False
+        return self._integration_api.is_module_enabled(module_code)
+
+    @Slot(str, result=bool)
+    def hasCapability(self, capability_id: str) -> bool:
+        if self._integration_api is None:
+            return False
+        return self._integration_api.has_capability(capability_id)
+
+    @Slot(str, str, str, result=bool)
+    def canUseIntegration(self, source_module: str, target_module: str, capability: str) -> bool:
+        if self._integration_api is None:
+            return False
+        return self._integration_api.can_use_integration(source_module, target_module, capability)
+
+    @Slot(result="QVariantMap")
+    def capabilitySnapshot(self) -> dict[str, bool]:
+        if self._integration_api is None:
+            return {}
+        return self._integration_api.capability_snapshot()
 
 
 __all__ = ["ProjectManagementWorkspaceCatalog"]

@@ -6,6 +6,7 @@ import App.Mock 1.0 as AppMock
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import App.Controls 1.0 as AppControls
+import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 
 Item {
     id: root
@@ -31,6 +32,8 @@ Item {
     property var collaborationCommentsModel: AppMock.MockFactory.catalog("Collaboration", "", "Select a task.")
     property var collaborationPresenceModel: AppMock.MockFactory.catalog("Active Presence", "", "Select a task.")
     property string selectedTaskId: ""
+
+    property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
 
     signal editRequested()
     signal progressRequested()
@@ -68,18 +71,35 @@ Item {
     }
     readonly property bool _hasTask: String(root.taskDetail.id || "").length > 0
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
+    readonly property var _sections: root.detailPage ? (root.detailPage.sections || []) : []
+
+    function _secIdx(name) {
+        const secs = root._sections
+        for (let i = 0; i < secs.length; i++) {
+            const s = secs[i]
+            const sLabel = (typeof s === "string") ? s : (s.label || "")
+            if (sLabel === name) return i
+        }
+        return -1
+    }
 
     implicitHeight: (_summaryStrip.visible ? _summaryStrip.height : 0)
         + _activeSectionH
         + Theme.AppTheme.spacingLg
 
     readonly property int _activeSectionH: {
-        const i = root._idx
-        if (i === 0) return _sec0.implicitHeight
-        if (i === 1) return _sec1.implicitHeight
-        if (i === 2) return _sec2.implicitHeight
-        if (i === 3) return _sec3.implicitHeight
-        return _sec4.implicitHeight
+        const secs = root._sections
+        const entry = (secs.length > root._idx) ? secs[root._idx] : null
+        const name = entry ? ((typeof entry === "string") ? entry : (entry.label || "")) : ""
+        if (name === "Details")         return _sec0.implicitHeight
+        if (name === "Assignments")     return _sec1.implicitHeight
+        if (name === "Dependencies")    return _sec2.implicitHeight
+        if (name === "Time")            return _sec3.implicitHeight
+        if (name === "Activity")        return _sec4.implicitHeight
+        if (name === "Material Demand") return _sec5.implicitHeight
+        if (name === "Reservations")    return _sec6.implicitHeight
+        if (name === "Procurement")     return _sec7.implicitHeight
+        return 0
     }
 
     Rectangle {
@@ -155,7 +175,7 @@ Item {
 
         AppWidgets.LazySectionLoader {
             id: _sec0
-            active: root._idx === 0
+            active: root._idx === root._secIdx("Details")
             sourceComponent: Component {
                 Item {
                     width: parent ? parent.width : 0
@@ -249,7 +269,7 @@ Item {
 
         AppWidgets.LazySectionLoader {
             id: _sec1
-            active: root._idx === 1
+            active: root._idx === root._secIdx("Assignments")
             sourceComponent: Component {
                 TasksAssignmentsSection {
                     width: parent ? parent.width : 0
@@ -269,7 +289,7 @@ Item {
 
         AppWidgets.LazySectionLoader {
             id: _sec2
-            active: root._idx === 2
+            active: root._idx === root._secIdx("Dependencies")
             sourceComponent: Component {
                 TasksDependenciesSection {
                     width: parent ? parent.width : 0
@@ -285,7 +305,7 @@ Item {
 
         AppWidgets.LazySectionLoader {
             id: _sec3
-            active: root._idx === 3
+            active: root._idx === root._secIdx("Time")
             sourceComponent: Component {
                 TasksTimeEntriesSection {
                     width: parent ? parent.width : 0
@@ -311,7 +331,7 @@ Item {
 
         AppWidgets.LazySectionLoader {
             id: _sec4
-            active: root._idx === 4
+            active: root._idx === root._secIdx("Activity")
             sourceComponent: Component {
                 TasksCollaborationSection {
                     width: parent ? parent.width : 0
@@ -324,6 +344,45 @@ Item {
                     onComposeRequested: root.composeRequested()
                     onMarkReadRequested: function(id) { root.markReadRequested(id) }
                     onRefreshRequested: root.collaborationRefreshRequested()
+                }
+            }
+        }
+
+        AppWidgets.LazySectionLoader {
+            id: _sec5
+            active: root._idx === root._secIdx("Material Demand")
+            sourceComponent: Component {
+                AppWidgets.EmptyState {
+                    width: parent ? parent.width : 0
+                    implicitHeight: 120
+                    title: "Material demand is tracked at the task level."
+                    subtitle: "Use Inventory › Reservations to manage stock reservations linked to this task."
+                }
+            }
+        }
+
+        AppWidgets.LazySectionLoader {
+            id: _sec6
+            active: root._idx === root._secIdx("Reservations")
+            sourceComponent: Component {
+                AppWidgets.EmptyState {
+                    width: parent ? parent.width : 0
+                    implicitHeight: 120
+                    title: "Stock reservations linked to this task."
+                    subtitle: "Open Inventory › Reservations and filter by this task to review or create reservations."
+                }
+            }
+        }
+
+        AppWidgets.LazySectionLoader {
+            id: _sec7
+            active: root._idx === root._secIdx("Procurement")
+            sourceComponent: Component {
+                AppWidgets.EmptyState {
+                    width: parent ? parent.width : 0
+                    implicitHeight: 120
+                    title: "Procurement commitments for this task."
+                    subtitle: "Open Procurement › Requisitions and filter by this task to review linked purchase requests."
                 }
             }
         }

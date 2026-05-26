@@ -114,15 +114,20 @@ AppLayouts.WorkspaceFrame {
             "items": []
         })
 
-    readonly property var _tableColumns: [
-        { "key": "title",          "label": "Task",      "flex": 2,   "sortable": true  },
-        { "key": "statusLabel",    "label": "Status",    "flex": 0,   "minWidth": 100, "type": "status" },
-        { "key": "projectName",    "label": "Project",   "flex": 1.5, "sortable": true  },
-        { "key": "priorityLabel",  "label": "Priority",  "flex": 0,   "minWidth": 80, "type": "status" },
-        { "key": "startDateLabel", "label": "Start",     "flex": 0,   "minWidth": 90    },
-        { "key": "endDateLabel",   "label": "Finish",    "flex": 0,   "minWidth": 90    },
-        { "key": "progressValue",  "label": "Progress",  "flex": 1,   "minWidth": 110, "type": "progress" }
-    ]
+    readonly property var _tableColumns: {
+        const cols = [
+            { "key": "title",          "label": "Task",      "flex": 2,   "sortable": true  },
+            { "key": "statusLabel",    "label": "Status",    "flex": 0,   "minWidth": 100, "type": "status" },
+            { "key": "projectName",    "label": "Project",   "flex": 1.5, "sortable": true  },
+            { "key": "priorityLabel",  "label": "Priority",  "flex": 0,   "minWidth": 80, "type": "status" },
+            { "key": "startDateLabel", "label": "Start",     "flex": 0,   "minWidth": 90    },
+            { "key": "endDateLabel",   "label": "Finish",    "flex": 0,   "minWidth": 90    },
+            { "key": "progressValue",  "label": "Progress",  "flex": 1,   "minWidth": 110, "type": "progress" }
+        ]
+        if (root._hasInvStockCap)
+            cols.push({ "key": "materialDemandLabel", "label": "Material", "flex": 0, "minWidth": 90, "visible": true })
+        return cols
+    }
 
     readonly property var _bulkChangeProperties: {
         const properties = []
@@ -139,20 +144,31 @@ AppLayouts.WorkspaceFrame {
         return properties
     }
 
-    property var platformCatalog
-    property var _caps: ({})
-
-    Component.onCompleted: {
-        if (root.platformCatalog) {
-            root._caps = root.platformCatalog.capabilitySnapshot()
-        }
-    }
-
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
     property bool _detailOpen: false
     property int _pendingDetailSection: 0
     readonly property var detailPage: detailPageLoader.item
+
+    readonly property bool _hasInvStockCap: root.pmCatalog
+        ? root.pmCatalog.hasCapability("inventory.stock.read") : false
+    readonly property bool _hasInvResCap: root.pmCatalog
+        ? root.pmCatalog.hasCapability("inventory.reservations.create") : false
+    readonly property bool _hasProcReqCap: root.pmCatalog
+        ? root.pmCatalog.hasCapability("procurement.requisitions.create") : false
+    readonly property var _detailSections: {
+        const secs = [
+            "Details",
+            { "label": "Assignments",  "count": (root.assignmentsModel.items   || []).length },
+            { "label": "Dependencies", "count": (root.dependenciesModel.items  || []).length },
+            { "label": "Time",         "count": (root.timeEntriesModel.items   || []).length }
+        ]
+        if (root._hasInvStockCap)  secs.push("Material Demand")
+        if (root._hasInvResCap)    secs.push("Reservations")
+        if (root._hasProcReqCap)   secs.push("Procurement")
+        secs.push({ "label": "Activity", "count": (root.collaborationCommentsModel.items || []).length })
+        return secs
+    }
 
     readonly property var _detailActions: {
         const idx = detailPage ? detailPage.activeSectionIndex : 0
@@ -162,7 +178,7 @@ AppLayouts.WorkspaceFrame {
                 { "id": "progress", "label": "Progress", "icon": "approve", "enabled": true, "danger": false },
                 { "id": "delete",   "label": "Delete",   "icon": "delete",  "enabled": true, "danger": true  }
             ]
-            if (root._caps.canPmLinkInventory) {
+            if (root._hasInvResCap) {
                 actions.splice(2, 0, {
                     "id": "reserve_material",
                     "label": "Reserve Material",
@@ -186,15 +202,12 @@ AppLayouts.WorkspaceFrame {
         return 0
     }
     function _loadLazyDetailSection(sectionIndex) {
-        if (root.workspaceController === null) {
-            return
-        }
-
-        if (sectionIndex === 3) {
-            root.workspaceController.loadSelectedTaskTime()
-        } else if (sectionIndex === 4) {
-            root.workspaceController.loadSelectedTaskCollaboration()
-        }
+        if (root.workspaceController === null) return
+        const page = detailPageLoader.item
+        const entry = page ? (page.sections[sectionIndex] || "") : ""
+        const label = (typeof entry === "string") ? entry : (entry.label || "")
+        if      (label === "Time")     root.workspaceController.loadSelectedTaskTime()
+        else if (label === "Activity") root.workspaceController.loadSelectedTaskCollaboration()
     }
 
     function _openDetail(sectionIndex) {
@@ -761,13 +774,7 @@ AppLayouts.WorkspaceFrame {
                 showEdit: false
                 showDelete: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                sections: [
-                        "Details",
-                        { "label": "Assignments",  "count": (root.assignmentsModel.items   || []).length },
-                        { "label": "Dependencies", "count": (root.dependenciesModel.items  || []).length },
-                        { "label": "Time",         "count": (root.timeEntriesModel.items   || []).length },
-                        { "label": "Activity",     "count": (root.collaborationCommentsModel.items || []).length }
-                    ]
+                sections: root._detailSections
                 z: 20
                 Component.onCompleted: {
                     scrollToSection(root._pendingDetailSection)
@@ -803,6 +810,7 @@ AppLayouts.WorkspaceFrame {
                 TasksDetailPanel {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
+                    pmCatalog: root.pmCatalog
                     taskDetail: root.selectedTaskModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 

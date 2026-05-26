@@ -535,6 +535,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
                 else None
             ),
             finance_service=pm_finance_service,
+            procurement_service=inventory_procurement_desktop_service,
         ),
         project_management_portfolio=build_project_management_portfolio_desktop_api(
             project_service=pm_project_service,
@@ -563,6 +564,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             task_service=pm_task_service,
             project_resource_service=pm_project_resource_service,
             resource_service=pm_resource_service,
+            reservation_service=inventory_reservation_desktop_service,
         ),
         project_management_timesheets=build_project_management_timesheets_desktop_api(
             project_service=pm_project_service,
