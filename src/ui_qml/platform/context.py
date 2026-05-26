@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.api.desktop.integration import IntegrationCapabilityDesktopApi
 from src.api.desktop.platform import PlatformRuntimeDesktopApi
 from src.ui_qml.platform.controllers.admin import (
     PlatformAdminAccessWorkspaceController,
@@ -48,6 +49,11 @@ class PlatformWorkspaceCatalog(QObject):
         runtime_api = desktop_api
         if desktop_api_registry is not None:
             runtime_api = getattr(desktop_api_registry, "platform_runtime", None) or desktop_api
+        self._integration_api: IntegrationCapabilityDesktopApi | None = (
+            getattr(desktop_api_registry, "integration_capability", None)
+            if desktop_api_registry is not None
+            else None
+        )
         self._runtime_presenter = PlatformRuntimePresenter(runtime_api)
         site_api = getattr(desktop_api_registry, "platform_site", None)
         department_api = getattr(desktop_api_registry, "platform_department", None)
@@ -228,6 +234,65 @@ class PlatformWorkspaceCatalog(QObject):
     def changeModuleLifecycleStatus(self, module_code: str, lifecycle_status: str) -> dict[str, object]:
         self._settings_workspace.changeModuleLifecycleStatus(module_code, lifecycle_status)
         return dict(self._settings_workspace.operationResult)
+
+    # ------------------------------------------------------------------
+    # Module capability slots — used by all QML workspaces to gate
+    # cross-module actions without importing optional module code.
+    # ------------------------------------------------------------------
+
+    @Slot(str, result=bool)
+    def isModuleEnabled(self, module_code: str) -> bool:
+        if self._integration_api is None:
+            return False
+        return self._integration_api.is_module_enabled(module_code)
+
+    @Slot(str, result=bool)
+    def hasCapability(self, capability_id: str) -> bool:
+        if self._integration_api is None:
+            return False
+        return self._integration_api.has_capability(capability_id)
+
+    @Slot(str, str, str, result=bool)
+    def canUseIntegration(self, source_module: str, target_module: str, capability: str) -> bool:
+        if self._integration_api is None:
+            return False
+        return self._integration_api.can_use_integration(source_module, target_module, capability)
+
+    @Slot(result="QVariantMap")
+    def capabilitySnapshot(self) -> dict[str, bool]:
+        if self._integration_api is None:
+            return {}
+        return self._integration_api.capability_snapshot()
+
+    @Slot(str, str, str, str, str, str, result="QVariantMap")
+    def resolveSoftReference(
+        self,
+        source_module: str,
+        source_entity_type: str,
+        source_entity_id: str,
+        source_code_snapshot: str = "",
+        source_title_snapshot: str = "",
+        source_status_snapshot: str = "",
+    ) -> dict:
+        if self._integration_api is None:
+            return {
+                "canOpen": False,
+                "disabledReason": "Integration layer not available",
+                "displayTitle": source_title_snapshot or source_code_snapshot,
+                "displaySubtitle": "",
+                "displayStatus": source_status_snapshot,
+                "route": None,
+                "moduleEnabled": False,
+                "sourceAvailable": False,
+            }
+        return self._integration_api.resolve_soft_reference(
+            source_module or None,
+            source_entity_type or None,
+            source_entity_id or None,
+            source_code_snapshot or None,
+            source_title_snapshot or None,
+            source_status_snapshot or None,
+        )
 
 
 __all__ = ["PlatformWorkspaceCatalog"]

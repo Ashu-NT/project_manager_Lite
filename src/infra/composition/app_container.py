@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from src.application.runtime.entitlement_runtime import ModuleRuntimeService
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from src.core.platform.access import AccessControlService
+from src.core.platform.integration.module_registry import ModuleRegistry
+from src.core.platform.integration.resolver import IntegrationResolver
 from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import AuditService
 from src.core.platform.auth import AuthService
@@ -105,6 +107,8 @@ class ServiceGraph:
     platform_runtime_application_service: PlatformRuntimeApplicationService
     module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
+    module_registry: ModuleRegistry
+    integration_resolver: IntegrationResolver
     time_service: TimeService
     auth_service: AuthService
     organization_service: OrganizationService
@@ -183,6 +187,8 @@ class ServiceGraph:
             "platform_runtime_application_service": self.platform_runtime_application_service,
             "module_runtime_service": self.module_runtime_service,
             "module_catalog_service": self.module_catalog_service,
+            "module_registry": self.module_registry,
+            "integration_resolver": self.integration_resolver,
             "time_service": self.time_service,
             "auth_service": self.auth_service,
             "organization_service": self.organization_service,
@@ -269,12 +275,16 @@ def build_service_graph(session: Session) -> ServiceGraph:
         repositories,
         platform_services,
     )
+    _module_registry = ModuleRegistry(platform_services.module_runtime_service)
+    _integration_resolver = IntegrationResolver(_module_registry)
     return ServiceGraph(
         session=session,
         user_session=platform_services.user_session,
         platform_runtime_application_service=platform_services.platform_runtime_application_service,
         module_runtime_service=platform_services.module_runtime_service,
         module_catalog_service=platform_services.module_catalog_service,
+        module_registry=_module_registry,
+        integration_resolver=_integration_resolver,
         time_service=project_management_services.time_service,
         auth_service=platform_services.auth_service,
         organization_service=platform_services.organization_service,
