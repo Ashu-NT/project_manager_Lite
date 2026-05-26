@@ -26,39 +26,19 @@ def upgrade() -> None:
     with op.batch_alter_table("projects", schema=None) as batch_op:
         if not _has_column("projects", "organization_id"):
             batch_op.add_column(
-                sa.Column(
-                    "organization_id",
-                    sa.String(),
-                    sa.ForeignKey("organizations.id", ondelete="SET NULL"),
-                    nullable=True,
-                )
+                sa.Column("organization_id", sa.String(), nullable=True)
             )
         if not _has_column("projects", "site_id"):
             batch_op.add_column(
-                sa.Column(
-                    "site_id",
-                    sa.String(),
-                    sa.ForeignKey("sites.id", ondelete="SET NULL"),
-                    nullable=True,
-                )
+                sa.Column("site_id", sa.String(), nullable=True)
             )
         if not _has_column("projects", "client_party_id"):
             batch_op.add_column(
-                sa.Column(
-                    "client_party_id",
-                    sa.String(),
-                    sa.ForeignKey("parties.id", ondelete="SET NULL"),
-                    nullable=True,
-                )
+                sa.Column("client_party_id", sa.String(), nullable=True)
             )
         if not _has_column("projects", "manager_user_id"):
             batch_op.add_column(
-                sa.Column(
-                    "manager_user_id",
-                    sa.String(),
-                    sa.ForeignKey("users.id", ondelete="SET NULL"),
-                    nullable=True,
-                )
+                sa.Column("manager_user_id", sa.String(), nullable=True)
             )
 
     op.create_index(
