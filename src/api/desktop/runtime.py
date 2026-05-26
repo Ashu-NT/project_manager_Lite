@@ -93,6 +93,7 @@ from src.core.modules.maintenance import (
     MaintenanceWorkRequestService,
 )
 from src.core.modules.inventory_procurement import (
+    InventoryFoundationService,
     InventoryReferenceService,
     InventoryReportingService,
     ItemCategoryService,
@@ -225,6 +226,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     baseline_service = services.get("baseline_service")
     inventory_service = services.get("inventory_service")
     inventory_reference_service = services.get("inventory_reference_service")
+    inventory_foundation_service = services.get("inventory_foundation_service")
     inventory_item_category_service = services.get("inventory_item_category_service")
     inventory_item_service = services.get("inventory_item_service")
     inventory_stock_service = services.get("inventory_stock_service")
@@ -394,6 +396,11 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         if isinstance(inventory_item_service, ItemMasterService)
         else None
     )
+    inventory_foundation_desktop_service = (
+        inventory_foundation_service
+        if isinstance(inventory_foundation_service, InventoryFoundationService)
+        else None
+    )
     inventory_inventory_desktop_service = (
         inventory_service if isinstance(inventory_service, InventoryService) else None
     )
@@ -549,6 +556,12 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             stock_service=inventory_stock_desktop_service,
             item_service=inventory_item_desktop_service,
             reference_service=inventory_reference_desktop_service,
+            foundation_service=inventory_foundation_desktop_service,
+            reservation_service=inventory_reservation_desktop_service,
+            procurement_service=inventory_procurement_desktop_service,
+            purchasing_service=inventory_purchasing_desktop_service,
+            reporting_service=inventory_reporting_desktop_service,
+            module_runtime_service=services.get("module_runtime_service"),
         ),
         inventory_procurement_reservations=build_inventory_procurement_reservations_desktop_api(
             reservation_service=inventory_reservation_desktop_service,

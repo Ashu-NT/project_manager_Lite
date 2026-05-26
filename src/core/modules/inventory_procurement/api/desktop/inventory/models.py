@@ -17,6 +17,36 @@ class InventoryTransactionTypeDescriptor:
 
 
 @dataclass(frozen=True)
+class InventoryLocationTypeDescriptor:
+    value: str
+    label: str
+
+
+@dataclass(frozen=True)
+class InventoryCycleCountStatusDescriptor:
+    value: str
+    label: str
+
+
+@dataclass(frozen=True)
+class InventoryFoundationMetricDescriptor:
+    label: str
+    value: str
+    supporting_text: str
+
+
+@dataclass(frozen=True)
+class InventoryModuleLinkDescriptor:
+    code: str
+    label: str
+    kind: str
+    is_enabled: bool
+    status_label: str
+    reason: str
+    route_id: str
+
+
+@dataclass(frozen=True)
 class InventoryStoreroomDesktopDto:
     id: str
     storeroom_code: str
@@ -90,6 +120,108 @@ class InventoryStockTransactionDesktopDto:
     resulting_on_hand_qty_label: str
     resulting_available_qty_label: str
     notes: str
+
+
+@dataclass(frozen=True)
+class InventoryStorageLocationDesktopDto:
+    id: str
+    storeroom_id: str
+    storeroom_label: str
+    location_code: str
+    name: str
+    parent_location_id: str | None
+    parent_location_label: str
+    location_type: str
+    location_type_label: str
+    is_active: bool
+    active_label: str
+    is_quarantine: bool
+    quarantine_label: str
+    allows_issue: bool
+    allows_putaway: bool
+    notes: str
+    version: int
+
+
+@dataclass(frozen=True)
+class InventoryReorderPolicyDesktopDto:
+    id: str
+    stock_item_id: str
+    stock_item_label: str
+    storeroom_id: str
+    storeroom_label: str
+    location_id: str | None
+    location_label: str
+    policy_name: str
+    is_active: bool
+    active_label: str
+    min_qty: float
+    min_qty_label: str
+    max_qty: float
+    max_qty_label: str
+    reorder_point: float
+    reorder_point_label: str
+    reorder_qty: float
+    reorder_qty_label: str
+    economic_order_qty: float
+    economic_order_qty_label: str
+    lead_time_days: int | None
+    lead_time_days_label: str
+    review_period_days: int | None
+    review_period_days_label: str
+    preferred_supplier_party_id: str | None
+    preferred_supplier_label: str
+    version: int
+
+
+@dataclass(frozen=True)
+class InventoryCycleCountDesktopDto:
+    id: str
+    cycle_count_number: str
+    stock_item_id: str
+    stock_item_label: str
+    storeroom_id: str
+    storeroom_label: str
+    location_id: str | None
+    location_label: str
+    scheduled_count_date_label: str
+    status: str
+    status_label: str
+    expected_qty: float
+    expected_qty_label: str
+    counted_qty: float | None
+    counted_qty_label: str
+    variance_qty: float
+    variance_qty_label: str
+    counted_by_username: str
+    completed_at_label: str
+    notes: str
+    version: int
+
+
+@dataclass(frozen=True)
+class InventoryFoundationSignalDesktopDto:
+    id: str
+    title: str
+    subtitle: str
+    status_label: str
+    supporting_text: str
+    meta_text: str
+    tone: str = "default"
+
+
+@dataclass(frozen=True)
+class InventoryFoundationSnapshotDesktopDto:
+    title: str
+    subtitle: str
+    metrics: tuple[InventoryFoundationMetricDescriptor, ...]
+    module_links: tuple[InventoryModuleLinkDescriptor, ...]
+    locations: tuple[InventoryStorageLocationDesktopDto, ...]
+    reorder_policies: tuple[InventoryReorderPolicyDesktopDto, ...]
+    cycle_counts: tuple[InventoryCycleCountDesktopDto, ...]
+    valuation_signals: tuple[InventoryFoundationSignalDesktopDto, ...]
+    tracking_signals: tuple[InventoryFoundationSignalDesktopDto, ...]
+    activity_signals: tuple[InventoryFoundationSignalDesktopDto, ...]
 
 
 @dataclass(frozen=True)
@@ -195,11 +327,90 @@ class InventoryTransferCommand:
     notes: str = ""
 
 
+@dataclass(frozen=True)
+class InventoryLocationCreateCommand:
+    storeroom_id: str
+    location_code: str
+    name: str
+    parent_location_id: str | None = None
+    location_type: str = "BIN"
+    is_active: bool = True
+    is_quarantine: bool = False
+    allows_issue: bool = True
+    allows_putaway: bool = True
+    notes: str = ""
+
+
+@dataclass(frozen=True)
+class InventoryLocationUpdateCommand:
+    location_id: str
+    location_code: str
+    name: str
+    parent_location_id: str | None = None
+    location_type: str = "BIN"
+    is_active: bool = True
+    is_quarantine: bool = False
+    allows_issue: bool = True
+    allows_putaway: bool = True
+    notes: str = ""
+    expected_version: int | None = None
+
+
+@dataclass(frozen=True)
+class InventoryReorderPolicyUpsertCommand:
+    stock_item_id: str
+    storeroom_id: str
+    location_id: str | None = None
+    policy_name: str = ""
+    is_active: bool = True
+    min_qty: float = 0.0
+    max_qty: float = 0.0
+    reorder_point: float = 0.0
+    reorder_qty: float = 0.0
+    economic_order_qty: float = 0.0
+    lead_time_days: int | None = None
+    review_period_days: int | None = None
+    preferred_supplier_party_id: str | None = None
+    policy_id: str | None = None
+    expected_version: int | None = None
+
+
+@dataclass(frozen=True)
+class InventoryCycleCountCreateCommand:
+    stock_item_id: str
+    storeroom_id: str
+    location_id: str | None = None
+    scheduled_count_date: str | None = None
+    notes: str = ""
+
+
+@dataclass(frozen=True)
+class InventoryCycleCountCompleteCommand:
+    cycle_count_id: str
+    counted_qty: float
+    notes: str = ""
+    expected_version: int | None = None
+
+
 __all__ = [
     "InventoryAdjustmentCommand",
+    "InventoryCycleCountCompleteCommand",
+    "InventoryCycleCountCreateCommand",
+    "InventoryCycleCountDesktopDto",
+    "InventoryCycleCountStatusDescriptor",
+    "InventoryFoundationMetricDescriptor",
+    "InventoryFoundationSignalDesktopDto",
+    "InventoryFoundationSnapshotDesktopDto",
     "InventoryIssueCommand",
+    "InventoryLocationCreateCommand",
+    "InventoryLocationTypeDescriptor",
+    "InventoryLocationUpdateCommand",
+    "InventoryModuleLinkDescriptor",
     "InventoryOpeningBalanceCommand",
+    "InventoryReorderPolicyDesktopDto",
+    "InventoryReorderPolicyUpsertCommand",
     "InventoryReturnCommand",
+    "InventoryStorageLocationDesktopDto",
     "InventoryStockBalanceDesktopDto",
     "InventoryStockTransactionDesktopDto",
     "InventoryStoreroomCreateCommand",

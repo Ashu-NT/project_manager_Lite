@@ -32,6 +32,7 @@ from src.core.modules.inventory_procurement.application.catalog import (
     ItemMasterService,
 )
 from src.core.modules.inventory_procurement.application.inventory import (
+    InventoryFoundationService,
     InventoryService,
     ReservationService,
     StockControlService,
@@ -120,6 +121,7 @@ class ServiceGraph:
     inventory_item_category_service: ItemCategoryService
     inventory_item_service: ItemMasterService
     inventory_maintenance_material_service: MaintenanceMaterialService
+    inventory_foundation_service: InventoryFoundationService
     inventory_service: InventoryService
     inventory_stock_service: StockControlService
     inventory_reservation_service: ReservationService
@@ -197,6 +199,7 @@ class ServiceGraph:
             "inventory_item_category_service": self.inventory_item_category_service,
             "inventory_item_service": self.inventory_item_service,
             "inventory_maintenance_material_service": self.inventory_maintenance_material_service,
+            "inventory_foundation_service": self.inventory_foundation_service,
             "inventory_service": self.inventory_service,
             "inventory_stock_service": self.inventory_stock_service,
             "inventory_reservation_service": self.inventory_reservation_service,
@@ -288,6 +291,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         inventory_item_category_service=inventory_procurement_services.inventory_item_category_service,
         inventory_item_service=inventory_procurement_services.inventory_item_service,
         inventory_maintenance_material_service=inventory_procurement_services.inventory_maintenance_material_service,
+        inventory_foundation_service=inventory_procurement_services.inventory_foundation_service,
         inventory_service=inventory_procurement_services.inventory_service,
         inventory_stock_service=inventory_procurement_services.inventory_stock_service,
         inventory_reservation_service=inventory_procurement_services.inventory_reservation_service,

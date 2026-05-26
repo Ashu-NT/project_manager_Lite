@@ -16,6 +16,10 @@ from src.ui_qml.modules.inventory_procurement.view_models.dashboard import (
     InventoryDashboardSectionViewModel,
     InventoryDashboardWorkspaceViewModel,
 )
+from src.ui_qml.modules.inventory_procurement.view_models.foundation import (
+    InventoryInventoryFoundationViewModel,
+    InventoryModuleLinkViewModel,
+)
 from src.ui_qml.modules.inventory_procurement.view_models.inventory import (
     InventoryInventoryWorkspaceViewModel,
 )
@@ -45,6 +49,8 @@ __all__ = [
     "InventoryDetailViewModel",
     "InventoryDocumentOptionViewModel",
     "InventoryInventoryWorkspaceViewModel",
+    "InventoryInventoryFoundationViewModel",
+    "InventoryModuleLinkViewModel",
     "InventoryPricingWorkspaceViewModel",
     "InventoryProcurementProcurementWorkspaceViewModel",
     "InventoryProcurementWorkspaceViewModel",

@@ -8,6 +8,7 @@ from src.ui_qml.modules.inventory_procurement.controllers.common import (
     run_mutation,
     serialize_catalog_detail_view_model,
     serialize_catalog_overview_view_model,
+    serialize_foundation_view_model,
     serialize_record_view_models,
     serialize_selector_options,
     serialize_workspace_view_model,
@@ -47,6 +48,7 @@ class InventoryProcurementInventoryWorkspaceController(
     selectedBalanceChanged = Signal()
     selectedBalanceIdChanged = Signal()
     transactionsChanged = Signal()
+    foundationChanged = Signal()
 
     def __init__(
         self,
@@ -117,6 +119,20 @@ class InventoryProcurementInventoryWorkspaceController(
             "subtitle": "",
             "emptyState": "",
             "items": [],
+        }
+        self._foundation: dict[str, object] = {
+            "title": "",
+            "subtitle": "",
+            "metrics": [],
+            "moduleLinks": [],
+            "locationTypeOptions": [],
+            "cycleCountStatusOptions": [],
+            "locations": [],
+            "reorderPolicies": [],
+            "cycleCounts": [],
+            "valuationSignals": [],
+            "trackingSignals": [],
+            "activitySignals": [],
         }
         self._bind_domain_events()
         self.refresh()
@@ -204,6 +220,10 @@ class InventoryProcurementInventoryWorkspaceController(
     @Property("QVariantMap", notify=transactionsChanged)
     def transactions(self) -> dict[str, object]:
         return self._transactions
+
+    @Property("QVariantMap", notify=foundationChanged)
+    def foundation(self) -> dict[str, object]:
+        return self._foundation
 
     @Slot()
     def refresh(self) -> None:
@@ -293,6 +313,9 @@ class InventoryProcurementInventoryWorkspaceController(
                     "emptyState": workspace_state.empty_state,
                     "items": serialize_record_view_models(workspace_state.transactions),
                 }
+            )
+            self._set_foundation(
+                serialize_foundation_view_model(workspace_state.foundation)
             )
             self._set_empty_state(workspace_state.empty_state)
         except Exception as exc:  # pragma: no cover - defensive fallback
@@ -616,6 +639,12 @@ class InventoryProcurementInventoryWorkspaceController(
             return
         self._transactions = transactions
         self.transactionsChanged.emit()
+
+    def _set_foundation(self, foundation: dict[str, object]) -> None:
+        if foundation == self._foundation:
+            return
+        self._foundation = foundation
+        self.foundationChanged.emit()
 
 
 __all__ = ["InventoryProcurementInventoryWorkspaceController"]

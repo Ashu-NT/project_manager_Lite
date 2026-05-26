@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from src.core.modules.inventory_procurement.domain.inventory.foundation import (
+    CycleCount,
+    CycleCountStatus,
+    ReorderPolicy,
+    StorageLocation,
+    StorageLocationType,
+)
 from src.core.modules.inventory_procurement.domain.inventory.stock import (
     StockBalance,
     StockReservation,
@@ -9,9 +16,12 @@ from src.core.modules.inventory_procurement.domain.inventory.stock import (
     Storeroom,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.orm.inventory import (
+    CycleCountORM,
+    ReorderPolicyORM,
     StockBalanceORM,
     StockReservationORM,
     StockTransactionORM,
+    StorageLocationORM,
     StoreroomORM,
 )
 
@@ -204,13 +214,149 @@ def stock_reservation_from_orm(obj: StockReservationORM) -> StockReservation:
     )
 
 
+def storage_location_to_orm(location: StorageLocation) -> StorageLocationORM:
+    return StorageLocationORM(
+        id=location.id,
+        organization_id=location.organization_id,
+        storeroom_id=location.storeroom_id,
+        location_code=location.location_code,
+        name=location.name,
+        parent_location_id=location.parent_location_id,
+        location_type=location.location_type,
+        is_active=location.is_active,
+        is_quarantine=location.is_quarantine,
+        allows_issue=location.allows_issue,
+        allows_putaway=location.allows_putaway,
+        notes=location.notes or None,
+        created_at=location.created_at,
+        updated_at=location.updated_at,
+        version=getattr(location, "version", 1),
+    )
+
+
+def storage_location_from_orm(obj: StorageLocationORM) -> StorageLocation:
+    return StorageLocation(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        storeroom_id=obj.storeroom_id,
+        location_code=obj.location_code,
+        name=obj.name,
+        parent_location_id=obj.parent_location_id,
+        location_type=StorageLocationType(obj.location_type),
+        is_active=obj.is_active,
+        is_quarantine=obj.is_quarantine,
+        allows_issue=obj.allows_issue,
+        allows_putaway=obj.allows_putaway,
+        notes=obj.notes or "",
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def reorder_policy_to_orm(policy: ReorderPolicy) -> ReorderPolicyORM:
+    return ReorderPolicyORM(
+        id=policy.id,
+        organization_id=policy.organization_id,
+        stock_item_id=policy.stock_item_id,
+        storeroom_id=policy.storeroom_id,
+        location_id=policy.location_id,
+        policy_name=policy.policy_name or None,
+        is_active=policy.is_active,
+        min_qty=policy.min_qty,
+        max_qty=policy.max_qty,
+        reorder_point=policy.reorder_point,
+        reorder_qty=policy.reorder_qty,
+        economic_order_qty=policy.economic_order_qty,
+        lead_time_days=policy.lead_time_days,
+        review_period_days=policy.review_period_days,
+        preferred_supplier_party_id=policy.preferred_supplier_party_id,
+        created_at=policy.created_at,
+        updated_at=policy.updated_at,
+        version=getattr(policy, "version", 1),
+    )
+
+
+def reorder_policy_from_orm(obj: ReorderPolicyORM) -> ReorderPolicy:
+    return ReorderPolicy(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        stock_item_id=obj.stock_item_id,
+        storeroom_id=obj.storeroom_id,
+        location_id=obj.location_id,
+        policy_name=obj.policy_name or "",
+        is_active=obj.is_active,
+        min_qty=float(obj.min_qty or 0.0),
+        max_qty=float(obj.max_qty or 0.0),
+        reorder_point=float(obj.reorder_point or 0.0),
+        reorder_qty=float(obj.reorder_qty or 0.0),
+        economic_order_qty=float(obj.economic_order_qty or 0.0),
+        lead_time_days=obj.lead_time_days,
+        review_period_days=obj.review_period_days,
+        preferred_supplier_party_id=obj.preferred_supplier_party_id,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def cycle_count_to_orm(cycle_count: CycleCount) -> CycleCountORM:
+    return CycleCountORM(
+        id=cycle_count.id,
+        organization_id=cycle_count.organization_id,
+        cycle_count_number=cycle_count.cycle_count_number,
+        stock_item_id=cycle_count.stock_item_id,
+        storeroom_id=cycle_count.storeroom_id,
+        location_id=cycle_count.location_id,
+        scheduled_count_date=cycle_count.scheduled_count_date,
+        status=cycle_count.status,
+        expected_qty=cycle_count.expected_qty,
+        counted_qty=cycle_count.counted_qty,
+        variance_qty=cycle_count.variance_qty,
+        counted_by_user_id=cycle_count.counted_by_user_id,
+        counted_by_username=cycle_count.counted_by_username or None,
+        created_at=cycle_count.created_at,
+        completed_at=cycle_count.completed_at,
+        notes=cycle_count.notes or None,
+        version=getattr(cycle_count, "version", 1),
+    )
+
+
+def cycle_count_from_orm(obj: CycleCountORM) -> CycleCount:
+    return CycleCount(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        cycle_count_number=obj.cycle_count_number,
+        stock_item_id=obj.stock_item_id,
+        storeroom_id=obj.storeroom_id,
+        location_id=obj.location_id,
+        scheduled_count_date=obj.scheduled_count_date,
+        status=CycleCountStatus(obj.status),
+        expected_qty=float(obj.expected_qty or 0.0),
+        counted_qty=None if obj.counted_qty is None else float(obj.counted_qty),
+        variance_qty=float(obj.variance_qty or 0.0),
+        counted_by_user_id=obj.counted_by_user_id,
+        counted_by_username=obj.counted_by_username or "",
+        created_at=obj.created_at,
+        completed_at=obj.completed_at,
+        notes=obj.notes or "",
+        version=getattr(obj, "version", 1),
+    )
+
+
 __all__ = [
+    "cycle_count_from_orm",
+    "cycle_count_to_orm",
+    "reorder_policy_from_orm",
+    "reorder_policy_to_orm",
     "stock_balance_from_orm",
     "stock_balance_to_orm",
     "stock_reservation_from_orm",
     "stock_reservation_to_orm",
     "stock_transaction_from_orm",
     "stock_transaction_to_orm",
+    "storage_location_from_orm",
+    "storage_location_to_orm",
     "storeroom_from_orm",
     "storeroom_to_orm",
 ]

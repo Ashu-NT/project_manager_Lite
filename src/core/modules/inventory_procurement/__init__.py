@@ -8,6 +8,7 @@ from src.core.modules.inventory_procurement.application.common import (
     InventoryReferenceService,
 )
 from src.core.modules.inventory_procurement.application.inventory import (
+    InventoryFoundationService,
     InventoryService,
     ReservationService,
     StockControlService,
@@ -28,6 +29,7 @@ from src.core.modules.inventory_procurement.infrastructure.reporting import (
 
 __all__ = [
     "InventoryDataExchangeService",
+    "InventoryFoundationService",
     "InventoryReferenceService",
     "InventoryReportingService",
     "ItemCategoryService",

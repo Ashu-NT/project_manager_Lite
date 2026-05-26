@@ -8,6 +8,9 @@ from src.ui_qml.modules.inventory_procurement.view_models.catalog import (
     InventoryRecordViewModel,
     InventorySelectorOptionViewModel,
 )
+from src.ui_qml.modules.inventory_procurement.view_models.foundation import (
+    InventoryInventoryFoundationViewModel,
+)
 
 
 @dataclass(frozen=True)
@@ -45,6 +48,12 @@ class InventoryInventoryWorkspaceViewModel:
         default_factory=InventoryDetailViewModel
     )
     transactions: tuple[InventoryRecordViewModel, ...] = field(default_factory=tuple)
+    foundation: InventoryInventoryFoundationViewModel = field(
+        default_factory=lambda: InventoryInventoryFoundationViewModel(
+            title="Enterprise Inventory Backbone",
+            subtitle="Foundation desktop API is not connected.",
+        )
+    )
     empty_state: str = ""
 
 

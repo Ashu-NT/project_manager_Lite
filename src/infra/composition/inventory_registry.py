@@ -18,6 +18,7 @@ from src.core.modules.inventory_procurement.application.catalog import (
     ItemMasterService,
 )
 from src.core.modules.inventory_procurement.application.inventory import (
+    InventoryFoundationService,
     InventoryService,
     ReservationService,
     StockControlService,
@@ -31,9 +32,12 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.repositor
     SqlAlchemyStockItemRepository,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.inventory import (
+    SqlAlchemyCycleCountRepository,
+    SqlAlchemyReorderPolicyRepository,
     SqlAlchemyStockBalanceRepository,
     SqlAlchemyStockReservationRepository,
     SqlAlchemyStockTransactionRepository,
+    SqlAlchemyStorageLocationRepository,
     SqlAlchemyStoreroomRepository,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.procurement import (
@@ -56,6 +60,7 @@ class InventoryProcurementServiceBundle:
     inventory_item_category_service: ItemCategoryService
     inventory_item_service: ItemMasterService
     inventory_maintenance_material_service: MaintenanceMaterialService
+    inventory_foundation_service: InventoryFoundationService
     inventory_service: InventoryService
     inventory_stock_service: StockControlService
     inventory_reservation_service: ReservationService
@@ -83,6 +88,9 @@ def build_inventory_procurement_service_bundle(
     requisition_repo = SqlAlchemyPurchaseRequisitionRepository(platform_services.session)
     receipt_header_repo = SqlAlchemyReceiptHeaderRepository(platform_services.session)
     receipt_line_repo = SqlAlchemyReceiptLineRepository(platform_services.session)
+    cycle_count_repo = SqlAlchemyCycleCountRepository(platform_services.session)
+    location_repo = SqlAlchemyStorageLocationRepository(platform_services.session)
+    reorder_policy_repo = SqlAlchemyReorderPolicyRepository(platform_services.session)
     reservation_repo = SqlAlchemyStockReservationRepository(platform_services.session)
     transaction_repo = SqlAlchemyStockTransactionRepository(platform_services.session)
     storeroom_repo = SqlAlchemyStoreroomRepository(platform_services.session)
@@ -166,6 +174,20 @@ def build_inventory_procurement_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
+    inventory_foundation_service = InventoryFoundationService(
+        platform_services.session,
+        location_repo,
+        reorder_policy_repo,
+        cycle_count_repo,
+        organization_repo=platform_services.organization_repo,
+        inventory_service=inventory_service,
+        item_service=inventory_item_service,
+        stock_service=inventory_stock_service,
+        party_service=platform_services.party_service,
+        module_runtime_service=platform_services.module_runtime_service,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
     platform_services.approval_service.register_apply_handler(
         "purchase_requisition.submit",
         inventory_procurement_service.apply_submitted_requisition_approval,
@@ -240,6 +262,7 @@ def build_inventory_procurement_service_bundle(
         inventory_item_category_service=inventory_item_category_service,
         inventory_item_service=inventory_item_service,
         inventory_maintenance_material_service=inventory_maintenance_material_service,
+        inventory_foundation_service=inventory_foundation_service,
         inventory_service=inventory_service,
         inventory_stock_service=inventory_stock_service,
         inventory_reservation_service=inventory_reservation_service,

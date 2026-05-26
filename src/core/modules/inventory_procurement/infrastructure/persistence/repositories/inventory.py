@@ -1,13 +1,22 @@
 from __future__ import annotations
 
 from sqlalchemy import select
+from sqlalchemy.sql import ColumnElement
 from sqlalchemy.orm import Session
 
 from src.core.modules.inventory_procurement.contracts.repositories.inventory import (
+    CycleCountRepository,
+    ReorderPolicyRepository,
     StockBalanceRepository,
     StockReservationRepository,
     StockTransactionRepository,
+    StorageLocationRepository,
     StoreroomRepository,
+)
+from src.core.modules.inventory_procurement.domain.inventory.foundation import (
+    CycleCount,
+    ReorderPolicy,
+    StorageLocation,
 )
 from src.core.modules.inventory_procurement.domain.inventory.stock import (
     StockBalance,
@@ -16,19 +25,28 @@ from src.core.modules.inventory_procurement.domain.inventory.stock import (
     Storeroom,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.mappers.inventory import (
+    cycle_count_from_orm,
+    cycle_count_to_orm,
+    reorder_policy_from_orm,
+    reorder_policy_to_orm,
     stock_balance_from_orm,
     stock_balance_to_orm,
     stock_reservation_from_orm,
     stock_reservation_to_orm,
     stock_transaction_from_orm,
     stock_transaction_to_orm,
+    storage_location_from_orm,
+    storage_location_to_orm,
     storeroom_from_orm,
     storeroom_to_orm,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.orm.inventory import (
+    CycleCountORM,
+    ReorderPolicyORM,
     StockBalanceORM,
     StockReservationORM,
     StockTransactionORM,
+    StorageLocationORM,
     StoreroomORM,
 )
 from src.infra.persistence.db.optimistic import update_with_version_check
@@ -271,9 +289,248 @@ class SqlAlchemyStockReservationRepository(StockReservationRepository):
         return [stock_reservation_from_orm(row) for row in rows]
 
 
+class SqlAlchemyStorageLocationRepository(StorageLocationRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, location: StorageLocation) -> None:
+        self.session.add(storage_location_to_orm(location))
+
+    def update(self, location: StorageLocation) -> None:
+        location.version = update_with_version_check(
+            self.session,
+            StorageLocationORM,
+            location.id,
+            getattr(location, "version", 1),
+            {
+                "storeroom_id": location.storeroom_id,
+                "location_code": location.location_code,
+                "name": location.name,
+                "parent_location_id": location.parent_location_id,
+                "location_type": location.location_type,
+                "is_active": location.is_active,
+                "is_quarantine": location.is_quarantine,
+                "allows_issue": location.allows_issue,
+                "allows_putaway": location.allows_putaway,
+                "notes": location.notes or None,
+                "created_at": location.created_at,
+                "updated_at": location.updated_at,
+            },
+            not_found_message="Storage location not found.",
+            stale_message="Storage location was updated by another user.",
+        )
+
+    def get(self, location_id: str) -> StorageLocation | None:
+        obj = self.session.get(StorageLocationORM, location_id)
+        return storage_location_from_orm(obj) if obj else None
+
+    def get_by_code(
+        self,
+        organization_id: str,
+        storeroom_id: str,
+        location_code: str,
+    ) -> StorageLocation | None:
+        stmt = select(StorageLocationORM).where(
+            StorageLocationORM.organization_id == organization_id,
+            StorageLocationORM.storeroom_id == storeroom_id,
+            StorageLocationORM.location_code == location_code,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return storage_location_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        storeroom_id: str | None = None,
+        parent_location_id: str | None = None,
+        active_only: bool | None = None,
+    ) -> list[StorageLocation]:
+        stmt = select(StorageLocationORM).where(
+            StorageLocationORM.organization_id == organization_id
+        )
+        if storeroom_id is not None:
+            stmt = stmt.where(StorageLocationORM.storeroom_id == storeroom_id)
+        if parent_location_id is not None:
+            stmt = stmt.where(StorageLocationORM.parent_location_id == parent_location_id)
+        if active_only is not None:
+            stmt = stmt.where(StorageLocationORM.is_active == bool(active_only))
+        rows = self.session.execute(
+            stmt.order_by(
+                StorageLocationORM.storeroom_id.asc(),
+                StorageLocationORM.location_code.asc(),
+            )
+        ).scalars().all()
+        return [storage_location_from_orm(row) for row in rows]
+
+
+class SqlAlchemyReorderPolicyRepository(ReorderPolicyRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, policy: ReorderPolicy) -> None:
+        self.session.add(reorder_policy_to_orm(policy))
+
+    def update(self, policy: ReorderPolicy) -> None:
+        policy.version = update_with_version_check(
+            self.session,
+            ReorderPolicyORM,
+            policy.id,
+            getattr(policy, "version", 1),
+            {
+                "stock_item_id": policy.stock_item_id,
+                "storeroom_id": policy.storeroom_id,
+                "location_id": policy.location_id,
+                "policy_name": policy.policy_name or None,
+                "is_active": policy.is_active,
+                "min_qty": policy.min_qty,
+                "max_qty": policy.max_qty,
+                "reorder_point": policy.reorder_point,
+                "reorder_qty": policy.reorder_qty,
+                "economic_order_qty": policy.economic_order_qty,
+                "lead_time_days": policy.lead_time_days,
+                "review_period_days": policy.review_period_days,
+                "preferred_supplier_party_id": policy.preferred_supplier_party_id,
+                "created_at": policy.created_at,
+                "updated_at": policy.updated_at,
+            },
+            not_found_message="Reorder policy not found.",
+            stale_message="Reorder policy was updated by another user.",
+        )
+
+    def get(self, policy_id: str) -> ReorderPolicy | None:
+        obj = self.session.get(ReorderPolicyORM, policy_id)
+        return reorder_policy_from_orm(obj) if obj else None
+
+    def get_for_scope(
+        self,
+        organization_id: str,
+        stock_item_id: str,
+        storeroom_id: str,
+        location_id: str | None,
+    ) -> ReorderPolicy | None:
+        stmt = select(ReorderPolicyORM).where(
+            ReorderPolicyORM.organization_id == organization_id,
+            ReorderPolicyORM.stock_item_id == stock_item_id,
+            ReorderPolicyORM.storeroom_id == storeroom_id,
+        )
+        if location_id is None:
+            stmt = stmt.where(ReorderPolicyORM.location_id.is_(None))
+        else:
+            stmt = stmt.where(ReorderPolicyORM.location_id == location_id)
+        obj = self.session.execute(stmt).scalars().first()
+        return reorder_policy_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        stock_item_id: str | None = None,
+        storeroom_id: str | None = None,
+        location_id: str | None = None,
+        active_only: bool | None = None,
+    ) -> list[ReorderPolicy]:
+        stmt = select(ReorderPolicyORM).where(
+            ReorderPolicyORM.organization_id == organization_id
+        )
+        if stock_item_id is not None:
+            stmt = stmt.where(ReorderPolicyORM.stock_item_id == stock_item_id)
+        if storeroom_id is not None:
+            stmt = stmt.where(ReorderPolicyORM.storeroom_id == storeroom_id)
+        if location_id is not None:
+            stmt = stmt.where(ReorderPolicyORM.location_id == location_id)
+        if active_only is not None:
+            stmt = stmt.where(ReorderPolicyORM.is_active == bool(active_only))
+        rows = self.session.execute(
+            stmt.order_by(
+                ReorderPolicyORM.stock_item_id.asc(),
+                ReorderPolicyORM.storeroom_id.asc(),
+                ReorderPolicyORM.policy_name.asc(),
+            )
+        ).scalars().all()
+        return [reorder_policy_from_orm(row) for row in rows]
+
+
+class SqlAlchemyCycleCountRepository(CycleCountRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, cycle_count: CycleCount) -> None:
+        self.session.add(cycle_count_to_orm(cycle_count))
+
+    def update(self, cycle_count: CycleCount) -> None:
+        cycle_count.version = update_with_version_check(
+            self.session,
+            CycleCountORM,
+            cycle_count.id,
+            getattr(cycle_count, "version", 1),
+            {
+                "cycle_count_number": cycle_count.cycle_count_number,
+                "stock_item_id": cycle_count.stock_item_id,
+                "storeroom_id": cycle_count.storeroom_id,
+                "location_id": cycle_count.location_id,
+                "scheduled_count_date": cycle_count.scheduled_count_date,
+                "status": cycle_count.status,
+                "expected_qty": cycle_count.expected_qty,
+                "counted_qty": cycle_count.counted_qty,
+                "variance_qty": cycle_count.variance_qty,
+                "counted_by_user_id": cycle_count.counted_by_user_id,
+                "counted_by_username": cycle_count.counted_by_username or None,
+                "created_at": cycle_count.created_at,
+                "completed_at": cycle_count.completed_at,
+                "notes": cycle_count.notes or None,
+            },
+            not_found_message="Cycle count not found.",
+            stale_message="Cycle count was updated by another user.",
+        )
+
+    def get(self, cycle_count_id: str) -> CycleCount | None:
+        obj = self.session.get(CycleCountORM, cycle_count_id)
+        return cycle_count_from_orm(obj) if obj else None
+
+    def get_by_number(
+        self,
+        organization_id: str,
+        cycle_count_number: str,
+    ) -> CycleCount | None:
+        stmt = select(CycleCountORM).where(
+            CycleCountORM.organization_id == organization_id,
+            CycleCountORM.cycle_count_number == cycle_count_number,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return cycle_count_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        stock_item_id: str | None = None,
+        storeroom_id: str | None = None,
+        location_id: str | None = None,
+        status: str | None = None,
+        limit: int = 200,
+    ) -> list[CycleCount]:
+        stmt = select(CycleCountORM).where(CycleCountORM.organization_id == organization_id)
+        if stock_item_id is not None:
+            stmt = stmt.where(CycleCountORM.stock_item_id == stock_item_id)
+        if storeroom_id is not None:
+            stmt = stmt.where(CycleCountORM.storeroom_id == storeroom_id)
+        if location_id is not None:
+            stmt = stmt.where(CycleCountORM.location_id == location_id)
+        if status is not None:
+            stmt = stmt.where(CycleCountORM.status == status)
+        rows = self.session.execute(
+            stmt.order_by(CycleCountORM.created_at.desc()).limit(max(1, int(limit or 200)))
+        ).scalars().all()
+        return [cycle_count_from_orm(row) for row in rows]
+
+
 __all__ = [
+    "SqlAlchemyCycleCountRepository",
+    "SqlAlchemyReorderPolicyRepository",
     "SqlAlchemyStockBalanceRepository",
     "SqlAlchemyStockReservationRepository",
     "SqlAlchemyStockTransactionRepository",
+    "SqlAlchemyStorageLocationRepository",
     "SqlAlchemyStoreroomRepository",
 ]
