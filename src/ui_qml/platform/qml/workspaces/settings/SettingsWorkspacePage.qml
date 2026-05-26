@@ -73,6 +73,8 @@ AppLayouts.WorkspaceFrame {
         ? (root.workspaceController.moduleEntitlements.items   || []).length : 0
     readonly property int _profileCount: root.workspaceController
         ? (root.workspaceController.organizationProfiles.items || []).length : 0
+    readonly property int _capCount: root.workspaceController
+        ? (root.workspaceController.integrationCapabilities.items || []).length : 0
 
     readonly property var _moduleContextActions: {
         const item = root._selectedItem
@@ -99,6 +101,14 @@ AppLayouts.WorkspaceFrame {
         { key: "statusLabel", label: "Status",  flex: 0, minWidth: 90,  sortable: false, visible: true,
           type: "status" },
         { key: "metaText",    label: "Info",    flex: 2, minWidth: 120, sortable: false, visible: true }
+    ]
+
+    readonly property var _capColumns: [
+        { key: "title",       label: "Capability",  flex: 4, minWidth: 220, sortable: true,  visible: true },
+        { key: "subtitle",    label: "Provider",    flex: 1, minWidth: 90,  sortable: true,  visible: true },
+        { key: "metaText",    label: "Consumers",   flex: 3, minWidth: 140, sortable: false, visible: true },
+        { key: "statusLabel", label: "Status",      flex: 0, minWidth: 90,  sortable: false, visible: true,
+          type: "status" }
     ]
 
     // ── Shell layout ──────────────────────────────────────────────
@@ -200,12 +210,12 @@ AppLayouts.WorkspaceFrame {
                     { type: "item",  section: "runtime",      label: "Runtime",               icon: "settings"  },
                     { type: "item",  section: "modules",      label: "Module Entitlements",   icon: "project"   },
                     { type: "item",  section: "profiles",     label: "Org Profiles",          icon: "admin"     },
-                    { type: "group", label: "CONFIGURATION"                                                      },
-                    { type: "item",  section: "defaults",     label: "Platform Defaults",     icon: "register"  },
-                    { type: "item",  section: "integrations", label: "Integrations",          icon: "collaboration" },
-                    { type: "item",  section: "security",     label: "Security",              icon: "control"   },
-                    { type: "group", label: "SYSTEM"                                                             },
-                    { type: "item",  section: "sysinfo",      label: "System Info",           icon: "history"   }
+                    { type: "group", label: "CONFIGURATION"                                                           },
+                    { type: "item",  section: "defaults",      label: "Platform Defaults",          icon: "register"      },
+                    { type: "item",  section: "integrations",  label: "Integration Capabilities",   icon: "collaboration" },
+                    { type: "item",  section: "security",      label: "Security",                   icon: "control"       },
+                    { type: "group", label: "SYSTEM"                                                                      },
+                    { type: "item",  section: "sysinfo",       label: "Support & Diagnostics",      icon: "maintenance"   }
                 ]
 
                 delegate: Item {
@@ -784,7 +794,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    // ── Integrations (placeholder) ────────────────
+                    // ── Integration Capabilities ──────────────────
                     Item {
                         anchors.fill: parent
                         visible:      root._activeSection === "integrations"
@@ -798,30 +808,72 @@ AppLayouts.WorkspaceFrame {
                                 Layout.preferredHeight: Theme.AppTheme.toolbarHeight - 6
                                 color:  Theme.AppTheme.surfaceRaised
                                 z:      1
+
                                 Rectangle {
                                     anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
                                     height: 1; color: Theme.AppTheme.divider
                                 }
-                                AppControls.Label {
-                                    anchors.left:           parent.left
-                                    anchors.leftMargin:     Theme.AppTheme.marginMd
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text:           "Integrations"
-                                    color:          Theme.AppTheme.textPrimary
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    font.bold:      true
+
+                                RowLayout {
+                                    anchors.fill:        parent
+                                    anchors.leftMargin:  Theme.AppTheme.marginMd
+                                    anchors.rightMargin: 8
+                                    spacing:             Theme.AppTheme.spacingXs
+
+                                    AppControls.Label {
+                                        text:           "Integration Capabilities"
+                                        color:          Theme.AppTheme.textPrimary
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        font.bold:      true
+                                    }
+                                    AppControls.Label {
+                                        visible:        root._capCount > 0
+                                        text:           String(root._capCount)
+                                        color:          Theme.AppTheme.textMuted
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        leftPadding:    4
+                                    }
+
+                                    Item { Layout.fillWidth: true }
+
+                                    Rectangle {
+                                        implicitWidth:  26
+                                        implicitHeight: 26
+                                        radius: 4
+                                        color: _capRefreshMA.containsMouse
+                                            ? Theme.AppTheme.hoverSurface : "transparent"
+                                        AppIcons.AppIcon {
+                                            anchors.centerIn: parent
+                                            name: "refresh"; size: 12
+                                            iconColor: Theme.AppTheme.textMuted
+                                        }
+                                        MouseArea {
+                                            id: _capRefreshMA
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape:  Qt.PointingHandCursor
+                                            enabled:      !root._busy
+                                            onClicked: {
+                                                if (root.workspaceController)
+                                                    root.workspaceController.refresh()
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
-                            Item {
+                            AppWidgets.DataTable {
                                 Layout.fillWidth:  true
                                 Layout.fillHeight: true
-                                AppWidgets.EmptyState {
-                                    anchors.centerIn: parent
-                                    width:   Math.min(parent.width, 320)
-                                    title:   "No integrations configured"
-                                }
+                                rows:      root.workspaceController
+                                    ? (root.workspaceController.integrationCapabilities.items || []) : []
+                                columns:   root._capColumns
+                                emptyText: root.workspaceController
+                                    ? (root.workspaceController.integrationCapabilities.emptyState || "No capabilities registered")
+                                    : "No capabilities registered"
+                                loading:   root._load
                             }
                         }
                     }

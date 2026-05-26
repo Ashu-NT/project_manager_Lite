@@ -52,6 +52,9 @@ class IntegrationCapabilityDesktopApi:
     def capability_snapshot(self) -> dict[str, bool]:
         return self.module_registry.capability_snapshot()
 
+    def list_integration_capabilities(self) -> list[dict]:
+        return self.module_registry.list_capabilities()
+
     # ------------------------------------------------------------------
     # Reference resolution
     # ------------------------------------------------------------------

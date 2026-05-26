@@ -47,6 +47,41 @@ _CAPABILITY_MODULE: dict[str, str] = {
     "maintenance.assets.read": "maintenance_management",
 }
 
+# Maps capability_id → short labels of modules that consume the capability.
+_CAPABILITY_CONSUMERS: dict[str, list[str]] = {
+    "platform.sites.read":              ["PM", "INV", "MNT"],
+    "platform.parties.read":            ["PM", "INV", "MNT"],
+    "platform.employees.read":          ["PM", "MNT"],
+    "platform.documents.attach":        ["PM", "INV", "MNT"],
+    "platform.approvals.create":        ["PM", "INV", "MNT"],
+    "platform.audit.write":             ["PM", "INV", "MNT"],
+    "project_management.projects.read": ["PM"],
+    "project_management.tasks.read":    ["PM"],
+    "project_management.tasks.open":    ["INV", "MNT"],
+    "project_management.material_demand.create": ["PM"],
+    "project_management.resources.read": ["PM"],
+    "project_management.financials.read": ["PM"],
+    "inventory.stock.read":             ["PM", "MNT"],
+    "inventory.reservations.create":    ["PM", "MNT"],
+    "inventory.reservations.read":      ["PM", "MNT"],
+    "procurement.requisitions.create":  ["PM", "MNT"],
+    "procurement.purchase_orders.read": ["PM", "MNT"],
+    "procurement.purchase_orders.create": ["INV"],
+    "maintenance.work_orders.read":     ["MNT"],
+    "maintenance.work_orders.open":     ["INV"],
+    "maintenance.material_demand.create": ["MNT"],
+    "maintenance.assets.read":          ["MNT"],
+}
+
+_MODULE_LABELS: dict[str, str] = {
+    "platform":              "Platform",
+    "project_management":    "PM",
+    "inventory_procurement": "INV",
+    "maintenance_management": "MNT",
+    "qhse":                  "QHSE",
+    "hr_management":         "HR",
+}
+
 # Maps (source_module, target_module, capability) → bool (static rules).
 # Dynamic check also requires both modules to be enabled at runtime.
 _INTEGRATION_RULES: frozenset[tuple[str, str, str]] = frozenset(
@@ -120,6 +155,22 @@ class ModuleRegistry:
     # ------------------------------------------------------------------
     # Convenience snapshot for QML / controllers
     # ------------------------------------------------------------------
+
+    def list_capabilities(self) -> list[dict]:
+        """Return structured capability rows for admin/settings display."""
+        rows: list[dict] = []
+        for cap_id, module_id in sorted(_CAPABILITY_MODULE.items()):
+            enabled = self.is_module_enabled(module_id)
+            consumers = _CAPABILITY_CONSUMERS.get(cap_id, [])
+            provider_label = _MODULE_LABELS.get(module_id, module_id)
+            rows.append({
+                "id": cap_id,
+                "title": cap_id,
+                "subtitle": provider_label,
+                "statusLabel": "Active" if enabled else "Inactive",
+                "metaText": ", ".join(consumers) if consumers else "—",
+            })
+        return rows
 
     def capability_snapshot(self) -> dict[str, bool]:
         """Return a flat dict of all known integration capabilities for QML binding."""
