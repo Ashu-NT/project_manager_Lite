@@ -225,6 +225,12 @@ class ProjectManagementProjectsWorkspaceController(
                     ),
                 }
             )
+            self._set_selected_project_id(workspace_state.selected_project_id)
+            self._set_selected_project(
+                serialize_project_detail_view_model(
+                    workspace_state.selected_project_detail
+                )
+            )
 
             self._set_empty_state(workspace_state.empty_state)
             self._set_project_total_count(workspace_state.total_count)

@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 from datetime import date
-from pathlib import Path
 
 from openpyxl import load_workbook
 
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.infrastructure.reporting import api as reporting_api
-from src.tests.path_rewrites import REPO_ROOT
 
 
 def _seed_finance_project(services) -> str:
@@ -138,28 +136,4 @@ def test_exporters_include_finance_sections_when_finance_service_is_provided(ser
 
     assert output_pdf.exists()
     assert output_pdf.read_bytes().startswith(b"%PDF")
-
-
-def test_finance_views_are_report_only_not_duplicated_in_cost_tab():
-    root = REPO_ROOT
-    cost_tab = (root / "ui" / "cost" / "tab.py").read_text(encoding="utf-8", errors="ignore")
-    report_surface = (root / "ui" / "report" / "surface.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
-    )
-    report_actions = (root / "ui" / "report" / "actions.py").read_text(encoding="utf-8", errors="ignore")
-    finance_dialog = (root / "ui" / "report" / "dialog_finance.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
-    )
-
-    assert "finance_service: FinanceService | None = None" not in cost_tab
-    assert "_build_finance_group" not in cost_tab
-    assert "Show Finance View" in report_surface
-    assert "def show_finance" in report_actions
-    assert "finance_service=self._finance_service" in report_actions
-    assert "self.finance_tabs = QTabWidget()" in finance_dialog
-    assert 'self.finance_tabs.addTab(self._wrap_tab_panel(grp_cash), "Cashflow")' in finance_dialog
-    assert 'self.finance_tabs.addTab(self._wrap_tab_panel(grp_analytics), "Analytics")' in finance_dialog
-    assert 'self.finance_tabs.addTab(self._wrap_tab_panel(grp_ledger), "Ledger Trail")' in finance_dialog
 

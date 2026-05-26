@@ -434,6 +434,7 @@ class ProjectManagementTasksWorkspaceController(
                 page_size=self._task_page_size,
             )
             self._task_list._update(ws)
+            self._set_selected_task_id(ws.selected_task_id)
             self._set_selected_project_id(ws.selected_project_id)
             self._set_selected_status_filter(ws.selected_status_filter)
             self._set_selected_priority_filter(ws.selected_priority_filter)
@@ -927,6 +928,7 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._selected_task_id = v
         self.selectedTaskIdChanged.emit()
+        self._collab_ctrl.sync_review_presence(v)
 
     def _set_selected_assignment_id(self, v: str) -> None:
         if v == self._selected_assignment_id:

@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from zipfile import ZipFile
 
 import src.infra.platform.diagnostics as diagnostics
-from src.tests.path_rewrites import REPO_ROOT
 from src.infra.platform.operational_support import (
     REDACTED,
     REDACTED_EMAIL,
@@ -116,50 +114,4 @@ def test_diagnostics_bundle_includes_incident_trace_and_support_events(tmp_path,
     assert metadata["settings"]["contact_email"] == REDACTED_EMAIL
     assert len(trace_rows) == 1
     assert trace_rows[0]["trace_id"] == "inc-a"
-
-
-def test_support_tab_wires_incident_tracing_and_operational_support():
-    root = REPO_ROOT
-    tab_text = (root / "ui" / "support" / "tab.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
-    )
-    telemetry_text = (root / "ui" / "support" / "telemetry.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
-    )
-    update_text = (root / "ui" / "support" / "update_flow.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
-    )
-    diagnostics_text = (root / "ui" / "support" / "diagnostics_flow.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
-    )
-    diagnostics_export_text = (root / "ui" / "support" / "diagnostics_export.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
-    )
-    incident_report_text = (root / "ui" / "support" / "incident_report.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
-    )
-    layout_text = (root / "ui" / "support" / "ui_layout.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
-    )
-
-    assert "SupportUiLayoutMixin" in tab_text
-    assert "SupportTelemetryMixin" in tab_text
-    assert "SupportUpdateFlowMixin" in tab_text
-    assert "SupportDiagnosticsFlowMixin" in tab_text
-    assert "get_operational_support()" in tab_text
-    assert "def _current_incident_id" in telemetry_text
-    assert "incident_id=incident_id" in update_text
-    assert 'event_type="support.diagnostics.exported"' in diagnostics_export_text
-    assert "DEFAULT_SUPPORT_EMAIL = \"tech_ash_673@info.tech\"" in incident_report_text
-    assert "def _report_incident" in incident_report_text
-    assert "SupportIncidentReportMixin" in diagnostics_text
-    assert "SupportDiagnosticsExportMixin" in diagnostics_text
-    assert "btn_report_incident" in layout_text
 

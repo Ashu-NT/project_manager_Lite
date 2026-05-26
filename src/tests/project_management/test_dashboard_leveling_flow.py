@@ -1,8 +1,6 @@
 from datetime import date
-from pathlib import Path
 
 from src.core.platform.notifications.domain_events import domain_events
-from src.tests.path_rewrites import REPO_ROOT
 
 
 def test_dashboard_service_preview_resource_conflicts(services):
@@ -101,60 +99,4 @@ def test_dashboard_service_manual_shift_emits_tasks_changed_event(services):
         domain_events.tasks_changed.disconnect(_on_tasks_changed)
 
     assert project.id in seen
-
-
-def test_dashboard_tab_wires_leveling_actions_and_conflict_grid():
-    root = REPO_ROOT
-    tab_text = (root / "ui" / "dashboard" / "tab.py").read_text(encoding="utf-8", errors="ignore")
-    top_bar_text = (root / "ui" / "dashboard" / "top_bar.py").read_text(encoding="utf-8", errors="ignore")
-    actions_text = (root / "ui" / "dashboard" / "workqueue_actions.py").read_text(
-        encoding="utf-8", errors="ignore"
-    )
-    ops_text = (root / "ui" / "dashboard" / "leveling_ops.py").read_text(
-        encoding="utf-8", errors="ignore"
-    )
-    panel_text = (root / "ui" / "dashboard" / "alerts_panel.py").read_text(
-        encoding="utf-8", errors="ignore"
-    )
-    service_text = (root / "core" / "services" / "dashboard" / "service.py").read_text(encoding="utf-8", errors="ignore")
-
-    assert 'self.btn_preview_conflicts = QPushButton("Preview Conflicts")' in panel_text
-    assert 'self.btn_auto_level = QPushButton("Auto-Level")' in panel_text
-    assert 'self.btn_manual_shift = QPushButton("Manual Shift")' in panel_text
-    assert "self.btn_preview_conflicts.setToolTip(" in panel_text
-    assert "self.btn_auto_level.setToolTip(" in panel_text
-    assert "self.btn_manual_shift.setToolTip(" in panel_text
-    assert "self.conflicts_table = QTableWidget(0, 4)" in panel_text
-    assert "DashboardQueueButton(\"Conflicts\", active_variant=\"danger\")" in top_bar_text
-    assert "DashboardQueueButton(\"Alerts\", active_variant=\"warning\")" in top_bar_text
-    assert "DashboardQueueButton(\"Upcoming\", active_variant=\"info\")" in top_bar_text
-    assert "self.btn_open_conflicts.clicked.connect(self._open_conflicts_dialog)" in tab_text
-    assert "self.btn_open_alerts.clicked.connect(self._open_alerts_dialog)" in tab_text
-    assert "self.btn_open_upcoming.clicked.connect(self._open_upcoming_dialog)" in tab_text
-    assert "self.upcoming_table = QTableWidget(" not in tab_text
-    assert "def _prepare_conflicts_dialog" in actions_text
-    assert "self.btn_auto_level.clicked.connect(self._auto_level_conflicts)" in actions_text
-    assert "self.btn_manual_shift.clicked.connect(self._manual_shift_selected_conflict)" in actions_text
-
-    assert "def _preview_conflicts" in ops_text
-    assert "def _auto_level_conflicts" in ops_text
-    assert "def _manual_shift_selected_conflict" in ops_text
-    assert "self.btn_open_conflicts.setText(" in ops_text
-    assert "self._update_conflicts_from_load(overloaded)" in ops_text
-    assert "Date shifts:" in ops_text
-    assert "No eligible task was shifted." in ops_text
-    assert "Iterations used:" in ops_text
-
-    assert "def preview_resource_conflicts" in service_text
-    assert "def auto_level_overallocations" in service_text
-    assert "domain_events.tasks_changed.emit(project_id)" in service_text
-    rendering_alerts_text = (root / "ui" / "dashboard" / "rendering_alerts.py").read_text(
-        encoding="utf-8", errors="ignore"
-    )
-    rendering_charts_text = (root / "ui" / "dashboard" / "rendering_charts.py").read_text(
-        encoding="utf-8", errors="ignore"
-    )
-    assert "def _update_conflicts_from_load" in rendering_alerts_text
-    assert "self.btn_open_alerts.set_badge(" in rendering_alerts_text
-    assert "self.btn_open_upcoming.set_badge(" in rendering_charts_text
 

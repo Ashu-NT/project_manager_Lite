@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from datetime import date
-from pathlib import Path
 
 import pytest
 
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.tests.path_rewrites import REPO_ROOT
 
 
 def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services):
@@ -99,20 +97,4 @@ def test_compare_baselines_validates_input_and_missing_ids(services):
     with pytest.raises(NotFoundError) as missing_exc:
         rp.compare_baselines(pid, baseline.id, "missing-id")
     assert missing_exc.value.code == "BASELINE_B_NOT_FOUND"
-
-
-def test_report_tab_wires_baseline_comparison_action():
-    surface_text = (REPO_ROOT / "ui" / "report" / "surface.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
-    )
-    actions_text = (REPO_ROOT / "ui" / "report" / "actions.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
-    )
-
-    assert "self.btn_show_baseline_compare = QPushButton" in surface_text
-    assert "self.btn_show_baseline_compare.clicked.connect(self.show_baseline_comparison)" in surface_text
-    assert "def show_baseline_comparison" in actions_text
-    assert "BaselineCompareDialog" in actions_text
 

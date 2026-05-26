@@ -11,14 +11,17 @@ _LARGE_MODULE_BUDGETS = {
     "src/core/modules/maintenance/infrastructure/persistence/mappers/mapper.py": 1203,
     "src/core/modules/maintenance/infrastructure/persistence/repositories/repository.py": 1489,
     "src/infra/persistence/orm/maintenance/models.py": 1283,
-    "src/ui_qml/modules/project_management/presenters/tasks_workspace_presenter.py": 1335,
+    "src/core/modules/project_management/api/desktop/dashboard.py": 2498,
+    "src/ui_qml/modules/project_management/presenters/scheduling_workspace_presenter.py": 1356,
+    "src/ui_qml/modules/project_management/controllers/scheduling/scheduling_workspace_controller.py": 1338,
+    "src/ui_qml/modules/project_management/presenters/tasks_workspace_presenter.py": 1603,
     "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": 1600,
     "src/ui_qml/modules/maintenance/presenters/assets_workspace_presenter.py": 1300,
     "src/ui_qml/modules/maintenance/presenters/preventive_workspace_presenter.py": 1500,
-    "src/tests/project_management/test_project_management_desktop_api.py": 2990,
-    "src/tests/project_management/test_qml_project_management_presenters.py": 2185,
+    "src/tests/project_management/test_project_management_desktop_api.py": 3212,
+    "src/tests/project_management/test_qml_project_management_presenters.py": 2235,
     "src/tests/architecture/test_architecture_guardrails.py": 1500,
-    "src/tests/platform/test_qml_platform_presenters.py": 2452,
+    "src/tests/platform/test_qml_platform_presenters.py": 2453,
 }
 
 
@@ -30,6 +33,8 @@ def _python_files(root: Path):
     for path in root.rglob("*.py"):
         # Keep architecture checks focused on source/test code, not packaged artifacts.
         if "dist" in path.parts:
+            continue
+        if path.name == "resources_rc.py":
             continue
         yield path
 

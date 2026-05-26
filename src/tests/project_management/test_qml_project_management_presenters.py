@@ -253,6 +253,8 @@ def test_project_management_workspace_catalog_exposes_typed_portfolio_controller
             return (
                 SimpleNamespace(
                     dependency_id="dep-1",
+                    predecessor_project_id="proj-1",
+                    successor_project_id="proj-2",
                     predecessor_project_name="Plant Upgrade",
                     successor_project_name="Warehouse Retrofit",
                     pressure_label="Watch",
@@ -260,6 +262,7 @@ def test_project_management_workspace_catalog_exposes_typed_portfolio_controller
                     predecessor_project_status_label="Active",
                     successor_project_status_label="Planned",
                     summary="Warehouse cutover waits for line shutdown lessons learned.",
+                    created_at_label="2026-05-03 08:45",
                 ),
             )
 
@@ -501,7 +504,8 @@ def test_project_management_workspace_catalog_exposes_typed_financials_controlle
 
     assert controller.workspace["routeId"] == "project_management.financials"
     assert controller.overview["title"] == "Financials"
-    assert controller.projectOptions[0]["label"] == "Plant Upgrade"
+    assert controller.projectOptions[0]["label"] == "All Projects"
+    assert controller.projectOptions[1]["label"] == "Plant Upgrade"
     assert controller.costTypeOptions[1]["value"] == "LABOR"
     assert controller.costs["items"][0]["title"] == "Electrical material package"
     assert controller.selectedCost["title"] == "Electrical material package"
@@ -1061,34 +1065,57 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
     metrics_by_label = {
         metric["label"]: metric for metric in controller.overview["metrics"]
     }
-    assert metrics_by_label["Mentions"]["value"] == "1"
-    assert metrics_by_label["Notifications"]["value"] == "1"
-    assert metrics_by_label["Active now"]["value"] == "1"
+    assert metrics_by_label["Mentions"]["value"] == "0"
+    assert metrics_by_label["Notifications"]["value"] == "0"
+    assert metrics_by_label["Active now"]["value"] == "0"
     assert controller.canUndoTaskAction is False
     assert controller.canRedoTaskAction is False
-    assert controller.projectOptions[0]["label"] == "Plant Upgrade"
-    assert controller.selectedProjectId == "proj-1"
+    assert controller.projectOptions[0]["label"] == "All Projects"
+    assert controller.projectOptions[1]["label"] == "Plant Upgrade"
+    assert controller.selectedProjectId == ""
+    assert controller.selectedTaskId == "task-1"
     assert controller.priorityOptions[0]["label"] == "All priorities"
     assert controller.scheduleOptions[0]["value"] == "all"
     assert controller.taskViewOptions == [{"value": "", "label": "Current Filters"}]
     assert controller.tasks["items"][0]["title"] == "Cable Pull"
     assert controller.selectedTask["title"] == "Cable Pull"
+    assert controller.assignmentOptions == []
+    assert controller.assignments["items"] == []
+    assert controller.selectedAssignmentId == ""
+    assert controller.dependencies["items"] == []
+    assert controller.dependencyTypeOptions == []
+    assert controller.dependencyTaskOptions == []
+    assert controller.timePeriodOptions == []
+    assert controller.timeEntries["items"] == []
+    assert controller.collaborationMentionOptions == []
+    assert controller.collaborationDocumentOptions == []
+    assert controller.collaborationComments["items"] == []
+    assert controller.collaborationPresence["items"] == []
+    assert collaboration_service.touched_presence[0] == ("task-1", "reviewing")
+
+    controller.activateTask("task-1")
+
     assert controller.assignmentOptions[0]["label"] == "Alex Taylor (90.00 EUR/hr)"
     assert controller.assignments["items"][0]["title"] == "Alex Taylor"
     assert controller.selectedAssignmentId == "assign-1"
     assert controller.dependencies["items"][0]["title"] == "Punchlist Closeout"
     assert controller.dependencyTypeOptions[0]["value"] == "FS"
     assert controller.dependencyTaskOptions[0]["value"] == "task-2"
+
+    controller.loadSelectedTaskTime()
+
     assert controller.timePeriodOptions[0]["value"] == "2026-05-01"
     assert controller.timeEntries["items"][0]["title"] == "2026-05-03"
     assert controller.timeAssignmentSummary["state"]["assignmentId"] == "assign-1"
     assert controller.selectedTimeEntry["fields"][0]["value"] == "2026-05-03"
+
+    controller.loadSelectedTaskCollaboration()
+
     assert controller.collaborationMentionOptions[0]["value"] == "planner"
     assert controller.collaborationDocumentOptions[0]["value"] == "doc-1"
     assert controller.collaborationComments["items"][0]["title"] == "@jamie"
     assert controller.collaborationPresence["items"][0]["title"] == "Alex Taylor (@planner)"
     assert controller.bulkStatusOptions[0]["value"] == "TODO"
-    assert collaboration_service.touched_presence[0] == ("task-1", "reviewing")
 
     controller.setSearchText("priority>=90")
 
@@ -1196,8 +1223,8 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
 
     controller.selectVisibleTasks()
 
-    assert set(controller.selectedTaskIds) == {"task-1", "task-2", "task-4"}
-    assert controller.selectedTaskCount == 3
+    assert set(controller.selectedTaskIds) == {"task-1", "task-2", "task-3", "task-4"}
+    assert controller.selectedTaskCount == 4
 
     controller.clearTaskBulkSelection()
 
@@ -1215,6 +1242,7 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
         "message": "Task time entry added.",
     }
     assert timesheets_api.added_entries[-1]["hours"] == 2.5
+    controller.loadSelectedTaskTime()
     assert any(item["title"] == "2026-05-06" for item in controller.timeEntries["items"])
 
     post_result = controller.postTaskComment(
@@ -1264,7 +1292,7 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
         "ok": True,
         "message": "Selected tasks deleted.",
     }
-    assert [item["id"] for item in controller.tasks["items"]] == ["task-2"]
+    assert [item["id"] for item in controller.tasks["items"]] == ["task-2", "task-3"]
     assert controller.selectedTaskIds == []
     assert controller.selectedTaskCount == 0
 
@@ -1373,7 +1401,7 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
 
     assert controller.selectedProjectId == "proj-2"
     assert controller.schedule["items"] == []
-    assert controller.schedule["emptyState"] == "No scheduled tasks are available for the selected project."
+    assert controller.schedule["emptyState"] == "No scheduled activities are available for the selected project."
 
 
 def test_project_management_workspace_catalog_exposes_real_dashboard_snapshot_state() -> None:
@@ -1575,13 +1603,9 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "import ProjectManagement.Dialogs 1.0" in qml_text
     assert "import ProjectManagement.Widgets 1.0" in qml_text
     assert "property var pmCatalog" not in qml_text
-    assert "QML CRUD projects slice active" in qml_text
-    assert "QML financials operations slice active" in qml_text
-    assert "QML CRUD resources slice active" in qml_text
+    assert "QML landing zone ready" in qml_text
     assert "QML risk register slice active" in qml_text
-    assert "QML governance register slice active" in qml_text
-    assert "QML collaboration inbox slice active" in qml_text
-    assert "QML portfolio planning slice active" in qml_text
+    assert "QML task execution workspace active" in qml_text
     assert "QML scheduling operations slice active" in qml_text
     assert 'searchPlaceholder: "Search tasks..."' in qml_text
     assert "showCustomize: true" in qml_text
@@ -1589,7 +1613,6 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "showExport: true" in qml_text
     assert "AppWidgets.BulkActionBar {" in qml_text
     assert "AppWidgets.BulkChangePropertyPopup {" in qml_text
-    assert "QML timesheet capture and review slice active" in qml_text
     assert "QML read-only dashboard slice active" in qml_text
 
 
