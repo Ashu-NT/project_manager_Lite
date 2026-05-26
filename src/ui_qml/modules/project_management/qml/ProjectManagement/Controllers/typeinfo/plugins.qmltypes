@@ -276,8 +276,11 @@ Module {
         Method { name: "setTaskPage"; Parameter { name: "page"; type: "int" } }
         Method { name: "setTaskPageSize"; Parameter { name: "pageSize"; type: "int" } }
         Method { name: "activateTask"; Parameter { name: "taskId"; type: "QString" } }
+        Method { name: "loadSelectedTaskAssignments" }
+        Method { name: "loadSelectedTaskDependencies" }
         Method { name: "loadSelectedTaskTime" }
         Method { name: "loadSelectedTaskCollaboration" }
+        Method { name: "setTaskReviewActive"; Parameter { name: "active"; type: "bool" } }
     }
 
     Component {
