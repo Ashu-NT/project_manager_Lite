@@ -97,12 +97,53 @@ AppLayouts.WorkspaceFrame {
         return null
     }
 
-    readonly property var _entityColumns: [
-        { key: "title",       label: "Name",    flex: 3, minWidth: 160, sortable: true,  visible: true },
-        { key: "subtitle",    label: "Details", flex: 3, minWidth: 120, sortable: false, visible: true },
-        { key: "statusLabel", label: "Status",  flex: 0, minWidth: 90,  sortable: false, visible: true,
-          type: "status" },
-        { key: "metaText",    label: "Info",    flex: 2, minWidth: 120, sortable: false, visible: true }
+    readonly property var _orgColumns: [
+        { key: "title",       label: "Name",             flex: 3, minWidth: 160, sortable: true,  visible: true },
+        { key: "subtitle",    label: "Code / Timezone",  flex: 3, minWidth: 160, sortable: false, visible: true },
+        { key: "statusLabel", label: "Status",           flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
+        { key: "metaText",    label: "Version",          flex: 1, minWidth: 80,  sortable: false, visible: true }
+    ]
+    readonly property var _siteColumns: [
+        { key: "title",       label: "Name",              flex: 3, minWidth: 160, sortable: true,  visible: true },
+        { key: "subtitle",    label: "Code / Location",   flex: 4, minWidth: 200, sortable: false, visible: true },
+        { key: "statusLabel", label: "Status",            flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
+        { key: "metaText",    label: "Timezone / FX",     flex: 2, minWidth: 150, sortable: false, visible: true }
+    ]
+    readonly property var _deptColumns: [
+        { key: "title",       label: "Name",            flex: 3, minWidth: 160, sortable: true,  visible: true },
+        { key: "subtitle",    label: "Code / Type",     flex: 3, minWidth: 160, sortable: false, visible: true },
+        { key: "statusLabel", label: "Status",          flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
+        { key: "metaText",    label: "Cost Center",     flex: 2, minWidth: 120, sortable: false, visible: true }
+    ]
+    readonly property var _employeeColumns: [
+        { key: "title",       label: "Name",                 flex: 3, minWidth: 160, sortable: true,  visible: true },
+        { key: "subtitle",    label: "Code / Job Title",     flex: 3, minWidth: 180, sortable: false, visible: true },
+        { key: "statusLabel", label: "Status",               flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
+        { key: "metaText",    label: "Employment",           flex: 3, minWidth: 160, sortable: false, visible: true }
+    ]
+    readonly property var _userColumns: [
+        { key: "title",       label: "Display Name",   flex: 3, minWidth: 160, sortable: true,  visible: true },
+        { key: "subtitle",    label: "Username",        flex: 3, minWidth: 180, sortable: false, visible: true },
+        { key: "statusLabel", label: "Status",          flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
+        { key: "metaText",    label: "Security",        flex: 3, minWidth: 180, sortable: false, visible: true }
+    ]
+    readonly property var _partyColumns: [
+        { key: "title",       label: "Name",           flex: 3, minWidth: 160, sortable: true,  visible: true },
+        { key: "subtitle",    label: "Code / Type",    flex: 3, minWidth: 160, sortable: false, visible: true },
+        { key: "statusLabel", label: "Status",         flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
+        { key: "metaText",    label: "Legal Name",     flex: 3, minWidth: 160, sortable: false, visible: true }
+    ]
+    readonly property var _documentColumns: [
+        { key: "title",       label: "Title",          flex: 3, minWidth: 180, sortable: true,  visible: true },
+        { key: "subtitle",    label: "Code / Type",    flex: 3, minWidth: 160, sortable: false, visible: true },
+        { key: "statusLabel", label: "Status",         flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
+        { key: "metaText",    label: "Storage",        flex: 3, minWidth: 160, sortable: false, visible: true }
+    ]
+    readonly property var _structureColumns: [
+        { key: "title",       label: "Name",           flex: 3, minWidth: 160, sortable: true,  visible: true },
+        { key: "subtitle",    label: "Code / Type",    flex: 3, minWidth: 160, sortable: false, visible: true },
+        { key: "statusLabel", label: "Status",         flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
+        { key: "metaText",    label: "Info",           flex: 2, minWidth: 120, sortable: false, visible: true }
     ]
 
     readonly property bool   _busy: root.workspaceController ? root.workspaceController.isBusy        : false
@@ -205,7 +246,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Organizations"
                 entityLabel:     "Organization"
                 catalog:         root.organizationCatalog
-                columns:         root._entityColumns
+                columns:         root._orgColumns
                 isBusy:          root._busy
                 isLoading:       root._load
                 errorMessage:    root._err
@@ -225,7 +266,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Sites"
                 entityLabel:     "Site"
                 catalog:         root.siteCatalog
-                columns:         root._entityColumns
+                columns:         root._siteColumns
                 isBusy:          root._busy
                 isLoading:       root._load
                 errorMessage:    root._err
@@ -245,7 +286,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Departments"
                 entityLabel:     "Department"
                 catalog:         root.departmentCatalog
-                columns:         root._entityColumns
+                columns:         root._deptColumns
                 isBusy:          root._busy
                 isLoading:       root._load
                 errorMessage:    root._err
@@ -265,7 +306,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Employees"
                 entityLabel:     "Employee"
                 catalog:         root.employeeCatalog
-                columns:         root._entityColumns
+                columns:         root._employeeColumns
                 isBusy:          root._busy
                 isLoading:       root._load
                 errorMessage:    root._err
@@ -285,7 +326,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Users"
                 entityLabel:     "User"
                 catalog:         root.userCatalog
-                columns:         root._entityColumns
+                columns:         root._userColumns
                 isBusy:          root._busy
                 isLoading:       root._load
                 errorMessage:    root._err
@@ -305,7 +346,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Parties"
                 entityLabel:     "Party"
                 catalog:         root.partyCatalog
-                columns:         root._entityColumns
+                columns:         root._partyColumns
                 isBusy:          root._busy
                 isLoading:       root._load
                 errorMessage:    root._err
@@ -325,7 +366,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Documents"
                 entityLabel:     "Document"
                 catalog:         root.documentCatalog
-                columns:         root._entityColumns
+                columns:         root._documentColumns
                 isBusy:          root._busy
                 isLoading:       root._load
                 errorMessage:    root._err
@@ -348,7 +389,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Document Structures"
                 entityLabel:     "Structure"
                 catalog:         root.documentStructureCatalog
-                columns:         root._entityColumns
+                columns:         root._structureColumns
                 isBusy:          root._busy
                 isLoading:       root._load
                 errorMessage:    root._err

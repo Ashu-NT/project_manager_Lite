@@ -878,7 +878,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    // ── Security (placeholder) ────────────────────
+                    // ── Security ─────────────────────────────────────
                     Item {
                         anchors.fill: parent
                         visible:      root._activeSection === "security"
@@ -908,19 +908,262 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            Item {
+                            Flickable {
                                 Layout.fillWidth:  true
                                 Layout.fillHeight: true
-                                AppWidgets.EmptyState {
-                                    anchors.centerIn: parent
-                                    width:   Math.min(parent.width, 320)
-                                    title:   "Security configuration"
+                                contentWidth:      width
+                                contentHeight:     _securityContent.implicitHeight
+                                    + Theme.AppTheme.marginLg * 2
+                                clip:              true
+                                boundsBehavior:    Flickable.StopAtBounds
+
+                                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                                ColumnLayout {
+                                    id: _securityContent
+                                    anchors {
+                                        top:         parent.top
+                                        left:        parent.left
+                                        right:       parent.right
+                                        topMargin:   Theme.AppTheme.marginLg
+                                        leftMargin:  Theme.AppTheme.marginLg
+                                        rightMargin: Theme.AppTheme.marginLg
+                                    }
+                                    spacing: Theme.AppTheme.spacingMd
+
+                                    // ── Password Policy ───────────
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        implicitHeight:   _pwColLayout.implicitHeight
+                                            + Theme.AppTheme.marginMd * 2
+                                        color:   Theme.AppTheme.surface
+                                        radius:  Theme.AppTheme.radiusMd
+                                        border.color: Theme.AppTheme.divider
+                                        border.width: 1
+
+                                        ColumnLayout {
+                                            id: _pwColLayout
+                                            anchors {
+                                                fill:    parent
+                                                margins: Theme.AppTheme.marginMd
+                                            }
+                                            spacing: Theme.AppTheme.spacingSm
+
+                                            AppControls.Label {
+                                                text:           "Password Policy"
+                                                color:          Theme.AppTheme.textPrimary
+                                                font.family:    Theme.AppTheme.fontFamily
+                                                font.pixelSize: Theme.AppTheme.bodySize
+                                                font.bold:      true
+                                            }
+
+                                            Repeater {
+                                                model: [
+                                                    { label: "Minimum length",           value: "12 characters" },
+                                                    { label: "Complexity required",       value: "Yes (upper, lower, digit, symbol)" },
+                                                    { label: "Password expiry",           value: "90 days" },
+                                                    { label: "Reuse restriction",         value: "Last 5 passwords" }
+                                                ]
+                                                delegate: RowLayout {
+                                                    required property var modelData
+                                                    Layout.fillWidth: true
+                                                    spacing: Theme.AppTheme.spacingSm
+
+                                                    AppControls.Label {
+                                                        Layout.preferredWidth: 180
+                                                        text:           modelData.label
+                                                        color:          Theme.AppTheme.textMuted
+                                                        font.family:    Theme.AppTheme.fontFamily
+                                                        font.pixelSize: Theme.AppTheme.smallSize
+                                                    }
+                                                    AppControls.Label {
+                                                        Layout.fillWidth: true
+                                                        text:           modelData.value
+                                                        color:          Theme.AppTheme.textPrimary
+                                                        font.family:    Theme.AppTheme.fontFamily
+                                                        font.pixelSize: Theme.AppTheme.smallSize
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // ── Session Policy ────────────
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        implicitHeight:   _sessColLayout.implicitHeight
+                                            + Theme.AppTheme.marginMd * 2
+                                        color:   Theme.AppTheme.surface
+                                        radius:  Theme.AppTheme.radiusMd
+                                        border.color: Theme.AppTheme.divider
+                                        border.width: 1
+
+                                        ColumnLayout {
+                                            id: _sessColLayout
+                                            anchors {
+                                                fill:    parent
+                                                margins: Theme.AppTheme.marginMd
+                                            }
+                                            spacing: Theme.AppTheme.spacingSm
+
+                                            AppControls.Label {
+                                                text:           "Session Policy"
+                                                color:          Theme.AppTheme.textPrimary
+                                                font.family:    Theme.AppTheme.fontFamily
+                                                font.pixelSize: Theme.AppTheme.bodySize
+                                                font.bold:      true
+                                            }
+
+                                            Repeater {
+                                                model: [
+                                                    { label: "Session timeout",           value: "30 minutes idle" },
+                                                    { label: "Concurrent sessions",       value: "1 per user" },
+                                                    { label: "Remember device",           value: "Disabled" },
+                                                    { label: "Token lifetime",            value: "8 hours" }
+                                                ]
+                                                delegate: RowLayout {
+                                                    required property var modelData
+                                                    Layout.fillWidth: true
+                                                    spacing: Theme.AppTheme.spacingSm
+
+                                                    AppControls.Label {
+                                                        Layout.preferredWidth: 180
+                                                        text:           modelData.label
+                                                        color:          Theme.AppTheme.textMuted
+                                                        font.family:    Theme.AppTheme.fontFamily
+                                                        font.pixelSize: Theme.AppTheme.smallSize
+                                                    }
+                                                    AppControls.Label {
+                                                        Layout.fillWidth: true
+                                                        text:           modelData.value
+                                                        color:          Theme.AppTheme.textPrimary
+                                                        font.family:    Theme.AppTheme.fontFamily
+                                                        font.pixelSize: Theme.AppTheme.smallSize
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // ── RBAC Defaults ─────────────
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        implicitHeight:   _rbacColLayout.implicitHeight
+                                            + Theme.AppTheme.marginMd * 2
+                                        color:   Theme.AppTheme.surface
+                                        radius:  Theme.AppTheme.radiusMd
+                                        border.color: Theme.AppTheme.divider
+                                        border.width: 1
+
+                                        ColumnLayout {
+                                            id: _rbacColLayout
+                                            anchors {
+                                                fill:    parent
+                                                margins: Theme.AppTheme.marginMd
+                                            }
+                                            spacing: Theme.AppTheme.spacingSm
+
+                                            AppControls.Label {
+                                                text:           "RBAC Defaults"
+                                                color:          Theme.AppTheme.textPrimary
+                                                font.family:    Theme.AppTheme.fontFamily
+                                                font.pixelSize: Theme.AppTheme.bodySize
+                                                font.bold:      true
+                                            }
+
+                                            Repeater {
+                                                model: [
+                                                    { label: "Default role",              value: "Viewer" },
+                                                    { label: "Self-service access",       value: "Disabled" },
+                                                    { label: "Cross-org visibility",      value: "Restricted" },
+                                                    { label: "Audit on role change",      value: "Enabled" }
+                                                ]
+                                                delegate: RowLayout {
+                                                    required property var modelData
+                                                    Layout.fillWidth: true
+                                                    spacing: Theme.AppTheme.spacingSm
+
+                                                    AppControls.Label {
+                                                        Layout.preferredWidth: 180
+                                                        text:           modelData.label
+                                                        color:          Theme.AppTheme.textMuted
+                                                        font.family:    Theme.AppTheme.fontFamily
+                                                        font.pixelSize: Theme.AppTheme.smallSize
+                                                    }
+                                                    AppControls.Label {
+                                                        Layout.fillWidth: true
+                                                        text:           modelData.value
+                                                        color:          Theme.AppTheme.textPrimary
+                                                        font.family:    Theme.AppTheme.fontFamily
+                                                        font.pixelSize: Theme.AppTheme.smallSize
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // ── Approval Thresholds ───────
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        implicitHeight:   _approvalColLayout.implicitHeight
+                                            + Theme.AppTheme.marginMd * 2
+                                        color:   Theme.AppTheme.surface
+                                        radius:  Theme.AppTheme.radiusMd
+                                        border.color: Theme.AppTheme.divider
+                                        border.width: 1
+
+                                        ColumnLayout {
+                                            id: _approvalColLayout
+                                            anchors {
+                                                fill:    parent
+                                                margins: Theme.AppTheme.marginMd
+                                            }
+                                            spacing: Theme.AppTheme.spacingSm
+
+                                            AppControls.Label {
+                                                text:           "Approval Thresholds"
+                                                color:          Theme.AppTheme.textPrimary
+                                                font.family:    Theme.AppTheme.fontFamily
+                                                font.pixelSize: Theme.AppTheme.bodySize
+                                                font.bold:      true
+                                            }
+
+                                            Repeater {
+                                                model: [
+                                                    { label: "Auto-approve below",        value: "Not configured" },
+                                                    { label: "Escalate after",            value: "48 hours" },
+                                                    { label: "Required approvers",        value: "1 (any admin)" },
+                                                    { label: "Notify on rejection",       value: "Enabled" }
+                                                ]
+                                                delegate: RowLayout {
+                                                    required property var modelData
+                                                    Layout.fillWidth: true
+                                                    spacing: Theme.AppTheme.spacingSm
+
+                                                    AppControls.Label {
+                                                        Layout.preferredWidth: 180
+                                                        text:           modelData.label
+                                                        color:          Theme.AppTheme.textMuted
+                                                        font.family:    Theme.AppTheme.fontFamily
+                                                        font.pixelSize: Theme.AppTheme.smallSize
+                                                    }
+                                                    AppControls.Label {
+                                                        Layout.fillWidth: true
+                                                        text:           modelData.value
+                                                        color:          Theme.AppTheme.textPrimary
+                                                        font.family:    Theme.AppTheme.fontFamily
+                                                        font.pixelSize: Theme.AppTheme.smallSize
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
 
-                    // ── System Info ───────────────────────────────
+                    // ── Support & Diagnostics ─────────────────────────
                     Item {
                         anchors.fill: parent
                         visible:      root._activeSection === "sysinfo"
@@ -947,7 +1190,7 @@ AppLayouts.WorkspaceFrame {
                                     spacing:             Theme.AppTheme.spacingXs
 
                                     AppControls.Label {
-                                        text:           "System Info"
+                                        text:           "Support & Diagnostics"
                                         color:          Theme.AppTheme.textPrimary
                                         font.family:    Theme.AppTheme.fontFamily
                                         font.pixelSize: Theme.AppTheme.smallSize

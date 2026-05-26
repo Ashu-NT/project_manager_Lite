@@ -41,8 +41,10 @@ AppLayouts.WorkspaceFrame {
     // ── Internal state ────────────────────────────────────────────
     property string _selectedRowId: ""
     property string _searchText:    ""
+    property string _activePanel:   "approvals"
 
     readonly property bool _detailOpen: root._selectedRowId.length > 0
+        && root._activePanel === "approvals"
 
     readonly property var _queueItem: {
         const id = root._selectedRowId
@@ -117,10 +119,10 @@ AppLayouts.WorkspaceFrame {
                 Layout.fillHeight: true
                 spacing: 0
 
-                // ── Approval Queue section title ──────────────────
+                // ── Panel nav tab bar ─────────────────────────────
                 Rectangle {
                     Layout.fillWidth: true
-                    height: Theme.AppTheme.toolbarHeight - 6
+                    height: Theme.AppTheme.toolbarHeight - 4
                     color:  Theme.AppTheme.surfaceRaised
                     z:      1
 
@@ -130,214 +132,169 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     RowLayout {
-                        anchors.fill:        parent
-                        anchors.leftMargin:  Theme.AppTheme.marginMd
-                        anchors.rightMargin: 8
-                        spacing:             Theme.AppTheme.spacingXs
+                        anchors.fill:       parent
+                        anchors.leftMargin: Theme.AppTheme.marginMd
+                        spacing: 0
 
-                        AppControls.Label {
-                            text:           "Approval Queue"
-                            color:          Theme.AppTheme.textPrimary
-                            font.family:    Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.smallSize
-                            font.bold:      true
-                        }
+                        Repeater {
+                            model: [
+                                { id: "approvals",     label: "Approvals",     count: root._queueCount },
+                                { id: "audit",         label: "Audit",         count: root._feedCount  },
+                                { id: "escalations",   label: "Escalations",   count: 0                },
+                                { id: "system_events", label: "System Events", count: 0                }
+                            ]
 
-                        AppControls.Label {
-                            visible:        root._queueCount > 0
-                            text:           String(root._queueCount)
-                            color:          Theme.AppTheme.textMuted
-                            font.family:    Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.captionSize
-                            leftPadding:    4
+                            delegate: Item {
+                                id: _tab
+                                required property var modelData
+                                readonly property bool _active: root._activePanel === _tab.modelData.id
+
+                                implicitWidth:  _tabRow.implicitWidth + 16
+                                Layout.fillHeight: true
+
+                                RowLayout {
+                                    id: _tabRow
+                                    anchors.centerIn: parent
+                                    spacing: 4
+
+                                    AppControls.Label {
+                                        text:           _tab.modelData.label
+                                        color:          _tab._active
+                                            ? Theme.AppTheme.accent : Theme.AppTheme.textSecondary
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        font.bold:      _tab._active
+                                    }
+                                    AppControls.Label {
+                                        visible:        _tab.modelData.count > 0
+                                        text:           String(_tab.modelData.count)
+                                        color:          _tab._active
+                                            ? Theme.AppTheme.accent : Theme.AppTheme.textMuted
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                    }
+                                }
+
+                                Rectangle {
+                                    visible: _tab._active
+                                    anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
+                                    height: 2
+                                    color:  Theme.AppTheme.accent
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape:  Qt.PointingHandCursor
+                                    onClicked: {
+                                        root._activePanel   = _tab.modelData.id
+                                        root._selectedRowId = ""
+                                    }
+                                }
+                            }
                         }
 
                         Item { Layout.fillWidth: true }
                     }
                 }
 
-                // ── Approval Queue toolbar ────────────────────────
-                AppWidgets.TableToolbar {
-                    id: approvalToolbar
-                    Layout.fillWidth:  true
-                    searchPlaceholder: "Search approvals..."
-                    showFilter:        true
-                    showViews:         true
-                    showRefresh:       true
-                    isBusy:            root._busy
-                    onSearchChanged:   function(text) { root._searchText = text }
-                    onFilterClicked:   approvalFilterPopup.open()
-                    onViewsClicked:    approvalViewsPopup.open()
-                    onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
-                }
-
-                // ── Approval Queue DataTable ──────────────────────
-                AppWidgets.DataTable {
+                // ── Approvals panel ───────────────────────────────
+                ColumnLayout {
                     Layout.fillWidth:  true
                     Layout.fillHeight: true
+                    visible: root._activePanel === "approvals"
+                    spacing: 0
 
-                    rows:          root.workspaceController
-                        ? (root.workspaceController.approvalQueue.items || []) : []
-                    columns:       root._queueColumns
-                    selectedRowId: root._selectedRowId
-                    emptyText:     root.workspaceController
-                        ? (root.workspaceController.approvalQueue.emptyState || "No pending requests")
-                        : "No pending requests"
-                    loading: root._load
+                    AppWidgets.TableToolbar {
+                        id: approvalToolbar
+                        Layout.fillWidth:  true
+                        searchPlaceholder: "Search approvals..."
+                        showFilter:        true
+                        showViews:         true
+                        showRefresh:       true
+                        isBusy:            root._busy
+                        onSearchChanged:   function(text) { root._searchText = text }
+                        onFilterClicked:   approvalFilterPopup.open()
+                        onViewsClicked:    approvalViewsPopup.open()
+                        onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
+                    }
 
-                    onRowSelected:  function(id) { root._selectedRowId = id }
-                    onRowActivated: function(id) {
-                        root._selectedRowId = id
-                        const item = root.approvalItemById(id)
-                        if (item !== null) decisionDialog.openForDecision("approve", item)
+                    AppWidgets.DataTable {
+                        Layout.fillWidth:  true
+                        Layout.fillHeight: true
+                        rows:          root.workspaceController
+                            ? (root.workspaceController.approvalQueue.items || []) : []
+                        columns:       root._queueColumns
+                        selectedRowId: root._selectedRowId
+                        emptyText:     root.workspaceController
+                            ? (root.workspaceController.approvalQueue.emptyState || "No pending requests")
+                            : "No pending requests"
+                        loading: root._load
+                        onRowSelected:  function(id) { root._selectedRowId = id }
+                        onRowActivated: function(id) {
+                            root._selectedRowId = id
+                            const item = root.approvalItemById(id)
+                            if (item !== null) decisionDialog.openForDecision("approve", item)
+                        }
                     }
                 }
 
-                // ── Activity feed header ──────────────────────────
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: Theme.AppTheme.toolbarHeight - 6
-                    color:  Theme.AppTheme.surfaceRaised
-
-                    Rectangle {
-                        anchors { top: parent.top; left: parent.left; right: parent.right }
-                        height: 1; color: Theme.AppTheme.divider
-                    }
-                    Rectangle {
-                        anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-                        height: 1; color: Theme.AppTheme.divider
-                    }
-
-                    RowLayout {
-                        anchors.fill:        parent
-                        anchors.leftMargin:  Theme.AppTheme.marginMd
-                        anchors.rightMargin: 8
-                        spacing:             Theme.AppTheme.spacingXs
-
-                        AppControls.Label {
-                            text: root.workspaceController
-                                ? (root.workspaceController.auditFeed.title || "Recent Activity")
-                                : "Recent Activity"
-                            color:          Theme.AppTheme.textPrimary
-                            font.family:    Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.smallSize
-                            font.bold:      true
-                        }
-
-                        AppControls.Label {
-                            visible:        root._feedCount > 0
-                            text:           String(root._feedCount)
-                            color:          Theme.AppTheme.textMuted
-                            font.family:    Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.captionSize
-                            leftPadding:    4
-                        }
-
-                        Item { Layout.fillWidth: true }
-                    }
-                }
-
-                // ── Activity timeline feed ────────────────────────
+                // ── Audit panel ───────────────────────────────────
                 Item {
-                    Layout.fillWidth:       true
-                    Layout.preferredHeight: 180
+                    Layout.fillWidth:  true
+                    Layout.fillHeight: true
+                    visible: root._activePanel === "audit"
 
-                    ListView {
-                        id: _feedList
-                        anchors.fill:    parent
-                        anchors.topMargin: 4
-                        clip:            true
-                        boundsBehavior:  Flickable.StopAtBounds
-                        spacing:         0
-                        model: root.workspaceController
-                            ? (root.workspaceController.auditFeed.items || []) : []
+                    Flickable {
+                        anchors.fill:   parent
+                        contentWidth:   width
+                        contentHeight:  _activityFeed.implicitHeight + Theme.AppTheme.marginMd * 2
+                        clip:           true
+                        boundsBehavior: Flickable.StopAtBounds
 
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-                        delegate: Item {
-                            id: _feedRow
-                            required property var modelData
-                            required property int index
-
-                            width:  _feedList.width
-                            height: 44
-
-                            // Timeline dot
-                            Rectangle {
-                                id: _dot
-                                anchors.left:           parent.left
-                                anchors.leftMargin:     Theme.AppTheme.marginMd
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: 7; height: 7; radius: 4
-                                color: {
-                                    const s = (_feedRow.modelData.statusLabel || "").toLowerCase()
-                                    if (s.includes("approv") || s.includes("success") || s === "active") return Theme.AppTheme.success
-                                    if (s.includes("reject") || s.includes("fail")    || s.includes("error")) return Theme.AppTheme.danger
-                                    if (s.includes("warn"))  return Theme.AppTheme.warning
-                                    return Theme.AppTheme.textMuted
-                                }
+                        AppWidgets.ActivityFeed {
+                            id: _activityFeed
+                            anchors {
+                                top:         parent.top
+                                left:        parent.left
+                                right:       parent.right
+                                topMargin:   Theme.AppTheme.marginMd
+                                leftMargin:  Theme.AppTheme.marginMd
+                                rightMargin: Theme.AppTheme.marginMd
                             }
-
-                            // Vertical connector to next item
-                            Rectangle {
-                                visible:              _feedRow.index < _feedList.count - 1
-                                anchors.horizontalCenter: _dot.horizontalCenter
-                                anchors.top:          _dot.bottom
-                                anchors.topMargin:    2
-                                anchors.bottom:       parent.bottom
-                                width: 1
-                                color: Theme.AppTheme.divider
-                            }
-
-                            // Feed item content
-                            ColumnLayout {
-                                anchors {
-                                    left:           _dot.right
-                                    leftMargin:     Theme.AppTheme.spacingSm
-                                    right:          parent.right
-                                    rightMargin:    Theme.AppTheme.marginSm
-                                    verticalCenter: parent.verticalCenter
-                                }
-                                spacing: 2
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing:          Theme.AppTheme.spacingXs
-
-                                    AppControls.Label {
-                                        Layout.fillWidth: true
-                                        text:           _feedRow.modelData.title || ""
-                                        color:          Theme.AppTheme.textPrimary
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.smallSize
-                                        elide:          Text.ElideRight
-                                    }
-
-                                    AppWidgets.StatusChip {
-                                        visible: (_feedRow.modelData.statusLabel || "").length > 0
-                                        status:  _feedRow.modelData.statusLabel || ""
-                                    }
-                                }
-
-                                AppControls.Label {
-                                    visible:        (_feedRow.modelData.metaText || "").length > 0
-                                    text:           _feedRow.modelData.metaText || ""
-                                    color:          Theme.AppTheme.textMuted
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    elide:          Text.ElideRight
-                                }
-                            }
+                            items:     root.workspaceController
+                                ? (root.workspaceController.auditFeed.items || []) : []
+                            emptyText: root.workspaceController
+                                ? (root.workspaceController.auditFeed.emptyState || "No recent activity")
+                                : "No recent activity"
                         }
                     }
+                }
+
+                // ── Escalations panel (placeholder) ───────────────
+                Item {
+                    Layout.fillWidth:  true
+                    Layout.fillHeight: true
+                    visible: root._activePanel === "escalations"
 
                     AppWidgets.EmptyState {
                         anchors.centerIn: parent
-                        width:   Math.min(_feedList.width, 240)
-                        visible: _feedList.count === 0 && !root._load
-                        title:   root.workspaceController
-                            ? (root.workspaceController.auditFeed.emptyState || "No recent activity")
-                            : "No recent activity"
+                        width: Math.min(parent.width, 320)
+                        title: "No escalations"
+                    }
+                }
+
+                // ── System Events panel (placeholder) ─────────────
+                Item {
+                    Layout.fillWidth:  true
+                    Layout.fillHeight: true
+                    visible: root._activePanel === "system_events"
+
+                    AppWidgets.EmptyState {
+                        anchors.centerIn: parent
+                        width: Math.min(parent.width, 320)
+                        title: "No system events"
                     }
                 }
             }
