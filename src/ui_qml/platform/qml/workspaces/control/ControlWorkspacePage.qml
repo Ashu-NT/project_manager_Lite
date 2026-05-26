@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
 import App.Controls 1.0 as AppControls
+import App.Icons 1.0 as AppIcons
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
@@ -42,6 +43,20 @@ AppLayouts.WorkspaceFrame {
     property string _selectedRowId: ""
     property string _searchText:    ""
     property string _activePanel:   "approvals"
+
+    // ── Approval queue pagination ─────────────────────────────────
+    property int _queuePageSize:    50
+    property int _queueCurrentPage: 0
+
+    readonly property int _queueTotalCount: root.workspaceController
+        ? (root.workspaceController.approvalQueue.items || []).length : 0
+    readonly property int _queuePageCount:  Math.max(1, Math.ceil(root._queueTotalCount / root._queuePageSize))
+    readonly property var _queuePageRows: root.workspaceController
+        ? (root.workspaceController.approvalQueue.items || []).slice(
+            root._queueCurrentPage * root._queuePageSize,
+            (root._queueCurrentPage + 1) * root._queuePageSize
+          )
+        : []
 
     readonly property bool _detailOpen: root._selectedRowId.length > 0
         && root._activePanel === "approvals"
@@ -221,8 +236,7 @@ AppLayouts.WorkspaceFrame {
                     AppWidgets.DataTable {
                         Layout.fillWidth:  true
                         Layout.fillHeight: true
-                        rows:          root.workspaceController
-                            ? (root.workspaceController.approvalQueue.items || []) : []
+                        rows:          root._queuePageRows
                         columns:       root._queueColumns
                         selectedRowId: root._selectedRowId
                         emptyText:     root.workspaceController
@@ -234,6 +248,121 @@ AppLayouts.WorkspaceFrame {
                             root._selectedRowId = id
                             const item = root.approvalItemById(id)
                             if (item !== null) decisionDialog.openForDecision("approve", item)
+                        }
+                    }
+
+                    // Approval queue pagination footer
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 34
+                        color:  Theme.AppTheme.surfaceRaised
+
+                        Rectangle {
+                            anchors { top: parent.top; left: parent.left; right: parent.right }
+                            height: 1; color: Theme.AppTheme.divider
+                        }
+
+                        RowLayout {
+                            anchors.fill:        parent
+                            anchors.leftMargin:  Theme.AppTheme.marginMd
+                            anchors.rightMargin: Theme.AppTheme.marginMd
+                            spacing:             Theme.AppTheme.spacingSm
+
+                            AppControls.Label {
+                                text: {
+                                    if (root._queueTotalCount === 0) return "No requests"
+                                    const s = root._queueCurrentPage * root._queuePageSize + 1
+                                    const e = Math.min((root._queueCurrentPage + 1) * root._queuePageSize, root._queueTotalCount)
+                                    return s + "–" + e + " of " + root._queueTotalCount
+                                }
+                                color:          Theme.AppTheme.textMuted
+                                font.family:    Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            AppControls.Label {
+                                text: "Per page:"
+                                color:          Theme.AppTheme.textMuted
+                                font.family:    Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                            }
+
+                            Repeater {
+                                model: [25, 50, 100]
+                                delegate: Rectangle {
+                                    id: _aqPgSzBtn
+                                    required property int modelData
+                                    implicitWidth: 28; implicitHeight: 22; radius: 3
+                                    color: root._queuePageSize === _aqPgSzBtn.modelData
+                                        ? Theme.AppTheme.accent
+                                        : _aqPgSzMA.containsMouse ? Theme.AppTheme.hoverSurface : Theme.AppTheme.surface
+                                    border.color: root._queuePageSize === _aqPgSzBtn.modelData
+                                        ? Theme.AppTheme.accent : Theme.AppTheme.divider
+                                    border.width: 1
+                                    AppControls.Label {
+                                        anchors.centerIn: parent
+                                        text:  String(_aqPgSzBtn.modelData)
+                                        color: root._queuePageSize === _aqPgSzBtn.modelData
+                                            ? "white" : Theme.AppTheme.textSecondary
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                    }
+                                    MouseArea {
+                                        id: _aqPgSzMA
+                                        anchors.fill: parent; hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: { root._queuePageSize = _aqPgSzBtn.modelData; root._queueCurrentPage = 0 }
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                implicitWidth: 22; implicitHeight: 22; radius: 3
+                                color: _aqPrevMA.containsMouse && root._queueCurrentPage > 0
+                                    ? Theme.AppTheme.hoverSurface : "transparent"
+                                border.color: Theme.AppTheme.divider; border.width: 1
+                                AppIcons.AppIcon {
+                                    anchors.centerIn: parent; name: "chevron_left"; size: 10
+                                    iconColor: root._queueCurrentPage > 0
+                                        ? Theme.AppTheme.textSecondary : Theme.AppTheme.divider
+                                }
+                                MouseArea {
+                                    id: _aqPrevMA
+                                    anchors.fill: parent; hoverEnabled: true
+                                    enabled: root._queueCurrentPage > 0
+                                    cursorShape: root._queueCurrentPage > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                    onClicked: root._queueCurrentPage -= 1
+                                }
+                            }
+
+                            AppControls.Label {
+                                text:  (root._queueCurrentPage + 1) + " / " + root._queuePageCount
+                                color: Theme.AppTheme.textMuted
+                                font.family:    Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                            }
+
+                            Rectangle {
+                                implicitWidth: 22; implicitHeight: 22; radius: 3
+                                color: _aqNextMA.containsMouse && root._queueCurrentPage < root._queuePageCount - 1
+                                    ? Theme.AppTheme.hoverSurface : "transparent"
+                                border.color: Theme.AppTheme.divider; border.width: 1
+                                AppIcons.AppIcon {
+                                    anchors.centerIn: parent; name: "chevron_right"; size: 10
+                                    iconColor: root._queueCurrentPage < root._queuePageCount - 1
+                                        ? Theme.AppTheme.textSecondary : Theme.AppTheme.divider
+                                }
+                                MouseArea {
+                                    id: _aqNextMA
+                                    anchors.fill: parent; hoverEnabled: true
+                                    enabled: root._queueCurrentPage < root._queuePageCount - 1
+                                    cursorShape: root._queueCurrentPage < root._queuePageCount - 1
+                                        ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                    onClicked: root._queueCurrentPage += 1
+                                }
+                            }
                         }
                     }
                 }
@@ -272,29 +401,64 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                // ── Escalations panel (placeholder) ───────────────
-                Item {
+                // ── Escalations panel ─────────────────────────────
+                ColumnLayout {
                     Layout.fillWidth:  true
                     Layout.fillHeight: true
                     visible: root._activePanel === "escalations"
+                    spacing: 0
 
-                    AppWidgets.EmptyState {
-                        anchors.centerIn: parent
-                        width: Math.min(parent.width, 320)
-                        title: "No escalations"
+                    AppWidgets.TableToolbar {
+                        Layout.fillWidth:  true
+                        searchPlaceholder: "Search escalations..."
+                        showRefresh:       true
+                        isBusy:            root._busy
+                        onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
+                    }
+
+                    AppWidgets.DataTable {
+                        Layout.fillWidth:  true
+                        Layout.fillHeight: true
+                        rows:      []
+                        columns:   [
+                            { key: "title",       label: "Reference",   flex: 3, minWidth: 200, sortable: true,  visible: true },
+                            { key: "subtitle",    label: "Type",        flex: 2, minWidth: 140, sortable: false, visible: true },
+                            { key: "statusLabel", label: "Severity",    flex: 0, minWidth: 100, sortable: false, visible: true, type: "status" },
+                            { key: "metaText",    label: "SLA / Age",   flex: 2, minWidth: 140, sortable: false, visible: true }
+                        ]
+                        emptyText: "No active escalations — all requests are within SLA"
+                        loading:   root._load
                     }
                 }
 
-                // ── System Events panel (placeholder) ─────────────
-                Item {
+                // ── System Events panel ────────────────────────────
+                ColumnLayout {
                     Layout.fillWidth:  true
                     Layout.fillHeight: true
                     visible: root._activePanel === "system_events"
+                    spacing: 0
 
-                    AppWidgets.EmptyState {
-                        anchors.centerIn: parent
-                        width: Math.min(parent.width, 320)
-                        title: "No system events"
+                    AppWidgets.TableToolbar {
+                        Layout.fillWidth:  true
+                        searchPlaceholder: "Search system events..."
+                        showFilter:        true
+                        showRefresh:       true
+                        isBusy:            root._busy
+                        onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
+                    }
+
+                    AppWidgets.DataTable {
+                        Layout.fillWidth:  true
+                        Layout.fillHeight: true
+                        rows:      []
+                        columns:   [
+                            { key: "title",       label: "Event",       flex: 4, minWidth: 240, sortable: true,  visible: true },
+                            { key: "subtitle",    label: "Source",      flex: 2, minWidth: 140, sortable: false, visible: true },
+                            { key: "statusLabel", label: "Severity",    flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
+                            { key: "metaText",    label: "Timestamp",   flex: 2, minWidth: 160, sortable: false, visible: true }
+                        ]
+                        emptyText: "No system events recorded in this session"
+                        loading:   root._load
                     }
                 }
             }

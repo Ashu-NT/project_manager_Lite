@@ -2,7 +2,8 @@
 
 > **Branch:** `refactor/safe-start`  
 > **Started:** 2026-05-26  
-> **Status:** In progress
+> **Completed:** 2026-05-26  
+> **Status:** Done
 
 ---
 
@@ -17,7 +18,7 @@ Security/Support sections, and full validation.
 ## Tasks
 
 ### Phase 1 — Admin Console: Entity-specific columns
-**Status:** `[ ] pending`
+**Status:** `[x] complete`
 
 All 8 entity workspaces in `AdminConsolePage.qml` currently share a single generic
 `_entityColumns` definition (`Name / Details / Status / Info`). Replace with per-entity
@@ -39,7 +40,7 @@ column sets:
 ---
 
 ### Phase 2 — Control Center: Panel nav tabs
-**Status:** `[ ] pending`
+**Status:** `[x] complete`
 
 The Control Center currently stacks Approvals and Audit vertically with no way to
 switch between panels.
@@ -53,7 +54,7 @@ placeholder panels.
 ---
 
 ### Phase 3 — Control Center: Use AppWidgets.ActivityFeed
-**Status:** `[ ] pending`
+**Status:** `[x] complete`
 
 The Audit panel uses a hand-rolled ListView delegate with inline timeline styling.
 Replace with `AppWidgets.ActivityFeed` bound to
@@ -64,7 +65,7 @@ Replace with `AppWidgets.ActivityFeed` bound to
 ---
 
 ### Phase 4 — Settings: Security section
-**Status:** `[ ] pending`
+**Status:** `[x] complete`
 
 Currently an `EmptyState` placeholder. Add real content:
 - Password policy (min length, complexity, expiry)
@@ -80,7 +81,7 @@ Display as read-only info cards (writable controls are future scope). Use
 ---
 
 ### Phase 5 — Settings: Support & Diagnostics section
-**Status:** `[ ] pending`
+**Status:** `[x] complete`
 
 Verify current state and replace placeholder with:
 - Runtime version info (from `workspaceController.overview`)
@@ -92,7 +93,7 @@ Verify current state and replace placeholder with:
 ---
 
 ### Phase 6 — Validation
-**Status:** `[ ] pending`
+**Status:** `[x] complete`
 
 Run `python main_qt.py`, navigate every workspace section, and confirm:
 - No QML errors in console
@@ -105,9 +106,9 @@ Run `python main_qt.py`, navigate every workspace section, and confirm:
 
 ## Completion Checklist
 
-- [ ] Phase 1: Admin entity-specific columns
-- [ ] Phase 2: Control Center panel nav tabs
-- [ ] Phase 3: Control Center ActivityFeed widget
-- [ ] Phase 4: Settings Security section
-- [ ] Phase 5: Settings Support & Diagnostics section
-- [ ] Phase 6: Validation run
+- [x] Phase 1: Admin entity-specific columns
+- [x] Phase 2: Control Center panel nav tabs
+- [x] Phase 3: Control Center ActivityFeed widget
+- [x] Phase 4: Settings Security section
+- [x] Phase 5: Settings Support & Diagnostics section
+- [x] Phase 6: Validation run

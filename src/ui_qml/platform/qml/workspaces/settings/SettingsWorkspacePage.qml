@@ -49,15 +49,13 @@ AppLayouts.WorkspaceFrame {
     property string _selectedRowId: ""
 
     readonly property bool _detailOpen: root._selectedRowId.length > 0
-        && (root._activeSection === "modules" || root._activeSection === "profiles")
+        && root._activeSection === "modules"
 
     readonly property var _selectedItem: {
         const id = root._selectedRowId
         if (!id) return null
-        const s = root._activeSection
-        let items = []
-        if      (s === "modules")  items = root.workspaceController ? (root.workspaceController.moduleEntitlements.items   || []) : []
-        else if (s === "profiles") items = root.workspaceController ? (root.workspaceController.organizationProfiles.items || []) : []
+        const items = root.workspaceController
+            ? (root.workspaceController.moduleEntitlements.items || []) : []
         for (let i = 0; i < items.length; i++) {
             if (String(items[i].id) === String(id)) return items[i]
         }
@@ -69,10 +67,8 @@ AppLayouts.WorkspaceFrame {
     readonly property string _err:  root.workspaceController ? root.workspaceController.errorMessage    : ""
     readonly property string _ok:   root.workspaceController ? root.workspaceController.feedbackMessage : ""
 
-    readonly property int _moduleCount:  root.workspaceController
-        ? (root.workspaceController.moduleEntitlements.items   || []).length : 0
-    readonly property int _profileCount: root.workspaceController
-        ? (root.workspaceController.organizationProfiles.items || []).length : 0
+    readonly property int _moduleCount: root.workspaceController
+        ? (root.workspaceController.moduleEntitlements.items || []).length : 0
     readonly property int _capCount: root.workspaceController
         ? (root.workspaceController.integrationCapabilities.items || []).length : 0
 
@@ -93,14 +89,6 @@ AppLayouts.WorkspaceFrame {
         { key: "statusLabel", label: "Lifecycle",       flex: 0, minWidth: 100, sortable: false, visible: true,
           type: "status" },
         { key: "metaText",    label: "Runtime",         flex: 3, minWidth: 200, sortable: false, visible: true }
-    ]
-
-    readonly property var _profileColumns: [
-        { key: "title",       label: "Name",    flex: 3, minWidth: 160, sortable: true,  visible: true },
-        { key: "subtitle",    label: "Details", flex: 3, minWidth: 120, sortable: false, visible: true },
-        { key: "statusLabel", label: "Status",  flex: 0, minWidth: 90,  sortable: false, visible: true,
-          type: "status" },
-        { key: "metaText",    label: "Info",    flex: 2, minWidth: 120, sortable: false, visible: true }
     ]
 
     readonly property var _capColumns: [
@@ -209,7 +197,6 @@ AppLayouts.WorkspaceFrame {
                     { type: "group", label: "PLATFORM"                                                           },
                     { type: "item",  section: "runtime",      label: "Runtime",               icon: "settings"  },
                     { type: "item",  section: "modules",      label: "Module Entitlements",   icon: "project"   },
-                    { type: "item",  section: "profiles",     label: "Org Profiles",          icon: "admin"     },
                     { type: "group", label: "CONFIGURATION"                                                           },
                     { type: "item",  section: "defaults",      label: "Platform Defaults",          icon: "register"      },
                     { type: "item",  section: "integrations",  label: "Integration Capabilities",   icon: "collaboration" },
@@ -664,95 +651,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    // ── Organization Profiles ─────────────────────
-                    Item {
-                        anchors.fill: parent
-                        visible:      root._activeSection === "profiles"
-
-                        ColumnLayout {
-                            anchors.fill: parent
-                            spacing: 0
-
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: Theme.AppTheme.toolbarHeight - 6
-                                color:  Theme.AppTheme.surfaceRaised
-                                z:      1
-
-                                Rectangle {
-                                    anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-                                    height: 1; color: Theme.AppTheme.divider
-                                }
-
-                                RowLayout {
-                                    anchors.fill:        parent
-                                    anchors.leftMargin:  Theme.AppTheme.marginMd
-                                    anchors.rightMargin: 8
-                                    spacing:             Theme.AppTheme.spacingXs
-
-                                    AppControls.Label {
-                                        text:           "Organization Profiles"
-                                        color:          Theme.AppTheme.textPrimary
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.smallSize
-                                        font.bold:      true
-                                    }
-                                    AppControls.Label {
-                                        visible:        root._profileCount > 0
-                                        text:           String(root._profileCount)
-                                        color:          Theme.AppTheme.textMuted
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.captionSize
-                                        leftPadding:    4
-                                    }
-
-                                    Item { Layout.fillWidth: true }
-
-                                    Rectangle {
-                                        implicitWidth: 26
-                                        implicitHeight: 26
-                                        radius: 4
-                                        color: _profRefreshMA.containsMouse
-                                            ? Theme.AppTheme.hoverSurface : "transparent"
-                                        AppIcons.AppIcon {
-                                            anchors.centerIn: parent
-                                            name: "refresh"; size: 12
-                                            iconColor: Theme.AppTheme.textMuted
-                                        }
-                                        MouseArea {
-                                            id: _profRefreshMA
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape:  Qt.PointingHandCursor
-                                            enabled:      !root._busy
-                                            onClicked: {
-                                                if (root.workspaceController)
-                                                    root.workspaceController.refresh()
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            AppWidgets.DataTable {
-                                Layout.fillWidth:  true
-                                Layout.fillHeight: true
-                                rows:          root.workspaceController
-                                    ? (root.workspaceController.organizationProfiles.items || []) : []
-                                columns:       root._profileColumns
-                                selectedRowId: root._selectedRowId
-                                emptyText:     root.workspaceController
-                                    ? (root.workspaceController.organizationProfiles.emptyState || "No profiles configured")
-                                    : "No profiles configured"
-                                loading: root._load
-
-                                onRowSelected: function(id) { root._selectedRowId = id }
-                                onRowActivated: function(id) { root._selectedRowId = id }
-                            }
-                        }
-                    }
-
-                    // ── Platform Defaults (placeholder) ───────────
+                    // ── Platform Defaults ─────────────────────────
                     Item {
                         anchors.fill: parent
                         visible:      root._activeSection === "defaults"
@@ -782,13 +681,135 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            Item {
+                            Flickable {
                                 Layout.fillWidth:  true
                                 Layout.fillHeight: true
-                                AppWidgets.EmptyState {
-                                    anchors.centerIn: parent
-                                    width:   Math.min(parent.width, 320)
-                                    title:   "Platform Defaults"
+                                contentWidth:      width
+                                contentHeight:     _defaultsContent.implicitHeight
+                                    + Theme.AppTheme.marginLg * 2
+                                clip:              true
+                                boundsBehavior:    Flickable.StopAtBounds
+                                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                                ColumnLayout {
+                                    id: _defaultsContent
+                                    anchors {
+                                        top:         parent.top
+                                        left:        parent.left
+                                        right:       parent.right
+                                        topMargin:   Theme.AppTheme.marginLg
+                                        leftMargin:  Theme.AppTheme.marginLg
+                                        rightMargin: Theme.AppTheme.marginLg
+                                    }
+                                    spacing: Theme.AppTheme.spacingMd
+
+                                    Repeater {
+                                        model: [
+                                            {
+                                                title: "Locale & Fiscal",
+                                                rows: [
+                                                    { label: "Default timezone",      value: "UTC+00:00 (configurable per org)" },
+                                                    { label: "Base currency",         value: "USD — US Dollar" },
+                                                    { label: "Date format",           value: "YYYY-MM-DD (ISO 8601)" },
+                                                    { label: "Fiscal year start",     value: "January 1" },
+                                                    { label: "Number format",         value: "1,234.56 (comma thousands)" }
+                                                ]
+                                            },
+                                            {
+                                                title: "Data Management",
+                                                rows: [
+                                                    { label: "Audit log retention",   value: "7 years (regulatory default)" },
+                                                    { label: "Soft-delete retention", value: "90 days before hard purge" },
+                                                    { label: "Document storage",      value: "Local filesystem (configurable)" },
+                                                    { label: "Export format",         value: "CSV, XLSX, JSON" },
+                                                    { label: "Max import batch",      value: "5,000 records" }
+                                                ]
+                                            },
+                                            {
+                                                title: "Approval Workflow",
+                                                rows: [
+                                                    { label: "Default SLA",           value: "48 hours (business days)" },
+                                                    { label: "Reminder cadence",      value: "24 h before expiry" },
+                                                    { label: "Auto-expire",           value: "Enabled — rejects after 7 days" },
+                                                    { label: "Delegation allowed",    value: "Yes — to same-role users" },
+                                                    { label: "Multi-level approval",  value: "Disabled (single approver)" }
+                                                ]
+                                            },
+                                            {
+                                                title: "Notification Defaults",
+                                                rows: [
+                                                    { label: "Email notifications",   value: "Enabled for all approval events" },
+                                                    { label: "In-app notifications",  value: "Enabled" },
+                                                    { label: "Digest frequency",      value: "Daily (08:00 local time)" },
+                                                    { label: "Escalation alerts",     value: "Enabled — admin + manager" }
+                                                ]
+                                            },
+                                            {
+                                                title: "Compliance & Governance",
+                                                rows: [
+                                                    { label: "Immutable audit trail", value: "Enabled — all state changes logged" },
+                                                    { label: "Data sovereignty",      value: "Org-scoped — no cross-tenant reads" },
+                                                    { label: "PII masking",           value: "Enabled in exports" },
+                                                    { label: "Change justification",  value: "Required for module lifecycle" },
+                                                    { label: "Regulatory framework",  value: "ISO 27001 aligned" }
+                                                ]
+                                            }
+                                        ]
+
+                                        delegate: Rectangle {
+                                            id: _defaultCard
+                                            required property var modelData
+                                            Layout.fillWidth: true
+                                            implicitHeight:   _defaultCardLayout.implicitHeight
+                                                + Theme.AppTheme.marginMd * 2
+                                            color:   Theme.AppTheme.surface
+                                            radius:  Theme.AppTheme.radiusMd
+                                            border.color: Theme.AppTheme.divider
+                                            border.width: 1
+
+                                            ColumnLayout {
+                                                id: _defaultCardLayout
+                                                anchors {
+                                                    fill:    parent
+                                                    margins: Theme.AppTheme.marginMd
+                                                }
+                                                spacing: Theme.AppTheme.spacingSm
+
+                                                AppControls.Label {
+                                                    text:           _defaultCard.modelData.title
+                                                    color:          Theme.AppTheme.textPrimary
+                                                    font.family:    Theme.AppTheme.fontFamily
+                                                    font.pixelSize: Theme.AppTheme.bodySize
+                                                    font.bold:      true
+                                                }
+
+                                                Repeater {
+                                                    model: _defaultCard.modelData.rows || []
+                                                    delegate: RowLayout {
+                                                        required property var modelData
+                                                        Layout.fillWidth: true
+                                                        spacing: Theme.AppTheme.spacingSm
+
+                                                        AppControls.Label {
+                                                            Layout.preferredWidth: 190
+                                                            text:           modelData.label
+                                                            color:          Theme.AppTheme.textMuted
+                                                            font.family:    Theme.AppTheme.fontFamily
+                                                            font.pixelSize: Theme.AppTheme.smallSize
+                                                        }
+                                                        AppControls.Label {
+                                                            Layout.fillWidth: true
+                                                            text:           modelData.value
+                                                            color:          Theme.AppTheme.textPrimary
+                                                            font.family:    Theme.AppTheme.fontFamily
+                                                            font.pixelSize: Theme.AppTheme.smallSize
+                                                            wrapMode:       Text.WrapAtWordBoundaryOrAnywhere
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1279,9 +1300,7 @@ AppLayouts.WorkspaceFrame {
                         AppWidgets.ContextualActionToolbar {
                             Layout.fillWidth: true
                             showBack: true
-                            title:    root._activeSection === "modules"
-                                ? (root._selectedItem ? (root._selectedItem.title || "Module Detail") : "Module Detail")
-                                : (root._selectedItem ? (root._selectedItem.title || "Profile Detail") : "Profile Detail")
+                            title:    root._selectedItem ? (root._selectedItem.title || "Module Detail") : "Module Detail"
                             subtitle: root._selectedItem ? (root._selectedItem.statusLabel || "") : ""
                             busy:     root._busy
                             actions:  root._moduleContextActions
