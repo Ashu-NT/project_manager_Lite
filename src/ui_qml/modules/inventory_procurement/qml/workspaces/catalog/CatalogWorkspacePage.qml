@@ -516,15 +516,14 @@ AppLayouts.WorkspaceFrame {
                         selectedCount: root.workspaceController ? root.workspaceController.selectedItemCount : 0
                         busy: root.workspaceController ? root.workspaceController.isBusy : false
                         actions: [
-                            { "id": "change_status", "label": "Change Status", "icon": "edit",   "danger": false, "enabled": true },
-                            { "id": "archive",        "label": "Archive",       "icon": "delete", "danger": true,  "enabled": true }
+                            { "id": "change_property", "label": "Change Property", "icon": "edit", "danger": false, "enabled": true }
                         ]
 
                         onCancelRequested: {
                             if (root.workspaceController !== null) root.workspaceController.clearItemBulkSelection()
                         }
                         onActionTriggered: function(actionId) {
-                            if (actionId === "change_status") {
+                            if (actionId === "change_property") {
                                 _itemBulkChangePopup.open()
                             }
                         }
@@ -532,13 +531,18 @@ AppLayouts.WorkspaceFrame {
 
                     AppWidgets.BulkChangePropertyPopup {
                         id: _itemBulkChangePopup
-                        anchorItem: _itemBulkBar.actionButtonForId("change_status")
+                        anchorItem: _itemBulkBar.actionButtonForId("change_property")
                         selectedCount: root.workspaceController ? root.workspaceController.selectedItemCount : 0
                         busy: root.workspaceController ? root.workspaceController.isBusy : false
                         properties: root._bulkChangeProperties
 
                         onApplyRequested: function(payload) {
-                            // Phase 7: wire bulk status change to controller
+                            if (root.workspaceController === null) {
+                                return
+                            }
+                            if (payload.propertyId === "status") {
+                                root.workspaceController.applyBulkStatus({ "status": payload.value })
+                            }
                         }
                     }
 

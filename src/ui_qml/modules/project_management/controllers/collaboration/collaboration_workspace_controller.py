@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
@@ -27,6 +29,8 @@ from src.ui_qml.modules.project_management.view_models.collaboration import (
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
+
+logger = logging.getLogger(__name__)
 
 
 @QmlElement
@@ -260,6 +264,7 @@ class ProjectManagementCollaborationWorkspaceController(
             self._rebuild_panel_item_index()
             self._set_empty_state(workspace_state.empty_state)
         except Exception as exc:  # pragma: no cover - defensive fallback
+            logger.exception("Failed to refresh project management collaboration workspace.")
             self._set_error_message(str(exc))
         finally:
             self._set_is_loading(False)

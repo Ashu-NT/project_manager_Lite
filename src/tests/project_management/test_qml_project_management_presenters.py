@@ -24,6 +24,7 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_scheduling_desktop_api,
     build_project_management_tasks_desktop_api,
 )
+from src.api.desktop.platform import ApprovalRequestDto, ApprovalStatus, DesktopApiResult
 from src.core.modules.project_management.domain.enums import (
     CostType,
     DependencyType,
@@ -38,6 +39,9 @@ from src.core.modules.project_management.domain.risk.register import (
 )
 from src.core.platform.documents import DocumentStorageKind
 from src.tests.ui_runtime_helpers import wait_until
+from src.ui_qml.modules.project_management.presenters.collaboration_workspace_presenter import (
+    ProjectCollaborationWorkspacePresenter,
+)
 
 
 def test_project_management_workspace_presenters_match_qml_routes() -> None:
@@ -113,6 +117,42 @@ def test_project_management_workspace_catalog_exposes_typed_collaboration_contro
         "ok": True,
         "message": "Task mentions marked as read.",
     }
+
+
+def test_collaboration_presenter_skips_null_approval_rows() -> None:
+    class _FakeApprovalApi:
+        def list_requests(self, *, status=None, limit: int = 200) -> DesktopApiResult[tuple[ApprovalRequestDto | None, ...]]:
+            return DesktopApiResult(
+                ok=True,
+                data=(
+                    ApprovalRequestDto(
+                        id="approval-1",
+                        request_type="purchase_order.submit",
+                        entity_type="purchase_order",
+                        entity_id="po-1",
+                        project_id=None,
+                        status=ApprovalStatus.PENDING,
+                        requested_by_username="ashu",
+                        requested_at=datetime(2026, 5, 1, 9, 0),
+                        module_label="Inventory & Procurement",
+                        context_label="PO INV-PO-001 | 1 line",
+                        display_label="Submit purchase order INV-PO-001",
+                    ),
+                    None,
+                ),
+            )
+
+    presenter = ProjectCollaborationWorkspacePresenter(
+        desktop_api=build_project_management_collaboration_desktop_api(
+            collaboration_service=_FakeCollaborationService()
+        ),
+        approval_api=_FakeApprovalApi(),
+    )
+
+    workspace = presenter.build_workspace_state()
+
+    assert len(workspace.approvals.items) == 1
+    assert workspace.approvals.items[0].id == "approval-1"
 
 
 def test_project_management_workspace_catalog_exposes_typed_portfolio_controller() -> None:

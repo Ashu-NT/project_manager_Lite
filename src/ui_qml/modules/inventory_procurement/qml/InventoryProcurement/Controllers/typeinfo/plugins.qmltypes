@@ -52,6 +52,7 @@ Module {
         Method { name: "toggleCategoryActive"; type: "QVariantMap"; Parameter { name: "categoryId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
         Method { name: "createItem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "updateItem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "applyBulkStatus"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "toggleItemActive"; type: "QVariantMap"; Parameter { name: "itemId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
         Method { name: "linkDocument"; type: "QVariantMap"; Parameter { name: "itemId"; type: "QString" } Parameter { name: "documentId"; type: "QString" } }
         Method { name: "unlinkDocument"; type: "QVariantMap"; Parameter { name: "itemId"; type: "QString" } Parameter { name: "documentId"; type: "QString" } }

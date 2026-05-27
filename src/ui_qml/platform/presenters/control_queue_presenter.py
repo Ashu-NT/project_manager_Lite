@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 from src.api.desktop.platform import (
@@ -14,6 +15,8 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionItemViewModel,
     PlatformWorkspaceActionListViewModel,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class PlatformControlQueuePresenter:
@@ -42,12 +45,13 @@ class PlatformControlQueuePresenter:
                 subtitle=message,
                 empty_state=message,
             )
+        rows = self._valid_approval_rows(result.data)
 
         return PlatformWorkspaceActionListViewModel(
             title="Approval Queue",
             subtitle="Approve or reject governed changes from the QML control workspace.",
             empty_state="No approval requests are available yet.",
-            items=tuple(self.serialize_approval_item(row) for row in result.data),
+            items=tuple(self.serialize_approval_item(row) for row in rows),
         )
 
     def build_audit_feed(self) -> PlatformWorkspaceActionListViewModel:
@@ -122,6 +126,20 @@ class PlatformControlQueuePresenter:
                 "decisionNote": note_text,
             },
         )
+
+    @staticmethod
+    def _valid_approval_rows(rows) -> tuple[object, ...]:
+        valid_rows: list[object] = []
+        for row in rows or ():
+            if row is None:
+                logger.warning("Skipping null approval row while building platform approval queue.")
+                continue
+            request_id = str(getattr(row, "id", "") or "").strip()
+            if not request_id:
+                logger.warning("Skipping malformed approval row without id: %r", row)
+                continue
+            valid_rows.append(row)
+        return tuple(valid_rows)
 
     @staticmethod
     def _format_timestamp(value: datetime | None) -> str:

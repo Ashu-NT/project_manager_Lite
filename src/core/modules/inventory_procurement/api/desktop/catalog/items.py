@@ -159,6 +159,21 @@ class InventoryCatalogDesktopItemMixin:
         )
         return self._serialize_item(item)
 
+    def change_item_status(
+        self,
+        item_id: str,
+        *,
+        status: str,
+        expected_version: int | None = None,
+    ) -> InventoryItemDesktopDto:
+        service = self._require_item_service()
+        item = service.update_item(
+            item_id,
+            status=status,
+            expected_version=expected_version,
+        )
+        return self._serialize_item(item)
+
     def toggle_item_active(
         self,
         item_id: str,
