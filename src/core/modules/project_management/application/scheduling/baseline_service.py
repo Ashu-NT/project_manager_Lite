@@ -3,7 +3,12 @@ from typing import Optional, Dict, List
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.domain.scheduling.baseline import ProjectBaseline, BaselineTask
+from src.core.modules.project_management.domain.scheduling.baseline import (
+    BaselineStatus,
+    BaselineTask,
+    BaselineVarianceRecord,
+    ProjectBaseline,
+)
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
@@ -337,3 +342,216 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         except Exception:
             self._session.rollback()
             raise
+
+    # ── lifecycle: submit / approve / reject ────────────────────────────────
+
+    def submit_baseline(
+        self,
+        baseline_id: str,
+        submitted_by: str,
+        notes: str = "",
+    ) -> ProjectBaseline:
+        """Transition baseline from DRAFT → SUBMITTED for approval routing."""
+        require_permission(
+            self._user_session, "baseline.manage", operation_label="submit baseline"
+        )
+        baseline = self._baselines.get_baseline(baseline_id)
+        if not baseline:
+            raise NotFoundError("Baseline not found.", code="BASELINE_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            baseline.project_id,
+            "baseline.manage",
+            operation_label="submit baseline",
+        )
+        baseline.submit(submitted_by=submitted_by, notes=notes)
+        try:
+            self._baselines.update_baseline(baseline)
+            self._session.commit()
+            record_audit(
+                self,
+                action="baseline.submit",
+                entity_type="project_baseline",
+                entity_id=baseline_id,
+                project_id=baseline.project_id,
+                details={"name": baseline.name, "submitted_by": submitted_by},
+            )
+        except Exception:
+            self._session.rollback()
+            raise
+        return baseline
+
+    def approve_baseline(
+        self,
+        baseline_id: str,
+        approved_by: str,
+        notes: str = "",
+    ) -> ProjectBaseline:
+        """
+        Transition baseline from SUBMITTED → APPROVED.
+
+        Supersedes the current approved baseline (if any) and builds variance
+        records comparing the new plan against the previous approved plan.
+        """
+        require_permission(
+            self._user_session, "baseline.approve", operation_label="approve baseline"
+        )
+        baseline = self._baselines.get_baseline(baseline_id)
+        if not baseline:
+            raise NotFoundError("Baseline not found.", code="BASELINE_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            baseline.project_id,
+            "baseline.approve",
+            operation_label="approve baseline",
+        )
+
+        previous_approved = self._baselines.get_approved_baseline(baseline.project_id)
+
+        baseline.approve(approved_by=approved_by, notes=notes)
+
+        variance_records: List[BaselineVarianceRecord] = []
+        if previous_approved is not None and previous_approved.id != baseline_id:
+            variance_records = self._build_variance_records(
+                new_baseline=baseline,
+                previous_baseline=previous_approved,
+            )
+            previous_approved.supersede()
+
+        try:
+            if previous_approved is not None and previous_approved.id != baseline_id:
+                self._baselines.update_baseline(previous_approved)
+            self._baselines.update_baseline(baseline)
+            if variance_records:
+                self._baselines.add_variance_records(variance_records)
+            self._session.commit()
+            record_audit(
+                self,
+                action="baseline.approve",
+                entity_type="project_baseline",
+                entity_id=baseline_id,
+                project_id=baseline.project_id,
+                details={
+                    "name": baseline.name,
+                    "approved_by": approved_by,
+                    "superseded_id": previous_approved.id if previous_approved else None,
+                },
+            )
+        except Exception:
+            self._session.rollback()
+            raise
+
+        return baseline
+
+    def reject_baseline(
+        self,
+        baseline_id: str,
+        notes: str = "",
+    ) -> ProjectBaseline:
+        """Transition baseline from SUBMITTED → REJECTED."""
+        require_permission(
+            self._user_session, "baseline.approve", operation_label="reject baseline"
+        )
+        baseline = self._baselines.get_baseline(baseline_id)
+        if not baseline:
+            raise NotFoundError("Baseline not found.", code="BASELINE_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            baseline.project_id,
+            "baseline.approve",
+            operation_label="reject baseline",
+        )
+        baseline.reject(notes=notes)
+        try:
+            self._baselines.update_baseline(baseline)
+            self._session.commit()
+            record_audit(
+                self,
+                action="baseline.reject",
+                entity_type="project_baseline",
+                entity_id=baseline_id,
+                project_id=baseline.project_id,
+                details={"name": baseline.name},
+            )
+        except Exception:
+            self._session.rollback()
+            raise
+        return baseline
+
+    def get_approved_baseline(self, project_id: str) -> Optional[ProjectBaseline]:
+        """Return the currently approved baseline for the project, or None."""
+        require_permission(
+            self._user_session, "project.read", operation_label="view approved baseline"
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "project.read",
+            operation_label="view approved baseline",
+        )
+        return self._baselines.get_approved_baseline(project_id)
+
+    def list_variance_records(
+        self,
+        baseline_id: str,
+    ) -> List[BaselineVarianceRecord]:
+        """Return variance records created when this baseline was approved."""
+        require_permission(
+            self._user_session, "project.read", operation_label="list baseline variance"
+        )
+        baseline = self._baselines.get_baseline(baseline_id)
+        if not baseline:
+            raise NotFoundError("Baseline not found.", code="BASELINE_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            baseline.project_id,
+            "project.read",
+            operation_label="list baseline variance",
+        )
+        return self._baselines.list_variance_records(baseline_id)
+
+    # ── internal helpers ────────────────────────────────────────────────────
+
+    def _build_variance_records(
+        self,
+        new_baseline: ProjectBaseline,
+        previous_baseline: ProjectBaseline,
+    ) -> List[BaselineVarianceRecord]:
+        """
+        Build per-task variance records comparing new vs previous baseline tasks.
+        Only creates records for tasks present in both baselines.
+        """
+        new_tasks = {bt.task_id: bt for bt in self._baselines.list_tasks(new_baseline.id)}
+        prev_tasks = {bt.task_id: bt for bt in self._baselines.list_tasks(previous_baseline.id)}
+
+        records: List[BaselineVarianceRecord] = []
+        for task_id, new_bt in new_tasks.items():
+            prev_bt = prev_tasks.get(task_id)
+            if prev_bt is None:
+                continue
+
+            start_var = 0
+            if new_bt.baseline_start and prev_bt.baseline_start:
+                start_var = (new_bt.baseline_start - prev_bt.baseline_start).days
+
+            finish_var = 0
+            if new_bt.baseline_finish and prev_bt.baseline_finish:
+                finish_var = (new_bt.baseline_finish - prev_bt.baseline_finish).days
+
+            cost_var = new_bt.baseline_planned_cost - prev_bt.baseline_planned_cost
+
+            if start_var == 0 and finish_var == 0 and cost_var == 0.0:
+                continue  # no change — skip to keep variance log clean
+
+            records.append(BaselineVarianceRecord.create(
+                project_id=new_baseline.project_id,
+                new_baseline_id=new_baseline.id,
+                superseded_baseline_id=previous_baseline.id,
+                task_id=task_id,
+                task_name=new_bt.task_name,
+                start_variance_days=start_var,
+                finish_variance_days=finish_var,
+                cost_variance=cost_var,
+            ))
+
+        return records

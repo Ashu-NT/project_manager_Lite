@@ -23,6 +23,8 @@ class Task:
     actual_start: Optional[date] = None
     actual_end: Optional[date] = None
     deadline: date | None = None
+    constraint_type: Optional[str] = None
+    constraint_date: Optional[date] = None
     version: int = 1
 
     @staticmethod

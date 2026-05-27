@@ -1163,10 +1163,13 @@ Legend: ✅ done  🔄 partial foundation  ⬜ pending
      ResourceLevelingEngine (proper standalone service replacing the mixin pattern),
      BaselineComparisonService (schedule vs baseline variance), ScheduleChangeImpactService (downstream impact analysis)
    - SchedulingEngine retained as orchestration layer; new services are additive
-3. 🔄 enterprise calendar priority and constraint handling
-   - CalendarResolver and ConstraintValidator now exist (step 2)
-   - remaining: wire constraint_type / constraint_date fields into Task domain model and DB migration;
-     integrate CalendarResolver into SchedulingEngine for per-resource calendar overrides
+3. ✅ enterprise calendar priority and constraint handling
+   - added: constraint_type (Optional[str]) and constraint_date (Optional[date]) to Task domain model
+   - SchedulingEngine now accepts optional CalendarResolver + resource_calendar_map for per-resource
+     calendar overrides; resolves calendar per task during the forward pass via _resolve_task_calendar
+   - _apply_scheduling_constraints applied after CPM forward pass: drives MSO/MFO/SNET/FNET into
+     the schedule; SNLT/FNLT/DEADLINE remain validation-only (ConstraintValidator reports them)
+   - backward-compatible: all new __init__ params are optional; existing callers unaffected
 4. ✅ resource skills and certifications
    - added domain: ResourceSkill, ResourceCertification, TaskSkillRequirement, SkillProficiencyLevel, SkillValidationMode
    - added contracts: ResourceSkillRepository, ResourceCertificationRepository, TaskSkillRequirementRepository
@@ -1181,11 +1184,25 @@ Legend: ✅ done  🔄 partial foundation  ⬜ pending
    - added: ResourceLevelingEngine (standalone service with simulate → commit pattern)
    - added: AssignmentValidationResult (from step 4)
    - ResourceLevelingMixin kept for backward compat; new code should use ResourceLevelingEngine
-7. ⬜ multi-baseline governance and variance records
-   - partial: BaselineService exists (create/list/delete), missing multi-status lifecycle, variance records, BaselineComparisonService
-8. 🔄 financial model expansion and cross-module cost links
-   - partial: CostService, FinanceService, currency-aware EVM exist
-   - missing: committed/forecast cost model, procurement/material roll-up, approval thresholds
+7. ✅ multi-baseline governance and variance records
+   - added: BaselineStatus enum (DRAFT → SUBMITTED → APPROVED → REJECTED → SUPERSEDED)
+   - ProjectBaseline extended: status, version, submitted_by/at, approved_by/at, notes
+   - lifecycle methods on ProjectBaseline: submit(), approve(), reject(), supersede()
+   - added: BaselineVarianceRecord domain type (per-task start/finish/cost variance snapshot)
+   - BaselineRepository extended: update_baseline(), get_approved_baseline(),
+     add_variance_records(), list_variance_records()
+   - BaselineService extended: submit_baseline(), approve_baseline(), reject_baseline(),
+     get_approved_baseline(), list_variance_records()
+   - approve_baseline() supersedes previous approved baseline and auto-builds variance records
+8. ✅ financial model expansion and cross-module cost links
+   - added: CommitmentStatus enum (UNCOMMITTED → COMMITTED → INVOICED → PAID) to CostItem
+   - CostItem extended: forecast_amount, commitment_status, vendor_reference
+   - added: ForecastCostService with:
+     - get_commitment_summary() — lifecycle totals by commitment status
+     - get_material_rollup() — MATERIAL cost items aggregated by project/task
+     - compute_forecast() — ETC/EAC via EACMethod (MANUAL / BAC_OVER_CPI / AC_PLUS_ETC_AT_PLAN / AC_PLUS_ETC_AT_CPI)
+     - check_cost_threshold() — flags when EAC exceeds BAC by threshold%
+   - added types: CommitmentSummary, MaterialRollup, CostForecastResult, EACMethod
 9. ✅ metadata-driven reporting
    - added: ReportDefinition, ReportColumn, ReportFilter, ReportGrouping, SavedReportView
    - added enums: ColumnDataType, FilterOperator, GroupingFunction, SortDirection, ReportVisibility
@@ -1230,6 +1247,14 @@ Legend: ✅ implemented  ⬜ pending
 - ✅ `ImportMappingService` — `infrastructure/importers/import_parser.py`
 - ✅ `ImportValidationService` — `infrastructure/importers/import_parser.py`
 - ✅ `ImportPreviewModel` — `infrastructure/importers/import_parser.py`
+- ✅ `BaselineStatus` — `domain/scheduling/baseline.py`
+- ✅ `BaselineVarianceRecord` — `domain/scheduling/baseline.py`
+- ✅ `CommitmentStatus` — `domain/financials/cost.py`
+- ✅ `ForecastCostService` — `application/financials/forecast_cost_service.py`
+- ✅ `CommitmentSummary` — `application/financials/forecast_cost_service.py`
+- ✅ `MaterialRollup` — `application/financials/forecast_cost_service.py`
+- ✅ `CostForecastResult` — `application/financials/forecast_cost_service.py`
+- ✅ `EACMethod` — `application/financials/forecast_cost_service.py`
 
 ## Verification Plan
 

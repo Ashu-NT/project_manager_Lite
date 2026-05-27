@@ -4,6 +4,13 @@ from src.core.modules.project_management.application.financials.cost_service imp
 from src.core.modules.project_management.application.financials.finance_service import (
     FinanceService,
 )
+from src.core.modules.project_management.application.financials.forecast_cost_service import (
+    CommitmentSummary,
+    CostForecastResult,
+    EACMethod,
+    ForecastCostService,
+    MaterialRollup,
+)
 from src.core.modules.project_management.application.financials.models import (
     FinanceAnalyticsRow,
     FinanceLedgerRow,
@@ -12,10 +19,15 @@ from src.core.modules.project_management.application.financials.models import (
 )
 
 __all__ = [
+    "CommitmentSummary",
+    "CostForecastResult",
     "CostService",
-    "FinanceService",
+    "EACMethod",
+    "FinanceAnalyticsRow",
     "FinanceLedgerRow",
     "FinancePeriodRow",
-    "FinanceAnalyticsRow",
+    "FinanceService",
     "FinanceSnapshot",
+    "ForecastCostService",
+    "MaterialRollup",
 ]
