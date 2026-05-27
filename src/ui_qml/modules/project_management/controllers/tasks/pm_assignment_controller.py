@@ -19,6 +19,7 @@ class PMAssignmentController(QObject):
 
     assignmentOptionsChanged = Signal()
     assignmentsChanged = Signal()
+    taskSkillRequirementsChanged = Signal()
 
     def __init__(
         self,
@@ -40,6 +41,12 @@ class PMAssignmentController(QObject):
         self._assignments: dict[str, object] = {
             "title": "", "subtitle": "", "emptyState": "", "items": []
         }
+        self._task_skill_requirements: dict[str, object] = {
+            "title": "Skill Requirements",
+            "subtitle": "",
+            "emptyState": "Select a task to review skill and certification requirements.",
+            "items": [],
+        }
 
     # ── Populate from workspace state ────────────────────────────────
 
@@ -60,6 +67,10 @@ class PMAssignmentController(QObject):
     @Property("QVariantMap", notify=assignmentsChanged)
     def assignments(self) -> dict[str, object]:
         return self._assignments
+
+    @Property("QVariantMap", notify=taskSkillRequirementsChanged)
+    def taskSkillRequirements(self) -> dict[str, object]:
+        return self._task_skill_requirements
 
     # ── Mutation slots ────────────────────────────────────────────────
 
@@ -128,6 +139,15 @@ class PMAssignmentController(QObject):
                 "summary": str(exc),
             }
 
+    # ── Skill requirements update (separate from assignments/_update) ─
+
+    def _update_skill_requirements(self, workspace_state: object) -> None:
+        self._set_task_skill_requirements(
+            serialize_task_collection_view_model(
+                workspace_state.task_skill_requirements
+            )
+        )
+
     # ── Private setters ───────────────────────────────────────────────
 
     def _set_assignment_options(self, v: list) -> None:
@@ -141,6 +161,12 @@ class PMAssignmentController(QObject):
             return
         self._assignments = v
         self.assignmentsChanged.emit()
+
+    def _set_task_skill_requirements(self, v: dict) -> None:
+        if v == self._task_skill_requirements:
+            return
+        self._task_skill_requirements = v
+        self.taskSkillRequirementsChanged.emit()
 
 
 __all__ = ["PMAssignmentController"]

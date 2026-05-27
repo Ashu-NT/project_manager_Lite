@@ -113,6 +113,14 @@ AppLayouts.WorkspaceFrame {
             "emptyState": "Select a task to review active collaboration presence.",
             "items": []
         })
+    readonly property var skillRequirementsModel: root.workspaceController
+        ? root.workspaceController.taskSkillRequirements
+        : ({
+            "title": "Skill Requirements",
+            "subtitle": "Skill and certification requirements for resource assignment.",
+            "emptyState": "Select a task to review skill and certification requirements.",
+            "items": []
+        })
 
     readonly property var _tableColumns: {
         const cols = [
@@ -163,7 +171,7 @@ AppLayouts.WorkspaceFrame {
     readonly property bool _hasProcReqCap: root.pmCatalog
         ? root.pmCatalog.hasCapability("procurement.requisitions.create") : false
     readonly property var _detailSections: {
-        const secs = ["Details", "Assignments", "Dependencies", "Time"]
+        const secs = ["Details", "Assignments", "Skills", "Dependencies", "Time"]
         if (root._hasInvStockCap)  secs.push("Material Demand")
         if (root._hasInvResCap)    secs.push("Reservations")
         if (root._hasProcReqCap)   secs.push("Procurement")
@@ -208,6 +216,7 @@ AppLayouts.WorkspaceFrame {
         const entry = page ? (page.sections[sectionIndex] || "") : ""
         const label = (typeof entry === "string") ? entry : (entry.label || "")
         if      (label === "Assignments")  root.workspaceController.loadSelectedTaskAssignments()
+        else if (label === "Skills")       root.workspaceController.loadSelectedTaskSkillRequirements()
         else if (label === "Dependencies") root.workspaceController.loadSelectedTaskDependencies()
         else if (label === "Time")         root.workspaceController.loadSelectedTaskTime()
         else if (label === "Activity")     root.workspaceController.loadSelectedTaskCollaboration()
@@ -858,6 +867,7 @@ AppLayouts.WorkspaceFrame {
                     selectedTaskId: root.workspaceController ? root.workspaceController.selectedTaskId : ""
                     canOpenReservations: root._hasInvResCap
                     canOpenProcurement: root._hasProcReqCap
+                    skillRequirementsModel: root.skillRequirementsModel
 
                     onCreateAssignmentRequested: dialogHostLoader.invoke("openCreateAssignmentDialog", root.selectedTaskModel)
                     onAssignmentSelected: function(assignmentId) {

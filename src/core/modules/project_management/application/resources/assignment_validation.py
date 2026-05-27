@@ -102,6 +102,9 @@ class AssignmentSkillValidator:
         self._certs = cert_repo
         self._requirements = requirement_repo
 
+    def list_requirements(self, task_id: str) -> list[TaskSkillRequirement]:
+        return list(self._requirements.list_by_task(task_id or ""))
+
     def validate(
         self,
         task: Task,

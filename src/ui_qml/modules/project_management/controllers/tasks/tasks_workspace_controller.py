@@ -118,6 +118,8 @@ class ProjectManagementTasksWorkspaceController(
     collaborationCommentsChanged = Signal()
     collaborationPresenceChanged = Signal()
     collaborationSectionLoadedChanged = Signal()
+    taskSkillRequirementsChanged = Signal()
+    skillRequirementsSectionLoadedChanged = Signal()
 
     def __init__(
         self,
@@ -155,6 +157,7 @@ class ProjectManagementTasksWorkspaceController(
         self._collaboration_section_loaded_for_task_id = ""
         self._assignments_section_loaded_for_task_id = ""
         self._dependencies_section_loaded_for_task_id = ""
+        self._skill_requirements_section_loaded_for_task_id = ""
         # ── Saved views ────────────────────────────────────────────────
         self._task_view_store = task_view_store or ProjectManagementTaskViewStore()
         self._saved_task_views: dict[str, dict[str, object]] = (
@@ -219,6 +222,9 @@ class ProjectManagementTasksWorkspaceController(
         )
         self._collab_ctrl.collaborationPresenceChanged.connect(
             self.collaborationPresenceChanged
+        )
+        self._assignments_ctrl.taskSkillRequirementsChanged.connect(
+            self.taskSkillRequirementsChanged
         )
         self.destroyed.connect(self._collab_ctrl.on_destroyed_cleanup)
         self._bind_domain_events()
@@ -416,6 +422,17 @@ class ProjectManagementTasksWorkspaceController(
         return (
             bool(self._selected_task_id)
             and self._collaboration_section_loaded_for_task_id == self._selected_task_id
+        )
+
+    @Property("QVariantMap", notify=taskSkillRequirementsChanged)
+    def taskSkillRequirements(self) -> dict[str, object]:
+        return self._assignments_ctrl.taskSkillRequirements
+
+    @Property(bool, notify=skillRequirementsSectionLoadedChanged)
+    def isSkillRequirementsSectionLoaded(self) -> bool:
+        return (
+            bool(self._selected_task_id)
+            and self._skill_requirements_section_loaded_for_task_id == self._selected_task_id
         )
 
     # ── Pagination properties ─────────────────────────────────────────
@@ -749,6 +766,25 @@ class ProjectManagementTasksWorkspaceController(
         finally:
             self._set_is_loading(False)
 
+    @Slot()
+    def loadSelectedTaskSkillRequirements(self) -> None:
+        if not self._selected_task_id:
+            return
+        if self._skill_requirements_section_loaded_for_task_id == self._selected_task_id:
+            return
+        self._set_is_loading(True)
+        try:
+            self._set_error_message("")
+            ws = self._tasks_workspace_presenter.build_task_skill_requirements_state(
+                task_id=self._selected_task_id,
+            )
+            self._assignments_ctrl._update_skill_requirements(ws)
+            self._skill_requirements_section_loaded_for_task_id = self._selected_task_id
+        except Exception as exc:
+            self._set_error_message(str(exc))
+        finally:
+            self._set_is_loading(False)
+
     @Slot(bool)
     def setTaskReviewActive(self, active: bool) -> None:
         normalized = bool(active)
@@ -1034,6 +1070,7 @@ class ProjectManagementTasksWorkspaceController(
         self._set_collaboration_section_loaded_for_task_id("")
         self._assignments_section_loaded_for_task_id = ""
         self._dependencies_section_loaded_for_task_id = ""
+        self._skill_requirements_section_loaded_for_task_id = ""
 
     def _set_selected_assignment_id(self, v: str) -> None:
         if v == self._selected_assignment_id:

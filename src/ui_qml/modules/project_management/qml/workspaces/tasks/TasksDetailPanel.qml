@@ -35,6 +35,8 @@ Item {
     property bool canOpenReservations: false
     property bool canOpenProcurement: false
 
+    property var skillRequirementsModel: AppMock.MockFactory.catalog("Skill Requirements", "", "Select a task.")
+
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
 
     signal editRequested()
@@ -104,6 +106,7 @@ Item {
         if (name === "Material Demand") return _sec5.implicitHeight
         if (name === "Reservations")    return _sec6.implicitHeight
         if (name === "Procurement")     return _sec7.implicitHeight
+        if (name === "Skills")          return _sec8.implicitHeight
         return 0
     }
 
@@ -494,6 +497,105 @@ Item {
                             message: root.canOpenProcurement
                                 ? "Open Procurement > Requisitions and filter by this task to review linked purchase requests."
                                 : "Procurement workflows are unavailable because the linked module or capability is disabled."
+                        }
+                    }
+                }
+            }
+        }
+
+        AppWidgets.LazySectionLoader {
+            id: _sec8
+            active: root._idx === root._secIdx("Skills")
+            sourceComponent: Component {
+                Item {
+                    width: parent ? parent.width : 0
+                    implicitHeight: _skillsBodyCol.implicitHeight
+
+                    ColumnLayout {
+                        id: _skillsBodyCol
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        spacing: 0
+
+                        AppWidgets.ContextualActionToolbar {
+                            Layout.fillWidth: true
+                            title: "Skills & Certifications"
+                            subtitle: "Skill and certification requirements for resource assignment."
+                            busy: root.isBusy
+                            actions: []
+                        }
+
+                        Repeater {
+                            model: root.skillRequirementsModel.items || []
+
+                            delegate: ColumnLayout {
+                                id: _reqItem
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: 0
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.leftMargin: Theme.AppTheme.marginMd
+                                    Layout.rightMargin: Theme.AppTheme.marginMd
+                                    Layout.topMargin: Theme.AppTheme.spacingSm
+                                    Layout.bottomMargin: Theme.AppTheme.spacingSm
+                                    spacing: Theme.AppTheme.spacingMd
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 2
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: String(_reqItem.modelData.title || "")
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.smallSize
+                                            font.bold: true
+                                            color: Theme.AppTheme.textPrimary
+                                        }
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: String(_reqItem.modelData.subtitle || "")
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            color: Theme.AppTheme.textSecondary
+                                            elide: Text.ElideRight
+                                        }
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            visible: String(_reqItem.modelData.supportingText || "").length > 0
+                                                && String(_reqItem.modelData.supportingText || "") !== "No notes recorded."
+                                            text: String(_reqItem.modelData.supportingText || "")
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            color: Theme.AppTheme.textMuted
+                                            elide: Text.ElideRight
+                                        }
+                                    }
+
+                                    AppWidgets.StatusChip {
+                                        visible: String(_reqItem.modelData.statusLabel || "").length > 0
+                                        status: String(_reqItem.modelData.statusLabel || "")
+                                    }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 1
+                                    color: Theme.AppTheme.divider
+                                }
+                            }
+                        }
+
+                        AppWidgets.EmptyState {
+                            Layout.fillWidth: true
+                            visible: (root.skillRequirementsModel.items || []).length === 0
+                            title: String(root.skillRequirementsModel.emptyState
+                                || "No skill requirements are linked to this task.")
                         }
                     }
                 }

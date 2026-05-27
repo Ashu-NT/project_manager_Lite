@@ -204,6 +204,21 @@ class AssignmentValidationDesktopDto:
     summary: str
 
 
+@dataclass(frozen=True)
+class TaskSkillRequirementDesktopDto:
+    id: str
+    task_id: str
+    skill_code: str
+    certification_code: str
+    requirement_type: str
+    required_proficiency: str
+    required_proficiency_label: str
+    validation_mode: str
+    validation_mode_label: str
+    notes: str
+    version: int
+
+
 class ProjectManagementTasksDesktopApi:
     def __init__(
         self,
@@ -725,6 +740,17 @@ class ProjectManagementTasksDesktopApi:
             cancelled_count=sum(1 for r in reservations if r.status in closed_statuses),
         )
 
+    def list_task_skill_requirements(
+        self, task_id: str
+    ) -> tuple[TaskSkillRequirementDesktopDto, ...]:
+        if not task_id or self._assignment_skill_validator is None:
+            return ()
+        try:
+            requirements = self._assignment_skill_validator.list_requirements(task_id)
+        except Exception:
+            return ()
+        return tuple(self._serialize_skill_requirement(req) for req in requirements)
+
     def validate_assignment(
         self,
         task_id: str,
@@ -997,6 +1023,43 @@ class ProjectManagementTasksDesktopApi:
 
 
     @staticmethod
+    def _serialize_skill_requirement(req) -> "TaskSkillRequirementDesktopDto":
+        skill_code = str(getattr(req, "skill_code", "") or "")
+        cert_code = str(getattr(req, "certification_code", "") or "")
+        proficiency_raw = str(
+            getattr(getattr(req, "required_proficiency", None), "value", None)
+            or getattr(req, "required_proficiency", "")
+            or "intermediate"
+        )
+        mode_raw = str(
+            getattr(getattr(req, "validation_mode", None), "value", None)
+            or getattr(req, "validation_mode", "")
+            or "warn"
+        )
+        proficiency_labels = {
+            "beginner": "Beginner",
+            "intermediate": "Intermediate",
+            "advanced": "Advanced",
+            "expert": "Expert",
+        }
+        mode_labels = {"warn": "Warn", "block": "Block", "override": "Override"}
+        return TaskSkillRequirementDesktopDto(
+            id=str(getattr(req, "id", "") or ""),
+            task_id=str(getattr(req, "task_id", "") or ""),
+            skill_code=skill_code,
+            certification_code=cert_code,
+            requirement_type="certification" if cert_code else "skill",
+            required_proficiency=proficiency_raw,
+            required_proficiency_label=proficiency_labels.get(
+                proficiency_raw.lower(), proficiency_raw.title()
+            ),
+            validation_mode=mode_raw,
+            validation_mode_label=mode_labels.get(mode_raw.lower(), mode_raw.title()),
+            notes=str(getattr(req, "notes", "") or ""),
+            version=int(getattr(req, "version", 1) or 1),
+        )
+
+    @staticmethod
     def _serialize_reservation(reservation) -> TaskReservationDesktopDto:
         status_value = str(
             getattr(getattr(reservation, "status", None), "value", None)
@@ -1103,6 +1166,7 @@ def _normalize_task_ids(task_ids) -> tuple[str, ...]:
 __all__ = [
     "AssignmentValidationDesktopDto",
     "ProjectManagementTasksDesktopApi",
+    "TaskSkillRequirementDesktopDto",
     "TaskAssignmentAllocationCommand",
     "TaskAssignmentCreateCommand",
     "TaskAssignmentDesktopDto",
