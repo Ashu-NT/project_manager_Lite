@@ -153,7 +153,8 @@ class ProjectManagementTasksWorkspaceController(
         self._task_activation_request_id = 0
         self._time_section_loaded_for_task_id = ""
         self._collaboration_section_loaded_for_task_id = ""
-        self._assignments_dependencies_loaded_for_task_id = ""
+        self._assignments_section_loaded_for_task_id = ""
+        self._dependencies_section_loaded_for_task_id = ""
         # ── Saved views ────────────────────────────────────────────────
         self._task_view_store = task_view_store or ProjectManagementTaskViewStore()
         self._saved_task_views: dict[str, dict[str, object]] = (
@@ -640,25 +641,49 @@ class ProjectManagementTasksWorkspaceController(
 
     @Slot()
     def loadTaskAssignmentsAndDependencies(self) -> None:
+        self.loadSelectedTaskAssignments()
+        self.loadSelectedTaskDependencies()
+
+    @Slot()
+    def loadSelectedTaskAssignments(self) -> None:
         if not self._selected_task_id:
             return
-        if self._assignments_dependencies_loaded_for_task_id == self._selected_task_id:
+        if self._assignments_section_loaded_for_task_id == self._selected_task_id:
             return
         self._set_is_loading(True)
         try:
             self._set_error_message("")
-            ws = self._tasks_workspace_presenter.build_task_detail_state(
+            ws = self._tasks_workspace_presenter.build_task_assignments_state(
                 task_id=self._selected_task_id,
                 project_id=self._selected_project_id or None,
             )
             self._assignments_ctrl._update(ws)
-            self._dependencies_ctrl._update(ws)
-            self._assignments_dependencies_loaded_for_task_id = self._selected_task_id
+            self._assignments_section_loaded_for_task_id = self._selected_task_id
             if not self._selected_assignment_id:
                 assignment_items = getattr(ws.assignments, "items", ()) or ()
                 if assignment_items:
                     first = assignment_items[0]
                     self._set_selected_assignment_id(str(getattr(first, "id", "") or ""))
+        except Exception as exc:
+            self._set_error_message(str(exc))
+        finally:
+            self._set_is_loading(False)
+
+    @Slot()
+    def loadSelectedTaskDependencies(self) -> None:
+        if not self._selected_task_id:
+            return
+        if self._dependencies_section_loaded_for_task_id == self._selected_task_id:
+            return
+        self._set_is_loading(True)
+        try:
+            self._set_error_message("")
+            ws = self._tasks_workspace_presenter.build_task_dependencies_state(
+                task_id=self._selected_task_id,
+                project_id=self._selected_project_id or None,
+            )
+            self._dependencies_ctrl._update(ws)
+            self._dependencies_section_loaded_for_task_id = self._selected_task_id
         except Exception as exc:
             self._set_error_message(str(exc))
         finally:
@@ -1002,7 +1027,8 @@ class ProjectManagementTasksWorkspaceController(
         self._set_selected_time_entry_id("")
         self._set_time_section_loaded_for_task_id("")
         self._set_collaboration_section_loaded_for_task_id("")
-        self._assignments_dependencies_loaded_for_task_id = ""
+        self._assignments_section_loaded_for_task_id = ""
+        self._dependencies_section_loaded_for_task_id = ""
 
     def _set_selected_assignment_id(self, v: str) -> None:
         if v == self._selected_assignment_id:

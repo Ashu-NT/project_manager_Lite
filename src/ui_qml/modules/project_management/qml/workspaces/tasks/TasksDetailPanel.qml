@@ -32,6 +32,8 @@ Item {
     property var collaborationCommentsModel: AppMock.MockFactory.catalog("Collaboration", "", "Select a task.")
     property var collaborationPresenceModel: AppMock.MockFactory.catalog("Active Presence", "", "Select a task.")
     property string selectedTaskId: ""
+    property bool canOpenReservations: false
+    property bool canOpenProcurement: false
 
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
 
@@ -60,6 +62,8 @@ Item {
     signal composeRequested()
     signal markReadRequested(string taskId)
     signal collaborationRefreshRequested()
+    signal openReservationsRequested()
+    signal openProcurementRequested()
 
     readonly property real _progressValue: {
         const s = root.taskDetail.state || {}
@@ -78,7 +82,8 @@ Item {
         for (let i = 0; i < secs.length; i++) {
             const s = secs[i]
             const sLabel = (typeof s === "string") ? s : (s.label || "")
-            if (sLabel === name) return i
+            if (sLabel === name)
+                return i
         }
         return -1
     }
@@ -236,7 +241,7 @@ Item {
 
                                     AppControls.Label {
                                         Layout.fillWidth: true
-                                        text: String(_field.modelData.value || "—")
+                                        text: String(_field.modelData.value || "-")
                                         color: Theme.AppTheme.textPrimary
                                         font.family: Theme.AppTheme.fontFamily
                                         font.pixelSize: Theme.AppTheme.smallSize
@@ -352,11 +357,53 @@ Item {
             id: _sec5
             active: root._idx === root._secIdx("Material Demand")
             sourceComponent: Component {
-                AppWidgets.EmptyState {
+                Item {
                     width: parent ? parent.width : 0
-                    implicitHeight: 120
-                    title: "Material demand is tracked at the task level."
-                    message: "Use Inventory › Reservations to manage stock reservations linked to this task."
+                    implicitHeight: _materialCol.implicitHeight
+
+                    ColumnLayout {
+                        id: _materialCol
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        spacing: 0
+
+                        AppWidgets.ContextualActionToolbar {
+                            Layout.fillWidth: true
+                            title: "Material Demand"
+                            subtitle: String(root.taskDetail.state.materialDemandLabel || "").length > 0
+                                ? String(root.taskDetail.state.materialDemandLabel || "")
+                                : (root.canOpenReservations
+                                    ? "Open Inventory reservations for linked stock demand."
+                                    : "Task-linked material demand follows Inventory module availability.")
+                            busy: root.isBusy
+                            actions: [
+                                { "id": "reservations", "label": "Open Reservations", "icon": "storage", "enabled": root.canOpenReservations, "danger": false },
+                                { "id": "procurement", "label": "Open Procurement", "icon": "document", "enabled": root.canOpenProcurement, "danger": false }
+                            ]
+                            onActionTriggered: function(actionId) {
+                                if (actionId === "reservations") {
+                                    root.openReservationsRequested()
+                                } else if (actionId === "procurement") {
+                                    root.openProcurementRequested()
+                                }
+                            }
+                        }
+
+                        AppWidgets.EmptyState {
+                            Layout.fillWidth: true
+                            title: "Task material demand is managed through Inventory."
+                            message: root.canOpenReservations
+                                ? "Use Inventory > Reservations to review and manage stock demand linked to this task. Active: "
+                                    + String(root.taskDetail.state.materialDemandActive || "0")
+                                    + ", fulfilled: "
+                                    + String(root.taskDetail.state.materialDemandFulfilled || "0")
+                                    + ", closed: "
+                                    + String(root.taskDetail.state.materialDemandCancelled || "0")
+                                    + "."
+                                : "Inventory reservation capabilities are not enabled for this workspace."
+                        }
+                    }
                 }
             }
         }
@@ -365,11 +412,46 @@ Item {
             id: _sec6
             active: root._idx === root._secIdx("Reservations")
             sourceComponent: Component {
-                AppWidgets.EmptyState {
+                Item {
                     width: parent ? parent.width : 0
-                    implicitHeight: 120
-                    title: "Stock reservations linked to this task."
-                    message: "Open Inventory › Reservations and filter by this task to review or create reservations."
+                    implicitHeight: _reservationsCol.implicitHeight
+
+                    ColumnLayout {
+                        id: _reservationsCol
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        spacing: 0
+
+                        AppWidgets.ContextualActionToolbar {
+                            Layout.fillWidth: true
+                            title: "Reservations"
+                            subtitle: String(root.taskDetail.state.materialDemandLabel || "").length > 0
+                                ? String(root.taskDetail.state.materialDemandLabel || "")
+                                : (root.canOpenReservations
+                                    ? "Review linked stock reservations in Inventory."
+                                    : "Inventory reservation capabilities are not enabled.")
+                            busy: root.isBusy
+                            actions: [
+                                { "id": "open", "label": "Open Reservations", "icon": "storage", "enabled": root.canOpenReservations, "danger": false }
+                            ]
+                            onActionTriggered: function(actionId) {
+                                if (actionId === "open") {
+                                    root.openReservationsRequested()
+                                }
+                            }
+                        }
+
+                        AppWidgets.EmptyState {
+                            Layout.fillWidth: true
+                            title: "Stock reservations linked to this task."
+                            message: root.canOpenReservations
+                                ? "Open Inventory > Reservations and filter by this task to review or create reservations. Total linked reservations: "
+                                    + String(root.taskDetail.state.materialDemandTotal || "0")
+                                    + "."
+                                : "Inventory reservations are unavailable because the linked module or capability is disabled."
+                        }
+                    }
                 }
             }
         }
@@ -378,11 +460,42 @@ Item {
             id: _sec7
             active: root._idx === root._secIdx("Procurement")
             sourceComponent: Component {
-                AppWidgets.EmptyState {
+                Item {
                     width: parent ? parent.width : 0
-                    implicitHeight: 120
-                    title: "Procurement commitments for this task."
-                    message: "Open Procurement › Requisitions and filter by this task to review linked purchase requests."
+                    implicitHeight: _procurementCol.implicitHeight
+
+                    ColumnLayout {
+                        id: _procurementCol
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        spacing: 0
+
+                        AppWidgets.ContextualActionToolbar {
+                            Layout.fillWidth: true
+                            title: "Procurement"
+                            subtitle: root.canOpenProcurement
+                                ? "Review task-linked requisitions and purchasing commitments."
+                                : "Procurement requisition capabilities are not enabled."
+                            busy: root.isBusy
+                            actions: [
+                                { "id": "open", "label": "Open Procurement", "icon": "document", "enabled": root.canOpenProcurement, "danger": false }
+                            ]
+                            onActionTriggered: function(actionId) {
+                                if (actionId === "open") {
+                                    root.openProcurementRequested()
+                                }
+                            }
+                        }
+
+                        AppWidgets.EmptyState {
+                            Layout.fillWidth: true
+                            title: "Procurement commitments for this task."
+                            message: root.canOpenProcurement
+                                ? "Open Procurement > Requisitions and filter by this task to review linked purchase requests."
+                                : "Procurement workflows are unavailable because the linked module or capability is disabled."
+                        }
+                    }
                 }
             }
         }

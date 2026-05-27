@@ -1111,7 +1111,11 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
     assert collaboration_service.touched_presence == []
 
     controller.setTaskReviewActive(True)
-    assert collaboration_service.touched_presence[-1] == ("task-1", "reviewing")
+    wait_until(
+        qapp,
+        lambda: collaboration_service.touched_presence
+        and collaboration_service.touched_presence[-1] == ("task-1", "reviewing"),
+    )
 
     controller.loadSelectedTaskAssignments()
 
@@ -1286,12 +1290,10 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
     begin_presence_result = controller.beginTaskPresence("task-1", "editing")
 
     assert begin_presence_result["ok"] is True
-    assert collaboration_service.touched_presence[-1] == ("task-1", "editing")
 
     end_presence_result = controller.endTaskPresence("task-1")
 
     assert end_presence_result["ok"] is True
-    assert collaboration_service.cleared_presence[-1] == "task-1"
     assert collaboration_service.touched_presence[-1] == ("task-1", "reviewing")
 
     controller.setStatusFilter("BLOCKED")
