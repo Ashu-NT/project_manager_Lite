@@ -1208,9 +1208,11 @@ Legend: ✅ done  🔄 partial foundation  ⬜ pending
    - added enums: ColumnDataType, FilterOperator, GroupingFunction, SortDirection, ReportVisibility
    - CallbackReportDefinition and ReportingService remain as-is for backward compat
 10. ✅ import parser architecture
-    - added: ImportParser (ABC), CsvImportParser (wraps existing CSV path), MSProjectXmlParser (stub), P6Parser (stub)
+    - added: ImportParser (ABC), CsvImportParser (wraps existing CSV path), MSProjectXmlParser, P6Parser
     - added: ImportMappingService, ImportValidationService, ImportPreviewModel, ImportMappingProfile, ImportRow
-    - MSProjectXmlParser and P6Parser are stubs — full XML/XER parsing is the remaining work in this step
+    - MSProjectXmlParser: full MS Project XML parsing with namespace handling, predecessor serialisation, custom mapping profiles
+    - P6Parser: full P6 XER parsing with %T/%F/%R/%E table structure, TASKPRED join, latin-1 encoding support
+    - 23 unit tests in tests/pm/test_import_parsers.py (no DB, no Qt)
     - CallbackImportDefinition and DataImportService remain as-is for backward compat
 11. ✅ workspace UX hardening using shared controls
     - all 11 QML workspace controllers exist; enterprise feature wiring ongoing
@@ -1269,8 +1271,8 @@ Legend: ✅ implemented  ⬜ pending
 - ✅ `ReportGrouping` — `infrastructure/reporting/report_definition.py`
 - ✅ `SavedReportView` — `infrastructure/reporting/report_definition.py`
 - ✅ `ImportParser` — `infrastructure/importers/import_parser.py`
-- ⬜ `MSProjectXmlParser` — stub added; full XML parsing pending
-- ⬜ `P6Parser` — stub added; full XER parsing pending
+- ✅ `MSProjectXmlParser` — `infrastructure/importers/import_parser.py`
+- ✅ `P6Parser` — `infrastructure/importers/import_parser.py`
 - ✅ `ImportMappingService` — `infrastructure/importers/import_parser.py`
 - ✅ `ImportValidationService` — `infrastructure/importers/import_parser.py`
 - ✅ `ImportPreviewModel` — `infrastructure/importers/import_parser.py`

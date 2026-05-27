@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -109,7 +109,7 @@ class ImportMappingProfile:
             name=name,
             source_format=source_format,
             owner_id=owner_id,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
 
 
@@ -536,7 +536,7 @@ class ImportValidationService:
             warning_rows=warning_rows,
             rows=rows,
             issues=issues,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
 
 
