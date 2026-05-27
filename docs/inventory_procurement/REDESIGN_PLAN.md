@@ -402,46 +402,8 @@ Lazy-load sub-tables in detail pages:
 imports anywhere in the codebase. `WorkspaceStateBanner` and `WorkspaceStatusSection` already
 removed from `InventoryProcurement/Widgets/qmldir`.
 
-**Pending — requires explicit deletion authorization:**
-Run in project root to delete all 35 orphaned files:
-```
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\InventoryProcurement\Widgets\WorkspaceStateBanner.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\InventoryProcurement\Widgets\WorkspaceStatusSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\dashboard\DashboardMetricsSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\dashboard\DashboardSections.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\catalog\CatalogMetricsSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\catalog\CatalogFiltersSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\catalog\ItemCatalogSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\catalog\CategoryCatalogSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\catalog\ItemDetailSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\catalog\CategoryDetailSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\inventory\InventoryMetricsSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\inventory\InventoryFiltersSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\inventory\BalanceCatalogSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\inventory\StoreroomCatalogSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\inventory\BalanceDetailSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\inventory\StoreroomDetailSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\inventory\TransactionsSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\reservations\ReservationsMetricsSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\reservations\ReservationsFiltersSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\reservations\ReservationsCatalogSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\reservations\ReservationDetailSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\ProcurementMetricsSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\ProcurementFiltersSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\RequisitionCatalogSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\PurchaseOrderCatalogSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\RequisitionDetailSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\PurchaseOrderDetailSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\ReceiptHistorySection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\RequisitionLinesSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\PurchaseOrderLinesSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\pricing\PricingMetricsSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\pricing\PricingFiltersSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\pricing\PricingStockSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\pricing\PricingSupplierPricingSection.qml
-Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\pricing\PricingExportsSection.qml
-```
-Then run `python main_qt.py` to validate.
+**✅ COMPLETE (2026-05-27):** All 35 deprecated files deleted. `Widgets/qmldir` entries removed.
+Run `python main_qt.py` to validate.
 
 ---
 
