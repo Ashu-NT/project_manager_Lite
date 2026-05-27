@@ -56,6 +56,7 @@ class ProjectManagementSchedulingWorkspaceController(
     baselineRegisterChanged = Signal()
     dependenciesChanged = Signal()
     constraintsChanged = Signal()
+    constraintViolationsChanged = Signal()
     activityFeedChanged = Signal()
     scheduleRowsChanged = Signal()
     diagnosticsRowsChanged = Signal()
@@ -65,6 +66,7 @@ class ProjectManagementSchedulingWorkspaceController(
     baselineRegisterRowsChanged = Signal()
     dependencyRowsChanged = Signal()
     constraintRowsChanged = Signal()
+    violationRowsChanged = Signal()
     calendarSummaryRowsChanged = Signal()
     holidayRowsChanged = Signal()
     selectedActivityChanged = Signal()
@@ -173,6 +175,12 @@ class ProjectManagementSchedulingWorkspaceController(
             "items": [],
             "emptyState": "",
         }
+        self._constraint_violations: dict[str, object] = {
+            "title": "",
+            "subtitle": "",
+            "items": [],
+            "emptyState": "",
+        }
         self._activity_feed: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -187,6 +195,7 @@ class ProjectManagementSchedulingWorkspaceController(
         self._baseline_register_rows: list[dict[str, object]] = []
         self._dependency_rows: list[dict[str, object]] = []
         self._constraint_rows: list[dict[str, object]] = []
+        self._violation_rows: list[dict[str, object]] = []
         self._calendar_summary_rows: list[dict[str, object]] = []
         self._holiday_rows: list[dict[str, object]] = []
         self._selected_activity: dict[str, object] = {
@@ -316,6 +325,10 @@ class ProjectManagementSchedulingWorkspaceController(
     def constraints(self) -> dict[str, object]:
         return self._constraints
 
+    @Property("QVariantMap", notify=constraintViolationsChanged)
+    def constraintViolations(self) -> dict[str, object]:
+        return self._constraint_violations
+
     @Property("QVariantMap", notify=activityFeedChanged)
     def activityFeed(self) -> dict[str, object]:
         return self._activity_feed
@@ -351,6 +364,10 @@ class ProjectManagementSchedulingWorkspaceController(
     @Property("QVariantList", notify=constraintRowsChanged)
     def constraintRows(self) -> list[dict[str, object]]:
         return self._constraint_rows
+
+    @Property("QVariantList", notify=violationRowsChanged)
+    def violationRows(self) -> list[dict[str, object]]:
+        return self._violation_rows
 
     @Property("QVariantList", notify=calendarSummaryRowsChanged)
     def calendarSummaryRows(self) -> list[dict[str, object]]:
@@ -464,6 +481,9 @@ class ProjectManagementSchedulingWorkspaceController(
             serialized_constraints = serialize_scheduling_collection_view_model(
                 workspace_state.constraints
             )
+            serialized_constraint_violations = serialize_scheduling_collection_view_model(
+                workspace_state.constraint_violations
+            )
             serialized_activity_feed = serialize_scheduling_collection_view_model(
                 workspace_state.activity_feed
             )
@@ -478,6 +498,7 @@ class ProjectManagementSchedulingWorkspaceController(
             self._set_baseline_register(serialized_baseline_register)
             self._set_dependencies(serialized_dependencies)
             self._set_constraints(serialized_constraints)
+            self._set_constraint_violations(serialized_constraint_violations)
             self._set_activity_feed(serialized_activity_feed)
             self._set_calendar_summary_rows(
                 self._build_calendar_summary_rows(serialized_calendar)
@@ -504,6 +525,9 @@ class ProjectManagementSchedulingWorkspaceController(
             )
             self._set_constraint_rows(
                 self._build_constraint_rows(serialized_constraints)
+            )
+            self._set_violation_rows(
+                self._build_violation_rows(serialized_constraint_violations)
             )
             self._set_selected_activity(
                 serialize_scheduling_detail_view_model(
@@ -1116,6 +1140,12 @@ class ProjectManagementSchedulingWorkspaceController(
         self._constraints = constraints
         self.constraintsChanged.emit()
 
+    def _set_constraint_violations(self, constraint_violations: dict[str, object]) -> None:
+        if constraint_violations == self._constraint_violations:
+            return
+        self._constraint_violations = constraint_violations
+        self.constraintViolationsChanged.emit()
+
     def _set_activity_feed(self, activity_feed: dict[str, object]) -> None:
         if activity_feed == self._activity_feed:
             return
@@ -1169,6 +1199,12 @@ class ProjectManagementSchedulingWorkspaceController(
             return
         self._constraint_rows = rows
         self.constraintRowsChanged.emit()
+
+    def _set_violation_rows(self, rows: list[dict[str, object]]) -> None:
+        if rows == self._violation_rows:
+            return
+        self._violation_rows = rows
+        self.violationRowsChanged.emit()
 
     def _set_calendar_summary_rows(self, rows: list[dict[str, object]]) -> None:
         if rows == self._calendar_summary_rows:
@@ -1337,6 +1373,25 @@ class ProjectManagementSchedulingWorkspaceController(
                     "value": state.get("constraintValue", item.get("subtitle", "")),
                     "status": state.get("constraintStatus", item.get("statusLabel", "")),
                     "notes": item.get("supportingText", ""),
+                }
+            )
+        return rows
+
+    @staticmethod
+    def _build_violation_rows(model: dict[str, object]) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for item in model.get("items", []):
+            state = dict(item.get("state", {}) or {})
+            rows.append(
+                {
+                    "id": item.get("id", ""),
+                    "activity": item.get("title", ""),
+                    "constraintType": state.get("constraintTypeLabel", item.get("subtitle", "")),
+                    "required": state.get("constraintDateLabel", ""),
+                    "computed": state.get("computedDateLabel", ""),
+                    "overrunDays": str(state.get("overrunDays", "")),
+                    "severity": state.get("severityLabel", item.get("statusLabel", "")),
+                    "message": state.get("message", item.get("metaText", "")),
                 }
             )
         return rows

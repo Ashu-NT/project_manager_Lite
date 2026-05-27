@@ -10,6 +10,7 @@ from src.core.modules.project_management.api.desktop import (
     SchedulingBaselineRejectCommand,
     SchedulingBaselineSubmitCommand,
     SchedulingCalendarUpdateCommand,
+    SchedulingConstraintViolationDto,
     SchedulingDependencyCreateCommand,
     SchedulingDependencyUpdateCommand,
     SchedulingHolidayCreateCommand,
@@ -208,6 +209,11 @@ class ProjectSchedulingWorkspacePresenter:
             if resolved_project_id
             else ()
         )
+        constraint_violations = (
+            self._desktop_api.list_constraint_violations(resolved_project_id)
+            if resolved_project_id
+            else ()
+        )
 
         critical_items = tuple(item for item in filtered_schedule if item.is_critical)
         delayed_items = tuple(item for item in filtered_schedule if (item.late_by_days or 0) > 0)
@@ -357,6 +363,19 @@ class ProjectSchedulingWorkspacePresenter:
                 ),
             ),
             constraints=self._build_constraints_collection(selected_activity),
+            constraint_violations=SchedulingCollectionViewModel(
+                title="Constraint Violations",
+                subtitle="Hard and soft date-constraint violations detected by the schedule validator.",
+                items=tuple(
+                    self._to_constraint_violation_record_view_model(v)
+                    for v in constraint_violations
+                ),
+                empty_state=(
+                    "No constraint violations are detected for the current schedule."
+                    if resolved_project_id
+                    else "Select a project to run constraint validation."
+                ),
+            ),
             activity_feed=self._build_activity_feed_collection(
                 schedule_items=schedule_items,
                 delayed_items=delayed_items,
@@ -1035,6 +1054,30 @@ class ProjectSchedulingWorkspacePresenter:
                 "utilizationLabel": item.utilization_label,
                 "tasksCount": item.tasks_count,
                 "statusLabel": item.status_label,
+            },
+        )
+
+    @staticmethod
+    def _to_constraint_violation_record_view_model(
+        item: SchedulingConstraintViolationDto,
+    ) -> SchedulingRecordViewModel:
+        return SchedulingRecordViewModel(
+            id=f"{item.task_id}:{item.constraint_type}",
+            title=item.task_name,
+            status_label=item.severity_label,
+            subtitle=f"{item.constraint_type_label} | Required {item.constraint_date_label}",
+            supporting_text=f"Computed {item.computed_date_label} | Overrun {item.overrun_working_days}d",
+            meta_text=item.message,
+            state={
+                "taskId": item.task_id,
+                "constraintType": item.constraint_type,
+                "constraintTypeLabel": item.constraint_type_label,
+                "constraintDateLabel": item.constraint_date_label,
+                "computedDateLabel": item.computed_date_label,
+                "overrunDays": item.overrun_working_days,
+                "severity": item.severity,
+                "severityLabel": item.severity_label,
+                "message": item.message,
             },
         )
 

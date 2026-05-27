@@ -114,6 +114,12 @@ AppLayouts.WorkspaceFrame {
     readonly property var activityFeedModel: root.workspaceController
         ? root.workspaceController.activityFeed
         : ({ "title": "", "subtitle": "", "items": [], "emptyState": "No planning activity has been recorded." })
+    readonly property var constraintViolationsModel: root.workspaceController
+        ? root.workspaceController.constraintViolations
+        : ({ "title": "", "subtitle": "", "items": [], "emptyState": "No constraint violations detected." })
+    readonly property var violationRows: root.workspaceController
+        ? (root.workspaceController.violationRows || [])
+        : []
 
     property string activePanelId: "activity_timeline"
     property string diagnosticsSearchText: ""
@@ -162,6 +168,14 @@ AppLayouts.WorkspaceFrame {
         { "key": "metric", "label": "Scope", "flex": 1.1 },
         { "key": "status", "label": "Value", "flex": 0.9 },
         { "key": "details", "label": "Details", "flex": 1.8 }
+    ]
+    readonly property var _violationColumns: [
+        { "key": "activity", "label": "Activity", "flex": 1.5, "sortable": true },
+        { "key": "constraintType", "label": "Constraint", "flex": 1.3 },
+        { "key": "required", "label": "Required Date", "flex": 0.9 },
+        { "key": "computed", "label": "Computed Date", "flex": 0.9 },
+        { "key": "overrunDays", "label": "Overrun (days)", "flex": 0, "minWidth": 110 },
+        { "key": "severity", "label": "Severity", "flex": 0.9, "type": "status" }
     ]
     readonly property var _resourceColumns: [
         { "key": "resource", "label": "Resource", "flex": 1.5, "sortable": true },
@@ -785,11 +799,30 @@ AppLayouts.WorkspaceFrame {
                                 AppWidgets.DataTable {
                                     id: diagnosticsTable
                                     Layout.fillWidth: true
-                                    Layout.fillHeight: true
+                                    Layout.preferredHeight: 210
                                     columns: root._diagnosticColumns
                                     rows: root._filterRows(root.diagnosticsRows, root.diagnosticsSearchText, ["message", "severity", "metric", "status", "details"])
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.diagnosticsModel.emptyState || "No diagnostics are available."
+                                }
+
+                                AppControls.Label {
+                                    Layout.fillWidth: true
+                                    text: "Constraint Violations"
+                                    color: Theme.AppTheme.textPrimary
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    font.bold: true
+                                }
+
+                                AppWidgets.DataTable {
+                                    id: violationsTable
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    columns: root._violationColumns
+                                    rows: root._filterRows(root.violationRows, root.diagnosticsSearchText, ["activity", "constraintType", "required", "computed", "severity"])
+                                    loading: root.workspaceController ? root.workspaceController.isLoading : false
+                                    emptyText: root.constraintViolationsModel.emptyState || "No constraint violations detected for the current schedule."
                                 }
                             }
                         }

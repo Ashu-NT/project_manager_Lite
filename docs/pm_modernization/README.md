@@ -1973,9 +1973,9 @@ Priority order based on user-visible impact and dependency chain:
    - Adds: status chips (Draft/Submitted/Approved/Rejected/Superseded) in baseline register table, Submit/Approve/Reject context-sensitive action buttons
    - Files: `api/desktop/scheduling.py`, `scheduling_workspace_presenter.py`, `scheduling_workspace_controller.py`, `SchedulingWorkspacePage.qml`
 
-3. **Scheduling — Constraint violations tab** (ConstraintValidator output)
-   - Adds: constraint violation list with severity chips
-   - Files: new `SchedulingConstraintsSection.qml` tab, presenter + controller signals
+3. ✅ **Scheduling — Constraint violations tab** (ConstraintValidator output)
+   - Adds: constraint violation detail table (activity, constraint type, required/computed date, overrun days, severity chip) below the existing diagnostics summary in the Diagnostics panel
+   - Files: `api/desktop/scheduling.py`, `scheduling_workspace_presenter.py`, `scheduling_workspace_controller.py`, `SchedulingWorkspacePage.qml`
 
 4. **Resources — Skills + Certifications tabs** (ResourceSkill, ResourceCertification)
    - Adds: two new lazy-loaded tabs on resource detail

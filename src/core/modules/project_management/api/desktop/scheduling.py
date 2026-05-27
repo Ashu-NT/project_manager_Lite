@@ -10,6 +10,9 @@ from src.core.modules.project_management.application.scheduling import (
     WorkCalendarEngine,
     WorkCalendarService,
 )
+from src.core.modules.project_management.application.scheduling.constraint_validator import (
+    ConstraintValidator,
+)
 from src.core.modules.project_management.application.scheduling.baseline_service import (
     BaselineService,
 )
@@ -139,6 +142,22 @@ class SchedulingBaselineRowDto:
     can_submit: bool
     can_approve: bool
     can_reject: bool
+
+
+@dataclass(frozen=True)
+class SchedulingConstraintViolationDto:
+    task_id: str
+    task_name: str
+    constraint_type: str
+    constraint_type_label: str
+    constraint_date: date | None
+    constraint_date_label: str
+    computed_date: date | None
+    computed_date_label: str
+    overrun_working_days: int
+    message: str
+    severity: str
+    severity_label: str
 
 
 @dataclass(frozen=True)
@@ -695,6 +714,59 @@ class ProjectManagementSchedulingDesktopApi:
             for row in rows
         )
 
+    def list_constraint_violations(
+        self,
+        project_id: str,
+    ) -> tuple[SchedulingConstraintViolationDto, ...]:
+        normalized_project_id = (project_id or "").strip()
+        if (
+            not normalized_project_id
+            or self._scheduling_engine is None
+            or self._task_service is None
+            or self._work_calendar_engine is None
+        ):
+            return ()
+        try:
+            schedule = self._scheduling_engine.recalculate_project_schedule(
+                normalized_project_id, persist=False
+            )
+            tasks = self._task_service.list_tasks_for_project(normalized_project_id)
+            tasks_by_id = {task.id: task for task in tasks}
+            validator = ConstraintValidator(calendar=self._work_calendar_engine)
+            result = validator.validate(tasks_by_id, schedule)
+            hard_pairs = {
+                (v.task_id, v.constraint_type) for v in result.hard_violations
+            }
+            return tuple(
+                SchedulingConstraintViolationDto(
+                    task_id=v.task_id,
+                    task_name=v.task_name,
+                    constraint_type=str(getattr(v.constraint_type, "value", v.constraint_type)),
+                    constraint_type_label=str(
+                        getattr(v.constraint_type, "value", v.constraint_type)
+                    ).replace("_", " ").title(),
+                    constraint_date=v.constraint_date,
+                    constraint_date_label=(
+                        v.constraint_date.isoformat() if v.constraint_date else "-"
+                    ),
+                    computed_date=v.computed_date,
+                    computed_date_label=(
+                        v.computed_date.isoformat() if v.computed_date else "-"
+                    ),
+                    overrun_working_days=int(v.overrun_working_days or 0),
+                    message=v.message,
+                    severity="hard" if (v.task_id, v.constraint_type) in hard_pairs else "soft",
+                    severity_label=(
+                        "Hard Constraint"
+                        if (v.task_id, v.constraint_type) in hard_pairs
+                        else "Soft Constraint"
+                    ),
+                )
+                for v in result.violations
+            )
+        except Exception:
+            return ()
+
     def _list_schedule_from_tasks(
         self,
         project_id: str,
@@ -957,6 +1029,7 @@ __all__ = [
     "SchedulingBaselineRejectCommand",
     "SchedulingBaselineRowDto",
     "SchedulingBaselineSubmitCommand",
+    "SchedulingConstraintViolationDto",
     "SchedulingCalendarOptionDescriptor",
     "SchedulingCalendarSnapshotDto",
     "SchedulingCalendarUpdateCommand",
