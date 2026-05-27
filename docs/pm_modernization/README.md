@@ -1977,7 +1977,7 @@ Priority order based on user-visible impact and dependency chain:
    - Adds: constraint violation detail table (activity, constraint type, required/computed date, overrun days, severity chip) below the existing diagnostics summary in the Diagnostics panel
    - Files: `api/desktop/scheduling.py`, `scheduling_workspace_presenter.py`, `scheduling_workspace_controller.py`, `SchedulingWorkspacePage.qml`
 
-4. **Resources — Skills + Certifications tabs** (ResourceSkill, ResourceCertification)
+4. ✅ **Resources — Skills + Certifications tabs** (ResourceSkill, ResourceCertification)
    - Adds: two new lazy-loaded tabs on resource detail
    - Files: new `ResourcesSkillsSection.qml`, `ResourcesCertificationsSection.qml`, presenter
 

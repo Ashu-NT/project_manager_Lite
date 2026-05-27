@@ -7,6 +7,7 @@ Item {
     id: root
 
     property string selectedProjectId: ""
+    property var workspaceController: null
     property var projectOptions: []
     property var selectedTaskData: ({})
     property var statusOptions: []
@@ -189,6 +190,7 @@ Item {
         objectName: "taskAssignmentEditorDialog"
 
         resourceOptions: root.assignmentOptions
+        workspaceController: root.workspaceController
 
         onSubmitted: function(payload) {
             if (assignmentEditorDialog.mode === "create") {

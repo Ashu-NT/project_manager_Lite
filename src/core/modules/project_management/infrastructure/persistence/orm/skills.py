@@ -63,4 +63,29 @@ Index("idx_certs_code", ResourceCertificationORM.certification_code)
 Index("idx_certs_expiry", ResourceCertificationORM.expiry_date)
 
 
-__all__ = ["ResourceCertificationORM", "ResourceSkillORM"]
+class TaskSkillRequirementORM(Base):
+    __tablename__ = "task_skill_requirements"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    task_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    skill_code: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    certification_code: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    required_proficiency: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    validation_mode: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        default="warn",
+        server_default="warn",
+    )
+    notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+Index("idx_task_skill_req_task", TaskSkillRequirementORM.task_id)
+
+
+__all__ = ["ResourceCertificationORM", "ResourceSkillORM", "TaskSkillRequirementORM"]

@@ -134,6 +134,9 @@ from src.core.modules.project_management.application.tasks import (
     CollaborationService,
     TaskService,
 )
+from src.core.modules.project_management.application.resources.assignment_validation import (
+    AssignmentSkillValidator,
+)
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.platform.access import AccessControlService
 from src.core.platform.integration.module_registry import ModuleRegistry
@@ -364,6 +367,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         timesheet_service if isinstance(timesheet_service, TimesheetService) else None
     )
     pm_task_service = task_service if isinstance(task_service, TaskService) else None
+    pm_assignment_skill_validator = services.get("assignment_skill_validator")
+    if not isinstance(pm_assignment_skill_validator, AssignmentSkillValidator):
+        pm_assignment_skill_validator = None
     pm_scheduling_engine = services.get("scheduling_engine")
     if not isinstance(pm_scheduling_engine, SchedulingEngine):
         pm_scheduling_engine = None
@@ -565,6 +571,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             project_resource_service=pm_project_resource_service,
             resource_service=pm_resource_service,
             reservation_service=inventory_reservation_desktop_service,
+            assignment_skill_validator=pm_assignment_skill_validator,
         ),
         project_management_timesheets=build_project_management_timesheets_desktop_api(
             project_service=pm_project_service,

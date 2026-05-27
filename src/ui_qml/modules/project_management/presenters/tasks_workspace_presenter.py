@@ -5,6 +5,7 @@ from datetime import date
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
+    AssignmentValidationDesktopDto,
     ProjectManagementCollaborationDesktopApi,
     ProjectManagementTasksDesktopApi,
     ProjectManagementTimesheetsDesktopApi,
@@ -1781,6 +1782,36 @@ class ProjectTasksWorkspacePresenter:
             return date.fromisoformat(normalized_value)
         except ValueError as exc:
             raise ValueError("Dates must use YYYY-MM-DD.") from exc
+
+    def validate_assignment(self, payload: dict[str, Any]) -> dict[str, object]:
+        task_id = str(payload.get("taskId") or "").strip()
+        project_resource_id = str(payload.get("projectResourceId") or "").strip()
+        if not task_id or not project_resource_id:
+            return {
+                "ok": True,
+                "isValid": True,
+                "canAssign": True,
+                "requiresApproval": False,
+                "isBlocked": False,
+                "hasWarnings": False,
+                "violationMessages": [],
+                "warningMessages": [],
+                "summary": "valid",
+            }
+        dto: AssignmentValidationDesktopDto = self._desktop_api.validate_assignment(
+            task_id, project_resource_id
+        )
+        return {
+            "ok": True,
+            "isValid": dto.is_valid,
+            "canAssign": dto.can_assign,
+            "requiresApproval": dto.requires_approval,
+            "isBlocked": dto.is_blocked,
+            "hasWarnings": dto.has_warnings,
+            "violationMessages": list(dto.violation_messages),
+            "warningMessages": list(dto.warning_messages),
+            "summary": dto.summary,
+        }
 
 
 __all__ = ["ProjectTasksWorkspacePresenter"]

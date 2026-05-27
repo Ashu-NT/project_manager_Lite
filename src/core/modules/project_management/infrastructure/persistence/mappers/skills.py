@@ -6,10 +6,13 @@ from src.core.modules.project_management.domain.resources.skills import (
     ResourceCertification,
     ResourceSkill,
     SkillProficiencyLevel,
+    SkillValidationMode,
+    TaskSkillRequirement,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.skills import (
     ResourceCertificationORM,
     ResourceSkillORM,
+    TaskSkillRequirementORM,
 )
 
 
@@ -72,4 +75,55 @@ def cert_from_orm(obj: ResourceCertificationORM) -> ResourceCertification:
     )
 
 
-__all__ = ["cert_from_orm", "cert_to_orm", "skill_from_orm", "skill_to_orm"]
+def task_req_to_orm(req: TaskSkillRequirement) -> TaskSkillRequirementORM:
+    return TaskSkillRequirementORM(
+        id=req.id,
+        task_id=req.task_id,
+        skill_code=req.skill_code or None,
+        certification_code=req.certification_code or None,
+        required_proficiency=(
+            req.required_proficiency.value
+            if isinstance(req.required_proficiency, SkillProficiencyLevel)
+            else str(req.required_proficiency or "intermediate")
+        ),
+        validation_mode=(
+            req.validation_mode.value
+            if isinstance(req.validation_mode, SkillValidationMode)
+            else str(req.validation_mode or "warn")
+        ),
+        notes=req.notes or None,
+        version=req.version,
+    )
+
+
+def task_req_from_orm(obj: TaskSkillRequirementORM) -> TaskSkillRequirement:
+    proficiency_raw = str(obj.required_proficiency or "intermediate").lower()
+    try:
+        proficiency = SkillProficiencyLevel(proficiency_raw)
+    except ValueError:
+        proficiency = SkillProficiencyLevel.INTERMEDIATE
+    mode_raw = str(obj.validation_mode or "warn").lower()
+    try:
+        validation_mode = SkillValidationMode(mode_raw)
+    except ValueError:
+        validation_mode = SkillValidationMode.WARN
+    return TaskSkillRequirement(
+        id=obj.id,
+        task_id=obj.task_id,
+        skill_code=obj.skill_code or None,
+        certification_code=obj.certification_code or None,
+        required_proficiency=proficiency,
+        validation_mode=validation_mode,
+        notes=obj.notes or "",
+        version=obj.version,
+    )
+
+
+__all__ = [
+    "cert_from_orm",
+    "cert_to_orm",
+    "skill_from_orm",
+    "skill_to_orm",
+    "task_req_from_orm",
+    "task_req_to_orm",
+]

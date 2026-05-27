@@ -29,6 +29,7 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.repositories.skills import (
     SqlAlchemyResourceCertificationRepository,
     SqlAlchemyResourceSkillRepository,
+    SqlAlchemyTaskSkillRequirementRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.task import (
     SqlAlchemyAssignmentRepository,
@@ -108,6 +109,7 @@ class RepositoryBundle:
     portfolio_scenario_repo: SqlAlchemyPortfolioScenarioRepository
     resource_skill_repo: SqlAlchemyResourceSkillRepository
     resource_cert_repo: SqlAlchemyResourceCertificationRepository
+    task_skill_req_repo: SqlAlchemyTaskSkillRequirementRepository
 
 
 def build_repository_bundle(session: Session) -> RepositoryBundle:
@@ -151,6 +153,7 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         portfolio_scenario_repo=SqlAlchemyPortfolioScenarioRepository(session),
         resource_skill_repo=SqlAlchemyResourceSkillRepository(session),
         resource_cert_repo=SqlAlchemyResourceCertificationRepository(session),
+        task_skill_req_repo=SqlAlchemyTaskSkillRequirementRepository(session),
     )
 
 

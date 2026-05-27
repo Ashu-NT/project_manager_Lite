@@ -111,6 +111,23 @@ class PMAssignmentController(QObject):
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot("QVariantMap", result="QVariantMap")
+    def validateAssignment(self, payload: dict[str, object]) -> dict[str, object]:
+        try:
+            return self._presenter.validate_assignment(dict(payload))
+        except Exception as exc:
+            return {
+                "ok": False,
+                "isValid": True,
+                "canAssign": True,
+                "requiresApproval": False,
+                "isBlocked": False,
+                "hasWarnings": False,
+                "violationMessages": [],
+                "warningMessages": [],
+                "summary": str(exc),
+            }
+
     # ── Private setters ───────────────────────────────────────────────
 
     def _set_assignment_options(self, v: list) -> None:

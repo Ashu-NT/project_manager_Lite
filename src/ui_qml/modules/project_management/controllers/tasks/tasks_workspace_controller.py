@@ -916,6 +916,11 @@ class ProjectManagementTasksWorkspaceController(
         return self._assignments_ctrl.deleteAssignment(assignment_id)
 
     @Slot("QVariantMap", result="QVariantMap")
+    @Slot("QVariantMap", result="QVariantMap")
+    def validateAssignment(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._assignments_ctrl.validateAssignment(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
     def createDependency(self, payload: dict[str, object]) -> dict[str, object]:
         return self._dependencies_ctrl.createDependency(payload)
 

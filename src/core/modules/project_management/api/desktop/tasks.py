@@ -8,6 +8,9 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
 )
+from src.core.modules.project_management.application.resources.assignment_validation import (
+    AssignmentSkillValidator,
+)
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
 from src.core.platform.common.exceptions import BusinessRuleError
@@ -187,6 +190,20 @@ class TaskMaterialDemandSummary:
     cancelled_count: int
 
 
+@dataclass(frozen=True)
+class AssignmentValidationDesktopDto:
+    task_id: str
+    resource_id: str
+    is_valid: bool
+    can_assign: bool
+    requires_approval: bool
+    is_blocked: bool
+    has_warnings: bool
+    violation_messages: tuple[str, ...]
+    warning_messages: tuple[str, ...]
+    summary: str
+
+
 class ProjectManagementTasksDesktopApi:
     def __init__(
         self,
@@ -196,12 +213,14 @@ class ProjectManagementTasksDesktopApi:
         project_resource_service: ProjectResourceService | None = None,
         resource_service: ResourceService | None = None,
         reservation_service: object | None = None,
+        assignment_skill_validator: AssignmentSkillValidator | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
         self._project_resource_service = project_resource_service
         self._resource_service = resource_service
         self._reservation_service = reservation_service
+        self._assignment_skill_validator = assignment_skill_validator
 
     def list_projects(self) -> tuple[TaskProjectOptionDescriptor, ...]:
         projects = self._project_rows_for_task_scope()
@@ -706,6 +725,71 @@ class ProjectManagementTasksDesktopApi:
             cancelled_count=sum(1 for r in reservations if r.status in closed_statuses),
         )
 
+    def validate_assignment(
+        self,
+        task_id: str,
+        project_resource_id: str,
+    ) -> AssignmentValidationDesktopDto:
+        if self._assignment_skill_validator is None or self._project_resource_service is None:
+            return AssignmentValidationDesktopDto(
+                task_id=task_id,
+                resource_id="",
+                is_valid=True,
+                can_assign=True,
+                requires_approval=False,
+                is_blocked=False,
+                has_warnings=False,
+                violation_messages=(),
+                warning_messages=(),
+                summary="valid",
+            )
+        task = self._require_task_service().get_task(task_id)
+        if task is None:
+            return AssignmentValidationDesktopDto(
+                task_id=task_id,
+                resource_id="",
+                is_valid=True,
+                can_assign=True,
+                requires_approval=False,
+                is_blocked=False,
+                has_warnings=False,
+                violation_messages=(),
+                warning_messages=(),
+                summary="valid",
+            )
+        get_project_resource = getattr(self._project_resource_service, "get", None)
+        if not callable(get_project_resource):
+            resource_id = ""
+        else:
+            pr = get_project_resource(project_resource_id)
+            resource_id = str(getattr(pr, "resource_id", "") or "") if pr else ""
+        if not resource_id:
+            return AssignmentValidationDesktopDto(
+                task_id=task_id,
+                resource_id="",
+                is_valid=True,
+                can_assign=True,
+                requires_approval=False,
+                is_blocked=False,
+                has_warnings=False,
+                violation_messages=(),
+                warning_messages=(),
+                summary="valid",
+            )
+        result = self._assignment_skill_validator.validate(task, resource_id)
+        return AssignmentValidationDesktopDto(
+            task_id=task_id,
+            resource_id=resource_id,
+            is_valid=result.is_valid,
+            can_assign=result.can_assign,
+            requires_approval=result.requires_approval,
+            is_blocked=result.is_blocked,
+            has_warnings=bool(result.warnings),
+            violation_messages=tuple(v.message for v in result.violations),
+            warning_messages=tuple(w.message for w in result.warnings),
+            summary=result.summary(),
+        )
+
     def _require_task_service(self) -> TaskService:
         if self._task_service is None:
             raise RuntimeError("Project management tasks desktop API is not connected.")
@@ -942,6 +1026,7 @@ def build_project_management_tasks_desktop_api(
     project_resource_service: ProjectResourceService | None = None,
     resource_service: ResourceService | None = None,
     reservation_service: object | None = None,
+    assignment_skill_validator: AssignmentSkillValidator | None = None,
 ) -> ProjectManagementTasksDesktopApi:
     return ProjectManagementTasksDesktopApi(
         project_service=project_service,
@@ -949,6 +1034,7 @@ def build_project_management_tasks_desktop_api(
         project_resource_service=project_resource_service,
         resource_service=resource_service,
         reservation_service=reservation_service,
+        assignment_skill_validator=assignment_skill_validator,
     )
 
 
@@ -1015,6 +1101,7 @@ def _normalize_task_ids(task_ids) -> tuple[str, ...]:
 
 
 __all__ = [
+    "AssignmentValidationDesktopDto",
     "ProjectManagementTasksDesktopApi",
     "TaskAssignmentAllocationCommand",
     "TaskAssignmentCreateCommand",

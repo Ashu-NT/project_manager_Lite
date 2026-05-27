@@ -35,6 +35,9 @@ from src.core.modules.project_management.application.scheduling import (
 from src.core.modules.project_management.infrastructure.importers import DataImportService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import CollaborationService, TaskService
+from src.core.modules.project_management.application.resources.assignment_validation import (
+    AssignmentSkillValidator,
+)
 from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle
@@ -84,6 +87,7 @@ class ProjectManagementServiceBundle:
     project_resource_service: ProjectResourceService
     data_import_service: DataImportService
     task_collaboration_store: TaskCollaborationStore
+    assignment_skill_validator: AssignmentSkillValidator
 
 
 def build_project_management_service_bundle(
@@ -297,6 +301,11 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_runtime_service,
     )
     task_collaboration_store = TaskCollaborationStore(session_factory=lambda: session)
+    assignment_skill_validator = AssignmentSkillValidator(
+        skill_repo=repositories.resource_skill_repo,
+        cert_repo=repositories.resource_cert_repo,
+        requirement_repo=repositories.task_skill_req_repo,
+    )
     _register_project_management_approval_handlers(
         approval_service=platform_services.approval_service,
         baseline_service=baseline_service,
@@ -324,6 +333,7 @@ def build_project_management_service_bundle(
         project_resource_service=project_resource_service,
         data_import_service=data_import_service,
         task_collaboration_store=task_collaboration_store,
+        assignment_skill_validator=assignment_skill_validator,
     )
 
 

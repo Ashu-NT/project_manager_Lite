@@ -241,6 +241,7 @@ AppLayouts.WorkspaceFrame {
         sourceComponent: Component {
             TasksDialogHost {
                 selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
+                workspaceController: root.workspaceController
                 projectOptions: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
                 selectedTaskData: root.selectedTaskModel
                 statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []

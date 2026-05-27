@@ -13,6 +13,8 @@ AppControls.CenteredDialog {
     property var taskData: ({})
     property var assignmentData: ({})
     property string validationMessage: ""
+    property var workspaceController: null
+    property var _skillValidation: ({})
 
     signal submitted(var payload)
 
@@ -55,6 +57,26 @@ AppControls.CenteredDialog {
                 : "100.0"
         )
         root.validationMessage = ""
+        root._skillValidation = {}
+    }
+
+    function runSkillValidation() {
+        if (root.mode !== "create" || root.workspaceController === null) {
+            root._skillValidation = {}
+            return
+        }
+        const taskState = root.selectedTaskState()
+        const option = (root.resourceOptions || [])[resourceCombo.currentIndex] || {}
+        const projectResourceId = String(option.value || "")
+        const taskId = String(taskState.taskId || "")
+        if (!taskId || !projectResourceId) {
+            root._skillValidation = {}
+            return
+        }
+        root._skillValidation = root.workspaceController.validateAssignment({
+            "taskId": taskId,
+            "projectResourceId": projectResourceId
+        }) || {}
     }
 
     function buildPayload() {
@@ -76,6 +98,10 @@ AppControls.CenteredDialog {
         }
         if (allocationField.text.trim().length === 0) {
             root.validationMessage = "Allocation percentage is required."
+            return
+        }
+        if (root.mode === "create" && root._skillValidation.isBlocked === true) {
+            root.validationMessage = "Assignment is blocked due to unmet skill/certification requirements."
             return
         }
         root.validationMessage = ""
@@ -148,6 +174,7 @@ AppControls.CenteredDialog {
             visible: root.mode === "create"
             model: root.resourceOptions
             textRole: "label"
+            onCurrentIndexChanged: Qt.callLater(root.runSkillValidation)
         }
 
         AppControls.Label {
@@ -158,6 +185,65 @@ AppControls.CenteredDialog {
             font.family: Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.smallSize
             wrapMode: Text.WordWrap
+        }
+
+        // Skill/cert validation panel — only shown in create mode when a resource is selected
+        Rectangle {
+            id: validationPanel
+
+            readonly property bool _hasResult: Object.keys(root._skillValidation).length > 0
+            readonly property bool _isBlocked: root._skillValidation.isBlocked === true
+            readonly property bool _requiresApproval: root._skillValidation.requiresApproval === true
+            readonly property bool _hasWarnings: root._skillValidation.hasWarnings === true
+            readonly property bool _isValid: root._skillValidation.isValid !== false
+
+            Layout.fillWidth: true
+            visible: root.mode === "create" && _hasResult && (!_isValid || _hasWarnings)
+            implicitHeight: visible ? _panelCol.implicitHeight + 16 : 0
+            radius: Theme.AppTheme.radiusSm
+            color: _isBlocked
+                ? "#FFF0F0"
+                : _requiresApproval
+                    ? "#FFF8F0"
+                    : "#FFFDF0"
+            border.color: _isBlocked
+                ? "#C0392B"
+                : _requiresApproval
+                    ? "#D4820A"
+                    : "#B8860B"
+            border.width: 1
+
+            ColumnLayout {
+                id: _panelCol
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 8 }
+                spacing: 4
+
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: validationPanel._isBlocked
+                        ? "Assignment blocked — skill requirements not met"
+                        : validationPanel._requiresApproval
+                            ? "Approval required — override violations present"
+                            : "Skill warnings — resource may not meet all requirements"
+                    color: validationPanel._isBlocked ? "#8B1E1E" : "#7A4A00"
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.bold: true
+                    wrapMode: Text.WordWrap
+                }
+
+                Repeater {
+                    model: (root._skillValidation.violationMessages || []).concat(root._skillValidation.warningMessages || [])
+                    AppControls.Label {
+                        Layout.fillWidth: true
+                        text: "• " + modelData
+                        color: validationPanel._isBlocked ? "#8B1E1E" : "#7A4A00"
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.smallSize
+                        wrapMode: Text.WordWrap
+                    }
+                }
+            }
         }
 
         AppControls.Label {
