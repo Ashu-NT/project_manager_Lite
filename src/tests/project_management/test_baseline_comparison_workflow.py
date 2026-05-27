@@ -4,6 +4,7 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.domain.scheduling.baseline import BaselineStatus
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
 
@@ -97,4 +98,43 @@ def test_compare_baselines_validates_input_and_missing_ids(services):
     with pytest.raises(NotFoundError) as missing_exc:
         rp.compare_baselines(pid, baseline.id, "missing-id")
     assert missing_exc.value.code == "BASELINE_B_NOT_FOUND"
+
+
+def test_baseline_approval_tracks_current_approved_and_variance_records(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    bs = services["baseline_service"]
+    cost_s = services["cost_service"]
+
+    project = ps.create_project("Baseline Governance", "")
+    pid = project.id
+    task = ts.create_task(pid, "Critical Task", start_date=date(2024, 4, 1), duration_days=2)
+    cost_s.add_cost_item(project_id=pid, description="Initial plan", planned_amount=100.0, task_id=task.id)
+
+    baseline_1 = bs.create_baseline(pid, "BL1")
+    bs.submit_baseline(baseline_1.id, submitted_by="alex")
+    approved_1 = bs.approve_baseline(baseline_1.id, approved_by="alex")
+
+    assert approved_1.status == BaselineStatus.APPROVED
+    assert bs.get_approved_baseline(pid).id == baseline_1.id
+    assert bs.list_variance_records(baseline_1.id) == []
+
+    ts.update_task(task.id, start_date=date(2024, 4, 3), duration_days=4)
+    cost_s.add_cost_item(project_id=pid, description="Growth", planned_amount=25.0, task_id=task.id)
+
+    baseline_2 = bs.create_baseline(pid, "BL2")
+    bs.submit_baseline(baseline_2.id, submitted_by="alex")
+    approved_2 = bs.approve_baseline(baseline_2.id, approved_by="alex")
+
+    baselines = {row.id: row for row in bs.list_baselines(pid)}
+    variance_rows = bs.list_variance_records(baseline_2.id)
+
+    assert approved_2.status == BaselineStatus.APPROVED
+    assert bs.get_approved_baseline(pid).id == baseline_2.id
+    assert baselines[baseline_1.id].status == BaselineStatus.SUPERSEDED
+    assert len(variance_rows) == 1
+    assert variance_rows[0].task_id == task.id
+    assert variance_rows[0].start_variance_days == 2
+    assert variance_rows[0].finish_variance_days == 2
+    assert variance_rows[0].cost_variance == pytest.approx(25.0)
 
