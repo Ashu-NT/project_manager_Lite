@@ -1,0 +1,13 @@
+    Component {
+        name: "PlatformSettingsWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "PlatformWorkspaceControllerBase"
+        exports: ["Platform.Controllers/PlatformSettingsWorkspaceController 1.0"]
+        Property { name: "moduleEntitlements"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "organizationProfiles"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "lifecycleOptions"; type: "QVariantList"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "toggleModuleLicensed"; Parameter { name: "moduleCode"; type: "QString" } }
+        Method { name: "toggleModuleEnabled"; Parameter { name: "moduleCode"; type: "QString" } }
+        Method { name: "changeModuleLifecycleStatus"; Parameter { name: "moduleCode"; type: "QString" } Parameter { name: "lifecycleStatus"; type: "QString" } }
+    }

@@ -1,0 +1,99 @@
+Component {
+    name: "ProjectManagementTasksWorkspaceController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementTasksWorkspaceController 1.0"]
+    Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+    Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "bulkStatusOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "priorityOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "scheduleOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "taskViewOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
+    Property { name: "selectedPriorityFilter"; type: "QString"; isReadonly: true }
+    Property { name: "selectedScheduleFilter"; type: "QString"; isReadonly: true }
+    Property { name: "selectedTaskViewName"; type: "QString"; isReadonly: true }
+    Property { name: "searchText"; type: "QString"; isReadonly: true }
+    Property { name: "tasks"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedTask"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedTaskId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedTaskIds"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedTaskCount"; type: "int"; isReadonly: true }
+    Property { name: "selectedTaskDoneCount"; type: "int"; isReadonly: true }
+    Property { name: "canUndoTaskAction"; type: "bool"; isReadonly: true }
+    Property { name: "canRedoTaskAction"; type: "bool"; isReadonly: true }
+    Property { name: "nextUndoLabel"; type: "QString"; isReadonly: true }
+    Property { name: "nextRedoLabel"; type: "QString"; isReadonly: true }
+    Property { name: "assignmentOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedAssignmentId"; type: "QString"; isReadonly: true }
+    Property { name: "dependencyTaskOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "assignments"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "timePeriodOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedTimePeriodStart"; type: "QString"; isReadonly: true }
+    Property { name: "timeAssignmentSummary"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "timeEntries"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedTimeEntryId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedTimeEntry"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "collaborationMentionOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "collaborationDocumentOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "collaborationComments"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "collaborationPresence"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "taskPage"; type: "int"; isReadonly: true }
+    Property { name: "taskPageSize"; type: "int"; isReadonly: true }
+    Property { name: "taskTotalCount"; type: "int"; isReadonly: true }
+    Method { name: "refresh" }
+    Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+    Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
+    Method { name: "setPriorityFilter"; Parameter { name: "priorityFilter"; type: "QString" } }
+    Method { name: "setScheduleFilter"; Parameter { name: "scheduleFilter"; type: "QString" } }
+    Method { name: "clearFilters" }
+    Method { name: "selectTaskView"; Parameter { name: "viewName"; type: "QString" } }
+    Method { name: "beginTaskPresence"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } Parameter { name: "activity"; type: "QString" } }
+    Method { name: "endTaskPresence"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
+    Method { name: "saveCurrentTaskView"; type: "QVariantMap"; Parameter { name: "viewName"; type: "QString" } }
+    Method { name: "applySelectedTaskView"; type: "QVariantMap" }
+    Method { name: "deleteSelectedTaskView"; type: "QVariantMap" }
+    Method { name: "exportTasks"; type: "QVariantMap" }
+    Method { name: "selectTask"; Parameter { name: "taskId"; type: "QString" } }
+    Method { name: "setTaskBulkSelection"; Parameter { name: "taskId"; type: "QString" } Parameter { name: "selected"; type: "bool" } }
+    Method { name: "selectVisibleTasks" }
+    Method { name: "clearTaskBulkSelection" }
+    Method { name: "undoLastTaskAction"; type: "QVariantMap" }
+    Method { name: "redoLastTaskAction"; type: "QVariantMap" }
+    Method { name: "selectAssignment"; Parameter { name: "assignmentId"; type: "QString" } }
+    Method { name: "selectTimePeriod"; Parameter { name: "periodStart"; type: "QString" } }
+    Method { name: "selectTimeEntry"; Parameter { name: "entryId"; type: "QString" } }
+    Method { name: "createTask"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateTask"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateProgress"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteTask"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
+    Method { name: "createAssignment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateAssignmentAllocation"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "setAssignmentHours"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "applyBulkStatus"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "bulkDeleteTasks"; type: "QVariantMap"; Parameter { name: "taskIds"; type: "QVariantList" } }
+    Method { name: "addTaskTimeEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateTaskTimeEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteTaskTimeEntry"; type: "QVariantMap"; Parameter { name: "entryId"; type: "QString" } }
+    Method { name: "submitTaskPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "lockTaskPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "unlockTaskPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteAssignment"; type: "QVariantMap"; Parameter { name: "assignmentId"; type: "QString" } }
+    Method { name: "createDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
+    Method { name: "postTaskComment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "activateTask"; Parameter { name: "task_id"; type: "QString" } }
+    Method { name: "setTaskPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setTaskPageSize"; Parameter { name: "page_size"; type: "int" } }
+    Method { name: "loadSelectedTaskAssignments" }
+    Method { name: "loadSelectedTaskDependencies" }
+    Method { name: "loadSelectedTaskTime"}
+    Method { name: "loadSelectedTaskCollaboration"}
+    Method { name: "setTaskReviewActive"; Parameter { name: "active"; type: "bool" } }
+    Method { name: "markTaskCollaborationRead"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
+}

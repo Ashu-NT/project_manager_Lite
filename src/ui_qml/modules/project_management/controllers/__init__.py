@@ -1,0 +1,47 @@
+from src.ui_qml.modules.project_management.controllers.common import (
+    ProjectManagementWorkspaceControllerBase,
+)
+from src.ui_qml.modules.project_management.controllers.collaboration import (
+    ProjectManagementCollaborationWorkspaceController,
+)
+from src.ui_qml.modules.project_management.controllers.dashboard import (
+    ProjectManagementDashboardWorkspaceController,
+)
+from src.ui_qml.modules.project_management.controllers.financials import (
+    ProjectManagementFinancialsWorkspaceController,
+)
+from src.ui_qml.modules.project_management.controllers.portfolio import (
+    ProjectManagementPortfolioWorkspaceController,
+)
+from src.ui_qml.modules.project_management.controllers.projects import (
+    ProjectManagementProjectsWorkspaceController,
+)
+from src.ui_qml.modules.project_management.controllers.register import (
+    ProjectManagementRegisterWorkspaceController,
+)
+from src.ui_qml.modules.project_management.controllers.resources import (
+    ProjectManagementResourcesWorkspaceController,
+)
+from src.ui_qml.modules.project_management.controllers.scheduling import (
+    ProjectManagementSchedulingWorkspaceController,
+)
+from src.ui_qml.modules.project_management.controllers.tasks import (
+    ProjectManagementTasksWorkspaceController,
+)
+from src.ui_qml.modules.project_management.controllers.timesheets import (
+    ProjectManagementTimesheetsWorkspaceController,
+)
+
+__all__ = [
+    "ProjectManagementCollaborationWorkspaceController",
+    "ProjectManagementDashboardWorkspaceController",
+    "ProjectManagementFinancialsWorkspaceController",
+    "ProjectManagementPortfolioWorkspaceController",
+    "ProjectManagementProjectsWorkspaceController",
+    "ProjectManagementRegisterWorkspaceController",
+    "ProjectManagementResourcesWorkspaceController",
+    "ProjectManagementSchedulingWorkspaceController",
+    "ProjectManagementTasksWorkspaceController",
+    "ProjectManagementTimesheetsWorkspaceController",
+    "ProjectManagementWorkspaceControllerBase",
+]

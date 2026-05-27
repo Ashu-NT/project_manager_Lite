@@ -1,0 +1,2 @@
+"""HR management tests."""
+

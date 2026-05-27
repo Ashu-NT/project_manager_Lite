@@ -1,0 +1,13 @@
+module Maintenance.Dialogs
+LocationEditorDialog 1.0 LocationEditorDialog.qml
+SystemEditorDialog 1.0 SystemEditorDialog.qml
+AssetEditorDialog 1.0 AssetEditorDialog.qml
+ComponentEditorDialog 1.0 ComponentEditorDialog.qml
+WorkRequestEditorDialog 1.0 WorkRequestEditorDialog.qml
+WorkRequestStatusDialog 1.0 WorkRequestStatusDialog.qml
+WorkOrderEditorDialog 1.0 WorkOrderEditorDialog.qml
+WorkOrderStatusDialog 1.0 WorkOrderStatusDialog.qml
+PreventivePlanEditorDialog 1.0 PreventivePlanEditorDialog.qml
+PreventivePlanTaskEditorDialog 1.0 PreventivePlanTaskEditorDialog.qml
+TaskTemplateEditorDialog 1.0 TaskTemplateEditorDialog.qml
+TaskStepTemplateEditorDialog 1.0 TaskStepTemplateEditorDialog.qml

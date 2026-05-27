@@ -1,0 +1,1 @@
+"""Payroll employee reference domain."""

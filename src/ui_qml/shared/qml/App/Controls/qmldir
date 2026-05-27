@@ -1,0 +1,13 @@
+module App.Controls
+CenteredDialog 1.0 CenteredDialog.qml
+CheckBox 1.0 CheckBox.qml
+ComboBox 1.0 ComboBox.qml
+DateField 1.0 DateField.qml
+Label 1.0 Label.qml
+PrimaryButton 1.0 PrimaryButton.qml
+RadioButton 1.0 RadioButton.qml
+SearchField 1.0 SearchField.qml
+SecondaryButton 1.0 SecondaryButton.qml
+TextArea 1.0 TextArea.qml
+TextField 1.0 TextField.qml
+ToggleSwitch 1.0 ToggleSwitch.qml

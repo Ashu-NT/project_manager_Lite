@@ -1,0 +1,2 @@
+module App.Mock
+singleton MockFactory 1.0 MockFactory.qml

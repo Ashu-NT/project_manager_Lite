@@ -1,0 +1,39 @@
+Component {
+    name: "ProjectManagementDashboardWorkspaceController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementDashboardWorkspaceController 1.0"]
+    Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+    Property { name: "baselineOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedBaselineId"; type: "QString"; isReadonly: true }
+    Property { name: "periodOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedPeriodKey"; type: "QString"; isReadonly: true }
+    Property { name: "viewOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedViewKey"; type: "QString"; isReadonly: true }
+    Property { name: "healthCards"; type: "QVariantList"; isReadonly: true }
+    Property { name: "operationalTabs"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedOperationalTabId"; type: "QString"; isReadonly: true }
+    Property { name: "operationalTable"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "operationalSearchText"; type: "QString"; isReadonly: true }
+    Property { name: "operationalPage"; type: "int"; isReadonly: true }
+    Property { name: "operationalPageSize"; type: "int"; isReadonly: true }
+    Property { name: "operationalTotalCount"; type: "int"; isReadonly: true }
+    Property { name: "selectedOperationalRowId"; type: "QString"; isReadonly: true }
+    Property { name: "activityFeed"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "panels"; type: "QVariantList"; isReadonly: true }
+    Property { name: "charts"; type: "QVariantList"; isReadonly: true }
+    Property { name: "sections"; type: "QVariantList"; isReadonly: true }
+    Method { name: "refresh" }
+    Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "selectBaseline"; Parameter { name: "baselineId"; type: "QString" } }
+    Method { name: "selectPeriod"; Parameter { name: "periodKey"; type: "QString" } }
+    Method { name: "selectView"; Parameter { name: "viewKey"; type: "QString" } }
+    Method { name: "selectOperationalTab"; Parameter { name: "tabId"; type: "QString" } }
+    Method { name: "setOperationalSearchText"; Parameter { name: "searchText"; type: "QString" } }
+    Method { name: "setOperationalPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setOperationalPageSize"; Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "selectOperationalRow"; Parameter { name: "rowId"; type: "QString" } }
+    Method { name: "exportDashboard"; type: "QVariantMap" }
+}

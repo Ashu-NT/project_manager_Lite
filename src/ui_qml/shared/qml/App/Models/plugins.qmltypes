@@ -1,0 +1,13 @@
+import QtQuick.tooling 1.2
+
+Module {
+    Component {
+        name: "DynamicTableModel"
+        accessSemantics: "reference"
+        prototype: "QObject"
+        exports: ["App.Models/DynamicTableModel 1.0"]
+        Property { name: "rows"; type: "QVariantList" }
+        Property { name: "columns"; type: "QVariantList" }
+    }
+}
+

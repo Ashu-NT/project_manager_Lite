@@ -1,0 +1,247 @@
+import QtQuick.tooling 1.2
+
+Module {
+    Component {
+        name: "InventoryProcurementWorkspaceControllerBase"
+        accessSemantics: "reference"
+        prototype: "QObject"
+        exports: ["InventoryProcurement.Controllers/InventoryProcurementWorkspaceControllerBase 1.0"]
+        Property { name: "workspace"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "isLoading"; type: "bool"; isReadonly: true }
+        Property { name: "isBusy"; type: "bool"; isReadonly: true }
+        Property { name: "errorMessage"; type: "QString"; isReadonly: true }
+        Property { name: "feedbackMessage"; type: "QString"; isReadonly: true }
+        Property { name: "emptyState"; type: "QString"; isReadonly: true }
+        Method { name: "clearMessages" }
+    }
+
+    Component {
+        name: "InventoryProcurementCatalogWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "InventoryProcurementWorkspaceControllerBase"
+        exports: ["InventoryProcurement.Controllers/InventoryProcurementCatalogWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "activeOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "usageOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "categoryTypeOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "categoryOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "itemStatusOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "businessPartyOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "availableDocuments"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedActiveFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedUsageFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedCategoryTypeFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedCategoryFilter"; type: "QString"; isReadonly: true }
+        Property { name: "searchText"; type: "QString"; isReadonly: true }
+        Property { name: "categories"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedCategory"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedCategoryId"; type: "QString"; isReadonly: true }
+        Property { name: "items"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedItem"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedItemId"; type: "QString"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+        Method { name: "setActiveFilter"; Parameter { name: "activeFilter"; type: "QString" } }
+        Method { name: "setUsageFilter"; Parameter { name: "usageFilter"; type: "QString" } }
+        Method { name: "setCategoryTypeFilter"; Parameter { name: "categoryType"; type: "QString" } }
+        Method { name: "setCategoryFilter"; Parameter { name: "categoryCode"; type: "QString" } }
+        Method { name: "selectCategory"; Parameter { name: "categoryId"; type: "QString" } }
+        Method { name: "selectItem"; Parameter { name: "itemId"; type: "QString" } }
+        Method { name: "createCategory"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateCategory"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "toggleCategoryActive"; type: "QVariantMap"; Parameter { name: "categoryId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+        Method { name: "createItem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateItem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "applyBulkStatus"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "toggleItemActive"; type: "QVariantMap"; Parameter { name: "itemId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+        Method { name: "linkDocument"; type: "QVariantMap"; Parameter { name: "itemId"; type: "QString" } Parameter { name: "documentId"; type: "QString" } }
+        Method { name: "unlinkDocument"; type: "QVariantMap"; Parameter { name: "itemId"; type: "QString" } Parameter { name: "documentId"; type: "QString" } }
+    }
+
+    Component {
+        name: "InventoryProcurementDashboardWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "InventoryProcurementWorkspaceControllerBase"
+        exports: ["InventoryProcurement.Controllers/InventoryProcurementDashboardWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "contextLabel"; type: "QString"; isReadonly: true }
+        Property { name: "sections"; type: "QVariantList"; isReadonly: true }
+        Method { name: "refresh" }
+    }
+
+    Component {
+        name: "InventoryProcurementInventoryWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "InventoryProcurementWorkspaceControllerBase"
+        exports: ["InventoryProcurement.Controllers/InventoryProcurementInventoryWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "siteOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "activeOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "storeroomStatusOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "transactionTypeOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "storeroomOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "itemOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "managerPartyOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedSiteFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedActiveFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedStoreroomFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedItemFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedTransactionTypeFilter"; type: "QString"; isReadonly: true }
+        Property { name: "searchText"; type: "QString"; isReadonly: true }
+        Property { name: "storerooms"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedStoreroom"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedStoreroomId"; type: "QString"; isReadonly: true }
+        Property { name: "balances"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedBalance"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedBalanceId"; type: "QString"; isReadonly: true }
+        Property { name: "transactions"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "foundation"; type: "QVariantMap"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+        Method { name: "setSiteFilter"; Parameter { name: "siteId"; type: "QString" } }
+        Method { name: "setActiveFilter"; Parameter { name: "activeFilter"; type: "QString" } }
+        Method { name: "setStoreroomFilter"; Parameter { name: "storeroomId"; type: "QString" } }
+        Method { name: "setItemFilter"; Parameter { name: "itemId"; type: "QString" } }
+        Method { name: "setTransactionTypeFilter"; Parameter { name: "transactionType"; type: "QString" } }
+        Method { name: "selectStoreroom"; Parameter { name: "storeroomId"; type: "QString" } }
+        Method { name: "selectBalance"; Parameter { name: "balanceId"; type: "QString" } }
+        Method { name: "createStoreroom"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateStoreroom"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "toggleStoreroomActive"; type: "QVariantMap"; Parameter { name: "storeroomId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+        Method { name: "postOpeningBalance"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "postAdjustment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "issueStock"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "returnStock"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "transferStock"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "createLocation"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateLocation"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "upsertReorderPolicy"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "scheduleCycleCount"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "completeCycleCount"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    }
+
+    Component {
+        name: "InventoryProcurementReservationsWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "InventoryProcurementWorkspaceControllerBase"
+        exports: ["InventoryProcurement.Controllers/InventoryProcurementReservationsWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "itemOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "storeroomOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedItemFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedStoreroomFilter"; type: "QString"; isReadonly: true }
+        Property { name: "searchText"; type: "QString"; isReadonly: true }
+        Property { name: "reservations"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedReservation"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedReservationId"; type: "QString"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+        Method { name: "setStatusFilter"; Parameter { name: "status"; type: "QString" } }
+        Method { name: "setItemFilter"; Parameter { name: "itemId"; type: "QString" } }
+        Method { name: "setStoreroomFilter"; Parameter { name: "storeroomId"; type: "QString" } }
+        Method { name: "selectReservation"; Parameter { name: "reservationId"; type: "QString" } }
+        Method { name: "createReservation"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "issueReservation"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "releaseReservation"; type: "QVariantMap"; Parameter { name: "reservationId"; type: "QString" } }
+        Method { name: "cancelReservation"; type: "QVariantMap"; Parameter { name: "reservationId"; type: "QString" } }
+    }
+
+    Component {
+        name: "InventoryProcurementProcurementWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "InventoryProcurementWorkspaceControllerBase"
+        exports: ["InventoryProcurement.Controllers/InventoryProcurementProcurementWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "siteOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "storeroomOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "supplierOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "requisitionStatusOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "purchaseOrderStatusOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "itemOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "requisitionOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "requisitionLineOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedSiteFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedStoreroomFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedSupplierFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedRequisitionStatusFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedPurchaseOrderStatusFilter"; type: "QString"; isReadonly: true }
+        Property { name: "searchText"; type: "QString"; isReadonly: true }
+        Property { name: "requisitions"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedRequisition"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedRequisitionId"; type: "QString"; isReadonly: true }
+        Property { name: "requisitionLines"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "purchaseOrders"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedPurchaseOrder"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedPurchaseOrderId"; type: "QString"; isReadonly: true }
+        Property { name: "purchaseOrderLines"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "receipts"; type: "QVariantMap"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+        Method { name: "setSiteFilter"; Parameter { name: "siteId"; type: "QString" } }
+        Method { name: "setStoreroomFilter"; Parameter { name: "storeroomId"; type: "QString" } }
+        Method { name: "setSupplierFilter"; Parameter { name: "supplierId"; type: "QString" } }
+        Method { name: "setRequisitionStatusFilter"; Parameter { name: "status"; type: "QString" } }
+        Method { name: "setPurchaseOrderStatusFilter"; Parameter { name: "status"; type: "QString" } }
+        Method { name: "selectRequisition"; Parameter { name: "requisitionId"; type: "QString" } }
+        Method { name: "selectPurchaseOrder"; Parameter { name: "purchaseOrderId"; type: "QString" } }
+        Method { name: "createRequisition"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateRequisition"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "addRequisitionLine"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "submitRequisition"; type: "QVariantMap"; Parameter { name: "requisitionId"; type: "QString" } }
+        Method { name: "cancelRequisition"; type: "QVariantMap"; Parameter { name: "requisitionId"; type: "QString" } }
+        Method { name: "createPurchaseOrder"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updatePurchaseOrder"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "addPurchaseOrderLine"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "submitPurchaseOrder"; type: "QVariantMap"; Parameter { name: "purchaseOrderId"; type: "QString" } }
+        Method { name: "sendPurchaseOrder"; type: "QVariantMap"; Parameter { name: "purchaseOrderId"; type: "QString" } }
+        Method { name: "cancelPurchaseOrder"; type: "QVariantMap"; Parameter { name: "purchaseOrderId"; type: "QString" } }
+        Method { name: "closePurchaseOrder"; type: "QVariantMap"; Parameter { name: "purchaseOrderId"; type: "QString" } }
+        Method { name: "postReceipt"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    }
+
+    Component {
+        name: "InventoryProcurementPricingWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "InventoryProcurementWorkspaceControllerBase"
+        exports: ["InventoryProcurement.Controllers/InventoryProcurementPricingWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "contextLabel"; type: "QString"; isReadonly: true }
+        Property { name: "siteOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "storeroomOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "supplierOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "limitOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedSiteFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedStoreroomFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedSupplierFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedLimitFilter"; type: "QString"; isReadonly: true }
+        Property { name: "stockSignals"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "supplierPricing"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "canExport"; type: "bool"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "setSiteFilter"; Parameter { name: "siteId"; type: "QString" } }
+        Method { name: "setStoreroomFilter"; Parameter { name: "storeroomId"; type: "QString" } }
+        Method { name: "setSupplierFilter"; Parameter { name: "supplierId"; type: "QString" } }
+        Method { name: "setLimitFilter"; Parameter { name: "limitValue"; type: "QString" } }
+        Method { name: "exportStockStatusCsv"; type: "QVariantMap"; Parameter { name: "outputPath"; type: "QString" } }
+        Method { name: "exportStockStatusExcel"; type: "QVariantMap"; Parameter { name: "outputPath"; type: "QString" } }
+        Method { name: "exportProcurementOverviewCsv"; type: "QVariantMap"; Parameter { name: "outputPath"; type: "QString" } }
+        Method { name: "exportProcurementOverviewExcel"; type: "QVariantMap"; Parameter { name: "outputPath"; type: "QString" } }
+    }
+
+    Component {
+        name: "InventoryProcurementWorkspaceCatalog"
+        accessSemantics: "reference"
+        prototype: "QObject"
+        exports: ["InventoryProcurement.Controllers/InventoryProcurementWorkspaceCatalog 1.0"]
+        Property { name: "catalogWorkspace"; type: "InventoryProcurementCatalogWorkspaceController"; isReadonly: true }
+        Property { name: "dashboardWorkspace"; type: "InventoryProcurementDashboardWorkspaceController"; isReadonly: true }
+        Property { name: "inventoryWorkspace"; type: "InventoryProcurementInventoryWorkspaceController"; isReadonly: true }
+        Property { name: "pricingWorkspace"; type: "InventoryProcurementPricingWorkspaceController"; isReadonly: true }
+        Property { name: "procurementWorkspace"; type: "InventoryProcurementProcurementWorkspaceController"; isReadonly: true }
+        Property { name: "reservationsWorkspace"; type: "InventoryProcurementReservationsWorkspaceController"; isReadonly: true }
+        Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }
+    }
+}
+

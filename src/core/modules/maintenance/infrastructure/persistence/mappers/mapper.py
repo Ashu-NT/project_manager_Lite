@@ -1,0 +1,1203 @@
+from __future__ import annotations
+
+import json
+
+from src.core.modules.maintenance.domain import (
+    MaintenanceAsset,
+    MaintenanceAssetComponent,
+    MaintenanceDowntimeEvent,
+    MaintenanceFailureCode,
+    MaintenanceIntegrationSource,
+    MaintenanceLocation,
+    MaintenancePreventivePlanInstance,
+    MaintenancePreventivePlan,
+    MaintenancePreventivePlanTask,
+    MaintenanceSensorException,
+    MaintenanceSensor,
+    MaintenanceSensorReading,
+    MaintenanceSensorSourceMapping,
+    MaintenanceWorkOrderMaterialRequirement,
+    MaintenanceSystem,
+    MaintenanceTaskStepTemplate,
+    MaintenanceTaskTemplate,
+    MaintenanceWorkOrder,
+    MaintenanceWorkOrderTask,
+    MaintenanceWorkOrderTaskStep,
+    MaintenanceWorkRequest,
+)
+from src.infra.persistence.orm.maintenance.models import (
+    MaintenanceAssetComponentORM,
+    MaintenanceAssetORM,
+    MaintenanceDowntimeEventORM,
+    MaintenanceFailureCodeORM,
+    MaintenanceIntegrationSourceORM,
+    MaintenanceLocationORM,
+    MaintenancePreventivePlanORM,
+    MaintenancePreventivePlanTaskORM,
+    MaintenanceSensorExceptionORM,
+    MaintenanceSensorORM,
+    MaintenanceSensorReadingORM,
+    MaintenanceSensorSourceMappingORM,
+    MaintenanceSystemORM,
+    MaintenanceTaskStepTemplateORM,
+    MaintenanceTaskTemplateORM,
+    MaintenanceWorkOrderMaterialRequirementORM,
+    MaintenanceWorkOrderORM,
+    MaintenanceWorkOrderTaskORM,
+    MaintenanceWorkOrderTaskStepORM,
+    MaintenanceWorkRequestORM,
+)
+from src.infra.persistence.orm.maintenance.preventive_runtime_models import MaintenancePreventivePlanInstanceORM
+
+
+def maintenance_location_to_orm(location: MaintenanceLocation) -> MaintenanceLocationORM:
+    return MaintenanceLocationORM(
+        id=location.id,
+        organization_id=location.organization_id,
+        site_id=location.site_id,
+        location_code=location.location_code,
+        name=location.name,
+        description=location.description or None,
+        parent_location_id=location.parent_location_id,
+        location_type=location.location_type or None,
+        criticality=location.criticality,
+        status=location.status,
+        is_active=location.is_active,
+        created_at=location.created_at,
+        updated_at=location.updated_at,
+        notes=location.notes or None,
+        version=getattr(location, "version", 1),
+    )
+
+
+def maintenance_location_from_orm(obj: MaintenanceLocationORM) -> MaintenanceLocation:
+    return MaintenanceLocation(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        site_id=obj.site_id,
+        location_code=obj.location_code,
+        name=obj.name,
+        description=obj.description or "",
+        parent_location_id=obj.parent_location_id,
+        location_type=obj.location_type or "",
+        criticality=obj.criticality,
+        status=obj.status,
+        is_active=obj.is_active,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        notes=obj.notes or "",
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_system_to_orm(system: MaintenanceSystem) -> MaintenanceSystemORM:
+    return MaintenanceSystemORM(
+        id=system.id,
+        organization_id=system.organization_id,
+        site_id=system.site_id,
+        system_code=system.system_code,
+        name=system.name,
+        location_id=system.location_id,
+        description=system.description or None,
+        parent_system_id=system.parent_system_id,
+        system_type=system.system_type or None,
+        criticality=system.criticality,
+        status=system.status,
+        is_active=system.is_active,
+        created_at=system.created_at,
+        updated_at=system.updated_at,
+        notes=system.notes or None,
+        version=getattr(system, "version", 1),
+    )
+
+
+def maintenance_system_from_orm(obj: MaintenanceSystemORM) -> MaintenanceSystem:
+    return MaintenanceSystem(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        site_id=obj.site_id,
+        system_code=obj.system_code,
+        name=obj.name,
+        location_id=obj.location_id,
+        description=obj.description or "",
+        parent_system_id=obj.parent_system_id,
+        system_type=obj.system_type or "",
+        criticality=obj.criticality,
+        status=obj.status,
+        is_active=obj.is_active,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        notes=obj.notes or "",
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_asset_to_orm(asset: MaintenanceAsset) -> MaintenanceAssetORM:
+    return MaintenanceAssetORM(
+        id=asset.id,
+        organization_id=asset.organization_id,
+        site_id=asset.site_id,
+        location_id=asset.location_id,
+        asset_code=asset.asset_code,
+        name=asset.name,
+        system_id=asset.system_id,
+        description=asset.description or None,
+        parent_asset_id=asset.parent_asset_id,
+        asset_type=asset.asset_type or None,
+        asset_category=asset.asset_category or None,
+        status=asset.status,
+        criticality=asset.criticality,
+        manufacturer_party_id=asset.manufacturer_party_id,
+        supplier_party_id=asset.supplier_party_id,
+        model_number=asset.model_number or None,
+        serial_number=asset.serial_number or None,
+        barcode=asset.barcode or None,
+        install_date=asset.install_date,
+        commission_date=asset.commission_date,
+        warranty_start=asset.warranty_start,
+        warranty_end=asset.warranty_end,
+        expected_life_years=asset.expected_life_years,
+        replacement_cost=asset.replacement_cost,
+        maintenance_strategy=asset.maintenance_strategy or None,
+        service_level=asset.service_level or None,
+        requires_shutdown_for_major_work=asset.requires_shutdown_for_major_work,
+        is_active=asset.is_active,
+        created_at=asset.created_at,
+        updated_at=asset.updated_at,
+        notes=asset.notes or None,
+        version=getattr(asset, "version", 1),
+    )
+
+
+def maintenance_asset_from_orm(obj: MaintenanceAssetORM) -> MaintenanceAsset:
+    return MaintenanceAsset(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        site_id=obj.site_id,
+        location_id=obj.location_id,
+        asset_code=obj.asset_code,
+        name=obj.name,
+        system_id=obj.system_id,
+        description=obj.description or "",
+        parent_asset_id=obj.parent_asset_id,
+        asset_type=obj.asset_type or "",
+        asset_category=obj.asset_category or "",
+        status=obj.status,
+        criticality=obj.criticality,
+        manufacturer_party_id=obj.manufacturer_party_id,
+        supplier_party_id=obj.supplier_party_id,
+        model_number=obj.model_number or "",
+        serial_number=obj.serial_number or "",
+        barcode=obj.barcode or "",
+        install_date=obj.install_date,
+        commission_date=obj.commission_date,
+        warranty_start=obj.warranty_start,
+        warranty_end=obj.warranty_end,
+        expected_life_years=obj.expected_life_years,
+        replacement_cost=obj.replacement_cost,
+        maintenance_strategy=obj.maintenance_strategy or "",
+        service_level=obj.service_level or "",
+        requires_shutdown_for_major_work=obj.requires_shutdown_for_major_work,
+        is_active=obj.is_active,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        notes=obj.notes or "",
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_asset_component_to_orm(component: MaintenanceAssetComponent) -> MaintenanceAssetComponentORM:
+    return MaintenanceAssetComponentORM(
+        id=component.id,
+        organization_id=component.organization_id,
+        asset_id=component.asset_id,
+        component_code=component.component_code,
+        name=component.name,
+        description=component.description or None,
+        parent_component_id=component.parent_component_id,
+        component_type=component.component_type or None,
+        status=component.status,
+        manufacturer_party_id=component.manufacturer_party_id,
+        supplier_party_id=component.supplier_party_id,
+        manufacturer_part_number=component.manufacturer_part_number or None,
+        supplier_part_number=component.supplier_part_number or None,
+        model_number=component.model_number or None,
+        serial_number=component.serial_number or None,
+        install_date=component.install_date,
+        warranty_end=component.warranty_end,
+        expected_life_hours=component.expected_life_hours,
+        expected_life_cycles=component.expected_life_cycles,
+        is_critical_component=component.is_critical_component,
+        is_active=component.is_active,
+        created_at=component.created_at,
+        updated_at=component.updated_at,
+        notes=component.notes or None,
+        version=getattr(component, "version", 1),
+    )
+
+
+def maintenance_asset_component_from_orm(obj: MaintenanceAssetComponentORM) -> MaintenanceAssetComponent:
+    return MaintenanceAssetComponent(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        asset_id=obj.asset_id,
+        component_code=obj.component_code,
+        name=obj.name,
+        description=obj.description or "",
+        parent_component_id=obj.parent_component_id,
+        component_type=obj.component_type or "",
+        status=obj.status,
+        manufacturer_party_id=obj.manufacturer_party_id,
+        supplier_party_id=obj.supplier_party_id,
+        manufacturer_part_number=obj.manufacturer_part_number or "",
+        supplier_part_number=obj.supplier_part_number or "",
+        model_number=obj.model_number or "",
+        serial_number=obj.serial_number or "",
+        install_date=obj.install_date,
+        warranty_end=obj.warranty_end,
+        expected_life_hours=obj.expected_life_hours,
+        expected_life_cycles=obj.expected_life_cycles,
+        is_critical_component=obj.is_critical_component,
+        is_active=obj.is_active,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        notes=obj.notes or "",
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_sensor_to_orm(sensor: MaintenanceSensor) -> MaintenanceSensorORM:
+    return MaintenanceSensorORM(
+        id=sensor.id,
+        organization_id=sensor.organization_id,
+        site_id=sensor.site_id,
+        sensor_code=sensor.sensor_code,
+        sensor_name=sensor.sensor_name,
+        sensor_tag=sensor.sensor_tag or None,
+        sensor_type=sensor.sensor_type or None,
+        asset_id=sensor.asset_id,
+        component_id=sensor.component_id,
+        system_id=sensor.system_id,
+        source_type=sensor.source_type or None,
+        source_name=sensor.source_name or None,
+        source_key=sensor.source_key or None,
+        unit=sensor.unit or None,
+        current_value=sensor.current_value,
+        last_read_at=sensor.last_read_at,
+        last_quality_state=sensor.last_quality_state,
+        is_active=sensor.is_active,
+        notes=sensor.notes or None,
+        created_at=sensor.created_at,
+        updated_at=sensor.updated_at,
+        version=getattr(sensor, "version", 1),
+    )
+
+
+def maintenance_sensor_from_orm(obj: MaintenanceSensorORM) -> MaintenanceSensor:
+    return MaintenanceSensor(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        site_id=obj.site_id,
+        sensor_code=obj.sensor_code,
+        sensor_name=obj.sensor_name,
+        sensor_tag=obj.sensor_tag or "",
+        sensor_type=obj.sensor_type or "",
+        asset_id=obj.asset_id,
+        component_id=obj.component_id,
+        system_id=obj.system_id,
+        source_type=obj.source_type or "",
+        source_name=obj.source_name or "",
+        source_key=obj.source_key or "",
+        unit=obj.unit or "",
+        current_value=obj.current_value,
+        last_read_at=obj.last_read_at,
+        last_quality_state=obj.last_quality_state,
+        is_active=obj.is_active,
+        notes=obj.notes or "",
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_sensor_reading_to_orm(sensor_reading: MaintenanceSensorReading) -> MaintenanceSensorReadingORM:
+    return MaintenanceSensorReadingORM(
+        id=sensor_reading.id,
+        organization_id=sensor_reading.organization_id,
+        sensor_id=sensor_reading.sensor_id,
+        reading_value=sensor_reading.reading_value,
+        reading_unit=sensor_reading.reading_unit,
+        reading_timestamp=sensor_reading.reading_timestamp,
+        quality_state=sensor_reading.quality_state,
+        source_name=sensor_reading.source_name or None,
+        source_batch_id=sensor_reading.source_batch_id or None,
+        received_at=sensor_reading.received_at,
+        raw_payload_ref=sensor_reading.raw_payload_ref or None,
+        created_at=sensor_reading.created_at,
+        version=getattr(sensor_reading, "version", 1),
+    )
+
+
+def maintenance_sensor_reading_from_orm(obj: MaintenanceSensorReadingORM) -> MaintenanceSensorReading:
+    return MaintenanceSensorReading(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        sensor_id=obj.sensor_id,
+        reading_value=obj.reading_value,
+        reading_unit=obj.reading_unit,
+        reading_timestamp=obj.reading_timestamp,
+        quality_state=obj.quality_state,
+        source_name=obj.source_name or "",
+        source_batch_id=obj.source_batch_id or "",
+        received_at=obj.received_at,
+        raw_payload_ref=obj.raw_payload_ref or "",
+        created_at=obj.created_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_integration_source_to_orm(
+    integration_source: MaintenanceIntegrationSource,
+) -> MaintenanceIntegrationSourceORM:
+    return MaintenanceIntegrationSourceORM(
+        id=integration_source.id,
+        organization_id=integration_source.organization_id,
+        integration_code=integration_source.integration_code,
+        name=integration_source.name,
+        integration_type=integration_source.integration_type,
+        endpoint_or_path=integration_source.endpoint_or_path or None,
+        authentication_mode=integration_source.authentication_mode or None,
+        schedule_expression=integration_source.schedule_expression or None,
+        last_successful_sync_at=integration_source.last_successful_sync_at,
+        last_failed_sync_at=integration_source.last_failed_sync_at,
+        last_error_message=integration_source.last_error_message or None,
+        is_active=integration_source.is_active,
+        notes=integration_source.notes or None,
+        created_at=integration_source.created_at,
+        updated_at=integration_source.updated_at,
+        version=getattr(integration_source, "version", 1),
+    )
+
+
+def maintenance_integration_source_from_orm(obj: MaintenanceIntegrationSourceORM) -> MaintenanceIntegrationSource:
+    return MaintenanceIntegrationSource(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        integration_code=obj.integration_code,
+        name=obj.name,
+        integration_type=obj.integration_type,
+        endpoint_or_path=obj.endpoint_or_path or "",
+        authentication_mode=obj.authentication_mode or "",
+        schedule_expression=obj.schedule_expression or "",
+        last_successful_sync_at=obj.last_successful_sync_at,
+        last_failed_sync_at=obj.last_failed_sync_at,
+        last_error_message=obj.last_error_message or "",
+        is_active=obj.is_active,
+        notes=obj.notes or "",
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_sensor_source_mapping_to_orm(
+    sensor_source_mapping: MaintenanceSensorSourceMapping,
+) -> MaintenanceSensorSourceMappingORM:
+    return MaintenanceSensorSourceMappingORM(
+        id=sensor_source_mapping.id,
+        organization_id=sensor_source_mapping.organization_id,
+        integration_source_id=sensor_source_mapping.integration_source_id,
+        sensor_id=sensor_source_mapping.sensor_id,
+        external_equipment_key=sensor_source_mapping.external_equipment_key or None,
+        external_measurement_key=sensor_source_mapping.external_measurement_key,
+        transform_rule=sensor_source_mapping.transform_rule or None,
+        unit_conversion_rule=sensor_source_mapping.unit_conversion_rule or None,
+        is_active=sensor_source_mapping.is_active,
+        notes=sensor_source_mapping.notes or None,
+        created_at=sensor_source_mapping.created_at,
+        updated_at=sensor_source_mapping.updated_at,
+        version=getattr(sensor_source_mapping, "version", 1),
+    )
+
+
+def maintenance_sensor_source_mapping_from_orm(
+    obj: MaintenanceSensorSourceMappingORM,
+) -> MaintenanceSensorSourceMapping:
+    return MaintenanceSensorSourceMapping(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        integration_source_id=obj.integration_source_id,
+        sensor_id=obj.sensor_id,
+        external_equipment_key=obj.external_equipment_key or "",
+        external_measurement_key=obj.external_measurement_key,
+        transform_rule=obj.transform_rule or "",
+        unit_conversion_rule=obj.unit_conversion_rule or "",
+        is_active=obj.is_active,
+        notes=obj.notes or "",
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_sensor_exception_to_orm(
+    sensor_exception: MaintenanceSensorException,
+) -> MaintenanceSensorExceptionORM:
+    return MaintenanceSensorExceptionORM(
+        id=sensor_exception.id,
+        organization_id=sensor_exception.organization_id,
+        sensor_id=sensor_exception.sensor_id,
+        integration_source_id=sensor_exception.integration_source_id,
+        source_mapping_id=sensor_exception.source_mapping_id,
+        exception_type=sensor_exception.exception_type,
+        status=sensor_exception.status,
+        message=sensor_exception.message,
+        source_batch_id=sensor_exception.source_batch_id or None,
+        raw_payload_ref=sensor_exception.raw_payload_ref or None,
+        detected_at=sensor_exception.detected_at,
+        acknowledged_at=sensor_exception.acknowledged_at,
+        acknowledged_by_user_id=sensor_exception.acknowledged_by_user_id,
+        resolved_at=sensor_exception.resolved_at,
+        resolved_by_user_id=sensor_exception.resolved_by_user_id,
+        notes=sensor_exception.notes or None,
+        created_at=sensor_exception.created_at,
+        updated_at=sensor_exception.updated_at,
+        version=getattr(sensor_exception, "version", 1),
+    )
+
+
+def maintenance_sensor_exception_from_orm(obj: MaintenanceSensorExceptionORM) -> MaintenanceSensorException:
+    return MaintenanceSensorException(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        sensor_id=obj.sensor_id,
+        integration_source_id=obj.integration_source_id,
+        source_mapping_id=obj.source_mapping_id,
+        exception_type=obj.exception_type,
+        status=obj.status,
+        message=obj.message,
+        source_batch_id=obj.source_batch_id or "",
+        raw_payload_ref=obj.raw_payload_ref or "",
+        detected_at=obj.detected_at,
+        acknowledged_at=obj.acknowledged_at,
+        acknowledged_by_user_id=obj.acknowledged_by_user_id,
+        resolved_at=obj.resolved_at,
+        resolved_by_user_id=obj.resolved_by_user_id,
+        notes=obj.notes or "",
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_failure_code_to_orm(failure_code: MaintenanceFailureCode) -> MaintenanceFailureCodeORM:
+    return MaintenanceFailureCodeORM(
+        id=failure_code.id,
+        organization_id=failure_code.organization_id,
+        failure_code=failure_code.failure_code,
+        name=failure_code.name,
+        description=failure_code.description or None,
+        code_type=failure_code.code_type,
+        parent_code_id=failure_code.parent_code_id,
+        is_active=failure_code.is_active,
+        created_at=failure_code.created_at,
+        updated_at=failure_code.updated_at,
+        version=getattr(failure_code, "version", 1),
+    )
+
+
+def maintenance_failure_code_from_orm(obj: MaintenanceFailureCodeORM) -> MaintenanceFailureCode:
+    return MaintenanceFailureCode(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        failure_code=obj.failure_code,
+        name=obj.name,
+        description=obj.description or "",
+        code_type=obj.code_type,
+        parent_code_id=obj.parent_code_id,
+        is_active=obj.is_active,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_downtime_event_to_orm(downtime_event: MaintenanceDowntimeEvent) -> MaintenanceDowntimeEventORM:
+    return MaintenanceDowntimeEventORM(
+        id=downtime_event.id,
+        organization_id=downtime_event.organization_id,
+        asset_id=downtime_event.asset_id,
+        system_id=downtime_event.system_id,
+        work_order_id=downtime_event.work_order_id,
+        started_at=downtime_event.started_at,
+        ended_at=downtime_event.ended_at,
+        duration_minutes=downtime_event.duration_minutes,
+        downtime_type=downtime_event.downtime_type,
+        reason_code=downtime_event.reason_code,
+        impact_notes=downtime_event.impact_notes,
+        created_at=downtime_event.created_at,
+        updated_at=downtime_event.updated_at,
+        version=getattr(downtime_event, "version", 1),
+    )
+
+
+def maintenance_downtime_event_from_orm(obj: MaintenanceDowntimeEventORM) -> MaintenanceDowntimeEvent:
+    return MaintenanceDowntimeEvent(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        asset_id=obj.asset_id,
+        system_id=obj.system_id,
+        work_order_id=obj.work_order_id,
+        started_at=obj.started_at,
+        ended_at=obj.ended_at,
+        duration_minutes=obj.duration_minutes,
+        downtime_type=obj.downtime_type,
+        reason_code=obj.reason_code,
+        impact_notes=obj.impact_notes,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_work_request_to_orm(work_request: MaintenanceWorkRequest) -> MaintenanceWorkRequestORM:
+    return MaintenanceWorkRequestORM(
+        id=work_request.id,
+        organization_id=work_request.organization_id,
+        site_id=work_request.site_id,
+        work_request_code=work_request.work_request_code,
+        source_type=work_request.source_type,
+        source_id=work_request.source_id,
+        source_plan_task_ids_json=json.dumps(list(work_request.source_plan_task_ids))
+        if work_request.source_plan_task_ids
+        else None,
+        request_type=work_request.request_type,
+        asset_id=work_request.asset_id,
+        component_id=work_request.component_id,
+        system_id=work_request.system_id,
+        location_id=work_request.location_id,
+        title=work_request.title,
+        description=work_request.description,
+        priority=work_request.priority,
+        status=work_request.status,
+        requested_at=work_request.requested_at,
+        requested_by_user_id=work_request.requested_by_user_id,
+        requested_by_name_snapshot=work_request.requested_by_name_snapshot,
+        triaged_at=work_request.triaged_at,
+        triaged_by_user_id=work_request.triaged_by_user_id,
+        failure_symptom_code=work_request.failure_symptom_code,
+        safety_risk_level=work_request.safety_risk_level,
+        production_impact_level=work_request.production_impact_level,
+        notes=work_request.notes,
+        created_at=work_request.created_at,
+        updated_at=work_request.updated_at,
+        version=getattr(work_request, "version", 1),
+    )
+
+
+def maintenance_work_request_from_orm(obj: MaintenanceWorkRequestORM) -> MaintenanceWorkRequest:
+    return MaintenanceWorkRequest(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        site_id=obj.site_id,
+        work_request_code=obj.work_request_code,
+        source_type=obj.source_type,
+        source_id=obj.source_id,
+        source_plan_task_ids=tuple(json.loads(obj.source_plan_task_ids_json))
+        if obj.source_plan_task_ids_json
+        else (),
+        request_type=obj.request_type,
+        asset_id=obj.asset_id,
+        component_id=obj.component_id,
+        system_id=obj.system_id,
+        location_id=obj.location_id,
+        title=obj.title,
+        description=obj.description,
+        priority=obj.priority,
+        status=obj.status,
+        requested_at=obj.requested_at,
+        requested_by_user_id=obj.requested_by_user_id,
+        requested_by_name_snapshot=obj.requested_by_name_snapshot,
+        triaged_at=obj.triaged_at,
+        triaged_by_user_id=obj.triaged_by_user_id,
+        failure_symptom_code=obj.failure_symptom_code,
+        safety_risk_level=obj.safety_risk_level,
+        production_impact_level=obj.production_impact_level,
+        notes=obj.notes,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_work_order_to_orm(work_order: MaintenanceWorkOrder) -> MaintenanceWorkOrderORM:
+    return MaintenanceWorkOrderORM(
+        id=work_order.id,
+        organization_id=work_order.organization_id,
+        site_id=work_order.site_id,
+        work_order_code=work_order.work_order_code,
+        work_order_type=work_order.work_order_type,
+        source_type=work_order.source_type,
+        source_id=work_order.source_id,
+        asset_id=work_order.asset_id,
+        component_id=work_order.component_id,
+        system_id=work_order.system_id,
+        location_id=work_order.location_id,
+        title=work_order.title,
+        description=work_order.description,
+        priority=work_order.priority,
+        status=work_order.status,
+        requested_by_user_id=work_order.requested_by_user_id,
+        planner_user_id=work_order.planner_user_id,
+        supervisor_user_id=work_order.supervisor_user_id,
+        assigned_team_id=work_order.assigned_team_id,
+        assigned_employee_id=work_order.assigned_employee_id,
+        planned_start=work_order.planned_start,
+        planned_end=work_order.planned_end,
+        actual_start=work_order.actual_start,
+        actual_end=work_order.actual_end,
+        requires_shutdown=work_order.requires_shutdown,
+        permit_required=work_order.permit_required,
+        approval_required=work_order.approval_required,
+        failure_code=work_order.failure_code,
+        root_cause_code=work_order.root_cause_code,
+        downtime_minutes=work_order.downtime_minutes,
+        parts_cost=work_order.parts_cost,
+        labor_cost=work_order.labor_cost,
+        vendor_party_id=work_order.vendor_party_id,
+        is_preventive=work_order.is_preventive,
+        is_emergency=work_order.is_emergency,
+        closed_at=work_order.closed_at,
+        closed_by_user_id=work_order.closed_by_user_id,
+        notes=work_order.notes,
+        created_at=work_order.created_at,
+        updated_at=work_order.updated_at,
+        version=getattr(work_order, "version", 1),
+    )
+
+
+def maintenance_work_order_from_orm(obj: MaintenanceWorkOrderORM) -> MaintenanceWorkOrder:
+    return MaintenanceWorkOrder(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        site_id=obj.site_id,
+        work_order_code=obj.work_order_code,
+        work_order_type=obj.work_order_type,
+        source_type=obj.source_type,
+        source_id=obj.source_id,
+        asset_id=obj.asset_id,
+        component_id=obj.component_id,
+        system_id=obj.system_id,
+        location_id=obj.location_id,
+        title=obj.title,
+        description=obj.description,
+        priority=obj.priority,
+        status=obj.status,
+        requested_by_user_id=obj.requested_by_user_id,
+        planner_user_id=obj.planner_user_id,
+        supervisor_user_id=obj.supervisor_user_id,
+        assigned_team_id=obj.assigned_team_id,
+        assigned_employee_id=obj.assigned_employee_id,
+        planned_start=obj.planned_start,
+        planned_end=obj.planned_end,
+        actual_start=obj.actual_start,
+        actual_end=obj.actual_end,
+        requires_shutdown=obj.requires_shutdown,
+        permit_required=obj.permit_required,
+        approval_required=obj.approval_required,
+        failure_code=obj.failure_code,
+        root_cause_code=obj.root_cause_code,
+        downtime_minutes=obj.downtime_minutes,
+        parts_cost=obj.parts_cost,
+        labor_cost=obj.labor_cost,
+        vendor_party_id=obj.vendor_party_id,
+        is_preventive=obj.is_preventive,
+        is_emergency=obj.is_emergency,
+        closed_at=obj.closed_at,
+        closed_by_user_id=obj.closed_by_user_id,
+        notes=obj.notes,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_work_order_task_to_orm(work_order_task: MaintenanceWorkOrderTask) -> MaintenanceWorkOrderTaskORM:
+    return MaintenanceWorkOrderTaskORM(
+        id=work_order_task.id,
+        organization_id=work_order_task.organization_id,
+        work_order_id=work_order_task.work_order_id,
+        task_template_id=work_order_task.task_template_id,
+        task_name=work_order_task.task_name,
+        description=work_order_task.description,
+        assigned_employee_id=work_order_task.assigned_employee_id,
+        assigned_team_id=work_order_task.assigned_team_id,
+        estimated_minutes=work_order_task.estimated_minutes,
+        actual_minutes=work_order_task.actual_minutes,
+        required_skill=work_order_task.required_skill,
+        status=work_order_task.status,
+        started_at=work_order_task.started_at,
+        completed_at=work_order_task.completed_at,
+        sequence_no=work_order_task.sequence_no,
+        is_mandatory=work_order_task.is_mandatory,
+        completion_rule=work_order_task.completion_rule,
+        notes=work_order_task.notes,
+        created_at=work_order_task.created_at,
+        updated_at=work_order_task.updated_at,
+        version=getattr(work_order_task, "version", 1),
+    )
+
+
+def maintenance_work_order_task_from_orm(obj: MaintenanceWorkOrderTaskORM) -> MaintenanceWorkOrderTask:
+    return MaintenanceWorkOrderTask(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        work_order_id=obj.work_order_id,
+        task_template_id=obj.task_template_id,
+        task_name=obj.task_name,
+        description=obj.description,
+        assigned_employee_id=obj.assigned_employee_id,
+        assigned_team_id=obj.assigned_team_id,
+        estimated_minutes=obj.estimated_minutes,
+        actual_minutes=obj.actual_minutes,
+        required_skill=obj.required_skill,
+        status=obj.status,
+        started_at=obj.started_at,
+        completed_at=obj.completed_at,
+        sequence_no=obj.sequence_no,
+        is_mandatory=obj.is_mandatory,
+        completion_rule=obj.completion_rule,
+        notes=obj.notes,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_work_order_task_step_to_orm(
+    work_order_task_step: MaintenanceWorkOrderTaskStep,
+) -> MaintenanceWorkOrderTaskStepORM:
+    return MaintenanceWorkOrderTaskStepORM(
+        id=work_order_task_step.id,
+        organization_id=work_order_task_step.organization_id,
+        work_order_task_id=work_order_task_step.work_order_task_id,
+        source_step_template_id=work_order_task_step.source_step_template_id,
+        step_number=work_order_task_step.step_number,
+        instruction=work_order_task_step.instruction,
+        expected_result=work_order_task_step.expected_result,
+        hint_level=work_order_task_step.hint_level,
+        hint_text=work_order_task_step.hint_text,
+        status=work_order_task_step.status,
+        requires_confirmation=work_order_task_step.requires_confirmation,
+        requires_measurement=work_order_task_step.requires_measurement,
+        requires_photo=work_order_task_step.requires_photo,
+        measurement_value=work_order_task_step.measurement_value,
+        measurement_unit=work_order_task_step.measurement_unit,
+        completed_by_user_id=work_order_task_step.completed_by_user_id,
+        completed_at=work_order_task_step.completed_at,
+        confirmed_by_user_id=work_order_task_step.confirmed_by_user_id,
+        confirmed_at=work_order_task_step.confirmed_at,
+        notes=work_order_task_step.notes,
+        created_at=work_order_task_step.created_at,
+        updated_at=work_order_task_step.updated_at,
+        version=getattr(work_order_task_step, "version", 1),
+    )
+
+
+def maintenance_work_order_task_step_from_orm(
+    obj: MaintenanceWorkOrderTaskStepORM,
+) -> MaintenanceWorkOrderTaskStep:
+    return MaintenanceWorkOrderTaskStep(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        work_order_task_id=obj.work_order_task_id,
+        source_step_template_id=obj.source_step_template_id,
+        step_number=obj.step_number,
+        instruction=obj.instruction,
+        expected_result=obj.expected_result,
+        hint_level=obj.hint_level,
+        hint_text=obj.hint_text,
+        status=obj.status,
+        requires_confirmation=obj.requires_confirmation,
+        requires_measurement=obj.requires_measurement,
+        requires_photo=obj.requires_photo,
+        measurement_value=obj.measurement_value,
+        measurement_unit=obj.measurement_unit,
+        completed_by_user_id=obj.completed_by_user_id,
+        completed_at=obj.completed_at,
+        confirmed_by_user_id=obj.confirmed_by_user_id,
+        confirmed_at=obj.confirmed_at,
+        notes=obj.notes,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_work_order_material_requirement_to_orm(
+    material_requirement: MaintenanceWorkOrderMaterialRequirement,
+) -> MaintenanceWorkOrderMaterialRequirementORM:
+    return MaintenanceWorkOrderMaterialRequirementORM(
+        id=material_requirement.id,
+        organization_id=material_requirement.organization_id,
+        work_order_id=material_requirement.work_order_id,
+        stock_item_id=material_requirement.stock_item_id,
+        description=material_requirement.description,
+        required_qty=material_requirement.required_qty,
+        issued_qty=material_requirement.issued_qty,
+        required_uom=material_requirement.required_uom,
+        is_stock_item=material_requirement.is_stock_item,
+        preferred_storeroom_id=material_requirement.preferred_storeroom_id,
+        procurement_status=material_requirement.procurement_status,
+        last_availability_status=material_requirement.last_availability_status,
+        last_missing_qty=material_requirement.last_missing_qty,
+        linked_requisition_id=material_requirement.linked_requisition_id,
+        notes=material_requirement.notes,
+        created_at=material_requirement.created_at,
+        updated_at=material_requirement.updated_at,
+        version=getattr(material_requirement, "version", 1),
+    )
+
+
+def maintenance_work_order_material_requirement_from_orm(
+    obj: MaintenanceWorkOrderMaterialRequirementORM,
+) -> MaintenanceWorkOrderMaterialRequirement:
+    return MaintenanceWorkOrderMaterialRequirement(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        work_order_id=obj.work_order_id,
+        stock_item_id=obj.stock_item_id,
+        description=obj.description,
+        required_qty=obj.required_qty,
+        issued_qty=obj.issued_qty,
+        required_uom=obj.required_uom,
+        is_stock_item=obj.is_stock_item,
+        preferred_storeroom_id=obj.preferred_storeroom_id,
+        procurement_status=obj.procurement_status,
+        last_availability_status=obj.last_availability_status,
+        last_missing_qty=obj.last_missing_qty,
+        linked_requisition_id=obj.linked_requisition_id,
+        notes=obj.notes,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_task_template_to_orm(task_template: MaintenanceTaskTemplate) -> MaintenanceTaskTemplateORM:
+    return MaintenanceTaskTemplateORM(
+        id=task_template.id,
+        organization_id=task_template.organization_id,
+        task_template_code=task_template.task_template_code,
+        name=task_template.name,
+        description=task_template.description or None,
+        maintenance_type=task_template.maintenance_type or None,
+        revision_no=task_template.revision_no,
+        template_status=task_template.template_status,
+        estimated_minutes=task_template.estimated_minutes,
+        required_skill=task_template.required_skill,
+        requires_shutdown=task_template.requires_shutdown,
+        requires_permit=task_template.requires_permit,
+        is_active=task_template.is_active,
+        notes=task_template.notes,
+        created_at=task_template.created_at,
+        updated_at=task_template.updated_at,
+        version=getattr(task_template, "version", 1),
+    )
+
+
+def maintenance_task_template_from_orm(obj: MaintenanceTaskTemplateORM) -> MaintenanceTaskTemplate:
+    return MaintenanceTaskTemplate(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        task_template_code=obj.task_template_code,
+        name=obj.name,
+        description=obj.description or "",
+        maintenance_type=obj.maintenance_type or "",
+        revision_no=obj.revision_no,
+        template_status=obj.template_status,
+        estimated_minutes=obj.estimated_minutes,
+        required_skill=obj.required_skill,
+        requires_shutdown=obj.requires_shutdown,
+        requires_permit=obj.requires_permit,
+        is_active=obj.is_active,
+        notes=obj.notes,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_task_step_template_to_orm(
+    task_step_template: MaintenanceTaskStepTemplate,
+) -> MaintenanceTaskStepTemplateORM:
+    return MaintenanceTaskStepTemplateORM(
+        id=task_step_template.id,
+        organization_id=task_step_template.organization_id,
+        task_template_id=task_step_template.task_template_id,
+        step_number=task_step_template.step_number,
+        instruction=task_step_template.instruction,
+        expected_result=task_step_template.expected_result,
+        hint_level=task_step_template.hint_level,
+        hint_text=task_step_template.hint_text,
+        requires_confirmation=task_step_template.requires_confirmation,
+        requires_measurement=task_step_template.requires_measurement,
+        requires_photo=task_step_template.requires_photo,
+        measurement_unit=task_step_template.measurement_unit,
+        sort_order=task_step_template.sort_order,
+        is_active=task_step_template.is_active,
+        notes=task_step_template.notes,
+        created_at=task_step_template.created_at,
+        updated_at=task_step_template.updated_at,
+        version=getattr(task_step_template, "version", 1),
+    )
+
+
+def maintenance_task_step_template_from_orm(obj: MaintenanceTaskStepTemplateORM) -> MaintenanceTaskStepTemplate:
+    return MaintenanceTaskStepTemplate(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        task_template_id=obj.task_template_id,
+        step_number=obj.step_number,
+        instruction=obj.instruction,
+        expected_result=obj.expected_result,
+        hint_level=obj.hint_level,
+        hint_text=obj.hint_text,
+        requires_confirmation=obj.requires_confirmation,
+        requires_measurement=obj.requires_measurement,
+        requires_photo=obj.requires_photo,
+        measurement_unit=obj.measurement_unit,
+        sort_order=obj.sort_order,
+        is_active=obj.is_active,
+        notes=obj.notes,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_preventive_plan_to_orm(plan: MaintenancePreventivePlan) -> MaintenancePreventivePlanORM:
+    return MaintenancePreventivePlanORM(
+        id=plan.id,
+        organization_id=plan.organization_id,
+        site_id=plan.site_id,
+        plan_code=plan.plan_code,
+        name=plan.name,
+        asset_id=plan.asset_id,
+        component_id=plan.component_id,
+        system_id=plan.system_id,
+        description=plan.description,
+        status=plan.status,
+        plan_type=plan.plan_type,
+        priority=plan.priority,
+        trigger_mode=plan.trigger_mode,
+        schedule_policy=plan.schedule_policy,
+        calendar_frequency_unit=plan.calendar_frequency_unit,
+        calendar_frequency_value=plan.calendar_frequency_value,
+        generation_horizon_count=plan.generation_horizon_count,
+        generation_lead_value=plan.generation_lead_value,
+        generation_lead_unit=plan.generation_lead_unit,
+        sensor_id=plan.sensor_id,
+        sensor_threshold=plan.sensor_threshold,
+        sensor_direction=plan.sensor_direction,
+        sensor_reset_rule=plan.sensor_reset_rule,
+        last_generated_at=plan.last_generated_at,
+        last_completed_at=plan.last_completed_at,
+        next_due_at=plan.next_due_at,
+        next_due_counter=plan.next_due_counter,
+        requires_shutdown=plan.requires_shutdown,
+        approval_required=plan.approval_required,
+        auto_generate_work_order=plan.auto_generate_work_order,
+        is_active=plan.is_active,
+        notes=plan.notes,
+        created_at=plan.created_at,
+        updated_at=plan.updated_at,
+        version=getattr(plan, "version", 1),
+    )
+
+
+def maintenance_preventive_plan_from_orm(obj: MaintenancePreventivePlanORM) -> MaintenancePreventivePlan:
+    return MaintenancePreventivePlan(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        site_id=obj.site_id,
+        plan_code=obj.plan_code,
+        name=obj.name,
+        asset_id=obj.asset_id,
+        component_id=obj.component_id,
+        system_id=obj.system_id,
+        description=obj.description,
+        status=obj.status,
+        plan_type=obj.plan_type,
+        priority=obj.priority,
+        trigger_mode=obj.trigger_mode,
+        schedule_policy=obj.schedule_policy,
+        calendar_frequency_unit=obj.calendar_frequency_unit,
+        calendar_frequency_value=obj.calendar_frequency_value,
+        generation_horizon_count=obj.generation_horizon_count,
+        generation_lead_value=obj.generation_lead_value,
+        generation_lead_unit=obj.generation_lead_unit,
+        sensor_id=obj.sensor_id,
+        sensor_threshold=obj.sensor_threshold,
+        sensor_direction=obj.sensor_direction,
+        sensor_reset_rule=obj.sensor_reset_rule,
+        last_generated_at=obj.last_generated_at,
+        last_completed_at=obj.last_completed_at,
+        next_due_at=obj.next_due_at,
+        next_due_counter=obj.next_due_counter,
+        requires_shutdown=obj.requires_shutdown,
+        approval_required=obj.approval_required,
+        auto_generate_work_order=obj.auto_generate_work_order,
+        is_active=obj.is_active,
+        notes=obj.notes,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_preventive_plan_instance_to_orm(
+    preventive_instance: MaintenancePreventivePlanInstance,
+) -> MaintenancePreventivePlanInstanceORM:
+    return MaintenancePreventivePlanInstanceORM(
+        id=preventive_instance.id,
+        organization_id=preventive_instance.organization_id,
+        plan_id=preventive_instance.plan_id,
+        due_at=preventive_instance.due_at,
+        due_counter=preventive_instance.due_counter,
+        status=preventive_instance.status,
+        generated_at=preventive_instance.generated_at,
+        generated_work_request_id=preventive_instance.generated_work_request_id,
+        generated_work_order_id=preventive_instance.generated_work_order_id,
+        completed_at=preventive_instance.completed_at,
+        notes=preventive_instance.notes,
+        created_at=preventive_instance.created_at,
+        updated_at=preventive_instance.updated_at,
+        version=getattr(preventive_instance, "version", 1),
+    )
+
+
+def maintenance_preventive_plan_instance_from_orm(
+    obj: MaintenancePreventivePlanInstanceORM,
+) -> MaintenancePreventivePlanInstance:
+    return MaintenancePreventivePlanInstance(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        plan_id=obj.plan_id,
+        due_at=obj.due_at,
+        due_counter=obj.due_counter,
+        status=obj.status,
+        generated_at=obj.generated_at,
+        generated_work_request_id=obj.generated_work_request_id,
+        generated_work_order_id=obj.generated_work_order_id,
+        completed_at=obj.completed_at,
+        notes=obj.notes,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_preventive_plan_task_to_orm(plan_task: MaintenancePreventivePlanTask) -> MaintenancePreventivePlanTaskORM:
+    return MaintenancePreventivePlanTaskORM(
+        id=plan_task.id,
+        organization_id=plan_task.organization_id,
+        plan_id=plan_task.plan_id,
+        task_template_id=plan_task.task_template_id,
+        trigger_scope=plan_task.trigger_scope,
+        trigger_mode_override=plan_task.trigger_mode_override,
+        calendar_frequency_unit_override=plan_task.calendar_frequency_unit_override,
+        calendar_frequency_value_override=plan_task.calendar_frequency_value_override,
+        sensor_id_override=plan_task.sensor_id_override,
+        sensor_threshold_override=plan_task.sensor_threshold_override,
+        sensor_direction_override=plan_task.sensor_direction_override,
+        sequence_no=plan_task.sequence_no,
+        is_mandatory=plan_task.is_mandatory,
+        default_assigned_employee_id=plan_task.default_assigned_employee_id,
+        default_assigned_team_id=plan_task.default_assigned_team_id,
+        estimated_minutes_override=plan_task.estimated_minutes_override,
+        last_generated_at=plan_task.last_generated_at,
+        next_due_at=plan_task.next_due_at,
+        next_due_counter=plan_task.next_due_counter,
+        notes=plan_task.notes,
+        created_at=plan_task.created_at,
+        updated_at=plan_task.updated_at,
+        version=getattr(plan_task, "version", 1),
+    )
+
+
+def maintenance_preventive_plan_task_from_orm(
+    obj: MaintenancePreventivePlanTaskORM,
+) -> MaintenancePreventivePlanTask:
+    return MaintenancePreventivePlanTask(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        plan_id=obj.plan_id,
+        task_template_id=obj.task_template_id,
+        trigger_scope=obj.trigger_scope,
+        trigger_mode_override=obj.trigger_mode_override,
+        calendar_frequency_unit_override=obj.calendar_frequency_unit_override,
+        calendar_frequency_value_override=obj.calendar_frequency_value_override,
+        sensor_id_override=obj.sensor_id_override,
+        sensor_threshold_override=obj.sensor_threshold_override,
+        sensor_direction_override=obj.sensor_direction_override,
+        sequence_no=obj.sequence_no,
+        is_mandatory=obj.is_mandatory,
+        default_assigned_employee_id=obj.default_assigned_employee_id,
+        default_assigned_team_id=obj.default_assigned_team_id,
+        estimated_minutes_override=obj.estimated_minutes_override,
+        last_generated_at=obj.last_generated_at,
+        next_due_at=obj.next_due_at,
+        next_due_counter=obj.next_due_counter,
+        notes=obj.notes,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+__all__ = [
+    "maintenance_asset_from_orm",
+    "maintenance_asset_component_from_orm",
+    "maintenance_asset_component_to_orm",
+    "maintenance_asset_to_orm",
+    "maintenance_downtime_event_from_orm",
+    "maintenance_downtime_event_to_orm",
+    "maintenance_failure_code_from_orm",
+    "maintenance_failure_code_to_orm",
+    "maintenance_integration_source_from_orm",
+    "maintenance_integration_source_to_orm",
+    "maintenance_location_from_orm",
+    "maintenance_location_to_orm",
+    "maintenance_preventive_plan_instance_from_orm",
+    "maintenance_preventive_plan_instance_to_orm",
+    "maintenance_preventive_plan_from_orm",
+    "maintenance_preventive_plan_task_from_orm",
+    "maintenance_preventive_plan_task_to_orm",
+    "maintenance_preventive_plan_to_orm",
+    "maintenance_sensor_exception_from_orm",
+    "maintenance_sensor_exception_to_orm",
+    "maintenance_sensor_from_orm",
+    "maintenance_sensor_reading_from_orm",
+    "maintenance_sensor_reading_to_orm",
+    "maintenance_sensor_source_mapping_from_orm",
+    "maintenance_sensor_source_mapping_to_orm",
+    "maintenance_sensor_to_orm",
+    "maintenance_work_order_material_requirement_from_orm",
+    "maintenance_work_order_material_requirement_to_orm",
+    "maintenance_system_from_orm",
+    "maintenance_system_to_orm",
+    "maintenance_task_step_template_from_orm",
+    "maintenance_task_step_template_to_orm",
+    "maintenance_task_template_from_orm",
+    "maintenance_task_template_to_orm",
+    "maintenance_work_order_from_orm",
+    "maintenance_work_order_task_from_orm",
+    "maintenance_work_order_task_step_from_orm",
+    "maintenance_work_order_task_step_to_orm",
+    "maintenance_work_order_task_to_orm",
+    "maintenance_work_order_to_orm",
+    "maintenance_work_request_from_orm",
+    "maintenance_work_request_to_orm",
+]
+

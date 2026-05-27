@@ -1,0 +1,140 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass(frozen=True)
+class ProjectCatalogMetricViewModel:
+    label: str
+    value: str
+    supporting_text: str
+
+
+@dataclass(frozen=True)
+class ProjectCatalogOverviewViewModel:
+    title: str
+    subtitle: str
+    metrics: tuple[ProjectCatalogMetricViewModel, ...]
+
+
+@dataclass(frozen=True)
+class ProjectStatusOptionViewModel:
+    value: str
+    label: str
+
+
+@dataclass(frozen=True)
+class ProjectRecordViewModel:
+    id: str
+    title: str
+    status_label: str
+    subtitle: str
+    supporting_text: str
+    meta_text: str
+    can_primary_action: bool = True
+    can_secondary_action: bool = True
+    can_tertiary_action: bool = True
+    state: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ProjectDetailFieldViewModel:
+    label: str
+    value: str
+    supporting_text: str = ""
+
+
+@dataclass(frozen=True)
+class ProjectDetailViewModel:
+    id: str = ""
+    title: str = ""
+    status_label: str = ""
+    subtitle: str = ""
+    description: str = ""
+    empty_state: str = ""
+    fields: tuple[ProjectDetailFieldViewModel, ...] = field(default_factory=tuple)
+    state: dict[str, Any] = field(default_factory=dict)
+
+@dataclass(frozen=True)
+class ProjectSectionCollectionViewModel:
+    title: str
+    subtitle: str
+    empty_state: str = ""
+    items: tuple[ProjectRecordViewModel, ...] = field(default_factory=tuple)
+    
+@dataclass(frozen=True)
+class ProjectCatalogWorkspaceViewModel:
+    overview: ProjectCatalogOverviewViewModel
+    status_options: tuple[ProjectStatusOptionViewModel, ...] = field(default_factory=tuple)
+    selected_status_filter: str = "all"
+    search_text: str = ""
+    projects: tuple[ProjectRecordViewModel, ...] = field(default_factory=tuple)
+    selected_project_id: str = ""
+    selected_project_detail: ProjectDetailViewModel = field(
+        default_factory=ProjectDetailViewModel
+    )
+    empty_state: str = ""
+    total_count: int = 0
+    page: int = 1
+    page_size: int = 25
+    
+    project_tasks: ProjectSectionCollectionViewModel = field(
+    default_factory=lambda: ProjectSectionCollectionViewModel(
+        title="Tasks",
+        subtitle="Tasks linked to this project.",
+        empty_state="Open this section to load project tasks.",
+    )
+)
+
+    project_resources: ProjectSectionCollectionViewModel = field(
+        default_factory=lambda: ProjectSectionCollectionViewModel(
+            title="Resources",
+            subtitle="Resources assigned to this project.",
+            empty_state="Open this section to load project resources.",
+        )
+    )
+
+    project_financials: ProjectSectionCollectionViewModel = field(
+        default_factory=lambda: ProjectSectionCollectionViewModel(
+            title="Financials",
+            subtitle="Budget, cost, and financial tracking.",
+            empty_state="Open this section to load project financials.",
+        )
+    )
+
+    project_risks: ProjectSectionCollectionViewModel = field(
+        default_factory=lambda: ProjectSectionCollectionViewModel(
+            title="Risks",
+            subtitle="Risks and mitigation records.",
+            empty_state="Open this section to load project risks.",
+        )
+    )
+
+    project_documents: ProjectSectionCollectionViewModel = field(
+        default_factory=lambda: ProjectSectionCollectionViewModel(
+            title="Documents",
+            subtitle="Project documents and references.",
+            empty_state="Open this section to load project documents.",
+        )
+    )
+
+    project_activity: ProjectSectionCollectionViewModel = field(
+        default_factory=lambda: ProjectSectionCollectionViewModel(
+            title="Activity",
+            subtitle="Recent project activity.",
+            empty_state="Open this section to load project activity.",
+        )
+    )
+
+
+__all__ = [
+    "ProjectCatalogMetricViewModel",
+    "ProjectCatalogOverviewViewModel",
+    "ProjectCatalogWorkspaceViewModel",
+    "ProjectDetailFieldViewModel",
+    "ProjectDetailViewModel",
+    "ProjectRecordViewModel",
+    "ProjectStatusOptionViewModel",
+    "ProjectSectionCollectionViewModel",
+]

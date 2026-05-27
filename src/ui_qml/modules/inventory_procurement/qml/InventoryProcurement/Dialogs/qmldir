@@ -1,0 +1,14 @@
+module InventoryProcurement.Dialogs
+CategoryEditorDialog 1.0 CategoryEditorDialog.qml
+DocumentLinkDialog 1.0 DocumentLinkDialog.qml
+ItemEditorDialog 1.0 ItemEditorDialog.qml
+PurchaseOrderEditorDialog 1.0 PurchaseOrderEditorDialog.qml
+PurchaseOrderLineDialog 1.0 PurchaseOrderLineDialog.qml
+ReceiptPostDialog 1.0 ReceiptPostDialog.qml
+ReservationCreateDialog 1.0 ReservationCreateDialog.qml
+ReservationIssueDialog 1.0 ReservationIssueDialog.qml
+RequisitionEditorDialog 1.0 RequisitionEditorDialog.qml
+RequisitionLineDialog 1.0 RequisitionLineDialog.qml
+StockMovementDialog 1.0 StockMovementDialog.qml
+StockTransferDialog 1.0 StockTransferDialog.qml
+StoreroomEditorDialog 1.0 StoreroomEditorDialog.qml

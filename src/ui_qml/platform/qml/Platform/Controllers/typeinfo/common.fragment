@@ -1,0 +1,14 @@
+    Component {
+        name: "PlatformWorkspaceControllerBase"
+        accessSemantics: "reference"
+        prototype: "QObject"
+        exports: ["Platform.Controllers/PlatformWorkspaceControllerBase 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "isLoading"; type: "bool"; isReadonly: true }
+        Property { name: "isBusy"; type: "bool"; isReadonly: true }
+        Property { name: "errorMessage"; type: "QString"; isReadonly: true }
+        Property { name: "feedbackMessage"; type: "QString"; isReadonly: true }
+        Property { name: "emptyState"; type: "QString"; isReadonly: true }
+        Property { name: "operationResult"; type: "QVariantMap"; isReadonly: true }
+        Method { name: "clearMessages" }
+    }

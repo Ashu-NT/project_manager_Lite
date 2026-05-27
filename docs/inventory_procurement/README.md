@@ -2,6 +2,7 @@
 
 Status: phase-1 implemented and materially hardened
 Implementation state: item category master, item master, storerooms, stock balances and ledger, reservations, requisitions, purchase orders, receiving, shared site/party reads, shared documents, shared approvals, audit hooks, UI workspaces, and module-owned inventory import/export/reporting services now exist in the codebase.
+Enterprise foundation now also includes storage-location hierarchy under storerooms (`warehouse/zone/bin` style operating structures), explicit reorder-policy records, cycle-count records with adjustment completion flow, and an entitlement-aware inventory foundation snapshot so cross-module links to maintenance, project management, documents, and approvals only surface when the subscribed runtime actually enables them.
 Recent hardening delivered beyond the initial phase: configured `order_uom` / `issue_uom` conversion now flows through stock transactions, reservations, requisitions, purchase orders, approvals, and receipts; inventory now also ships CSV import for `items`, `storerooms`, `requisitions`, `purchase_orders`, and `receipts`, raw CSV export for `items`, `storerooms`, `requisitions`, `purchase_orders`, and `receipts`, plus stock/procurement reports in CSV and Excel. Receiving now enforces lot, serial, and shelf-life controls, storerooms can require reservation-backed issues and supplier-reference-backed receipts, maintenance-facing source-reference types are validated consistently across reservations and requisitions, and inventory now exposes an explicit maintenance-material contract for availability, reservation, issue, return, shortage escalation, and domain-event refresh.
 Inventory also now owns a governed item category master for consumables, spares, equipment, and other stocked classifications, including project-usage and maintenance-usage flags for future cross-module consumption.
 Still pending before a fuller enterprise-complete rollout: richer warehouse execution such as directed/bin policies and inspection flows, broader serial/lot lifecycle traceability beyond receipt capture, and maintenance-module-side adoption of the new inventory material contract once maintenance runtime workflows land.
@@ -65,9 +66,12 @@ The module owns inventory and procurement workflow truth:
 - `stock_item`
 - `inventory_item_category`
 - `storeroom`
+- `storage_location`
 - `stock_balance`
 - `stock_transaction`
 - `stock_reservation`
+- `reorder_policy`
+- `cycle_count`
 - `purchase_requisition`
 - `purchase_requisition_line`
 - `purchase_order`

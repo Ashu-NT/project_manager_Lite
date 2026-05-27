@@ -1,0 +1,50 @@
+from __future__ import annotations
+
+from collections.abc import Iterable
+
+from src.ui_qml.modules.inventory_procurement.routes import (
+    build_inventory_procurement_routes,
+)
+from src.ui_qml.modules.maintenance.routes import build_maintenance_routes
+from src.ui_qml.modules.project_management.routes import build_project_management_routes
+from src.ui_qml.platform.routes import build_platform_routes
+from src.ui_qml.shell.routes import QmlRoute, build_shell_routes
+
+
+class QmlRouteRegistry:
+    def __init__(self, routes: Iterable[QmlRoute] | None = None) -> None:
+        self._routes: dict[str, QmlRoute] = {}
+        for route in routes or []:
+            self.register(route)
+
+    def register(self, route: QmlRoute) -> None:
+        if route.route_id in self._routes:
+            raise ValueError(f"QML route already registered: {route.route_id}")
+        self._routes[route.route_id] = route
+
+    def get(self, route_id: str) -> QmlRoute:
+        try:
+            return self._routes[route_id]
+        except KeyError as exc:
+            raise KeyError(f"Unknown QML route: {route_id}") from exc
+
+    def list_routes(self) -> list[QmlRoute]:
+        return list(self._routes.values())
+
+    def list_navigation_routes(self) -> list[QmlRoute]:
+        return [route for route in self._routes.values() if route.appears_in_navigation]
+
+
+def build_qml_route_registry() -> QmlRouteRegistry:
+    return QmlRouteRegistry(
+        [
+            *build_shell_routes(),
+            *build_platform_routes(),
+            *build_project_management_routes(),
+            *build_inventory_procurement_routes(),
+            *build_maintenance_routes(),
+        ]
+    )
+
+
+__all__ = ["QmlRouteRegistry", "build_qml_route_registry"]

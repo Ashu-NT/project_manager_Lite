@@ -1,0 +1,1 @@
+"""QHSE desktop API adapters."""

@@ -1,0 +1,79 @@
+    Component {
+        name: "PlatformAdminWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "PlatformWorkspaceControllerBase"
+        exports: ["Platform.Controllers/PlatformAdminWorkspaceController 1.0"]
+        Property { name: "organizations"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "sites"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "departments"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "employees"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "users"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "parties"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "documents"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedDocument"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "documentPreview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "documentLinks"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "documentStructures"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "organizationEditorOptions"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "departmentEditorOptions"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "employeeEditorOptions"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "userEditorOptions"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "partyEditorOptions"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "documentEditorOptions"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "documentStructureEditorOptions"; type: "QVariantMap"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "createOrganization"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateOrganization"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "setActiveOrganization"; type: "QVariantMap"; Parameter { name: "organizationId"; type: "QString" } }
+        Method { name: "createSite"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateSite"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "toggleSiteActive"; type: "QVariantMap"; Parameter { name: "siteId"; type: "QString" } }
+        Method { name: "createDepartment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateDepartment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "toggleDepartmentActive"; type: "QVariantMap"; Parameter { name: "departmentId"; type: "QString" } }
+        Method { name: "createEmployee"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateEmployee"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "toggleEmployeeActive"; type: "QVariantMap"; Parameter { name: "employeeId"; type: "QString" } }
+        Method { name: "createUser"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateUser"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "toggleUserActive"; type: "QVariantMap"; Parameter { name: "userId"; type: "QString" } }
+        Method { name: "createParty"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateParty"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "togglePartyActive"; type: "QVariantMap"; Parameter { name: "partyId"; type: "QString" } }
+        Method { name: "createDocument"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateDocument"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "toggleDocumentActive"; type: "QVariantMap"; Parameter { name: "documentId"; type: "QString" } }
+        Method { name: "selectDocument"; Parameter { name: "documentId"; type: "QString" } }
+        Method { name: "createDocumentStructure"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateDocumentStructure"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "toggleDocumentStructureActive"; type: "QVariantMap"; Parameter { name: "structureId"; type: "QString" } }
+        Method { name: "addDocumentLink"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "removeDocumentLink"; type: "QVariantMap"; Parameter { name: "linkId"; type: "QString" } }
+    }
+
+    Component {
+        name: "PlatformAdminAccessWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "PlatformWorkspaceControllerBase"
+        exports: ["Platform.Controllers/PlatformAdminAccessWorkspaceController 1.0"]
+        Property { name: "scopeTypeOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedScopeType"; type: "QString"; isReadonly: true }
+        Property { name: "scopeOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedScopeId"; type: "QString"; isReadonly: true }
+        Property { name: "userOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedUserId"; type: "QString"; isReadonly: true }
+        Property { name: "roleOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedRole"; type: "QString"; isReadonly: true }
+        Property { name: "scopeHint"; type: "QString"; isReadonly: true }
+        Property { name: "scopeGrants"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "securityUsers"; type: "QVariantMap"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "setScopeType"; Parameter { name: "scopeType"; type: "QString" } }
+        Method { name: "setScopeId"; Parameter { name: "scopeId"; type: "QString" } }
+        Method { name: "setSelectedUserId"; Parameter { name: "userId"; type: "QString" } }
+        Method { name: "setSelectedRole"; Parameter { name: "roleName"; type: "QString" } }
+        Method { name: "assignMembership"; type: "QVariantMap" }
+        Method { name: "removeMembership"; type: "QVariantMap"; Parameter { name: "userId"; type: "QString" } }
+        Method { name: "unlockUser"; type: "QVariantMap"; Parameter { name: "userId"; type: "QString" } }
+        Method { name: "revokeSessions"; type: "QVariantMap"; Parameter { name: "userId"; type: "QString" } }
+    }

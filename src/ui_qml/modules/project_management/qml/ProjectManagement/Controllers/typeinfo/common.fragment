@@ -1,0 +1,13 @@
+Component {
+    name: "ProjectManagementWorkspaceControllerBase"
+    accessSemantics: "reference"
+    prototype: "QObject"
+    exports: ["ProjectManagement.Controllers/ProjectManagementWorkspaceControllerBase 1.0"]
+    Property { name: "workspace"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "isLoading"; type: "bool"; isReadonly: true }
+    Property { name: "isBusy"; type: "bool"; isReadonly: true }
+    Property { name: "errorMessage"; type: "QString"; isReadonly: true }
+    Property { name: "feedbackMessage"; type: "QString"; isReadonly: true }
+    Property { name: "emptyState"; type: "QString"; isReadonly: true }
+    Method { name: "clearMessages" }
+}

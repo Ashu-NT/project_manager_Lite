@@ -1,0 +1,1 @@
+"""QHSE application use cases."""

@@ -1,0 +1,1 @@
+"""Maintenance documents domain."""

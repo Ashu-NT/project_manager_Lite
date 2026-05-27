@@ -1,0 +1,149 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+from src.ui_qml.modules.project_management.view_models.collaboration import (
+    CollaborationCollectionViewModel,
+)
+from src.ui_qml.modules.project_management.view_models.timesheets import (
+    TimesheetCollectionViewModel,
+    TimesheetDetailViewModel,
+)
+
+
+@dataclass(frozen=True)
+class TaskCatalogMetricViewModel:
+    label: str
+    value: str
+    supporting_text: str
+
+
+@dataclass(frozen=True)
+class TaskCatalogOverviewViewModel:
+    title: str
+    subtitle: str
+    metrics: tuple[TaskCatalogMetricViewModel, ...]
+
+
+@dataclass(frozen=True)
+class TaskSelectorOptionViewModel:
+    value: str
+    label: str
+
+
+@dataclass(frozen=True)
+class TaskRecordViewModel:
+    id: str
+    title: str
+    status_label: str
+    subtitle: str
+    supporting_text: str
+    meta_text: str
+    can_primary_action: bool = True
+    can_secondary_action: bool = True
+    can_tertiary_action: bool = True
+    state: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class TaskDetailFieldViewModel:
+    label: str
+    value: str
+    supporting_text: str = ""
+
+
+@dataclass(frozen=True)
+class TaskDetailViewModel:
+    id: str = ""
+    title: str = ""
+    status_label: str = ""
+    subtitle: str = ""
+    description: str = ""
+    empty_state: str = ""
+    fields: tuple[TaskDetailFieldViewModel, ...] = field(default_factory=tuple)
+    state: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class TaskExecutionCollectionViewModel:
+    title: str
+    subtitle: str
+    empty_state: str = ""
+    items: tuple[TaskRecordViewModel, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class TaskCatalogWorkspaceViewModel:
+    overview: TaskCatalogOverviewViewModel
+    project_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    selected_project_id: str = ""
+    status_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    bulk_status_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    priority_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    schedule_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    selected_status_filter: str = "all"
+    selected_priority_filter: str = "all"
+    selected_schedule_filter: str = "all"
+    search_text: str = ""
+    tasks: tuple[TaskRecordViewModel, ...] = field(default_factory=tuple)
+    selected_task_id: str = ""
+    selected_task_detail: TaskDetailViewModel = field(default_factory=TaskDetailViewModel)
+    assignment_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    selected_assignment_id: str = ""
+    dependency_task_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    dependency_type_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    assignments: TaskExecutionCollectionViewModel = field(
+        default_factory=lambda: TaskExecutionCollectionViewModel(title="", subtitle="")
+    )
+    dependencies: TaskExecutionCollectionViewModel = field(
+        default_factory=lambda: TaskExecutionCollectionViewModel(title="", subtitle="")
+    )
+    time_period_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    selected_time_period_start: str = ""
+    time_assignment_summary: TimesheetDetailViewModel = field(
+        default_factory=TimesheetDetailViewModel
+    )
+    time_entries: TimesheetCollectionViewModel = field(
+        default_factory=lambda: TimesheetCollectionViewModel(title="", subtitle="", empty_state="")
+    )
+    selected_time_entry_id: str = ""
+    selected_time_entry_detail: TimesheetDetailViewModel = field(
+        default_factory=TimesheetDetailViewModel
+    )
+    collaboration_mention_options: tuple[TaskSelectorOptionViewModel, ...] = field(
+        default_factory=tuple
+    )
+    collaboration_document_options: tuple[TaskSelectorOptionViewModel, ...] = field(
+        default_factory=tuple
+    )
+    collaboration_comments: CollaborationCollectionViewModel = field(
+        default_factory=lambda: CollaborationCollectionViewModel(
+            title="",
+            subtitle="",
+            empty_state="",
+        )
+    )
+    collaboration_presence: CollaborationCollectionViewModel = field(
+        default_factory=lambda: CollaborationCollectionViewModel(
+            title="",
+            subtitle="",
+            empty_state="",
+        )
+    )
+    empty_state: str = ""
+    total_count: int = 0
+    page: int = 1
+    page_size: int = 25
+
+
+__all__ = [
+    "TaskCatalogMetricViewModel",
+    "TaskCatalogOverviewViewModel",
+    "TaskCatalogWorkspaceViewModel",
+    "TaskDetailFieldViewModel",
+    "TaskDetailViewModel",
+    "TaskExecutionCollectionViewModel",
+    "TaskRecordViewModel",
+    "TaskSelectorOptionViewModel",
+]
