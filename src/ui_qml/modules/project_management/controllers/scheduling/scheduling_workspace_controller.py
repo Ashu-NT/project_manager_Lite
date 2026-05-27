@@ -72,6 +72,7 @@ class ProjectManagementSchedulingWorkspaceController(
     selectedActivityChanged = Signal()
     selectedActivityIdChanged = Signal()
     calculatorResultChanged = Signal()
+    baselineVarianceRowsChanged = Signal()
 
     def __init__(
         self,
@@ -210,6 +211,7 @@ class ProjectManagementSchedulingWorkspaceController(
         }
         self._calculator_result = ""
         self._activity_log: list[dict[str, str]] = []
+        self._baseline_variance_rows: list[dict[str, object]] = []
         self._bind_domain_events()
         self.refresh()
 
@@ -389,6 +391,10 @@ class ProjectManagementSchedulingWorkspaceController(
     def calculatorResult(self) -> str:
         return self._calculator_result
 
+    @Property("QVariantList", notify=baselineVarianceRowsChanged)
+    def baselineVarianceRows(self) -> list[dict[str, object]]:
+        return self._baseline_variance_rows
+
     @Slot()
     def refresh(self) -> None:
         self._set_is_loading(True)
@@ -562,6 +568,7 @@ class ProjectManagementSchedulingWorkspaceController(
         self._activity_page = 1
         self.activityPageChanged.emit()
         self._activity_log = []
+        self._set_baseline_variance_rows([])
         self.refresh()
 
     @Slot(str)
@@ -896,6 +903,22 @@ class ProjectManagementSchedulingWorkspaceController(
         self.refresh()
         return {"ok": True, "message": message}
 
+    @Slot(str)
+    def loadVarianceRecordsForBaseline(self, baseline_id: str) -> None:
+        normalized_id = (baseline_id or "").strip()
+        self._set_is_loading(True)
+        try:
+            self._set_error_message("")
+            collection = self._scheduling_workspace_presenter.build_baseline_variance_collection(
+                normalized_id
+            )
+            serialized = serialize_scheduling_collection_view_model(collection)
+            self._set_baseline_variance_rows(self._build_baseline_variance_rows(serialized))
+        except Exception as exc:
+            self._set_error_message(str(exc))
+        finally:
+            self._set_is_loading(False)
+
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(
             "project",
@@ -1229,6 +1252,30 @@ class ProjectManagementSchedulingWorkspaceController(
             return
         self._calculator_result = calculator_result
         self.calculatorResultChanged.emit()
+
+    def _set_baseline_variance_rows(self, rows: list[dict[str, object]]) -> None:
+        if rows == self._baseline_variance_rows:
+            return
+        self._baseline_variance_rows = rows
+        self.baselineVarianceRowsChanged.emit()
+
+    @staticmethod
+    def _build_baseline_variance_rows(model: dict[str, object]) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for item in model.get("items", []):
+            state = dict(item.get("state", {}) or {})
+            rows.append(
+                {
+                    "id": item.get("id", ""),
+                    "task": item.get("title", ""),
+                    "startVariance": state.get("startVarianceDaysLabel", ""),
+                    "finishVariance": state.get("finishVarianceDaysLabel", ""),
+                    "costVariance": state.get("costVarianceLabel", ""),
+                    "created": state.get("createdLabel", ""),
+                    "status": item.get("statusLabel", ""),
+                }
+            )
+        return rows
 
     @staticmethod
     def _build_schedule_rows(model: dict[str, object]) -> list[dict[str, object]]:

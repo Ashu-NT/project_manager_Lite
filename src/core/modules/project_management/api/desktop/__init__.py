@@ -102,6 +102,7 @@ from src.core.modules.project_management.api.desktop.register import (
 from src.core.modules.project_management.api.desktop.scheduling import (
     ProjectManagementSchedulingDesktopApi,
     SchedulingBaselineComparisonRowDto,
+    SchedulingBaselineVarianceRowDto,
     SchedulingBaselineCreateCommand,
     SchedulingBaselineOptionDescriptor,
     SchedulingBaselineRowDto,
@@ -259,6 +260,7 @@ __all__ = [
     "ResourceWorkerTypeDescriptor",
     "build_project_management_resources_desktop_api",
     "SchedulingBaselineComparisonRowDto",
+    "SchedulingBaselineVarianceRowDto",
     "SchedulingBaselineCreateCommand",
     "SchedulingBaselineOptionDescriptor",
     "SchedulingBaselineRowDto",

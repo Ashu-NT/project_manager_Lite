@@ -469,6 +469,72 @@ class ProjectSchedulingWorkspacePresenter:
             SchedulingBaselineRejectCommand(baseline_id=normalized_id)
         )
 
+    def build_baseline_variance_collection(
+        self,
+        baseline_id: str,
+    ) -> SchedulingCollectionViewModel:
+        normalized_id = (baseline_id or "").strip()
+        if not normalized_id:
+            return SchedulingCollectionViewModel(
+                title="Baseline Variance",
+                subtitle="Per-task variance recorded when this baseline was approved.",
+                empty_state="Select a baseline to review its approval-time variance records.",
+            )
+        try:
+            records = self._desktop_api.list_baseline_variance_records(normalized_id)
+        except Exception:
+            records = ()
+        if not records:
+            return SchedulingCollectionViewModel(
+                title="Baseline Variance",
+                subtitle="Per-task variance recorded when this baseline was approved.",
+                empty_state=(
+                    "No variance records are stored for this baseline. "
+                    "Variance is recorded when a new baseline supersedes the previously approved one."
+                ),
+            )
+        return SchedulingCollectionViewModel(
+            title="Baseline Variance",
+            subtitle=f"Approval-time variance: {len(records)} task(s) changed from the previous baseline.",
+            items=tuple(
+                self._to_baseline_variance_record_view_model(rec)
+                for rec in records
+            ),
+        )
+
+    @staticmethod
+    def _to_baseline_variance_record_view_model(rec) -> SchedulingRecordViewModel:
+        task_name = str(getattr(rec, "task_name", "") or getattr(rec, "task_id", "") or "Unknown")
+        start_var = int(getattr(rec, "start_variance_days", 0) or 0)
+        finish_var = int(getattr(rec, "finish_variance_days", 0) or 0)
+        cost_var = float(getattr(rec, "cost_variance", 0.0) or 0.0)
+        created = getattr(rec, "created_at", None)
+        if start_var > 0 or finish_var > 0:
+            status_label = "Delayed"
+        elif start_var < 0 or finish_var < 0:
+            status_label = "Ahead"
+        else:
+            status_label = "Shifted"
+        return SchedulingRecordViewModel(
+            id=str(getattr(rec, "id", "") or ""),
+            title=task_name,
+            status_label=status_label,
+            subtitle=f"Start {ProjectSchedulingWorkspacePresenter._shift_label(start_var)} | Finish {ProjectSchedulingWorkspacePresenter._shift_label(finish_var)}",
+            supporting_text=f"Cost delta {cost_var:+,.2f}",
+            meta_text=_format_date(created) if created else "-",
+            state={
+                "taskId": str(getattr(rec, "task_id", "") or ""),
+                "taskName": task_name,
+                "startVarianceDays": start_var,
+                "startVarianceDaysLabel": ProjectSchedulingWorkspacePresenter._shift_label(start_var),
+                "finishVarianceDays": finish_var,
+                "finishVarianceDaysLabel": ProjectSchedulingWorkspacePresenter._shift_label(finish_var),
+                "costVariance": cost_var,
+                "costVarianceLabel": f"{cost_var:+,.2f}",
+                "createdLabel": _format_date(created) if created else "-",
+            },
+        )
+
     def recalculate_schedule(self, project_id: str) -> None:
         normalized_id = (project_id or "").strip()
         if not normalized_id:

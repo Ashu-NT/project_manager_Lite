@@ -120,6 +120,9 @@ AppLayouts.WorkspaceFrame {
     readonly property var violationRows: root.workspaceController
         ? (root.workspaceController.violationRows || [])
         : []
+    readonly property var baselineVarianceRows: root.workspaceController
+        ? (root.workspaceController.baselineVarianceRows || [])
+        : []
 
     property string activePanelId: "activity_timeline"
     property string diagnosticsSearchText: ""
@@ -197,6 +200,14 @@ AppLayouts.WorkspaceFrame {
         { "key": "created", "label": "Created", "flex": 1.0 },
         { "key": "approvedBy", "label": "Approved By", "flex": 1.0 },
         { "key": "status", "label": "Status", "flex": 0.9, "type": "status" }
+    ]
+    readonly property var _baselineVarianceColumns: [
+        { "key": "task", "label": "Task", "flex": 2.0, "sortable": true },
+        { "key": "startVariance", "label": "Start Variance", "flex": 1.0 },
+        { "key": "finishVariance", "label": "Finish Variance", "flex": 1.0 },
+        { "key": "costVariance", "label": "Cost Delta", "flex": 1.0 },
+        { "key": "status", "label": "Shift", "flex": 0.8, "type": "status" },
+        { "key": "created", "label": "Recorded", "flex": 0.9 }
     ]
     readonly property var _delayedColumns: [
         { "key": "activity", "label": "Activity", "flex": 1.7, "sortable": true },
@@ -1023,7 +1034,7 @@ AppLayouts.WorkspaceFrame {
                                 AppWidgets.DataTable {
                                     id: baselineRegisterTable
                                     Layout.fillWidth: true
-                                    Layout.fillHeight: true
+                                    Layout.preferredHeight: 200
                                     columns: root._baselineRegisterColumns
                                     rows: root._filterRows(root.baselineRegisterRows, root.baselinesSearchText, ["baseline", "created", "approvedBy", "status"])
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
@@ -1031,7 +1042,31 @@ AppLayouts.WorkspaceFrame {
                                     selectedRowId: root.selectedBaselineRegisterId
                                     onRowSelected: function(rowId) {
                                         root.selectedBaselineRegisterId = String(rowId || "")
+                                        if (root.workspaceController !== null) {
+                                            root.workspaceController.loadVarianceRecordsForBaseline(String(rowId || ""))
+                                        }
                                     }
+                                }
+
+                                AppControls.Label {
+                                    Layout.fillWidth: true
+                                    text: "Approval-Time Variance"
+                                    color: Theme.AppTheme.textPrimary
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    font.bold: true
+                                }
+
+                                AppWidgets.DataTable {
+                                    id: baselineVarianceTable
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    columns: root._baselineVarianceColumns
+                                    rows: root.baselineVarianceRows
+                                    loading: root.workspaceController ? root.workspaceController.isLoading : false
+                                    emptyText: root.selectedBaselineRegisterId.length > 0
+                                        ? "No variance records are stored for this baseline. Variance is recorded when a baseline supersedes the previously approved one."
+                                        : "Select a baseline from the register to review its approval-time variance."
                                 }
                             }
                         }

@@ -196,6 +196,20 @@ class SchedulingBaselineComparisonRowDto:
 
 
 @dataclass(frozen=True)
+class SchedulingBaselineVarianceRowDto:
+    id: str
+    project_id: str
+    new_baseline_id: str
+    superseded_baseline_id: str
+    task_id: str
+    task_name: str
+    start_variance_days: int
+    finish_variance_days: int
+    cost_variance: float
+    created_at: date | None
+
+
+@dataclass(frozen=True)
 class SchedulingCalendarSnapshotDto:
     working_days: tuple[SchedulingDayDescriptor, ...]
     hours_per_day: float
@@ -647,6 +661,37 @@ class ProjectManagementSchedulingDesktopApi:
             label=f"{baseline.name} ({baseline.created_at.isoformat()})",
         )
 
+    def list_baseline_variance_records(
+        self,
+        baseline_id: str,
+    ) -> tuple[SchedulingBaselineVarianceRowDto, ...]:
+        normalized_id = (baseline_id or "").strip()
+        if not normalized_id or self._baseline_service is None:
+            return ()
+        try:
+            records = self._baseline_service.list_variance_records(normalized_id)
+        except Exception:
+            return ()
+        return tuple(
+            SchedulingBaselineVarianceRowDto(
+                id=str(getattr(rec, "id", "") or ""),
+                project_id=str(getattr(rec, "project_id", "") or ""),
+                new_baseline_id=str(getattr(rec, "new_baseline_id", "") or ""),
+                superseded_baseline_id=str(getattr(rec, "superseded_baseline_id", "") or ""),
+                task_id=str(getattr(rec, "task_id", "") or ""),
+                task_name=str(getattr(rec, "task_name", "") or getattr(rec, "task_id", "")),
+                start_variance_days=int(getattr(rec, "start_variance_days", 0) or 0),
+                finish_variance_days=int(getattr(rec, "finish_variance_days", 0) or 0),
+                cost_variance=float(getattr(rec, "cost_variance", 0.0) or 0.0),
+                created_at=(
+                    rec.created_at.date()
+                    if hasattr(rec.created_at, "date")
+                    else getattr(rec, "created_at", None)
+                ),
+            )
+            for rec in records
+        )
+
     def delete_baseline(self, baseline_id: str) -> None:
         self._require_baseline_service().delete_baseline(baseline_id)
 
@@ -1024,6 +1069,7 @@ __all__ = [
     "ProjectManagementSchedulingDesktopApi",
     "SchedulingBaselineApproveCommand",
     "SchedulingBaselineComparisonRowDto",
+    "SchedulingBaselineVarianceRowDto",
     "SchedulingBaselineCreateCommand",
     "SchedulingBaselineOptionDescriptor",
     "SchedulingBaselineRejectCommand",
