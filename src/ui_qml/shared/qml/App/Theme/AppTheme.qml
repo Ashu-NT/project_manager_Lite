@@ -50,6 +50,7 @@ QtObject {
     readonly property color accentHover: "#09588F"
     readonly property color accentPressed: "#084B7A"
     readonly property color accentSoft: "#D8E7F7"
+    readonly property color accentSoftForeground: "#FFFFFF"
 
     // Semantic
     readonly property color success: "#1E7F5A"
