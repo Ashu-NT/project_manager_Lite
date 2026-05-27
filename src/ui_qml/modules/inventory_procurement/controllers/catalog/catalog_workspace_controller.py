@@ -46,6 +46,15 @@ class InventoryProcurementCatalogWorkspaceController(
     itemsChanged = Signal()
     selectedItemChanged = Signal()
     selectedItemIdChanged = Signal()
+    # pagination + bulk + view
+    itemPageChanged = Signal()
+    itemPageSizeChanged = Signal()
+    selectedItemIdsChanged = Signal()
+    categoryPageChanged = Signal()
+    categoryPageSizeChanged = Signal()
+    selectedCategoryIdsChanged = Signal()
+    activeViewChanged = Signal()
+    bulkStatusOptionsChanged = Signal()
 
     def __init__(
         self,
@@ -110,6 +119,15 @@ class InventoryProcurementCatalogWorkspaceController(
             "state": {},
         }
         self._selected_item_id = ""
+        # pagination + bulk + view state
+        self._item_page = 1
+        self._item_page_size = 25
+        self._selected_item_ids: list[str] = []
+        self._category_page = 1
+        self._category_page_size = 25
+        self._selected_category_ids: list[str] = []
+        self._active_view = "items"
+        self._bulk_status_options: list[dict[str, str]] = []
         self._bind_domain_events()
         self.refresh()
 
@@ -451,6 +469,161 @@ class InventoryProcurementCatalogWorkspaceController(
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
         )
+
+    # ── pagination + bulk + view ─────────────────────────────────────
+
+    @Property(int, notify=itemPageChanged)
+    def itemPage(self) -> int:
+        return self._item_page
+
+    @Property(int, notify=itemPageSizeChanged)
+    def itemPageSize(self) -> int:
+        return self._item_page_size
+
+    @Property(int, notify=itemsChanged)
+    def itemTotalCount(self) -> int:
+        return len(self._items.get("items", []))
+
+    @Property("QVariantList", notify=selectedItemIdsChanged)
+    def selectedItemIds(self) -> list[str]:
+        return self._selected_item_ids
+
+    @Property(int, notify=selectedItemIdsChanged)
+    def selectedItemCount(self) -> int:
+        return len(self._selected_item_ids)
+
+    @Property(int, notify=categoryPageChanged)
+    def categoryPage(self) -> int:
+        return self._category_page
+
+    @Property(int, notify=categoryPageSizeChanged)
+    def categoryPageSize(self) -> int:
+        return self._category_page_size
+
+    @Property(int, notify=categoriesChanged)
+    def categoryTotalCount(self) -> int:
+        return len(self._categories.get("items", []))
+
+    @Property("QVariantList", notify=selectedCategoryIdsChanged)
+    def selectedCategoryIds(self) -> list[str]:
+        return self._selected_category_ids
+
+    @Property(int, notify=selectedCategoryIdsChanged)
+    def selectedCategoryCount(self) -> int:
+        return len(self._selected_category_ids)
+
+    @Property(str, notify=activeViewChanged)
+    def activeView(self) -> str:
+        return self._active_view
+
+    @Property("QVariantList", notify=bulkStatusOptionsChanged)
+    def bulkStatusOptions(self) -> list[dict[str, str]]:
+        return self._bulk_status_options
+
+    @Slot(str)
+    def activateItem(self, item_id: str) -> None:
+        self.selectItem(item_id)
+
+    @Slot(str)
+    def activateCategory(self, category_id: str) -> None:
+        self.selectCategory(category_id)
+
+    @Slot(str)
+    def setActiveView(self, view: str) -> None:
+        normalized = view if view in ("items", "categories") else "items"
+        if normalized == self._active_view:
+            return
+        self._active_view = normalized
+        self.activeViewChanged.emit()
+
+    @Slot(int)
+    def setItemPage(self, page: int) -> None:
+        self._item_page = max(1, int(page))
+        self.itemPageChanged.emit()
+
+    @Slot(int)
+    def setItemPageSize(self, size: int) -> None:
+        self._item_page_size = max(10, min(200, int(size)))
+        self._item_page = 1
+        self.itemPageSizeChanged.emit()
+        self.itemPageChanged.emit()
+
+    @Slot(int)
+    def setCategoryPage(self, page: int) -> None:
+        self._category_page = max(1, int(page))
+        self.categoryPageChanged.emit()
+
+    @Slot(int)
+    def setCategoryPageSize(self, size: int) -> None:
+        self._category_page_size = max(10, min(200, int(size)))
+        self._category_page = 1
+        self.categoryPageSizeChanged.emit()
+        self.categoryPageChanged.emit()
+
+    @Slot(str, bool)
+    def setItemBulkSelection(self, row_id: str, selected: bool) -> None:
+        ids = list(self._selected_item_ids)
+        if selected and row_id not in ids:
+            ids.append(row_id)
+        elif not selected and row_id in ids:
+            ids.remove(row_id)
+        self._set_selected_item_ids(ids)
+
+    @Slot()
+    def clearItemBulkSelection(self) -> None:
+        self._set_selected_item_ids([])
+
+    @Slot()
+    def selectVisibleItems(self) -> None:
+        all_ids = [
+            str(r.get("id", ""))
+            for r in self._items.get("items", [])
+            if r.get("id")
+        ]
+        self._set_selected_item_ids(all_ids)
+
+    @Slot(str, bool)
+    def setCategoryBulkSelection(self, row_id: str, selected: bool) -> None:
+        ids = list(self._selected_category_ids)
+        if selected and row_id not in ids:
+            ids.append(row_id)
+        elif not selected and row_id in ids:
+            ids.remove(row_id)
+        self._set_selected_category_ids(ids)
+
+    @Slot()
+    def clearCategoryBulkSelection(self) -> None:
+        self._set_selected_category_ids([])
+
+    @Slot()
+    def selectVisibleCategories(self) -> None:
+        all_ids = [
+            str(r.get("id", ""))
+            for r in self._categories.get("items", [])
+            if r.get("id")
+        ]
+        self._set_selected_category_ids(all_ids)
+
+    @Slot()
+    def clearFilters(self) -> None:
+        self._set_selected_active_filter("all")
+        self._set_selected_usage_filter("all")
+        self._set_selected_category_type_filter("all")
+        self._set_selected_category_filter("all")
+        self._set_search_text("")
+        self.refresh()
+
+    def _set_selected_item_ids(self, ids: list[str]) -> None:
+        if ids == self._selected_item_ids:
+            return
+        self._selected_item_ids = ids
+        self.selectedItemIdsChanged.emit()
+
+    def _set_selected_category_ids(self, ids: list[str]) -> None:
+        if ids == self._selected_category_ids:
+            return
+        self._selected_category_ids = ids
+        self.selectedCategoryIdsChanged.emit()
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(scope_code="inventory_procurement")

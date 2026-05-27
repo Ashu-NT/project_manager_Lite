@@ -37,6 +37,10 @@ class InventoryProcurementReservationsWorkspaceController(
     reservationsChanged = Signal()
     selectedReservationChanged = Signal()
     selectedReservationIdChanged = Signal()
+    # pagination + bulk
+    reservationPageChanged = Signal()
+    reservationPageSizeChanged = Signal()
+    selectedReservationIdsChanged = Signal()
 
     def __init__(
         self,
@@ -79,6 +83,9 @@ class InventoryProcurementReservationsWorkspaceController(
             "state": {},
         }
         self._selected_reservation_id = ""
+        self._reservation_page = 1
+        self._reservation_page_size = 25
+        self._selected_reservation_ids: list[str] = []
         self._bind_domain_events()
         self.refresh()
 
@@ -275,6 +282,80 @@ class InventoryProcurementReservationsWorkspaceController(
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
         )
+
+    # ── pagination + bulk ────────────────────────────────────────────
+
+    @Property(int, notify=reservationPageChanged)
+    def reservationPage(self) -> int:
+        return self._reservation_page
+
+    @Property(int, notify=reservationPageSizeChanged)
+    def reservationPageSize(self) -> int:
+        return self._reservation_page_size
+
+    @Property(int, notify=reservationsChanged)
+    def reservationTotalCount(self) -> int:
+        return len(self._reservations.get("items", []))
+
+    @Property("QVariantList", notify=selectedReservationIdsChanged)
+    def selectedReservationIds(self) -> list[str]:
+        return self._selected_reservation_ids
+
+    @Property(int, notify=selectedReservationIdsChanged)
+    def selectedReservationCount(self) -> int:
+        return len(self._selected_reservation_ids)
+
+    @Slot(str)
+    def activateReservation(self, reservation_id: str) -> None:
+        self.selectReservation(reservation_id)
+
+    @Slot(int)
+    def setReservationPage(self, page: int) -> None:
+        self._reservation_page = max(1, int(page))
+        self.reservationPageChanged.emit()
+
+    @Slot(int)
+    def setReservationPageSize(self, size: int) -> None:
+        self._reservation_page_size = max(10, min(200, int(size)))
+        self._reservation_page = 1
+        self.reservationPageSizeChanged.emit()
+        self.reservationPageChanged.emit()
+
+    @Slot(str, bool)
+    def setReservationBulkSelection(self, row_id: str, selected: bool) -> None:
+        ids = list(self._selected_reservation_ids)
+        if selected and row_id not in ids:
+            ids.append(row_id)
+        elif not selected and row_id in ids:
+            ids.remove(row_id)
+        self._set_selected_reservation_ids(ids)
+
+    @Slot()
+    def clearReservationBulkSelection(self) -> None:
+        self._set_selected_reservation_ids([])
+
+    @Slot()
+    def selectVisibleReservations(self) -> None:
+        all_ids = [
+            str(r.get("id", ""))
+            for r in self._reservations.get("items", [])
+            if r.get("id")
+        ]
+        self._set_selected_reservation_ids(all_ids)
+
+    @Slot()
+    def clearFilters(self) -> None:
+        self._set_selected_status_filter("all")
+        self._set_selected_item_filter("all")
+        self._set_selected_storeroom_filter("all")
+        self._set_search_text("")
+        self.refresh()
+
+    def _set_selected_reservation_ids(self, ids: list[str]) -> None:
+        if ids == self._selected_reservation_ids:
+            return
+        self._selected_reservation_ids = ids
+        self.selectedReservationIdsChanged.emit()
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(scope_code="inventory_procurement")

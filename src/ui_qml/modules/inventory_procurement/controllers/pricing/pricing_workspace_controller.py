@@ -37,6 +37,14 @@ class InventoryProcurementPricingWorkspaceController(
     stockSignalsChanged = Signal()
     supplierPricingChanged = Signal()
     canExportChanged = Signal()
+    # pagination
+    stockSignalPageChanged = Signal()
+    stockSignalPageSizeChanged = Signal()
+    supplierPricingPageChanged = Signal()
+    supplierPricingPageSizeChanged = Signal()
+    activeViewChanged = Signal()
+    selectedStockSignalIdChanged = Signal()
+    selectedSupplierPricingIdChanged = Signal()
 
     def __init__(
         self,
@@ -75,6 +83,14 @@ class InventoryProcurementPricingWorkspaceController(
             "items": [],
         }
         self._can_export = False
+        # pagination + view state
+        self._stock_signal_page = 1
+        self._stock_signal_page_size = 25
+        self._supplier_pricing_page = 1
+        self._supplier_pricing_page_size = 25
+        self._active_view = "stock"
+        self._selected_stock_signal_id = ""
+        self._selected_supplier_pricing_id = ""
         self._bind_domain_events()
         self.refresh()
 
@@ -294,6 +310,99 @@ class InventoryProcurementPricingWorkspaceController(
         finally:
             self._set_is_busy(False)
         return payload
+
+    # ── pagination + view ────────────────────────────────────────────
+
+    @Property(int, notify=stockSignalPageChanged)
+    def stockSignalPage(self) -> int:
+        return self._stock_signal_page
+
+    @Property(int, notify=stockSignalPageSizeChanged)
+    def stockSignalPageSize(self) -> int:
+        return self._stock_signal_page_size
+
+    @Property(int, notify=stockSignalsChanged)
+    def stockSignalTotalCount(self) -> int:
+        return len(self._stock_signals.get("items", []))
+
+    @Property(int, notify=supplierPricingPageChanged)
+    def supplierPricingPage(self) -> int:
+        return self._supplier_pricing_page
+
+    @Property(int, notify=supplierPricingPageSizeChanged)
+    def supplierPricingPageSize(self) -> int:
+        return self._supplier_pricing_page_size
+
+    @Property(int, notify=supplierPricingChanged)
+    def supplierPricingTotalCount(self) -> int:
+        return len(self._supplier_pricing.get("items", []))
+
+    @Property(str, notify=activeViewChanged)
+    def activeView(self) -> str:
+        return self._active_view
+
+    @Property(str, notify=selectedStockSignalIdChanged)
+    def selectedStockSignalId(self) -> str:
+        return self._selected_stock_signal_id
+
+    @Property(str, notify=selectedSupplierPricingIdChanged)
+    def selectedSupplierPricingId(self) -> str:
+        return self._selected_supplier_pricing_id
+
+    @Slot(str)
+    def setActiveView(self, view: str) -> None:
+        normalized = view if view in ("stock", "supplier") else "stock"
+        if normalized == self._active_view:
+            return
+        self._active_view = normalized
+        self.activeViewChanged.emit()
+
+    @Slot(str)
+    def selectStockSignal(self, row_id: str) -> None:
+        normalized = (row_id or "").strip()
+        if normalized == self._selected_stock_signal_id:
+            return
+        self._selected_stock_signal_id = normalized
+        self.selectedStockSignalIdChanged.emit()
+
+    @Slot(str)
+    def selectSupplierPricing(self, row_id: str) -> None:
+        normalized = (row_id or "").strip()
+        if normalized == self._selected_supplier_pricing_id:
+            return
+        self._selected_supplier_pricing_id = normalized
+        self.selectedSupplierPricingIdChanged.emit()
+
+    @Slot(int)
+    def setStockSignalPage(self, page: int) -> None:
+        self._stock_signal_page = max(1, int(page))
+        self.stockSignalPageChanged.emit()
+
+    @Slot(int)
+    def setStockSignalPageSize(self, size: int) -> None:
+        self._stock_signal_page_size = max(10, min(200, int(size)))
+        self._stock_signal_page = 1
+        self.stockSignalPageSizeChanged.emit()
+        self.stockSignalPageChanged.emit()
+
+    @Slot(int)
+    def setSupplierPricingPage(self, page: int) -> None:
+        self._supplier_pricing_page = max(1, int(page))
+        self.supplierPricingPageChanged.emit()
+
+    @Slot(int)
+    def setSupplierPricingPageSize(self, size: int) -> None:
+        self._supplier_pricing_page_size = max(10, min(200, int(size)))
+        self._supplier_pricing_page = 1
+        self.supplierPricingPageSizeChanged.emit()
+        self.supplierPricingPageChanged.emit()
+
+    @Slot()
+    def clearFilters(self) -> None:
+        self._set_selected_site_filter("all")
+        self._set_selected_storeroom_filter("all")
+        self._set_selected_supplier_filter("all")
+        self.refresh()
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(scope_code="inventory_procurement")

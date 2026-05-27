@@ -49,6 +49,14 @@ class InventoryProcurementInventoryWorkspaceController(
     selectedBalanceIdChanged = Signal()
     transactionsChanged = Signal()
     foundationChanged = Signal()
+    # pagination + bulk + view
+    balancePageChanged = Signal()
+    balancePageSizeChanged = Signal()
+    selectedBalanceIdsChanged = Signal()
+    storeroomPageChanged = Signal()
+    storeroomPageSizeChanged = Signal()
+    selectedStoreroomIdsChanged = Signal()
+    activeViewChanged = Signal()
 
     def __init__(
         self,
@@ -134,6 +142,14 @@ class InventoryProcurementInventoryWorkspaceController(
             "trackingSignals": [],
             "activitySignals": [],
         }
+        # pagination + bulk + view state
+        self._balance_page = 1
+        self._balance_page_size = 25
+        self._selected_balance_ids: list[str] = []
+        self._storeroom_page = 1
+        self._storeroom_page_size = 25
+        self._selected_storeroom_ids: list[str] = []
+        self._active_view = "balances"
         self._bind_domain_events()
         self.refresh()
 
@@ -561,6 +577,136 @@ class InventoryProcurementInventoryWorkspaceController(
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
         )
+
+    # ── pagination + bulk + view ─────────────────────────────────────
+
+    @Property(int, notify=balancePageChanged)
+    def balancePage(self) -> int:
+        return self._balance_page
+
+    @Property(int, notify=balancePageSizeChanged)
+    def balancePageSize(self) -> int:
+        return self._balance_page_size
+
+    @Property(int, notify=balancesChanged)
+    def balanceTotalCount(self) -> int:
+        return len(self._balances.get("items", []))
+
+    @Property("QVariantList", notify=selectedBalanceIdsChanged)
+    def selectedBalanceIds(self) -> list[str]:
+        return self._selected_balance_ids
+
+    @Property(int, notify=selectedBalanceIdsChanged)
+    def selectedBalanceCount(self) -> int:
+        return len(self._selected_balance_ids)
+
+    @Property(int, notify=storeroomPageChanged)
+    def storeroomPage(self) -> int:
+        return self._storeroom_page
+
+    @Property(int, notify=storeroomPageSizeChanged)
+    def storeroomPageSize(self) -> int:
+        return self._storeroom_page_size
+
+    @Property(int, notify=storeroomsChanged)
+    def storeroomTotalCount(self) -> int:
+        return len(self._storerooms.get("items", []))
+
+    @Property("QVariantList", notify=selectedStoreroomIdsChanged)
+    def selectedStoreroomIds(self) -> list[str]:
+        return self._selected_storeroom_ids
+
+    @Property(int, notify=selectedStoreroomIdsChanged)
+    def selectedStoreroomCount(self) -> int:
+        return len(self._selected_storeroom_ids)
+
+    @Property(str, notify=activeViewChanged)
+    def activeView(self) -> str:
+        return self._active_view
+
+    @Slot(str)
+    def activateBalance(self, balance_id: str) -> None:
+        self.selectBalance(balance_id)
+
+    @Slot(str)
+    def activateStoreroom(self, storeroom_id: str) -> None:
+        self.selectStoreroom(storeroom_id)
+
+    @Slot(str)
+    def setActiveView(self, view: str) -> None:
+        normalized = view if view in ("balances", "storerooms") else "balances"
+        if normalized == self._active_view:
+            return
+        self._active_view = normalized
+        self.activeViewChanged.emit()
+
+    @Slot(int)
+    def setBalancePage(self, page: int) -> None:
+        self._balance_page = max(1, int(page))
+        self.balancePageChanged.emit()
+
+    @Slot(int)
+    def setBalancePageSize(self, size: int) -> None:
+        self._balance_page_size = max(10, min(200, int(size)))
+        self._balance_page = 1
+        self.balancePageSizeChanged.emit()
+        self.balancePageChanged.emit()
+
+    @Slot(int)
+    def setStoreroomPage(self, page: int) -> None:
+        self._storeroom_page = max(1, int(page))
+        self.storeroomPageChanged.emit()
+
+    @Slot(int)
+    def setStoreroomPageSize(self, size: int) -> None:
+        self._storeroom_page_size = max(10, min(200, int(size)))
+        self._storeroom_page = 1
+        self.storeroomPageSizeChanged.emit()
+        self.storeroomPageChanged.emit()
+
+    @Slot(str, bool)
+    def setBalanceBulkSelection(self, row_id: str, selected: bool) -> None:
+        ids = list(self._selected_balance_ids)
+        if selected and row_id not in ids:
+            ids.append(row_id)
+        elif not selected and row_id in ids:
+            ids.remove(row_id)
+        self._set_selected_balance_ids(ids)
+
+    @Slot()
+    def clearBalanceBulkSelection(self) -> None:
+        self._set_selected_balance_ids([])
+
+    @Slot()
+    def selectVisibleBalances(self) -> None:
+        all_ids = [
+            str(r.get("id", ""))
+            for r in self._balances.get("items", [])
+            if r.get("id")
+        ]
+        self._set_selected_balance_ids(all_ids)
+
+    @Slot()
+    def clearFilters(self) -> None:
+        self._set_selected_site_filter("all")
+        self._set_selected_active_filter("all")
+        self._set_selected_storeroom_filter("all")
+        self._set_selected_item_filter("all")
+        self._set_selected_transaction_type_filter("all")
+        self._set_search_text("")
+        self.refresh()
+
+    def _set_selected_balance_ids(self, ids: list[str]) -> None:
+        if ids == self._selected_balance_ids:
+            return
+        self._selected_balance_ids = ids
+        self.selectedBalanceIdsChanged.emit()
+
+    def _set_selected_storeroom_ids(self, ids: list[str]) -> None:
+        if ids == self._selected_storeroom_ids:
+            return
+        self._selected_storeroom_ids = ids
+        self.selectedStoreroomIdsChanged.emit()
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(scope_code="inventory_procurement")

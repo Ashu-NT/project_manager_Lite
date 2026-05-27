@@ -1,10 +1,12 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
+import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
+import App.Theme 1.0 as Theme
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
-import InventoryProcurement.Widgets 1.0 as InventoryWidgets
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -22,46 +24,59 @@ AppLayouts.WorkspaceFrame {
     property InventoryProcurementControllers.InventoryProcurementReservationsWorkspaceController workspaceController: root.inventoryCatalog
         ? root.inventoryCatalog.reservationsWorkspace
         : null
-    readonly property var workspaceModel: root.workspaceController
-        ? root.workspaceController.workspace
-        : ({
-            "routeId": "inventory_procurement.reservations",
-            "title": "Reservations",
-            "summary": "Reservation holds, issuing, release flows, and source-reference stock demand.",
-            "migrationStatus": "QML reservations slice active",
-            "legacyRuntimeStatus": "Existing QWidget reservations workspace remains active"
-        })
+
     readonly property var overviewModel: root.workspaceController
         ? root.workspaceController.overview
-        : ({
-            "title": root.workspaceModel.title,
-            "subtitle": root.workspaceModel.summary,
-            "metrics": []
-        })
+        : ({ "title": "Reservations", "subtitle": "Stock holds, issuing, release, and cancellation flows.", "metrics": [] })
     readonly property var reservationsModel: root.workspaceController
         ? root.workspaceController.reservations
-        : ({
-            "title": "Reservations",
-            "subtitle": "Manage stock holds, issuing, release, and cancellation flows against real upstream demand.",
-            "emptyState": "Reservations desktop API is not connected in this QML preview.",
-            "items": []
-        })
+        : ({ "items": [], "emptyState": "No reservations found." })
     readonly property var selectedReservationModel: root.workspaceController
         ? root.workspaceController.selectedReservation
-        : ({
-            "id": "",
-            "title": "",
-            "statusLabel": "",
-            "subtitle": "",
-            "description": "",
-            "emptyState": "Select a reservation to inspect source context or operate on the remaining quantity.",
-            "fields": [],
-            "state": {}
-        })
+        : ({ "id": "", "title": "", "statusLabel": "", "subtitle": "", "description": "", "fields": [], "state": {} })
 
-    title: root.overviewModel.title || root.workspaceModel.title
-    subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
+    title: root.overviewModel.title || "Reservations"
+    subtitle: root.overviewModel.subtitle || ""
 
+    property bool _detailOpen: false
+    property int _pendingDetailSection: 0
+    readonly property var _detailPage: _detailPageLoader.item
+
+    readonly property var _reservationColumns: [
+        { "key": "title",       "label": "Reference",  "flex": 2,   "sortable": true },
+        { "key": "subtitle",    "label": "Item / Storeroom", "flex": 1.5 },
+        { "key": "statusLabel", "label": "Status",     "flex": 0,   "minWidth": 90, "type": "status" },
+        { "key": "metaText",    "label": "Quantity / Date", "flex": 1 }
+    ]
+
+    readonly property var _detailSections: ["Overview", "Activity"]
+
+    readonly property var _detailActions: {
+        const idx = root._detailPage ? root._detailPage.activeSectionIndex : 0
+        if (idx !== 0) return []
+        const state = root.selectedReservationModel.state || {}
+        const actions = []
+        if (state.canIssue)   actions.push({ "id": "issue",   "label": "Issue",   "icon": "arrow_down", "enabled": true, "danger": false })
+        if (state.canRelease) actions.push({ "id": "release", "label": "Release", "icon": "approve",    "enabled": true, "danger": false })
+        if (state.canCancel)  actions.push({ "id": "cancel",  "label": "Cancel",  "icon": "reject",     "enabled": true, "danger": true  })
+        return actions
+    }
+
+    function _optionIndexForValue(options, value) {
+        const optList = options || []
+        for (let i = 0; i < optList.length; i++) {
+            if (String(optList[i].value || "") === String(value || "")) return i
+        }
+        return 0
+    }
+
+    function _openDetail(sectionIndex) {
+        root._pendingDetailSection = sectionIndex
+        root._detailOpen = true
+        if (root._detailPage) root._detailPage.scrollToSection(sectionIndex)
+    }
+
+    // ── Dialog host ────────────────────────────────────────────────
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
@@ -70,165 +85,413 @@ AppLayouts.WorkspaceFrame {
                 storeroomOptions: root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
 
                 onCreateReservationRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.createReservation(payload)
-                    }
+                    if (root.workspaceController !== null) root.workspaceController.createReservation(payload)
                 }
-
                 onIssueReservationRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.issueReservation(payload)
-                    }
+                    if (root.workspaceController !== null) root.workspaceController.issueReservation(payload)
                 }
-
                 onReleaseReservationRequested: function(reservationId) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.releaseReservation(reservationId)
-                    }
+                    if (root.workspaceController !== null) root.workspaceController.releaseReservation(reservationId)
                 }
-
                 onCancelReservationRequested: function(reservationId) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.cancelReservation(reservationId)
-                    }
+                    if (root.workspaceController !== null) root.workspaceController.cancelReservation(reservationId)
                 }
             }
         }
     }
 
-    Flickable {
+    // ── Stacked list / detail ──────────────────────────────────────
+    Item {
         anchors.fill: parent
-        contentWidth: width
-        contentHeight: contentColumn.implicitHeight
-        clip: true
 
-        ColumnLayout {
-            id: contentColumn
+        // ── List page ──────────────────────────────────────────────
+        Item {
+            anchors.fill: parent
+            visible: !root._detailOpen || _detailPageLoader.status !== Loader.Ready
 
-            width: parent.width
-            spacing: 12
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: Theme.AppTheme.spacingSm
 
-            ReservationsMetricsSection {
-                Layout.fillWidth: true
-                metrics: root.overviewModel.metrics || []
-            }
-
-            InventoryWidgets.WorkspaceStateBanner {
-                Layout.fillWidth: true
-                isLoading: root.workspaceController ? root.workspaceController.isLoading : false
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                errorMessage: root.workspaceController ? root.workspaceController.errorMessage : ""
-                feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
-            }
-
-            InventoryWidgets.WorkspaceStatusSection {
-                Layout.fillWidth: true
-                migrationStatus: root.workspaceController
-                    ? "QML reservations slice active"
-                    : (root.workspaceModel.migrationStatus || "")
-                legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
-                architectureStatus: "Desktop API + typed controller"
-                architectureSummary: "Reservation search, filters, create, issue, release, and cancel flows now run through a typed reservations controller backed by the split reservations desktop API."
-            }
-
-            ReservationsFiltersSection {
-                Layout.fillWidth: true
-                statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-                itemOptions: root.workspaceController ? (root.workspaceController.itemOptions || []) : []
-                storeroomOptions: root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
-                selectedStatusFilter: root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
-                selectedItemFilter: root.workspaceController ? root.workspaceController.selectedItemFilter : "all"
-                selectedStoreroomFilter: root.workspaceController ? root.workspaceController.selectedStoreroomFilter : "all"
-                searchText: root.workspaceController ? root.workspaceController.searchText : ""
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                onSearchTextUpdated: function(searchText) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setSearchText(searchText)
-                    }
-                }
-
-                onStatusFilterUpdated: function(status) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setStatusFilter(status)
-                    }
-                }
-
-                onItemFilterUpdated: function(itemId) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setItemFilter(itemId)
-                    }
-                }
-
-                onStoreroomFilterUpdated: function(storeroomId) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setStoreroomFilter(storeroomId)
-                    }
-                }
-
-                onRefreshRequested: function() {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.refresh()
-                    }
-                }
-
-                onCreateReservationRequested: dialogHostLoader.invoke(
-                    "openCreateReservationDialog",
-                    root.workspaceController ? root.workspaceController.selectedItemFilter : "all",
-                    root.workspaceController ? root.workspaceController.selectedStoreroomFilter : "all"
-                )
-            }
-
-            GridLayout {
-                Layout.fillWidth: true
-                columns: root.width > 1180 ? 2 : 1
-                columnSpacing: 12
-                rowSpacing: 12
-
-                ReservationsCatalogSection {
+                AppWidgets.KpiStrip {
                     Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignTop
-                    reservationsModel: root.reservationsModel
-                    selectedReservationId: root.workspaceController ? root.workspaceController.selectedReservationId : ""
+                    metrics: root.overviewModel.metrics || []
+                }
+
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: (root.workspaceController ? root.workspaceController.isLoading : false)
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                    tone: "info"
+                    message: "Loading reservations..."
+                }
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: root.workspaceController
+                        ? root.workspaceController.isBusy && String(root.workspaceController.errorMessage || "").length === 0
+                        : false
+                    tone: "info"
+                    message: "Saving changes..."
+                }
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                }
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                    tone: "success"
+                    message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+                }
+
+                AppWidgets.TableToolbar {
+                    id: tableToolbar
+                    Layout.fillWidth: true
+                    searchText: root.workspaceController ? root.workspaceController.searchText : ""
+                    searchPlaceholder: "Search reservations..."
+                    showCreate: true
+                    createLabel: "New Reservation"
+                    showFilter: true
+                    showRefresh: true
+                    showExport: true
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
-                    onReservationSelected: function(reservationId) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.selectReservation(reservationId)
+                    onSearchChanged: function(text) {
+                        if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
+                    }
+                    onFilterClicked: filterPopup.open()
+                    onRefreshRequested: {
+                        if (root.workspaceController !== null) root.workspaceController.refresh()
+                    }
+                    onExportRequested: {}
+                    onCreateRequested: dialogHostLoader.invoke(
+                        "openCreateReservationDialog",
+                        root.workspaceController ? root.workspaceController.selectedItemFilter : "all",
+                        root.workspaceController ? root.workspaceController.selectedStoreroomFilter : "all"
+                    )
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+
+                    AppWidgets.DataTable {
+                        id: _reservationsTable
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: _paginationBar.top
+                        multiSelect: true
+                        columns: root._reservationColumns
+                        rows: root.reservationsModel.items || []
+                        loading: root.workspaceController ? root.workspaceController.isLoading : false
+                        emptyText: root.reservationsModel.emptyState || "No reservations found."
+                        selectedRowId: root.workspaceController ? root.workspaceController.selectedReservationId : ""
+                        selectedRowIds: root.workspaceController ? (root.workspaceController.selectedReservationIds || []) : []
+
+                        onRowSelected: function(rowId) {
+                            if (root.workspaceController !== null) root.workspaceController.selectReservation(rowId)
+                        }
+                        onRowActivated: function(rowId) {
+                            if (root.workspaceController !== null) root.workspaceController.activateReservation(rowId)
+                            root._openDetail(0)
+                        }
+                        onRowSelectionToggled: function(rowId, selected) {
+                            if (root.workspaceController !== null) root.workspaceController.setReservationBulkSelection(rowId, selected)
+                        }
+                        onSelectAllToggled: function(allSelected) {
+                            if (root.workspaceController === null) return
+                            if (allSelected) root.workspaceController.selectVisibleReservations()
+                            else root.workspaceController.clearReservationBulkSelection()
+                        }
+                        onSortRequested: function(key) {}
+                    }
+
+                    AppWidgets.TablePaginationBar {
+                        id: _paginationBar
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        currentPage: root.workspaceController ? root.workspaceController.reservationPage : 1
+                        pageSize: root.workspaceController ? root.workspaceController.reservationPageSize : 25
+                        totalItems: root.workspaceController ? root.workspaceController.reservationTotalCount : 0
+                        busy: root.workspaceController ? root.workspaceController.isBusy : false
+
+                        onPageRequested: function(page) {
+                            if (root.workspaceController !== null) root.workspaceController.setReservationPage(page)
+                        }
+                        onPageSizeRequested: function(size) {
+                            if (root.workspaceController !== null) root.workspaceController.setReservationPageSize(size)
                         }
                     }
 
-                    onIssueRequested: function(reservationData) {
-                        if (reservationData && reservationData.id && root.workspaceController !== null) {
-                            root.workspaceController.selectReservation(reservationData.id)
+                    // ── Filter popup ───────────────────────────────
+                    AppWidgets.AnchoredPopup {
+                        id: filterPopup
+                        anchorItem: tableToolbar.filterButtonItem
+                        width: 304
+                        padding: Theme.AppTheme.marginMd
+                        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+                        background: Rectangle {
+                            radius: Theme.AppTheme.radiusLg
+                            color: Theme.AppTheme.surfaceRaised
+                            border.color: Theme.AppTheme.divider
+                            border.width: 1
                         }
-                        dialogHostLoader.invoke("openIssueReservationDialog", reservationData)
+
+                        contentItem: ColumnLayout {
+                            spacing: Theme.AppTheme.spacingSm
+
+                            AppControls.Label {
+                                text: "Status"
+                                font.bold: true
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.family: Theme.AppTheme.fontFamily
+                                color: Theme.AppTheme.textMuted
+                            }
+                            AppControls.ComboBox {
+                                Layout.fillWidth: true
+                                model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                                textRole: "label"
+                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                currentIndex: root._optionIndexForValue(
+                                    root.workspaceController ? (root.workspaceController.statusOptions || []) : [],
+                                    root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
+                                )
+                                onActivated: function(index) {
+                                    const opts = root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                                    if (root.workspaceController !== null && opts[index]) {
+                                        root.workspaceController.setStatusFilter(String(opts[index].value || "all"))
+                                    }
+                                }
+                            }
+
+                            AppControls.Label {
+                                text: "Item"
+                                font.bold: true
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.family: Theme.AppTheme.fontFamily
+                                color: Theme.AppTheme.textMuted
+                            }
+                            AppControls.ComboBox {
+                                Layout.fillWidth: true
+                                model: root.workspaceController ? (root.workspaceController.itemOptions || []) : []
+                                textRole: "label"
+                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                currentIndex: root._optionIndexForValue(
+                                    root.workspaceController ? (root.workspaceController.itemOptions || []) : [],
+                                    root.workspaceController ? root.workspaceController.selectedItemFilter : "all"
+                                )
+                                onActivated: function(index) {
+                                    const opts = root.workspaceController ? (root.workspaceController.itemOptions || []) : []
+                                    if (root.workspaceController !== null && opts[index]) {
+                                        root.workspaceController.setItemFilter(String(opts[index].value || "all"))
+                                    }
+                                }
+                            }
+
+                            AppControls.Label {
+                                text: "Storeroom"
+                                font.bold: true
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.family: Theme.AppTheme.fontFamily
+                                color: Theme.AppTheme.textMuted
+                            }
+                            AppControls.ComboBox {
+                                Layout.fillWidth: true
+                                model: root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
+                                textRole: "label"
+                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                currentIndex: root._optionIndexForValue(
+                                    root.workspaceController ? (root.workspaceController.storeroomOptions || []) : [],
+                                    root.workspaceController ? root.workspaceController.selectedStoreroomFilter : "all"
+                                )
+                                onActivated: function(index) {
+                                    const opts = root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
+                                    if (root.workspaceController !== null && opts[index]) {
+                                        root.workspaceController.setStoreroomFilter(String(opts[index].value || "all"))
+                                    }
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.AppTheme.spacingSm
+
+                                AppControls.SecondaryButton {
+                                    Layout.fillWidth: true
+                                    text: "Clear"
+                                    iconName: "close"
+                                    onClicked: {
+                                        if (root.workspaceController !== null) root.workspaceController.clearFilters()
+                                        filterPopup.close()
+                                    }
+                                }
+                                AppControls.PrimaryButton {
+                                    Layout.fillWidth: true
+                                    text: "Apply"
+                                    iconName: "filter"
+                                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                    onClicked: filterPopup.close()
+                                }
+                            }
+                        }
                     }
 
-                    onReleaseRequested: function(reservationData) {
-                        if (reservationData && reservationData.id && root.workspaceController !== null) {
-                            root.workspaceController.selectReservation(reservationData.id)
-                        }
-                        dialogHostLoader.invoke("openReleaseConfirmation", reservationData)
-                    }
+                    // ── Bulk action bar ────────────────────────────
+                    AppWidgets.BulkActionBar {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: _paginationBar.top
+                        anchors.bottomMargin: Theme.AppTheme.spacingMd
+                        z: 10
+                        selectedCount: root.workspaceController ? root.workspaceController.selectedReservationCount : 0
+                        busy: root.workspaceController ? root.workspaceController.isBusy : false
+                        actions: [
+                            { "id": "cancel", "label": "Cancel Selected", "icon": "reject", "danger": true, "enabled": true }
+                        ]
 
-                    onCancelRequested: function(reservationData) {
-                        if (reservationData && reservationData.id && root.workspaceController !== null) {
-                            root.workspaceController.selectReservation(reservationData.id)
+                        onCancelRequested: {
+                            if (root.workspaceController !== null) root.workspaceController.clearReservationBulkSelection()
                         }
-                        dialogHostLoader.invoke("openCancelConfirmation", reservationData)
+                        onActionTriggered: function(actionId) {}
+                    }
+                }
+            }
+        }
+
+        // ── Detail page (lazy loaded) ──────────────────────────────
+        Loader {
+            id: _detailPageLoader
+            anchors.fill: parent
+            active: root._detailOpen
+            visible: root._detailOpen && status === Loader.Ready
+            asynchronous: true
+            sourceComponent: _detailPageComponent
+        }
+
+        Component {
+            id: _detailPageComponent
+
+            AppWidgets.SectionDetailPage {
+                open: true
+                anchors.fill: parent
+                showHeader: false
+                showEdit: false
+                showDelete: false
+                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                sections: root._detailSections
+                z: 20
+
+                Component.onCompleted: {
+                    scrollToSection(root._pendingDetailSection)
+                }
+
+                AppWidgets.ContextualActionToolbar {
+                    width: parent ? parent.width : 0
+                    showBack: true
+                    title: root.selectedReservationModel.title || "Reservation Detail"
+                    subtitle: root.selectedReservationModel.statusLabel || root.selectedReservationModel.subtitle || ""
+                    busy: root.workspaceController ? root.workspaceController.isBusy : false
+                    actions: root._detailActions
+
+                    onBackRequested: { root._detailOpen = false }
+                    onActionTriggered: function(actionId) {
+                        if (actionId === "issue") {
+                            dialogHostLoader.invoke("openIssueReservationDialog", root.selectedReservationModel)
+                        } else if (actionId === "release") {
+                            dialogHostLoader.invoke("openReleaseConfirmation", root.selectedReservationModel)
+                        } else if (actionId === "cancel") {
+                            dialogHostLoader.invoke("openCancelConfirmation", root.selectedReservationModel)
+                        }
                     }
                 }
 
-                ReservationDetailSection {
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignTop
-                    reservationDetail: root.selectedReservationModel
-                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                Item {
+                    id: _resDetailContent
+                    width: parent ? parent.width : 0
+                    implicitHeight: _resDetailArea.implicitHeight + 2 * Theme.AppTheme.pagePadding
 
-                    onIssueRequested: dialogHostLoader.invoke("openIssueReservationDialog", root.selectedReservationModel)
-                    onReleaseRequested: dialogHostLoader.invoke("openReleaseConfirmation", root.selectedReservationModel)
-                    onCancelRequested: dialogHostLoader.invoke("openCancelConfirmation", root.selectedReservationModel)
+                    readonly property int _idx: root._detailPage ? root._detailPage.activeSectionIndex : 0
+                    readonly property var _fields: root.selectedReservationModel.fields || []
+
+                    Item {
+                        id: _resDetailArea
+                        anchors.top: parent.top
+                        anchors.topMargin: Theme.AppTheme.pagePadding
+                        anchors.left: parent.left
+                        anchors.leftMargin: Theme.AppTheme.pagePadding
+                        anchors.right: parent.right
+                        anchors.rightMargin: Theme.AppTheme.pagePadding
+                        implicitHeight: _resOverview.visible ? _resOverview.implicitHeight
+                            : _resActivity.implicitHeight + Theme.AppTheme.spacingMd
+
+                        Item {
+                            id: _resOverview
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            visible: _resDetailContent._idx === 0
+                            implicitHeight: _resFieldsGrid.visible ? _resFieldsGrid.implicitHeight : _resEmpty.implicitHeight
+
+                            GridLayout {
+                                id: _resFieldsGrid
+                                width: parent.width
+                                columns: 2
+                                columnSpacing: Theme.AppTheme.spacingMd
+                                rowSpacing: Theme.AppTheme.spacingMd
+                                visible: _resDetailContent._fields.length > 0
+
+                                Repeater {
+                                    model: _resDetailContent._fields
+
+                                    delegate: ColumnLayout {
+                                        id: _rfd
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        spacing: 2
+
+                                        AppControls.Label {
+                                            text: _rfd.modelData.label || ""
+                                            color: Theme.AppTheme.textMuted
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.bold: true
+                                        }
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: _rfd.modelData.value || "—"
+                                            color: Theme.AppTheme.textPrimary
+                                            font.pixelSize: Theme.AppTheme.bodySize
+                                            font.family: Theme.AppTheme.fontFamily
+                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                        }
+                                    }
+                                }
+                            }
+
+                            AppWidgets.EmptyState {
+                                id: _resEmpty
+                                width: parent.width
+                                visible: _resDetailContent._fields.length === 0
+                                title: root.selectedReservationModel.emptyState || "No details available."
+                            }
+                        }
+
+                        AppWidgets.ActivityFeed {
+                            id: _resActivity
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            visible: _resDetailContent._idx === 1
+                            items: []
+                            emptyText: "Activity history will appear here."
+                        }
+                    }
                 }
             }
         }

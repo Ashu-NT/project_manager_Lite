@@ -50,6 +50,14 @@ class InventoryProcurementProcurementWorkspaceController(
     selectedPurchaseOrderIdChanged = Signal()
     purchaseOrderLinesChanged = Signal()
     receiptsChanged = Signal()
+    # pagination + bulk + view
+    requisitionPageChanged = Signal()
+    requisitionPageSizeChanged = Signal()
+    selectedRequisitionIdsChanged = Signal()
+    purchaseOrderPageChanged = Signal()
+    purchaseOrderPageSizeChanged = Signal()
+    selectedPurchaseOrderIdsChanged = Signal()
+    activeViewChanged = Signal()
 
     def __init__(
         self,
@@ -136,6 +144,14 @@ class InventoryProcurementProcurementWorkspaceController(
             "emptyState": "",
             "items": [],
         }
+        # pagination + bulk + view state
+        self._requisition_page = 1
+        self._requisition_page_size = 25
+        self._selected_requisition_ids: list[str] = []
+        self._purchase_order_page = 1
+        self._purchase_order_page_size = 25
+        self._selected_purchase_order_ids: list[str] = []
+        self._active_view = "requisitions"
         self._bind_domain_events()
         self.refresh()
 
@@ -616,6 +632,158 @@ class InventoryProcurementProcurementWorkspaceController(
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
         )
+
+    # ── pagination + bulk + view ─────────────────────────────────────
+
+    @Property(int, notify=requisitionPageChanged)
+    def requisitionPage(self) -> int:
+        return self._requisition_page
+
+    @Property(int, notify=requisitionPageSizeChanged)
+    def requisitionPageSize(self) -> int:
+        return self._requisition_page_size
+
+    @Property(int, notify=requisitionsChanged)
+    def requisitionTotalCount(self) -> int:
+        return len(self._requisitions.get("items", []))
+
+    @Property("QVariantList", notify=selectedRequisitionIdsChanged)
+    def selectedRequisitionIds(self) -> list[str]:
+        return self._selected_requisition_ids
+
+    @Property(int, notify=selectedRequisitionIdsChanged)
+    def selectedRequisitionCount(self) -> int:
+        return len(self._selected_requisition_ids)
+
+    @Property(int, notify=purchaseOrderPageChanged)
+    def purchaseOrderPage(self) -> int:
+        return self._purchase_order_page
+
+    @Property(int, notify=purchaseOrderPageSizeChanged)
+    def purchaseOrderPageSize(self) -> int:
+        return self._purchase_order_page_size
+
+    @Property(int, notify=purchaseOrdersChanged)
+    def purchaseOrderTotalCount(self) -> int:
+        return len(self._purchase_orders.get("items", []))
+
+    @Property("QVariantList", notify=selectedPurchaseOrderIdsChanged)
+    def selectedPurchaseOrderIds(self) -> list[str]:
+        return self._selected_purchase_order_ids
+
+    @Property(int, notify=selectedPurchaseOrderIdsChanged)
+    def selectedPurchaseOrderCount(self) -> int:
+        return len(self._selected_purchase_order_ids)
+
+    @Property(str, notify=activeViewChanged)
+    def activeView(self) -> str:
+        return self._active_view
+
+    @Slot(str)
+    def activateRequisition(self, req_id: str) -> None:
+        self.selectRequisition(req_id)
+
+    @Slot(str)
+    def activatePurchaseOrder(self, po_id: str) -> None:
+        self.selectPurchaseOrder(po_id)
+
+    @Slot(str)
+    def setActiveView(self, view: str) -> None:
+        normalized = view if view in ("requisitions", "purchase_orders") else "requisitions"
+        if normalized == self._active_view:
+            return
+        self._active_view = normalized
+        self.activeViewChanged.emit()
+
+    @Slot(int)
+    def setRequisitionPage(self, page: int) -> None:
+        self._requisition_page = max(1, int(page))
+        self.requisitionPageChanged.emit()
+
+    @Slot(int)
+    def setRequisitionPageSize(self, size: int) -> None:
+        self._requisition_page_size = max(10, min(200, int(size)))
+        self._requisition_page = 1
+        self.requisitionPageSizeChanged.emit()
+        self.requisitionPageChanged.emit()
+
+    @Slot(int)
+    def setPurchaseOrderPage(self, page: int) -> None:
+        self._purchase_order_page = max(1, int(page))
+        self.purchaseOrderPageChanged.emit()
+
+    @Slot(int)
+    def setPurchaseOrderPageSize(self, size: int) -> None:
+        self._purchase_order_page_size = max(10, min(200, int(size)))
+        self._purchase_order_page = 1
+        self.purchaseOrderPageSizeChanged.emit()
+        self.purchaseOrderPageChanged.emit()
+
+    @Slot(str, bool)
+    def setRequisitionBulkSelection(self, row_id: str, selected: bool) -> None:
+        ids = list(self._selected_requisition_ids)
+        if selected and row_id not in ids:
+            ids.append(row_id)
+        elif not selected and row_id in ids:
+            ids.remove(row_id)
+        self._set_selected_requisition_ids(ids)
+
+    @Slot()
+    def clearRequisitionBulkSelection(self) -> None:
+        self._set_selected_requisition_ids([])
+
+    @Slot()
+    def selectVisibleRequisitions(self) -> None:
+        all_ids = [
+            str(r.get("id", ""))
+            for r in self._requisitions.get("items", [])
+            if r.get("id")
+        ]
+        self._set_selected_requisition_ids(all_ids)
+
+    @Slot(str, bool)
+    def setPurchaseOrderBulkSelection(self, row_id: str, selected: bool) -> None:
+        ids = list(self._selected_purchase_order_ids)
+        if selected and row_id not in ids:
+            ids.append(row_id)
+        elif not selected and row_id in ids:
+            ids.remove(row_id)
+        self._set_selected_purchase_order_ids(ids)
+
+    @Slot()
+    def clearPurchaseOrderBulkSelection(self) -> None:
+        self._set_selected_purchase_order_ids([])
+
+    @Slot()
+    def selectVisiblePurchaseOrders(self) -> None:
+        all_ids = [
+            str(r.get("id", ""))
+            for r in self._purchase_orders.get("items", [])
+            if r.get("id")
+        ]
+        self._set_selected_purchase_order_ids(all_ids)
+
+    @Slot()
+    def clearFilters(self) -> None:
+        self._set_selected_site_filter("all")
+        self._set_selected_storeroom_filter("all")
+        self._set_selected_supplier_filter("all")
+        self._set_selected_requisition_status_filter("all")
+        self._set_selected_purchase_order_status_filter("all")
+        self._set_search_text("")
+        self.refresh()
+
+    def _set_selected_requisition_ids(self, ids: list[str]) -> None:
+        if ids == self._selected_requisition_ids:
+            return
+        self._selected_requisition_ids = ids
+        self.selectedRequisitionIdsChanged.emit()
+
+    def _set_selected_purchase_order_ids(self, ids: list[str]) -> None:
+        if ids == self._selected_purchase_order_ids:
+            return
+        self._selected_purchase_order_ids = ids
+        self.selectedPurchaseOrderIdsChanged.emit()
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(scope_code="inventory_procurement")
