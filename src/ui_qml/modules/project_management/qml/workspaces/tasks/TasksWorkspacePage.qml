@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Shell.Context 1.0 as ShellContexts
 import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
@@ -12,6 +13,7 @@ import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 AppLayouts.WorkspaceFrame {
     id: root
 
+    property ShellContexts.ShellContext shellModel
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
     property ProjectManagementControllers.ProjectManagementTasksWorkspaceController workspaceController: root.pmCatalog
         ? root.pmCatalog.tasksWorkspace
@@ -205,10 +207,24 @@ AppLayouts.WorkspaceFrame {
         const page = detailPageLoader.item
         const entry = page ? (page.sections[sectionIndex] || "") : ""
         const label = (typeof entry === "string") ? entry : (entry.label || "")
-        if      (label === "Assignments" || label === "Dependencies")
-                                           root.workspaceController.loadTaskAssignmentsAndDependencies()
+        if      (label === "Assignments")  root.workspaceController.loadSelectedTaskAssignments()
+        else if (label === "Dependencies") root.workspaceController.loadSelectedTaskDependencies()
         else if (label === "Time")         root.workspaceController.loadSelectedTaskTime()
         else if (label === "Activity")     root.workspaceController.loadSelectedTaskCollaboration()
+    }
+
+    function _navigateToRoute(routeId) {
+        if (root.shellModel && String(routeId || "").length > 0) {
+            root.shellModel.selectRoute(String(routeId || ""))
+        }
+    }
+
+    function _openTaskReservationsRoute() {
+        root._navigateToRoute("inventory_procurement.reservations")
+    }
+
+    function _openTaskProcurementRoute() {
+        root._navigateToRoute("inventory_procurement.procurement")
     }
 
     function _openDetail(sectionIndex) {
@@ -804,6 +820,8 @@ AppLayouts.WorkspaceFrame {
                             dialogHostLoader.invoke("openProgressDialog", root.selectedTaskModel)
                         } else if (actionId === "delete") {
                             dialogHostLoader.invoke("openDeleteDialog", root.selectedTaskModel)
+                        } else if (actionId === "reserve_material") {
+                            root._openTaskReservationsRoute()
                         }
                     }
                 }
@@ -832,6 +850,8 @@ AppLayouts.WorkspaceFrame {
                     collaborationCommentsModel: root.collaborationCommentsModel
                     collaborationPresenceModel: root.collaborationPresenceModel
                     selectedTaskId: root.workspaceController ? root.workspaceController.selectedTaskId : ""
+                    canOpenReservations: root._hasInvResCap
+                    canOpenProcurement: root._hasProcReqCap
 
                     onCreateAssignmentRequested: dialogHostLoader.invoke("openCreateAssignmentDialog", root.selectedTaskModel)
                     onAssignmentSelected: function(assignmentId) {
@@ -906,6 +926,8 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.loadSelectedTaskCollaboration()
                         }
                     }
+                    onOpenReservationsRequested: root._openTaskReservationsRoute()
+                    onOpenProcurementRequested: root._openTaskProcurementRoute()
                 }
             }
         }

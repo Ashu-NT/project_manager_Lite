@@ -45,6 +45,11 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
+from src.core.platform.auth.domain.session import (
+    UserSessionContext,
+    UserSessionPrincipal,
+)
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.time.application import TimesheetReviewDetail
 from src.core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 from src.core.platform.documents import DocumentStorageKind
@@ -1010,6 +1015,64 @@ def test_project_management_tasks_desktop_api_mutates_task_records() -> None:
     assert api.list_tasks(project.id) == ()
 
 
+def test_project_management_tasks_desktop_api_falls_back_to_task_scope_without_project_read() -> None:
+    class _ProjectRepo:
+        def __init__(self, projects):
+            self._projects = {project.id: project for project in projects}
+
+        def list_all(self):
+            return list(self._projects.values())
+
+        def get(self, project_id):
+            return self._projects.get(project_id)
+
+    class _ProjectReadDeniedService:
+        def __init__(self, projects):
+            self._project_repo = _ProjectRepo(projects)
+
+        def list_projects(self):
+            raise BusinessRuleError(
+                "Permission denied for list projects. Missing 'project.read'."
+            )
+
+    project_service = _FakeProjectService()
+    project = project_service.create_project(
+        name="Plant Upgrade",
+        description="Replace switchgear and commission the new line.",
+    )
+    task_service = _FakeTaskService()
+    task = task_service.create_task(
+        project_id=project.id,
+        name="Cable Pull",
+        description="Primary feeder cable installation.",
+        start_date=date(2026, 5, 3),
+        duration_days=4,
+        priority=80,
+        deadline=date(2026, 5, 8),
+    )
+    user_session = UserSessionContext()
+    user_session.set_principal(
+        UserSessionPrincipal(
+            user_id="user-1",
+            username="task-reader",
+            display_name="Task Reader",
+            role_names=frozenset({"viewer"}),
+            permissions=frozenset({"task.read"}),
+            scoped_access={"project": {project.id: frozenset({"task.read"})}},
+        )
+    )
+    task_service._user_session = user_session
+
+    api = build_project_management_tasks_desktop_api(
+        project_service=_ProjectReadDeniedService([project]),
+        task_service=task_service,
+    )
+
+    assert [option.label for option in api.list_projects()] == ["Plant Upgrade"]
+    assert [row.id for row in api.list_all_tasks()] == [task.id]
+    assert api.get_task(task.id).project_name == "Plant Upgrade"
+
+
 def test_project_management_tasks_desktop_api_supports_bulk_status_and_delete() -> None:
     project_service = _FakeProjectService()
     project = project_service.create_project(
@@ -1160,6 +1223,85 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
 
     assert api.list_dependencies(task_a.id) == ()
     assert api.list_assignments(task_a.id) == ()
+
+
+def test_project_management_tasks_desktop_api_lists_assignments_without_resource_read() -> None:
+    class _ResourceRepo:
+        def __init__(self, resources):
+            self._resources = {resource.id: resource for resource in resources}
+
+        def list_all(self):
+            return list(self._resources.values())
+
+        def get(self, resource_id):
+            return self._resources.get(resource_id)
+
+    class _ResourceReadDeniedService:
+        def __init__(self, resources):
+            self._resource_repo = _ResourceRepo(resources)
+
+        def list_resources(self):
+            raise BusinessRuleError(
+                "Permission denied for list resources. Missing 'resource.read'."
+            )
+
+    project_service = _FakeProjectService()
+    project = project_service.create_project(
+        name="Plant Upgrade",
+        description="Replace switchgear and commission the new line.",
+    )
+    resource_service = _FakeResourceService()
+    project_resource_service = _FakeProjectResourceService()
+    task_service = _FakeTaskService()
+    task = task_service.create_task(
+        project_id=project.id,
+        name="Cable Pull",
+        description="Primary feeder cable installation.",
+        start_date=date(2026, 5, 3),
+        duration_days=4,
+        priority=80,
+        deadline=date(2026, 5, 8),
+    )
+    resource = resource_service.create_resource(
+        name="Alex Taylor",
+        role="Planner",
+        hourly_rate=85.0,
+        currency_code="EUR",
+    )
+    project_resource = project_resource_service.create(
+        project_id=project.id,
+        resource_id=resource.id,
+        hourly_rate=90.0,
+        currency_code="EUR",
+    )
+    task_service.register_project_resource(project_resource.id, resource.id)
+    task_service.assign_project_resource(
+        task_id=task.id,
+        project_resource_id=project_resource.id,
+        allocation_percent=55.0,
+    )
+    user_session = UserSessionContext()
+    user_session.set_principal(
+        UserSessionPrincipal(
+            user_id="user-1",
+            username="task-reader",
+            display_name="Task Reader",
+            role_names=frozenset({"viewer"}),
+            permissions=frozenset({"task.read"}),
+            scoped_access={"project": {project.id: frozenset({"task.read"})}},
+        )
+    )
+    task_service._user_session = user_session
+
+    api = build_project_management_tasks_desktop_api(
+        project_service=project_service,
+        task_service=task_service,
+        project_resource_service=project_resource_service,
+        resource_service=_ResourceReadDeniedService([resource]),
+    )
+
+    assert api.list_project_resources(project.id)[0].label == "Alex Taylor (90.00 EUR/hr)"
+    assert api.list_assignments(task.id)[0].resource_name == "Alex Taylor"
 
 
 def test_project_management_scheduling_desktop_api_supports_schedule_calendar_and_baselines() -> None:

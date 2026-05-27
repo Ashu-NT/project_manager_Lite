@@ -10,6 +10,7 @@ from src.core.modules.project_management.application.resources import (
 )
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
+from src.core.platform.common.exceptions import BusinessRuleError
 
 
 @dataclass(frozen=True)
@@ -203,12 +204,7 @@ class ProjectManagementTasksDesktopApi:
         self._reservation_service = reservation_service
 
     def list_projects(self) -> tuple[TaskProjectOptionDescriptor, ...]:
-        if self._project_service is None:
-            return ()
-        projects = sorted(
-            self._project_service.list_projects(),
-            key=lambda project: (project.name or "").casefold(),
-        )
+        projects = self._project_rows_for_task_scope()
         return tuple(
             TaskProjectOptionDescriptor(value=project.id, label=project.name)
             for project in projects
@@ -237,12 +233,43 @@ class ProjectManagementTasksDesktopApi:
         list_resources = getattr(self._resource_service, "list_resources", None)
         if not callable(list_by_project) or not callable(list_resources):
             return ()
+        try:
+            project_resources = list_by_project(project_id)
+        except BusinessRuleError as exc:
+            if not self._can_fallback_task_project(project_id, exc):
+                raise
+            project_resource_repo = getattr(
+                self._project_resource_service,
+                "_project_resource_repo",
+                None,
+            )
+            if project_resource_repo is None:
+                return ()
+            project_resources = list(project_resource_repo.list_by_project(project_id))
+        try:
+            resources = list_resources()
+        except BusinessRuleError as exc:
+            if not self._can_fallback_task_project(project_id, exc):
+                raise
+            resource_repo = getattr(self._resource_service, "_resource_repo", None)
+            if resource_repo is None:
+                return ()
+            resource_ids = {
+                str(getattr(project_resource, "resource_id", "") or "")
+                for project_resource in project_resources
+                if str(getattr(project_resource, "resource_id", "") or "").strip()
+            }
+            resources = [
+                resource_repo.get(resource_id)
+                for resource_id in sorted(resource_ids)
+            ]
         resources_by_id = {
             resource.id: resource
-            for resource in list_resources()
+            for resource in resources
+            if resource is not None
         }
         options: list[TaskProjectResourceOptionDescriptor] = []
-        for project_resource in list_by_project(project_id):
+        for project_resource in project_resources:
             resource = resources_by_id.get(project_resource.resource_id)
             if resource is None:
                 continue
@@ -279,6 +306,18 @@ class ProjectManagementTasksDesktopApi:
             sorted(options, key=lambda option: option.label.casefold())
         )
 
+    def get_task(self, task_id: str) -> TaskDesktopDto | None:
+        if not task_id:
+            return None
+        service = self._require_task_service()
+        task = service.get_task(task_id)
+        if task is None:
+            return None
+        return self._serialize_task(
+            task,
+            project_name=self._project_name_by_id().get(task.project_id, ""),
+        )
+
     def list_dependency_types(self) -> tuple[TaskDependencyTypeDescriptor, ...]:
         return tuple(
             TaskDependencyTypeDescriptor(
@@ -305,15 +344,19 @@ class ProjectManagementTasksDesktopApi:
         )
 
     def list_all_tasks(self) -> tuple[TaskDesktopDto, ...]:
-        if self._project_service is None:
-            return ()
-        project_name_lookup = self._project_name_by_id()
         service = self._require_task_service()
+        project_name_lookup = self._project_name_by_id()
+        if not project_name_lookup:
+            return ()
         all_tasks: list[TaskDesktopDto] = []
         for project_id, project_name in project_name_lookup.items():
+            try:
+                tasks = service.list_tasks_for_project(project_id)
+            except BusinessRuleError:
+                continue
             all_tasks.extend(
                 self._serialize_task(task, project_name=project_name)
-                for task in service.list_tasks_for_project(project_id)
+                for task in tasks
             )
         return tuple(
             sorted(
@@ -396,9 +439,15 @@ class ProjectManagementTasksDesktopApi:
         list_assignments_for_task = getattr(service, "list_assignments_for_task", None)
         if not callable(list_assignments_for_task):
             return ()
-        resources_by_id = self._resource_by_id()
+        assignments = list(list_assignments_for_task(task_id))
+        resources_by_id = self._resource_by_id(
+            resource_ids=tuple(
+                str(getattr(assignment, "resource_id", "") or "")
+                for assignment in assignments
+            )
+        )
         assignments = sorted(
-            list_assignments_for_task(task_id),
+            assignments,
             key=lambda assignment: (
                 self._resource_name_for_assignment(
                     assignment,
@@ -426,7 +475,9 @@ class ProjectManagementTasksDesktopApi:
         )
         return self._serialize_assignment(
             assignment,
-            resources_by_id=self._resource_by_id(),
+            resources_by_id=self._resource_by_id(
+                resource_ids=(str(getattr(assignment, "resource_id", "") or ""),)
+            ),
         )
 
     def update_assignment_allocation(
@@ -439,7 +490,9 @@ class ProjectManagementTasksDesktopApi:
         )
         return self._serialize_assignment(
             assignment,
-            resources_by_id=self._resource_by_id(),
+            resources_by_id=self._resource_by_id(
+                resource_ids=(str(getattr(assignment, "resource_id", "") or ""),)
+            ),
         )
 
     def set_assignment_hours(
@@ -452,7 +505,9 @@ class ProjectManagementTasksDesktopApi:
         )
         return self._serialize_assignment(
             assignment,
-            resources_by_id=self._resource_by_id(),
+            resources_by_id=self._resource_by_id(
+                resource_ids=(str(getattr(assignment, "resource_id", "") or ""),)
+            ),
         )
 
     def delete_assignment(self, assignment_id: str) -> None:
@@ -666,22 +721,115 @@ class ProjectManagementTasksDesktopApi:
         return method
 
     def _project_name_by_id(self) -> dict[str, str]:
-        if self._project_service is None:
-            return {}
         return {
             project.id: project.name
-            for project in self._project_service.list_projects()
+            for project in self._project_rows_for_task_scope()
         }
 
-    def _resource_by_id(self) -> dict[str, object]:
+    def _project_rows_for_task_scope(self) -> tuple[object, ...]:
+        if self._project_service is None:
+            return ()
+        try:
+            projects = list(self._project_service.list_projects())
+        except BusinessRuleError as exc:
+            if "project.read" not in str(exc):
+                raise
+            project_repo = getattr(self._project_service, "_project_repo", None)
+            user_session = self._task_user_session()
+            if project_repo is None or user_session is None:
+                return ()
+            project_ids: set[str] = set()
+            for permission_code in ("task.read", "task.manage", "project.read"):
+                project_ids.update(user_session.project_ids_for(permission_code))
+            if project_ids:
+                projects = [
+                    project_repo.get(project_id)
+                    for project_id in sorted(project_ids)
+                ]
+            elif user_session.has_permission("task.read") or user_session.has_permission("task.manage"):
+                projects = list(project_repo.list_all())
+            else:
+                projects = []
+        return tuple(
+            sorted(
+                (project for project in projects if project is not None),
+                key=lambda project: (str(getattr(project, "name", "") or "")).casefold(),
+            )
+        )
+
+    def _task_user_session(self):
+        service = self._task_service
+        if service is None:
+            return None
+        return getattr(service, "_user_session", None)
+
+    def _can_fallback_task_project(self, project_id: str, exc: BusinessRuleError) -> bool:
+        message = str(exc)
+        if "project.read" not in message and "resource.read" not in message:
+            return False
+        normalized_project_id = str(project_id or "").strip()
+        if not normalized_project_id:
+            return False
+        user_session = self._task_user_session()
+        if user_session is None:
+            return False
+        if user_session.has_project_permission(normalized_project_id, "task.read"):
+            return True
+        if user_session.has_project_permission(normalized_project_id, "task.manage"):
+            return True
+        if (
+            not user_session.is_project_restricted()
+            and (
+                user_session.has_permission("task.read")
+                or user_session.has_permission("task.manage")
+            )
+        ):
+            return True
+        return False
+
+    def _resource_by_id(
+        self,
+        *,
+        resource_ids: tuple[str, ...] | None = None,
+    ) -> dict[str, object]:
         if self._resource_service is None:
             return {}
         list_resources = getattr(self._resource_service, "list_resources", None)
         if not callable(list_resources):
             return {}
+        normalized_ids = tuple(
+            {
+                str(resource_id or "").strip()
+                for resource_id in (resource_ids or ())
+                if str(resource_id or "").strip()
+            }
+        )
+        resources: list[object]
+        try:
+            resources = list(list_resources())
+        except BusinessRuleError as exc:
+            if "resource.read" not in str(exc):
+                raise
+            resource_repo = getattr(self._resource_service, "_resource_repo", None)
+            user_session = self._task_user_session()
+            if resource_repo is None or user_session is None:
+                return {}
+            if not (
+                user_session.has_permission("task.read")
+                or user_session.has_permission("task.manage")
+            ):
+                return {}
+            if normalized_ids:
+                resources = [
+                    resource_repo.get(resource_id)
+                    for resource_id in normalized_ids
+                ]
+            else:
+                resources = list(resource_repo.list_all())
         return {
             resource.id: resource
-            for resource in list_resources()
+            for resource in resources
+            if resource is not None
         }
 
     @staticmethod

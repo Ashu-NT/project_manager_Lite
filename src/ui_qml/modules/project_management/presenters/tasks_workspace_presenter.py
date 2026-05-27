@@ -206,8 +206,10 @@ class ProjectTasksWorkspacePresenter:
         Assignments and dependencies load on demand via build_task_detail_state().
         """
         normalized_task_id = (task_id or "").strip()
-        all_tasks = self._load_tasks_for_project(project_id or "")
-        selected_task = self._find_task(all_tasks, normalized_task_id)
+        selected_task = self._resolve_selected_task(
+            task_id=normalized_task_id,
+            project_id=project_id,
+        )
 
         if selected_task is None:
             return self._build_empty_task_detail_state(project_id=project_id)
@@ -243,9 +245,10 @@ class ProjectTasksWorkspacePresenter:
         - collaboration presence
         """
         normalized_task_id = (task_id or "").strip()
-        all_tasks = self._load_tasks_for_project(project_id or "")
-
-        selected_task = self._find_task(all_tasks, normalized_task_id)
+        selected_task = self._resolve_selected_task(
+            task_id=normalized_task_id,
+            project_id=project_id,
+        )
 
         if selected_task is None:
             return self._build_empty_task_detail_state(project_id=project_id)
@@ -281,8 +284,10 @@ class ProjectTasksWorkspacePresenter:
                 ),
             )
 
-        all_tasks = self._load_tasks_for_project(project_id or "")
-        selected_task = self._find_task(all_tasks, normalized_task_id)
+        selected_task = self._resolve_selected_task(
+            task_id=normalized_task_id,
+            project_id=project_id,
+        )
         if selected_task is None:
             return TaskCatalogWorkspaceViewModel(
                 overview=self._build_empty_overview(),
@@ -333,8 +338,10 @@ class ProjectTasksWorkspacePresenter:
                 ),
             )
 
-        all_tasks = self._load_tasks_for_project(project_id or "")
-        selected_task = self._find_task(all_tasks, normalized_task_id)
+        selected_task = self._resolve_selected_task(
+            task_id=normalized_task_id,
+            project_id=project_id,
+        )
         if selected_task is None:
             return TaskCatalogWorkspaceViewModel(
                 overview=self._build_empty_overview(),
@@ -350,6 +357,7 @@ class ProjectTasksWorkspacePresenter:
             )
 
         dependencies = self._desktop_api.list_dependencies(normalized_task_id)
+        all_tasks = self._load_tasks_for_project(selected_task.project_id)
         dependency_type_options = self._build_dependency_type_options()
         dependency_task_options = self._build_dependency_task_options(
             all_tasks,
@@ -469,12 +477,7 @@ class ProjectTasksWorkspacePresenter:
         """
         normalized_task_id = (task_id or "").strip()
 
-        selected_task = None
-        if normalized_task_id:
-            selected_task = self._find_task(
-                self._load_tasks_for_project(""),
-                normalized_task_id,
-            )
+        selected_task = self._desktop_api.get_task(normalized_task_id) if normalized_task_id else None
 
         collaboration_snapshot = (
             self._collaboration_desktop_api.build_task_snapshot(normalized_task_id)
@@ -630,10 +633,36 @@ class ProjectTasksWorkspacePresenter:
         self,
         project_id: str | None,
     ) -> tuple[TaskSelectorOptionViewModel, ...]:
+        try:
+            options = self._desktop_api.list_project_resources(project_id)
+        except Exception:
+            return ()
         return tuple(
             TaskSelectorOptionViewModel(value=option.value, label=option.label)
-            for option in self._desktop_api.list_project_resources(project_id)
+            for option in options
         )
+
+    def _resolve_selected_task(
+        self,
+        *,
+        task_id: str,
+        project_id: str | None = None,
+    ):
+        normalized_task_id = (task_id or "").strip()
+        if not normalized_task_id:
+            return None
+        normalized_project_id = (project_id or "").strip()
+        if normalized_project_id:
+            try:
+                selected_task = self._find_task(
+                    self._load_tasks_for_project(normalized_project_id),
+                    normalized_task_id,
+                )
+            except Exception:
+                selected_task = None
+            if selected_task is not None:
+                return selected_task
+        return self._desktop_api.get_task(normalized_task_id)
 
     def _build_dependency_type_options(
         self,
@@ -1089,6 +1118,7 @@ class ProjectTasksWorkspacePresenter:
                 ),
             )
         state = self._build_task_state(task)
+        state.update(self._build_material_demand_state(task.id))
         return TaskDetailViewModel(
             id=task.id,
             title=task.name,
@@ -1133,12 +1163,55 @@ class ProjectTasksWorkspacePresenter:
                     supporting_text="Predecessor and successor links in the plan.",
                 ),
                 TaskDetailFieldViewModel(
+                    label="Material Demand",
+                    value=str(state.get("materialDemandLabel", "No reservations")),
+                    supporting_text=(
+                        "Inventory-linked reservations and procurement demand for this task."
+                    ),
+                ),
+                TaskDetailFieldViewModel(
                     label="Version",
                     value=str(state["version"]),
                 ),
             ),
             state=state,
         )
+
+    def _build_material_demand_state(self, task_id: str) -> dict[str, object]:
+        normalized_task_id = str(task_id or "").strip()
+        if not normalized_task_id:
+            return {
+                "materialDemandLabel": "No reservations",
+                "materialDemandTotal": "0",
+                "materialDemandActive": "0",
+                "materialDemandFulfilled": "0",
+                "materialDemandCancelled": "0",
+            }
+        try:
+            summary = self._desktop_api.get_task_material_demand(normalized_task_id)
+        except Exception:
+            return {
+                "materialDemandLabel": "Unavailable",
+                "materialDemandTotal": "0",
+                "materialDemandActive": "0",
+                "materialDemandFulfilled": "0",
+                "materialDemandCancelled": "0",
+            }
+        total_reserved = int(getattr(summary, "total_reserved", 0) or 0)
+        active_count = int(getattr(summary, "active_count", 0) or 0)
+        fulfilled_count = int(getattr(summary, "fulfilled_count", 0) or 0)
+        cancelled_count = int(getattr(summary, "cancelled_count", 0) or 0)
+        if total_reserved > 0:
+            label = f"{active_count} active / {total_reserved} total"
+        else:
+            label = "No reservations"
+        return {
+            "materialDemandLabel": label,
+            "materialDemandTotal": str(total_reserved),
+            "materialDemandActive": str(active_count),
+            "materialDemandFulfilled": str(fulfilled_count),
+            "materialDemandCancelled": str(cancelled_count),
+        }
 
     def _build_assignments_collection(
         self,
