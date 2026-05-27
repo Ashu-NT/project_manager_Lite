@@ -263,7 +263,6 @@ AppLayouts.WorkspaceFrame {
                             if (allSelected) root.workspaceController.selectVisibleCosts()
                             else root.workspaceController.clearCostBulkSelection()
                         }
-                        onSortRequested: function(key) {}
                     }
 
                     AppWidgets.TablePaginationBar {

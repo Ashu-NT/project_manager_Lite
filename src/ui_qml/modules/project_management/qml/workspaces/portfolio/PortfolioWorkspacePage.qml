@@ -288,7 +288,11 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.refresh()
                         }
                     }
-                    onExportRequested: { /* future */ }
+                    onExportRequested: {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.exportPortfolio()
+                        }
+                    }
                 }
 
                 // Executive KPI strip
@@ -320,7 +324,11 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.refresh()
                         }
                     }
-                    onExportRequested: { /* future */ }
+                    onExportRequested: {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.exportPortfolio()
+                        }
+                    }
                 }
 
                 // ── Content area ───────────────────────────────────────
@@ -372,7 +380,6 @@ AppLayouts.WorkspaceFrame {
                                 root._selectedRowIds = []
                             }
                         }
-                        onSortRequested: function(key) { /* client-side sort future */ }
                     }
 
                     // Pagination bar (sits on top of bottom panel)
@@ -588,7 +595,6 @@ AppLayouts.WorkspaceFrame {
                                             onRowActivated: function(rowId) {
                                                 root._selectedFundingId = rowId
                                             }
-                                            onSortRequested: function(key) {}
                                         }
 
                                         // Inline action bar for selected intake item
@@ -684,7 +690,6 @@ AppLayouts.WorkspaceFrame {
                                         emptyText: root._dependenciesModel.emptyState
                                             || "No cross-project dependencies recorded."
                                         onRowSelected: function(rowId) {}
-                                        onSortRequested: function(key) {}
                                     }
                                 }
 

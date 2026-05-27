@@ -240,7 +240,6 @@ Item {
                         rows: root.ledgerModel.items || []
                         loading: root.isBusy
                         emptyText: root.ledgerModel.emptyState || "No ledger entries."
-                        onSortRequested: function(key) {}
                     }
                 }
             }

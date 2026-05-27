@@ -167,7 +167,6 @@ Item {
                     }
                     root.activateOperationalRoute(rowId)
                 }
-                onSortRequested: function(key) {}
             }
 
             AppWidgets.TablePaginationBar {

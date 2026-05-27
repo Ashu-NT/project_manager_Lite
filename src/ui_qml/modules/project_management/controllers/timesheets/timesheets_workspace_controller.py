@@ -360,6 +360,13 @@ class ProjectManagementTimesheetsWorkspaceController(
     def clearQueueBulkSelection(self) -> None:
         self._set_selected_queue_period_ids([])
 
+    @Slot()
+    def exportTimesheets(self) -> None:
+        self._set_error_message("")
+        self._set_feedback_message(
+            "Timesheet export is not implemented yet in the QML workspace."
+        )
+
     @Slot("QVariantList", result="QVariantMap")
     def bulkApprovePeriods(self, period_ids: list) -> dict[str, object]:
         ids = [str(i) for i in (period_ids or [])]

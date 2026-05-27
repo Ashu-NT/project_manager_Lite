@@ -79,7 +79,6 @@ Item {
 
                         onRowSelected: function(rowId) { root.entrySelected(rowId) }
                         onRowActivated: function(rowId) { root.entrySelected(rowId) }
-                        onSortRequested: function(key) {}
                     }
                 }
 

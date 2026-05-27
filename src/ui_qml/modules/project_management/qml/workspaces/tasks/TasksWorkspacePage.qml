@@ -456,7 +456,6 @@ AppLayouts.WorkspaceFrame {
                                 root.workspaceController.clearTaskBulkSelection()
                             }
                         }
-                        onSortRequested: function(key) {}
                     }
 
                     AppWidgets.TablePaginationBar {

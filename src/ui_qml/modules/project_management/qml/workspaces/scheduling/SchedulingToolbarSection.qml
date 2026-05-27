@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -56,8 +55,9 @@ Item {
             wrapMode: Text.WordWrap
         }
 
-        Button {
+        AppControls.SecondaryButton {
             text: "Refresh"
+            iconName: "refresh"
             enabled: !root.isBusy
             onClicked: root.refreshRequested()
         }

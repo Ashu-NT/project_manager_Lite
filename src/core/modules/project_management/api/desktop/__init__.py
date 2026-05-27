@@ -117,6 +117,10 @@ from src.core.modules.project_management.api.desktop.scheduling import (
     SchedulingTaskDto,
     SchedulingWorkingDayCalculationCommand,
     SchedulingWorkingDayCalculationDto,
+    SchedulingBaselineApproveCommand,
+    SchedulingBaselineSubmitCommand,
+    SchedulingBaselineRejectCommand,
+    SchedulingConstraintViolationDto,
     build_project_management_scheduling_desktop_api,
 )
 from src.core.modules.project_management.api.desktop.tasks import (
@@ -264,6 +268,10 @@ __all__ = [
     "SchedulingTaskDto",
     "SchedulingWorkingDayCalculationCommand",
     "SchedulingWorkingDayCalculationDto",
+    "SchedulingBaselineApproveCommand",
+    "SchedulingConstraintViolationDto",
+    "SchedulingBaselineSubmitCommand",
+    "SchedulingBaselineRejectCommand",
     "build_project_management_scheduling_desktop_api",
     "TaskAssignmentAllocationCommand",
     "TaskAssignmentCreateCommand",

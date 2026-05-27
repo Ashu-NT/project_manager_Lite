@@ -264,6 +264,13 @@ class ProjectManagementPortfolioWorkspaceController(
         self._set_selected_compare_scenario_id(normalized_value)
         self.refresh()
 
+    @Slot()
+    def exportPortfolio(self) -> None:
+        self._set_error_message("")
+        self._set_feedback_message(
+            "Portfolio export is not implemented yet in the QML workspace."
+        )
+
     @Slot("QVariantMap", result="QVariantMap")
     def createTemplate(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(

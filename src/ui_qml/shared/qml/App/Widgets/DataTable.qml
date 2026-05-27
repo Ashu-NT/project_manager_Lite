@@ -29,6 +29,7 @@ Item {
     property string selectedRowId:  ""
     property string sortKey:        ""
     property int    sortDirection:  Qt.AscendingOrder
+    property bool   clientSideSorting: true
     property bool   showFilter:     false
     property bool   loading:        false
     property string emptyText:      "No records"
@@ -79,11 +80,98 @@ Item {
         })
     }
 
+    function _toggleSort(key) {
+        const normalizedKey = String(key || "")
+        if (!normalizedKey.length) {
+            return
+        }
+        if (root.sortKey === normalizedKey) {
+            root.sortDirection = root.sortDirection === Qt.AscendingOrder
+                ? Qt.DescendingOrder
+                : Qt.AscendingOrder
+        } else {
+            root.sortKey = normalizedKey
+            root.sortDirection = Qt.AscendingOrder
+        }
+    }
+
+    function _sortValue(rawValue) {
+        if (rawValue === undefined || rawValue === null || rawValue === "") {
+            return null
+        }
+        if (typeof rawValue === "object") {
+            if (rawValue.value !== undefined && rawValue.value !== null && rawValue.value !== "") {
+                return rawValue.value
+            }
+            if (rawValue.label !== undefined && rawValue.label !== null && rawValue.label !== "") {
+                return rawValue.label
+            }
+            if (rawValue.text !== undefined && rawValue.text !== null && rawValue.text !== "") {
+                return rawValue.text
+            }
+            return JSON.stringify(rawValue)
+        }
+        return rawValue
+    }
+
+    function _compareSortValues(leftValue, rightValue) {
+        if (leftValue === rightValue) {
+            return 0
+        }
+        if (leftValue === null) {
+            return 1
+        }
+        if (rightValue === null) {
+            return -1
+        }
+        if (typeof leftValue === "boolean" && typeof rightValue === "boolean") {
+            return leftValue === rightValue ? 0 : (leftValue ? 1 : -1)
+        }
+
+        const leftText = String(leftValue).trim()
+        const rightText = String(rightValue).trim()
+        const leftNumber = Number(leftValue)
+        const rightNumber = Number(rightValue)
+        if (leftText.length > 0
+                && rightText.length > 0
+                && !isNaN(leftNumber)
+                && !isNaN(rightNumber)) {
+            return leftNumber - rightNumber
+        }
+
+        const leftDate = Date.parse(leftText)
+        const rightDate = Date.parse(rightText)
+        if (!isNaN(leftDate) && !isNaN(rightDate)) {
+            return leftDate - rightDate
+        }
+
+        return leftText.localeCompare(rightText, undefined, {
+            numeric: true,
+            sensitivity: "base"
+        })
+    }
+
     onSelectedRowIdsChanged: root._rebuildSelectedLookup()
     Component.onCompleted: root._rebuildSelectedLookup()
 
-    readonly property bool _allChecked:  root.rows.length > 0
-        && (root.selectedRowIds || []).length >= root.rows.length
+    readonly property var _displayRows: {
+        const sourceRows = root.rows || []
+        const rowsCopy = sourceRows.slice()
+        if (!root.clientSideSorting || String(root.sortKey || "").length === 0) {
+            return rowsCopy
+        }
+        const key = String(root.sortKey || "")
+        const direction = root.sortDirection === Qt.DescendingOrder ? -1 : 1
+        rowsCopy.sort(function(leftRow, rightRow) {
+            const leftValue = root._sortValue(leftRow ? leftRow[key] : null)
+            const rightValue = root._sortValue(rightRow ? rightRow[key] : null)
+            return direction * root._compareSortValues(leftValue, rightValue)
+        })
+        return rowsCopy
+    }
+
+    readonly property bool _allChecked:  root._displayRows.length > 0
+        && (root.selectedRowIds || []).length >= root._displayRows.length
     readonly property bool _someChecked: (root.selectedRowIds || []).length > 0 && !root._allChecked
 
     readonly property int _cbColW: 32
@@ -170,7 +258,7 @@ Item {
     // internally and emits modelReset whenever either list changes.
     AppModels.DynamicTableModel {
         id: _tableModel
-        rows:    root.rows
+        rows:    root._displayRows
         columns: root.columns
     }
 
@@ -306,7 +394,10 @@ Item {
                                 anchors.fill: parent
                                 enabled:      _hCell.modelData.sortable !== false
                                 cursorShape:  enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                onClicked:    root.sortRequested(_hCell.modelData.key)
+                                onClicked: {
+                                    root._toggleSort(_hCell.modelData.key)
+                                    root.sortRequested(_hCell.modelData.key)
+                                }
                             }
                         }
                     }
@@ -377,7 +468,7 @@ Item {
         visible: root.multiSelect
         clip:    true
 
-        model:          root.rows.length
+        model:          root._displayRows.length
         reuseItems:     true
         boundsBehavior: Flickable.StopAtBounds
         interactive:    false  // vertical scroll driven by _mainView via syncView
@@ -406,7 +497,7 @@ Item {
             id: _cbCell
             required property int row
 
-            readonly property var    _rowData: root.rows[row] || {}
+            readonly property var    _rowData: root._displayRows[row] || {}
             readonly property string _rid: {
                 const rawId = _rowData.id
                 return String(rawId !== undefined && rawId !== null ? rawId : row)
@@ -513,14 +604,14 @@ Item {
             }
         }
         Keys.onDownPressed: {
-            if (root._currentRow < root.rows.length - 1) {
+            if (root._currentRow < root._displayRows.length - 1) {
                 root._currentRow++
                 _mainView.positionViewAtRow(root._currentRow, TableView.Contain)
             }
         }
         Keys.onReturnPressed: {
-            if (root._currentRow >= 0 && root._currentRow < root.rows.length) {
-                const rd = root.rows[root._currentRow]
+            if (root._currentRow >= 0 && root._currentRow < root._displayRows.length) {
+                const rd = root._displayRows[root._currentRow]
                 if (rd) root.rowActivated(String(rd.id !== undefined ? rd.id : ""))
             }
         }
@@ -677,7 +768,7 @@ Item {
     EmptyState {
         anchors.centerIn: _mainView
         width:   Math.min(_mainView.width, 320)
-        visible: root.rows.length === 0 && !root.loading
+        visible: root._displayRows.length === 0 && !root.loading
         title:   root.emptyText
     }
 

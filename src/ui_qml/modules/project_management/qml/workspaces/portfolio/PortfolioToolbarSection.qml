@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import App.Controls 1.0 as AppControls
@@ -100,9 +99,10 @@ Item {
             }
         }
 
-        Button {
+        AppControls.SecondaryButton {
             Layout.fillWidth: true
             text: "Refresh"
+            iconName: "refresh"
             enabled: !root.isBusy
             onClicked: root.refreshRequested()
         }

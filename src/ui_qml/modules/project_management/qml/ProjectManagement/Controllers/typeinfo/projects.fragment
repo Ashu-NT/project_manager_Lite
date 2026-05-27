@@ -11,6 +11,7 @@ Component {
     Property { name: "selectedProject"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
     Method { name: "refresh" }
+    Method { name: "exportProjects" }
     Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
     Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }

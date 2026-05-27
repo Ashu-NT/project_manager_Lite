@@ -194,7 +194,9 @@ AppLayouts.WorkspaceFrame {
                     onRefreshRequested: {
                         if (root.workspaceController !== null) root.workspaceController.refresh()
                     }
-                    onExportRequested: {}
+                    onExportRequested: {
+                        if (root.workspaceController !== null) root.workspaceController.exportTimesheets()
+                    }
                 }
 
                 Item {
@@ -236,7 +238,6 @@ AppLayouts.WorkspaceFrame {
                             if (allSelected) root.workspaceController.selectVisibleQueuePeriods()
                             else root.workspaceController.clearQueueBulkSelection()
                         }
-                        onSortRequested: function(key) {}
                     }
 
                     AppWidgets.TablePaginationBar {

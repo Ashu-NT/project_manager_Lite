@@ -29,6 +29,7 @@ Module {
         Property { name: "selectedProject"; type: "QVariantMap"; isReadonly: true }
         Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
         Method { name: "refresh" }
+        Method { name: "exportProjects" }
         Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
         Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
         Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
@@ -107,6 +108,7 @@ Module {
         Property { name: "recentActions"; type: "QVariantMap"; isReadonly: true }
         Property { name: "activeTemplateSummary"; type: "QString"; isReadonly: true }
         Method { name: "refresh" }
+        Method { name: "exportPortfolio" }
         Method { name: "setIntakeStatusFilter"; Parameter { name: "intakeStatusFilter"; type: "QString" } }
         Method { name: "selectScenario"; Parameter { name: "scenarioId"; type: "QString" } }
         Method { name: "selectCompareBase"; Parameter { name: "scenarioId"; type: "QString" } }
@@ -135,6 +137,7 @@ Module {
         Property { name: "selectedResource"; type: "QVariantMap"; isReadonly: true }
         Property { name: "selectedResourceId"; type: "QString"; isReadonly: true }
         Method { name: "refresh" }
+        Method { name: "exportResources" }
         Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
         Method { name: "setActiveFilter"; Parameter { name: "activeFilter"; type: "QString" } }
         Method { name: "setCategoryFilter"; Parameter { name: "categoryFilter"; type: "QString" } }
@@ -165,6 +168,7 @@ Module {
         Property { name: "selectedEntryId"; type: "QString"; isReadonly: true }
         Property { name: "urgentEntries"; type: "QVariantMap"; isReadonly: true }
         Method { name: "refresh" }
+        Method { name: "exportRegister" }
         Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
         Method { name: "setTypeFilter"; Parameter { name: "typeFilter"; type: "QString" } }
         Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
@@ -421,6 +425,7 @@ Module {
         Property { name: "reviewQueue"; type: "QVariantMap"; isReadonly: true }
         Property { name: "reviewDetail"; type: "QVariantMap"; isReadonly: true }
         Method { name: "refresh" }
+        Method { name: "exportTimesheets" }
         Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
         Method { name: "selectAssignment"; Parameter { name: "assignmentId"; type: "QString" } }
         Method { name: "selectPeriod"; Parameter { name: "periodStart"; type: "QString" } }

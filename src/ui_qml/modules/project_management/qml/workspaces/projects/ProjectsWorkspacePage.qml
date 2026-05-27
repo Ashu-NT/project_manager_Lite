@@ -266,7 +266,6 @@ AppLayouts.WorkspaceFrame {
                                 root.workspaceController.clearProjectBulkSelection()
                             }
                         }
-                        onSortRequested: function(key) {}
                     }
 
                     AppWidgets.TablePaginationBar {

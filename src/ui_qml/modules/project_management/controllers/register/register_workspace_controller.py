@@ -328,6 +328,13 @@ class ProjectManagementRegisterWorkspaceController(
     def clearEntryBulkSelection(self) -> None:
         self._set_selected_entry_ids([])
 
+    @Slot()
+    def exportRegister(self) -> None:
+        self._set_error_message("")
+        self._set_feedback_message(
+            "Register export is not implemented yet in the QML workspace."
+        )
+
     @Slot("QVariantList", result="QVariantMap")
     def bulkDeleteEntries(self, entry_ids: list) -> dict[str, object]:
         ids = [str(i) for i in (entry_ids or [])]

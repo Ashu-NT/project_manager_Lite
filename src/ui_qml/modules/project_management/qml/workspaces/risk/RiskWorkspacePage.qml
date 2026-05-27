@@ -174,7 +174,6 @@ AppLayouts.WorkspaceFrame {
                     root._pendingDetailSection = 0
                     root._detailOpen = true
                 }
-                onSortRequested: function(key) {}
             }
 
             AppWidgets.TablePaginationBar {

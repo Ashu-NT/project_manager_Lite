@@ -374,7 +374,10 @@ class ProjectManagementProjectsWorkspaceController(
 
     @Slot()
     def exportProjects(self) -> None:
-        pass
+        self._set_error_message("")
+        self._set_feedback_message(
+            "Project export is not implemented yet in the QML workspace."
+        )
 
     @Slot("QVariantMap", result="QVariantMap")
     def createProject(self, payload: dict[str, object]) -> dict[str, object]:

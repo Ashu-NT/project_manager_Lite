@@ -20,6 +20,7 @@ Component {
     Property { name: "reviewQueue"; type: "QVariantMap"; isReadonly: true }
     Property { name: "reviewDetail"; type: "QVariantMap"; isReadonly: true }
     Method { name: "refresh" }
+    Method { name: "exportTimesheets" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "selectAssignment"; Parameter { name: "assignmentId"; type: "QString" } }
     Method { name: "selectPeriod"; Parameter { name: "periodStart"; type: "QString" } }

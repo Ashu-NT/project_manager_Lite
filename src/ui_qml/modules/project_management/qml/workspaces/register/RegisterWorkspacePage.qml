@@ -206,7 +206,9 @@ AppLayouts.WorkspaceFrame {
                     onRefreshRequested: {
                         if (root.workspaceController !== null) root.workspaceController.refresh()
                     }
-                    onExportRequested: {}
+                    onExportRequested: {
+                        if (root.workspaceController !== null) root.workspaceController.exportRegister()
+                    }
                     onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
                 }
 
@@ -249,7 +251,6 @@ AppLayouts.WorkspaceFrame {
                             if (allSelected) root.workspaceController.selectVisibleEntries()
                             else root.workspaceController.clearEntryBulkSelection()
                         }
-                        onSortRequested: function(key) {}
                     }
 
                     AppWidgets.TablePaginationBar {
