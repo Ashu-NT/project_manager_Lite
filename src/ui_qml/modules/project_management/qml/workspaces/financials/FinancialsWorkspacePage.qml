@@ -77,13 +77,14 @@ AppLayouts.WorkspaceFrame {
     }
 
     readonly property var _tableColumns: [
-        { "key": "title",               "label": "Description", "flex": 2,   "sortable": true  },
-        { "key": "statusLabel",         "label": "Cost Type",   "flex": 0,   "minWidth": 110, "type": "status" },
-        { "key": "subtitle",            "label": "Task",        "flex": 1.5, "sortable": true  },
-        { "key": "plannedAmountLabel",  "label": "Budget",      "flex": 0,   "minWidth": 110  },
-        { "key": "forecastAmountLabel", "label": "Forecast",    "flex": 0,   "minWidth": 110  },
-        { "key": "actualAmountLabel",   "label": "Actual",      "flex": 0,   "minWidth": 110  },
-        { "key": "committedAmountLabel","label": "Committed",   "flex": 0,   "minWidth": 110  },
+        { "key": "title",                 "label": "Description", "flex": 2,   "sortable": true  },
+        { "key": "statusLabel",           "label": "Cost Type",   "flex": 0,   "minWidth": 110, "type": "status" },
+        { "key": "commitmentStatusLabel", "label": "Commitment",  "flex": 0,   "minWidth": 120, "type": "status" },
+        { "key": "subtitle",              "label": "Task",        "flex": 1.5, "sortable": true  },
+        { "key": "plannedAmountLabel",    "label": "Budget",      "flex": 0,   "minWidth": 110  },
+        { "key": "forecastAmountLabel",   "label": "Forecast",    "flex": 0,   "minWidth": 110  },
+        { "key": "actualAmountLabel",     "label": "Actual",      "flex": 0,   "minWidth": 110  },
+        { "key": "committedAmountLabel",  "label": "Committed",   "flex": 0,   "minWidth": 110  },
         { "key": "incurredDateLabel",   "label": "Date",        "flex": 0,   "minWidth": 90   }
     ]
 
@@ -519,6 +520,10 @@ AppLayouts.WorkspaceFrame {
                     ledgerModel: root.ledgerModel
                     sourceAnalyticsModel: root.sourceAnalyticsModel
                     overviewModel: root.overviewModel
+                    forecastModel: root.workspaceController
+                        ? root.workspaceController.forecast : ({})
+                    commitmentSummaryModel: root.workspaceController
+                        ? root.workspaceController.commitmentSummary : ({})
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 }
             }

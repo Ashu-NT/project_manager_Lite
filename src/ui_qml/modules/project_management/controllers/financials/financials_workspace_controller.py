@@ -7,7 +7,9 @@ from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
     serialize_financials_collection_view_model,
+    serialize_financials_commitment_summary_view_model,
     serialize_financials_detail_view_model,
+    serialize_financials_forecast_view_model,
     serialize_financials_overview_view_model,
     serialize_financials_record_view_models,
     serialize_selector_options,
@@ -47,6 +49,8 @@ class ProjectManagementFinancialsWorkspaceController(
     costTotalCountChanged = Signal()
     selectedCostIdsChanged = Signal()
     selectedCostCountChanged = Signal()
+    forecastChanged = Signal()
+    commitmentSummaryChanged = Signal()
 
     def __init__(
         self,
@@ -95,6 +99,16 @@ class ProjectManagementFinancialsWorkspaceController(
         self._cost_page_size = 25
         self._cost_total_count = 0
         self._selected_cost_ids: list[str] = []
+        self._forecast: dict[str, object] = {
+            "method": "", "methodLabel": "", "bacLabel": "", "acLabel": "", "evLabel": "",
+            "etcLabel": "", "eacLabel": "", "vacLabel": "", "cpiLabel": "",
+            "isOverBudget": False, "exceedsThreshold": False, "thresholdPercent": 10.0,
+            "alertMessage": "", "metrics": [],
+        }
+        self._commitment_summary: dict[str, object] = {
+            "plannedLabel": "", "uncommittedLabel": "", "committedLabel": "",
+            "invoicedLabel": "", "paidLabel": "", "exposureLabel": "", "commitmentRatePct": 0.0,
+        }
         self._bind_domain_events()
         self.refresh()
 
@@ -157,6 +171,14 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantList", notify=notesChanged)
     def notes(self) -> list[str]:
         return self._notes
+
+    @Property("QVariantMap", notify=forecastChanged)
+    def forecast(self) -> dict[str, object]:
+        return self._forecast
+
+    @Property("QVariantMap", notify=commitmentSummaryChanged)
+    def commitmentSummary(self) -> dict[str, object]:
+        return self._commitment_summary
 
     @Property("QVariantList", notify=costTypeOptionsChanged)
     def bulkCostTypeOptions(self) -> list[dict[str, object]]:
@@ -242,6 +264,12 @@ class ProjectManagementFinancialsWorkspaceController(
             )
             self._set_notes(list(workspace_state.notes))
             self._set_empty_state(workspace_state.empty_state)
+            self._set_forecast(
+                serialize_financials_forecast_view_model(workspace_state.forecast)
+            )
+            self._set_commitment_summary(
+                serialize_financials_commitment_summary_view_model(workspace_state.commitment_summary)
+            )
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:
@@ -280,9 +308,31 @@ class ProjectManagementFinancialsWorkspaceController(
         self._set_selected_cost_id(normalized_value)
         self.refresh()
 
+    @Slot(str, result="QVariantMap")
+    def computeForecast(self, method: str) -> dict[str, object]:
+        normalized = (method or "bac_over_cpi").strip().lower()
+        return run_mutation(
+            operation=lambda: self._apply_forecast(normalized),
+            success_message="Forecast recalculated.",
+            on_success=lambda: None,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    def _apply_forecast(self, method: str) -> None:
+        forecast_dto = self._financials_workspace_presenter._desktop_api.get_cost_forecast(
+            self._selected_project_id, method=method
+        )
+        from src.ui_qml.modules.project_management.view_models.financials import FinancialsForecastViewModel
+        vm = self._financials_workspace_presenter._build_forecast_view_model(forecast_dto)
+        self._set_forecast(serialize_financials_forecast_view_model(vm))
+
     @Slot()
     def exportFinancials(self) -> None:
-        pass  # TODO: implement financials export when backend export service is available
+        self._set_feedback_message(
+            "Export is not yet available. Use Reports to generate financial summaries."
+        )
 
     @Slot(int)
     def setCostPage(self, page: int) -> None:
@@ -515,6 +565,18 @@ class ProjectManagementFinancialsWorkspaceController(
         self._selected_cost_ids = ids
         self.selectedCostIdsChanged.emit()
         self.selectedCostCountChanged.emit()
+
+    def _set_forecast(self, forecast: dict[str, object]) -> None:
+        if forecast == self._forecast:
+            return
+        self._forecast = forecast
+        self.forecastChanged.emit()
+
+    def _set_commitment_summary(self, summary: dict[str, object]) -> None:
+        if summary == self._commitment_summary:
+            return
+        self._commitment_summary = summary
+        self.commitmentSummaryChanged.emit()
 
 
 __all__ = ["ProjectManagementFinancialsWorkspaceController"]

@@ -66,6 +66,42 @@ class FinancialsCollectionViewModel:
 
 
 @dataclass(frozen=True)
+class FinancialsForecastMetricViewModel:
+    label: str
+    value: str
+    color_hint: str = ""  # "success", "warning", "danger", or ""
+
+
+@dataclass(frozen=True)
+class FinancialsForecastViewModel:
+    method: str = ""
+    method_label: str = ""
+    bac_label: str = ""
+    ac_label: str = ""
+    ev_label: str = ""
+    etc_label: str = ""
+    eac_label: str = ""
+    vac_label: str = ""
+    cpi_label: str = ""
+    is_over_budget: bool = False
+    exceeds_threshold: bool = False
+    threshold_percent: float = 10.0
+    alert_message: str = ""
+    metrics: tuple[FinancialsForecastMetricViewModel, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class FinancialsCommitmentSummaryViewModel:
+    planned_label: str = ""
+    uncommitted_label: str = ""
+    committed_label: str = ""
+    invoiced_label: str = ""
+    paid_label: str = ""
+    exposure_label: str = ""
+    commitment_rate_pct: float = 0.0
+
+
+@dataclass(frozen=True)
 class FinancialsWorkspaceViewModel:
     overview: FinancialsOverviewViewModel
     project_options: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
@@ -81,14 +117,19 @@ class FinancialsWorkspaceViewModel:
     ledger: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     source_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     cost_type_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    forecast: FinancialsForecastViewModel = field(default_factory=FinancialsForecastViewModel)
+    commitment_summary: FinancialsCommitmentSummaryViewModel = field(default_factory=FinancialsCommitmentSummaryViewModel)
     notes: tuple[str, ...] = field(default_factory=tuple)
     empty_state: str = ""
 
 
 __all__ = [
     "FinancialsCollectionViewModel",
+    "FinancialsCommitmentSummaryViewModel",
     "FinancialsDetailFieldViewModel",
     "FinancialsDetailViewModel",
+    "FinancialsForecastMetricViewModel",
+    "FinancialsForecastViewModel",
     "FinancialsMetricViewModel",
     "FinancialsOverviewViewModel",
     "FinancialsRecordViewModel",
