@@ -120,6 +120,8 @@ class ProjectManagementTasksWorkspaceController(
     collaborationSectionLoadedChanged = Signal()
     taskSkillRequirementsChanged = Signal()
     skillRequirementsSectionLoadedChanged = Signal()
+    scheduleImpactChanged = Signal()
+    scheduleImpactSectionLoadedChanged = Signal()
 
     def __init__(
         self,
@@ -158,6 +160,8 @@ class ProjectManagementTasksWorkspaceController(
         self._assignments_section_loaded_for_task_id = ""
         self._dependencies_section_loaded_for_task_id = ""
         self._skill_requirements_section_loaded_for_task_id = ""
+        self._schedule_impact_section_loaded_for_task_id = ""
+        self._schedule_impact: dict[str, object] = {}
         # ── Saved views ────────────────────────────────────────────────
         self._task_view_store = task_view_store or ProjectManagementTaskViewStore()
         self._saved_task_views: dict[str, dict[str, object]] = (
@@ -433,6 +437,17 @@ class ProjectManagementTasksWorkspaceController(
         return (
             bool(self._selected_task_id)
             and self._skill_requirements_section_loaded_for_task_id == self._selected_task_id
+        )
+
+    @Property("QVariantMap", notify=scheduleImpactChanged)
+    def scheduleImpact(self) -> dict[str, object]:
+        return self._schedule_impact
+
+    @Property(bool, notify=scheduleImpactSectionLoadedChanged)
+    def isScheduleImpactSectionLoaded(self) -> bool:
+        return (
+            bool(self._selected_task_id)
+            and self._schedule_impact_section_loaded_for_task_id == self._selected_task_id
         )
 
     # ── Pagination properties ─────────────────────────────────────────
@@ -785,6 +800,26 @@ class ProjectManagementTasksWorkspaceController(
         finally:
             self._set_is_loading(False)
 
+    @Slot()
+    def loadSelectedTaskScheduleImpact(self) -> None:
+        if not self._selected_task_id:
+            return
+        if self._schedule_impact_section_loaded_for_task_id == self._selected_task_id:
+            return
+        self._set_is_loading(True)
+        try:
+            self._set_error_message("")
+            impact = self._tasks_workspace_presenter.build_task_schedule_impact_state(
+                task_id=self._selected_task_id,
+                project_id=self._selected_project_id or None,
+            )
+            self._set_schedule_impact(impact)
+            self._schedule_impact_section_loaded_for_task_id = self._selected_task_id
+        except Exception as exc:
+            self._set_error_message(str(exc))
+        finally:
+            self._set_is_loading(False)
+
     @Slot(bool)
     def setTaskReviewActive(self, active: bool) -> None:
         normalized = bool(active)
@@ -1071,6 +1106,15 @@ class ProjectManagementTasksWorkspaceController(
         self._assignments_section_loaded_for_task_id = ""
         self._dependencies_section_loaded_for_task_id = ""
         self._skill_requirements_section_loaded_for_task_id = ""
+        self._schedule_impact_section_loaded_for_task_id = ""
+        self._set_schedule_impact({})
+
+    def _set_schedule_impact(self, v: dict[str, object]) -> None:
+        if v == self._schedule_impact:
+            return
+        self._schedule_impact = v
+        self.scheduleImpactChanged.emit()
+        self.scheduleImpactSectionLoadedChanged.emit()
 
     def _set_selected_assignment_id(self, v: str) -> None:
         if v == self._selected_assignment_id:

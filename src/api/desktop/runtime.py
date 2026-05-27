@@ -113,6 +113,9 @@ from src.application.runtime.platform_runtime import (
 from src.core.modules.project_management.application.scheduling.baseline_service import (
     BaselineService,
 )
+from src.core.modules.project_management.application.scheduling.schedule_change_impact_service import (
+    ScheduleChangeImpactService,
+)
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import FinanceService
 from src.core.modules.project_management.application.projects import (
@@ -188,6 +191,23 @@ class DesktopApiRegistry:
     maintenance_reliability: MaintenanceReliabilityDesktopApi
     maintenance_work_requests: MaintenanceWorkRequestsDesktopApi
     maintenance_work_orders: MaintenanceWorkOrdersDesktopApi
+
+
+def _build_schedule_change_impact_service(
+    task_service: TaskService | None,
+    calendar: WorkCalendarEngine | None,
+) -> ScheduleChangeImpactService | None:
+    if task_service is None or calendar is None:
+        return None
+    task_repo = getattr(task_service, "_task_repo", None)
+    dependency_repo = getattr(task_service, "_dependency_repo", None)
+    if task_repo is None or dependency_repo is None:
+        return None
+    return ScheduleChangeImpactService(
+        task_repo=task_repo,
+        dependency_repo=dependency_repo,
+        calendar=calendar,
+    )
 
 
 def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegistry:
@@ -572,6 +592,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             resource_service=pm_resource_service,
             reservation_service=inventory_reservation_desktop_service,
             assignment_skill_validator=pm_assignment_skill_validator,
+            schedule_change_impact_service=_build_schedule_change_impact_service(
+                pm_task_service, pm_work_calendar_engine
+            ),
         ),
         project_management_timesheets=build_project_management_timesheets_desktop_api(
             project_service=pm_project_service,

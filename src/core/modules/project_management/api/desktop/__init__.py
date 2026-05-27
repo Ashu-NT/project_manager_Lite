@@ -131,6 +131,8 @@ from src.core.modules.project_management.api.desktop.scheduling import (
 from src.core.modules.project_management.api.desktop.tasks import (
     AssignmentValidationDesktopDto,
     ProjectManagementTasksDesktopApi,
+    ScheduleImpactAffectedTaskDto,
+    ScheduleImpactReportDto,
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
     TaskAssignmentDesktopDto,
@@ -286,6 +288,8 @@ __all__ = [
     "SchedulingBaselineRejectCommand",
     "build_project_management_scheduling_desktop_api",
     "AssignmentValidationDesktopDto",
+    "ScheduleImpactAffectedTaskDto",
+    "ScheduleImpactReportDto",
     "TaskSkillRequirementDesktopDto",
     "TaskAssignmentAllocationCommand",
     "TaskAssignmentCreateCommand",

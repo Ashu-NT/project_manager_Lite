@@ -121,6 +121,20 @@ AppLayouts.WorkspaceFrame {
             "emptyState": "Select a task to review skill and certification requirements.",
             "items": []
         })
+    readonly property var scheduleImpactModel: root.workspaceController
+        ? root.workspaceController.scheduleImpact
+        : ({
+            "available": false,
+            "taskId": "",
+            "summary": "Select a task to view schedule impact analysis.",
+            "rows": [],
+            "affectedCount": 0,
+            "maxProjectFinishShiftDays": 0,
+            "requiresApproval": false,
+            "approvalLabel": "",
+            "newlyCriticalCount": 0,
+            "noLongerCriticalCount": 0
+        })
 
     readonly property var _tableColumns: {
         const cols = [
@@ -175,6 +189,7 @@ AppLayouts.WorkspaceFrame {
         if (root._hasInvStockCap)  secs.push("Material Demand")
         if (root._hasInvResCap)    secs.push("Reservations")
         if (root._hasProcReqCap)   secs.push("Procurement")
+        secs.push("Schedule Impact")
         secs.push("Activity")
         return secs
     }
@@ -215,11 +230,12 @@ AppLayouts.WorkspaceFrame {
         const page = detailPageLoader.item
         const entry = page ? (page.sections[sectionIndex] || "") : ""
         const label = (typeof entry === "string") ? entry : (entry.label || "")
-        if      (label === "Assignments")  root.workspaceController.loadSelectedTaskAssignments()
-        else if (label === "Skills")       root.workspaceController.loadSelectedTaskSkillRequirements()
-        else if (label === "Dependencies") root.workspaceController.loadSelectedTaskDependencies()
-        else if (label === "Time")         root.workspaceController.loadSelectedTaskTime()
-        else if (label === "Activity")     root.workspaceController.loadSelectedTaskCollaboration()
+        if      (label === "Assignments")     root.workspaceController.loadSelectedTaskAssignments()
+        else if (label === "Skills")          root.workspaceController.loadSelectedTaskSkillRequirements()
+        else if (label === "Dependencies")    root.workspaceController.loadSelectedTaskDependencies()
+        else if (label === "Time")            root.workspaceController.loadSelectedTaskTime()
+        else if (label === "Schedule Impact") root.workspaceController.loadSelectedTaskScheduleImpact()
+        else if (label === "Activity")        root.workspaceController.loadSelectedTaskCollaboration()
     }
 
     function _navigateToRoute(routeId) {
@@ -868,6 +884,7 @@ AppLayouts.WorkspaceFrame {
                     canOpenReservations: root._hasInvResCap
                     canOpenProcurement: root._hasProcReqCap
                     skillRequirementsModel: root.skillRequirementsModel
+                    scheduleImpactModel: root.scheduleImpactModel
 
                     onCreateAssignmentRequested: dialogHostLoader.invoke("openCreateAssignmentDialog", root.selectedTaskModel)
                     onAssignmentSelected: function(assignmentId) {

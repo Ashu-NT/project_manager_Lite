@@ -36,6 +36,18 @@ Item {
     property bool canOpenProcurement: false
 
     property var skillRequirementsModel: AppMock.MockFactory.catalog("Skill Requirements", "", "Select a task.")
+    property var scheduleImpactModel: ({
+        "available": false,
+        "taskId": "",
+        "summary": "Select a task to view schedule impact analysis.",
+        "rows": [],
+        "affectedCount": 0,
+        "maxProjectFinishShiftDays": 0,
+        "requiresApproval": false,
+        "approvalLabel": "",
+        "newlyCriticalCount": 0,
+        "noLongerCriticalCount": 0
+    })
 
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
 
@@ -98,15 +110,16 @@ Item {
         const secs = root._sections
         const entry = (secs.length > root._idx) ? secs[root._idx] : null
         const name = entry ? ((typeof entry === "string") ? entry : (entry.label || "")) : ""
-        if (name === "Details")         return _sec0.implicitHeight
-        if (name === "Assignments")     return _sec1.implicitHeight
-        if (name === "Dependencies")    return _sec2.implicitHeight
-        if (name === "Time")            return _sec3.implicitHeight
-        if (name === "Activity")        return _sec4.implicitHeight
-        if (name === "Material Demand") return _sec5.implicitHeight
-        if (name === "Reservations")    return _sec6.implicitHeight
-        if (name === "Procurement")     return _sec7.implicitHeight
-        if (name === "Skills")          return _sec8.implicitHeight
+        if (name === "Details")          return _sec0.implicitHeight
+        if (name === "Assignments")      return _sec1.implicitHeight
+        if (name === "Dependencies")     return _sec2.implicitHeight
+        if (name === "Time")             return _sec3.implicitHeight
+        if (name === "Activity")         return _sec4.implicitHeight
+        if (name === "Material Demand")  return _sec5.implicitHeight
+        if (name === "Reservations")     return _sec6.implicitHeight
+        if (name === "Procurement")      return _sec7.implicitHeight
+        if (name === "Skills")           return _sec8.implicitHeight
+        if (name === "Schedule Impact")  return _sec9.implicitHeight
         return 0
     }
 
@@ -596,6 +609,117 @@ Item {
                             visible: (root.skillRequirementsModel.items || []).length === 0
                             title: String(root.skillRequirementsModel.emptyState
                                 || "No skill requirements are linked to this task.")
+                        }
+                    }
+                }
+            }
+        }
+
+        AppWidgets.LazySectionLoader {
+            id: _sec9
+            active: root._idx === root._secIdx("Schedule Impact")
+            sourceComponent: Component {
+                Item {
+                    width: parent ? parent.width : 0
+                    implicitHeight: _impactCol.implicitHeight
+
+                    ColumnLayout {
+                        id: _impactCol
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        spacing: 0
+
+                        AppWidgets.ContextualActionToolbar {
+                            Layout.fillWidth: true
+                            title: "Schedule Impact"
+                            subtitle: String(root.scheduleImpactModel.summary || "Simulating a 1-day start slip to show downstream ripple.")
+                            busy: root.isBusy
+                            actions: []
+                        }
+
+                        AppWidgets.InlineMessage {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: Theme.AppTheme.marginMd
+                            Layout.rightMargin: Theme.AppTheme.marginMd
+                            Layout.topMargin: Theme.AppTheme.spacingSm
+                            visible: root.scheduleImpactModel.requiresApproval === true
+                            tone: "warning"
+                            message: "A change of this magnitude would require baseline approval."
+                        }
+
+                        AppWidgets.EmptyState {
+                            Layout.fillWidth: true
+                            visible: root.scheduleImpactModel.available !== true
+                            title: "Schedule impact analysis not available."
+                            message: String(root.scheduleImpactModel.summary
+                                || "This task needs a start date and a connected scheduling service.")
+                        }
+
+                        Repeater {
+                            model: root.scheduleImpactModel.available === true
+                                ? (root.scheduleImpactModel.rows || [])
+                                : []
+
+                            delegate: ColumnLayout {
+                                id: _impactRow
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: 0
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.leftMargin: Theme.AppTheme.marginMd
+                                    Layout.rightMargin: Theme.AppTheme.marginMd
+                                    Layout.topMargin: Theme.AppTheme.spacingSm
+                                    Layout.bottomMargin: Theme.AppTheme.spacingSm
+                                    spacing: Theme.AppTheme.spacingMd
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 2
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: String(_impactRow.modelData.taskName || "")
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.smallSize
+                                            font.bold: _impactRow.modelData.isChanged === true
+                                            color: _impactRow.modelData.isChanged === true
+                                                ? Theme.AppTheme.textAccent
+                                                : Theme.AppTheme.textPrimary
+                                        }
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: "Start " + String(_impactRow.modelData.startShift || "No change")
+                                                + "  |  Finish " + String(_impactRow.modelData.finishShift || "No change")
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            color: Theme.AppTheme.textSecondary
+                                        }
+                                    }
+
+                                    AppWidgets.StatusChip {
+                                        visible: String(_impactRow.modelData.criticalLabel || "").length > 0
+                                        status: String(_impactRow.modelData.criticalLabel || "")
+                                    }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 1
+                                    color: Theme.AppTheme.divider
+                                }
+                            }
+                        }
+
+                        AppWidgets.EmptyState {
+                            Layout.fillWidth: true
+                            visible: root.scheduleImpactModel.available === true
+                                && (root.scheduleImpactModel.rows || []).length === 0
+                            title: "No downstream tasks would be affected."
+                            message: "A 1-day start slip on this task would not shift any other scheduled tasks."
                         }
                     }
                 }
