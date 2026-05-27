@@ -59,6 +59,9 @@ class InventoryProcurementInventoryWorkspaceController(
     activeViewChanged = Signal()
     movementPageChanged = Signal()
     movementPageSizeChanged = Signal()
+    locationPageChanged = Signal()
+    locationPageSizeChanged = Signal()
+    selectedLocationIdChanged = Signal()
 
     def __init__(
         self,
@@ -154,6 +157,9 @@ class InventoryProcurementInventoryWorkspaceController(
         self._active_view = "balances"
         self._movement_page = 1
         self._movement_page_size = 25
+        self._location_page = 1
+        self._location_page_size = 25
+        self._selected_location_id = ""
         self._bind_domain_events()
         self.refresh()
 
@@ -640,6 +646,22 @@ class InventoryProcurementInventoryWorkspaceController(
     def movementTotalCount(self) -> int:
         return len(self._transactions.get("items", []))
 
+    @Property(int, notify=locationPageChanged)
+    def locationPage(self) -> int:
+        return self._location_page
+
+    @Property(int, notify=locationPageSizeChanged)
+    def locationPageSize(self) -> int:
+        return self._location_page_size
+
+    @Property(int, notify=foundationChanged)
+    def locationTotalCount(self) -> int:
+        return len(self._foundation.get("locations", []))
+
+    @Property(str, notify=selectedLocationIdChanged)
+    def selectedLocationId(self) -> str:
+        return self._selected_location_id
+
     @Slot(str)
     def activateBalance(self, balance_id: str) -> None:
         self.selectBalance(balance_id)
@@ -691,6 +713,30 @@ class InventoryProcurementInventoryWorkspaceController(
         self._movement_page = 1
         self.movementPageSizeChanged.emit()
         self.movementPageChanged.emit()
+
+    @Slot(int)
+    def setLocationPage(self, page: int) -> None:
+        self._location_page = max(1, int(page))
+        self.locationPageChanged.emit()
+
+    @Slot(int)
+    def setLocationPageSize(self, size: int) -> None:
+        self._location_page_size = max(10, min(200, int(size)))
+        self._location_page = 1
+        self.locationPageSizeChanged.emit()
+        self.locationPageChanged.emit()
+
+    @Slot(str)
+    def selectLocation(self, location_id: str) -> None:
+        normalized = (location_id or "").strip()
+        if normalized == self._selected_location_id:
+            return
+        self._selected_location_id = normalized
+        self.selectedLocationIdChanged.emit()
+
+    @Slot(str)
+    def activateLocation(self, location_id: str) -> None:
+        self.selectLocation(location_id)
 
     @Slot(str, bool)
     def setBalanceBulkSelection(self, row_id: str, selected: bool) -> None:
@@ -872,6 +918,12 @@ class InventoryProcurementInventoryWorkspaceController(
             return
         self._selected_balance_id = selected_balance_id
         self.selectedBalanceIdChanged.emit()
+
+    def _set_selected_location_id(self, selected_location_id: str) -> None:
+        if selected_location_id == self._selected_location_id:
+            return
+        self._selected_location_id = selected_location_id
+        self.selectedLocationIdChanged.emit()
 
     def _set_transactions(self, transactions: dict[str, object]) -> None:
         if transactions == self._transactions:

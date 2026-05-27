@@ -43,10 +43,10 @@ AppLayouts.WorkspaceFrame {
     readonly property var _detailPage: _detailPageLoader.item
 
     readonly property var _reservationColumns: [
-        { "key": "title",       "label": "Reference",  "flex": 2,   "sortable": true },
-        { "key": "subtitle",    "label": "Item / Storeroom", "flex": 1.5 },
-        { "key": "statusLabel", "label": "Status",     "flex": 0,   "minWidth": 90, "type": "status" },
-        { "key": "metaText",    "label": "Quantity / Date", "flex": 1 }
+        { "key": "title",            "label": "Reference",      "flex": 2,   "sortable": true },
+        { "key": "subtitle",         "label": "Item / Storeroom", "flex": 1.5 },
+        { "key": "remainingQtyLabel","label": "Remaining Qty",  "flex": 1 },
+        { "key": "statusLabel",      "label": "Status",         "flex": 0,   "minWidth": 90, "type": "status" }
     ]
 
     readonly property var _detailSections: ["Overview", "Activity"]

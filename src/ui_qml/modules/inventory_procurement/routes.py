@@ -16,6 +16,7 @@ _QML_FILE_BY_WORKSPACE_KEY: dict[str, str] = {
     "procurement": "ProcurementWorkspace.qml",
     "pricing": "PricingWorkspace.qml",
     "movements": "StockMovementsWorkspace.qml",
+    "warehouses": "WarehousesWorkspace.qml",
 }
 
 _DISPLAY_TITLE_BY_WORKSPACE_KEY: dict[str, str] = {

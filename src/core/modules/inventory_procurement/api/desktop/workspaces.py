@@ -46,6 +46,11 @@ _WORKSPACE_DESCRIPTORS: tuple[InventoryProcurementWorkspaceDescriptor, ...] = (
         title="Stock Movements",
         summary="Full audit trail of opening balances, adjustments, issues, returns, and transfers.",
     ),
+    InventoryProcurementWorkspaceDescriptor(
+        key="warehouses",
+        title="Warehouses & Locations",
+        summary="Storerooms, storage zones, bins, and sub-locations across all sites.",
+    ),
 )
 
 
