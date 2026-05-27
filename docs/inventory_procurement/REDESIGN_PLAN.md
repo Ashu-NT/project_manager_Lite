@@ -493,12 +493,15 @@ Run `python main_qt.py` and verify:
 - `workspaces/pricing/PricingWorkspacePage.qml`
 - `workspaces/movements/StockMovementsWorkspace.qml` ← **NEW** (loader wrapper)
 - `workspaces/movements/StockMovementsWorkspacePage.qml` ← **NEW** (movements list with filter/pagination)
+- `workspaces/warehouses/WarehousesWorkspace.qml` ← **NEW** (loader wrapper)
+- `workspaces/warehouses/WarehousesWorkspacePage.qml` ← **NEW** (storerooms + locations two-view with detail panel)
+- `workspaces/reservations/ReservationsWorkspacePage.qml` — Phase 7: `remainingQtyLabel` column
 
 ### Python (new workspace routes)
 - `src/core/modules/inventory_procurement/api/desktop/workspaces.py` — added `movements` descriptor
 - `src/ui_qml/modules/inventory_procurement/routes.py` — added `movements` key
 - `src/ui_qml/modules/inventory_procurement/controllers/common/serializers.py` — Phase 7: `_RESERVED_ROW_KEYS` + state key promotion
-- `src/ui_qml/modules/inventory_procurement/controllers/inventory/inventory_workspace_controller.py` — Phase 6: `movementPage`, `movementPageSize`, `movementTotalCount`, `setMovementPage`, `setMovementPageSize`
+- `src/ui_qml/modules/inventory_procurement/controllers/inventory/inventory_workspace_controller.py` — Phase 6: `movementPage/Size/TotalCount`, `setMovementPage/Size`; WS-3: `locationPage/Size/TotalCount`, `selectedLocationId`, `selectLocation`, `activateLocation`, `setLocationPage/Size`
 
 ### qmldir (cleanup)
 - `qml/InventoryProcurement/Widgets/qmldir` — removed `WorkspaceStateBanner` and `WorkspaceStatusSection` entries
