@@ -106,6 +106,7 @@ class ProjectManagementTasksWorkspaceController(
     dependencyTypeOptionsChanged = Signal()
     assignmentsChanged = Signal()
     dependenciesChanged = Signal()
+    timeAssignmentOptionsChanged = Signal()
     timePeriodOptionsChanged = Signal()
     selectedTimePeriodStartChanged = Signal()
     timeAssignmentSummaryChanged = Signal()
@@ -205,6 +206,9 @@ class ProjectManagementTasksWorkspaceController(
             self.dependencyTypeOptionsChanged
         )
         self._dependencies_ctrl.dependenciesChanged.connect(self.dependenciesChanged)
+        self._time_ctrl.timeAssignmentOptionsChanged.connect(
+            self.timeAssignmentOptionsChanged
+        )
         self._time_ctrl.timePeriodOptionsChanged.connect(self.timePeriodOptionsChanged)
         self._time_ctrl.timeAssignmentSummaryChanged.connect(
             self.timeAssignmentSummaryChanged
@@ -369,6 +373,10 @@ class ProjectManagementTasksWorkspaceController(
     @Property("QVariantMap", notify=dependenciesChanged)
     def dependencies(self) -> dict[str, object]:
         return self._dependencies_ctrl.dependencies
+
+    @Property("QVariantList", notify=timeAssignmentOptionsChanged)
+    def timeAssignmentOptions(self) -> list[dict[str, str]]:
+        return self._time_ctrl.timeAssignmentOptions
 
     @Property("QVariantList", notify=timePeriodOptionsChanged)
     def timePeriodOptions(self) -> list[dict[str, str]]:

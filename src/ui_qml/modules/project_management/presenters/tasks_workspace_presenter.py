@@ -387,11 +387,12 @@ class ProjectTasksWorkspacePresenter:
     ) -> TaskCatalogWorkspaceViewModel:
         normalized_task_id = (task_id or "").strip()
 
-        assignments = (
+        assignments = tuple(
             self._desktop_api.list_assignments(normalized_task_id)
             if normalized_task_id
             else ()
         )
+        assignment_options = self._build_time_assignment_options(assignments)
 
         resolved_assignment_id = self._resolve_assignment_id(
             selected_assignment_id,
@@ -443,6 +444,7 @@ class ProjectTasksWorkspacePresenter:
         return TaskCatalogWorkspaceViewModel(
             overview=self._build_empty_overview(),
             selected_task_id=normalized_task_id,
+            assignment_options=assignment_options,
             selected_assignment_id=resolved_assignment_id,
             time_period_options=time_period_options,
             selected_time_period_start=resolved_time_period_start,
@@ -759,6 +761,27 @@ class ProjectTasksWorkspacePresenter:
             TaskSelectorOptionViewModel(value=option.value, label=option.label)
             for option in self._desktop_api.list_dependency_types()
         )
+
+    @staticmethod
+    def _build_time_assignment_options(
+        assignments,
+    ) -> tuple[TaskSelectorOptionViewModel, ...]:
+        options: list[TaskSelectorOptionViewModel] = []
+        for assignment in assignments:
+            resource_name = str(getattr(assignment, "resource_name", "") or getattr(assignment, "resource_id", "") or "Assignment")
+            allocation_percent = float(getattr(assignment, "allocation_percent", 0.0) or 0.0)
+            label = (
+                f"{resource_name} | {allocation_percent:g}% allocation"
+                if allocation_percent > 0
+                else resource_name
+            )
+            options.append(
+                TaskSelectorOptionViewModel(
+                    value=str(getattr(assignment, "id", "") or ""),
+                    label=label,
+                )
+            )
+        return tuple(options)
 
     @staticmethod
     def _build_dependency_task_options(

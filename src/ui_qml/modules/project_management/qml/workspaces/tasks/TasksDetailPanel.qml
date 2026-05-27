@@ -26,6 +26,7 @@ Item {
     property var timeEntriesModel: AppMock.MockFactory.catalog("Time Entries", "", "Select a task assignment.")
     property var selectedTimeEntryModel: AppMock.MockFactory.detail()
     property string selectedEntryId: ""
+    property var timeAssignmentOptions: []
     property var periodOptions: []
     property string selectedPeriodStart: ""
 
@@ -53,6 +54,7 @@ Item {
     signal deleteDependencyRequested(var dependencyData)
 
     signal periodChanged(string periodStart)
+    signal timeAssignmentSelected(string assignmentId)
     signal entrySelected(string entryId)
     signal timeAddRequested(var payload)
     signal timeUpdateRequested(var payload)
@@ -318,6 +320,7 @@ Item {
                 TasksTimeEntriesSection {
                     width: parent ? parent.width : 0
                     assignmentSummary: root.timeAssignmentSummaryModel
+                    assignmentOptions: root.timeAssignmentOptions
                     periodOptions: root.periodOptions
                     selectedPeriodStart: root.selectedPeriodStart
                     entriesModel: root.timeEntriesModel
@@ -325,6 +328,7 @@ Item {
                     selectedEntryId: root.selectedEntryId
                     isBusy: root.isBusy
 
+                    onAssignmentChanged: function(assignmentId) { root.timeAssignmentSelected(assignmentId) }
                     onPeriodChanged: function(p) { root.periodChanged(p) }
                     onEntrySelected: function(id) { root.entrySelected(id) }
                     onAddRequested: function(pl) { root.timeAddRequested(pl) }
