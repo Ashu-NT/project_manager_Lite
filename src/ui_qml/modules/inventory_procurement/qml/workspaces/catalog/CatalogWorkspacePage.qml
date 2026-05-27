@@ -105,7 +105,14 @@ AppLayouts.WorkspaceFrame {
     }
 
     function _loadLazyDetailSection(sectionIndex) {
-        // Phase 9: load activity data when Activity section is active
+        if (root.workspaceController === null) return
+        const activityIdx = root._isItemsView ? 2 : 1
+        if (sectionIndex !== activityIdx) return
+        const entityId = root._isItemsView
+            ? String(root.selectedItemModel.id || "")
+            : String(root.selectedCategoryModel.id || "")
+        const entityType = root._isItemsView ? "inventory_item" : "inventory_category"
+        root.workspaceController.loadDetailActivity(entityId, entityType)
     }
 
     function _openDetail(sectionIndex) {
@@ -651,6 +658,7 @@ AppLayouts.WorkspaceFrame {
                     categoryDetail: root.selectedCategoryModel
                     detailPage: root._detailPage
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    activityItems: root.workspaceController ? (root.workspaceController.detailActivityItems || []) : []
 
                     onLinkDocumentRequested: dialogHostLoader.invoke("openLinkDocumentDialog", root.selectedItemModel)
                     onUnlinkDocumentRequested: function(documentData) {

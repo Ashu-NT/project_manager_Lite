@@ -12,6 +12,7 @@ Item {
     property var categoryDetail: ({ "fields": [], "emptyState": "", "state": {} })
     property var detailPage: null
     property bool isBusy: false
+    property var activityItems: []
 
     signal linkDocumentRequested()
     signal unlinkDocumentRequested(var documentData)
@@ -201,8 +202,8 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             visible: root.isItemsView ? root._idx === 2 : root._idx === 1
-            items: []
-            emptyText: "Activity history will appear here once data wiring is complete."
+            items: root.activityItems || []
+            emptyText: "No activity recorded yet."
         }
     }
 }

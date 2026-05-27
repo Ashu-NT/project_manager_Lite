@@ -96,10 +96,23 @@ AppLayouts.WorkspaceFrame {
         return 0
     }
 
+    function _loadLazyDetailSection(sectionIndex) {
+        if (root.workspaceController === null) return
+        if (sectionIndex !== 1) return
+        const entityId = root._isBalancesView
+            ? String(root.selectedBalanceModel.id || "")
+            : String(root.selectedStoreroomModel.id || "")
+        const entityType = root._isBalancesView ? "inventory_stock_balance" : "inventory_storeroom"
+        root.workspaceController.loadDetailActivity(entityId, entityType)
+    }
+
     function _openDetail(sectionIndex) {
         root._pendingDetailSection = sectionIndex
         root._detailOpen = true
-        if (root._detailPage) root._detailPage.scrollToSection(sectionIndex)
+        if (root._detailPage) {
+            root._detailPage.scrollToSection(sectionIndex)
+            root._loadLazyDetailSection(sectionIndex)
+        }
     }
 
     // ── Dialog host ────────────────────────────────────────────────
@@ -554,9 +567,11 @@ AppLayouts.WorkspaceFrame {
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 sections: root._detailSections
                 z: 20
+                onSectionChanged: function(index) { root._loadLazyDetailSection(index) }
 
                 Component.onCompleted: {
                     scrollToSection(root._pendingDetailSection)
+                    root._loadLazyDetailSection(root._pendingDetailSection)
                 }
 
                 // ── Contextual toolbar ─────────────────────────────
@@ -683,8 +698,8 @@ AppLayouts.WorkspaceFrame {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             visible: _detailContent._idx === 1
-                            items: []
-                            emptyText: "Activity history will appear here."
+                            items: root.workspaceController ? (root.workspaceController.detailActivityItems || []) : []
+                            emptyText: "No activity recorded yet."
                         }
                     }
                 }

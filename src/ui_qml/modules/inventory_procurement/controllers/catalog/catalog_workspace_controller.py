@@ -6,6 +6,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
     InventoryProcurementWorkspaceControllerBase,
     run_mutation,
+    serialize_audit_entries_for_activity,
     serialize_catalog_detail_view_model,
     serialize_catalog_overview_view_model,
     serialize_document_option_view_models,
@@ -55,12 +56,14 @@ class InventoryProcurementCatalogWorkspaceController(
     selectedCategoryIdsChanged = Signal()
     activeViewChanged = Signal()
     bulkStatusOptionsChanged = Signal()
+    detailActivityItemsChanged = Signal()
 
     def __init__(
         self,
         *,
         workspace_presenter: InventoryProcurementWorkspacePresenter | None = None,
         catalog_workspace_presenter: InventoryCatalogWorkspacePresenter | None = None,
+        platform_audit: object | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -128,6 +131,8 @@ class InventoryProcurementCatalogWorkspaceController(
         self._selected_category_ids: list[str] = []
         self._active_view = "items"
         self._bulk_status_options: list[dict[str, str]] = []
+        self._platform_audit = platform_audit
+        self._detail_activity_items: list[dict[str, object]] = []
         self._bind_domain_events()
         self.refresh()
 
@@ -639,6 +644,32 @@ class InventoryProcurementCatalogWorkspaceController(
             return
         self._selected_category_ids = ids
         self.selectedCategoryIdsChanged.emit()
+
+    @Property("QVariantList", notify=detailActivityItemsChanged)
+    def detailActivityItems(self) -> list[dict[str, object]]:
+        return self._detail_activity_items
+
+    @Slot(str, str)
+    def loadDetailActivity(self, entity_id: str, entity_type: str) -> None:
+        if self._platform_audit is None or not entity_id:
+            self._set_detail_activity_items([])
+            return
+        try:
+            result = self._platform_audit.list_recent(entity_type=entity_type, limit=200)
+            items = (
+                serialize_audit_entries_for_activity(result.data, entity_id)
+                if result.ok and result.data is not None
+                else []
+            )
+        except Exception:  # pragma: no cover - defensive fallback
+            items = []
+        self._set_detail_activity_items(items)
+
+    def _set_detail_activity_items(self, items: list[dict[str, object]]) -> None:
+        if items == self._detail_activity_items:
+            return
+        self._detail_activity_items = items
+        self.detailActivityItemsChanged.emit()
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(scope_code="inventory_procurement")
