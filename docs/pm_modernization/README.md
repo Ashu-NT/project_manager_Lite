@@ -1401,4 +1401,719 @@ services and PM-owned business rules inside the modular SaaS ecosystem.
 - `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md`
 - `docs/project_management_followup/README.md`
 - `docs/ENTERPRISE_PM_ROADMAP.md`
+
+---
+
+## UI/UX Modernization Plan
+
+This section records the authoritative plan for connecting every enterprise backend
+capability added in steps 1–14 above to the correct UI location in the 11-workspace
+PM module.  It is the output of a full audit pass conducted 2026-05-27 against the
+live QML, controller, presenter, and shared-component layers.
+
+---
+
+### Audit Findings (2026-05-27)
+
+#### What exists and works
+
+All 11 workspaces (`projects`, `tasks`, `scheduling`, `resources`, `financials`,
+`risk`, `register`, `portfolio`, `collaboration`, `timesheets`, `dashboard`) have
+QML workspace files, Python controllers, presenters, and frozen-dataclass view models.
+
+Core CRUD operations, lazy-loading sections, bulk selection, domain-event subscriptions,
+and undo/redo (tasks) are all operational.
+
+Shared components available for reuse without creating duplicates:
+
+| Component | Path | Notes |
+|-----------|------|-------|
+| `DataTable` | `shared/qml/App/Widgets/DataTable.qml` | Multi-select, sort, filter, flex layout, status/progress column types |
+| `StatusChip` | `shared/qml/App/Widgets/StatusChip.qml` | Auto-colour mapping; success/info/warning/danger/neutral |
+| `CenteredDialog` | `shared/qml/App/Controls/CenteredDialog.qml` | Base modal; use for all new confirm/action dialogs |
+| `SlideOverPanel` | `shared/qml/App/Widgets/SlideOverPanel.qml` | Right-side 380 px drawer for detail/assignment panels |
+| `EmptyState` | `shared/qml/App/Widgets/EmptyState.qml` | Standard empty list placeholder |
+| `InlineMessage` | `shared/qml/App/Widgets/InlineMessage.qml` | Info/warning/danger banners |
+| `LoadingOverlay` | `shared/qml/App/Widgets/LoadingOverlay.qml` | Spinner overlay for async ops |
+| `LazyObjectLoader` | `shared/qml/App/Widgets/LazyObjectLoader.qml` | Deferred QML component + method invoke |
+| `LazySectionLoader` | `shared/qml/App/Widgets/LazySectionLoader.qml` | Deferred section component |
+| `BulkActionBar` | `shared/qml/App/Widgets/BulkActionBar.qml` | Floating multi-select action bar |
+| `BulkChangePropertyPopup` | `shared/qml/App/Widgets/BulkChangePropertyPopup.qml` | Bulk property change |
+| `KpiStrip` | `shared/qml/App/Widgets/KpiStrip.qml` | KPI metrics strip with trend arrows |
+| `RecordDetailPage` | `shared/qml/App/Widgets/RecordDetailPage.qml` | Back/Edit/Delete detail page |
+| `SectionDetailPage` | `shared/qml/App/Widgets/SectionDetailPage.qml` | Multi-section tabbed detail |
+| `TableToolbar` | `shared/qml/App/Widgets/TableToolbar.qml` | Search, filter, export, create, customize |
+| `PageHeader` | `shared/qml/App/Widgets/PageHeader.qml` | Eyebrow / title / subtitle / action slot |
+| `SectionCard` | `shared/qml/App/Widgets/SectionCard.qml` | Card container with title + action button |
+| `ActivityFeed` | `shared/qml/App/Widgets/ActivityFeed.qml` | Comment/activity timeline |
+| `DetailTabBar` | `shared/qml/App/Widgets/DetailTabBar.qml` | Tab bar for detail views |
+| `MasterDetailLayout` | `shared/qml/App/Layouts/MasterDetailLayout.qml` | Split master-detail pane layout |
+| `WorkspaceFrame` | `shared/qml/App/Layouts/WorkspaceFrame.qml` | Header + toolbar + content frame |
+
+Platform Python services available (do not duplicate):
+
+| Service | Module | Use in PM |
+|---------|--------|-----------|
+| `PartyService` | `platform/party` | Client selector in project create/edit |
+| `EmployeeService` | `platform/org` | Resource employee link selector |
+| `SiteService` | `platform/org` | Site selector in project create/edit |
+| `ApprovalService` | `platform/approval` | Baseline, assignment-override, and cost-increase approval flows |
+| `DocumentService` | `platform/documents` | Document link panel in all entity details |
+| `TimeService` | `platform/time` | Timesheets workspace delegation |
+| `AccessControlService` | `platform/access` | Project-level RBAC membership |
+| `AuditService` | `platform/audit` | Activity feeds in all detail panels |
+
+#### Broken / stubbed items found
+
+| Item | Controller method | Status |
+|------|-------------------|--------|
+| Export Projects | `exportProjects()` | Empty `pass` stub |
+| Export Tasks | `exportTasks()` | Returns static message string |
+| Export Resources | `exportResources()` | Empty `pass` stub |
+| Export Financials | `exportFinancials()` | TODO comment, no implementation |
+| Export Schedule | `exportSchedule()` | Returns "Export adapter pending" string |
+| Risk workspace | `RiskWorkspaceController` | Delegates entirely to `RegisterWorkspaceController` with `mode="risk"` flag — functional but not dedicated |
+
+#### Backend services implemented but not yet wired to UI
+
+These are the enterprise services completed in steps 1–14 that have no UI connection today.
+Each must be surfaced in the exact location listed.
+
+| Backend service / type | Implemented in | UI location required |
+|------------------------|---------------|----------------------|
+| `ResourceAvailabilityService` | `application/resources/` | Tasks › Assign Resource dialog; Resources › Availability tab; Portfolio › Capacity vs Demand; Dashboard › Resource Overload card |
+| `AssignmentValidationResult` | `application/resources/assignment_validation.py` | Tasks › Assign Resource dialog — validation panel (skills matched, certs valid, conflict flags) |
+| `ResourceSkill` / `ResourceCertification` | `domain/resources/skills.py` | Resources › Skills tab; Resources › Certifications tab |
+| `TaskSkillRequirement` | `domain/resources/skills.py` | Tasks › Skills/Certifications tab; Tasks › assignment validation display |
+| `BaselineService.submit_baseline` / `.approve_baseline` / `.reject_baseline` | `application/scheduling/baseline_service.py` | Scheduling › Baselines tab — lifecycle action buttons (Submit, Approve, Reject) |
+| `BaselineVarianceRecord` | `domain/scheduling/baseline.py` | Scheduling › Baselines tab — variance table; Dashboard › Baseline Variance card; Financials › Variance tab |
+| `ScheduleChangeImpactService` | `application/scheduling/schedule_change_impact_service.py` | Tasks › Schedule Impact tab; Scheduling › Change Impact tab |
+| `BaselineComparisonService` | `application/scheduling/baseline_comparison_service.py` | Scheduling › Baselines tab — comparison table; Dashboard › Baseline Variance card |
+| `ForecastCostService` (EAC/ETC) | `application/financials/forecast_cost_service.py` | Financials › Forecast tab; Financials › EVM tab; Dashboard › Financial Health card |
+| `CommitmentSummary` / `MaterialRollup` / `CostForecastResult` | `application/financials/forecast_cost_service.py` | Financials › Forecast tab summary strip |
+| `CommitmentStatus` on `CostItem` | `domain/financials/cost.py` | Financials › Cost Breakdown tab — commitment_status column + StatusChip |
+| `EACMethod` selector | `application/financials/forecast_cost_service.py` | Financials › Forecast tab — EAC method ComboBox |
+| `ConstraintValidator` output | `application/scheduling/constraint_validator.py` | Scheduling › Constraints tab — violation list with severity chips |
+| `CalendarResolver` per-task calendar | `application/scheduling/calendar_resolver.py` | Tasks › Schedule Impact tab — "Calendar source" field; Scheduling › Calendar tab |
+| `ResourceLevelingEngine` | `application/scheduling/resource_leveling_engine.py` | Scheduling › Resource Conflicts tab — run leveling simulation button |
+| `ImportPreviewModel` / `MSProjectXmlParser` / `P6Parser` | `infrastructure/importers/import_parser.py` | Projects workspace — Import dialog (CSV / MS Project XML / P6 XER); Tasks › bulk import |
+| `ImportMappingProfile` / `ImportFieldMapping` | `infrastructure/importers/import_parser.py` | Import dialog — field mapping step |
+| `ReportDefinition` / `SavedReportView` | `infrastructure/reporting/report_definition.py` | Dashboard › Reports section; Financials › Reports tab; Portfolio › Executive reports |
+| `AsyncThresholdGuard` | `application/common/async_threshold.py` | Controller/API layer — route LARGE/XLARGE workloads to async; show progress UX |
+| `PageRequest` / `PaginatedResult[T]` | `application/common/pagination.py` | All workspace tables — cursor-based pagination for large datasets |
+| `WorkloadScale` async progress UX | `application/common/async_threshold.py` | All expensive operations — show `LoadingOverlay` while async, dismiss on completion signal |
+
+---
+
+### Phase 1: Workspace-by-Workspace Plan
+
+#### 1. Projects Workspace
+
+Existing: project list table, detail panel (9 lazy tabs), create/edit/delete/status
+dialogs, bulk delete/status, lazy-load tasks/resources/financials/risks/docs/activity.
+Capability gates for inventory and procurement tabs are correct.
+
+Required additions:
+
+**Project list table** — add missing columns via DynamicTableModel / presenter:
+- `forecast_cost` (from `ForecastCostService`)
+- `baseline_status` chip (from `ProjectBaseline.status`, uses `StatusChip`)
+- `approval_status` chip (from pending `ApprovalService` requests)
+- `percent_complete` progress bar column (already available in `DataTable` progress type)
+
+**Project detail — Overview tab** — add:
+- Baseline status badge (DRAFT/SUBMITTED/APPROVED/REJECTED)
+- Approved baseline name + approved-by / approved-at
+- Forecast cost vs budget delta (from `ForecastCostService`)
+
+**Project detail — new Import action** (toolbar):
+- "Import from File" button → opens ImportDialog
+- ImportDialog: file picker → format auto-detect (CSV / MSP XML / P6 XER) → field
+  mapping step using `ImportMappingProfile` → preview table (`ImportPreviewModel`) →
+  confirm → calls `DataImportService`
+- Reuse `CenteredDialog`, `DataTable` for preview, `StatusChip` for validation severity
+
+**Project detail — Financials tab** (lazy, already exists) — extend:
+- Add commitment status summary strip (`CommitmentSummary` via `ForecastCostService`)
+- Add EAC / budget-at-completion / cost variance row
+
+**Fix**: `exportProjects()` — wire to `ReportingService` PDF/Excel export or disable
+button with "not available" tooltip until exporter is ready. Do not leave empty stub.
+
+---
+
+#### 2. Tasks Workspace
+
+Existing: task table with filters, detail panel, assignments, dependencies, time
+entries, collaboration, undo/redo, saved views, bulk ops, capability-gated
+material/procurement sections.
+
+Required additions:
+
+**Task table** — add columns:
+- `constraint_type` badge (from `Task.constraint_type`, hide if null)
+- `baseline_variance` indicator icon (early/late/on-track from `BaselineVarianceRecord`)
+- `skill_warning` icon (from `TaskSkillRequirement` check — missing or expired cert)
+- `resource_conflict` icon (from `ResourceAvailabilityService`)
+
+**Task detail — new tabs** (lazy-loaded via `LazySectionLoader`):
+
+*Skills/Certifications tab* (new):
+- List `TaskSkillRequirement` rows for the task
+- For each requirement: skill name, required cert, matched resource, validity status (`StatusChip`)
+- Action: Add skill requirement, remove skill requirement
+- Calls: `TaskService` skill requirement methods (to be added) or domain model directly
+
+*Schedule Impact tab* (new):
+- Calls `ScheduleChangeImpactService.preview(task_id)` on tab open
+- Shows: impacted tasks list, critical path change, float change, calendar source
+- Read-only, preview-only — no mutations here
+- Loading state via `LoadingOverlay` (async threshold: MEDIUM+ → async)
+
+*Costs tab* (new):
+- List `CostItem` rows linked to task (`cost_type`, `planned_amount`, `commitment_status` chip)
+- Summary strip: planned / committed / actual for this task
+
+**Assign Resource dialog** — extend existing dialog:
+- After resource selected, call `ResourceAvailabilityService.check_availability(resource_id, start, end)`
+- Show availability panel: timeline conflicts, over-allocation %, cross-project demand
+- Call `AssignmentValidationResult` service: skills matched ✓/✗, certs valid ✓/expired/missing
+- If assignment requires approval (governance policy), show "Submit for Approval" button
+  instead of "Assign" — calls `ApprovalService.request_change()`
+- Never allow silent over-allocation; show `InlineMessage` danger if hard conflict
+
+**Fix**: `exportTasks()` — wire to `ReportingService` or disable. Do not return a plain string.
+
+---
+
+#### 3. Scheduling Workspace
+
+Existing: schedule table, calendar editor, baseline A/B comparison, recalculate button,
+dependency CRUD, working-days calculator, critical/delayed toggles.
+
+Required additions:
+
+**Baselines tab** — extend `SchedulingBaselineSection.qml`:
+- Baseline list must show `BaselineStatus` chip (DRAFT / SUBMITTED / APPROVED / REJECTED / SUPERSEDED)
+- Lifecycle action buttons (appear based on current status):
+  - DRAFT → "Submit for Approval" button → calls `BaselineService.submit_baseline()`
+  - SUBMITTED → "Approve" and "Reject" buttons (RBAC-gated) → calls
+    `BaselineService.approve_baseline()` / `.reject_baseline()`
+  - APPROVED → "Create New Version" button
+- Variance table (lazy): when approved baseline selected, load `BaselineVarianceRecord`
+  list — task, start_variance_days, finish_variance_days, cost_variance columns
+- Reuse `DataTable` + `StatusChip` for status chips
+
+**Constraints tab** — extend `SchedulingWorkspacePage.qml`:
+- Load `ConstraintValidator` results per task (constraint type, constraint date, violation severity)
+- Violation list with `StatusChip` (HARD = danger, SOFT = warning)
+- Filter: show violations only / show all
+- Clicking a row navigates to the task
+
+**Change Impact tab** (new section):
+- "Preview Change Impact" button → collects pending uncommitted schedule changes →
+  calls `ScheduleChangeImpactService` → shows impacted task table + critical path diff
+- "Submit Schedule Change for Approval" button → calls `ApprovalService.request_change()`
+- "Apply Approved Change" button (RBAC-gated) → persists change after approval
+- Uses preview-first UX: no direct persistence from this tab without approval when governed
+
+**Resource Conflicts tab** — extend `ResourceLoadingSection`:
+- Add "Run Leveling Simulation" button → calls `ResourceLevelingEngine.propose(project_id)`
+- Show leveling proposal: task shifts, resource conflict resolution list
+- Read-only proposal until user explicitly "Apply Leveling" (with confirmation dialog)
+- Uses `LoadingOverlay` (LARGE threshold for large project → async routing via `AsyncThresholdGuard`)
+
+**Calendar tab** — extend to show per-task calendar source:
+- Column: calendar resolution chain (resource calendar → project → site → org → default)
+- Sourced from `CalendarResolver`; displayed as informational, not editable here
+
+**Fix**: `exportSchedule()` — wire to `ReportingService` Gantt/Excel or disable.
+
+---
+
+#### 4. Resources Workspace
+
+Existing: resource list, detail section, create/edit/toggle-active/delete, bulk ops,
+employee link, category/active filters.
+
+Required additions (all via new lazy tabs on resource detail):
+
+**Skills tab** (new):
+- List `ResourceSkill` records for the selected resource
+- Columns: skill_code, skill_name, proficiency_level, notes
+- Actions: Add Skill, Remove Skill
+- Uses `SectionCard` + `DataTable`
+
+**Certifications tab** (new):
+- List `ResourceCertification` records
+- Columns: cert_name, issued_by, effective_date, expiry_date, `StatusChip` (valid / expiring-soon / expired)
+- "Expiring soon" = within 30 days of today
+- Actions: Add Certification, Update Validity, Remove
+- Cert status colours: valid → success, expiring-soon → warning, expired → danger
+
+**Availability tab** (new):
+- Calls `ResourceAvailabilityService.get_availability(resource_id, window)` on tab open
+- Shows: availability timeline (per-week allocation %), project demand bars, vacation/non-working days
+- Over-allocation highlighted in danger colour
+- Cross-project conflict list (project name, task name, overlap dates)
+- Reuses `KpiStrip` for summary (available days, committed days, remaining capacity)
+
+**Allocations tab** (new):
+- List all active `TaskAssignment` rows for this resource across projects
+- Columns: project, task, allocation %, hours_logged, start, end
+- Click row → navigate to task
+
+**Resource list table** — add columns:
+- `skills_count` (integer)
+- `cert_status` chip (all-valid / expiring-soon / expired — worst-case badge)
+- `utilization_pct` progress bar
+- `conflict` warning icon (from `ResourceAvailabilityService`)
+
+**Fix**: `exportResources()` — wire to ReportingService or disable.
+
+---
+
+#### 5. Financials Workspace
+
+Existing: cost item list, create/edit/delete, cashflow section, ledger section,
+source analytics, cost-type analytics, procurement capability gate.
+
+Required additions:
+
+**Cost items table** — add columns:
+- `commitment_status` chip (UNCOMMITTED / COMMITTED / INVOICED / PAID via `CommitmentStatus`)
+- `forecast_amount` column (from `CostItem.forecast_amount`)
+- `vendor_reference` column (optional, hide if blank)
+
+**Forecast tab** (new):
+- Summary strip via `KpiStrip`:
+  - BAC (budget at completion)
+  - AC (actual cost)
+  - EV (earned value)
+  - ETC (estimate to complete)
+  - EAC (estimate at completion)
+  - CV (cost variance)
+- EAC method selector: `ComboBox` bound to `EACMethod` enum
+  (MANUAL / BAC_OVER_CPI / AC_PLUS_ETC_AT_PLAN / AC_PLUS_ETC_AT_CPI)
+- "Recalculate Forecast" button → calls `ForecastCostService.compute_forecast()`
+- Threshold alert: if EAC > budget threshold, show `InlineMessage` danger
+- Commitment summary strip: committed / invoiced / paid totals + exposure %
+
+**EVM tab** (new):
+- Displays earned-value metrics from `ReportingService.get_project_kpis()` / EVM mixin
+- Columns/metrics: BCWS, BCWP, ACWP, SPI, CPI
+- Chart: S-curve (planned vs actual vs EV) — reuse existing chart component from Dashboard
+
+**Variance tab** (new):
+- Baseline variance: planned cost vs current baseline cost by task
+- Sources: `BaselineVarianceRecord.cost_variance` + `BaselineComparisonService`
+- Filtered to cost-significant variances (> threshold)
+
+**Fix**: `exportFinancials()` — wire to `ReportingService` cost breakdown report or disable.
+
+---
+
+#### 6. Risk Workspace
+
+Existing: reuses `RegisterWorkspaceController` with `workspace_mode="risk"`.
+Functional but not dedicated. No changes needed to the controller delegation pattern —
+it is correct architecture. Risk workspace only needs UI surfacing of register-linked
+entities.
+
+Required additions:
+
+**Risk detail — Schedule Impact field**:
+- If a risk has a linked task, show schedule impact preview (calls `ScheduleChangeImpactService`)
+- Read-only impact summary: days at risk, affected task count
+
+**Risk detail — Cost Impact field**:
+- If risk has cost impact, show planned impact amount and linked cost items
+
+**Risk detail — Change Request link**:
+- If a change request exists (via `ApprovalService`), show its status chip + link to
+  Collaboration workspace inbox
+
+**Risk list** — add columns:
+- `schedule_impact` (days at risk, if linked task)
+- `cost_impact` (amount, if present)
+- `change_request_status` chip
+
+No controller changes needed — all data added to presenter `build_workspace_state()`
+by extending the `RegisterCatalogWorkspaceViewModel`.
+
+---
+
+#### 7. Portfolio Workspace
+
+Existing: intake items, templates, scenarios (A/B comparison), heatmap, dependencies,
+recent actions, evaluation.
+
+Required additions:
+
+**Capacity vs Demand tab** (new):
+- Aggregates `ResourceAvailabilityService.get_portfolio_demand()` across all portfolio projects
+- Shows: total demand by role/skill vs available capacity
+- Over-capacity roles highlighted (danger colour)
+- Reuses `DataTable` + `KpiStrip`
+- Loading: XLARGE threshold → async via `AsyncThresholdGuard`, show `LoadingOverlay`
+
+**Budget aggregation** — extend Portfolio Overview / Executive section:
+- Add budget / forecast / variance columns per project (from `ForecastCostService`)
+- Add baseline status badge per project (from `ProjectBaseline.status`)
+
+**Risk Exposure tab** — extend:
+- Aggregate `RegisterService.get_project_summary()` across all portfolio projects
+- Show: total open risks, total open issues, critical risk count, cost exposure
+
+**Scenario comparison** — extend existing A/B:
+- Add baseline comparison column (which baseline each scenario uses)
+- Add forecast cost column per scenario
+
+No new controller needed — extend `PortfolioWorkspacePresenter.build_workspace_state()`.
+
+---
+
+#### 8. Register Workspace
+
+Existing: entry list (risk/issue/change), detail panel, create/edit/delete, type/status/
+severity/project filters.
+
+Required additions:
+
+**Register list table** — add columns:
+- `schedule_impact_days` (if linked task + `ScheduleChangeImpactService`)
+- `cost_impact_amount` (if present on entry)
+- `approval_status` chip (from linked `ApprovalService` request if any)
+
+**Register detail — Decision/Approval tab** (new):
+- If entry type is CHANGE: show approval request status, submitted-by, decided-by
+- "Submit Change Request" button → calls `ApprovalService.request_change(entity_type="register_entry")`
+- "Add Decision Note" button → appends note to entry `response_plan`
+
+**Register detail — Linked Tasks section** (new):
+- List tasks linked to this entry (future: via a register–task link)
+- For now: display tasks whose names contain the register entry title (fuzzy, presenter-side)
+
+---
+
+#### 9. Collaboration Workspace
+
+Existing: notifications, inbox, activity feed, presence, mentions, approvals,
+activity feed, team updates, audit.
+
+Required additions:
+
+**Approvals tab** — extend to show PM-specific approvals:
+- Baseline approval requests (type: `baseline_change`) — link to Scheduling workspace
+- Assignment override approvals (type: `assignment_override`) — link to Tasks workspace
+- Cost increase approvals (type: `cost_increase`) — link to Financials workspace
+- Each row: entity type, entity name, requested-by, status chip, action buttons
+  (Approve / Reject — RBAC-gated)
+- Calls `ApprovalService` (already passed to presenter in context.py)
+
+**Decisions tab** — extend:
+- Show register entries of type CHANGE with linked approval status
+- "Open Register Entry" button → navigate to Register workspace
+
+No controller changes — extend `CollaborationWorkspacePresenter` to query approval
+list by PM entity types and map to view model rows.
+
+---
+
+#### 10. Timesheets Workspace
+
+Existing: time entry grid, period management, review queue, submit/approve/reject,
+project/assignment/period/status selectors.
+
+Required additions:
+
+**Cost Impact tab** (new):
+- Shows labor cost impact of approved time entries per project
+- Aggregates: resource, hours_logged, hourly_rate → labor cost total
+- Compares against `CostItem` LABOR rows for same project
+- Sources: `TimesheetService` (approved hours) + `CostService` (labor cost items)
+- Read-only; "Refresh" button calls presenter
+
+**My Time tab** — extend entry row:
+- Show `task_skill_requirements` warning icon if time logged on task with missing cert
+
+---
+
+#### 11. Dashboard Workspace
+
+Existing: health cards, operational tabs/tables, charts section, panels, activity feed,
+project/baseline/period/view selectors.
+
+Required additions:
+
+**Baseline Variance card** (new health card):
+- Sourced from `BaselineComparisonService` / `BaselineVarianceRecord`
+- Shows: projects ahead / on-track / behind baseline
+- Links to Scheduling > Baselines tab
+
+**Resource Overload card** (new health card):
+- Sourced from `ResourceAvailabilityService`
+- Shows: resources over-allocated count, worst-case %
+- Links to Resources > Availability tab
+
+**Financial Health card** — extend existing:
+- Add EAC / CPI from `ForecastCostService`
+- Add commitment exposure %
+
+**Pending Approvals card** (new):
+- Count of pending PM approvals (baselines + assignments + costs)
+- Sourced from `ApprovalService` filtered to PM entity types
+- Links to Collaboration > Approvals tab
+
+**Reports section** (new panel):
+- List `SavedReportView` records from `ReportingService`
+- "Open Report" → renders via `ReportDefinition` renderer
+- Reuses `DataTable` for report table display
+- Common saved views: Project KPIs, EVM Summary, Resource Utilization, Baseline Variance
+
+All new cards follow the existing `DashboardHealthCard.qml` pattern.
+All are read-only and link to source workspaces.
+
+---
+
+### Phase 2: Backend-to-UI Mapping Matrix
+
+| Backend service | Projects | Tasks | Scheduling | Resources | Financials | Risk | Portfolio | Register | Collab | Timesheets | Dashboard |
+|----------------|----------|-------|------------|-----------|------------|------|-----------|----------|--------|------------|-----------|
+| `ResourceAvailabilityService` | — | Assign dialog | Conflicts tab | Availability tab | — | — | Capacity tab | — | — | — | Overload card |
+| `AssignmentValidationResult` | — | Assign dialog | — | Availability tab | — | — | — | — | — | — | — |
+| `ResourceSkill` | — | Skills tab | — | Skills tab | — | — | — | — | — | — | — |
+| `ResourceCertification` | — | Skills tab | — | Certs tab | — | — | — | — | — | — | — |
+| `TaskSkillRequirement` | — | Skills tab, assign | — | — | — | — | — | — | — | Time row | — |
+| `BaselineService` lifecycle | — | — | Baselines tab | — | — | — | — | — | Approvals tab | — | — |
+| `BaselineVarianceRecord` | Overview tab | — | Baselines tab | — | Variance tab | — | Overview | — | — | — | Baseline card |
+| `ScheduleChangeImpactService` | — | Sched Impact tab | Change Impact tab | — | — | Risk detail | — | Register detail | — | — | — |
+| `BaselineComparisonService` | Overview | — | Baselines tab | — | Variance tab | — | — | — | — | — | Baseline card |
+| `ForecastCostService` | List cols | — | — | — | Forecast tab | — | Overview | — | — | — | Financial card |
+| `CommitmentStatus` | — | Costs tab | — | — | Cost table | — | — | — | — | — | — |
+| `EACMethod` | — | — | — | — | Forecast tab | — | — | — | — | — | — |
+| `ConstraintValidator` | — | — | Constraints tab | — | — | — | — | — | — | — | — |
+| `CalendarResolver` | — | Sched Impact tab | Calendar tab | — | — | — | — | — | — | — | — |
+| `ResourceLevelingEngine` | — | — | Conflicts tab | — | — | — | Capacity tab | — | — | — | — |
+| `ImportPreviewModel` | Import dialog | Bulk import | — | — | — | — | Intake | — | — | — | — |
+| `MSProjectXmlParser` / `P6Parser` | Import dialog | — | — | — | — | — | — | — | — | — | — |
+| `ReportDefinition` / `SavedReportView` | — | — | Export | — | Reports tab | — | Exec reports | — | — | — | Reports section |
+| `AsyncThresholdGuard` | All exports | Assign, tree | Recalc, leveling | Util loads | Forecast | — | Capacity, agg | — | — | — | Aggregation |
+| `PageRequest` / `PaginatedResult` | Project list | Task list | Schedule table | Resource list | Cost list | Register list | Portfolio list | Register list | — | Queue | Op tables |
+
+---
+
+### Phase 3: Shared Component Usage Rules
+
+- All new status columns → `StatusChip`
+- All new detail panels → `SlideOverPanel` or `SectionDetailPage` (do not create new panel types)
+- All new confirmation actions → `CenteredDialog` (confirm/cancel pattern)
+- All new async operations → `LoadingOverlay` during wait; dismiss on signal
+- All new empty states → `EmptyState` (title + message)
+- All new validation messages → `InlineMessage` (tone: info / warning / danger)
+- All new tabbed detail sections → `DetailTabBar`
+- All new tables → `DataTable` with `DynamicTableModel`
+- All new toolbars → `TableToolbar` (reuse search/filter/create button slots)
+- All new metric strips → `KpiStrip`
+- All new card containers → `SectionCard`
+- Never create a new dialog base; extend `CenteredDialog`
+- Never create a new drawer; extend `SlideOverPanel`
+
+---
+
+### Phase 4: Capability-Gating Rules
+
+Apply `hasCapability()` check before showing active controls (already done for
+inventory/procurement — extend to all new cross-module features):
+
+| Feature | Capability gate | Behaviour when disabled |
+|---------|----------------|------------------------|
+| Document link buttons | `documents.link.create` | Disable button + tooltip "Documents module not enabled" |
+| Approval submit buttons | `approvals.change_request.create` | Show local status only; hide Submit/Approve buttons |
+| Timesheet cost impact | `timesheets.entries.read` | Hide Cost Impact tab entirely |
+| Procurement cost view | `procurement.purchase_orders.read` | Existing gate — no change |
+| Material demand section | `inventory.reservations.create` | Existing gate — no change |
+| Import MS Project XML | `pm.import.xml` (internal) | Disable XML option in format selector |
+| Import P6 XER | `pm.import.xer` (internal) | Disable XER option in format selector |
+
+All disabled states must show a tooltip explaining why (not just visually grey out).
+
+---
+
+### Phase 5: Async / Loading UX Rules
+
+All operations classified as `WorkloadScale.LARGE` or `XLARGE` by `AsyncThresholdGuard`
+must follow this pattern in the controller layer:
+
+1. Controller calls `AsyncThresholdGuard.classify_*(count)` before dispatching
+2. If `should_run_async()` returns True: show `LoadingOverlay`, dispatch to background thread
+3. Background thread emits `finished` signal with result
+4. Controller receives signal, hides overlay, updates view-model property
+5. If error: hide overlay, emit `operationFailed(message)` signal → QML shows `InlineMessage` danger
+
+Operations that must use this pattern:
+- `recalculate_project_schedule` (> 500 tasks → async)
+- `ResourceLevelingEngine.propose` (> 200 resources → async)
+- `ForecastCostService.compute_forecast` (> 5000 cost rows → async)
+- `ScheduleChangeImpactService.preview` (> 500 tasks → async)
+- `PortfolioResourcePoolService.get_demand` (> 50 projects → async)
+- All report renders
+
+---
+
+### Phase 6: Implementation Order
+
+Priority order based on user-visible impact and dependency chain:
+
+1. **Financials — CommitmentStatus + Forecast tab** (ForecastCostService wired to presenter)
+   - Adds: commitment status chips in cost table, Forecast/EVM tab, EAC computation
+   - Files: `FinancialsWorkspacePage.qml`, `FinancialsWorkspacePresenter`, controller signals
+
+2. **Scheduling — Baseline lifecycle actions** (BaselineService.submit/approve/reject)
+   - Adds: status chips in baseline list, Submit/Approve/Reject action buttons
+   - Files: `SchedulingBaselineSection.qml`, `SchedulingWorkspacePresenter`, controller slots
+
+3. **Scheduling — Constraint violations tab** (ConstraintValidator output)
+   - Adds: constraint violation list with severity chips
+   - Files: new `SchedulingConstraintsSection.qml` tab, presenter + controller signals
+
+4. **Resources — Skills + Certifications tabs** (ResourceSkill, ResourceCertification)
+   - Adds: two new lazy-loaded tabs on resource detail
+   - Files: new `ResourcesSkillsSection.qml`, `ResourcesCertificationsSection.qml`, presenter
+
+5. **Tasks — Assignment dialog validation** (ResourceAvailabilityService, AssignmentValidationResult)
+   - Adds: availability panel + validation display in existing assign dialog
+   - Files: extend `TasksAssignmentsSection.qml`, presenter `build_task_assignments_state()`
+
+6. **Tasks — Skills/Certs tab** (TaskSkillRequirement)
+   - Adds: skill requirements section on task detail
+   - Files: new `TasksSkillsSection.qml` tab, presenter
+
+7. **Scheduling — Baseline variance table** (BaselineVarianceRecord)
+   - Adds: variance rows in baseline section after approval
+   - Files: extend `SchedulingBaselineSection.qml`, presenter + controller
+
+8. **Tasks — Schedule Impact tab** (ScheduleChangeImpactService)
+   - Adds: new lazy tab on task detail
+   - Files: new `TasksScheduleImpactSection.qml`, presenter, controller signals
+
+9. **Projects — Import dialog** (ImportPreviewModel, MSProjectXmlParser, P6Parser)
+   - Adds: Import action in projects toolbar → multi-step import dialog
+   - Files: new `ProjectsImportDialog.qml`, presenter `preview_import()` / `execute_import()`, controller
+
+10. **Dashboard — Baseline Variance + Resource Overload + Reports** cards
+    - Adds: three new health/summary cards
+    - Files: extend `DashboardWorkspacePage.qml`, `DashboardWorkspacePresenter`, controller signals
+
+11. **Financials — Variance tab** (BaselineVarianceRecord cost side)
+    - Files: new `FinancialsVarianceSection.qml`, presenter
+
+12. **Resources — Availability tab** (ResourceAvailabilityService full panel)
+    - Files: new `ResourcesAvailabilitySection.qml`, presenter + controller
+
+13. **Portfolio — Capacity vs Demand tab** (PortfolioResourcePoolService)
+    - Files: new `PortfolioCapacitySection.qml`, presenter + controller
+
+14. **Collaboration — PM Approvals wiring** (ApprovalService PM entity types)
+    - Files: extend `CollaborationWorkspacePage.qml` approvals tab, presenter
+
+15. **Scheduling — Change Impact + Leveling tabs**
+    - Files: new `SchedulingChangeImpactSection.qml`, `SchedulingResourceLevelingSection.qml`
+
+16. **Export stubs → real implementation or disabled state**
+    - Fix all 5 export stubs to either wire ReportingService or show disabled + tooltip
+    - Files: all 5 workspace controllers + presenters
+
+---
+
+### Phase 7: New Presenter/Controller Methods Required
+
+For each implementation step above, the following presenter and controller additions
+are needed (listed by workspace, not duplicating existing methods):
+
+**FinancialsWorkspacePresenter** (extend):
+- `build_forecast_state(project_id, method) -> ForecastTabViewModel`
+- `build_evm_state(project_id, baseline_id) -> EvmTabViewModel`
+- `build_variance_state(project_id, baseline_id) -> VarianceTabViewModel`
+- `compute_forecast(project_id, method, percent_complete) -> CostForecastResult`
+
+**SchedulingWorkspacePresenter** (extend):
+- `submit_baseline(baseline_id, submitted_by, notes) -> None`
+- `approve_baseline(baseline_id, approved_by, notes) -> None`
+- `reject_baseline(baseline_id, notes) -> None`
+- `build_baseline_variance_state(baseline_id) -> BaselineVarianceTabViewModel`
+- `build_constraint_violations_state(project_id) -> ConstraintViolationsViewModel`
+- `build_change_impact_state(project_id, pending_changes) -> ChangeImpactViewModel`
+- `propose_leveling(project_id) -> LevelingProposalViewModel`
+- `apply_leveling(project_id, proposal_id) -> None`
+
+**ResourcesWorkspacePresenter** (extend):
+- `build_skills_state(resource_id) -> ResourceSkillsViewModel`
+- `build_certifications_state(resource_id) -> ResourceCertificationsViewModel`
+- `build_availability_state(resource_id, window_days) -> ResourceAvailabilityViewModel`
+- `build_allocations_state(resource_id) -> ResourceAllocationsViewModel`
+- `add_skill(resource_id, payload) -> None`
+- `remove_skill(resource_id, skill_id) -> None`
+- `add_certification(resource_id, payload) -> None`
+- `update_certification(resource_id, cert_id, payload) -> None`
+- `remove_certification(resource_id, cert_id) -> None`
+
+**TasksWorkspacePresenter** (extend):
+- `build_task_skills_state(task_id) -> TaskSkillsViewModel`
+- `build_task_schedule_impact_state(task_id) -> ScheduleImpactViewModel`
+- `build_task_costs_state(task_id) -> TaskCostsViewModel`
+- `add_task_skill_requirement(task_id, payload) -> None`
+- `remove_task_skill_requirement(task_id, req_id) -> None`
+- `validate_assignment(resource_id, task_id, start, end, hours) -> AssignmentValidationResult`
+- `request_assignment_override(task_id, resource_id, payload) -> None`
+
+**ProjectsWorkspacePresenter** (extend):
+- `preview_import(file_path, format) -> ImportPreviewModel`
+- `execute_import(session_id, mapping_profile_id) -> ImportSessionResult`
+
+**DashboardWorkspacePresenter** (extend):
+- `build_baseline_variance_card_state(project_id) -> BaselineVarianceCardViewModel`
+- `build_resource_overload_card_state() -> ResourceOverloadCardViewModel`
+- `build_pending_approvals_card_state() -> PendingApprovalsCardViewModel`
+- `build_reports_state(project_id) -> ReportsTabViewModel`
+
+**CollaborationWorkspacePresenter** (extend):
+- `build_pm_approvals_state(project_id) -> PmApprovalsViewModel`
+- `approve_pm_request(approval_id) -> None`
+- `reject_pm_request(approval_id, reason) -> None`
+
+**PortfolioWorkspacePresenter** (extend):
+- `build_capacity_demand_state(project_ids) -> CapacityDemandViewModel`
+
+---
+
+### Known Limitations (Post-Audit)
+
+1. **DataTable has no native tree expansion** — WBS hierarchy in tasks uses a flat
+   filtered list (children loaded on demand via `LazyObjectLoader`). This is
+   functional but not a true tree table. A dedicated tree-table component may be
+   needed in a later phase for deep WBS hierarchies.
+
+2. **No export infrastructure** — `infrastructure/exporters/` is empty. All export
+   actions must be disabled with a tooltip until `ReportingService` renderers
+   (Excel, PDF, Gantt) are connected via an exporter adapter. Do not ship empty stubs.
+
+3. **Risk workspace uses register controller** — the delegation via `workspace_mode="risk"`
+   is correct and intentional. A dedicated `RiskWorkspaceController` is not required
+   unless the risk workspace needs materially different data flows.
+
+4. **QML has no built-in permission check** — all RBAC-gated buttons must receive
+   their enabled/visible state from the Python controller as a Q_PROPERTY or signal.
+   Controllers must expose `canApproveBaseline`, `canManageSkills`, etc. as bool
+   properties computed from `AuthorizationEngine.has_permission()`.
+
+5. **Import dialog is net-new** — no existing import dialog component exists in the
+   PM QML layer. `ProjectsImportDialog.qml` must be built as a new multi-step
+   `CenteredDialog` using the existing shared components (file picker, `DataTable`
+   for preview, field mapping section).
+
+6. **Async progress UX not wired** — `AsyncThresholdGuard` exists in the backend but
+   no controller currently checks it before dispatching. Each LARGE+ operation must
+   be retrofitted with the classify → `should_run_async()` → background-thread →
+   signal pattern described in Phase 5 above.
 - `docs/integration_plan.md`
