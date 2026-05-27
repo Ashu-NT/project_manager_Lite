@@ -203,11 +203,40 @@ class CsvImportParser(ImportParser):
 
 class MSProjectXmlParser(ImportParser):
     """
-    Microsoft Project XML (.xml) parser stub.
+    Microsoft Project XML (.xml) parser.
 
-    Reads the MS Project XML schema and maps tasks, dependencies, resources,
-    and calendars into PM ImportRows.  Full XML parsing is implemented in Step 10.
+    Reads the MS Project XML schema and maps Task elements into ImportRows.
+    Null/deleted tasks (IsNull=1) and the project-summary row (UID=0) are
+    silently skipped.  Predecessor links are serialised as a semicolon-separated
+    string in the ``predecessors`` mapped field.
+
+    When no mapping profile is supplied the parser auto-maps the 17 canonical
+    MS Project field names to lowercase PM domain keys.
     """
+
+    # MS Project XML namespace URI
+    _NS = "http://schemas.microsoft.com/project"
+
+    # Default MS Project field → PM domain key mapping
+    _DEFAULT_MAP: Dict[str, str] = {
+        "UID": "uid",
+        "ID": "id",
+        "Name": "name",
+        "Type": "task_type",
+        "Duration": "duration",
+        "Start": "start_date",
+        "Finish": "end_date",
+        "PercentComplete": "percent_complete",
+        "Priority": "priority",
+        "Summary": "is_summary",
+        "OutlineLevel": "outline_level",
+        "OutlineNumber": "outline_number",
+        "ActualStart": "actual_start",
+        "ActualFinish": "actual_end",
+        "Deadline": "deadline",
+        "Notes": "description",
+        "Cost": "cost",
+    }
 
     @property
     def source_format(self) -> str:
@@ -217,27 +246,119 @@ class MSProjectXmlParser(ImportParser):
     def display_name(self) -> str:
         return "Microsoft Project XML"
 
-    def parse(self, source: bytes | str, mapping: Optional[ImportMappingProfile] = None) -> List[ImportRow]:
-        # Stub: full implementation reads <Task>, <Resource>, <Assignment> XML nodes
-        raise NotImplementedError(
-            "MSProjectXmlParser.parse() is a stub. Full XML parsing is pending Step 10 implementation."
-        )
+    def parse(
+        self,
+        source: bytes | str,
+        mapping: Optional[ImportMappingProfile] = None,
+    ) -> List[ImportRow]:
+        import xml.etree.ElementTree as ET
+
+        text = source if isinstance(source, str) else source.decode("utf-8-sig")
+        try:
+            root = ET.fromstring(text)
+        except ET.ParseError as exc:
+            raise ValueError(f"MS Project XML parse error: {exc}") from exc
+
+        ns = {"p": self._NS}
+        tasks_el = root.find("p:Tasks", ns)
+        if tasks_el is None:
+            return []
+
+        rows: List[ImportRow] = []
+        row_number = 0
+
+        for task_el in tasks_el.findall("p:Task", ns):
+            uid_text = (task_el.findtext("p:UID", default="", namespaces=ns) or "").strip()
+            is_null = (task_el.findtext("p:IsNull", default="0", namespaces=ns) or "0").strip()
+
+            # Skip the project-summary row and deleted tasks
+            if uid_text == "0" or is_null == "1":
+                continue
+
+            row_number += 1
+            source_data: Dict[str, Any] = {}
+
+            for child in task_el:
+                local = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+                if local == "PredecessorLink":
+                    continue  # handled separately below
+                source_data[local] = (child.text or "").strip()
+
+            # Collect predecessor links as "UID:type:lag" tokens
+            pred_tokens: List[str] = []
+            for link in task_el.findall("p:PredecessorLink", ns):
+                pred_uid = link.findtext("p:PredecessorUID", default="", namespaces=ns) or ""
+                link_type = link.findtext("p:Type", default="0", namespaces=ns) or "0"
+                lag = link.findtext("p:LinkLag", default="0", namespaces=ns) or "0"
+                pred_tokens.append(f"{pred_uid.strip()}:{link_type.strip()}:{lag.strip()}")
+            if pred_tokens:
+                source_data["Predecessors"] = ";".join(pred_tokens)
+
+            mapped = self._apply_mapping(source_data, mapping)
+            rows.append(ImportRow(row_number=row_number, source_data=source_data, mapped_data=mapped))
+
+        return rows
 
     def detect_headers(self, source: bytes | str) -> List[str]:
-        # Return canonical field names from the MS Project XML schema
-        return [
-            "UID", "ID", "Name", "Type", "IsNull", "CreateDate", "Contact",
-            "Duration", "Start", "Finish", "PercentComplete", "Priority",
-            "Summary", "OutlineLevel", "OutlineNumber", "Predecessors",
-        ]
+        import xml.etree.ElementTree as ET
+
+        text = source if isinstance(source, str) else source.decode("utf-8-sig")
+        try:
+            root = ET.fromstring(text)
+        except ET.ParseError:
+            return list(self._DEFAULT_MAP)
+
+        ns = {"p": self._NS}
+        tasks_el = root.find("p:Tasks", ns)
+        if tasks_el is None:
+            return list(self._DEFAULT_MAP)
+
+        seen: List[str] = []
+        for task_el in tasks_el.findall("p:Task", ns):
+            for child in task_el:
+                local = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+                if local not in seen and local != "PredecessorLink":
+                    seen.append(local)
+            break  # one task is enough to detect columns
+        return seen or list(self._DEFAULT_MAP)
+
+    def _apply_mapping(
+        self,
+        source_data: Dict[str, Any],
+        mapping: Optional[ImportMappingProfile],
+    ) -> Dict[str, Any]:
+        if mapping is not None:
+            result: Dict[str, Any] = {}
+            for fm in mapping.field_mappings:
+                result[fm.target_field] = source_data.get(fm.source_field, fm.default_value)
+            return result
+        # Default: apply _DEFAULT_MAP for known fields, pass-through the rest lowercase
+        result = {}
+        for src_key, value in source_data.items():
+            target = self._DEFAULT_MAP.get(src_key, src_key.lower())
+            result[target] = value
+        return result
 
 
 class P6Parser(ImportParser):
     """
-    Oracle Primavera P6 XER / XML parser stub.
+    Oracle Primavera P6 XER parser.
 
-    Maps P6 activity, resource, relationship, and calendar data into PM ImportRows.
-    Full parsing is implemented in Step 10.
+    XER is a tab-delimited, multi-table text export.  Each section is delimited
+    by header markers::
+
+        %T  <TABLE_NAME>
+        %F  <col1>\\t<col2>\\t...
+        %R  <val1>\\t<val2>\\t...
+        %E
+
+    This parser extracts the TASK table and returns one ImportRow per activity.
+    TASKPRED (predecessor) rows are collected and appended as a ``predecessors``
+    field (``<pred_task_id>:<link_type>:<lag_hr>`` tokens, semicolon-separated)
+    on the matching TASK row.
+
+    Unknown tables are silently skipped, making the parser forward-compatible
+    with extended XER variants.
     """
 
     @property
@@ -248,18 +369,103 @@ class P6Parser(ImportParser):
     def display_name(self) -> str:
         return "Oracle Primavera P6 (XER)"
 
-    def parse(self, source: bytes | str, mapping: Optional[ImportMappingProfile] = None) -> List[ImportRow]:
-        raise NotImplementedError(
-            "P6Parser.parse() is a stub. Full XER parsing is pending Step 10 implementation."
-        )
+    def parse(
+        self,
+        source: bytes | str,
+        mapping: Optional[ImportMappingProfile] = None,
+    ) -> List[ImportRow]:
+        text = source.decode("latin-1") if isinstance(source, bytes) else source
+        tables = self._parse_xer_tables(text)
+
+        task_rows = tables.get("TASK", [])
+        pred_rows = tables.get("TASKPRED", [])
+
+        # Build predecessor lookup: task_id → list of "pred_task_id:link_type:lag_hr"
+        pred_map: Dict[str, List[str]] = {}
+        for pr in pred_rows:
+            tid = pr.get("task_id", "")
+            pred_id = pr.get("pred_task_id", "")
+            link_type = pr.get("pred_type", "PR_FS")
+            lag = pr.get("lag_hr_cnt", "0")
+            if tid:
+                pred_map.setdefault(tid, []).append(f"{pred_id}:{link_type}:{lag}")
+
+        rows: List[ImportRow] = []
+        for i, record in enumerate(task_rows, start=1):
+            source_data = dict(record)
+            task_id = source_data.get("task_id", "")
+            if task_id in pred_map:
+                source_data["predecessors"] = ";".join(pred_map[task_id])
+            mapped = self._apply_mapping(source_data, mapping)
+            rows.append(ImportRow(row_number=i, source_data=source_data, mapped_data=mapped))
+
+        return rows
 
     def detect_headers(self, source: bytes | str) -> List[str]:
+        text = source.decode("latin-1") if isinstance(source, bytes) else source
+        tables = self._parse_xer_tables(text)
+        task_rows = tables.get("TASK", [])
+        if task_rows:
+            return list(task_rows[0].keys())
         return [
             "task_id", "proj_id", "task_code", "task_name", "task_type",
             "status_code", "start_date", "end_date", "target_start_date",
             "target_end_date", "act_start_date", "act_end_date",
             "phys_complete_pct", "remain_drtn_hr_cnt",
         ]
+
+    # ── XER format internals ─────────────────────────────────────────────────
+
+    @staticmethod
+    def _parse_xer_tables(text: str) -> Dict[str, List[Dict[str, str]]]:
+        """
+        Parse all tables from XER text into {table_name: [row_dict, ...]}.
+
+        Handles both Windows (\\r\\n) and Unix (\\n) line endings and ignores
+        the file-level %FMT header block.
+        """
+        tables: Dict[str, List[Dict[str, str]]] = {}
+        current_table: Optional[str] = None
+        current_headers: List[str] = []
+
+        for raw_line in text.splitlines():
+            line = raw_line.rstrip("\r")
+            if not line:
+                continue
+
+            if line.startswith("%T"):
+                current_table = line[2:].strip()
+                current_headers = []
+                tables[current_table] = []
+
+            elif line.startswith("%F"):
+                current_headers = line[2:].strip().split("\t")
+
+            elif line.startswith("%R") and current_table and current_headers:
+                values = line[2:].strip().split("\t")
+                # Pad or trim to match header count
+                while len(values) < len(current_headers):
+                    values.append("")
+                row = dict(zip(current_headers, values[: len(current_headers)]))
+                tables[current_table].append(row)
+
+            elif line.startswith("%E"):
+                current_table = None
+                current_headers = []
+
+        return tables
+
+    def _apply_mapping(
+        self,
+        source_data: Dict[str, Any],
+        mapping: Optional[ImportMappingProfile],
+    ) -> Dict[str, Any]:
+        if mapping is None:
+            return dict(source_data)
+        result: Dict[str, Any] = {}
+        for fm in mapping.field_mappings:
+            result[fm.target_field] = source_data.get(fm.source_field, fm.default_value)
+        return result
 
 
 class ImportValidationService:
