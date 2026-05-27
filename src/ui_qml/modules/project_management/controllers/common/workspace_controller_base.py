@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
@@ -38,6 +38,12 @@ class ProjectManagementWorkspaceControllerBase(QObject):
         self._feedback_message = ""
         self._empty_state = ""
         self._pending_domain_refresh = False
+        self._domain_refresh_scheduled = False
+        self._domain_refresh_timer = QTimer(self)
+        self._domain_refresh_timer.setSingleShot(True)
+        self._domain_refresh_timer.timeout.connect(
+            self._execute_scheduled_domain_refresh
+        )
         self._domain_event_subscriptions: list[
             tuple[DomainSignal[Any], Callable[[Any], None]]
         ] = []
@@ -144,15 +150,25 @@ class ProjectManagementWorkspaceControllerBase(QObject):
         self._subscribe_domain_signal(domain_events.domain_changed, _handler)
 
     def _request_domain_refresh(self) -> None:
+        self._pending_domain_refresh = True
         if self._is_loading or self._is_busy:
-            self._pending_domain_refresh = True
             return
-        refresh = getattr(self, "refresh", None)
-        if callable(refresh):
-            refresh()
+        self._schedule_domain_refresh()
 
     def _flush_pending_domain_refresh(self) -> None:
         if not self._pending_domain_refresh or self._is_loading or self._is_busy:
+            return
+        self._schedule_domain_refresh()
+
+    def _schedule_domain_refresh(self) -> None:
+        if self._domain_refresh_scheduled:
+            return
+        self._domain_refresh_scheduled = True
+        self._domain_refresh_timer.start(0)
+
+    def _execute_scheduled_domain_refresh(self) -> None:
+        self._domain_refresh_scheduled = False
+        if self._is_loading or self._is_busy or not self._pending_domain_refresh:
             return
         self._pending_domain_refresh = False
         refresh = getattr(self, "refresh", None)

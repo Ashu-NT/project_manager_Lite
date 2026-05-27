@@ -165,7 +165,7 @@ class ProjectManagementTasksWorkspaceController(
         # ── Sub-controllers ────────────────────────────────────────────
         _cb = dict(
             presenter=self._tasks_workspace_presenter,
-            facade_refresh=self.refresh,
+            facade_refresh=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,

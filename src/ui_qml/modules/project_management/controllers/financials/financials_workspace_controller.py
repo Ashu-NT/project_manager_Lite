@@ -384,7 +384,7 @@ class ProjectManagementFinancialsWorkspaceController(
                 self._financials_workspace_presenter.delete_cost_item(i) for i in ids
             ],
             success_message=f"{len(ids)} cost item(s) deleted.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -404,7 +404,7 @@ class ProjectManagementFinancialsWorkspaceController(
                 for i in ids
             ],
             success_message=f"Cost type updated for {len(ids)} item(s).",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -417,7 +417,7 @@ class ProjectManagementFinancialsWorkspaceController(
                 dict(payload)
             ),
             success_message="Cost item created.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -430,7 +430,7 @@ class ProjectManagementFinancialsWorkspaceController(
                 dict(payload)
             ),
             success_message="Cost item updated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -443,7 +443,7 @@ class ProjectManagementFinancialsWorkspaceController(
                 cost_id
             ),
             success_message="Cost item deleted.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,

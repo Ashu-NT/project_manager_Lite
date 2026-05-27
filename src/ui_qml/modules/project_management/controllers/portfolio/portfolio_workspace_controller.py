@@ -276,7 +276,7 @@ class ProjectManagementPortfolioWorkspaceController(
         return run_mutation(
             operation=lambda: self._portfolio_workspace_presenter.create_template(dict(payload)),
             success_message="Scoring template created.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -287,7 +287,7 @@ class ProjectManagementPortfolioWorkspaceController(
         return run_mutation(
             operation=lambda: self._portfolio_workspace_presenter.activate_template(template_id),
             success_message="Scoring template activated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -298,7 +298,7 @@ class ProjectManagementPortfolioWorkspaceController(
         return run_mutation(
             operation=lambda: self._portfolio_workspace_presenter.create_intake_item(dict(payload)),
             success_message="Intake item created.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -309,7 +309,7 @@ class ProjectManagementPortfolioWorkspaceController(
         return run_mutation(
             operation=lambda: self._portfolio_workspace_presenter.create_scenario(dict(payload)),
             success_message="Scenario saved.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -320,7 +320,7 @@ class ProjectManagementPortfolioWorkspaceController(
         return run_mutation(
             operation=lambda: self._portfolio_workspace_presenter.create_dependency(dict(payload)),
             success_message="Dependency created.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -331,7 +331,7 @@ class ProjectManagementPortfolioWorkspaceController(
         return run_mutation(
             operation=lambda: self._portfolio_workspace_presenter.remove_dependency(dependency_id),
             success_message="Dependency removed.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -348,7 +348,7 @@ class ProjectManagementPortfolioWorkspaceController(
                 item_id, status
             ),
             success_message="Intake item status updated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,

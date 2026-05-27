@@ -276,7 +276,7 @@ class ProjectManagementResourcesWorkspaceController(
                 dict(payload)
             ),
             success_message="Resource created.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -289,7 +289,7 @@ class ProjectManagementResourcesWorkspaceController(
                 dict(payload)
             ),
             success_message="Resource updated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -307,7 +307,7 @@ class ProjectManagementResourcesWorkspaceController(
                 expected_version=expected_version,
             ),
             success_message="Resource availability updated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -320,7 +320,7 @@ class ProjectManagementResourcesWorkspaceController(
                 resource_id
             ),
             success_message="Resource deleted.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -475,7 +475,7 @@ class ProjectManagementResourcesWorkspaceController(
 
     def _on_bulk_mutation_success(self) -> None:
         self._set_selected_resource_ids([])
-        self.refresh()
+        self._request_domain_refresh()
 
     def _do_bulk_delete(self, ids: list[str]) -> None:
         for resource_id in ids:

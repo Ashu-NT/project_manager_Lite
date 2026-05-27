@@ -378,7 +378,7 @@ class ProjectManagementTimesheetsWorkspaceController(
                 for i in ids
             ],
             success_message=f"{len(ids)} period(s) approved.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -395,7 +395,7 @@ class ProjectManagementTimesheetsWorkspaceController(
                 for i in ids
             ],
             success_message=f"{len(ids)} period(s) rejected.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -406,7 +406,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.add_time_entry(dict(payload)),
             success_message="Time entry added.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -417,7 +417,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.update_time_entry(dict(payload)),
             success_message="Time entry updated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -428,7 +428,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.delete_time_entry(entry_id),
             success_message="Time entry deleted.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -439,7 +439,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.submit_period(dict(payload)),
             success_message="Timesheet period submitted.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -450,7 +450,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.approve_period(dict(payload)),
             success_message="Timesheet period approved.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -461,7 +461,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.reject_period(dict(payload)),
             success_message="Timesheet period rejected.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -472,7 +472,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.lock_period(dict(payload)),
             success_message="Timesheet period locked.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -483,7 +483,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.unlock_period(dict(payload)),
             success_message="Timesheet period unlocked.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,

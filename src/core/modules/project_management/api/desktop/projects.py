@@ -99,6 +99,7 @@ class ProjectManagementProjectsDesktopApi:
             service.create_project,
             name=command.name,
             description=command.description,
+            status=desired_status,
             client_name=command.client_name,
             client_contact=command.client_contact,
             planned_budget=command.planned_budget,
@@ -111,9 +112,6 @@ class ProjectManagementProjectsDesktopApi:
             manager_user_id=getattr(command, "manager_user_id", None),
         )
         desired_status = _coerce_project_status(command.status)
-        if desired_status != project.status:
-            service.set_status(project.id, desired_status)
-            project = service.get_project(project.id) or project
         return self._serialize_project(project)
 
     def update_project(self, command: ProjectUpdateCommand) -> ProjectDesktopDto:

@@ -940,7 +940,7 @@ class ProjectManagementSchedulingWorkspaceController(
             subtitle=self._selected_project_id or "Current project",
             meta_text=activity_meta,
         )
-        self.refresh()
+        self._request_domain_refresh()
 
     def _record_activity(
         self,

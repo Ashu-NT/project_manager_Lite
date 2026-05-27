@@ -70,8 +70,10 @@ CenteredDialog {
             danger: root.confirmDanger
             enabled: root.confirmEnabled
             onClicked: {
-                root.confirmed()
                 root.close()
+                Qt.callLater(function() {
+                    root.confirmed()
+                })
             }
         }
     }

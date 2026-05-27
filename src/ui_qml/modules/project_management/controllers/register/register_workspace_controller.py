@@ -345,7 +345,7 @@ class ProjectManagementRegisterWorkspaceController(
                 self._register_workspace_presenter.delete_entry(i) for i in ids
             ],
             success_message=f"{len(ids)} register entry/entries deleted.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -363,7 +363,7 @@ class ProjectManagementRegisterWorkspaceController(
                 for i in ids
             ],
             success_message=f"Status updated for {len(ids)} entry/entries.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -376,7 +376,7 @@ class ProjectManagementRegisterWorkspaceController(
                 dict(payload)
             ),
             success_message="Register entry created.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -389,7 +389,7 @@ class ProjectManagementRegisterWorkspaceController(
                 dict(payload)
             ),
             success_message="Register entry updated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -402,7 +402,7 @@ class ProjectManagementRegisterWorkspaceController(
                 entry_id
             ),
             success_message="Register entry deleted.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,

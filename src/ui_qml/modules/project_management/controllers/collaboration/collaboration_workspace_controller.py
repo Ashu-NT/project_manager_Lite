@@ -276,7 +276,7 @@ class ProjectManagementCollaborationWorkspaceController(
                 task_id
             ),
             success_message="Task mentions marked as read.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -300,7 +300,7 @@ class ProjectManagementCollaborationWorkspaceController(
                 request_id
             ),
             success_message="Approval request approved.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -313,7 +313,7 @@ class ProjectManagementCollaborationWorkspaceController(
                 request_id
             ),
             success_message="Approval request rejected.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,

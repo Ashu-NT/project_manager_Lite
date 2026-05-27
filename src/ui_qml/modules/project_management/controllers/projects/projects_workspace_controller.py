@@ -386,7 +386,7 @@ class ProjectManagementProjectsWorkspaceController(
                 dict(payload)
             ),
             success_message="Project created.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -399,7 +399,7 @@ class ProjectManagementProjectsWorkspaceController(
                 dict(payload)
             ),
             success_message="Project updated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -417,7 +417,7 @@ class ProjectManagementProjectsWorkspaceController(
                 status,
             ),
             success_message="Project status updated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -430,7 +430,7 @@ class ProjectManagementProjectsWorkspaceController(
                 project_id
             ),
             success_message="Project deleted.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -567,7 +567,7 @@ class ProjectManagementProjectsWorkspaceController(
 
     def _on_bulk_mutation_success(self) -> None:
         self._set_selected_project_ids([])
-        self.refresh()
+        self._request_domain_refresh()
 
     def _do_bulk_delete(self, ids: list[str]) -> None:
         for project_id in ids:

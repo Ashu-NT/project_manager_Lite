@@ -51,62 +51,63 @@ class ProjectManagementWorkspaceCatalog(QObject):
     ) -> None:
         super().__init__(parent)
         self._presenters = build_project_management_workspace_presenters()
-        dashboard_api = getattr(
+        self._task_view_store = task_view_store or ProjectManagementTaskViewStore()
+        self._dashboard_api = getattr(
             desktop_api_registry,
             "project_management_dashboard",
             None,
         )
-        collaboration_api = getattr(
+        self._collaboration_api = getattr(
             desktop_api_registry,
             "project_management_collaboration",
             None,
         )
-        approval_api = getattr(
+        self._approval_api = getattr(
             desktop_api_registry,
             "platform_approval",
             None,
         )
-        projects_api = getattr(
+        self._projects_api = getattr(
             desktop_api_registry,
             "project_management_projects",
             None,
         )
-        financials_api = getattr(
+        self._financials_api = getattr(
             desktop_api_registry,
             "project_management_financials",
             None,
         )
-        portfolio_api = getattr(
+        self._portfolio_api = getattr(
             desktop_api_registry,
             "project_management_portfolio",
             None,
         )
-        tasks_api = getattr(
+        self._tasks_api = getattr(
             desktop_api_registry,
             "project_management_tasks",
             None,
         )
-        resources_api = getattr(
+        self._resources_api = getattr(
             desktop_api_registry,
             "project_management_resources",
             None,
         )
-        register_api = getattr(
+        self._register_api = getattr(
             desktop_api_registry,
             "project_management_register",
             None,
         )
-        risk_api = getattr(
+        self._risk_api = getattr(
             desktop_api_registry,
             "project_management_risk",
-            register_api,
+            self._register_api,
         )
-        scheduling_api = getattr(
+        self._scheduling_api = getattr(
             desktop_api_registry,
             "project_management_scheduling",
             None,
         )
-        timesheets_api = getattr(
+        self._timesheets_api = getattr(
             desktop_api_registry,
             "project_management_timesheets",
             None,
@@ -115,136 +116,183 @@ class ProjectManagementWorkspaceCatalog(QObject):
             getattr(desktop_api_registry, "integration_capability", None)
             if desktop_api_registry is not None else None
         )
-        self._projects_workspace = ProjectManagementProjectsWorkspaceController(
-            projects_workspace_presenter=ProjectProjectsWorkspacePresenter(
-                desktop_api=projects_api
-            ),
-            parent=self,
-        )
-        self._financials_workspace = (
-            ProjectManagementFinancialsWorkspaceController(
+        self._projects_workspace: ProjectManagementProjectsWorkspaceController | None = None
+        self._financials_workspace: ProjectManagementFinancialsWorkspaceController | None = None
+        self._portfolio_workspace: ProjectManagementPortfolioWorkspaceController | None = None
+        self._resources_workspace: ProjectManagementResourcesWorkspaceController | None = None
+        self._risk_workspace: ProjectManagementRegisterWorkspaceController | None = None
+        self._register_workspace: ProjectManagementRegisterWorkspaceController | None = None
+        self._scheduling_workspace: ProjectManagementSchedulingWorkspaceController | None = None
+        self._tasks_workspace: ProjectManagementTasksWorkspaceController | None = None
+        self._dashboard_workspace: ProjectManagementDashboardWorkspaceController | None = None
+        self._collaboration_workspace: ProjectManagementCollaborationWorkspaceController | None = None
+        self._timesheets_workspace: ProjectManagementTimesheetsWorkspaceController | None = None
+
+    def _get_projects_workspace(self) -> ProjectManagementProjectsWorkspaceController:
+        if self._projects_workspace is None:
+            self._projects_workspace = ProjectManagementProjectsWorkspaceController(
+                projects_workspace_presenter=ProjectProjectsWorkspacePresenter(
+                    desktop_api=self._projects_api
+                ),
+                parent=self,
+            )
+        return self._projects_workspace
+
+    def _get_resources_workspace(self) -> ProjectManagementResourcesWorkspaceController:
+        if self._resources_workspace is None:
+            self._resources_workspace = ProjectManagementResourcesWorkspaceController(
+                resources_workspace_presenter=ProjectResourcesWorkspacePresenter(
+                    desktop_api=self._resources_api
+                ),
+                parent=self,
+            )
+        return self._resources_workspace
+
+    def _get_risk_workspace(self) -> ProjectManagementRegisterWorkspaceController:
+        if self._risk_workspace is None:
+            self._risk_workspace = ProjectManagementRegisterWorkspaceController(
+                workspace_presenter=ProjectManagementWorkspacePresenter(
+                    "project_management.risk"
+                ),
+                register_workspace_presenter=ProjectRegisterWorkspacePresenter(
+                    desktop_api=self._risk_api,
+                    workspace_mode="risk",
+                ),
+                parent=self,
+            )
+        return self._risk_workspace
+
+    def _get_register_workspace(self) -> ProjectManagementRegisterWorkspaceController:
+        if self._register_workspace is None:
+            self._register_workspace = ProjectManagementRegisterWorkspaceController(
+                workspace_presenter=ProjectManagementWorkspacePresenter(
+                    "project_management.register"
+                ),
+                register_workspace_presenter=ProjectRegisterWorkspacePresenter(
+                    desktop_api=self._register_api,
+                    workspace_mode="register",
+                ),
+                parent=self,
+            )
+        return self._register_workspace
+
+    def _get_financials_workspace(self) -> ProjectManagementFinancialsWorkspaceController:
+        if self._financials_workspace is None:
+            self._financials_workspace = ProjectManagementFinancialsWorkspaceController(
                 financials_workspace_presenter=ProjectFinancialsWorkspacePresenter(
-                    desktop_api=financials_api
+                    desktop_api=self._financials_api
                 ),
                 parent=self,
             )
-        )
-        self._portfolio_workspace = (
-            ProjectManagementPortfolioWorkspaceController(
+        return self._financials_workspace
+
+    def _get_portfolio_workspace(self) -> ProjectManagementPortfolioWorkspaceController:
+        if self._portfolio_workspace is None:
+            self._portfolio_workspace = ProjectManagementPortfolioWorkspaceController(
                 portfolio_workspace_presenter=ProjectPortfolioWorkspacePresenter(
-                    desktop_api=portfolio_api
+                    desktop_api=self._portfolio_api
                 ),
                 parent=self,
             )
-        )
-        self._resources_workspace = ProjectManagementResourcesWorkspaceController(
-            resources_workspace_presenter=ProjectResourcesWorkspacePresenter(
-                desktop_api=resources_api
-            ),
-            parent=self,
-        )
-        self._risk_workspace = ProjectManagementRegisterWorkspaceController(
-            workspace_presenter=ProjectManagementWorkspacePresenter(
-                "project_management.risk"
-            ),
-            register_workspace_presenter=ProjectRegisterWorkspacePresenter(
-                desktop_api=risk_api,
-                workspace_mode="risk",
-            ),
-            parent=self,
-        )
-        self._register_workspace = ProjectManagementRegisterWorkspaceController(
-            workspace_presenter=ProjectManagementWorkspacePresenter(
-                "project_management.register"
-            ),
-            register_workspace_presenter=ProjectRegisterWorkspacePresenter(
-                desktop_api=register_api,
-                workspace_mode="register",
-            ),
-            parent=self,
-        )
-        self._scheduling_workspace = ProjectManagementSchedulingWorkspaceController(
-            scheduling_workspace_presenter=ProjectSchedulingWorkspacePresenter(
-                desktop_api=scheduling_api
-            ),
-            parent=self,
-        )
-        self._tasks_workspace = ProjectManagementTasksWorkspaceController(
-            tasks_workspace_presenter=ProjectTasksWorkspacePresenter(
-                desktop_api=tasks_api,
-                collaboration_desktop_api=collaboration_api,
-                timesheets_desktop_api=timesheets_api,
-            ),
-            task_view_store=task_view_store,
-            parent=self,
-        )
-        self._dashboard_workspace = ProjectManagementDashboardWorkspaceController(
-            dashboard_workspace_presenter=ProjectDashboardWorkspacePresenter(
-                desktop_api=dashboard_api
-            ),
-            parent=self
-        )
-        self._collaboration_workspace = (
-            ProjectManagementCollaborationWorkspaceController(
+        return self._portfolio_workspace
+
+    def _get_scheduling_workspace(self) -> ProjectManagementSchedulingWorkspaceController:
+        if self._scheduling_workspace is None:
+            self._scheduling_workspace = ProjectManagementSchedulingWorkspaceController(
+                scheduling_workspace_presenter=ProjectSchedulingWorkspacePresenter(
+                    desktop_api=self._scheduling_api
+                ),
+                parent=self,
+            )
+        return self._scheduling_workspace
+
+    def _get_tasks_workspace(self) -> ProjectManagementTasksWorkspaceController:
+        if self._tasks_workspace is None:
+            self._tasks_workspace = ProjectManagementTasksWorkspaceController(
+                tasks_workspace_presenter=ProjectTasksWorkspacePresenter(
+                    desktop_api=self._tasks_api,
+                    collaboration_desktop_api=self._collaboration_api,
+                    timesheets_desktop_api=self._timesheets_api,
+                ),
+                task_view_store=self._task_view_store,
+                parent=self,
+            )
+        return self._tasks_workspace
+
+    def _get_dashboard_workspace(self) -> ProjectManagementDashboardWorkspaceController:
+        if self._dashboard_workspace is None:
+            self._dashboard_workspace = ProjectManagementDashboardWorkspaceController(
+                dashboard_workspace_presenter=ProjectDashboardWorkspacePresenter(
+                    desktop_api=self._dashboard_api
+                ),
+                parent=self,
+            )
+        return self._dashboard_workspace
+
+    def _get_collaboration_workspace(self) -> ProjectManagementCollaborationWorkspaceController:
+        if self._collaboration_workspace is None:
+            self._collaboration_workspace = ProjectManagementCollaborationWorkspaceController(
                 collaboration_workspace_presenter=ProjectCollaborationWorkspacePresenter(
-                    desktop_api=collaboration_api,
-                    approval_api=approval_api,
+                    desktop_api=self._collaboration_api,
+                    approval_api=self._approval_api,
                 ),
                 parent=self,
             )
-        )
-        self._timesheets_workspace = (
-            ProjectManagementTimesheetsWorkspaceController(
+        return self._collaboration_workspace
+
+    def _get_timesheets_workspace(self) -> ProjectManagementTimesheetsWorkspaceController:
+        if self._timesheets_workspace is None:
+            self._timesheets_workspace = ProjectManagementTimesheetsWorkspaceController(
                 timesheets_workspace_presenter=ProjectTimesheetsWorkspacePresenter(
-                    desktop_api=timesheets_api
+                    desktop_api=self._timesheets_api
                 ),
                 parent=self,
             )
-        )
+        return self._timesheets_workspace
 
     @Property(ProjectManagementProjectsWorkspaceController, constant=True)
     def projectsWorkspace(self) -> ProjectManagementProjectsWorkspaceController:
-        return self._projects_workspace
+        return self._get_projects_workspace()
 
     @Property(ProjectManagementResourcesWorkspaceController, constant=True)
     def resourcesWorkspace(self) -> ProjectManagementResourcesWorkspaceController:
-        return self._resources_workspace
+        return self._get_resources_workspace()
 
     @Property(ProjectManagementRegisterWorkspaceController, constant=True)
     def riskWorkspace(self) -> ProjectManagementRegisterWorkspaceController:
-        return self._risk_workspace
+        return self._get_risk_workspace()
 
     @Property(ProjectManagementRegisterWorkspaceController, constant=True)
     def registerWorkspace(self) -> ProjectManagementRegisterWorkspaceController:
-        return self._register_workspace
+        return self._get_register_workspace()
 
     @Property(ProjectManagementFinancialsWorkspaceController, constant=True)
     def financialsWorkspace(self) -> ProjectManagementFinancialsWorkspaceController:
-        return self._financials_workspace
+        return self._get_financials_workspace()
 
     @Property(ProjectManagementPortfolioWorkspaceController, constant=True)
     def portfolioWorkspace(self) -> ProjectManagementPortfolioWorkspaceController:
-        return self._portfolio_workspace
+        return self._get_portfolio_workspace()
 
     @Property(ProjectManagementSchedulingWorkspaceController, constant=True)
     def schedulingWorkspace(self) -> ProjectManagementSchedulingWorkspaceController:
-        return self._scheduling_workspace
+        return self._get_scheduling_workspace()
 
     @Property(ProjectManagementTasksWorkspaceController, constant=True)
     def tasksWorkspace(self) -> ProjectManagementTasksWorkspaceController:
-        return self._tasks_workspace
+        return self._get_tasks_workspace()
 
     @Property(ProjectManagementDashboardWorkspaceController, constant=True)
     def dashboardWorkspace(self) -> ProjectManagementDashboardWorkspaceController:
-        return self._dashboard_workspace
+        return self._get_dashboard_workspace()
 
     @Property(ProjectManagementCollaborationWorkspaceController, constant=True)
     def collaborationWorkspace(self) -> ProjectManagementCollaborationWorkspaceController:
-        return self._collaboration_workspace
+        return self._get_collaboration_workspace()
 
     @Property(ProjectManagementTimesheetsWorkspaceController, constant=True)
     def timesheetsWorkspace(self) -> ProjectManagementTimesheetsWorkspaceController:
-        return self._timesheets_workspace
+        return self._get_timesheets_workspace()
 
     @Slot(str, result="QVariantMap")
     def workspace(self, route_id: str) -> dict[str, str]:
@@ -261,7 +309,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
 
     @Slot(result="QVariantMap")
     def dashboardOverview(self) -> dict[str, object]:
-        return dict(self._dashboard_workspace.overview)
+        return dict(self._get_dashboard_workspace().overview)
 
     @Slot(str, result=bool)
     def isModuleEnabled(self, module_code: str) -> bool:
