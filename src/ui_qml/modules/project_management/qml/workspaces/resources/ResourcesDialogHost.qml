@@ -15,6 +15,10 @@ Item {
     signal createRequested(var payload)
     signal updateRequested(var payload)
     signal deleteRequested(string resourceId)
+    signal addSkillRequested(var payload)
+    signal addCertificationRequested(var payload)
+    signal removeSkillRequested(string skillId)
+    signal removeCertificationRequested(string certId)
 
     function openCreateDialog() {
         root.editTarget = {
@@ -40,6 +44,30 @@ Item {
     function openDeleteDialog(resourceData) {
         root.deleteTarget = resourceData || ({})
         deleteDialog.open()
+    }
+
+    function openAddSkillDialog() {
+        skillEditorDialog.open()
+    }
+
+    function openAddCertificationDialog() {
+        certEditorDialog.open()
+    }
+
+    ProjectManagementDialogs.ResourceSkillEditorDialog {
+        id: skillEditorDialog
+        onSubmitted: function(payload) {
+            root.addSkillRequested(payload)
+            skillEditorDialog.close()
+        }
+    }
+
+    ProjectManagementDialogs.ResourceCertificationEditorDialog {
+        id: certEditorDialog
+        onSubmitted: function(payload) {
+            root.addCertificationRequested(payload)
+            certEditorDialog.close()
+        }
     }
 
     ProjectManagementDialogs.ResourceEditorDialog {

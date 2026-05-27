@@ -8,9 +8,11 @@ from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
     serialize_resource_catalog_overview_view_model,
+    serialize_resource_certification_view_models,
     serialize_resource_detail_view_model,
     serialize_resource_employee_option_view_models,
     serialize_resource_record_view_models,
+    serialize_resource_skill_view_models,
     serialize_selector_options,
     serialize_workspace_view_model,
 )
@@ -43,6 +45,8 @@ class ProjectManagementResourcesWorkspaceController(
     resourceTotalCountChanged = Signal()
     selectedResourceIdsChanged = Signal()
     selectedResourceCountChanged = Signal()
+    resourceSkillsChanged = Signal()
+    resourceCertificationsChanged = Signal()
 
     def __init__(
         self,
@@ -87,6 +91,8 @@ class ProjectManagementResourcesWorkspaceController(
         self._resource_total_count = 0
         self._selected_resource_ids: list[str] = []
         self._selected_resource_count = 0
+        self._resource_skills: list[dict[str, object]] = []
+        self._resource_certifications: list[dict[str, object]] = []
         self._bind_domain_events()
         self.refresh()
 
@@ -150,6 +156,14 @@ class ProjectManagementResourcesWorkspaceController(
     def selectedResourceCount(self) -> int:
         return self._selected_resource_count
 
+    @Property("QVariantList", notify=resourceSkillsChanged)
+    def resourceSkills(self) -> list[dict[str, object]]:
+        return list(self._resource_skills)
+
+    @Property("QVariantList", notify=resourceCertificationsChanged)
+    def resourceCertifications(self) -> list[dict[str, object]]:
+        return list(self._resource_certifications)
+
     @Slot()
     def refresh(self) -> None:
         self._set_is_loading(True)
@@ -208,6 +222,7 @@ class ProjectManagementResourcesWorkspaceController(
             self._set_resource_total_count(workspace_state.total_count)
             self._set_resource_page(workspace_state.page)
             self._set_resource_page_size(workspace_state.page_size)
+            self._reload_skills_and_certs(workspace_state.selected_resource_id)
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:
@@ -251,6 +266,10 @@ class ProjectManagementResourcesWorkspaceController(
     def activateResource(self, resource_id: str) -> None:
         self.selectResource(resource_id)
         QTimer.singleShot(0, self.refresh)
+
+    @Slot(str)
+    def loadSkillsAndCerts(self, resource_id: str) -> None:
+        self._reload_skills_and_certs((resource_id or "").strip())
 
     @Slot(int)
     def setResourcePage(self, page: int) -> None:
@@ -368,6 +387,54 @@ class ProjectManagementResourcesWorkspaceController(
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot("QVariantMap", result="QVariantMap")
+    def addSkill(self, payload: dict[str, object]) -> dict[str, object]:
+        resource_id = str(self._selected_resource_id or "")
+        return run_mutation(
+            operation=lambda: self._resources_workspace_presenter.add_skill(resource_id, dict(payload)),
+            success_message="Skill added.",
+            on_success=lambda: self._reload_skills_and_certs(resource_id),
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def removeSkill(self, skill_id: str) -> dict[str, object]:
+        resource_id = str(self._selected_resource_id or "")
+        return run_mutation(
+            operation=lambda: self._resources_workspace_presenter.remove_skill(skill_id),
+            success_message="Skill removed.",
+            on_success=lambda: self._reload_skills_and_certs(resource_id),
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addCertification(self, payload: dict[str, object]) -> dict[str, object]:
+        resource_id = str(self._selected_resource_id or "")
+        return run_mutation(
+            operation=lambda: self._resources_workspace_presenter.add_certification(resource_id, dict(payload)),
+            success_message="Certification added.",
+            on_success=lambda: self._reload_skills_and_certs(resource_id),
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def removeCertification(self, cert_id: str) -> dict[str, object]:
+        resource_id = str(self._selected_resource_id or "")
+        return run_mutation(
+            operation=lambda: self._resources_workspace_presenter.remove_certification(cert_id),
+            success_message="Certification removed.",
+            on_success=lambda: self._reload_skills_and_certs(resource_id),
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
     @Slot()
     def exportResources(self) -> None:
         self._set_error_message("")
@@ -480,6 +547,35 @@ class ProjectManagementResourcesWorkspaceController(
     def _do_bulk_delete(self, ids: list[str]) -> None:
         for resource_id in ids:
             self._resources_workspace_presenter.delete_resource(resource_id)
+
+    def _reload_skills_and_certs(self, resource_id: str) -> None:
+        rid = (resource_id or "").strip()
+        if not rid:
+            self._set_resource_skills([])
+            self._set_resource_certifications([])
+            return
+        try:
+            skills = self._resources_workspace_presenter.build_skills_state(rid)
+            self._set_resource_skills(serialize_resource_skill_view_models(skills))
+        except Exception:
+            self._set_resource_skills([])
+        try:
+            certs = self._resources_workspace_presenter.build_certifications_state(rid)
+            self._set_resource_certifications(serialize_resource_certification_view_models(certs))
+        except Exception:
+            self._set_resource_certifications([])
+
+    def _set_resource_skills(self, skills: list[dict[str, object]]) -> None:
+        if skills == self._resource_skills:
+            return
+        self._resource_skills = skills
+        self.resourceSkillsChanged.emit()
+
+    def _set_resource_certifications(self, certs: list[dict[str, object]]) -> None:
+        if certs == self._resource_certifications:
+            return
+        self._resource_certifications = certs
+        self.resourceCertificationsChanged.emit()
 
 
 __all__ = ["ProjectManagementResourcesWorkspaceController"]

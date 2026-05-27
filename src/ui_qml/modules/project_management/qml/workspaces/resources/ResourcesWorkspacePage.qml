@@ -111,6 +111,12 @@ AppLayouts.WorkspaceFrame {
                 onDeleteRequested: function(resourceId) {
                     if (root.workspaceController !== null) root.workspaceController.deleteResource(resourceId)
                 }
+                onAddSkillRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.addSkill(payload)
+                }
+                onAddCertificationRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.addCertification(payload)
+                }
             }
         }
     }
@@ -456,8 +462,19 @@ AppLayouts.WorkspaceFrame {
                     detailPage: detailPageLoader.item
                     resourceDetail: root.selectedResourceModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    workspaceController: root.workspaceController
                     onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedResourceModel)
                     onDeleteRequested: dialogHostLoader.invoke("openDeleteDialog", root.selectedResourceModel)
+                    onAddSkillRequested: dialogHostLoader.invoke("openAddSkillDialog")
+                    onAddCertificationRequested: dialogHostLoader.invoke("openAddCertificationDialog")
+                    onRemoveSkillRequested: function(skillId) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.removeSkill(skillId)
+                    }
+                    onRemoveCertificationRequested: function(certId) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.removeCertification(certId)
+                    }
                 }
             }
         }

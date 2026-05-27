@@ -69,6 +69,29 @@ class ResourceDetailViewModel:
 
 
 @dataclass(frozen=True)
+class ResourceSkillViewModel:
+    id: str
+    skill_code: str
+    skill_name: str
+    proficiency: str
+    proficiency_label: str
+    notes: str
+
+
+@dataclass(frozen=True)
+class ResourceCertificationViewModel:
+    id: str
+    certification_code: str
+    certification_name: str
+    issued_date: str
+    expiry_date: str
+    issuing_body: str
+    notes: str
+    cert_status: str
+    cert_status_label: str
+
+
+@dataclass(frozen=True)
 class ResourceCatalogWorkspaceViewModel:
     overview: ResourceCatalogOverviewViewModel
     worker_type_options: tuple[ResourceSelectorOptionViewModel, ...] = field(default_factory=tuple)
@@ -90,9 +113,11 @@ __all__ = [
     "ResourceCatalogMetricViewModel",
     "ResourceCatalogOverviewViewModel",
     "ResourceCatalogWorkspaceViewModel",
+    "ResourceCertificationViewModel",
     "ResourceDetailFieldViewModel",
     "ResourceDetailViewModel",
     "ResourceEmployeeOptionViewModel",
     "ResourceRecordViewModel",
     "ResourceSelectorOptionViewModel",
+    "ResourceSkillViewModel",
 ]

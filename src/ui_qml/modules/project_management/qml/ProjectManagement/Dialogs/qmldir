@@ -3,7 +3,9 @@ CostItemEditorDialog 1.0 CostItemEditorDialog.qml
 ProjectEditorDialog 1.0 ProjectEditorDialog.qml
 ProjectStatusDialog 1.0 ProjectStatusDialog.qml
 RegisterEntryEditorDialog 1.0 RegisterEntryEditorDialog.qml
+ResourceCertificationEditorDialog 1.0 ResourceCertificationEditorDialog.qml
 ResourceEditorDialog 1.0 ResourceEditorDialog.qml
+ResourceSkillEditorDialog 1.0 ResourceSkillEditorDialog.qml
 TaskAssignmentEditorDialog 1.0 TaskAssignmentEditorDialog.qml
 TaskAssignmentHoursDialog 1.0 TaskAssignmentHoursDialog.qml
 TaskCollaborationComposerDialog 1.0 TaskCollaborationComposerDialog.qml

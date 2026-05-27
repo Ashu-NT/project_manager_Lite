@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
+from typing import Optional
 
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
+from src.core.modules.project_management.domain.resources.skills import SkillProficiencyLevel
 from src.core.platform.org import EmployeeService
 
 
@@ -83,6 +86,50 @@ class ResourceUpdateCommand:
     worker_type: str = WorkerType.EXTERNAL.value
     employee_id: str | None = None
     expected_version: int | None = None
+
+
+@dataclass(frozen=True)
+class ResourceSkillDesktopDto:
+    id: str
+    resource_id: str
+    skill_code: str
+    skill_name: str
+    proficiency: str
+    proficiency_label: str
+    notes: str
+
+
+@dataclass(frozen=True)
+class ResourceCertificationDesktopDto:
+    id: str
+    resource_id: str
+    certification_code: str
+    certification_name: str
+    issued_date: Optional[str]
+    expiry_date: Optional[str]
+    issuing_body: str
+    notes: str
+    cert_status: str
+
+
+@dataclass(frozen=True)
+class ResourceAddSkillCommand:
+    resource_id: str
+    skill_code: str
+    skill_name: str
+    proficiency: str = "intermediate"
+    notes: str = ""
+
+
+@dataclass(frozen=True)
+class ResourceAddCertificationCommand:
+    resource_id: str
+    certification_code: str
+    certification_name: str
+    issued_date: Optional[str] = None
+    expiry_date: Optional[str] = None
+    issuing_body: str = ""
+    notes: str = ""
 
 
 class ProjectManagementResourcesDesktopApi:
@@ -223,10 +270,103 @@ class ProjectManagementResourcesDesktopApi:
     def delete_resource(self, resource_id: str) -> None:
         self._require_resource_service().delete_resource(resource_id)
 
+    def list_resource_skills(self, resource_id: str) -> tuple[ResourceSkillDesktopDto, ...]:
+        service = self._resource_service
+        if service is None:
+            return ()
+        try:
+            skills = service.list_resource_skills(resource_id)
+        except Exception:
+            return ()
+        return tuple(self._serialize_skill(s) for s in skills)
+
+    def list_resource_certifications(self, resource_id: str) -> tuple[ResourceCertificationDesktopDto, ...]:
+        service = self._resource_service
+        if service is None:
+            return ()
+        try:
+            certs = service.list_resource_certifications(resource_id)
+        except Exception:
+            return ()
+        return tuple(self._serialize_cert(c) for c in certs)
+
+    def add_resource_skill(self, command: ResourceAddSkillCommand) -> ResourceSkillDesktopDto:
+        service = self._require_resource_service()
+        skill = service.add_resource_skill(
+            resource_id=command.resource_id,
+            skill_code=command.skill_code,
+            skill_name=command.skill_name,
+            proficiency=command.proficiency,
+            notes=command.notes,
+        )
+        return self._serialize_skill(skill)
+
+    def remove_resource_skill(self, skill_id: str) -> None:
+        self._require_resource_service().remove_resource_skill(skill_id)
+
+    def add_resource_certification(self, command: ResourceAddCertificationCommand) -> ResourceCertificationDesktopDto:
+        service = self._require_resource_service()
+        issued = _parse_date(command.issued_date)
+        expiry = _parse_date(command.expiry_date)
+        cert = service.add_resource_certification(
+            resource_id=command.resource_id,
+            certification_code=command.certification_code,
+            certification_name=command.certification_name,
+            issued_date=issued,
+            expiry_date=expiry,
+            issuing_body=command.issuing_body,
+            notes=command.notes,
+        )
+        return self._serialize_cert(cert)
+
+    def remove_resource_certification(self, cert_id: str) -> None:
+        self._require_resource_service().remove_resource_certification(cert_id)
+
     def _require_resource_service(self) -> ResourceService:
         if self._resource_service is None:
             raise RuntimeError("Project management resources desktop API is not connected.")
         return self._resource_service
+
+    @staticmethod
+    def _serialize_skill(skill) -> ResourceSkillDesktopDto:
+        proficiency_raw = str(getattr(skill, "proficiency", "") or "intermediate")
+        if hasattr(proficiency_raw, "value"):
+            proficiency_raw = proficiency_raw.value
+        return ResourceSkillDesktopDto(
+            id=skill.id,
+            resource_id=skill.resource_id,
+            skill_code=skill.skill_code,
+            skill_name=skill.skill_name,
+            proficiency=proficiency_raw,
+            proficiency_label=proficiency_raw.replace("_", " ").title(),
+            notes=skill.notes or "",
+        )
+
+    @staticmethod
+    def _serialize_cert(cert) -> ResourceCertificationDesktopDto:
+        from datetime import date as _date
+        today = _date.today()
+        expiry = getattr(cert, "expiry_date", None)
+        issued = getattr(cert, "issued_date", None)
+        if expiry is None:
+            status = "valid"
+        elif expiry < today:
+            status = "expired"
+        elif (expiry - today).days <= 30:
+            status = "expiring-soon"
+        else:
+            status = "valid"
+        return ResourceCertificationDesktopDto(
+            id=cert.id,
+            resource_id=cert.resource_id,
+            certification_code=cert.certification_code,
+            certification_name=cert.certification_name,
+            issued_date=issued.isoformat() if issued else None,
+            expiry_date=expiry.isoformat() if expiry else None,
+            issuing_body=cert.issuing_body or "",
+            notes=cert.notes or "",
+            cert_status=status,
+        )
 
     def _employee_lookup(self) -> dict[str, ResourceEmployeeOptionDescriptor]:
         return {
@@ -285,6 +425,15 @@ def build_project_management_resources_desktop_api(
         resource_service=resource_service,
         employee_service=employee_service,
     )
+
+
+def _parse_date(value: str | None) -> "date | None":
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(str(value).strip())
+    except (ValueError, AttributeError):
+        return None
 
 
 def _coerce_cost_type(value: str | CostType | None) -> CostType:
@@ -351,10 +500,14 @@ def _employee_option_label(employee) -> str:
 
 __all__ = [
     "ProjectManagementResourcesDesktopApi",
+    "ResourceAddCertificationCommand",
+    "ResourceAddSkillCommand",
     "ResourceCategoryDescriptor",
+    "ResourceCertificationDesktopDto",
     "ResourceCreateCommand",
     "ResourceDesktopDto",
     "ResourceEmployeeOptionDescriptor",
+    "ResourceSkillDesktopDto",
     "ResourceUpdateCommand",
     "ResourceWorkerTypeDescriptor",
     "build_project_management_resources_desktop_api",

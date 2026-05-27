@@ -188,6 +188,8 @@ def build_project_management_service_bundle(
         repositories.project_resource_repo,
         repositories.time_entry_repo,
         repositories.employee_repo,
+        skill_repo=repositories.resource_skill_repo,
+        cert_repo=repositories.resource_cert_repo,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
         module_catalog_service=platform_services.module_runtime_service,

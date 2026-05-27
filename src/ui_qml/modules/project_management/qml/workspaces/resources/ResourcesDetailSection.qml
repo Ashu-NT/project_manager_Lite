@@ -20,10 +20,15 @@ Item {
     })
     property bool isBusy: false
     property var detailPage: null
+    property var workspaceController: null
 
     signal editRequested()
     signal toggleRequested()
     signal deleteRequested()
+    signal addSkillRequested()
+    signal addCertificationRequested()
+    signal removeSkillRequested(string skillId)
+    signal removeCertificationRequested(string certId)
 
     function _sv(key) {
         const s = root.resourceDetail.state || {}
@@ -356,21 +361,87 @@ Item {
         anchors.right: parent.right
         active: root._idx === 4
         sourceComponent: Component {
-            Column {
+            Item {
+                id: _skillsSection
                 width: parent ? parent.width : 0
-                spacing: 0
-                AppWidgets.SectionHeading { width: parent.width; label: "Skills" }
-                Item {
-                    width: parent.width
-                    implicitHeight: _skillsEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
-                    AppWidgets.EmptyState {
-                        id: _skillsEmpty
-                        anchors.top: parent.top
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: Math.min(parent.width - Theme.AppTheme.marginMd * 2, 400)
-                        title: "Skills and competencies"
-                        message: "Skill profiles and competency levels have not been configured for this resource."
+                implicitHeight: _skillsCol.implicitHeight
+
+                readonly property var _skills: root.workspaceController
+                    ? (root.workspaceController.resourceSkills || []) : []
+                property string _selectedSkillId: ""
+                readonly property var _selectedSkill: {
+                    const sid = _skillsSection._selectedSkillId
+                    if (!sid) return null
+                    const list = _skillsSection._skills
+                    for (let i = 0; i < list.length; i++) {
+                        if (String(list[i].id || "") === sid) return list[i]
+                    }
+                    return null
+                }
+                readonly property int _tableH: {
+                    const n = _skillsSection._skills.length
+                    const rH = Theme.AppTheme.compactRowHeight
+                    const hH = Theme.AppTheme.normalRowHeight
+                    return n === 0 ? (hH + 80) : Math.min(hH + n * rH + 12, 300)
+                }
+                readonly property var _columns: [
+                    { key: "title",       label: "Skill",       flex: 2,   sortable: false },
+                    { key: "subtitle",    label: "Code",        flex: 1,   sortable: false },
+                    { key: "statusLabel", label: "Proficiency", flex: 0,   minWidth: 110, type: "status" },
+                    { key: "metaText",    label: "Notes",       flex: 2,   sortable: false }
+                ]
+
+                ColumnLayout {
+                    id: _skillsCol
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    spacing: 0
+
+                    AppWidgets.ContextualActionToolbar {
+                        Layout.fillWidth: true
+                        visible: !_skillsSection._selectedSkillId
+                        title: "Skills"
+                        subtitle: _skillsSection._skills.length > 0 ? String(_skillsSection._skills.length) : ""
+                        busy: root.isBusy
+                        createLabel: root._hasResource ? "Add Skill" : ""
+                        actions: []
+                        onCreateRequested: root.addSkillRequested()
+                    }
+
+                    AppWidgets.ContextualActionToolbar {
+                        Layout.fillWidth: true
+                        visible: Boolean(_skillsSection._selectedSkillId)
+                        showBack: true
+                        title: _skillsSection._selectedSkill ? String(_skillsSection._selectedSkill.title || "Skill") : "Skill"
+                        subtitle: _skillsSection._selectedSkill ? String(_skillsSection._selectedSkill.statusLabel || "") : ""
+                        busy: root.isBusy
+                        actions: [
+                            { id: "remove", label: "Remove", icon: "delete", enabled: true, danger: true }
+                        ]
+                        onBackRequested: _skillsSection._selectedSkillId = ""
+                        onActionTriggered: function(actionId) {
+                            if (actionId === "remove" && _skillsSection._selectedSkill)
+                                root.removeSkillRequested(String(_skillsSection._selectedSkill.id || ""))
+                        }
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                        implicitHeight: _skillsSection._tableH
+
+                        AppWidgets.DataTable {
+                            anchors.fill: parent
+                            columns: _skillsSection._columns
+                            rows: _skillsSection._skills
+                            selectedRowId: _skillsSection._selectedSkillId
+                            loading: root.isBusy
+                            emptyText: root._hasResource
+                                ? "No skills recorded for this resource."
+                                : "Select a resource to view its skills."
+                            onRowSelected: function(rowId) { _skillsSection._selectedSkillId = rowId }
+                            onRowActivated: function(rowId) { _skillsSection._selectedSkillId = rowId }
+                        }
                     }
                 }
             }
@@ -383,21 +454,87 @@ Item {
         anchors.right: parent.right
         active: root._idx === 5
         sourceComponent: Component {
-            Column {
+            Item {
+                id: _certsSection
                 width: parent ? parent.width : 0
-                spacing: 0
-                AppWidgets.SectionHeading { width: parent.width; label: "Certifications" }
-                Item {
-                    width: parent.width
-                    implicitHeight: _certificationsEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
-                    AppWidgets.EmptyState {
-                        id: _certificationsEmpty
-                        anchors.top: parent.top
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: Math.min(parent.width - Theme.AppTheme.marginMd * 2, 400)
+                implicitHeight: _certsCol.implicitHeight
+
+                readonly property var _certs: root.workspaceController
+                    ? (root.workspaceController.resourceCertifications || []) : []
+                property string _selectedCertId: ""
+                readonly property var _selectedCert: {
+                    const cid = _certsSection._selectedCertId
+                    if (!cid) return null
+                    const list = _certsSection._certs
+                    for (let i = 0; i < list.length; i++) {
+                        if (String(list[i].id || "") === cid) return list[i]
+                    }
+                    return null
+                }
+                readonly property int _tableH: {
+                    const n = _certsSection._certs.length
+                    const rH = Theme.AppTheme.compactRowHeight
+                    const hH = Theme.AppTheme.normalRowHeight
+                    return n === 0 ? (hH + 80) : Math.min(hH + n * rH + 12, 300)
+                }
+                readonly property var _columns: [
+                    { key: "title",       label: "Certification", flex: 2,   sortable: false },
+                    { key: "subtitle",    label: "Code",          flex: 1,   sortable: false },
+                    { key: "statusLabel", label: "Status",        flex: 0,   minWidth: 110, type: "status" },
+                    { key: "metaText",    label: "Expiry",        flex: 1,   sortable: false }
+                ]
+
+                ColumnLayout {
+                    id: _certsCol
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    spacing: 0
+
+                    AppWidgets.ContextualActionToolbar {
+                        Layout.fillWidth: true
+                        visible: !_certsSection._selectedCertId
                         title: "Certifications"
-                        message: "No certifications or compliance records have been linked to this resource."
+                        subtitle: _certsSection._certs.length > 0 ? String(_certsSection._certs.length) : ""
+                        busy: root.isBusy
+                        createLabel: root._hasResource ? "Add Certification" : ""
+                        actions: []
+                        onCreateRequested: root.addCertificationRequested()
+                    }
+
+                    AppWidgets.ContextualActionToolbar {
+                        Layout.fillWidth: true
+                        visible: Boolean(_certsSection._selectedCertId)
+                        showBack: true
+                        title: _certsSection._selectedCert ? String(_certsSection._selectedCert.title || "Certification") : "Certification"
+                        subtitle: _certsSection._selectedCert ? String(_certsSection._selectedCert.statusLabel || "") : ""
+                        busy: root.isBusy
+                        actions: [
+                            { id: "remove", label: "Remove", icon: "delete", enabled: true, danger: true }
+                        ]
+                        onBackRequested: _certsSection._selectedCertId = ""
+                        onActionTriggered: function(actionId) {
+                            if (actionId === "remove" && _certsSection._selectedCert)
+                                root.removeCertificationRequested(String(_certsSection._selectedCert.id || ""))
+                        }
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                        implicitHeight: _certsSection._tableH
+
+                        AppWidgets.DataTable {
+                            anchors.fill: parent
+                            columns: _certsSection._columns
+                            rows: _certsSection._certs
+                            selectedRowId: _certsSection._selectedCertId
+                            loading: root.isBusy
+                            emptyText: root._hasResource
+                                ? "No certifications recorded for this resource."
+                                : "Select a resource to view its certifications."
+                            onRowSelected: function(rowId) { _certsSection._selectedCertId = rowId }
+                            onRowActivated: function(rowId) { _certsSection._selectedCertId = rowId }
+                        }
                     }
                 }
             }

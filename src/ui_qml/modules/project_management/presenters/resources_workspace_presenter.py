@@ -4,6 +4,8 @@ from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementResourcesDesktopApi,
+    ResourceAddCertificationCommand,
+    ResourceAddSkillCommand,
     ResourceCreateCommand,
     ResourceUpdateCommand,
     build_project_management_resources_desktop_api,
@@ -13,11 +15,13 @@ from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceCatalogMetricViewModel,
     ResourceCatalogOverviewViewModel,
     ResourceCatalogWorkspaceViewModel,
+    ResourceCertificationViewModel,
     ResourceDetailFieldViewModel,
     ResourceDetailViewModel,
     ResourceEmployeeOptionViewModel,
     ResourceRecordViewModel,
     ResourceSelectorOptionViewModel,
+    ResourceSkillViewModel,
 )
 
 
@@ -439,6 +443,81 @@ class ProjectResourcesWorkspacePresenter:
         if isinstance(value, bool):
             return value
         return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+    def build_skills_state(self, resource_id: str) -> tuple[ResourceSkillViewModel, ...]:
+        if not resource_id:
+            return ()
+        try:
+            skills = self._desktop_api.list_resource_skills(resource_id)
+        except Exception:
+            return ()
+        return tuple(
+            ResourceSkillViewModel(
+                id=s.id,
+                skill_code=s.skill_code,
+                skill_name=s.skill_name,
+                proficiency=s.proficiency,
+                proficiency_label=s.proficiency_label,
+                notes=s.notes,
+            )
+            for s in skills
+        )
+
+    def build_certifications_state(self, resource_id: str) -> tuple[ResourceCertificationViewModel, ...]:
+        if not resource_id:
+            return ()
+        try:
+            certs = self._desktop_api.list_resource_certifications(resource_id)
+        except Exception:
+            return ()
+        return tuple(
+            ResourceCertificationViewModel(
+                id=c.id,
+                certification_code=c.certification_code,
+                certification_name=c.certification_name,
+                issued_date=c.issued_date or "",
+                expiry_date=c.expiry_date or "",
+                issuing_body=c.issuing_body,
+                notes=c.notes,
+                cert_status=c.cert_status,
+                cert_status_label=c.cert_status.replace("-", " ").title(),
+            )
+            for c in certs
+        )
+
+    def add_skill(self, resource_id: str, payload: dict[str, Any]) -> None:
+        command = ResourceAddSkillCommand(
+            resource_id=resource_id,
+            skill_code=self._require_text(payload, "skillCode", "Skill code is required."),
+            skill_name=self._optional_text(payload, "skillName") or payload.get("skillCode", ""),
+            proficiency=self._optional_text(payload, "proficiency") or "intermediate",
+            notes=self._optional_text(payload, "notes") or "",
+        )
+        self._desktop_api.add_resource_skill(command)
+
+    def remove_skill(self, skill_id: str) -> None:
+        normalized = (skill_id or "").strip()
+        if not normalized:
+            raise ValueError("Skill ID is required.")
+        self._desktop_api.remove_resource_skill(normalized)
+
+    def add_certification(self, resource_id: str, payload: dict[str, Any]) -> None:
+        command = ResourceAddCertificationCommand(
+            resource_id=resource_id,
+            certification_code=self._require_text(payload, "certCode", "Certification code is required."),
+            certification_name=self._optional_text(payload, "certName") or payload.get("certCode", ""),
+            issued_date=self._optional_text(payload, "issuedDate"),
+            expiry_date=self._optional_text(payload, "expiryDate"),
+            issuing_body=self._optional_text(payload, "issuingBody") or "",
+            notes=self._optional_text(payload, "notes") or "",
+        )
+        self._desktop_api.add_resource_certification(command)
+
+    def remove_certification(self, cert_id: str) -> None:
+        normalized = (cert_id or "").strip()
+        if not normalized:
+            raise ValueError("Certification ID is required.")
+        self._desktop_api.remove_resource_certification(normalized)
 
 
 __all__ = ["ProjectResourcesWorkspacePresenter"]
