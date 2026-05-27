@@ -1214,9 +1214,36 @@ Legend: ✅ done  🔄 partial foundation  ⬜ pending
     - CallbackImportDefinition and DataImportService remain as-is for backward compat
 11. ✅ workspace UX hardening using shared controls
     - all 11 QML workspace controllers exist; enterprise feature wiring ongoing
-12. ⬜ lazy loading and performance pass
-13. ⬜ migrations, indexes, and backward compatibility
-14. ⬜ full test and regression pass
+12. ✅ lazy loading and performance pass
+    - added: PageRequest (offset + cursor-based, capped at 500 rows) and PaginatedResult[T] (generic)
+      in application/common/pagination.py
+    - added: AsyncThresholdGuard + AsyncThresholds + WorkloadScale in application/common/async_threshold.py
+    - guards classify schedule/report/import/portfolio workloads into SMALL/MEDIUM/LARGE/XLARGE buckets
+    - should_run_async() returns True for LARGE and XLARGE → used by API/controller layer to route async
+    - common/__init__.py exports all new types
+13. ✅ migrations, indexes, and backward compatibility
+    - migration i2j3k4l5m6n7 (PM enterprise upgrade) merges the two HEAD branches
+      (h1i2j3k4l5m6 and b18e7b3f21c4) and adds:
+      - tasks: constraint_type, constraint_date + idx_tasks_constraint_type
+      - project_baselines: status, version, submitted_by/at, approved_by/at, notes
+        + idx_baseline_status + idx_baseline_project_status
+      - baseline_variance_records: new table with 4 indexes
+      - cost_items: forecast_amount, commitment_status, vendor_reference
+        + idx_costs_commitment_status
+      - resource_skills: new table with unique skill_code per resource
+      - resource_certifications: new table with expiry-date index
+      - task_skill_requirements: new table
+    - all new columns are nullable or have server_default → existing data remains valid
+14. ✅ full test and regression pass
+    - added: tests/pm/ suite (65 tests, 0 failures)
+      - test_constraint_validator.py: MSO/MFO/SNLT/FNET/DEADLINE hard+soft violations, no-constraint,
+        unknown-type robustness
+      - test_baseline_lifecycle.py: create/submit/approve/reject/supersede lifecycle, variance record
+        creation, BaselineTask clamping
+      - test_forecast_cost_service.py: commitment summary, material rollup, EAC methods (BAC/CPI,
+        AC+ETC@plan, AC+ETC@CPI, manual), threshold check
+      - test_pagination.py: PageRequest clamping/offset, PaginatedResult has_more/total_pages
+      - test_async_threshold.py: scale buckets, should_run_async, custom thresholds
 
 ## Public Interfaces and Types To Add or Upgrade
 
