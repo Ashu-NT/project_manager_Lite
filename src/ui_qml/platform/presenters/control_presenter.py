@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from src.api.desktop.platform import ApprovalStatus, PlatformApprovalDesktopApi, PlatformAuditDesktopApi
 from src.ui_qml.platform.view_models import (
     PlatformMetricViewModel,
@@ -7,6 +9,8 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceRowViewModel,
     PlatformWorkspaceSectionViewModel,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class PlatformControlWorkspacePresenter:
@@ -20,9 +24,9 @@ class PlatformControlWorkspacePresenter:
         self._audit_api = audit_api
 
     def build_overview(self) -> PlatformWorkspaceOverviewViewModel:
-        approval_rows = self._tuple_data(
+        approval_rows = self._valid_approval_rows(self._tuple_data(
             self._approval_api.list_requests(status=None, limit=50) if self._approval_api is not None else None
-        )
+        ))
         audit_rows = self._tuple_data(
             self._audit_api.list_recent(limit=25) if self._audit_api is not None else None
         )
@@ -85,6 +89,20 @@ class PlatformControlWorkspacePresenter:
         if result is None or not getattr(result, "ok", False) or getattr(result, "data", None) is None:
             return ()
         return tuple(result.data)
+
+    @staticmethod
+    def _valid_approval_rows(rows: tuple[object, ...]) -> tuple[object, ...]:
+        valid_rows: list[object] = []
+        for row in rows or ():
+            if row is None:
+                logger.warning("Skipping null approval row while building control overview.")
+                continue
+            request_id = str(getattr(row, "id", "") or "").strip()
+            if not request_id:
+                logger.warning("Skipping malformed approval row without id: %r", row)
+                continue
+            valid_rows.append(row)
+        return tuple(valid_rows)
 
 
 __all__ = ["PlatformControlWorkspacePresenter"]

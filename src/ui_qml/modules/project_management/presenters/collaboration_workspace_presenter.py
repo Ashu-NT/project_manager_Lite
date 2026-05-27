@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 
 from src.api.desktop.platform import ApprovalDecisionCommand, PlatformApprovalDesktopApi
@@ -17,6 +18,8 @@ from src.ui_qml.modules.project_management.view_models.collaboration import (
     CollaborationRecordViewModel,
     CollaborationWorkspaceViewModel,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ProjectCollaborationWorkspacePresenter:
@@ -250,6 +253,7 @@ class ProjectCollaborationWorkspacePresenter:
                 subtitle=message,
                 empty_state=message,
             )
+        rows = tuple(self._valid_approval_rows(result.data))
         return CollaborationCollectionViewModel(
             title="Approvals",
             subtitle="Governed workflow approvals linked to project execution and operational delivery.",
@@ -286,9 +290,23 @@ class ProjectCollaborationWorkspacePresenter:
                         "status": row.status.value,
                     },
                 )
-                for row in result.data
+                for row in rows
             ),
         )
+
+    @staticmethod
+    def _valid_approval_rows(rows) -> tuple[object, ...]:
+        valid_rows: list[object] = []
+        for row in rows or ():
+            if row is None:
+                logger.warning("Skipping null approval row while building collaboration approvals.")
+                continue
+            request_id = str(getattr(row, "id", "") or "").strip()
+            if not request_id:
+                logger.warning("Skipping malformed approval row without id: %r", row)
+                continue
+            valid_rows.append(row)
+        return tuple(valid_rows)
 
     def _build_activity_collection(
         self,

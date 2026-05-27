@@ -37,6 +37,8 @@ from src.api.desktop.platform.models import (
 )
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.platform.presenters import PlatformRuntimePresenter
+from src.ui_qml.platform.presenters.control_presenter import PlatformControlWorkspacePresenter
+from src.ui_qml.platform.presenters.control_queue_presenter import PlatformControlQueuePresenter
 
 
 def _organization(
@@ -1845,6 +1847,34 @@ def test_platform_workspace_catalog_exposes_grouped_platform_overviews() -> None
     assert settings["sections"][0]["rows"][0]["label"] == "TechAsh"
     assert settings["sections"][1]["rows"][0]["label"] == "Project Management"
     assert settings["sections"][2]["rows"][0]["supportingText"] == "Governed approval workflows"
+
+
+def test_platform_control_presenters_skip_null_approval_rows() -> None:
+    approval_api = _FakePlatformApprovalApi(
+        (
+            ApprovalRequestDto(
+                id="approval-1",
+                request_type="budget_change",
+                entity_type="project",
+                entity_id="project-1",
+                project_id="project-1",
+                status=ApprovalStatus.PENDING,
+                module_label="Project Management",
+                context_label="Project Apollo",
+                display_label="Change Budget",
+                requested_by_username="ada",
+                requested_at=datetime(2026, 4, 24, 7, 30, 0),
+            ),
+            None,
+        )
+    )
+
+    queue = PlatformControlQueuePresenter(approval_api=approval_api).build_approval_queue()
+    overview = PlatformControlWorkspacePresenter(approval_api=approval_api).build_overview()
+
+    assert len(queue.items) == 1
+    assert queue.items[0].id == "approval-1"
+    assert overview.metrics[0].value == "1"
 
 
 def test_platform_workspace_catalog_exposes_control_and_settings_action_lists() -> None:
