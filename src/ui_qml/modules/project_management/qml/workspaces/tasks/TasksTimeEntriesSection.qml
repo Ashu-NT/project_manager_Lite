@@ -12,6 +12,7 @@ Item {
 
     // ── Properties (matches TimesheetEntriesCard API) ─────────────────
     property var    assignmentSummary:   AppMock.MockFactory.fieldRecord("", "", "Select a task assignment.")
+    property var    assignmentOptions:   []
     property var    periodOptions:       []
     property string selectedPeriodStart: ""
     property var    entriesModel:        AppMock.MockFactory.catalog("Time Entries", "", "Select a task assignment.")
@@ -21,6 +22,7 @@ Item {
 
     // ── Signals ───────────────────────────────────────────────────────
     signal periodChanged(string periodStart)
+    signal assignmentChanged(string assignmentId)
     signal entrySelected(string entryId)
     signal addRequested(var payload)
     signal updateRequested(var payload)
@@ -81,20 +83,8 @@ Item {
             title:    "Time Entries"
             subtitle: root._items.length > 0 ? String(root._items.length) : ""
             busy:     root.isBusy
-            createLabel: root._hasAssignment ? "Add Time" : ""
-            actions: root._canSubmit || root._canUnlock ? [
-                { id: "submit", label: "Submit", icon: "approve", enabled: root._canSubmit && !root.isBusy, danger: false },
-                { id: "lock",   label: "Lock",   icon: "approve", enabled: root._canSubmit && !root.isBusy, danger: false },
-                { id: "unlock", label: "Unlock", icon: "close",   enabled: root._canUnlock && !root.isBusy, danger: false }
-            ] : []
-            onCreateRequested: {
-                root.addRequested({
-                    "assignmentId": root._state.assignmentId || "",
-                    "entryDate":    _dateField.text,
-                    "hours":        _hoursField.text,
-                    "note":         _noteArea.text
-                })
-            }
+            createLabel: ""
+            actions: []
             onActionTriggered: function(actionId) {
                 if (actionId === "submit") {
                     root.submitRequested({
@@ -123,6 +113,7 @@ Item {
             height: _summaryRow.implicitHeight + Theme.AppTheme.spacingMd * 2
             color:  Theme.AppTheme.surfaceAlt
             visible: String(root.assignmentSummary.title || "").length > 0
+                || root.assignmentOptions.length > 0
                 || root.periodOptions.length > 0
 
             Rectangle {
@@ -162,6 +153,28 @@ Item {
                         font.family:    Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.captionSize
                         elide:          Text.ElideRight
+                    }
+                }
+
+                AppControls.ComboBox {
+                    Layout.preferredWidth: 280
+                    visible: root.assignmentOptions.length > 0
+                    model: root.assignmentOptions
+                    textRole: "label"
+                    enabled: !root.isBusy
+                    currentIndex: {
+                        const opts = root.assignmentOptions
+                        const assignmentId = String(root._state.assignmentId || "")
+                        for (let i = 0; i < opts.length; i++) {
+                            if (String(opts[i].value || "") === assignmentId)
+                                return i
+                        }
+                        return 0
+                    }
+                    onActivated: function(idx) {
+                        const opt = root.assignmentOptions[idx]
+                        if (opt)
+                            root.assignmentChanged(String(opt.value || ""))
                     }
                 }
 

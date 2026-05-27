@@ -32,6 +32,7 @@ Component {
     Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "assignments"; type: "QVariantMap"; isReadonly: true }
     Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "timeAssignmentOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "timePeriodOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedTimePeriodStart"; type: "QString"; isReadonly: true }
     Property { name: "timeAssignmentSummary"; type: "QVariantMap"; isReadonly: true }

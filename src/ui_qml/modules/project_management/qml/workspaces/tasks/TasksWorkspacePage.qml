@@ -875,6 +875,7 @@ AppLayouts.WorkspaceFrame {
                     timeEntriesModel: root.timeEntriesModel
                     selectedTimeEntryModel: root.selectedTimeEntryModel
                     selectedEntryId: root.workspaceController ? root.workspaceController.selectedTimeEntryId : ""
+                    timeAssignmentOptions: root.workspaceController ? (root.workspaceController.timeAssignmentOptions || []) : []
                     periodOptions: root.workspaceController ? (root.workspaceController.timePeriodOptions || []) : []
                     selectedPeriodStart: root.workspaceController ? root.workspaceController.selectedTimePeriodStart : ""
 
@@ -907,6 +908,11 @@ AppLayouts.WorkspaceFrame {
                         dialogHostLoader.invoke("openDeleteDependencyDialog", dependencyData)
                     }
 
+                    onTimeAssignmentSelected: function(assignmentId) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.selectAssignment(assignmentId)
+                        }
+                    }
                     onPeriodChanged: function(periodStart) {
                         if (root.workspaceController !== null) {
                             root.workspaceController.selectTimePeriod(periodStart)

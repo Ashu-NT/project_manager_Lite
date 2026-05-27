@@ -18,6 +18,7 @@ from src.ui_qml.modules.project_management.presenters import (
 class PMTimeController(QObject):
     """Owns time-tracking domain data and time-entry mutations."""
 
+    timeAssignmentOptionsChanged = Signal()
     timePeriodOptionsChanged = Signal()
     timeAssignmentSummaryChanged = Signal()
     timeEntriesChanged = Signal()
@@ -39,6 +40,7 @@ class PMTimeController(QObject):
         self._set_is_busy = set_is_busy
         self._set_error_message = set_error_message
         self._set_feedback_message = set_feedback_message
+        self._time_assignment_options: list[dict[str, str]] = []
         self._time_period_options: list[dict[str, str]] = []
         self._time_assignment_summary: dict[str, object] = {
             "id": "", "title": "", "statusLabel": "", "subtitle": "",
@@ -55,6 +57,9 @@ class PMTimeController(QObject):
     # ── Populate from workspace state ────────────────────────────────
 
     def _update(self, workspace_state: object) -> None:
+        self._set_time_assignment_options(
+            serialize_selector_options(workspace_state.assignment_options)
+        )
         self._set_time_period_options(
             serialize_selector_options(workspace_state.time_period_options)
         )
@@ -71,6 +76,10 @@ class PMTimeController(QObject):
         )
 
     # ── Properties ───────────────────────────────────────────────────
+
+    @Property("QVariantList", notify=timeAssignmentOptionsChanged)
+    def timeAssignmentOptions(self) -> list[dict[str, str]]:
+        return self._time_assignment_options
 
     @Property("QVariantList", notify=timePeriodOptionsChanged)
     def timePeriodOptions(self) -> list[dict[str, str]]:
@@ -157,6 +166,12 @@ class PMTimeController(QObject):
         )
 
     # ── Private setters ───────────────────────────────────────────────
+
+    def _set_time_assignment_options(self, v: list) -> None:
+        if v == self._time_assignment_options:
+            return
+        self._time_assignment_options = v
+        self.timeAssignmentOptionsChanged.emit()
 
     def _set_time_period_options(self, v: list) -> None:
         if v == self._time_period_options:
