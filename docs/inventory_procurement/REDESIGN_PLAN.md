@@ -141,17 +141,16 @@ confirms zero remaining imports:**
 
 **Purpose:** Manage inventory storage under Platform Sites: Warehouse → Zone → Bin/Location.
 
-> ⚠️ **NEW WORKSPACE — NOT YET IMPLEMENTED**
-
 | Task | Status | Notes |
 |------|--------|-------|
-| New QML: `WarehousesWorkspacePage.qml` | 🔲 Pending | Phase 6 |
-| New controller: `WarehousesWorkspaceController` | 🔲 Pending | Phase 6 |
-| New presenter: `InventoryWarehousesWorkspacePresenter` | 🔲 Pending | Phase 6 |
-| Route: `inventory_procurement.warehouses` | 🔲 Pending | Phase 6 |
-| Platform Site lookup (no duplicate site table) | 🔲 Pending | Phase 6 |
-| Warehouse hierarchy tree or DataTable | 🔲 Pending | Phase 6 |
-| Detail page: Overview / Bins / Stock Balances / Movement History / Cycle Counts | 🔲 Pending | Phase 6 |
+| New QML: `WarehousesWorkspacePage.qml` | ✅ Done | two-view: Storerooms / Locations |
+| Controller: no new controller needed | ✅ Done | piggybacks `inventoryWorkspace`; additive: `locationPage`, `locationPageSize`, `locationTotalCount`, `selectedLocationId`, `selectLocation`, `activateLocation`, `setLocationPage`, `setLocationPageSize` |
+| Presenter: no new presenter needed | ✅ Done | reuses `foundation.locations` from inventory presenter |
+| Route: `inventory_procurement.warehouses` | ✅ Done | core workspaces.py + routes.py |
+| Platform Site lookup (no duplicate site table) | ✅ Done | uses existing `siteOptions` / `selectedSiteFilter` |
+| Storerooms list + Locations list (DataTable each) | ✅ Done | views popup toggles between them |
+| Detail page: Overview + Activity | ✅ Done | storeroom detail uses `selectedStoreroom.fields`; location detail synthetic |
+| Detail page: Bins sub-table / Stock Balances / Movements / Cycle Counts | 🔲 Pending | Phase 9 (lazy-loaded sub-sections) |
 
 ---
 
