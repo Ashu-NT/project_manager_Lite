@@ -8,8 +8,18 @@ AppControls.CenteredDialog {
     id: root
 
     property string modeTitle: "Create Task"
+    property var projectOptions: []
+    property string selectedProjectId: ""
     property var statusOptions: []
     property var taskData: ({})
+    property string validationMessage: ""
+    readonly property bool editingExistingTask: {
+        var state = root.taskData && root.taskData.state ? root.taskData.state : (root.taskData || {})
+        return String(state.taskId || "").length > 0
+    }
+    readonly property var editableProjectOptions: (root.projectOptions || []).filter(function(option) {
+        return String(option.value || "").toLowerCase() !== "all"
+    })
     readonly property var workflowStatusOptions: (root.statusOptions || []).filter(function(option) {
         return String(option.value || "").toLowerCase() !== "all"
     })
@@ -34,6 +44,7 @@ AppControls.CenteredDialog {
 
     function populateFromTask() {
         var state = root.taskData && root.taskData.state ? root.taskData.state : (root.taskData || {})
+        projectCombo.currentIndex = root.indexForValue(root.editableProjectOptions, state.projectId || root.selectedProjectId || "")
         nameField.text = String(state.name || "")
         startDateField.text = String(state.startDate || "")
         durationField.text = String(state.durationDays || "")
@@ -41,11 +52,13 @@ AppControls.CenteredDialog {
         priorityField.text = String(state.priority || "")
         descriptionField.text = String(state.description || "")
         statusCombo.currentIndex = root.statusIndexForValue(state.status || "TODO")
+        root.validationMessage = ""
     }
 
     function buildPayload() {
         var statusOption = root.workflowStatusOptions[statusCombo.currentIndex] || { "value": "TODO" }
         return {
+            "projectId": String((root.editableProjectOptions[projectCombo.currentIndex] || { "value": "" }).value || ""),
             "name": nameField.text,
             "startDate": startDateField.text,
             "durationDays": durationField.text,
@@ -57,6 +70,29 @@ AppControls.CenteredDialog {
     }
 
     onOpened: root.populateFromTask()
+
+    function indexForValue(options, targetValue) {
+        for (let index = 0; index < options.length; index += 1) {
+            if (String(options[index].value || "") === String(targetValue || "")) {
+                return index
+            }
+        }
+        return 0
+    }
+
+    function submitDialog() {
+        if (!root.editingExistingTask
+                && String((root.editableProjectOptions[projectCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
+            root.validationMessage = "Choose a project before creating a task."
+            return
+        }
+        if (nameField.text.trim().length === 0) {
+            root.validationMessage = "Task name is required."
+            return
+        }
+        root.validationMessage = ""
+        root.submitted(root.buildPayload())
+    }
 
     background: Rectangle {
         radius: Theme.AppTheme.radiusLg
@@ -81,11 +117,31 @@ AppControls.CenteredDialog {
             AppControls.Label {
                 Layout.fillWidth: true
                 text: root.modeTitle === "Create Task"
-                    ? "Add a delivery task inside the currently selected project."
+                    ? "Add a delivery task and choose the project context when needed."
                     : "Adjust dates, duration, status, and execution metadata for this task."
                 color: Theme.AppTheme.textSecondary
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.bodySize
+                wrapMode: Text.WordWrap
+            }
+
+            AppControls.Label {
+                Layout.fillWidth: true
+                visible: root.validationMessage.length > 0
+                text: root.validationMessage
+                color: "#8B1E1E"
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                wrapMode: Text.WordWrap
+            }
+
+            AppControls.Label {
+                Layout.fillWidth: true
+                visible: !root.editingExistingTask && root.editableProjectOptions.length === 0
+                text: "Create a project before adding a task."
+                color: Theme.AppTheme.textSecondary
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
                 wrapMode: Text.WordWrap
             }
 
@@ -97,6 +153,15 @@ AppControls.CenteredDialog {
 
                 AppControls.Label { text: "Task name"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
                 AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Cable Pull" }
+
+                AppControls.Label { text: "Project"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+                AppControls.ComboBox {
+                    id: projectCombo
+                    Layout.fillWidth: true
+                    model: root.editableProjectOptions
+                    textRole: "label"
+                    enabled: !root.editingExistingTask
+                }
 
                 AppControls.Label { text: "Status"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
                 AppControls.ComboBox {
@@ -136,8 +201,7 @@ AppControls.CenteredDialog {
         }
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
+    footer: AppControls.DialogActionFooter {
 
         Item { Layout.fillWidth: true }
 
@@ -152,7 +216,8 @@ AppControls.CenteredDialog {
             objectName: "dialogSubmitButton"
             text: root.modeTitle === "Create Task" ? "Create Task" : "Save Changes"
             iconName: root.modeTitle === "Create Task" ? "add" : "save"
-            onClicked: root.submitted(root.buildPayload())
+            enabled: root.editingExistingTask || root.editableProjectOptions.length > 0
+            onClicked: root.submitDialog()
         }
     }
 }

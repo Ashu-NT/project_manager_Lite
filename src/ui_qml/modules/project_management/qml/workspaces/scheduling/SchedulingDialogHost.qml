@@ -59,29 +59,27 @@ Item {
                 placeholderText: "Baseline name"
             }
 
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingSm
+        }
 
-                Item { Layout.fillWidth: true }
+        footer: AppControls.DialogActionFooter {
+            Item { Layout.fillWidth: true }
 
-                AppControls.SecondaryButton {
-                    text: "Cancel"
-                    iconName: "close"
-                    onClicked: createBaselineDialog.close()
-                }
+            AppControls.SecondaryButton {
+                text: "Cancel"
+                iconName: "close"
+                onClicked: createBaselineDialog.close()
+            }
 
-                AppControls.PrimaryButton {
-                    text: "Save Baseline"
-                    iconName: "register"
-                    enabled: String(root.selectedProjectId || "").length > 0
-                    onClicked: {
-                        root.createBaselineRequested({
-                            "projectId": root.selectedProjectId,
-                            "name": baselineNameField.text
-                        })
-                        createBaselineDialog.close()
-                    }
+            AppControls.PrimaryButton {
+                text: "Save Baseline"
+                iconName: "register"
+                enabled: String(root.selectedProjectId || "").length > 0
+                onClicked: {
+                    root.createBaselineRequested({
+                        "projectId": root.selectedProjectId,
+                        "name": baselineNameField.text
+                    })
+                    createBaselineDialog.close()
                 }
             }
         }

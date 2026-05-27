@@ -12,6 +12,7 @@ Rectangle {
     property bool showRefresh: true
     property bool showExport: false
     property bool showCreate: false
+    property bool createEnabled: true
     property bool showFilter: false
     property bool showCustomize: false
     property bool showViews: false
@@ -206,7 +207,7 @@ Rectangle {
             visible: root.showCreate
             text: root.createLabel
             iconName: "add"
-            enabled: !root.isBusy
+            enabled: !root.isBusy && root.createEnabled
             onClicked: root.createRequested()
         }
     }

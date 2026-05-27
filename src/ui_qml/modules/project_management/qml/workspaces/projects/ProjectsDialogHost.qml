@@ -1,8 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
-import App.Theme 1.0 as Theme
 import ProjectManagement.Dialogs 1.0 as ProjectManagementDialogs
 
 Item {
@@ -75,45 +73,19 @@ Item {
         }
     }
 
-    AppControls.CenteredDialog {
+    AppControls.ConfirmationDialog {
         id: deleteDialog
-
-        modal: true
-        width: 420
         title: "Delete Project"
-        standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape
+        confirmLabel: "Delete Project"
+        confirmIcon: "delete"
+        confirmDanger: true
+        message: root.deleteTarget && root.deleteTarget.title
+            ? "Delete " + root.deleteTarget.title + " and its related planning data?"
+            : "Delete the selected project and its related planning data?"
+        supportingText: "This action removes the project record, related tasks, and dependent planning data."
 
-        background: Rectangle {
-            radius: Theme.AppTheme.radiusLg
-            color: Theme.AppTheme.surface
-        }
-
-        contentItem: ColumnLayout {
-            spacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: root.deleteTarget && root.deleteTarget.title
-                    ? "Delete " + root.deleteTarget.title + " and its related planning data?"
-                    : "Delete the selected project and its related planning data?"
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                wrapMode: Text.WordWrap
-            }
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: "This action removes the project record, related tasks, and dependent planning data."
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-        }
-
-        onAccepted: {
+        onConfirmed: {
             var state = root.deleteTarget && root.deleteTarget.state ? root.deleteTarget.state : (root.deleteTarget || {})
             if (state.projectId) {
                 root.deleteRequested(String(state.projectId))

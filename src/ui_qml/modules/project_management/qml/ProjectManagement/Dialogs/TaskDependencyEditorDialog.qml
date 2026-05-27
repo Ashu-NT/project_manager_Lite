@@ -10,6 +10,7 @@ AppControls.CenteredDialog {
     property var taskData: ({})
     property var taskOptions: []
     property var dependencyTypeOptions: []
+    property string validationMessage: ""
     readonly property var relationshipOptions: [
         {
             "value": "PREDECESSOR",
@@ -60,6 +61,16 @@ AppControls.CenteredDialog {
         relationshipCombo.currentIndex = 0
         dependencyTypeCombo.currentIndex = root.indexForValue(root.dependencyTypeOptions, "FS")
         lagField.text = "0"
+        root.validationMessage = ""
+    }
+
+    function submitDialog() {
+        if (String((root.taskOptions[linkedTaskCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
+            root.validationMessage = "Select a linked task before creating the dependency."
+            return
+        }
+        root.validationMessage = ""
+        root.submitted(root.buildPayload())
     }
 
     background: Rectangle {
@@ -90,6 +101,16 @@ AppControls.CenteredDialog {
                 color: Theme.AppTheme.textSecondary
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.bodySize
+                wrapMode: Text.WordWrap
+            }
+
+            AppControls.Label {
+                Layout.fillWidth: true
+                visible: root.validationMessage.length > 0
+                text: root.validationMessage
+                color: "#8B1E1E"
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
                 wrapMode: Text.WordWrap
             }
 
@@ -184,8 +205,7 @@ AppControls.CenteredDialog {
         }
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
+    footer: AppControls.DialogActionFooter {
 
         Item {
             Layout.fillWidth: true
@@ -203,7 +223,7 @@ AppControls.CenteredDialog {
             text: "Create Dependency"
             iconName: "add"
             enabled: (root.taskOptions || []).length > 0
-            onClicked: root.submitted(root.buildPayload())
+            onClicked: root.submitDialog()
         }
     }
 }

@@ -1,8 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
-import App.Theme 1.0 as Theme
 import ProjectManagement.Dialogs 1.0 as ProjectManagementDialogs
 
 Item {
@@ -70,45 +68,19 @@ Item {
         }
     }
 
-    AppControls.CenteredDialog {
+    AppControls.ConfirmationDialog {
         id: deleteDialog
-
-        modal: true
-        width: 420
         title: "Delete " + root.entryLabel
-        standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape
+        confirmLabel: "Delete " + root.entryLabel
+        confirmIcon: "delete"
+        confirmDanger: true
+        message: root.deleteTarget && root.deleteTarget.title
+            ? "Delete " + root.deleteTarget.title + " from the project register?"
+            : "Delete the selected project register entry?"
+        supportingText: "This removes the entry, its mitigation notes, and its current governance state from the PM register."
 
-        background: Rectangle {
-            radius: Theme.AppTheme.radiusLg
-            color: Theme.AppTheme.surface
-        }
-
-        contentItem: ColumnLayout {
-            spacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: root.deleteTarget && root.deleteTarget.title
-                    ? "Delete " + root.deleteTarget.title + " from the project register?"
-                    : "Delete the selected project register entry?"
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                wrapMode: Text.WordWrap
-            }
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: "This removes the entry, its mitigation notes, and its current governance state from the PM register."
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-        }
-
-        onAccepted: {
+        onConfirmed: {
             var state = root.deleteTarget && root.deleteTarget.state ? root.deleteTarget.state : (root.deleteTarget || {})
             if (state.entryId) {
                 root.deleteRequested(String(state.entryId))

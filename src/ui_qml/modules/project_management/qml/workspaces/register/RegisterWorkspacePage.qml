@@ -189,6 +189,11 @@ AppLayouts.WorkspaceFrame {
                     Layout.fillWidth: true
                     searchPlaceholder: "Search register entries..."
                     showCreate: true
+                    createEnabled: root.workspaceController
+                        ? (root.workspaceController.projectOptions || []).some(function(option) {
+                            return String(option.value || "").toLowerCase() !== "all"
+                        })
+                        : false
                     createLabel: "New Entry"
                     showFilter: true
                     showCustomize: true

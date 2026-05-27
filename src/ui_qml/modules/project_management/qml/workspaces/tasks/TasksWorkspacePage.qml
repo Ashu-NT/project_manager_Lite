@@ -241,6 +241,7 @@ AppLayouts.WorkspaceFrame {
         sourceComponent: Component {
             TasksDialogHost {
                 selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
+                projectOptions: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
                 selectedTaskData: root.selectedTaskModel
                 statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                 assignmentOptions: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
@@ -382,6 +383,11 @@ AppLayouts.WorkspaceFrame {
                     searchText: root.workspaceController ? root.workspaceController.searchText : ""
                     searchPlaceholder: "Search tasks..."
                     showCreate: true
+                    createEnabled: root.workspaceController
+                        ? (root.workspaceController.projectOptions || []).some(function(option) {
+                            return String(option.value || "").toLowerCase() !== "all"
+                        })
+                        : false
                     createLabel: "New Task"
                     showFilter: true
                     showCustomize: true

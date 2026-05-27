@@ -10,6 +10,7 @@ AppControls.CenteredDialog {
     property string modeTitle: "Create Project"
     property var statusOptions: []
     property var projectData: ({})
+    property string validationMessage: ""
     readonly property var workflowStatusOptions: (root.statusOptions || []).filter(function(option) {
         return String(option.value || "").toLowerCase() !== "all"
     })
@@ -42,6 +43,7 @@ AppControls.CenteredDialog {
         endDateField.text = String(state.endDate || "")
         descriptionField.text = String(state.description || "")
         statusCombo.currentIndex = root.statusIndexForValue(state.status || "PLANNED")
+        root.validationMessage = ""
     }
 
     function buildPayload() {
@@ -57,6 +59,15 @@ AppControls.CenteredDialog {
             "description": descriptionField.text,
             "status": statusOption.value || "PLANNED"
         }
+    }
+
+    function submitDialog() {
+        if (nameField.text.trim().length === 0) {
+            root.validationMessage = "Project name is required."
+            return
+        }
+        root.validationMessage = ""
+        root.submitted(root.buildPayload())
     }
 
     onOpened: root.populateFromProject()
@@ -87,6 +98,16 @@ AppControls.CenteredDialog {
                 color: Theme.AppTheme.textSecondary
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.bodySize
+                wrapMode: Text.WordWrap
+            }
+
+            AppControls.Label {
+                Layout.fillWidth: true
+                visible: root.validationMessage.length > 0
+                text: root.validationMessage
+                color: "#8B1E1E"
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
                 wrapMode: Text.WordWrap
             }
 
@@ -221,8 +242,7 @@ AppControls.CenteredDialog {
         }
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
+    footer: AppControls.DialogActionFooter {
 
         Item {
             Layout.fillWidth: true
@@ -239,7 +259,7 @@ AppControls.CenteredDialog {
             objectName: "dialogSubmitButton"
             text: root.modeTitle === "Create Project" ? "Create Project" : "Save Changes"
             iconName: root.modeTitle === "Create Project" ? "add" : "save"
-            onClicked: root.submitted(root.buildPayload())
+            onClicked: root.submitDialog()
         }
     }
 }

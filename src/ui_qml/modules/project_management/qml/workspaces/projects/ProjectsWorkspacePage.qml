@@ -395,46 +395,21 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    AppControls.CenteredDialog {
+                    AppControls.ConfirmationDialog {
                         id: bulkDeleteDialog
-                        modal: true
-                        width: 440
                         title: "Delete Selected Projects"
-                        standardButtons: Dialog.Cancel | Dialog.Ok
                         closePolicy: Popup.CloseOnEscape
-
-                        background: Rectangle {
-                            radius: Theme.AppTheme.radiusLg
-                            color: Theme.AppTheme.surface
+                        confirmLabel: "Delete Projects"
+                        confirmIcon: "delete"
+                        confirmDanger: true
+                        message: {
+                            const count = root.workspaceController
+                                ? root.workspaceController.selectedProjectCount : 0
+                            return "Delete " + count + " selected project(s) and all related planning data?"
                         }
+                        supportingText: "This action removes the project records, related tasks, and dependent planning data. It cannot be undone."
 
-                        contentItem: ColumnLayout {
-                            spacing: Theme.AppTheme.spacingSm
-
-                            AppControls.Label {
-                                Layout.fillWidth: true
-                                text: {
-                                    const count = root.workspaceController
-                                        ? root.workspaceController.selectedProjectCount : 0
-                                    return "Delete " + count + " selected project(s) and all related planning data?"
-                                }
-                                color: Theme.AppTheme.textPrimary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.bodySize
-                                wrapMode: Text.WordWrap
-                            }
-
-                            AppControls.Label {
-                                Layout.fillWidth: true
-                                text: "This action removes the project records, related tasks, and dependent planning data. It cannot be undone."
-                                color: Theme.AppTheme.textSecondary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.smallSize
-                                wrapMode: Text.WordWrap
-                            }
-                        }
-
-                        onAccepted: {
+                        onConfirmed: {
                             if (root.workspaceController !== null) {
                                 root.workspaceController.bulkDeleteProjects(
                                     root.workspaceController.selectedProjectIds

@@ -233,8 +233,7 @@ AppControls.CenteredDialog {
         }
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
+    footer: AppControls.DialogActionFooter {
 
         Item {
             Layout.fillWidth: true

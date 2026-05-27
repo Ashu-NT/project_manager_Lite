@@ -12,6 +12,7 @@ AppControls.CenteredDialog {
     property var resourceOptions: []
     property var taskData: ({})
     property var assignmentData: ({})
+    property string validationMessage: ""
 
     signal submitted(var payload)
 
@@ -53,6 +54,7 @@ AppControls.CenteredDialog {
                 ? assignmentState.allocationPercent
                 : "100.0"
         )
+        root.validationMessage = ""
     }
 
     function buildPayload() {
@@ -64,6 +66,20 @@ AppControls.CenteredDialog {
             "projectResourceId": String(option.value || ""),
             "allocationPercent": allocationField.text
         }
+    }
+
+    function submitDialog() {
+        if (root.mode === "create"
+                && String((root.resourceOptions[resourceCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
+            root.validationMessage = "Select a project resource before creating the assignment."
+            return
+        }
+        if (allocationField.text.trim().length === 0) {
+            root.validationMessage = "Allocation percentage is required."
+            return
+        }
+        root.validationMessage = ""
+        root.submitted(root.buildPayload())
     }
 
     onOpened: root.populateForm()
@@ -86,6 +102,16 @@ AppControls.CenteredDialog {
             color: Theme.AppTheme.textSecondary
             font.family: Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.bodySize
+            wrapMode: Text.WordWrap
+        }
+
+        AppControls.Label {
+            Layout.fillWidth: true
+            visible: root.validationMessage.length > 0
+            text: root.validationMessage
+            color: "#8B1E1E"
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.smallSize
             wrapMode: Text.WordWrap
         }
 
@@ -158,8 +184,7 @@ AppControls.CenteredDialog {
         }
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
+    footer: AppControls.DialogActionFooter {
 
         Item {
             Layout.fillWidth: true
@@ -177,7 +202,7 @@ AppControls.CenteredDialog {
             text: root.mode === "create" ? "Assign Resource" : "Save Allocation"
             iconName: root.mode === "create" ? "resources" : "save"
             enabled: root.mode !== "create" || (root.resourceOptions || []).length > 0
-            onClicked: root.submitted(root.buildPayload())
+            onClicked: root.submitDialog()
         }
     }
 }

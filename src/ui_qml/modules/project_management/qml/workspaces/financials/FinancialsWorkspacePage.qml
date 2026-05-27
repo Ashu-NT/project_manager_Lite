@@ -201,6 +201,9 @@ AppLayouts.WorkspaceFrame {
                     searchText: root.workspaceController ? root.workspaceController.searchText : ""
                     searchPlaceholder: "Search cost items..."
                     showCreate: true
+                    createEnabled: root.workspaceController
+                        ? root.workspaceController.selectedProjectId.length > 0
+                        : false
                     createLabel: "Add Cost"
                     showFilter: true
                     showCustomize: true

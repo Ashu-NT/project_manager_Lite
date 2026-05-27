@@ -1,8 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
-import App.Theme 1.0 as Theme
 import ProjectManagement.Dialogs 1.0 as ProjectManagementDialogs
 
 Item {
@@ -64,45 +62,19 @@ Item {
         }
     }
 
-    AppControls.CenteredDialog {
+    AppControls.ConfirmationDialog {
         id: deleteDialog
-
-        modal: true
-        width: 420
         title: "Delete Cost Item"
-        standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape
+        confirmLabel: "Delete Cost Item"
+        confirmIcon: "delete"
+        confirmDanger: true
+        message: root.deleteTarget && root.deleteTarget.title
+            ? "Delete " + root.deleteTarget.title + " from the selected project?"
+            : "Delete the selected cost item from the selected project?"
+        supportingText: "This removes the financial line from cost control, finance snapshots, and related project reporting."
 
-        background: Rectangle {
-            radius: Theme.AppTheme.radiusLg
-            color: Theme.AppTheme.surface
-        }
-
-        contentItem: ColumnLayout {
-            spacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: root.deleteTarget && root.deleteTarget.title
-                    ? "Delete " + root.deleteTarget.title + " from the selected project?"
-                    : "Delete the selected cost item from the selected project?"
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                wrapMode: Text.WordWrap
-            }
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: "This removes the financial line from cost control, finance snapshots, and related project reporting."
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-        }
-
-        onAccepted: {
+        onConfirmed: {
             var state = root.deleteTarget && root.deleteTarget.state ? root.deleteTarget.state : (root.deleteTarget || {})
             if (state.costId) {
                 root.deleteRequested(String(state.costId))

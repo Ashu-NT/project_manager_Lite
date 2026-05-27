@@ -1,14 +1,13 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
-import App.Theme 1.0 as Theme
 import ProjectManagement.Dialogs 1.0 as ProjectManagementDialogs
 
 Item {
     id: root
 
     property string selectedProjectId: ""
+    property var projectOptions: []
     property var selectedTaskData: ({})
     property var statusOptions: []
     property var assignmentOptions: []
@@ -43,6 +42,7 @@ Item {
     function openCreateDialog() {
         root.editTarget = {
             "state": {
+                "projectId": root.selectedProjectId,
                 "status": "TODO"
             }
         }
@@ -134,6 +134,8 @@ Item {
         id: editorDialog
         objectName: "taskEditorDialog"
 
+        projectOptions: root.projectOptions
+        selectedProjectId: root.selectedProjectId
         statusOptions: root.statusOptions
 
         onClosed: {
@@ -149,8 +151,8 @@ Item {
             const state = root.editTarget && root.editTarget.state
                 ? root.editTarget.state
                 : (root.editTarget || {})
-            payload.projectId = String(state.projectId || root.selectedProjectId || "")
             if (state.taskId) {
+                payload.projectId = String(state.projectId || payload.projectId || root.selectedProjectId || "")
                 payload.taskId = String(state.taskId)
                 payload.expectedVersion = state.version
                 root.updateRequested(payload)
@@ -243,49 +245,20 @@ Item {
         }
     }
 
-    AppControls.CenteredDialog {
+    AppControls.ConfirmationDialog {
         id: deleteDialog
         objectName: "taskDeleteDialog"
-
-        modal: true
-        width: 420
         title: "Delete Task"
-        standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape
-        padding: Theme.AppTheme.marginMd
+        confirmLabel: "Delete Task"
+        confirmIcon: "delete"
+        confirmDanger: true
+        message: root.deleteTarget && root.deleteTarget.title
+            ? "Delete " + root.deleteTarget.title + " and its dependent planning data?"
+            : "Delete the selected task and its dependent planning data?"
+        supportingText: "This action removes the task record plus related dependencies, assignments, and linked planning items."
 
-        background: Rectangle {
-            radius:       Theme.AppTheme.radiusLg
-            color:        Theme.AppTheme.surfaceRaised
-            border.color: Theme.AppTheme.divider
-            border.width: 1
-        }
-
-        contentItem: ColumnLayout {
-            spacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: root.deleteTarget && root.deleteTarget.title
-                    ? "Delete " + root.deleteTarget.title + " and its dependent planning data?"
-                    : "Delete the selected task and its dependent planning data?"
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                wrapMode: Text.WordWrap
-            }
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: "This action removes the task record plus related dependencies, assignments, and linked planning items."
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-        }
-
-        onAccepted: {
+        onConfirmed: {
             const state = root.deleteTarget && root.deleteTarget.state
                 ? root.deleteTarget.state
                 : (root.deleteTarget || {})
@@ -295,94 +268,36 @@ Item {
         }
     }
 
-    AppControls.CenteredDialog {
+    AppControls.ConfirmationDialog {
         id: bulkDeleteDialog
         objectName: "taskBulkDeleteDialog"
-
-        modal: true
-        width: 420
         title: "Bulk Delete Tasks"
-        standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape
-        padding: Theme.AppTheme.marginMd
+        confirmLabel: "Delete Tasks"
+        confirmIcon: "delete"
+        confirmDanger: true
+        message: "Delete " + String((root.bulkDeleteTargetIds || []).length) + " selected tasks and their dependencies/assignments?"
+        supportingText: "This action cannot be undone."
 
-        background: Rectangle {
-            radius:       Theme.AppTheme.radiusLg
-            color:        Theme.AppTheme.surfaceRaised
-            border.color: Theme.AppTheme.divider
-            border.width: 1
-        }
-
-        contentItem: ColumnLayout {
-            spacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: "Delete " + String((root.bulkDeleteTargetIds || []).length) + " selected tasks and their dependencies/assignments?"
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                wrapMode: Text.WordWrap
-            }
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: "This action cannot be undone."
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-        }
-
-        onAccepted: {
+        onConfirmed: {
             root.bulkDeleteRequested(root.bulkDeleteTargetIds || [])
         }
     }
 
-    AppControls.CenteredDialog {
+    AppControls.ConfirmationDialog {
         id: deleteAssignmentDialog
         objectName: "taskDeleteAssignmentDialog"
-
-        modal: true
-        width: 420
         title: "Remove Assignment"
-        standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape
-        padding: Theme.AppTheme.marginMd
+        confirmLabel: "Remove Assignment"
+        confirmIcon: "delete"
+        confirmDanger: true
+        message: root.assignmentTarget && root.assignmentTarget.title
+            ? "Remove " + root.assignmentTarget.title + " from the selected task?"
+            : "Remove the selected assignment?"
+        supportingText: "This removes the assignment from the task but does not delete the underlying resource."
 
-        background: Rectangle {
-            radius:       Theme.AppTheme.radiusLg
-            color:        Theme.AppTheme.surfaceRaised
-            border.color: Theme.AppTheme.divider
-            border.width: 1
-        }
-
-        contentItem: ColumnLayout {
-            spacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: root.assignmentTarget && root.assignmentTarget.title
-                    ? "Remove " + root.assignmentTarget.title + " from the selected task?"
-                    : "Remove the selected assignment?"
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                wrapMode: Text.WordWrap
-            }
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: "This removes the assignment from the task but does not delete the underlying resource."
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-        }
-
-        onAccepted: {
+        onConfirmed: {
             const state = root.assignmentTarget && root.assignmentTarget.state
                 ? root.assignmentTarget.state
                 : (root.assignmentTarget || {})
@@ -392,49 +307,20 @@ Item {
         }
     }
 
-    AppControls.CenteredDialog {
+    AppControls.ConfirmationDialog {
         id: deleteDependencyDialog
         objectName: "taskDeleteDependencyDialog"
-
-        modal: true
-        width: 420
         title: "Remove Dependency"
-        standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape
-        padding: Theme.AppTheme.marginMd
+        confirmLabel: "Remove Dependency"
+        confirmIcon: "delete"
+        confirmDanger: true
+        message: root.dependencyTarget && root.dependencyTarget.title
+            ? "Remove the dependency link to " + root.dependencyTarget.title + "?"
+            : "Remove the selected dependency?"
+        supportingText: "This removes the predecessor or successor link from the project plan."
 
-        background: Rectangle {
-            radius:       Theme.AppTheme.radiusLg
-            color:        Theme.AppTheme.surfaceRaised
-            border.color: Theme.AppTheme.divider
-            border.width: 1
-        }
-
-        contentItem: ColumnLayout {
-            spacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: root.dependencyTarget && root.dependencyTarget.title
-                    ? "Remove the dependency link to " + root.dependencyTarget.title + "?"
-                    : "Remove the selected dependency?"
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                wrapMode: Text.WordWrap
-            }
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: "This removes the predecessor or successor link from the project plan."
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-        }
-
-        onAccepted: {
+        onConfirmed: {
             const state = root.dependencyTarget && root.dependencyTarget.state
                 ? root.dependencyTarget.state
                 : (root.dependencyTarget || {})

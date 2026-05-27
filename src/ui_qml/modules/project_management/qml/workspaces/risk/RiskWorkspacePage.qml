@@ -123,6 +123,11 @@ AppLayouts.WorkspaceFrame {
             Layout.fillWidth: true
             searchPlaceholder: "Search risks…"
             showCreate: true
+            createEnabled: root.workspaceController
+                ? (root.workspaceController.projectOptions || []).some(function(option) {
+                    return String(option.value || "").toLowerCase() !== "all"
+                })
+                : false
             createLabel: "New Risk"
             showFilter: true
             showCustomize: true

@@ -223,6 +223,18 @@ def test_project_management_controllers_have_no_pass_export_methods() -> None:
     assert not violations, f"Project management controllers still have dead export methods: {violations}"
 
 
+def test_project_management_qml_has_no_raw_standard_button_dialogs() -> None:
+    pm_qml_root = UI_QML_ROOT / "modules" / "project_management" / "qml"
+    violations: list[str] = []
+
+    for path in pm_qml_root.rglob("*.qml"):
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        if "standardButtons:" in text:
+            violations.append(str(path.relative_to(ROOT)))
+
+    assert not violations, f"Project management QML still uses raw standardButtons dialogs: {violations}"
+
+
 def test_platform_admin_workspace_controller_uses_split_entrypoint() -> None:
     assert PLATFORM_ADMIN_CONSOLE_CONTROLLER.exists()
     assert not STALE_PLATFORM_ADMIN_WORKSPACE_CONTROLLER.exists()

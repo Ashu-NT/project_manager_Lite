@@ -79,8 +79,7 @@ AppControls.CenteredDialog {
         AppControls.DateField { id: actualEndField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
+    footer: AppControls.DialogActionFooter {
 
         Item { Layout.fillWidth: true }
 
