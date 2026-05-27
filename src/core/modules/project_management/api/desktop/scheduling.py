@@ -134,6 +134,31 @@ class SchedulingBaselineRowDto:
     created_at_label: str
     approved_by_label: str
     variance_state_label: str
+    status: str
+    status_label: str
+    can_submit: bool
+    can_approve: bool
+    can_reject: bool
+
+
+@dataclass(frozen=True)
+class SchedulingBaselineSubmitCommand:
+    baseline_id: str
+    submitted_by: str = "system"
+    notes: str = ""
+
+
+@dataclass(frozen=True)
+class SchedulingBaselineApproveCommand:
+    baseline_id: str
+    approved_by: str = "system"
+    notes: str = ""
+
+
+@dataclass(frozen=True)
+class SchedulingBaselineRejectCommand:
+    baseline_id: str
+    notes: str = ""
 
 
 @dataclass(frozen=True)
@@ -566,15 +591,28 @@ class ProjectManagementSchedulingDesktopApi:
         baselines = list(self._baseline_service.list_baselines(normalized_project_id))
         baselines.sort(key=lambda baseline: baseline.created_at, reverse=True)
         return tuple(
-            SchedulingBaselineRowDto(
-                id=baseline.id,
-                name=baseline.name,
-                created_at=baseline.created_at.date() if hasattr(baseline.created_at, "date") else baseline.created_at,
-                created_at_label=baseline.created_at.strftime("%Y-%m-%d %H:%M"),
-                approved_by_label="System snapshot",
-                variance_state_label="Latest" if index == 0 else "Stored",
-            )
+            _serialize_baseline_row(baseline, index)
             for index, baseline in enumerate(baselines)
+        )
+
+    def submit_baseline(self, command: SchedulingBaselineSubmitCommand) -> None:
+        self._require_baseline_service().submit_baseline(
+            command.baseline_id,
+            command.submitted_by,
+            command.notes,
+        )
+
+    def approve_baseline(self, command: SchedulingBaselineApproveCommand) -> None:
+        self._require_baseline_service().approve_baseline(
+            command.baseline_id,
+            command.approved_by,
+            command.notes,
+        )
+
+    def reject_baseline(self, command: SchedulingBaselineRejectCommand) -> None:
+        self._require_baseline_service().reject_baseline(
+            command.baseline_id,
+            command.notes,
         )
 
     def create_baseline(
@@ -839,6 +877,24 @@ def build_project_management_scheduling_desktop_api(
     )
 
 
+def _serialize_baseline_row(baseline, index: int) -> SchedulingBaselineRowDto:
+    status_val = str(getattr(baseline.status, "value", baseline.status) or "draft")
+    status_label = status_val.replace("_", " ").title()
+    return SchedulingBaselineRowDto(
+        id=baseline.id,
+        name=baseline.name,
+        created_at=baseline.created_at.date() if hasattr(baseline.created_at, "date") else baseline.created_at,
+        created_at_label=baseline.created_at.strftime("%Y-%m-%d %H:%M"),
+        approved_by_label=str(getattr(baseline, "approved_by", "") or "System snapshot"),
+        variance_state_label="Latest" if index == 0 else "Stored",
+        status=status_val,
+        status_label=status_label,
+        can_submit=status_val == "draft",
+        can_approve=status_val == "submitted",
+        can_reject=status_val == "submitted",
+    )
+
+
 def _remaining_duration_days(duration_days: int | None, percent_complete: float) -> int | None:
     if duration_days is None:
         return None
@@ -894,10 +950,13 @@ def _resource_load_status_label(utilization_percent: float) -> str:
 
 __all__ = [
     "ProjectManagementSchedulingDesktopApi",
+    "SchedulingBaselineApproveCommand",
     "SchedulingBaselineComparisonRowDto",
     "SchedulingBaselineCreateCommand",
     "SchedulingBaselineOptionDescriptor",
+    "SchedulingBaselineRejectCommand",
     "SchedulingBaselineRowDto",
+    "SchedulingBaselineSubmitCommand",
     "SchedulingCalendarOptionDescriptor",
     "SchedulingCalendarSnapshotDto",
     "SchedulingCalendarUpdateCommand",

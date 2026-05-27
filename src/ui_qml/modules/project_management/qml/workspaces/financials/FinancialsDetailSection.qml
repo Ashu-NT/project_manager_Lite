@@ -553,16 +553,26 @@ Item {
             Column {
                 width: parent ? parent.width : 0
                 spacing: 0
+
                 AppWidgets.SectionHeading { width: parent.width; label: "Earned Value" }
+
+                AppWidgets.InlineMessage {
+                    width: parent.width
+                    visible: String(root.forecastModel.alertMessage || "").length > 0
+                    tone: root.forecastModel.exceedsThreshold ? "danger" : "warning"
+                    message: root.forecastModel.alertMessage || ""
+                }
+
                 AppWidgets.EmptyState {
                     width: parent.width
-                    visible: (root.overviewModel.metrics || []).length === 0
+                    visible: (root.forecastModel.metrics || []).length === 0
                     title: "No EV data"
-                    message: "Select a project to view budget health and financial exposure metrics."
+                    message: "Select a project to view earned value metrics (BAC, AC, EV, ETC, EAC, VAC, CPI)."
                 }
+
                 Item {
                     width: parent.width
-                    visible: (root.overviewModel.metrics || []).length > 0
+                    visible: (root.forecastModel.metrics || []).length > 0
                     implicitHeight: _evGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
 
                     GridLayout {
@@ -571,12 +581,12 @@ Item {
                         anchors.right: parent.right
                         anchors.top: parent.top
                         anchors.margins: Theme.AppTheme.spacingMd
-                        columns: 2
-                        columnSpacing: Theme.AppTheme.spacingMd
-                        rowSpacing: Theme.AppTheme.spacingMd
+                        columns: 4
+                        columnSpacing: Theme.AppTheme.spacingSm
+                        rowSpacing: Theme.AppTheme.spacingSm
 
                         Repeater {
-                            model: root.overviewModel.metrics || []
+                            model: root.forecastModel.metrics || []
 
                             delegate: Rectangle {
                                 id: _evCard
@@ -584,15 +594,23 @@ Item {
                                 Layout.fillWidth: true
                                 radius: Theme.AppTheme.radiusMd
                                 color: Theme.AppTheme.surfaceAlt
-                                implicitHeight: _evCardContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                implicitHeight: _evCardContent.implicitHeight + Theme.AppTheme.spacingSm * 2
+
+                                readonly property color _valueColor: {
+                                    const hint = String(_evCard.modelData.colorHint || "")
+                                    if (hint === "success") return Theme.AppTheme.success
+                                    if (hint === "warning") return Theme.AppTheme.warning
+                                    if (hint === "danger")  return Theme.AppTheme.danger
+                                    return Theme.AppTheme.textPrimary
+                                }
 
                                 ColumnLayout {
                                     id: _evCardContent
                                     anchors.left: parent.left
                                     anchors.right: parent.right
                                     anchors.top: parent.top
-                                    anchors.margins: Theme.AppTheme.spacingMd
-                                    spacing: Theme.AppTheme.spacingXs
+                                    anchors.margins: Theme.AppTheme.spacingSm
+                                    spacing: 2
 
                                     AppControls.Label {
                                         Layout.fillWidth: true
@@ -604,19 +622,12 @@ Item {
                                     AppControls.Label {
                                         Layout.fillWidth: true
                                         text: String(_evCard.modelData.value || "-")
-                                        color: Theme.AppTheme.textPrimary
+                                        color: _evCard._valueColor
                                         font.family: Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.bodySize
+                                        font.pixelSize: Theme.AppTheme.smallSize
                                         font.bold: true
-                                    }
-                                    AppControls.Label {
-                                        Layout.fillWidth: true
-                                        visible: String(_evCard.modelData.supportingText || "").length > 0
-                                        text: String(_evCard.modelData.supportingText || "")
-                                        color: Theme.AppTheme.textSecondary
-                                        font.family: Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.captionSize
-                                        wrapMode: Text.WordWrap
+                                        wrapMode: Text.NoWrap
+                                        elide: Text.ElideRight
                                     }
                                 }
                             }

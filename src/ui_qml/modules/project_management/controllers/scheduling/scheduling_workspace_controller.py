@@ -741,6 +741,42 @@ class ProjectManagementSchedulingWorkspaceController(
             activity_meta=str(baseline_id or ""),
         )
 
+    @Slot(str, result="QVariantMap")
+    def submitBaseline(self, baseline_id: str) -> dict[str, object]:
+        return self._run_planning_mutation(
+            operation=lambda: self._scheduling_workspace_presenter.submit_baseline(
+                baseline_id
+            ),
+            success_message="Baseline submitted for approval.",
+            activity_title="Baseline submitted",
+            activity_status="Info",
+            activity_meta=str(baseline_id or ""),
+        )
+
+    @Slot(str, result="QVariantMap")
+    def approveBaseline(self, baseline_id: str) -> dict[str, object]:
+        return self._run_planning_mutation(
+            operation=lambda: self._scheduling_workspace_presenter.approve_baseline(
+                baseline_id
+            ),
+            success_message="Baseline approved.",
+            activity_title="Baseline approved",
+            activity_status="Success",
+            activity_meta=str(baseline_id or ""),
+        )
+
+    @Slot(str, result="QVariantMap")
+    def rejectBaseline(self, baseline_id: str) -> dict[str, object]:
+        return self._run_planning_mutation(
+            operation=lambda: self._scheduling_workspace_presenter.reject_baseline(
+                baseline_id
+            ),
+            success_message="Baseline rejected.",
+            activity_title="Baseline rejected",
+            activity_status="Warning",
+            activity_meta=str(baseline_id or ""),
+        )
+
     @Slot(result="QVariantMap")
     def recalculateSchedule(self) -> dict[str, object]:
         return self._run_planning_mutation(
@@ -1260,7 +1296,11 @@ class ProjectManagementSchedulingWorkspaceController(
                     "baseline": item.get("title", ""),
                     "created": state.get("createdLabel", item.get("subtitle", "")),
                     "approvedBy": state.get("approvedByLabel", ""),
-                    "state": state.get("varianceState", item.get("statusLabel", "")),
+                    "state": state.get("varianceState", ""),
+                    "status": state.get("statusLabel", item.get("statusLabel", "")),
+                    "canSubmit": bool(state.get("canSubmit", False)),
+                    "canApprove": bool(state.get("canApprove", False)),
+                    "canReject": bool(state.get("canReject", False)),
                 }
             )
         return rows

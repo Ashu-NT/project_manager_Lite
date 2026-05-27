@@ -1965,13 +1965,13 @@ Operations that must use this pattern:
 
 Priority order based on user-visible impact and dependency chain:
 
-1. **Financials — CommitmentStatus + Forecast tab** (ForecastCostService wired to presenter)
+1. ✅ **Financials — CommitmentStatus + Forecast tab** (ForecastCostService wired to presenter)
    - Adds: commitment status chips in cost table, Forecast/EVM tab, EAC computation
    - Files: `FinancialsWorkspacePage.qml`, `FinancialsWorkspacePresenter`, controller signals
 
-2. **Scheduling — Baseline lifecycle actions** (BaselineService.submit/approve/reject)
-   - Adds: status chips in baseline list, Submit/Approve/Reject action buttons
-   - Files: `SchedulingBaselineSection.qml`, `SchedulingWorkspacePresenter`, controller slots
+2. ✅ **Scheduling — Baseline lifecycle actions** (BaselineService.submit/approve/reject)
+   - Adds: status chips (Draft/Submitted/Approved/Rejected/Superseded) in baseline register table, Submit/Approve/Reject context-sensitive action buttons
+   - Files: `api/desktop/scheduling.py`, `scheduling_workspace_presenter.py`, `scheduling_workspace_controller.py`, `SchedulingWorkspacePage.qml`
 
 3. **Scheduling — Constraint violations tab** (ConstraintValidator output)
    - Adds: constraint violation list with severity chips

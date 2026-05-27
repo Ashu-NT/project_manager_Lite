@@ -5,7 +5,10 @@ from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementSchedulingDesktopApi,
+    SchedulingBaselineApproveCommand,
     SchedulingBaselineCreateCommand,
+    SchedulingBaselineRejectCommand,
+    SchedulingBaselineSubmitCommand,
     SchedulingCalendarUpdateCommand,
     SchedulingDependencyCreateCommand,
     SchedulingDependencyUpdateCommand,
@@ -422,6 +425,30 @@ class ProjectSchedulingWorkspacePresenter:
         if not normalized_id:
             raise ValueError("Select a baseline before deleting it.")
         self._desktop_api.delete_baseline(normalized_id)
+
+    def submit_baseline(self, baseline_id: str) -> None:
+        normalized_id = (baseline_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Select a baseline before submitting it.")
+        self._desktop_api.submit_baseline(
+            SchedulingBaselineSubmitCommand(baseline_id=normalized_id)
+        )
+
+    def approve_baseline(self, baseline_id: str) -> None:
+        normalized_id = (baseline_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Select a baseline before approving it.")
+        self._desktop_api.approve_baseline(
+            SchedulingBaselineApproveCommand(baseline_id=normalized_id)
+        )
+
+    def reject_baseline(self, baseline_id: str) -> None:
+        normalized_id = (baseline_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Select a baseline before rejecting it.")
+        self._desktop_api.reject_baseline(
+            SchedulingBaselineRejectCommand(baseline_id=normalized_id)
+        )
 
     def recalculate_schedule(self, project_id: str) -> None:
         normalized_id = (project_id or "").strip()
@@ -876,16 +903,24 @@ class ProjectSchedulingWorkspacePresenter:
         return SchedulingRecordViewModel(
             id=item.id,
             title=item.name,
-            status_label=item.variance_state_label,
+            status_label=item.status_label,
             subtitle=item.created_at_label,
             supporting_text=f"Approved by {item.approved_by_label}",
-            meta_text=f"State {item.variance_state_label}",
+            meta_text=f"Snapshot {item.variance_state_label}",
+            can_primary_action=item.can_submit,
+            can_secondary_action=item.can_approve,
+            can_tertiary_action=item.can_reject,
             state={
                 "baselineId": item.id,
                 "baselineName": item.name,
                 "createdLabel": item.created_at_label,
                 "approvedByLabel": item.approved_by_label,
                 "varianceState": item.variance_state_label,
+                "status": item.status,
+                "statusLabel": item.status_label,
+                "canSubmit": item.can_submit,
+                "canApprove": item.can_approve,
+                "canReject": item.can_reject,
             },
         )
 
