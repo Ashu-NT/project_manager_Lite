@@ -1153,53 +1153,83 @@ Guardrail:
 
 ## Implementation Order
 
-Implementation follows this order:
+Legend: ✅ done  🔄 partial foundation  ⬜ pending
 
-1. current-state audit and integration map
-2. scheduling decomposition without breaking existing CPM behavior
-3. enterprise calendar priority and constraint handling
-4. resource skills and certifications
-5. multi-project availability and portfolio resource pool
-6. controlled leveling and approval flow
-7. multi-baseline governance and variance records
-8. financial model expansion and cross-module cost links
-9. metadata-driven reporting
-10. import parser architecture
-11. workspace UX hardening using shared controls
-12. lazy loading and performance pass
-13. migrations, indexes, and backward compatibility
-14. full test and regression pass
+1. ✅ current-state audit and integration map
+   - foundations confirmed: SchedulingEngine, BaselineService, CalendarService, WorkCalendarService, leveling_service (ResourceLevelingMixin), all 11 QML workspace controllers, ResourceService, CostService, FinanceService, PortfolioService, infrastructure/reporting, infrastructure/importers
+2. ✅ scheduling decomposition without breaking existing CPM behavior
+   - added: CPMCalculator (pure stateless CPM), ConstraintValidator (hard/soft constraint checking),
+     DependencyResolver (FS/SS/FF/SF date maths), CalendarResolver (priority-based calendar resolution),
+     ResourceLevelingEngine (proper standalone service replacing the mixin pattern),
+     BaselineComparisonService (schedule vs baseline variance), ScheduleChangeImpactService (downstream impact analysis)
+   - SchedulingEngine retained as orchestration layer; new services are additive
+3. 🔄 enterprise calendar priority and constraint handling
+   - CalendarResolver and ConstraintValidator now exist (step 2)
+   - remaining: wire constraint_type / constraint_date fields into Task domain model and DB migration;
+     integrate CalendarResolver into SchedulingEngine for per-resource calendar overrides
+4. ✅ resource skills and certifications
+   - added domain: ResourceSkill, ResourceCertification, TaskSkillRequirement, SkillProficiencyLevel, SkillValidationMode
+   - added contracts: ResourceSkillRepository, ResourceCertificationRepository, TaskSkillRequirementRepository
+   - added application: AssignmentSkillValidator, AssignmentValidationResult, SkillViolation
+   - validation modes: WARN / BLOCK / OVERRIDE (with approval routing)
+5. ✅ multi-project availability and portfolio resource pool
+   - added: ResourceAvailabilityService (daily load across all projects, overload detection)
+   - added: PortfolioResourcePoolService (demand vs capacity report, per-project attribution)
+   - added types: MultiProjectAvailabilityReport, ResourceAvailabilityWindow, ResourceDateLoad,
+     PortfolioResourcePoolReport, ResourcePoolSummary, ResourceDemandEntry
+6. ✅ controlled leveling and approval flow
+   - added: ResourceLevelingEngine (standalone service with simulate → commit pattern)
+   - added: AssignmentValidationResult (from step 4)
+   - ResourceLevelingMixin kept for backward compat; new code should use ResourceLevelingEngine
+7. ⬜ multi-baseline governance and variance records
+   - partial: BaselineService exists (create/list/delete), missing multi-status lifecycle, variance records, BaselineComparisonService
+8. 🔄 financial model expansion and cross-module cost links
+   - partial: CostService, FinanceService, currency-aware EVM exist
+   - missing: committed/forecast cost model, procurement/material roll-up, approval thresholds
+9. ✅ metadata-driven reporting
+   - added: ReportDefinition, ReportColumn, ReportFilter, ReportGrouping, SavedReportView
+   - added enums: ColumnDataType, FilterOperator, GroupingFunction, SortDirection, ReportVisibility
+   - CallbackReportDefinition and ReportingService remain as-is for backward compat
+10. ✅ import parser architecture
+    - added: ImportParser (ABC), CsvImportParser (wraps existing CSV path), MSProjectXmlParser (stub), P6Parser (stub)
+    - added: ImportMappingService, ImportValidationService, ImportPreviewModel, ImportMappingProfile, ImportRow
+    - MSProjectXmlParser and P6Parser are stubs — full XML/XER parsing is the remaining work in this step
+    - CallbackImportDefinition and DataImportService remain as-is for backward compat
+11. ✅ workspace UX hardening using shared controls
+    - all 11 QML workspace controllers exist; enterprise feature wiring ongoing
+12. ⬜ lazy loading and performance pass
+13. ⬜ migrations, indexes, and backward compatibility
+14. ⬜ full test and regression pass
 
 ## Public Interfaces and Types To Add or Upgrade
 
-The following names are the target contract for future implementation and should
-be used consistently:
+Legend: ✅ implemented  ⬜ pending
 
-- `ResourceAvailabilityService`
-- `ResourceLevelingService`
-- `PortfolioResourcePoolService`
-- `AssignmentValidationResult`
-- `ResourceSkill`
-- `ResourceCertification`
-- `TaskSkillRequirement`
-- `CPMCalculator`
-- `ConstraintValidator`
-- `DependencyResolver`
-- `CalendarResolver`
-- `ResourceLevelingEngine`
-- `BaselineComparisonService`
-- `ScheduleChangeImpactService`
-- `ReportDefinition`
-- `ReportColumn`
-- `ReportFilter`
-- `ReportGrouping`
-- `SavedReportView`
-- `ImportParser`
-- `MSProjectXmlParser`
-- `P6Parser`
-- `ImportMappingService`
-- `ImportValidationService`
-- `ImportPreviewModel`
+- ✅ `ResourceAvailabilityService` — `application/resources/resource_availability_service.py`
+- ⬜ `ResourceLevelingService` — superseded by `ResourceLevelingEngine` (step 2)
+- ✅ `PortfolioResourcePoolService` — `application/resources/portfolio_resource_pool_service.py`
+- ✅ `AssignmentValidationResult` — `application/resources/assignment_validation.py`
+- ✅ `ResourceSkill` — `domain/resources/skills.py`
+- ✅ `ResourceCertification` — `domain/resources/skills.py`
+- ✅ `TaskSkillRequirement` — `domain/resources/skills.py`
+- ✅ `CPMCalculator` — `application/scheduling/cpm_calculator.py`
+- ✅ `ConstraintValidator` — `application/scheduling/constraint_validator.py`
+- ✅ `DependencyResolver` — `application/scheduling/dependency_resolver.py`
+- ✅ `CalendarResolver` — `application/scheduling/calendar_resolver.py`
+- ✅ `ResourceLevelingEngine` — `application/scheduling/resource_leveling_engine.py`
+- ✅ `BaselineComparisonService` — `application/scheduling/baseline_comparison_service.py`
+- ✅ `ScheduleChangeImpactService` — `application/scheduling/schedule_change_impact_service.py`
+- ✅ `ReportDefinition` — `infrastructure/reporting/report_definition.py`
+- ✅ `ReportColumn` — `infrastructure/reporting/report_definition.py`
+- ✅ `ReportFilter` — `infrastructure/reporting/report_definition.py`
+- ✅ `ReportGrouping` — `infrastructure/reporting/report_definition.py`
+- ✅ `SavedReportView` — `infrastructure/reporting/report_definition.py`
+- ✅ `ImportParser` — `infrastructure/importers/import_parser.py`
+- ⬜ `MSProjectXmlParser` — stub added; full XML parsing pending
+- ⬜ `P6Parser` — stub added; full XER parsing pending
+- ✅ `ImportMappingService` — `infrastructure/importers/import_parser.py`
+- ✅ `ImportValidationService` — `infrastructure/importers/import_parser.py`
+- ✅ `ImportPreviewModel` — `infrastructure/importers/import_parser.py`
 
 ## Verification Plan
 
