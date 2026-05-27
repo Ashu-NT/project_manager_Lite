@@ -41,6 +41,11 @@ _WORKSPACE_DESCRIPTORS: tuple[InventoryProcurementWorkspaceDescriptor, ...] = (
         title="Pricing",
         summary="Supplier pricing analysis plus stock and procurement report exports.",
     ),
+    InventoryProcurementWorkspaceDescriptor(
+        key="movements",
+        title="Stock Movements",
+        summary="Full audit trail of opening balances, adjustments, issues, returns, and transfers.",
+    ),
 )
 
 

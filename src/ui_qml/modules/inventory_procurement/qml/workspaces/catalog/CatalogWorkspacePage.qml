@@ -52,16 +52,16 @@ AppLayouts.WorkspaceFrame {
     readonly property var _detailPage: _detailPageLoader.item
 
     readonly property var _itemColumns: [
-        { "key": "title",       "label": "Item Name",  "flex": 2,   "sortable": true  },
-        { "key": "subtitle",    "label": "Category / Type", "flex": 1.5 },
-        { "key": "statusLabel", "label": "Status",     "flex": 0,   "minWidth": 90, "type": "status" },
-        { "key": "metaText",    "label": "Supplier / UOM", "flex": 1 }
+        { "key": "title",         "label": "Item Name", "flex": 2,   "sortable": true  },
+        { "key": "itemCode",      "label": "Code",      "flex": 1   },
+        { "key": "categoryLabel", "label": "Category",  "flex": 1.5 },
+        { "key": "statusLabel",   "label": "Status",    "flex": 0,   "minWidth": 90, "type": "status" }
     ]
     readonly property var _categoryColumns: [
-        { "key": "title",       "label": "Category",   "flex": 2,   "sortable": true  },
-        { "key": "subtitle",    "label": "Type / Usage", "flex": 1.5 },
-        { "key": "statusLabel", "label": "Status",     "flex": 0,   "minWidth": 90, "type": "status" },
-        { "key": "metaText",    "label": "Item Count", "flex": 0,   "minWidth": 80 }
+        { "key": "title",             "label": "Category", "flex": 2,   "sortable": true  },
+        { "key": "categoryCode",      "label": "Code",     "flex": 1   },
+        { "key": "categoryTypeLabel", "label": "Type",     "flex": 1.5 },
+        { "key": "statusLabel",       "label": "Status",   "flex": 0,   "minWidth": 90, "type": "status" }
     ]
 
     readonly property var _bulkChangeProperties: {

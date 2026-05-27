@@ -53,16 +53,16 @@ AppLayouts.WorkspaceFrame {
     readonly property var _detailPage: _detailPageLoader.item
 
     readonly property var _balanceColumns: [
-        { "key": "title",       "label": "Item Name",  "flex": 2,   "sortable": true  },
-        { "key": "subtitle",    "label": "Storeroom",  "flex": 1.5 },
-        { "key": "statusLabel", "label": "Status",     "flex": 0,   "minWidth": 90, "type": "status" },
-        { "key": "metaText",    "label": "On Hand",    "flex": 1 }
+        { "key": "title",            "label": "Item Name", "flex": 2,   "sortable": true  },
+        { "key": "storeroomLabel",   "label": "Storeroom", "flex": 1.5 },
+        { "key": "onHandQtyLabel",   "label": "On Hand",   "flex": 1   },
+        { "key": "statusLabel",      "label": "Status",    "flex": 0,   "minWidth": 90, "type": "status" }
     ]
     readonly property var _storeroomColumns: [
-        { "key": "title",       "label": "Storeroom",  "flex": 2,   "sortable": true  },
-        { "key": "subtitle",    "label": "Site / Type","flex": 1.5 },
-        { "key": "statusLabel", "label": "Status",     "flex": 0,   "minWidth": 90, "type": "status" },
-        { "key": "metaText",    "label": "Items",      "flex": 0,   "minWidth": 80 }
+        { "key": "title",            "label": "Storeroom", "flex": 2,   "sortable": true  },
+        { "key": "storeroomCode",    "label": "Code",      "flex": 1   },
+        { "key": "siteLabel",        "label": "Site",      "flex": 1.5 },
+        { "key": "statusLabel",      "label": "Status",    "flex": 0,   "minWidth": 90, "type": "status" }
     ]
 
     readonly property var _detailSections: root._isBalancesView

@@ -189,16 +189,14 @@ confirms zero remaining imports:**
 
 **Purpose:** Immutable inventory transaction ledger (Receive / Issue / Transfer / Adjust / etc).
 
-> ⚠️ **NEW WORKSPACE — NOT YET IMPLEMENTED**
-
 | Task | Status | Notes |
 |------|--------|-------|
-| New QML: `StockMovementsWorkspacePage.qml` | 🔲 Pending | Phase 6 |
-| Reuse / promote existing `TransactionsSection` data | 🔲 Pending | Phase 6 |
-| Controller: extend inventory controller or new `StockMovementsWorkspaceController` | 🔲 Pending | Phase 6 |
-| Route: `inventory_procurement.movements` | 🔲 Pending | Phase 6 |
-| Immutable movement records (no edit, only reversal) | 🔲 Pending | Phase 6 |
-| Platform Audit trail in detail | 🔲 Pending | Phase 6 |
+| New QML: `StockMovementsWorkspacePage.qml` | ✅ Done | piggybacks `inventoryWorkspace.transactions` |
+| Reuse / promote existing `TransactionsSection` data | ✅ Done | uses existing `transactions` property |
+| Controller: extend inventory controller with movement pagination | ✅ Done | `movementPage`, `movementPageSize`, `movementTotalCount`, `setMovementPage`, `setMovementPageSize` |
+| Route: `inventory_procurement.movements` | ✅ Done | core workspaces.py + routes.py |
+| Immutable movement records (no edit, only reversal) | ✅ Done | read-only DataTable, no create/edit actions |
+| Platform Audit trail in detail | 🔲 Pending | Phase 9 |
 
 ---
 
@@ -322,7 +320,12 @@ Implementation notes:
 
 ---
 
-### Phase 7: Row Serializer Enrichment
+### Phase 7: Row Serializer Enrichment ✅ DONE (serializer)
+
+`serialize_record_view_models()` now promotes all non-reserved state dict keys to the top-level
+row dict automatically (`_RESERVED_ROW_KEYS` guard). DataTable columns updated for Inventory and
+Catalog workspaces. Remaining workspaces (Reservations, Procurement, Pricing) use generic keys
+until state field names are confirmed.
 
 Add domain-specific fields to `serialize_record_view_models()` per entity type. Each enriched
 record should include the fields the DataTable columns need.
@@ -396,11 +399,50 @@ Lazy-load sub-tables in detail pages:
 
 ### Phase 10: Obsolete Component Cleanup
 
-After Phase 6–9 complete and all imports verified:
-1. Grep entire codebase for any remaining imports of deprecated components
-2. Remove unused QML files listed in "Deleted / Deprecated Components" section above
-3. Remove deprecated imports from qmldir files
-4. Run full app validation: `python main_qt.py`
+**Audit complete (2026-05-27):** All 35 deprecated QML files confirmed orphaned — zero remaining
+imports anywhere in the codebase. `WorkspaceStateBanner` and `WorkspaceStatusSection` already
+removed from `InventoryProcurement/Widgets/qmldir`.
+
+**Pending — requires explicit deletion authorization:**
+Run in project root to delete all 35 orphaned files:
+```
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\InventoryProcurement\Widgets\WorkspaceStateBanner.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\InventoryProcurement\Widgets\WorkspaceStatusSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\dashboard\DashboardMetricsSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\dashboard\DashboardSections.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\catalog\CatalogMetricsSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\catalog\CatalogFiltersSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\catalog\ItemCatalogSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\catalog\CategoryCatalogSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\catalog\ItemDetailSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\catalog\CategoryDetailSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\inventory\InventoryMetricsSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\inventory\InventoryFiltersSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\inventory\BalanceCatalogSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\inventory\StoreroomCatalogSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\inventory\BalanceDetailSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\inventory\StoreroomDetailSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\inventory\TransactionsSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\reservations\ReservationsMetricsSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\reservations\ReservationsFiltersSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\reservations\ReservationsCatalogSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\reservations\ReservationDetailSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\ProcurementMetricsSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\ProcurementFiltersSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\RequisitionCatalogSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\PurchaseOrderCatalogSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\RequisitionDetailSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\PurchaseOrderDetailSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\ReceiptHistorySection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\RequisitionLinesSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\procurement\PurchaseOrderLinesSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\pricing\PricingMetricsSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\pricing\PricingFiltersSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\pricing\PricingStockSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\pricing\PricingSupplierPricingSection.qml
+Remove-Item src\ui_qml\modules\inventory_procurement\qml\workspaces\pricing\PricingExportsSection.qml
+```
+Then run `python main_qt.py` to validate.
 
 ---
 
@@ -450,6 +492,17 @@ Run `python main_qt.py` and verify:
 - `workspaces/reservations/ReservationsWorkspacePage.qml`
 - `workspaces/procurement/ProcurementWorkspacePage.qml`
 - `workspaces/pricing/PricingWorkspacePage.qml`
+- `workspaces/movements/StockMovementsWorkspace.qml` ← **NEW** (loader wrapper)
+- `workspaces/movements/StockMovementsWorkspacePage.qml` ← **NEW** (movements list with filter/pagination)
+
+### Python (new workspace routes)
+- `src/core/modules/inventory_procurement/api/desktop/workspaces.py` — added `movements` descriptor
+- `src/ui_qml/modules/inventory_procurement/routes.py` — added `movements` key
+- `src/ui_qml/modules/inventory_procurement/controllers/common/serializers.py` — Phase 7: `_RESERVED_ROW_KEYS` + state key promotion
+- `src/ui_qml/modules/inventory_procurement/controllers/inventory/inventory_workspace_controller.py` — Phase 6: `movementPage`, `movementPageSize`, `movementTotalCount`, `setMovementPage`, `setMovementPageSize`
+
+### qmldir (cleanup)
+- `qml/InventoryProcurement/Widgets/qmldir` — removed `WorkspaceStateBanner` and `WorkspaceStatusSection` entries
 
 #### Notes on Pricing detail
 `PricingWorkspacePage` does not have full detail view models from the controller (pricing has no `selectedStockSignal`/`selectedSupplierPricing` properties). Instead, the detail panel computes a synthetic `fields` array by looking up the selected row from `stockSignals.items` / `supplierPricing.items` by ID. Phase 7 can enrich this by adding proper detail view model properties to `pricing_workspace_controller.py`.

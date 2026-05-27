@@ -57,6 +57,8 @@ class InventoryProcurementInventoryWorkspaceController(
     storeroomPageSizeChanged = Signal()
     selectedStoreroomIdsChanged = Signal()
     activeViewChanged = Signal()
+    movementPageChanged = Signal()
+    movementPageSizeChanged = Signal()
 
     def __init__(
         self,
@@ -150,6 +152,8 @@ class InventoryProcurementInventoryWorkspaceController(
         self._storeroom_page_size = 25
         self._selected_storeroom_ids: list[str] = []
         self._active_view = "balances"
+        self._movement_page = 1
+        self._movement_page_size = 25
         self._bind_domain_events()
         self.refresh()
 
@@ -624,6 +628,18 @@ class InventoryProcurementInventoryWorkspaceController(
     def activeView(self) -> str:
         return self._active_view
 
+    @Property(int, notify=movementPageChanged)
+    def movementPage(self) -> int:
+        return self._movement_page
+
+    @Property(int, notify=movementPageSizeChanged)
+    def movementPageSize(self) -> int:
+        return self._movement_page_size
+
+    @Property(int, notify=transactionsChanged)
+    def movementTotalCount(self) -> int:
+        return len(self._transactions.get("items", []))
+
     @Slot(str)
     def activateBalance(self, balance_id: str) -> None:
         self.selectBalance(balance_id)
@@ -663,6 +679,18 @@ class InventoryProcurementInventoryWorkspaceController(
         self._storeroom_page = 1
         self.storeroomPageSizeChanged.emit()
         self.storeroomPageChanged.emit()
+
+    @Slot(int)
+    def setMovementPage(self, page: int) -> None:
+        self._movement_page = max(1, int(page))
+        self.movementPageChanged.emit()
+
+    @Slot(int)
+    def setMovementPageSize(self, size: int) -> None:
+        self._movement_page_size = max(10, min(200, int(size)))
+        self._movement_page = 1
+        self.movementPageSizeChanged.emit()
+        self.movementPageChanged.emit()
 
     @Slot(str, bool)
     def setBalanceBulkSelection(self, row_id: str, selected: bool) -> None:
