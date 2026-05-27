@@ -423,6 +423,21 @@ class InventoryProcurementCatalogWorkspaceController(
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot("QVariantMap", result="QVariantMap")
+    def applyBulkStatus(self, payload: dict[str, object]) -> dict[str, object]:
+        merged = dict(payload)
+        merged.setdefault("itemIds", list(self._selected_item_ids))
+        return run_mutation(
+            operation=lambda: self._catalog_workspace_presenter.apply_bulk_status(
+                merged
+            ),
+            success_message="Bulk item status applied.",
+            on_success=lambda: (self.clearItemBulkSelection(), self.refresh()),
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
     @Slot(str, int, result="QVariantMap")
     def toggleItemActive(
         self,

@@ -381,6 +381,22 @@ class InventoryCatalogWorkspacePresenter:
         )
         self._desktop_api.update_item(command)
 
+    def apply_bulk_status(self, payload: dict[str, Any]) -> None:
+        selected_ids = [
+            str(item_id or "").strip()
+            for item_id in payload.get("itemIds", [])
+            if str(item_id or "").strip()
+        ]
+        if not selected_ids:
+            raise ValueError("Select one or more catalog items to update.")
+        next_status = self._require_text(
+            payload,
+            "status",
+            "Choose a status before applying the bulk update.",
+        )
+        for item_id in selected_ids:
+            self._desktop_api.change_item_status(item_id, status=next_status)
+
     def toggle_item_active(
         self,
         item_id: str,

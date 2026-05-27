@@ -158,6 +158,37 @@ def test_inventory_qml_catalog_presenter_builds_workspace_state(services) -> Non
     assert snapshot.selected_usage_filter == "equipment"
 
 
+def test_inventory_qml_catalog_presenter_applies_bulk_item_status(services) -> None:
+    first = services["inventory_item_service"].create_item(
+        item_code="BULK-QML-01",
+        name="Bulk QML Valve",
+        status="ACTIVE",
+        stock_uom="EA",
+    )
+    second = services["inventory_item_service"].create_item(
+        item_code="BULK-QML-02",
+        name="Bulk QML Sensor",
+        status="ACTIVE",
+        stock_uom="EA",
+    )
+    registry = build_desktop_api_registry(services)
+    presenter = InventoryCatalogWorkspacePresenter(
+        desktop_api=registry.inventory_procurement_catalog
+    )
+
+    presenter.apply_bulk_status(
+        {"itemIds": [first.id, second.id], "status": "INACTIVE"}
+    )
+
+    rows = {
+        row.item_code: row.status
+        for row in registry.inventory_procurement_catalog.list_items(active_only=None)
+    }
+
+    assert rows["BULK-QML-01"] == "INACTIVE"
+    assert rows["BULK-QML-02"] == "INACTIVE"
+
+
 def test_inventory_qml_inventory_presenter_builds_workspace_state(services) -> None:
     site = services["site_service"].create_site(
         site_code="INV-PRES",
