@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
@@ -56,16 +57,63 @@ AppLayouts.WorkspaceFrame {
     property int _pendingDetailSection: 0
     readonly property var detailPage: detailPageLoader.item
 
-    readonly property var _tableColumns: [
-        { "key": "title",              "label": "Employee",      "flex": 2,   "sortable": true  },
-        { "key": "statusLabel",        "label": "Load",          "flex": 0,   "minWidth": 110, "type": "status" },
-        { "key": "department",         "label": "Department",    "flex": 1.2, "sortable": true  },
-        { "key": "site",               "label": "Site",          "flex": 1,   "sortable": true  },
-        { "key": "role",               "label": "Role",          "flex": 1.2, "sortable": true  },
-        { "key": "assignedHoursLabel", "label": "Assigned Hrs",  "flex": 0,   "minWidth": 100   },
-        { "key": "availabilityLabel",  "label": "Availability",  "flex": 0,   "minWidth": 100   },
-        { "key": "utilizationValue",   "label": "Utilization",   "flex": 1,   "minWidth": 110, "type": "progress" }
-    ]
+    property string _tableId: "pm.resources.table"
+    property var _columns: []
+
+    function _baseColumns() {
+        return [
+            { "key": "title",              "label": "Employee",     "flex": 2,   "sortable": true, "required": true, "visibleByDefault": true },
+            { "key": "statusLabel",        "label": "Load",         "flex": 0,   "minWidth": 110, "type": "status", "required": true, "visibleByDefault": true },
+            { "key": "department",         "label": "Department",   "flex": 1.2, "sortable": true,                   "visibleByDefault": true },
+            { "key": "site",               "label": "Site",         "flex": 1,   "sortable": true,                   "visibleByDefault": true },
+            { "key": "role",               "label": "Role",         "flex": 1.2, "sortable": true,                   "visibleByDefault": true },
+            { "key": "assignedHoursLabel", "label": "Assigned Hrs", "flex": 0,   "minWidth": 100,                    "visibleByDefault": true },
+            { "key": "availabilityLabel",  "label": "Availability", "flex": 0,   "minWidth": 100,                    "visibleByDefault": false },
+            { "key": "utilizationValue",   "label": "Utilization",  "flex": 1,   "minWidth": 110, "type": "progress", "visibleByDefault": true }
+        ]
+    }
+
+    function _applyColumnState(base, saved) {
+        const order = saved ? (saved.columnOrder || []) : []
+        const hidden = saved ? (saved.hiddenColumns || []) : []
+        if (order.length === 0) return base.slice()
+        const hiddenSet = {}
+        for (let i = 0; i < hidden.length; i++) hiddenSet[hidden[i]] = true
+        const byKey = {}
+        for (let i = 0; i < base.length; i++) byKey[base[i].key] = base[i]
+        const result = []
+        for (let j = 0; j < order.length; j++) {
+            const col = byKey[order[j]]
+            if (!col) continue
+            const c = Object.assign({}, col)
+            if (c.required !== true) c.visible = !hiddenSet[order[j]]
+            result.push(c)
+        }
+        for (let i = 0; i < base.length; i++) {
+            if (order.indexOf(base[i].key) < 0) result.push(Object.assign({}, base[i]))
+        }
+        return result
+    }
+
+    function _buildColumnState(columns) {
+        const order = []
+        const hidden = []
+        for (let i = 0; i < columns.length; i++) {
+            order.push(columns[i].key)
+            if (columns[i].visible === false) hidden.push(columns[i].key)
+        }
+        return { "columnOrder": order, "hiddenColumns": hidden }
+    }
+
+    Component.onCompleted: {
+        const base = root._baseColumns()
+        if (root.workspaceController !== null) {
+            const saved = root.workspaceController.loadTableColumnState(root._tableId)
+            root._columns = root._applyColumnState(base, saved)
+        } else {
+            root._columns = base
+        }
+    }
 
     readonly property var _detailActions: {
         const state = root.selectedResourceModel
@@ -117,6 +165,20 @@ AppLayouts.WorkspaceFrame {
                 onAddCertificationRequested: function(payload) {
                     if (root.workspaceController !== null) root.workspaceController.addCertification(payload)
                 }
+            }
+        }
+    }
+
+    FileDialog {
+        id: _exportDialog
+        title: "Export Resources"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Excel files (*.xlsx)", "CSV files (*.csv)"]
+        onAccepted: {
+            if (root.workspaceController !== null) {
+                const cols = resourcesTable.columns.filter(function(c) { return c.visible !== false })
+                    .map(function(c) { return { "key": c.key, "label": c.label } })
+                root.workspaceController.exportResources(cols, String(selectedFile || ""))
             }
         }
     }
@@ -194,9 +256,7 @@ AppLayouts.WorkspaceFrame {
                     onRefreshRequested: {
                         if (root.workspaceController !== null) root.workspaceController.refresh()
                     }
-                    onExportRequested: {
-                        if (root.workspaceController !== null) root.workspaceController.exportResources()
-                    }
+                    onExportRequested: _exportDialog.open()
                     onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
                 }
 
@@ -212,7 +272,8 @@ AppLayouts.WorkspaceFrame {
                         anchors.right:  parent.right
                         anchors.bottom: _paginationBar.top
                         multiSelect: true
-                        columns: root._tableColumns
+                        tableId: root._tableId
+                        columns: root._columns
                         rows: root.resourcesModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.resourcesModel.emptyState || "No resources available."
@@ -240,6 +301,12 @@ AppLayouts.WorkspaceFrame {
                                 root.workspaceController.selectVisibleResources()
                             } else {
                                 root.workspaceController.clearResourceBulkSelection()
+                            }
+                        }
+                        onColumnsStateChanged: function(columns) {
+                            if (root.workspaceController !== null) {
+                                root.workspaceController.saveTableColumnState(
+                                    root._tableId, root._buildColumnState(columns))
                             }
                         }
                     }

@@ -38,6 +38,7 @@ Item {
     property var    _selectedLookup: ({})
     property Item   columnCustomizerAnchorItem: null
     property alias  filterButtonItem: _filterButton
+    property string tableId: ""
 
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
@@ -46,6 +47,7 @@ Item {
     signal selectAllToggled(bool allSelected)
     signal filterClicked()
     signal viewDetailRequested(string rowId)
+    signal columnsStateChanged(var columns)
 
     // ── Private helpers ───────────────────────────────────────────────
     property int _hoveredRow:  -1
@@ -242,15 +244,36 @@ Item {
     }
 
     function _applyColumnVisibility(draft) {
-        const vm = {}
-        for (let j = 0; j < draft.length; j++) vm[draft[j].key] = draft[j].visible
-        const next = []
+        // draft = [{key, label, visible}] — configurable columns only, in user-chosen order.
+        // Non-configurable columns (configurable === false) retain their original position at the end.
+        const draftByKey = {}
+        const draftOrder = []
+        for (let j = 0; j < draft.length; j++) {
+            draftByKey[draft[j].key] = draft[j]
+            draftOrder.push(draft[j].key)
+        }
+        const originalByKey = {}
         for (let i = 0; i < root.columns.length; i++) {
-            const c = JSON.parse(JSON.stringify(root.columns[i]))
-            if (c.key in vm) c.visible = vm[c.key]
+            originalByKey[root.columns[i].key] = root.columns[i]
+        }
+        const next = []
+        // 1. Configurable columns in draft (user-controlled) order
+        for (let j = 0; j < draftOrder.length; j++) {
+            const orig = originalByKey[draftOrder[j]]
+            if (!orig) continue
+            const c = JSON.parse(JSON.stringify(orig))
+            c.visible = draftByKey[draftOrder[j]].visible
             next.push(c)
         }
+        // 2. Non-configurable columns appended at end in their original order
+        for (let i = 0; i < root.columns.length; i++) {
+            const c = root.columns[i]
+            if (c.configurable === false) {
+                next.push(JSON.parse(JSON.stringify(c)))
+            }
+        }
         root.columns = next
+        root.columnsStateChanged(next)
     }
 
     // ── Python-backed 2-D model ───────────────────────────────────────

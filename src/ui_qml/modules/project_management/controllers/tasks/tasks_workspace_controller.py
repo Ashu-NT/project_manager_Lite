@@ -21,6 +21,7 @@ from src.ui_qml.modules.project_management.controllers.tasks.pm_time_controller 
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementTaskViewStore,
     ProjectManagementWorkspaceControllerBase,
+    serialize_task_record_view_models,
     serialize_workspace_view_model,
 )
 from src.ui_qml.modules.project_management.presenters import (
@@ -940,12 +941,34 @@ class ProjectManagementTasksWorkspaceController(
 
     # ── Backward-compat mutation delegates ───────────────────────────
 
-    @Slot(result="QVariantMap")
-    def exportTasks(self) -> dict[str, object]:
-        message = "Export is not available here. Open the Reports section to generate task lists, progress summaries, and assignment exports."
+    @Slot("QVariantList", str, result="QVariantMap")
+    def exportTasks(self, columns: list, file_path: str) -> dict[str, object]:
+        from src.ui_qml.modules.project_management.utils.table_exporter import export_to_file
         self._set_error_message("")
-        self._set_feedback_message(message)
-        return {"ok": True, "message": message}
+        try:
+            all_ws = self._tasks_workspace_presenter.build_workspace_state(
+                project_id=self._selected_project_id or None,
+                search_text=self._search_text,
+                status_filter=self._selected_status_filter,
+                priority_filter=self._selected_priority_filter,
+                schedule_filter=self._selected_schedule_filter,
+                selected_task_id=None,
+                selected_assignment_id=None,
+                selected_time_period_start=self._selected_time_period_start,
+                selected_time_entry_id=None,
+                page=1,
+                page_size=99999,
+            )
+            rows = serialize_task_record_view_models(all_ws.tasks)
+            result = export_to_file(rows, list(columns), (file_path or "").strip())
+            if result.get("ok"):
+                self._set_feedback_message(result.get("message", "Export complete."))
+            else:
+                self._set_error_message(result.get("error", "Export failed."))
+            return result
+        except Exception as exc:
+            self._set_error_message(str(exc))
+            return {"ok": False, "error": str(exc)}
 
     @Slot("QVariantMap", result="QVariantMap")
     def createTask(self, payload: dict[str, object]) -> dict[str, object]:

@@ -385,6 +385,9 @@ def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> N
         "Earned Value (EVM)",
         "Register Summary",
         "Cost Sources",
+        "Baseline Variance",
+        "Resource Overloads",
+        "Available Reports",
     ]
     assert snapshot.panels[0].hint == "As of 2026-04-30 (baseline: Weekly Freeze (2026-04-27 10:30))"
     assert snapshot.panels[0].metrics[0].label == "CPI"
@@ -408,6 +411,7 @@ def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> N
         "Critical Path",
         "Upcoming Work",
         "Urgent Register Items",
+        "Reports",
     ]
     assert snapshot.sections[0].items[0].title == "Owner assignment missing on punchlist"
     assert snapshot.sections[2].items[0].meta_text == "Late by 2 day(s)"

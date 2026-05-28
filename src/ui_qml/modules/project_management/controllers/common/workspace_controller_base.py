@@ -8,6 +8,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.notifications.signal import Signal as DomainSignal
+from src.infra.platform.app_settings import AppSettingsStore
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -26,6 +27,7 @@ class ProjectManagementWorkspaceControllerBase(QObject):
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
+        self._app_settings = AppSettingsStore()
         self._workspace: dict[str, object] = {
             "routeId": "",
             "title": "",
@@ -83,6 +85,14 @@ class ProjectManagementWorkspaceControllerBase(QObject):
     def clearMessages(self) -> None:
         self._set_error_message("")
         self._set_feedback_message("")
+
+    @Slot(str, result="QVariantMap")
+    def loadTableColumnState(self, table_id: str) -> dict[str, object]:
+        return self._app_settings.load_table_column_state(table_id)
+
+    @Slot(str, "QVariantMap")
+    def saveTableColumnState(self, table_id: str, state: "dict[str, object]") -> None:
+        self._app_settings.save_table_column_state(table_id, state)
 
     def _set_workspace(self, workspace: dict[str, object]) -> None:
         if workspace == self._workspace:

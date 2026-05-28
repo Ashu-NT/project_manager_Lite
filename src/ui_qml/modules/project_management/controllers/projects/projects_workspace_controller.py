@@ -392,12 +392,28 @@ class ProjectManagementProjectsWorkspaceController(
             set_feedback_message=self._set_feedback_message,
         )
 
-    @Slot()
-    def exportProjects(self) -> None:
+    @Slot("QVariantList", str, result="QVariantMap")
+    def exportProjects(self, columns: list, file_path: str) -> dict[str, object]:
+        from src.ui_qml.modules.project_management.utils.table_exporter import export_to_file
         self._set_error_message("")
-        self._set_feedback_message(
-            "Export is not available here. Open the Reports section to generate project listings, status summaries, and portfolio exports."
-        )
+        try:
+            all_ws = self._projects_workspace_presenter.build_workspace_state(
+                search_text=self._search_text,
+                status_filter=self._selected_status_filter,
+                selected_project_id=None,
+                page=1,
+                page_size=99999,
+            )
+            rows = serialize_project_record_view_models(all_ws.projects)
+            result = export_to_file(rows, list(columns), (file_path or "").strip())
+            if result.get("ok"):
+                self._set_feedback_message(result.get("message", "Export complete."))
+            else:
+                self._set_error_message(result.get("error", "Export failed."))
+            return result
+        except Exception as exc:
+            self._set_error_message(str(exc))
+            return {"ok": False, "error": str(exc)}
 
     @Slot(str, str, result="QVariantMap")
     def previewImport(self, file_path: str, source_format: str) -> dict[str, object]:

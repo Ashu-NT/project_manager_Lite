@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 import Shell.Context 1.0 as ShellContexts
 import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
@@ -136,19 +137,64 @@ AppLayouts.WorkspaceFrame {
             "noLongerCriticalCount": 0
         })
 
-    readonly property var _tableColumns: {
+    property string _tableId: "pm.tasks.table"
+    property var _columns: []
+
+    function _baseColumns() {
         const cols = [
-            { "key": "title",          "label": "Task",      "flex": 2,   "sortable": true  },
-            { "key": "statusLabel",    "label": "Status",    "flex": 0,   "minWidth": 100, "type": "status" },
-            { "key": "projectName",    "label": "Project",   "flex": 1.5, "sortable": true  },
-            { "key": "priorityLabel",  "label": "Priority",  "flex": 0,   "minWidth": 80, "type": "status" },
-            { "key": "startDateLabel", "label": "Start",     "flex": 0,   "minWidth": 90    },
-            { "key": "endDateLabel",   "label": "Finish",    "flex": 0,   "minWidth": 90    },
-            { "key": "progressValue",  "label": "Progress",  "flex": 1,   "minWidth": 110, "type": "progress" }
+            { "key": "title",          "label": "Task",      "flex": 2,   "sortable": true, "required": true, "visibleByDefault": true },
+            { "key": "statusLabel",    "label": "Status",    "flex": 0,   "minWidth": 100, "type": "status",  "required": true, "visibleByDefault": true },
+            { "key": "projectName",    "label": "Project",   "flex": 1.5, "sortable": true,                   "visibleByDefault": true },
+            { "key": "priorityLabel",  "label": "Priority",  "flex": 0,   "minWidth": 80, "type": "status",                    "visibleByDefault": true },
+            { "key": "startDateLabel", "label": "Start",     "flex": 0,   "minWidth": 90,                     "visibleByDefault": true },
+            { "key": "endDateLabel",   "label": "Finish",    "flex": 0,   "minWidth": 90,                     "visibleByDefault": true },
+            { "key": "progressValue",  "label": "Progress",  "flex": 1,   "minWidth": 110, "type": "progress", "visibleByDefault": true }
         ]
         if (root._hasInvStockCap)
-            cols.push({ "key": "materialDemandLabel", "label": "Material", "flex": 0, "minWidth": 90, "visible": true })
+            cols.push({ "key": "materialDemandLabel", "label": "Material", "flex": 0, "minWidth": 90, "visibleByDefault": true })
         return cols
+    }
+
+    function _applyColumnState(base, saved) {
+        const order = saved ? (saved.columnOrder || []) : []
+        const hidden = saved ? (saved.hiddenColumns || []) : []
+        if (order.length === 0) return base.slice()
+        const hiddenSet = {}
+        for (let i = 0; i < hidden.length; i++) hiddenSet[hidden[i]] = true
+        const byKey = {}
+        for (let i = 0; i < base.length; i++) byKey[base[i].key] = base[i]
+        const result = []
+        for (let j = 0; j < order.length; j++) {
+            const col = byKey[order[j]]
+            if (!col) continue
+            const c = Object.assign({}, col)
+            if (c.required !== true) c.visible = !hiddenSet[order[j]]
+            result.push(c)
+        }
+        for (let i = 0; i < base.length; i++) {
+            if (order.indexOf(base[i].key) < 0) result.push(Object.assign({}, base[i]))
+        }
+        return result
+    }
+
+    function _buildColumnState(columns) {
+        const order = []
+        const hidden = []
+        for (let i = 0; i < columns.length; i++) {
+            order.push(columns[i].key)
+            if (columns[i].visible === false) hidden.push(columns[i].key)
+        }
+        return { "columnOrder": order, "hiddenColumns": hidden }
+    }
+
+    Component.onCompleted: {
+        const base = root._baseColumns()
+        if (root.workspaceController !== null) {
+            const saved = root.workspaceController.loadTableColumnState(root._tableId)
+            root._columns = root._applyColumnState(base, saved)
+        } else {
+            root._columns = base
+        }
     }
 
     readonly property var _bulkChangeProperties: {
@@ -351,6 +397,20 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
+    FileDialog {
+        id: _exportDialog
+        title: "Export Tasks"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Excel files (*.xlsx)", "CSV files (*.csv)"]
+        onAccepted: {
+            if (root.workspaceController !== null) {
+                const cols = tasksTable.columns.filter(function(c) { return c.visible !== false })
+                    .map(function(c) { return { "key": c.key, "label": c.label } })
+                root.workspaceController.exportTasks(cols, String(selectedFile || ""))
+            }
+        }
+    }
+
     // ── Stacked layout: list page / detail page ───────────────────
     Item {
         anchors.fill: parent
@@ -435,11 +495,7 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.refresh()
                         }
                     }
-                    onExportRequested: {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.exportTasks()
-                        }
-                    }
+                    onExportRequested: _exportDialog.open()
                     onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
                 }
 
@@ -455,7 +511,8 @@ AppLayouts.WorkspaceFrame {
                         anchors.right:  parent.right
                         anchors.bottom: _paginationBar.top
                         multiSelect: true
-                        columns: root._tableColumns
+                        tableId: root._tableId
+                        columns: root._columns
                         rows: root.tasksModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.tasksModel.emptyState || "No tasks available."
@@ -486,6 +543,12 @@ AppLayouts.WorkspaceFrame {
                                 root.workspaceController.selectVisibleTasks()
                             } else {
                                 root.workspaceController.clearTaskBulkSelection()
+                            }
+                        }
+                        onColumnsStateChanged: function(columns) {
+                            if (root.workspaceController !== null) {
+                                root.workspaceController.saveTableColumnState(
+                                    root._tableId, root._buildColumnState(columns))
                             }
                         }
                     }

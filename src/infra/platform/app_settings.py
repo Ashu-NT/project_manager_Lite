@@ -22,6 +22,7 @@ class AppSettingsStore:
     _KEY_UPDATE_MANIFEST_URL = "updates/manifest_url"
     _KEY_TASK_SAVED_VIEWS = "task/saved_views"
     _KEY_DASHBOARD_LAYOUT = "dashboard/layout"
+    _KEY_TABLE_COLUMN_STATE = "ui/table_column_state"
 
     def __init__(self, settings: QSettings | None = None) -> None:
         self._settings = settings or QSettings(self.ORG_NAME, self.APP_NAME)
@@ -144,6 +145,29 @@ class AppSettingsStore:
     def save_dashboard_layout(self, layout: dict[str, object]) -> None:
         payload = dict(layout) if isinstance(layout, dict) else {}
         self._settings.setValue(self._KEY_DASHBOARD_LAYOUT, json.dumps(payload, sort_keys=True))
+        self._settings.sync()
+
+    def load_table_column_state(self, table_id: str) -> dict[str, object]:
+        all_states_raw = self._settings.value(self._KEY_TABLE_COLUMN_STATE, "{}")
+        try:
+            all_states = json.loads(str(all_states_raw or "{}"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+        if not isinstance(all_states, dict):
+            return {}
+        state = all_states.get(str(table_id), {})
+        return dict(state) if isinstance(state, dict) else {}
+
+    def save_table_column_state(self, table_id: str, state: dict[str, object]) -> None:
+        all_states_raw = self._settings.value(self._KEY_TABLE_COLUMN_STATE, "{}")
+        try:
+            all_states = json.loads(str(all_states_raw or "{}"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            all_states = {}
+        if not isinstance(all_states, dict):
+            all_states = {}
+        all_states[str(table_id)] = dict(state) if isinstance(state, dict) else {}
+        self._settings.setValue(self._KEY_TABLE_COLUMN_STATE, json.dumps(all_states, sort_keys=True))
         self._settings.sync()
 
 

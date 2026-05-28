@@ -449,12 +449,29 @@ class ProjectManagementResourcesWorkspaceController(
             set_feedback_message=self._set_feedback_message,
         )
 
-    @Slot()
-    def exportResources(self) -> None:
+    @Slot("QVariantList", str, result="QVariantMap")
+    def exportResources(self, columns: list, file_path: str) -> dict[str, object]:
+        from src.ui_qml.modules.project_management.utils.table_exporter import export_to_file
         self._set_error_message("")
-        self._set_feedback_message(
-            "Export is not available here. Open the Reports section to generate resource summaries, availability reports, and utilisation exports."
-        )
+        try:
+            all_ws = self._resources_workspace_presenter.build_workspace_state(
+                search_text=self._search_text,
+                active_filter=self._selected_active_filter,
+                category_filter=self._selected_category_filter,
+                selected_resource_id=None,
+                page=1,
+                page_size=99999,
+            )
+            rows = serialize_resource_record_view_models(all_ws.resources)
+            result = export_to_file(rows, list(columns), (file_path or "").strip())
+            if result.get("ok"):
+                self._set_feedback_message(result.get("message", "Export complete."))
+            else:
+                self._set_error_message(result.get("error", "Export failed."))
+            return result
+        except Exception as exc:
+            self._set_error_message(str(exc))
+            return {"ok": False, "error": str(exc)}
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change("resource", scope_code="project_management")
