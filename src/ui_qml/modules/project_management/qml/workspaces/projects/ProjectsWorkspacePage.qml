@@ -487,6 +487,7 @@ AppLayouts.WorkspaceFrame {
                     pmCatalog: root.pmCatalog
                     projectDetail: root.selectedProjectModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    sectionErrors: root.workspaceController ? root.workspaceController.sectionErrors : ({})
                     onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedProjectModel)
                     onStatusRequested: dialogHostLoader.invoke("openStatusDialog", root.selectedProjectModel)
                     onDeleteRequested: dialogHostLoader.invoke("openDeleteDialog", root.selectedProjectModel)

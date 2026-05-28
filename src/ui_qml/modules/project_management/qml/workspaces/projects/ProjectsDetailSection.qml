@@ -21,6 +21,7 @@ Item {
     })
     property bool isBusy: false
     property var detailPage: null
+    property var sectionErrors: ({})
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
 
     signal editRequested()
@@ -383,6 +384,13 @@ Item {
 
                 AppWidgets.SectionHeading { width: parent.width; label: "Tasks" }
 
+                AppWidgets.InlineMessage {
+                    width: parent.width
+                    visible: String(root.sectionErrors["tasks"] || "").length > 0
+                    tone: "danger"
+                    message: String(root.sectionErrors["tasks"] || "")
+                }
+
                 Item {
                     width: parent.width
                     implicitHeight: _tasksEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
@@ -413,6 +421,13 @@ Item {
                 spacing: 0
 
                 AppWidgets.SectionHeading { width: parent.width; label: "Resources" }
+
+                AppWidgets.InlineMessage {
+                    width: parent.width
+                    visible: String(root.sectionErrors["resources"] || "").length > 0
+                    tone: "danger"
+                    message: String(root.sectionErrors["resources"] || "")
+                }
 
                 Item {
                     width: parent.width
@@ -446,6 +461,13 @@ Item {
                 AppWidgets.SectionHeading {
                     width: parent.width
                     label: "Financials"
+                }
+
+                AppWidgets.InlineMessage {
+                    width: parent.width
+                    visible: String(root.sectionErrors["financials"] || "").length > 0
+                    tone: "danger"
+                    message: String(root.sectionErrors["financials"] || "")
                 }
 
                 Item {
@@ -542,6 +564,13 @@ Item {
 
                 AppWidgets.SectionHeading { width: parent.width; label: "Risks" }
 
+                AppWidgets.InlineMessage {
+                    width: parent.width
+                    visible: String(root.sectionErrors["risks"] || "").length > 0
+                    tone: "danger"
+                    message: String(root.sectionErrors["risks"] || "")
+                }
+
                 Item {
                     width: parent.width
                     implicitHeight: _risksEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
@@ -573,6 +602,13 @@ Item {
 
                 AppWidgets.SectionHeading { width: parent.width; label: "Documents" }
 
+                AppWidgets.InlineMessage {
+                    width: parent.width
+                    visible: String(root.sectionErrors["documents"] || "").length > 0
+                    tone: "danger"
+                    message: String(root.sectionErrors["documents"] || "")
+                }
+
                 Item {
                     width: parent.width
                     implicitHeight: _documentsEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
@@ -603,6 +639,13 @@ Item {
                 spacing: 0
 
                 AppWidgets.SectionHeading { width: parent.width; label: "Activity" }
+
+                AppWidgets.InlineMessage {
+                    width: parent.width
+                    visible: String(root.sectionErrors["activity"] || "").length > 0
+                    tone: "danger"
+                    message: String(root.sectionErrors["activity"] || "")
+                }
 
                 Item {
                     width: parent.width

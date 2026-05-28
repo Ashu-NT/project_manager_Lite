@@ -15,6 +15,7 @@ Item {
     property string selectedTaskId: ""
     property bool   isBusy:        false
     property bool   canCompose:    false
+    property string errorText:     ""
 
     signal composeRequested()
     signal markReadRequested(string taskId)
@@ -48,6 +49,13 @@ Item {
                 if      (actionId === "read")    root.markReadRequested(root.selectedTaskId)
                 else if (actionId === "refresh") root.refreshRequested()
             }
+        }
+
+        AppWidgets.InlineMessage {
+            Layout.fillWidth: true
+            visible: root.errorText.length > 0
+            tone: "danger"
+            message: root.errorText
         }
 
         // ── Activity timeline ─────────────────────────────────────────

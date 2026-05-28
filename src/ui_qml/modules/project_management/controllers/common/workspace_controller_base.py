@@ -22,6 +22,7 @@ class ProjectManagementWorkspaceControllerBase(QObject):
     errorMessageChanged = Signal()
     feedbackMessageChanged = Signal()
     emptyStateChanged = Signal()
+    sectionErrorsChanged = Signal()
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -37,6 +38,7 @@ class ProjectManagementWorkspaceControllerBase(QObject):
         self._error_message = ""
         self._feedback_message = ""
         self._empty_state = ""
+        self._section_errors: dict[str, str] = {}
         self._pending_domain_refresh = False
         self._domain_refresh_scheduled = False
         self._domain_refresh_timer = QTimer(self)
@@ -72,6 +74,10 @@ class ProjectManagementWorkspaceControllerBase(QObject):
     @Property(str, notify=emptyStateChanged)
     def emptyState(self) -> str:
         return self._empty_state
+
+    @Property("QVariantMap", notify=sectionErrorsChanged)
+    def sectionErrors(self) -> dict[str, str]:
+        return self._section_errors
 
     @Slot()
     def clearMessages(self) -> None:
@@ -117,6 +123,19 @@ class ProjectManagementWorkspaceControllerBase(QObject):
             return
         self._empty_state = value
         self.emptyStateChanged.emit()
+
+    def _set_section_error(self, section: str, error: str) -> None:
+        new = {**self._section_errors, section: error}
+        if new == self._section_errors:
+            return
+        self._section_errors = new
+        self.sectionErrorsChanged.emit()
+
+    def _clear_section_error(self, section: str) -> None:
+        if self._section_errors.get(section, "") == "":
+            return
+        self._section_errors = {**self._section_errors, section: ""}
+        self.sectionErrorsChanged.emit()
 
     def _subscribe_domain_signal(
         self,

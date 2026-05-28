@@ -695,7 +695,7 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._set_is_loading(True)
         try:
-            self._set_error_message("")
+            self._clear_section_error("assignments")
             ws = self._tasks_workspace_presenter.build_task_assignments_state(
                 task_id=self._selected_task_id,
                 project_id=self._selected_project_id or None,
@@ -708,7 +708,7 @@ class ProjectManagementTasksWorkspaceController(
                     first = assignment_items[0]
                     self._set_selected_assignment_id(str(getattr(first, "id", "") or ""))
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("assignments", str(exc))
         finally:
             self._set_is_loading(False)
 
@@ -720,7 +720,7 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._set_is_loading(True)
         try:
-            self._set_error_message("")
+            self._clear_section_error("dependencies")
             ws = self._tasks_workspace_presenter.build_task_dependencies_state(
                 task_id=self._selected_task_id,
                 project_id=self._selected_project_id or None,
@@ -728,7 +728,7 @@ class ProjectManagementTasksWorkspaceController(
             self._dependencies_ctrl._update(ws)
             self._dependencies_section_loaded_for_task_id = self._selected_task_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("dependencies", str(exc))
         finally:
             self._set_is_loading(False)
 
@@ -740,7 +740,7 @@ class ProjectManagementTasksWorkspaceController(
         self._set_is_loading(True)
 
         try:
-            self._set_error_message("")
+            self._clear_section_error("time")
 
             ws = self._tasks_workspace_presenter.build_task_time_state(
                 task_id=self._selected_task_id,
@@ -758,7 +758,7 @@ class ProjectManagementTasksWorkspaceController(
             self._set_time_section_loaded_for_task_id(self._selected_task_id)
 
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("time", str(exc))
 
         finally:
             self._set_is_loading(False)
@@ -774,7 +774,7 @@ class ProjectManagementTasksWorkspaceController(
         self._set_is_loading(True)
 
         try:
-            self._set_error_message("")
+            self._clear_section_error("activity")
 
             ws = self._tasks_workspace_presenter.build_task_collaboration_state(
                 task_id=self._selected_task_id,
@@ -787,7 +787,7 @@ class ProjectManagementTasksWorkspaceController(
             )
 
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("activity", str(exc))
 
         finally:
             self._set_is_loading(False)
@@ -800,14 +800,14 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._set_is_loading(True)
         try:
-            self._set_error_message("")
+            self._clear_section_error("skills")
             ws = self._tasks_workspace_presenter.build_task_skill_requirements_state(
                 task_id=self._selected_task_id,
             )
             self._assignments_ctrl._update_skill_requirements(ws)
             self._skill_requirements_section_loaded_for_task_id = self._selected_task_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("skills", str(exc))
         finally:
             self._set_is_loading(False)
 
@@ -819,7 +819,7 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._set_is_loading(True)
         try:
-            self._set_error_message("")
+            self._clear_section_error("scheduleImpact")
             impact = self._tasks_workspace_presenter.build_task_schedule_impact_state(
                 task_id=self._selected_task_id,
                 project_id=self._selected_project_id or None,
@@ -827,7 +827,7 @@ class ProjectManagementTasksWorkspaceController(
             self._set_schedule_impact(impact)
             self._schedule_impact_section_loaded_for_task_id = self._selected_task_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("scheduleImpact", str(exc))
         finally:
             self._set_is_loading(False)
 

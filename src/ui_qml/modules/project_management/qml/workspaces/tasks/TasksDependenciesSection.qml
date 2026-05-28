@@ -10,9 +10,10 @@ import App.Theme 1.0 as Theme
 Item {
     id: root
 
-    property var  dependenciesModel: AppMock.MockFactory.catalog()
-    property bool isBusy:           false
-    property bool canCreate:        false
+    property var    dependenciesModel: AppMock.MockFactory.catalog()
+    property bool   isBusy:           false
+    property bool   canCreate:        false
+    property string errorText:        ""
 
     signal createRequested()
     signal deleteRequested(var dependencyData)
@@ -51,6 +52,13 @@ Item {
         anchors.right: parent.right
         anchors.top:   parent.top
         spacing: 0
+
+        AppWidgets.InlineMessage {
+            Layout.fillWidth: true
+            visible: root.errorText.length > 0
+            tone: "danger"
+            message: root.errorText
+        }
 
         // Section toolbar — idle
         AppWidgets.ContextualActionToolbar {

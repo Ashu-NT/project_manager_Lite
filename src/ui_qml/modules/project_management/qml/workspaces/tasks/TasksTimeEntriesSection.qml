@@ -19,6 +19,7 @@ Item {
     property var    selectedEntryDetail: AppMock.MockFactory.fieldRecord()
     property string selectedEntryId:     ""
     property bool   isBusy:             false
+    property string errorText:          ""
 
     // ── Signals ───────────────────────────────────────────────────────
     signal periodChanged(string periodStart)
@@ -110,6 +111,13 @@ Item {
                     })
                 }
             }
+        }
+
+        AppWidgets.InlineMessage {
+            Layout.fillWidth: true
+            visible: root.errorText.length > 0
+            tone: "danger"
+            message: root.errorText
         }
 
         // ── Assignment summary + period selector ──────────────────────

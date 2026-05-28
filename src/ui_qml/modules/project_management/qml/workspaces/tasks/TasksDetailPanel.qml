@@ -37,6 +37,7 @@ Item {
     property bool canOpenProcurement: false
 
     property var skillRequirementsModel: AppMock.MockFactory.catalog("Skill Requirements", "", "Select a task.")
+    property var sectionErrors: ({})
     property var scheduleImpactModel: ({
         "available": false,
         "taskId": "",
@@ -301,6 +302,7 @@ Item {
                     selectedAssignmentId: root.selectedAssignmentId
                     isBusy: root.isBusy
                     canCreate: root._hasTask && root.assignmentOptions.length > 0
+                    errorText: String(root.sectionErrors["assignments"] || "")
 
                     onCreateRequested: root.createAssignmentRequested()
                     onAssignmentSelected: function(id) { root.assignmentSelected(id) }
@@ -320,6 +322,7 @@ Item {
                     dependenciesModel: root.dependenciesModel
                     isBusy: root.isBusy
                     canCreate: root._hasTask && root.dependencyTaskOptions.length > 0
+                    errorText: String(root.sectionErrors["dependencies"] || "")
 
                     onCreateRequested: root.createDependencyRequested()
                     onDeleteRequested: function(d) { root.deleteDependencyRequested(d) }
@@ -341,6 +344,7 @@ Item {
                     selectedEntryDetail: root.selectedTimeEntryModel
                     selectedEntryId: root.selectedEntryId
                     isBusy: root.isBusy
+                    errorText: String(root.sectionErrors["time"] || "")
 
                     onAssignmentChanged: function(assignmentId) { root.timeAssignmentSelected(assignmentId) }
                     onPeriodChanged: function(p) { root.periodChanged(p) }
@@ -366,6 +370,7 @@ Item {
                     selectedTaskId: root.selectedTaskId
                     isBusy: root.isBusy
                     canCompose: root._hasTask
+                    errorText: String(root.sectionErrors["activity"] || "")
 
                     onComposeRequested: root.composeRequested()
                     onMarkReadRequested: function(id) { root.markReadRequested(id) }
@@ -544,6 +549,13 @@ Item {
                             actions: []
                         }
 
+                        AppWidgets.InlineMessage {
+                            Layout.fillWidth: true
+                            visible: String(root.sectionErrors["skills"] || "").length > 0
+                            tone: "danger"
+                            message: String(root.sectionErrors["skills"] || "")
+                        }
+
                         Repeater {
                             model: root.skillRequirementsModel.items || []
 
@@ -641,6 +653,13 @@ Item {
                             subtitle: String(root.scheduleImpactModel.summary || "Simulating a 1-day start slip to show downstream ripple.")
                             busy: root.isBusy
                             actions: []
+                        }
+
+                        AppWidgets.InlineMessage {
+                            Layout.fillWidth: true
+                            visible: String(root.sectionErrors["scheduleImpact"] || "").length > 0
+                            tone: "danger"
+                            message: String(root.sectionErrors["scheduleImpact"] || "")
                         }
 
                         AppWidgets.InlineMessage {

@@ -15,6 +15,7 @@ Item {
     property bool   isBusy:              false
     property bool   canCreate:           false
     property var    assignmentPreview:   null
+    property string errorText:           ""
 
     signal createRequested()
     signal assignmentSelected(string assignmentId)
@@ -123,6 +124,13 @@ Item {
                 else if (actionId === "hours")      root.setHoursRequested(item)
                 else if (actionId === "remove")     root.deleteRequested(item)
             }
+        }
+
+        AppWidgets.InlineMessage {
+            Layout.fillWidth: true
+            visible: root.errorText.length > 0
+            tone: "danger"
+            message: root.errorText
         }
 
         // Assignment preview strip

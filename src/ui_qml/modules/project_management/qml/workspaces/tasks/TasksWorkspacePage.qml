@@ -863,6 +863,7 @@ AppLayouts.WorkspaceFrame {
                     pmCatalog: root.pmCatalog
                     taskDetail: root.selectedTaskModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    sectionErrors: root.workspaceController ? root.workspaceController.sectionErrors : ({})
 
                     assignmentsModel: root.assignmentsModel
                     selectedAssignmentId: root.workspaceController ? root.workspaceController.selectedAssignmentId : ""

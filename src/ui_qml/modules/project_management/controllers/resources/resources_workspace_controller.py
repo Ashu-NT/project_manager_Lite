@@ -568,16 +568,19 @@ class ProjectManagementResourcesWorkspaceController(
             self._set_resource_skills([])
             self._set_resource_certifications([])
             return
+        self._clear_section_error("skills")
         try:
             skills = self._resources_workspace_presenter.build_skills_state(rid)
             self._set_resource_skills(serialize_resource_skill_view_models(skills))
-        except Exception:
+        except Exception as exc:
             self._set_resource_skills([])
+            self._set_section_error("skills", str(exc))
         try:
             certs = self._resources_workspace_presenter.build_certifications_state(rid)
             self._set_resource_certifications(serialize_resource_certification_view_models(certs))
-        except Exception:
+        except Exception as exc:
             self._set_resource_certifications([])
+            self._set_section_error("skills", str(exc))
 
     def _set_resource_skills(self, skills: list[dict[str, object]]) -> None:
         if skills == self._resource_skills:

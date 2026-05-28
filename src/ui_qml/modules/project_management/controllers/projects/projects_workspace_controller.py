@@ -504,13 +504,14 @@ class ProjectManagementProjectsWorkspaceController(
 
         self._set_is_loading(True)
         try:
+            self._clear_section_error("tasks")
             ws = self._projects_workspace_presenter.build_project_tasks_state(
                 project_id=self._selected_project_id
             )
             self._set_project_tasks(self._serialize_project_section(ws.project_tasks))
             self._project_tasks_loaded_for_project_id = self._selected_project_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("tasks", str(exc))
         finally:
             self._set_is_loading(False)
 
@@ -523,13 +524,14 @@ class ProjectManagementProjectsWorkspaceController(
 
         self._set_is_loading(True)
         try:
+            self._clear_section_error("resources")
             ws = self._projects_workspace_presenter.build_project_resources_state(
                 project_id=self._selected_project_id
             )
             self._set_project_resources(self._serialize_project_section(ws.project_resources))
             self._project_resources_loaded_for_project_id = self._selected_project_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("resources", str(exc))
         finally:
             self._set_is_loading(False)
 
@@ -542,13 +544,14 @@ class ProjectManagementProjectsWorkspaceController(
 
         self._set_is_loading(True)
         try:
+            self._clear_section_error("financials")
             ws = self._projects_workspace_presenter.build_project_financials_state(
                 project_id=self._selected_project_id
             )
             self._set_project_financials(self._serialize_project_section(ws.project_financials))
             self._project_financials_loaded_for_project_id = self._selected_project_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("financials", str(exc))
         finally:
             self._set_is_loading(False)
 
@@ -561,13 +564,14 @@ class ProjectManagementProjectsWorkspaceController(
 
         self._set_is_loading(True)
         try:
+            self._clear_section_error("risks")
             ws = self._projects_workspace_presenter.build_project_risks_state(
                 project_id=self._selected_project_id
             )
             self._set_project_risks(self._serialize_project_section(ws.project_risks))
             self._project_risks_loaded_for_project_id = self._selected_project_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("risks", str(exc))
         finally:
             self._set_is_loading(False)
 
@@ -580,13 +584,14 @@ class ProjectManagementProjectsWorkspaceController(
 
         self._set_is_loading(True)
         try:
+            self._clear_section_error("documents")
             ws = self._projects_workspace_presenter.build_project_documents_state(
                 project_id=self._selected_project_id
             )
             self._set_project_documents(self._serialize_project_section(ws.project_documents))
             self._project_documents_loaded_for_project_id = self._selected_project_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("documents", str(exc))
         finally:
             self._set_is_loading(False)
 
@@ -599,13 +604,14 @@ class ProjectManagementProjectsWorkspaceController(
 
         self._set_is_loading(True)
         try:
+            self._clear_section_error("activity")
             ws = self._projects_workspace_presenter.build_project_activity_state(
                 project_id=self._selected_project_id
             )
             self._set_project_activity(self._serialize_project_section(ws.project_activity))
             self._project_activity_loaded_for_project_id = self._selected_project_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("activity", str(exc))
         finally:
             self._set_is_loading(False)
 
