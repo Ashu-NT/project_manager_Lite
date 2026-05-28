@@ -46,6 +46,7 @@ Item {
     }
 
     implicitHeight: _activeSectionH
+    height: implicitHeight
 
     AppWidgets.LazySectionLoader {
         id: _sec0

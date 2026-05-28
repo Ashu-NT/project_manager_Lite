@@ -80,6 +80,7 @@ Item {
     ]
 
     implicitHeight: _activeSectionH
+    height: implicitHeight
 
     function _sv(key) {
         const s = root.costDetail.state || {}
@@ -109,6 +110,7 @@ Item {
                     width: parent.width
                     visible: root._hasCost
                     implicitHeight: _budgetContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _budgetContent
@@ -270,6 +272,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _fcastContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _fcastContent
@@ -373,6 +376,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _commitContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _commitContent
@@ -575,6 +579,7 @@ Item {
                     width: parent.width
                     visible: (root.forecastModel.metrics || []).length > 0
                     implicitHeight: _evGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     GridLayout {
                         id: _evGrid
@@ -652,6 +657,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _activityFeed.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
                     AppWidgets.ActivityFeed {
                         id: _activityFeed
                         anchors.left: parent.left
@@ -689,6 +695,7 @@ Item {
                     width: parent.width
                     visible: (root.baselineVarianceModel || []).length > 0
                     implicitHeight: _varianceTable.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     Column {
                         id: _varianceTable

@@ -42,6 +42,7 @@ Item {
     ]
 
     implicitHeight: _activeSectionH
+    height: implicitHeight
 
     AppWidgets.LazySectionLoader {
         id: _sec0
@@ -127,6 +128,7 @@ Item {
                         required property var modelData
                         width: root.width
                         implicitHeight: _historyContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                         ColumnLayout {
                             id: _historyContent
@@ -214,6 +216,7 @@ Item {
                         required property var modelData
                         width: root.width
                         implicitHeight: _noteContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                         ColumnLayout {
                             id: _noteContent

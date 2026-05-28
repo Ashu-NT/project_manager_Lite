@@ -2262,40 +2262,43 @@ Files changed: `pm_time_controller.py`, `tasks_workspace_controller.py`
 
 ---
 
-#### Phase 6: Detail Page Layout Redesign ⬜
+#### Phase 6 & 8: Detail Page Scrolling Fix ✅
 
-**Problem**: PM detail panels have no `Flickable` or `ScrollView`. On screens with
-less than ~900 px of vertical space, bottom sections are clipped with no way to reach
-them.
+**Problem**: All 10 PM detail panels set only `implicitHeight` at their root level
+but not `height`. `SectionDetailPage.qml` drives its Flickable with
+`contentHeight: contentColumn.implicitHeight + pagePadding`, where `contentColumn`
+is a `Column` positioner. A `Column` uses children's explicit `height` property (not
+`implicitHeight`), so the Flickable always had `contentHeight ≈ 0` — content
+appeared (due to overflow without clipping) but was not scrollable.
 
-**Target**: every PM workspace detail panel is wrapped in a `Flickable` so all
-section content is reachable regardless of screen height.
+**Root cause (6 Group-B files additionally)**: The 6 panels that load sections via
+`Column { SectionHeading + Item { implicitHeight: ... } }` had a second break: the
+inner `Item` wrappers set `implicitHeight` but not `height`. Since `Column` doesn't
+auto-size children from `implicitHeight`, the loaded `Column`'s height equalled only
+the `SectionHeading` height (~40 px), so `_activeSectionH` was always ~40 px.
 
-Pattern to apply to each `*DetailPanel.qml` / `*DetailSection.qml`:
+**Fix applied 2026-05-28**:
 
-```qml
-// Replace anchors-based ColumnLayout with:
-Flickable {
-    anchors.fill: parent
-    contentWidth: width
-    contentHeight: _detailCol.implicitHeight
-    clip: true
-    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+Added `height: implicitHeight` to:
 
-    ColumnLayout {
-        id: _detailCol
-        width: parent.width
-        spacing: 0
-        // ... all existing sections ...
-    }
-}
-```
+1. **Root level of all 10 panels** — so `contentColumn.implicitHeight` tracks the
+   panel's full content height and the Flickable scrolls correctly:
+   - `TasksDetailPanel.qml`
+   - `CollaborationDetailPanel.qml`
+   - `SchedulingDetailPanel.qml`
+   - `PortfolioDetailPanel.qml`
+   - `ProjectsDetailSection.qml`
+   - `ResourcesDetailSection.qml`
+   - `FinancialsDetailSection.qml`
+   - `TimesheetsDetailSection.qml`
+   - `RiskDetailPanel.qml`
+   - `RegisterDetailPanel.qml`
 
-Apply to: `ProjectsDetailSection.qml`, `TasksDetailSection.qml`,
-`ResourcesDetailSection.qml`, `FinancialsDetailSection.qml`,
-`SchedulingDetailPanel.qml`, `PortfolioDetailSection.qml`,
-`RiskDetailSection.qml`, `RegisterDetailSection.qml`,
-`CollaborationDetailSection.qml`, `TimesheetsDetailSection.qml`.
+2. **Every inner `Item` wrapper** in the 6 Group-B panels (31 additional lines) so
+   their loaded `Column`'s `implicitHeight` reflects actual content height.
+
+No `SectionDetailPage.qml` changes needed — its existing `Flickable` already
+provided scrolling once heights propagate correctly.
 
 ---
 
@@ -2318,19 +2321,9 @@ Files changed: `src/ui_qml/modules/project_management/qml/workspaces/tasks/Tasks
 
 ---
 
-#### Phase 8: Apply Scrollable Layout to All PM Workspaces ⬜
+#### Phase 8: Apply Scrollable Layout to All PM Workspaces ✅
 
-Same Flickable pattern from Phase 6 applied to the remaining workspace detail panels
-not yet covered. Tracked separately because each panel requires its own read/edit
-pass to preserve existing anchor constraints.
-
-Priority order:
-1. `TasksDetailSection.qml` (most actively used)
-2. `SchedulingDetailPanel.qml`
-3. `ProjectsDetailSection.qml`
-4. `ResourcesDetailSection.qml`
-5. `FinancialsDetailSection.qml`
-6. All remaining panels
+Completed as part of Phase 6 fix (2026-05-28). See Phase 6 entry above.
 
 ---
 

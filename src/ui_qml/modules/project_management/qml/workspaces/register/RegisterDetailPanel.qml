@@ -29,6 +29,7 @@ Item {
     }
 
     implicitHeight: _activeSectionH
+    height: implicitHeight
 
     AppWidgets.LazySectionLoader {
         id: _sec0
@@ -48,6 +49,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: detailSection.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ProjectManagementWidgets.RegisterDetailSection {
                         id: detailSection
@@ -86,6 +88,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: urgentSection.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ProjectManagementWidgets.RegisterUrgentSection {
                         id: urgentSection

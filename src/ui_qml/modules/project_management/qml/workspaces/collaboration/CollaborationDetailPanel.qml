@@ -33,6 +33,7 @@ Item {
     implicitHeight: (_summaryStrip.visible ? _summaryStrip.height : 0)
         + _activeSectionH
         + Theme.AppTheme.spacingLg
+    height: implicitHeight
 
     readonly property int _activeSectionH: {
         if (root._idx === 0) return _sec0.implicitHeight

@@ -46,6 +46,7 @@ Item {
     }
 
     implicitHeight: _activeSectionH
+    height: implicitHeight
 
     function _sv(key) {
         const s = root.entryDetail.state || {}
@@ -70,6 +71,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: detailSection.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ProjectManagementWidgets.RegisterDetailSection {
                         id: detailSection
@@ -116,6 +118,7 @@ Item {
                     width: parent.width
                     visible: root._hasEntry
                     implicitHeight: _impactContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _impactContent
@@ -256,6 +259,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: urgentSection.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ProjectManagementWidgets.RegisterUrgentSection {
                         id: urgentSection
@@ -294,6 +298,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _activityFeed.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     AppWidgets.ActivityFeed {
                         id: _activityFeed

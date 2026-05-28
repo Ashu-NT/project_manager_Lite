@@ -56,6 +56,7 @@ Item {
     }
 
     implicitHeight: _activeSectionH
+    height: implicitHeight
 
     AppWidgets.LazySectionLoader {
         id: _sec0
@@ -71,6 +72,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _overviewCol.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _overviewCol
@@ -201,6 +203,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _assignmentsEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
                     AppWidgets.EmptyState {
                         id: _assignmentsEmpty
                         anchors.top: parent.top
@@ -228,6 +231,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _capacityCol.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _capacityCol
@@ -348,6 +352,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _calendarEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
                     AppWidgets.EmptyState {
                         id: _calendarEmpty
                         anchors.top: parent.top
@@ -561,6 +566,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _costRatesCol.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _costRatesCol
@@ -630,6 +636,7 @@ Item {
                     width: parent.width
                     visible: !!String(root.resourceAvailabilityModel.resourceId || "").length
                     implicitHeight: _availCol.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _availCol
@@ -761,6 +768,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: Math.max(_activityFeed.implicitHeight, 80) + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
                     AppWidgets.ActivityFeed {
                         id: _activityFeed
                         anchors.top: parent.top

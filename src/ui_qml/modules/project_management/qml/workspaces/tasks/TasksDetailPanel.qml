@@ -107,6 +107,7 @@ Item {
     implicitHeight: (_summaryStrip.visible ? _summaryStrip.height : 0)
         + _activeSectionH
         + Theme.AppTheme.spacingLg
+    height: implicitHeight
 
     readonly property int _activeSectionH: {
         const secs = root._sections

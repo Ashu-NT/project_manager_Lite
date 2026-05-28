@@ -54,6 +54,7 @@ Item {
     }
 
     implicitHeight: _activeSectionH
+    height: implicitHeight
 
     AppWidgets.LazySectionLoader {
         id: _sec0
@@ -73,6 +74,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _overviewCol.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _overviewCol
@@ -301,6 +303,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _scheduleContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _scheduleContent
@@ -383,6 +386,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _tasksEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     AppWidgets.EmptyState {
                         id: _tasksEmpty
@@ -413,6 +417,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _resourcesEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     AppWidgets.EmptyState {
                         id: _resourcesEmpty
@@ -446,6 +451,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _financialsCol.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _financialsCol
@@ -539,6 +545,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _risksEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     AppWidgets.EmptyState {
                         id: _risksEmpty
@@ -569,6 +576,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _documentsEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     AppWidgets.EmptyState {
                         id: _documentsEmpty
@@ -599,6 +607,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: Math.max(_activityFeed.implicitHeight, 80) + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     AppWidgets.ActivityFeed {
                         id: _activityFeed
@@ -635,6 +644,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _matDemandContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _matDemandContent
@@ -681,6 +691,7 @@ Item {
                 Item {
                     width: parent.width
                     implicitHeight: _procContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _procContent
