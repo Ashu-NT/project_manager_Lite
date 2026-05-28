@@ -322,12 +322,10 @@ class ProjectManagementCollaborationWorkspaceController(
     @Slot(str, result="QVariantMap")
     def exportPanel(self, panel_id: str) -> dict[str, object]:
         panel_label = self._panel_label(str(panel_id or ""))
+        message = f"Export is not available here. Open the Reports section to generate {panel_label.lower()} summaries and collaboration exports."
         self._set_error_message("")
-        self._set_feedback_message(f"{panel_label} export is queued for a later iteration.")
-        return {
-            "ok": True,
-            "message": f"{panel_label} export is queued for a later iteration.",
-        }
+        self._set_feedback_message(message)
+        return {"ok": True, "message": message}
 
     @Slot(str, str)
     def selectItem(self, panel_id: str, item_id: str) -> None:

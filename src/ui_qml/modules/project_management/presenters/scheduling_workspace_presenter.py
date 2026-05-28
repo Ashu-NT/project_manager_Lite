@@ -607,7 +607,7 @@ class ProjectSchedulingWorkspacePresenter:
     def export_schedule(project_id: str) -> str:
         if not str(project_id or "").strip():
             raise ValueError("Select a project before exporting the schedule.")
-        return "Schedule export is not connected yet. Timeline and activity data are ready for a future export adapter."
+        return "Export is not available here. Open the Reports section to generate schedule reports, Gantt exports, and baseline comparisons."
 
     @staticmethod
     def _resolve_project_id(

@@ -345,7 +345,8 @@ class ProjectManagementDashboardWorkspaceController(
 
     @Slot(result="QVariantMap")
     def exportDashboard(self) -> dict[str, object]:
-        message = "Dashboard export is not connected yet."
+        message = "Export is not available here. Open the Reports section to generate dashboard summaries and project health exports."
+        self._set_error_message("")
         self._set_feedback_message(message)
         return {"ok": True, "message": message}
 

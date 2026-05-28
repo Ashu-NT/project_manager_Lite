@@ -332,7 +332,7 @@ class ProjectManagementRegisterWorkspaceController(
     def exportRegister(self) -> None:
         self._set_error_message("")
         self._set_feedback_message(
-            "Register export is not implemented yet in the QML workspace."
+            "Export is not available here. Open the Reports section to generate register entries, risk summaries, and issue logs."
         )
 
     @Slot("QVariantList", result="QVariantMap")

@@ -277,7 +277,7 @@ class ProjectManagementPortfolioWorkspaceController(
     def exportPortfolio(self) -> None:
         self._set_error_message("")
         self._set_feedback_message(
-            "Portfolio export is not implemented yet in the QML workspace."
+            "Export is not available here. Open the Reports section to generate portfolio summaries and scenario exports."
         )
 
     @Slot("QVariantMap", result="QVariantMap")

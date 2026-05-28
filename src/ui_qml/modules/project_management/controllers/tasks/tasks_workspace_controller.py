@@ -939,7 +939,7 @@ class ProjectManagementTasksWorkspaceController(
 
     @Slot(result="QVariantMap")
     def exportTasks(self) -> dict[str, object]:
-        message = "Task export is not implemented yet in the QML workspace."
+        message = "Export is not available here. Open the Reports section to generate task lists, progress summaries, and assignment exports."
         self._set_error_message("")
         self._set_feedback_message(message)
         return {"ok": True, "message": message}

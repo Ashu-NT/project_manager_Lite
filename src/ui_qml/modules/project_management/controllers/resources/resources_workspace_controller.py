@@ -453,7 +453,7 @@ class ProjectManagementResourcesWorkspaceController(
     def exportResources(self) -> None:
         self._set_error_message("")
         self._set_feedback_message(
-            "Resource export is not implemented yet in the QML workspace."
+            "Export is not available here. Open the Reports section to generate resource summaries, availability reports, and utilisation exports."
         )
 
     def _bind_domain_events(self) -> None:

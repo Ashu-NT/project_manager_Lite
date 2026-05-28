@@ -340,8 +340,9 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Slot()
     def exportFinancials(self) -> None:
+        self._set_error_message("")
         self._set_feedback_message(
-            "Export is not yet available. Use Reports to generate financial summaries."
+            "Export is not available here. Open the Reports section to generate financial summaries, cost breakdowns, and variance exports."
         )
 
     @Slot(int)
