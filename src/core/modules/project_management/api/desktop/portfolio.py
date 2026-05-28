@@ -7,6 +7,7 @@ from src.core.modules.project_management.application.projects import (
     PortfolioService,
     ProjectService,
 )
+from src.core.modules.project_management.application.resources import PortfolioResourcePoolService
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
 
@@ -188,15 +189,27 @@ class PortfolioDependencyCreateCommand:
     summary: str = ""
 
 
+@dataclass(frozen=True)
+class PortfolioCapacityResourceDto:
+    resource_id: str
+    resource_name: str
+    peak_load_percent: float
+    average_load_percent: float
+    overloaded: bool
+    demand_entries: tuple[str, ...]  # project names contributing demand
+
+
 class ProjectManagementPortfolioDesktopApi:
     def __init__(
         self,
         *,
         project_service: ProjectService | None = None,
         portfolio_service: PortfolioService | None = None,
+        pool_service: PortfolioResourcePoolService | None = None,
     ) -> None:
         self._project_service = project_service
         self._portfolio_service = portfolio_service
+        self._pool_service = pool_service
 
     def list_projects(self) -> tuple[PortfolioProjectOptionDescriptor, ...]:
         if self._project_service is None:
@@ -574,14 +587,48 @@ class ProjectManagementPortfolioDesktopApi:
         )
 
 
+    def build_capacity_pool(self) -> tuple[PortfolioCapacityResourceDto, ...]:
+        if self._pool_service is None:
+            return ()
+        from datetime import date as _date, timedelta
+        today = _date.today()
+        to_date = today + timedelta(days=90)
+        try:
+            report = self._pool_service.get_pool_report(from_date=today, to_date=to_date)
+        except Exception:
+            return ()
+        sorted_pool = sorted(
+            report.pool,
+            key=lambda r: float(r.peak_load_percent or 0.0),
+            reverse=True,
+        )
+        return tuple(
+            PortfolioCapacityResourceDto(
+                resource_id=str(summary.resource_id or ""),
+                resource_name=str(summary.resource_name or summary.resource_id or "Resource"),
+                peak_load_percent=float(summary.peak_load_percent or 0.0),
+                average_load_percent=float(summary.average_load_percent or 0.0),
+                overloaded=bool(summary.overloaded),
+                demand_entries=tuple(
+                    str(d.project_name or d.project_id or "")
+                    for d in summary.demands
+                    if d.project_name or d.project_id
+                ),
+            )
+            for summary in sorted_pool
+        )
+
+
 def build_project_management_portfolio_desktop_api(
     *,
     project_service: ProjectService | None = None,
     portfolio_service: PortfolioService | None = None,
+    pool_service: PortfolioResourcePoolService | None = None,
 ) -> ProjectManagementPortfolioDesktopApi:
     return ProjectManagementPortfolioDesktopApi(
         project_service=project_service,
         portfolio_service=portfolio_service,
+        pool_service=pool_service,
     )
 
 

@@ -50,6 +50,7 @@ from src.core.modules.project_management.api.desktop.financials import (
     build_project_management_financials_desktop_api,
 )
 from src.core.modules.project_management.api.desktop.portfolio import (
+    PortfolioCapacityResourceDto,
     PortfolioDependencyCreateCommand,
     PortfolioDependencyDesktopDto,
     PortfolioHeatmapDesktopDto,
@@ -79,6 +80,8 @@ from src.core.modules.project_management.api.desktop.resources import (
     ProjectManagementResourcesDesktopApi,
     ResourceAddCertificationCommand,
     ResourceAddSkillCommand,
+    ResourceAvailabilityDayDto,
+    ResourceAvailabilityDto,
     ResourceCategoryDescriptor,
     ResourceCertificationDesktopDto,
     ResourceCreateCommand,
@@ -214,6 +217,7 @@ __all__ = [
     "FinancialSnapshotDto",
     "FinancialTaskOptionDescriptor",
     "FinancialUpdateCommand",
+    "PortfolioCapacityResourceDto",
     "PortfolioDependencyCreateCommand",
     "PortfolioDependencyDesktopDto",
     "PortfolioHeatmapDesktopDto",
@@ -256,6 +260,8 @@ __all__ = [
     "build_project_management_register_desktop_api",
     "ResourceAddCertificationCommand",
     "ResourceAddSkillCommand",
+    "ResourceAvailabilityDayDto",
+    "ResourceAvailabilityDto",
     "ResourceCategoryDescriptor",
     "ResourceCertificationDesktopDto",
     "ResourceCreateCommand",

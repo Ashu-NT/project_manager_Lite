@@ -53,6 +53,10 @@ AppLayouts.WorkspaceFrame {
         ? root.workspaceController.recentActions
         : ({ "title": "", "subtitle": "", "emptyState": "No recent activity.", "items": [] })
 
+    readonly property var _capacityPoolModel: root.workspaceController
+        ? root.workspaceController.capacityPool
+        : ({ "title": "Capacity Pool", "subtitle": "", "emptyState": "No capacity data available.", "items": [] })
+
     // ── Workspace metadata ─────────────────────────────────────────────
     title:    root.overviewModel.title    || "Portfolio"
     subtitle: root.overviewModel.subtitle || ""
@@ -712,14 +716,78 @@ AppLayouts.WorkspaceFrame {
                                             anchors.topMargin:   Theme.AppTheme.marginMd
                                             spacing: Theme.AppTheme.spacingMd
 
-                                            PortfolioSummaryCard {
+                                            AppControls.Label {
                                                 Layout.fillWidth: true
-                                                summaryModel: root._evaluationModel
+                                                text: root._capacityPoolModel.title || "Capacity Pool"
+                                                color: Theme.AppTheme.textPrimary
+                                                font.family: Theme.AppTheme.fontFamily
+                                                font.pixelSize: Theme.AppTheme.smallSize
+                                                font.bold: true
+                                            }
+                                            AppControls.Label {
+                                                Layout.fillWidth: true
+                                                text: root._capacityPoolModel.subtitle || ""
+                                                color: Theme.AppTheme.textMuted
+                                                font.family: Theme.AppTheme.fontFamily
+                                                font.pixelSize: Theme.AppTheme.captionSize
+                                                wrapMode: Text.Wrap
+                                                visible: !!text
                                             }
 
-                                            PortfolioSummaryCard {
+                                            AppWidgets.EmptyState {
                                                 Layout.fillWidth: true
-                                                summaryModel: root._comparisonModel
+                                                visible: (root._capacityPoolModel.items || []).length === 0
+                                                title: "No capacity data"
+                                                message: root._capacityPoolModel.emptyState
+                                                    || "Assign resources to tasks to see portfolio-level capacity demand."
+                                            }
+
+                                            Repeater {
+                                                model: root._capacityPoolModel.items || []
+                                                delegate: Rectangle {
+                                                    id: _capRow
+                                                    required property var modelData
+                                                    required property int index
+                                                    Layout.fillWidth: true
+                                                    implicitHeight: _capRowContent.implicitHeight + Theme.AppTheme.spacingSm * 2
+                                                    color: (_capRow.modelData.state && _capRow.modelData.state.overloaded)
+                                                        ? Qt.rgba(Theme.AppTheme.danger.r, Theme.AppTheme.danger.g, Theme.AppTheme.danger.b, 0.08)
+                                                        : Theme.AppTheme.surfaceAlt
+                                                    radius: Theme.AppTheme.radiusSm
+
+                                                    RowLayout {
+                                                        id: _capRowContent
+                                                        anchors.left: parent.left
+                                                        anchors.right: parent.right
+                                                        anchors.top: parent.top
+                                                        anchors.margins: Theme.AppTheme.spacingSm
+                                                        spacing: Theme.AppTheme.spacingSm
+
+                                                        AppControls.Label {
+                                                            Layout.fillWidth: true
+                                                            text: String(_capRow.modelData.title || "")
+                                                            color: Theme.AppTheme.textPrimary
+                                                            font.family: Theme.AppTheme.fontFamily
+                                                            font.pixelSize: Theme.AppTheme.smallSize
+                                                            elide: Text.ElideRight
+                                                        }
+                                                        AppControls.Label {
+                                                            text: String(_capRow.modelData.subtitle || "")
+                                                            color: Theme.AppTheme.textMuted
+                                                            font.family: Theme.AppTheme.fontFamily
+                                                            font.pixelSize: Theme.AppTheme.captionSize
+                                                        }
+                                                        AppControls.Label {
+                                                            text: String(_capRow.modelData.statusLabel || "")
+                                                            color: (_capRow.modelData.state && _capRow.modelData.state.overloaded)
+                                                                ? Theme.AppTheme.danger
+                                                                : Theme.AppTheme.success
+                                                            font.family: Theme.AppTheme.fontFamily
+                                                            font.pixelSize: Theme.AppTheme.smallSize
+                                                            font.bold: true
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }

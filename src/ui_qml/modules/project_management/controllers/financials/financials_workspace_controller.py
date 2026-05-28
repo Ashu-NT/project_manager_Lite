@@ -6,6 +6,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
+    serialize_financials_baseline_variance_view_models,
     serialize_financials_collection_view_model,
     serialize_financials_commitment_summary_view_model,
     serialize_financials_detail_view_model,
@@ -51,6 +52,7 @@ class ProjectManagementFinancialsWorkspaceController(
     selectedCostCountChanged = Signal()
     forecastChanged = Signal()
     commitmentSummaryChanged = Signal()
+    baselineVarianceChanged = Signal()
 
     def __init__(
         self,
@@ -109,6 +111,7 @@ class ProjectManagementFinancialsWorkspaceController(
             "plannedLabel": "", "uncommittedLabel": "", "committedLabel": "",
             "invoicedLabel": "", "paidLabel": "", "exposureLabel": "", "commitmentRatePct": 0.0,
         }
+        self._baseline_variance: list[dict[str, object]] = []
         self._bind_domain_events()
         self.refresh()
 
@@ -179,6 +182,10 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantMap", notify=commitmentSummaryChanged)
     def commitmentSummary(self) -> dict[str, object]:
         return self._commitment_summary
+
+    @Property("QVariantList", notify=baselineVarianceChanged)
+    def baselineVariance(self) -> list[dict[str, object]]:
+        return self._baseline_variance
 
     @Property("QVariantList", notify=costTypeOptionsChanged)
     def bulkCostTypeOptions(self) -> list[dict[str, object]]:
@@ -269,6 +276,9 @@ class ProjectManagementFinancialsWorkspaceController(
             )
             self._set_commitment_summary(
                 serialize_financials_commitment_summary_view_model(workspace_state.commitment_summary)
+            )
+            self._set_baseline_variance(
+                serialize_financials_baseline_variance_view_models(workspace_state.baseline_variance)
             )
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
@@ -577,6 +587,12 @@ class ProjectManagementFinancialsWorkspaceController(
             return
         self._commitment_summary = summary
         self.commitmentSummaryChanged.emit()
+
+    def _set_baseline_variance(self, rows: list[dict[str, object]]) -> None:
+        if rows == self._baseline_variance:
+            return
+        self._baseline_variance = rows
+        self.baselineVarianceChanged.emit()
 
 
 __all__ = ["ProjectManagementFinancialsWorkspaceController"]

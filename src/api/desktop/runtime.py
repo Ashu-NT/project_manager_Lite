@@ -124,7 +124,9 @@ from src.core.modules.project_management.application.projects import (
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.resources import (
+    PortfolioResourcePoolService,
     ProjectResourceService,
+    ResourceAvailabilityService,
     ResourceService,
     TimesheetService,
 )
@@ -376,6 +378,18 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     pm_resource_service = (
         resource_service if isinstance(resource_service, ResourceService) else None
     )
+    _raw_availability_service = services.get("resource_availability_service")
+    pm_availability_service = (
+        _raw_availability_service
+        if isinstance(_raw_availability_service, ResourceAvailabilityService)
+        else None
+    )
+    _raw_pool_service = services.get("portfolio_resource_pool_service")
+    pm_pool_service = (
+        _raw_pool_service
+        if isinstance(_raw_pool_service, PortfolioResourcePoolService)
+        else None
+    )
     project_resource_service = services.get("project_resource_service")
     pm_project_resource_service = (
         project_resource_service
@@ -567,6 +581,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         project_management_portfolio=build_project_management_portfolio_desktop_api(
             project_service=pm_project_service,
             portfolio_service=pm_portfolio_service,
+            pool_service=pm_pool_service,
         ),
         project_management_projects=build_project_management_projects_desktop_api(
             project_service=pm_project_service,
@@ -576,6 +591,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         project_management_resources=build_project_management_resources_desktop_api(
             resource_service=pm_resource_service,
             employee_service=employee_service,
+            availability_service=pm_availability_service,
         ),
         project_management_scheduling=build_project_management_scheduling_desktop_api(
             project_service=pm_project_service,

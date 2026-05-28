@@ -72,9 +72,13 @@ AppLayouts.WorkspaceFrame {
         const secs = ["Budget", "Actuals", "Forecast", "Commitments", "Invoices"]
         if (root._hasProcPoCap) secs.push("Purchase Orders")
         secs.push("Earned Value")
+        secs.push("Variance")
         secs.push("Activity")
         return secs
     }
+
+    readonly property var baselineVarianceModel: root.workspaceController
+        ? (root.workspaceController.baselineVariance || []) : []
 
     readonly property var _tableColumns: [
         { "key": "title",                 "label": "Description", "flex": 2,   "sortable": true  },
@@ -526,6 +530,7 @@ AppLayouts.WorkspaceFrame {
                         ? root.workspaceController.forecast : ({})
                     commitmentSummaryModel: root.workspaceController
                         ? root.workspaceController.commitmentSummary : ({})
+                    baselineVarianceModel: root.baselineVarianceModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 }
             }

@@ -21,6 +21,11 @@ Item {
     property bool isBusy: false
     property var detailPage: null
     property var workspaceController: null
+    property var resourceAvailabilityModel: ({
+        "resourceId": "", "peakLoadPercent": 0, "averageLoadPercent": 0,
+        "overloadedDays": 0, "availableDays": 0, "isAvailable": true,
+        "fromDateLabel": "", "toDateLabel": "", "days": []
+    })
 
     signal editRequested()
     signal toggleRequested()
@@ -45,7 +50,9 @@ Item {
         if (root._idx === 4) return _sec4.implicitHeight
         if (root._idx === 5) return _sec5.implicitHeight
         if (root._idx === 6) return _sec6.implicitHeight
-        return _sec7.implicitHeight
+        if (root._idx === 7) return _sec8.implicitHeight
+        if (root._idx === 8) return _sec7.implicitHeight
+        return 0
     }
 
     implicitHeight: _activeSectionH
@@ -601,10 +608,151 @@ Item {
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec7
+        id: _sec8
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 7
+        sourceComponent: Component {
+            Column {
+                width: parent ? parent.width : 0
+                spacing: 0
+
+                AppWidgets.SectionHeading { width: parent.width; label: "Availability" }
+
+                AppWidgets.EmptyState {
+                    width: parent.width
+                    visible: !String(root.resourceAvailabilityModel.resourceId || "").length
+                    title: "No availability data"
+                    message: "Select a resource to check its capacity across the next 90 days."
+                }
+
+                Item {
+                    width: parent.width
+                    visible: !!String(root.resourceAvailabilityModel.resourceId || "").length
+                    implicitHeight: _availCol.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+                    ColumnLayout {
+                        id: _availCol
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: Theme.AppTheme.spacingMd
+                        spacing: Theme.AppTheme.spacingSm
+
+                        AppControls.Label {
+                            Layout.fillWidth: true
+                            text: {
+                                const from = root.resourceAvailabilityModel.fromDateLabel || ""
+                                const to = root.resourceAvailabilityModel.toDateLabel || ""
+                                return from && to ? "Outlook: " + from + " – " + to : "90-day outlook"
+                            }
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                        }
+
+                        GridLayout {
+                            Layout.fillWidth: true
+                            columns: 2
+                            columnSpacing: Theme.AppTheme.spacingMd
+                            rowSpacing: Theme.AppTheme.spacingXs
+
+                            AppControls.Label { text: "Peak Load"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize; font.bold: true }
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: (root.resourceAvailabilityModel.peakLoadPercent || 0).toFixed(0) + "%"
+                                color: (root.resourceAvailabilityModel.peakLoadPercent || 0) > 100
+                                    ? Theme.AppTheme.danger
+                                    : (root.resourceAvailabilityModel.peakLoadPercent || 0) >= 90
+                                        ? Theme.AppTheme.warning
+                                        : Theme.AppTheme.success
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                font.bold: true
+                            }
+                            AppControls.Label { text: "Avg Load"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize; font.bold: true }
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: (root.resourceAvailabilityModel.averageLoadPercent || 0).toFixed(0) + "%"
+                                color: Theme.AppTheme.textPrimary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                            }
+                            AppControls.Label { text: "Overloaded Days"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize; font.bold: true }
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: String(root.resourceAvailabilityModel.overloadedDays || 0)
+                                color: (root.resourceAvailabilityModel.overloadedDays || 0) > 0 ? Theme.AppTheme.danger : Theme.AppTheme.success
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                            }
+                            AppControls.Label { text: "Available Days"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize; font.bold: true }
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: String(root.resourceAvailabilityModel.availableDays || 0)
+                                color: Theme.AppTheme.textPrimary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                            }
+                        }
+
+                        AppWidgets.EmptyState {
+                            Layout.fillWidth: true
+                            visible: (root.resourceAvailabilityModel.days || []).length === 0
+                                && !!String(root.resourceAvailabilityModel.resourceId || "").length
+                            title: "No overloaded days"
+                            message: "This resource has no capacity conflicts in the 90-day outlook."
+                        }
+
+                        Column {
+                            Layout.fillWidth: true
+                            spacing: 2
+                            visible: (root.resourceAvailabilityModel.days || []).length > 0
+
+                            AppControls.Label {
+                                width: parent.width
+                                text: "Overloaded Days"
+                                color: Theme.AppTheme.textMuted
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.bold: true
+                            }
+
+                            Repeater {
+                                model: root.resourceAvailabilityModel.days || []
+                                delegate: RowLayout {
+                                    id: _dayRow
+                                    required property var modelData
+                                    width: parent.width
+                                    spacing: Theme.AppTheme.spacingSm
+                                    AppControls.Label {
+                                        Layout.fillWidth: true
+                                        text: String(_dayRow.modelData.dateLabel || "")
+                                        color: Theme.AppTheme.textPrimary
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                    }
+                                    AppControls.Label {
+                                        text: String(_dayRow.modelData.allocationLabel || "")
+                                        color: Theme.AppTheme.danger
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        font.bold: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    AppWidgets.LazySectionLoader {
+        id: _sec7
+        anchors.left: parent.left
+        anchors.right: parent.right
+        active: root._idx === 8
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0

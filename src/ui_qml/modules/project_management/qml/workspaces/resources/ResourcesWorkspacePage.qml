@@ -426,7 +426,7 @@ AppLayouts.WorkspaceFrame {
                 showEdit: false
                 showDelete: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                sections: ["Overview", "Assignments", "Capacity", "Calendar", "Skills", "Certifications", "Cost Rates", "Activity"]
+                sections: ["Overview", "Assignments", "Capacity", "Calendar", "Skills", "Certifications", "Cost Rates", "Availability", "Activity"]
                 z: 20
                 Component.onCompleted: scrollToSection(root._pendingDetailSection)
 
@@ -461,6 +461,8 @@ AppLayouts.WorkspaceFrame {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     resourceDetail: root.selectedResourceModel
+                    resourceAvailabilityModel: root.workspaceController
+                        ? (root.workspaceController.resourceAvailability || {}) : ({})
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     workspaceController: root.workspaceController
                     onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedResourceModel)

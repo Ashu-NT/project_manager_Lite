@@ -92,6 +92,27 @@ class ResourceCertificationViewModel:
 
 
 @dataclass(frozen=True)
+class ResourceAvailabilityDayViewModel:
+    date_label: str
+    allocation_percent: float
+    allocation_label: str
+    overloaded: bool
+
+
+@dataclass(frozen=True)
+class ResourceAvailabilityViewModel:
+    resource_id: str = ""
+    peak_load_percent: float = 0.0
+    average_load_percent: float = 0.0
+    overloaded_days: int = 0
+    available_days: int = 0
+    is_available: bool = True
+    from_date_label: str = ""
+    to_date_label: str = ""
+    days: tuple[ResourceAvailabilityDayViewModel, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
 class ResourceCatalogWorkspaceViewModel:
     overview: ResourceCatalogOverviewViewModel
     worker_type_options: tuple[ResourceSelectorOptionViewModel, ...] = field(default_factory=tuple)
@@ -103,6 +124,7 @@ class ResourceCatalogWorkspaceViewModel:
     resources: tuple[ResourceRecordViewModel, ...] = field(default_factory=tuple)
     selected_resource_id: str = ""
     selected_resource_detail: ResourceDetailViewModel = field(default_factory=ResourceDetailViewModel)
+    resource_availability: ResourceAvailabilityViewModel = field(default_factory=ResourceAvailabilityViewModel)
     empty_state: str = ""
     total_count: int = 0
     page: int = 1
@@ -110,6 +132,8 @@ class ResourceCatalogWorkspaceViewModel:
 
 
 __all__ = [
+    "ResourceAvailabilityDayViewModel",
+    "ResourceAvailabilityViewModel",
     "ResourceCatalogMetricViewModel",
     "ResourceCatalogOverviewViewModel",
     "ResourceCatalogWorkspaceViewModel",

@@ -44,6 +44,7 @@ class ProjectManagementPortfolioWorkspaceController(
     heatmapChanged = Signal()
     dependenciesChanged = Signal()
     recentActionsChanged = Signal()
+    capacityPoolChanged = Signal()
     activeTemplateSummaryChanged = Signal()
 
     def __init__(
@@ -78,6 +79,7 @@ class ProjectManagementPortfolioWorkspaceController(
         self._heatmap: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._dependencies: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._recent_actions: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
+        self._capacity_pool: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._active_template_summary = ""
         self._bind_domain_events()
         self.refresh()
@@ -154,6 +156,10 @@ class ProjectManagementPortfolioWorkspaceController(
     def recentActions(self) -> dict[str, object]:
         return self._recent_actions
 
+    @Property("QVariantMap", notify=capacityPoolChanged)
+    def capacityPool(self) -> dict[str, object]:
+        return self._capacity_pool
+
     @Property(str, notify=activeTemplateSummaryChanged)
     def activeTemplateSummary(self) -> str:
         return self._active_template_summary
@@ -224,6 +230,9 @@ class ProjectManagementPortfolioWorkspaceController(
             )
             self._set_recent_actions(
                 serialize_portfolio_collection_view_model(workspace_state.recent_actions)
+            )
+            self._set_capacity_pool(
+                serialize_portfolio_collection_view_model(workspace_state.capacity_pool)
             )
             self._set_active_template_summary(workspace_state.active_template_summary)
             self._set_empty_state(workspace_state.empty_state)
@@ -471,6 +480,12 @@ class ProjectManagementPortfolioWorkspaceController(
             return
         self._recent_actions = recent_actions
         self.recentActionsChanged.emit()
+
+    def _set_capacity_pool(self, capacity_pool: dict[str, object]) -> None:
+        if capacity_pool == self._capacity_pool:
+            return
+        self._capacity_pool = capacity_pool
+        self.capacityPoolChanged.emit()
 
     def _set_active_template_summary(self, active_template_summary: str) -> None:
         if active_template_summary == self._active_template_summary:

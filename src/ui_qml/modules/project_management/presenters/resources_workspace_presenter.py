@@ -12,6 +12,8 @@ from src.core.modules.project_management.api.desktop import (
 )
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.ui_qml.modules.project_management.view_models.resources import (
+    ResourceAvailabilityDayViewModel,
+    ResourceAvailabilityViewModel,
     ResourceCatalogMetricViewModel,
     ResourceCatalogOverviewViewModel,
     ResourceCatalogWorkspaceViewModel,
@@ -114,6 +116,7 @@ class ProjectResourcesWorkspacePresenter:
             ),
             selected_resource_id=resolved_selected_resource_id,
             selected_resource_detail=self._build_detail_view_model(selected_resource),
+            resource_availability=self._build_availability_view_model(resolved_selected_resource_id),
             empty_state=self._build_empty_state(
                 all_resources=all_resources,
                 filtered_resources=filtered_resources,
@@ -281,6 +284,32 @@ class ProjectResourcesWorkspacePresenter:
                 ),
             ),
             state=state,
+        )
+
+    def _build_availability_view_model(self, resource_id: str) -> ResourceAvailabilityViewModel:
+        if not resource_id:
+            return ResourceAvailabilityViewModel()
+        dto = self._desktop_api.build_resource_availability(resource_id)
+        if dto is None:
+            return ResourceAvailabilityViewModel()
+        return ResourceAvailabilityViewModel(
+            resource_id=dto.resource_id,
+            peak_load_percent=dto.peak_load_percent,
+            average_load_percent=dto.average_load_percent,
+            overloaded_days=dto.overloaded_days,
+            available_days=dto.available_days,
+            is_available=dto.is_available,
+            from_date_label=dto.from_date_label,
+            to_date_label=dto.to_date_label,
+            days=tuple(
+                ResourceAvailabilityDayViewModel(
+                    date_label=d.date_label,
+                    allocation_percent=d.allocation_percent,
+                    allocation_label=d.allocation_label,
+                    overloaded=d.overloaded,
+                )
+                for d in dto.days
+            ),
         )
 
     def _to_resource_record_view_model(self, resource) -> ResourceRecordViewModel:

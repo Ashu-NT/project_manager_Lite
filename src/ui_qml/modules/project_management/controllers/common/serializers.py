@@ -18,6 +18,7 @@ from src.ui_qml.modules.project_management.view_models.dashboard import (
     ProjectDashboardSectionViewModel,
 )
 from src.ui_qml.modules.project_management.view_models.financials import (
+    BaselineVarianceRowViewModel,
     FinancialsCollectionViewModel,
     FinancialsCommitmentSummaryViewModel,
     FinancialsDetailViewModel,
@@ -37,6 +38,7 @@ from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectRecordViewModel,
 )
 from src.ui_qml.modules.project_management.view_models.resources import (
+    ResourceAvailabilityViewModel,
     ResourceCatalogOverviewViewModel,
     ResourceCertificationViewModel,
     ResourceDetailViewModel,
@@ -496,6 +498,23 @@ def serialize_financials_commitment_summary_view_model(
     }
 
 
+def serialize_financials_baseline_variance_view_models(
+    rows: tuple,
+) -> list[dict[str, object]]:
+    return [
+        {
+            "taskId": row.task_id,
+            "taskName": row.task_name,
+            "startVarianceDays": row.start_variance_days,
+            "finishVarianceDays": row.finish_variance_days,
+            "costVariance": row.cost_variance,
+            "costVarianceLabel": row.cost_variance_label,
+            "tone": row.tone,
+        }
+        for row in rows
+    ]
+
+
 def serialize_financials_collection_view_model(
     view_model: FinancialsCollectionViewModel,
 ) -> dict[str, object]:
@@ -745,6 +764,30 @@ def serialize_resource_certification_view_models(
         }
         for vm in view_models
     ]
+
+
+def serialize_resource_availability_view_model(
+    vm: ResourceAvailabilityViewModel,
+) -> dict[str, object]:
+    return {
+        "resourceId": vm.resource_id,
+        "peakLoadPercent": vm.peak_load_percent,
+        "averageLoadPercent": vm.average_load_percent,
+        "overloadedDays": vm.overloaded_days,
+        "availableDays": vm.available_days,
+        "isAvailable": vm.is_available,
+        "fromDateLabel": vm.from_date_label,
+        "toDateLabel": vm.to_date_label,
+        "days": [
+            {
+                "dateLabel": d.date_label,
+                "allocationPercent": d.allocation_percent,
+                "allocationLabel": d.allocation_label,
+                "overloaded": d.overloaded,
+            }
+            for d in vm.days
+        ],
+    }
 
 
 def serialize_resource_detail_view_model(
@@ -1116,6 +1159,7 @@ __all__ = [
     "serialize_dashboard_operational_table_view_models",
     "serialize_dashboard_panel_view_models",
     "serialize_dashboard_section_view_models",
+    "serialize_financials_baseline_variance_view_models",
     "serialize_financials_collection_view_model",
     "serialize_financials_commitment_summary_view_model",
     "serialize_financials_detail_view_model",
@@ -1135,6 +1179,7 @@ __all__ = [
     "serialize_register_record_view_models",
     "serialize_resource_catalog_overview_view_model",
     "serialize_resource_certification_view_models",
+    "serialize_resource_availability_view_model",
     "serialize_resource_detail_view_model",
     "serialize_resource_employee_option_view_models",
     "serialize_resource_record_view_models",

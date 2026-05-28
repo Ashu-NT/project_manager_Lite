@@ -7,6 +7,7 @@ from src.core.platform.notifications.domain_events import domain_events
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
+    serialize_resource_availability_view_model,
     serialize_resource_catalog_overview_view_model,
     serialize_resource_certification_view_models,
     serialize_resource_detail_view_model,
@@ -47,6 +48,7 @@ class ProjectManagementResourcesWorkspaceController(
     selectedResourceCountChanged = Signal()
     resourceSkillsChanged = Signal()
     resourceCertificationsChanged = Signal()
+    resourceAvailabilityChanged = Signal()
 
     def __init__(
         self,
@@ -93,6 +95,11 @@ class ProjectManagementResourcesWorkspaceController(
         self._selected_resource_count = 0
         self._resource_skills: list[dict[str, object]] = []
         self._resource_certifications: list[dict[str, object]] = []
+        self._resource_availability: dict[str, object] = {
+            "resourceId": "", "peakLoadPercent": 0.0, "averageLoadPercent": 0.0,
+            "overloadedDays": 0, "availableDays": 0, "isAvailable": True,
+            "fromDateLabel": "", "toDateLabel": "", "days": [],
+        }
         self._bind_domain_events()
         self.refresh()
 
@@ -164,6 +171,10 @@ class ProjectManagementResourcesWorkspaceController(
     def resourceCertifications(self) -> list[dict[str, object]]:
         return list(self._resource_certifications)
 
+    @Property("QVariantMap", notify=resourceAvailabilityChanged)
+    def resourceAvailability(self) -> dict[str, object]:
+        return self._resource_availability
+
     @Slot()
     def refresh(self) -> None:
         self._set_is_loading(True)
@@ -222,6 +233,9 @@ class ProjectManagementResourcesWorkspaceController(
             self._set_resource_total_count(workspace_state.total_count)
             self._set_resource_page(workspace_state.page)
             self._set_resource_page_size(workspace_state.page_size)
+            self._set_resource_availability(
+                serialize_resource_availability_view_model(workspace_state.resource_availability)
+            )
             self._reload_skills_and_certs(workspace_state.selected_resource_id)
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
@@ -576,6 +590,12 @@ class ProjectManagementResourcesWorkspaceController(
             return
         self._resource_certifications = certs
         self.resourceCertificationsChanged.emit()
+
+    def _set_resource_availability(self, availability: dict[str, object]) -> None:
+        if availability == self._resource_availability:
+            return
+        self._resource_availability = availability
+        self.resourceAvailabilityChanged.emit()
 
 
 __all__ = ["ProjectManagementResourcesWorkspaceController"]

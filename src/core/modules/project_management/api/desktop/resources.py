@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
-from src.core.modules.project_management.application.resources import ResourceService
+from src.core.modules.project_management.application.resources import ResourceAvailabilityService, ResourceService
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.core.modules.project_management.domain.resources.skills import SkillProficiencyLevel
 from src.core.platform.org import EmployeeService
@@ -113,6 +113,27 @@ class ResourceCertificationDesktopDto:
 
 
 @dataclass(frozen=True)
+class ResourceAvailabilityDayDto:
+    date_label: str
+    allocation_percent: float
+    allocation_label: str
+    overloaded: bool
+
+
+@dataclass(frozen=True)
+class ResourceAvailabilityDto:
+    resource_id: str
+    peak_load_percent: float
+    average_load_percent: float
+    overloaded_days: int
+    available_days: int
+    is_available: bool
+    from_date_label: str
+    to_date_label: str
+    days: tuple[ResourceAvailabilityDayDto, ...]
+
+
+@dataclass(frozen=True)
 class ResourceAddSkillCommand:
     resource_id: str
     skill_code: str
@@ -138,9 +159,11 @@ class ProjectManagementResourcesDesktopApi:
         *,
         resource_service: ResourceService | None = None,
         employee_service: EmployeeService | None = None,
+        availability_service: ResourceAvailabilityService | None = None,
     ) -> None:
         self._resource_service = resource_service
         self._employee_service = employee_service
+        self._availability_service = availability_service
 
     def list_worker_types(self) -> tuple[ResourceWorkerTypeDescriptor, ...]:
         return tuple(
@@ -416,14 +439,55 @@ class ProjectManagementResourcesDesktopApi:
         )
 
 
+    def build_resource_availability(self, resource_id: str) -> ResourceAvailabilityDto | None:
+        if not resource_id or self._availability_service is None:
+            return None
+        from datetime import date as _date, timedelta
+        today = _date.today()
+        to_date = today + timedelta(days=90)
+        try:
+            report = self._availability_service.check_availability(
+                resource_ids=[resource_id],
+                from_date=today,
+                to_date=to_date,
+            )
+        except Exception:
+            return None
+        window = next((r for r in report.resources if str(r.resource_id) == resource_id), None)
+        if window is None:
+            return None
+        overloaded = [d for d in window.daily_loads if d.overloaded]
+        return ResourceAvailabilityDto(
+            resource_id=resource_id,
+            peak_load_percent=float(window.peak_load_percent or 0.0),
+            average_load_percent=float(window.average_load_percent or 0.0),
+            overloaded_days=int(window.overloaded_days or 0),
+            available_days=int(window.available_days or 0),
+            is_available=bool(window.is_available),
+            from_date_label=today.strftime("%d %b %Y"),
+            to_date_label=to_date.strftime("%d %b %Y"),
+            days=tuple(
+                ResourceAvailabilityDayDto(
+                    date_label=d.check_date.strftime("%d %b"),
+                    allocation_percent=float(d.total_allocation_percent or 0.0),
+                    allocation_label=f"{d.total_allocation_percent:.0f}%",
+                    overloaded=bool(d.overloaded),
+                )
+                for d in overloaded[:20]
+            ),
+        )
+
+
 def build_project_management_resources_desktop_api(
     *,
     resource_service: ResourceService | None = None,
     employee_service: EmployeeService | None = None,
+    availability_service: ResourceAvailabilityService | None = None,
 ) -> ProjectManagementResourcesDesktopApi:
     return ProjectManagementResourcesDesktopApi(
         resource_service=resource_service,
         employee_service=employee_service,
+        availability_service=availability_service,
     )
 
 

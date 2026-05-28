@@ -81,6 +81,7 @@ class PortfolioWorkspaceViewModel:
     heatmap: PortfolioCollectionViewModel = field(default_factory=lambda: PortfolioCollectionViewModel("", "", ""))
     dependencies: PortfolioCollectionViewModel = field(default_factory=lambda: PortfolioCollectionViewModel("", "", ""))
     recent_actions: PortfolioCollectionViewModel = field(default_factory=lambda: PortfolioCollectionViewModel("", "", ""))
+    capacity_pool: PortfolioCollectionViewModel = field(default_factory=lambda: PortfolioCollectionViewModel("", "", ""))
     active_template_summary: str = ""
     empty_state: str = ""
 
