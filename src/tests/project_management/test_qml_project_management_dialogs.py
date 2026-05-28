@@ -116,6 +116,7 @@ def test_task_editor_dialog_submit_button_emits_payload() -> None:
             "statusOptions": [{"value": "IN_PROGRESS", "label": "In Progress"}],
             "taskData": {
                 "state": {
+                    "taskId": "task-99",
                     "name": "Cable Pull",
                     "startDate": "2026-05-10",
                     "durationDays": "5",

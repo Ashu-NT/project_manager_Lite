@@ -1248,6 +1248,7 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
             "reopenPercentComplete": "50",
         }
     )
+    qapp.processEvents()
 
     assert bulk_status_result == {
         "ok": True,
@@ -1263,6 +1264,7 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
     assert controller.selectedTaskDoneCount == 0
 
     undo_result = controller.undoLastTaskAction()
+    qapp.processEvents()
 
     assert undo_result["ok"] is True
     assert controller.canRedoTaskAction is True
@@ -1274,6 +1276,7 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
     assert restored_task["state"]["status"] == "DONE"
 
     redo_result = controller.redoLastTaskAction()
+    qapp.processEvents()
 
     assert redo_result["ok"] is True
     assert controller.canUndoTaskAction is True
