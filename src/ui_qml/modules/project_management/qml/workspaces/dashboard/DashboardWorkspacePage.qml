@@ -143,6 +143,11 @@ AppLayouts.WorkspaceFrame {
                     workspaceController: root.workspaceController
                 }
 
+                DashboardPanelsSection {
+                    Layout.fillWidth: true
+                    workspaceController: root.workspaceController
+                }
+
                 DashboardOverviewSections {
                     Layout.fillWidth: true
                     Layout.preferredHeight: width >= 1360 ? 520 : 760

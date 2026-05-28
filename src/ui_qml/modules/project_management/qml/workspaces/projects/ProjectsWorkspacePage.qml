@@ -128,6 +128,7 @@ AppLayouts.WorkspaceFrame {
         sourceComponent: Component {
             ProjectsDialogHost {
                 statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                workspaceController: root.workspaceController
 
                 onCreateRequested: function(payload) {
                     if (root.workspaceController !== null) root.workspaceController.createProject(payload)
@@ -207,6 +208,7 @@ AppLayouts.WorkspaceFrame {
                     showFilter: true
                     showCustomize: true
                     showRefresh: true
+                    showImport: true
                     showExport: true
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
@@ -218,6 +220,7 @@ AppLayouts.WorkspaceFrame {
                     onRefreshRequested: {
                         if (root.workspaceController !== null) root.workspaceController.refresh()
                     }
+                    onImportRequested: dialogHostLoader.invoke("openImportDialog")
                     onExportRequested: {
                         if (root.workspaceController !== null) root.workspaceController.exportProjects()
                     }

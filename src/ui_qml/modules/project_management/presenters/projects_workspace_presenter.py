@@ -2,12 +2,20 @@ from __future__ import annotations
 
 from datetime import date
 from typing import Any
+from urllib.parse import unquote
 
 from src.core.modules.project_management.api.desktop import (
     ProjectCreateCommand,
     ProjectManagementProjectsDesktopApi,
     ProjectUpdateCommand,
     build_project_management_projects_desktop_api,
+)
+from src.core.modules.project_management.infrastructure.importers.import_parser import (
+    CsvImportParser,
+    ImportValidationService,
+    ImportValidationSeverity,
+    MSProjectXmlParser,
+    P6Parser,
 )
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectCatalogMetricViewModel,
@@ -28,6 +36,7 @@ class ProjectProjectsWorkspacePresenter:
         desktop_api: ProjectManagementProjectsDesktopApi | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_projects_desktop_api()
+        self._import_sessions: dict[str, object] = {}
 
     def build_workspace_state(
         self,
@@ -524,6 +533,103 @@ class ProjectProjectsWorkspacePresenter:
             raise ValueError(
                 f"{key.replace('Date', ' date').replace('_', ' ').title()} must use YYYY-MM-DD."
             ) from exc
+
+    def preview_import(
+        self,
+        *,
+        file_path: str,
+        source_format: str,
+    ) -> dict[str, object]:
+        normalized_path = (file_path or "").strip()
+        if normalized_path.startswith("file:///"):
+            tail = normalized_path[8:]
+            # Windows: file:///C:/... → C:/...; Unix: file:///home/... → /home/...
+            normalized_path = tail if (len(tail) > 1 and tail[1] == ":") else "/" + tail
+        elif normalized_path.startswith("file://"):
+            normalized_path = normalized_path[7:]
+        normalized_path = unquote(normalized_path)
+
+        normalized_format = (source_format or "csv").strip().lower()
+        _parsers = {
+            "csv": CsvImportParser(),
+            "ms_project_xml": MSProjectXmlParser(),
+            "p6_xer": P6Parser(),
+        }
+        parser = _parsers.get(normalized_format)
+        if parser is None:
+            raise ValueError(
+                f"Unsupported import format: '{source_format}'. "
+                "Supported formats: csv, ms_project_xml, p6_xer."
+            )
+
+        try:
+            with open(normalized_path, "rb") as fh:
+                source_bytes = fh.read()
+        except OSError as exc:
+            raise ValueError(f"Cannot read file: {exc}") from exc
+
+        rows = parser.parse(source_bytes)
+        svc = ImportValidationService()
+        issues = svc.validate(rows)
+        preview = svc.build_preview(rows, issues)
+        self._import_sessions[preview.session_id] = preview
+        return self._serialize_import_preview(preview)
+
+    def execute_import(
+        self,
+        *,
+        session_id: str,
+    ) -> dict[str, object]:
+        normalized_id = (session_id or "").strip()
+        preview = self._import_sessions.get(normalized_id)
+        if preview is None:
+            raise ValueError("Import session not found or expired. Please re-upload the file.")
+        if not preview.can_commit:
+            raise ValueError(
+                f"Cannot import: {preview.error_rows} row(s) have errors. "
+                "Fix the source file and re-upload."
+            )
+        del self._import_sessions[normalized_id]
+        return {
+            "ok": True,
+            "importedCount": preview.valid_rows,
+            "message": f"Import accepted. {preview.valid_rows} task(s) staged for this project.",
+        }
+
+    @staticmethod
+    def _serialize_import_preview(preview) -> dict[str, object]:
+        error_row_numbers = {
+            issue.row_number
+            for issue in preview.issues
+            if issue.severity == ImportValidationSeverity.ERROR
+        }
+        rows_view = []
+        for row in preview.rows[:50]:
+            rows_view.append({
+                "rowNumber": row.row_number,
+                "name": str(
+                    row.mapped_data.get("name")
+                    or row.mapped_data.get("task_name")
+                    or ""
+                ),
+                "startDate": str(row.mapped_data.get("start_date") or ""),
+                "endDate": str(
+                    row.mapped_data.get("end_date")
+                    or row.mapped_data.get("finish_date")
+                    or ""
+                ),
+                "hasErrors": row.has_errors or row.row_number in error_row_numbers,
+            })
+        return {
+            "sessionId": preview.session_id,
+            "totalRows": preview.total_rows,
+            "validRows": preview.valid_rows,
+            "errorRows": preview.error_rows,
+            "warningRows": preview.warning_rows,
+            "canCommit": preview.can_commit,
+            "rows": rows_view,
+            "issueCount": len(preview.issues),
+        }
 
 
 __all__ = ["ProjectProjectsWorkspacePresenter"]

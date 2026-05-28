@@ -53,6 +53,10 @@ class ProjectManagementProjectsWorkspaceController(
     projectDocumentsLoadedChanged = Signal()
     projectActivityLoadedChanged = Signal()
 
+    importPreviewChanged = Signal()
+    importBusyChanged = Signal()
+    importErrorChanged = Signal()
+
     def __init__(
         self,
         *,
@@ -107,7 +111,11 @@ class ProjectManagementProjectsWorkspaceController(
         self._project_risks_loaded_for_project_id = ""
         self._project_documents_loaded_for_project_id = ""
         self._project_activity_loaded_for_project_id = ""
-        
+
+        self._import_preview: dict[str, object] = {}
+        self._import_busy = False
+        self._import_error = ""
+
         self._bind_domain_events()
         self.refresh()
 
@@ -186,6 +194,18 @@ class ProjectManagementProjectsWorkspaceController(
     @Property("QVariantMap", notify=projectActivityChanged)
     def projectActivity(self) -> dict[str, object]:
         return self._project_activity
+
+    @Property("QVariantMap", notify=importPreviewChanged)
+    def importPreview(self) -> dict[str, object]:
+        return self._import_preview
+
+    @Property(bool, notify=importBusyChanged)
+    def isImportBusy(self) -> bool:
+        return self._import_busy
+
+    @Property(str, notify=importErrorChanged)
+    def importError(self) -> str:
+        return self._import_error
 
     @Slot()
     def refresh(self) -> None:
@@ -378,6 +398,45 @@ class ProjectManagementProjectsWorkspaceController(
         self._set_feedback_message(
             "Project export is not implemented yet in the QML workspace."
         )
+
+    @Slot(str, str, result="QVariantMap")
+    def previewImport(self, file_path: str, source_format: str) -> dict[str, object]:
+        self._set_import_busy(True)
+        self._set_import_error("")
+        try:
+            preview = self._projects_workspace_presenter.preview_import(
+                file_path=file_path,
+                source_format=source_format,
+            )
+            self._set_import_preview(preview)
+            return {"ok": True}
+        except Exception as exc:
+            self._set_import_error(str(exc))
+            return {"ok": False, "error": str(exc)}
+        finally:
+            self._set_import_busy(False)
+
+    @Slot(str, result="QVariantMap")
+    def executeImport(self, session_id: str) -> dict[str, object]:
+        self._set_import_busy(True)
+        self._set_import_error("")
+        try:
+            result = self._projects_workspace_presenter.execute_import(
+                session_id=session_id,
+            )
+            self._set_feedback_message(result.get("message", "Import completed."))
+            self._set_import_preview({})
+            return result
+        except Exception as exc:
+            self._set_import_error(str(exc))
+            return {"ok": False, "error": str(exc)}
+        finally:
+            self._set_import_busy(False)
+
+    @Slot()
+    def cancelImport(self) -> None:
+        self._set_import_preview({})
+        self._set_import_error("")
 
     @Slot("QVariantMap", result="QVariantMap")
     def createProject(self, payload: dict[str, object]) -> dict[str, object]:
@@ -691,5 +750,23 @@ class ProjectManagementProjectsWorkspaceController(
             return
         self._project_activity = value
         self.projectActivityChanged.emit()
+
+    def _set_import_preview(self, v: dict[str, object]) -> None:
+        if v == self._import_preview:
+            return
+        self._import_preview = v
+        self.importPreviewChanged.emit()
+
+    def _set_import_busy(self, v: bool) -> None:
+        if v == self._import_busy:
+            return
+        self._import_busy = v
+        self.importBusyChanged.emit()
+
+    def _set_import_error(self, v: str) -> None:
+        if v == self._import_error:
+            return
+        self._import_error = v
+        self.importErrorChanged.emit()
 
 __all__ = ["ProjectManagementProjectsWorkspaceController"]

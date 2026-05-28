@@ -10,6 +10,7 @@ Rectangle {
     property string searchText: ""
     property string searchPlaceholder: "Search..."
     property bool showRefresh: true
+    property bool showImport: false
     property bool showExport: false
     property bool showCreate: false
     property bool createEnabled: true
@@ -29,6 +30,7 @@ Rectangle {
     signal customizeClicked()
     signal viewsClicked()
     signal refreshRequested()
+    signal importRequested()
     signal exportRequested()
     signal createRequested()
 
@@ -192,6 +194,15 @@ Rectangle {
             enabled: !root.isBusy
             implicitWidth: 88
             onClicked: root.refreshRequested()
+        }
+
+        AppControls.SecondaryButton {
+            visible: root.showImport
+            text: "Import"
+            iconName: "upload"
+            enabled: !root.isBusy
+            implicitWidth: 88
+            onClicked: root.importRequested()
         }
 
         AppControls.SecondaryButton {

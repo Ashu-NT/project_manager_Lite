@@ -7,6 +7,7 @@ Item {
     id: root
 
     property var statusOptions: []
+    property var workspaceController: null
     property var editTarget: ({})
     property var statusTarget: ({})
     property var deleteTarget: ({})
@@ -15,6 +16,10 @@ Item {
     signal updateRequested(var payload)
     signal statusChangeRequested(string projectId, string statusValue)
     signal deleteRequested(string projectId)
+
+    function openImportDialog() {
+        importDialog.open()
+    }
 
     function openCreateDialog() {
         root.editTarget = { "state": { "status": "PLANNED" } }
@@ -39,6 +44,11 @@ Item {
     function openDeleteDialog(projectData) {
         root.deleteTarget = projectData || ({})
         deleteDialog.open()
+    }
+
+    ProjectManagementDialogs.ProjectsImportDialog {
+        id: importDialog
+        workspaceController: root.workspaceController
     }
 
     ProjectManagementDialogs.ProjectEditorDialog {
