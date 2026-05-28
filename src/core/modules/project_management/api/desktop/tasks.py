@@ -11,6 +11,9 @@ from src.core.modules.project_management.application.resources import (
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
 )
+from src.core.modules.project_management.application.resources.resource_availability_service import (
+    ResourceAvailabilityService,
+)
 from src.core.modules.project_management.api.desktop.tasks_schedule_impact import (
     ScheduleImpactAffectedTaskDto, ScheduleImpactReportDto, compute_schedule_impact)
 from src.core.modules.project_management.application.tasks import TaskService
@@ -207,6 +210,20 @@ class AssignmentValidationDesktopDto:
 
 
 @dataclass(frozen=True)
+class AssignmentPreviewDesktopDto:
+    task_id: str
+    resource_id: str
+    overallocation_pct: float
+    conflict_projects: tuple[str, ...]
+    skills_matched: bool
+    certs_valid: bool
+    has_warnings: bool
+    warning_messages: tuple[str, ...]
+    is_blocked: bool
+    block_messages: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class TaskSkillRequirementDesktopDto:
     id: str
     task_id: str
@@ -232,6 +249,7 @@ class ProjectManagementTasksDesktopApi:
         reservation_service: object | None = None,
         assignment_skill_validator: AssignmentSkillValidator | None = None,
         schedule_change_impact_service: ScheduleChangeImpactService | None = None,
+        resource_availability_service: ResourceAvailabilityService | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
@@ -240,6 +258,7 @@ class ProjectManagementTasksDesktopApi:
         self._reservation_service = reservation_service
         self._assignment_skill_validator = assignment_skill_validator
         self._schedule_change_impact_service = schedule_change_impact_service
+        self._resource_availability_service = resource_availability_service
 
     def list_projects(self) -> tuple[TaskProjectOptionDescriptor, ...]:
         projects = self._project_rows_for_task_scope()
@@ -820,6 +839,102 @@ class ProjectManagementTasksDesktopApi:
             summary=result.summary(),
         )
 
+    def preview_assignment(
+        self,
+        task_id: str,
+        project_resource_id: str,
+    ) -> AssignmentPreviewDesktopDto:
+        """Return combined availability + skill/cert check for an assignment candidate."""
+        _empty = AssignmentPreviewDesktopDto(
+            task_id=task_id,
+            resource_id="",
+            overallocation_pct=0.0,
+            conflict_projects=(),
+            skills_matched=True,
+            certs_valid=True,
+            has_warnings=False,
+            warning_messages=(),
+            is_blocked=False,
+            block_messages=(),
+        )
+        if not task_id or not project_resource_id:
+            return _empty
+
+        # Resolve physical resource_id from project resource
+        resource_id = ""
+        get_pr = getattr(self._project_resource_service, "get", None)
+        if callable(get_pr):
+            pr = get_pr(project_resource_id)
+            resource_id = str(getattr(pr, "resource_id", "") or "") if pr else ""
+        if not resource_id:
+            return _empty
+
+        # --- Availability check -----------------------------------------------
+        overallocation_pct = 0.0
+        conflict_projects: list[str] = []
+        if self._resource_availability_service is not None and self._task_service is not None:
+            task = self._require_task_service().get_task(task_id)
+            if task is not None:
+                p_start = getattr(task, "start_date", None)
+                p_finish = getattr(task, "end_date", None)
+                if p_start and p_finish:
+                    _, window = self._resource_availability_service.is_resource_available(
+                        resource_id, p_start, p_finish
+                    )
+                    if window is not None and window.peak_load_percent > window.capacity_percent:
+                        overallocation_pct = max(
+                            0.0, window.peak_load_percent - window.capacity_percent
+                        )
+                        # Unique project names from all tasks in overloaded days
+                        conflict_task_ids: set[str] = set()
+                        for day in window.daily_loads:
+                            if day.overloaded:
+                                conflict_task_ids.update(day.contributing_tasks)
+                        conflict_task_ids.discard(task_id)
+                        for ctid in conflict_task_ids:
+                            ct = self._require_task_service().get_task(ctid)
+                            if ct is not None:
+                                pname = str(getattr(ct, "project_name", "") or "")
+                                if pname and pname not in conflict_projects:
+                                    conflict_projects.append(pname)
+
+        # --- Skill / cert check -----------------------------------------------
+        skills_matched = True
+        certs_valid = True
+        has_warnings = False
+        warning_messages: list[str] = []
+        is_blocked = False
+        block_messages: list[str] = []
+        if self._assignment_skill_validator is not None and self._task_service is not None:
+            task = self._require_task_service().get_task(task_id)
+            if task is not None:
+                result = self._assignment_skill_validator.validate(task, resource_id)
+                skills_matched = not any(
+                    v.violation_type in ("missing_skill", "insufficient_proficiency")
+                    for v in result.violations
+                )
+                certs_valid = not any(
+                    v.violation_type in ("missing_certification", "expired_certification")
+                    for v in result.violations
+                )
+                is_blocked = result.is_blocked
+                block_messages = [v.message for v in result.violations]
+                has_warnings = bool(result.warnings)
+                warning_messages = [w.message for w in result.warnings]
+
+        return AssignmentPreviewDesktopDto(
+            task_id=task_id,
+            resource_id=resource_id,
+            overallocation_pct=round(overallocation_pct, 1),
+            conflict_projects=tuple(conflict_projects),
+            skills_matched=skills_matched,
+            certs_valid=certs_valid,
+            has_warnings=has_warnings,
+            warning_messages=tuple(warning_messages),
+            is_blocked=is_blocked,
+            block_messages=tuple(block_messages),
+        )
+
     def get_schedule_impact(self, task_id: str, project_id: str) -> ScheduleImpactReportDto:
         return compute_schedule_impact(task_id, project_id,
             task_service=self._task_service,
@@ -1100,6 +1215,7 @@ def build_project_management_tasks_desktop_api(
     reservation_service: object | None = None,
     assignment_skill_validator: AssignmentSkillValidator | None = None,
     schedule_change_impact_service: ScheduleChangeImpactService | None = None,
+    resource_availability_service: ResourceAvailabilityService | None = None,
 ) -> ProjectManagementTasksDesktopApi:
     return ProjectManagementTasksDesktopApi(
         project_service=project_service,
@@ -1109,6 +1225,7 @@ def build_project_management_tasks_desktop_api(
         reservation_service=reservation_service,
         assignment_skill_validator=assignment_skill_validator,
         schedule_change_impact_service=schedule_change_impact_service,
+        resource_availability_service=resource_availability_service,
     )
 
 
@@ -1176,6 +1293,7 @@ def _normalize_task_ids(task_ids) -> tuple[str, ...]:
 
 __all__ = [
     "AssignmentValidationDesktopDto",
+    "AssignmentPreviewDesktopDto",
     "ProjectManagementTasksDesktopApi",
     "TaskSkillRequirementDesktopDto",
     "TaskAssignmentAllocationCommand",

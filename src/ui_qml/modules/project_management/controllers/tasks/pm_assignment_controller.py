@@ -20,6 +20,7 @@ class PMAssignmentController(QObject):
     assignmentOptionsChanged = Signal()
     assignmentsChanged = Signal()
     taskSkillRequirementsChanged = Signal()
+    assignmentPreviewChanged = Signal()
 
     def __init__(
         self,
@@ -47,6 +48,17 @@ class PMAssignmentController(QObject):
             "emptyState": "Select a task to review skill and certification requirements.",
             "items": [],
         }
+        self._assignment_preview: dict[str, object] = {
+            "ok": True,
+            "overallocationPct": 0.0,
+            "conflictProjects": [],
+            "skillsMatched": True,
+            "certsValid": True,
+            "hasWarnings": False,
+            "warningMessages": [],
+            "isBlocked": False,
+            "blockMessages": [],
+        }
 
     # ── Populate from workspace state ────────────────────────────────
 
@@ -71,6 +83,10 @@ class PMAssignmentController(QObject):
     @Property("QVariantMap", notify=taskSkillRequirementsChanged)
     def taskSkillRequirements(self) -> dict[str, object]:
         return self._task_skill_requirements
+
+    @Property("QVariantMap", notify=assignmentPreviewChanged)
+    def assignmentPreview(self) -> dict[str, object]:
+        return self._assignment_preview
 
     # ── Mutation slots ────────────────────────────────────────────────
 
@@ -139,6 +155,39 @@ class PMAssignmentController(QObject):
                 "summary": str(exc),
             }
 
+    @Slot("QVariantMap", result="QVariantMap")
+    def previewAssignment(self, payload: dict[str, object]) -> dict[str, object]:
+        try:
+            result = self._presenter.preview_assignment(dict(payload))
+        except Exception as exc:
+            result = {
+                "ok": False,
+                "overallocationPct": 0.0,
+                "conflictProjects": [],
+                "skillsMatched": True,
+                "certsValid": True,
+                "hasWarnings": False,
+                "warningMessages": [],
+                "isBlocked": False,
+                "blockMessages": [str(exc)],
+            }
+        self._set_assignment_preview(result)
+        return result
+
+    @Slot()
+    def clearAssignmentPreview(self) -> None:
+        self._set_assignment_preview({
+            "ok": True,
+            "overallocationPct": 0.0,
+            "conflictProjects": [],
+            "skillsMatched": True,
+            "certsValid": True,
+            "hasWarnings": False,
+            "warningMessages": [],
+            "isBlocked": False,
+            "blockMessages": [],
+        })
+
     # ── Skill requirements update (separate from assignments/_update) ─
 
     def _update_skill_requirements(self, workspace_state: object) -> None:
@@ -167,6 +216,10 @@ class PMAssignmentController(QObject):
             return
         self._task_skill_requirements = v
         self.taskSkillRequirementsChanged.emit()
+
+    def _set_assignment_preview(self, v: dict) -> None:
+        self._assignment_preview = v
+        self.assignmentPreviewChanged.emit()
 
 
 __all__ = ["PMAssignmentController"]

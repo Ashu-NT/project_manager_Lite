@@ -67,8 +67,12 @@ from src.ui_qml.modules.project_management.controllers.common.task_view_store im
 from src.ui_qml.modules.project_management.controllers.common.workspace_controller_base import (
     ProjectManagementWorkspaceControllerBase,
 )
+from src.ui_qml.modules.project_management.controllers.common.pm_capability_controller import (
+    PMCapabilityController,
+)
 
 __all__ = [
+    "PMCapabilityController",
     "ProjectManagementWorkspaceControllerBase",
     "ProjectManagementTaskViewStore",
     "ProjectManagementUndoCommand",

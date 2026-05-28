@@ -1,4 +1,5 @@
 from src.ui_qml.modules.project_management.controllers.common import (
+    PMCapabilityController,
     ProjectManagementWorkspaceControllerBase,
 )
 from src.ui_qml.modules.project_management.controllers.collaboration import (
@@ -33,6 +34,7 @@ from src.ui_qml.modules.project_management.controllers.timesheets import (
 )
 
 __all__ = [
+    "PMCapabilityController",
     "ProjectManagementCollaborationWorkspaceController",
     "ProjectManagementDashboardWorkspaceController",
     "ProjectManagementFinancialsWorkspaceController",

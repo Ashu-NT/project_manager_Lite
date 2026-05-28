@@ -14,12 +14,47 @@ Item {
     property string selectedAssignmentId: ""
     property bool   isBusy:              false
     property bool   canCreate:           false
+    property var    assignmentPreview:   null
 
     signal createRequested()
     signal assignmentSelected(string assignmentId)
     signal editAllocationRequested(var assignmentData)
     signal setHoursRequested(var assignmentData)
     signal deleteRequested(var assignmentData)
+    signal previewRequested(string projectResourceId, string taskId)
+
+    readonly property bool _hasPreview: {
+        const p = root.assignmentPreview
+        if (!p) return false
+        return (p.overallocationPct > 0) || !p.skillsMatched || !p.certsValid
+            || p.isBlocked || p.hasWarnings
+    }
+    readonly property string _previewTone: {
+        const p = root.assignmentPreview
+        if (!p) return "info"
+        if (p.isBlocked) return "danger"
+        if (!p.skillsMatched || !p.certsValid || p.overallocationPct > 0) return "warning"
+        if (p.hasWarnings) return "warning"
+        return "success"
+    }
+    readonly property string _previewMessage: {
+        const p = root.assignmentPreview
+        if (!p) return ""
+        const parts = []
+        if (p.isBlocked) {
+            parts.push("Blocked: " + (p.blockMessages || []).join("; "))
+        } else {
+            if (p.overallocationPct > 0)
+                parts.push("Overallocated +" + p.overallocationPct + "% — conflicts: "
+                    + (p.conflictProjects && p.conflictProjects.length
+                        ? p.conflictProjects.join(", ") : "current project"))
+            if (!p.skillsMatched) parts.push("Missing required skills")
+            if (!p.certsValid)    parts.push("Certification expired or missing")
+            if (p.hasWarnings && !parts.length)
+                parts.push((p.warningMessages || []).join("; "))
+        }
+        return parts.join(" · ")
+    }
 
     readonly property var _items: root.assignmentsModel.items || []
     readonly property var _selectedItem: {
@@ -88,6 +123,14 @@ Item {
                 else if (actionId === "hours")      root.setHoursRequested(item)
                 else if (actionId === "remove")     root.deleteRequested(item)
             }
+        }
+
+        // Assignment preview strip
+        AppWidgets.InlineMessage {
+            Layout.fillWidth: true
+            visible: root._hasPreview
+            message: root._previewMessage
+            tone: root._previewTone
         }
 
         // DataTable
