@@ -35,6 +35,7 @@ from src.core.modules.project_management.api.desktop.dashboard import (
     build_project_management_dashboard_desktop_api,
 )
 from src.core.modules.project_management.api.desktop.financials import (
+    BaselineVarianceRecordDto,
     FinancialAnalyticsRowDto,
     FinancialCostItemDto,
     FinancialCostTypeDescriptor,
@@ -202,6 +203,7 @@ __all__ = [
     "ProjectDashboardSnapshotDescriptor",
     "ProjectDashboardTableColumnDescriptor",
     "ProjectDashboardTableRowDescriptor",
+    "BaselineVarianceRecordDto",
     "FinancialAnalyticsRowDto",
     "FinancialCostItemDto",
     "FinancialCostTypeDescriptor",

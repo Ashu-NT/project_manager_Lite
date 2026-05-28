@@ -10,6 +10,7 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_financials_desktop_api,
 )
 from src.ui_qml.modules.project_management.view_models.financials import (
+    BaselineVarianceRowViewModel,
     FinancialsCollectionViewModel,
     FinancialsCommitmentSummaryViewModel,
     FinancialsDetailFieldViewModel,
@@ -130,6 +131,18 @@ class ProjectFinancialsWorkspacePresenter:
             ),
             commitment_summary=self._build_commitment_summary_view_model(
                 self._desktop_api.get_commitment_summary(resolved_project_id)
+            ),
+            baseline_variance=tuple(
+                BaselineVarianceRowViewModel(
+                    task_id=rec.task_id,
+                    task_name=rec.task_name,
+                    start_variance_days=rec.start_variance_days,
+                    finish_variance_days=rec.finish_variance_days,
+                    cost_variance=rec.cost_variance,
+                    cost_variance_label=rec.cost_variance_label,
+                    tone=rec.tone,
+                )
+                for rec in self._desktop_api.build_baseline_variance(resolved_project_id)
             ),
             notes=tuple(snapshot.notes),
             empty_state=empty_state,

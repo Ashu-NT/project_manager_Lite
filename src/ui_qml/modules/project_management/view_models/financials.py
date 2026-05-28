@@ -102,6 +102,17 @@ class FinancialsCommitmentSummaryViewModel:
 
 
 @dataclass(frozen=True)
+class BaselineVarianceRowViewModel:
+    task_id: str
+    task_name: str
+    start_variance_days: int
+    finish_variance_days: int
+    cost_variance: float
+    cost_variance_label: str
+    tone: str = "default"
+
+
+@dataclass(frozen=True)
 class FinancialsWorkspaceViewModel:
     overview: FinancialsOverviewViewModel
     project_options: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
@@ -119,11 +130,13 @@ class FinancialsWorkspaceViewModel:
     cost_type_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     forecast: FinancialsForecastViewModel = field(default_factory=FinancialsForecastViewModel)
     commitment_summary: FinancialsCommitmentSummaryViewModel = field(default_factory=FinancialsCommitmentSummaryViewModel)
+    baseline_variance: tuple[BaselineVarianceRowViewModel, ...] = field(default_factory=tuple)
     notes: tuple[str, ...] = field(default_factory=tuple)
     empty_state: str = ""
 
 
 __all__ = [
+    "BaselineVarianceRowViewModel",
     "FinancialsCollectionViewModel",
     "FinancialsCommitmentSummaryViewModel",
     "FinancialsDetailFieldViewModel",

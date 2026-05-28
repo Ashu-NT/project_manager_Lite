@@ -8,6 +8,9 @@ from src.core.modules.project_management.application.financials import (
     FinanceService,
 )
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.scheduling.baseline_service import (
+    BaselineService,
+)
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.enums import CostType
 
@@ -193,6 +196,17 @@ class ProjectProcurementCommitmentSummary:
 
 
 @dataclass(frozen=True)
+class BaselineVarianceRecordDto:
+    task_id: str
+    task_name: str
+    start_variance_days: int
+    finish_variance_days: int
+    cost_variance: float
+    cost_variance_label: str
+    tone: str
+
+
+@dataclass(frozen=True)
 class FinancialSnapshotDto:
     project_id: str
     project_currency: str | None
@@ -226,12 +240,14 @@ class ProjectManagementFinancialsDesktopApi:
         cost_service: CostService | None = None,
         finance_service: FinanceService | None = None,
         procurement_service: object | None = None,
+        baseline_service: BaselineService | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
         self._cost_service = cost_service
         self._finance_service = finance_service
         self._procurement_service = procurement_service
+        self._baseline_service = baseline_service
 
     def list_projects(self) -> tuple[FinancialProjectOptionDescriptor, ...]:
         if self._project_service is None:
@@ -581,6 +597,51 @@ class ProjectManagementFinancialsDesktopApi:
         )
 
 
+    def build_baseline_variance(
+        self,
+        project_id: str,
+    ) -> tuple[BaselineVarianceRecordDto, ...]:
+        if not project_id or self._baseline_service is None:
+            return ()
+        try:
+            approved = self._baseline_service.get_approved_baseline(project_id)
+        except Exception:
+            return ()
+        if approved is None:
+            return ()
+        try:
+            records = self._baseline_service.list_variance_records(approved.id)
+        except Exception:
+            return ()
+        sorted_records = sorted(
+            records,
+            key=lambda r: abs(r.cost_variance or 0.0),
+            reverse=True,
+        )
+        return tuple(
+            BaselineVarianceRecordDto(
+                task_id=str(r.task_id or ""),
+                task_name=str(r.task_name or r.task_id or "Task"),
+                start_variance_days=int(r.start_variance_days or 0),
+                finish_variance_days=int(r.finish_variance_days or 0),
+                cost_variance=float(r.cost_variance or 0.0),
+                cost_variance_label=(
+                    f"+{r.cost_variance:,.2f}"
+                    if float(r.cost_variance or 0.0) >= 0
+                    else f"{r.cost_variance:,.2f}"
+                ),
+                tone=(
+                    "danger"
+                    if float(r.cost_variance or 0.0) > 0
+                    else "success"
+                    if float(r.cost_variance or 0.0) < 0
+                    else "default"
+                ),
+            )
+            for r in sorted_records
+        )
+
+
 def build_project_management_financials_desktop_api(
     *,
     project_service: ProjectService | None = None,
@@ -588,6 +649,7 @@ def build_project_management_financials_desktop_api(
     cost_service: CostService | None = None,
     finance_service: FinanceService | None = None,
     procurement_service: object | None = None,
+    baseline_service: BaselineService | None = None,
 ) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
         project_service=project_service,
@@ -595,6 +657,7 @@ def build_project_management_financials_desktop_api(
         cost_service=cost_service,
         finance_service=finance_service,
         procurement_service=procurement_service,
+        baseline_service=baseline_service,
     )
 
 

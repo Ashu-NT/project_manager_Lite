@@ -562,6 +562,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             ),
             finance_service=pm_finance_service,
             procurement_service=inventory_procurement_desktop_service,
+            baseline_service=pm_baseline_service,
         ),
         project_management_portfolio=build_project_management_portfolio_desktop_api(
             project_service=pm_project_service,
