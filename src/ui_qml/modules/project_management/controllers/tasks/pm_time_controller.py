@@ -29,6 +29,7 @@ class PMTimeController(QObject):
         *,
         presenter: ProjectTasksWorkspacePresenter,
         facade_refresh: Callable[[], None],
+        refresh_time_entries: Callable[[], None] | None = None,
         set_is_busy: Callable[[bool], None],
         set_error_message: Callable[[str], None],
         set_feedback_message: Callable[[str], None],
@@ -37,6 +38,8 @@ class PMTimeController(QObject):
         super().__init__(parent)
         self._presenter = presenter
         self._facade_refresh = facade_refresh
+        # Scoped refresh for entry-level mutations — avoids full workspace reload
+        self._refresh_entry_cb = refresh_time_entries if refresh_time_entries is not None else facade_refresh
         self._set_is_busy = set_is_busy
         self._set_error_message = set_error_message
         self._set_feedback_message = set_feedback_message
@@ -104,7 +107,7 @@ class PMTimeController(QObject):
         return run_mutation(
             operation=lambda: self._presenter.add_task_time_entry(dict(payload)),
             success_message="Task time entry added.",
-            on_success=self._facade_refresh,
+            on_success=self._refresh_entry_cb,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -115,7 +118,7 @@ class PMTimeController(QObject):
         return run_mutation(
             operation=lambda: self._presenter.update_task_time_entry(dict(payload)),
             success_message="Task time entry updated.",
-            on_success=self._facade_refresh,
+            on_success=self._refresh_entry_cb,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -126,7 +129,7 @@ class PMTimeController(QObject):
         return run_mutation(
             operation=lambda: self._presenter.delete_task_time_entry(entry_id),
             success_message="Task time entry deleted.",
-            on_success=self._facade_refresh,
+            on_success=self._refresh_entry_cb,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,

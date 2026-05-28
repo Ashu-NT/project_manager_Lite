@@ -10,6 +10,14 @@ from src.core.modules.project_management.api.desktop import (
     ProjectUpdateCommand,
     build_project_management_projects_desktop_api,
 )
+from src.core.modules.project_management.api.desktop.register import (
+    ProjectManagementRegisterDesktopApi,
+    build_project_management_register_desktop_api,
+)
+from src.core.modules.project_management.api.desktop.tasks import (
+    ProjectManagementTasksDesktopApi,
+    build_project_management_tasks_desktop_api,
+)
 from src.core.modules.project_management.infrastructure.importers.import_parser import (
     CsvImportParser,
     ImportValidationService,
@@ -34,8 +42,12 @@ class ProjectProjectsWorkspacePresenter:
         self,
         *,
         desktop_api: ProjectManagementProjectsDesktopApi | None = None,
+        tasks_desktop_api: ProjectManagementTasksDesktopApi | None = None,
+        register_desktop_api: ProjectManagementRegisterDesktopApi | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_projects_desktop_api()
+        self._tasks_desktop_api = tasks_desktop_api or build_project_management_tasks_desktop_api()
+        self._register_desktop_api = register_desktop_api or build_project_management_register_desktop_api()
         self._import_sessions: dict[str, object] = {}
 
     def build_workspace_state(
@@ -145,18 +157,35 @@ class ProjectProjectsWorkspacePresenter:
         project_id: str,
     ) -> ProjectCatalogWorkspaceViewModel:
         normalized_project_id = (project_id or "").strip()
-
+        tasks = (
+            self._tasks_desktop_api.list_tasks(normalized_project_id)
+            if normalized_project_id
+            else ()
+        )
+        items = tuple(
+            ProjectRecordViewModel(
+                id=task.id,
+                title=task.name,
+                status_label=task.status_label,
+                subtitle=f"{task.percent_complete:.0f}% complete",
+                supporting_text=(
+                    f"{self._format_date_label(task.start_date)} → "
+                    f"{self._format_date_label(task.end_date)}"
+                ),
+                meta_text=task.description or "",
+            )
+            for task in tasks
+        )
         return ProjectCatalogWorkspaceViewModel(
             overview=self._build_empty_overview(),
             selected_project_id=normalized_project_id,
             project_tasks=ProjectSectionCollectionViewModel(
                 title="Tasks",
-                subtitle="Tasks linked to this project.",
-                empty_state="Project task lazy loading is not connected yet.",
-                items=(),
+                subtitle=f"{len(items)} task(s) in this project." if items else "Tasks linked to this project.",
+                empty_state="No tasks have been added to this project yet.",
+                items=items,
             ),
         )
-
 
     def build_project_resources_state(
         self,
@@ -164,18 +193,32 @@ class ProjectProjectsWorkspacePresenter:
         project_id: str,
     ) -> ProjectCatalogWorkspaceViewModel:
         normalized_project_id = (project_id or "").strip()
-
+        resources = (
+            self._desktop_api.list_project_resources(normalized_project_id)
+            if normalized_project_id
+            else ()
+        )
+        items = tuple(
+            ProjectRecordViewModel(
+                id=pr.id,
+                title=pr.resource_name,
+                status_label=pr.status_label,
+                subtitle=pr.role or "Team member",
+                supporting_text=pr.planned_hours_label,
+                meta_text=pr.hourly_rate_label,
+            )
+            for pr in resources
+        )
         return ProjectCatalogWorkspaceViewModel(
             overview=self._build_empty_overview(),
             selected_project_id=normalized_project_id,
             project_resources=ProjectSectionCollectionViewModel(
                 title="Resources",
-                subtitle="Resources assigned to this project.",
-                empty_state="Project resource lazy loading is not connected yet.",
-                items=(),
+                subtitle=f"{len(items)} resource(s) assigned." if items else "Resources assigned to this project.",
+                empty_state="No resources have been assigned to this project yet.",
+                items=items,
             ),
         )
-
 
     def build_project_financials_state(
         self,
@@ -183,18 +226,16 @@ class ProjectProjectsWorkspacePresenter:
         project_id: str,
     ) -> ProjectCatalogWorkspaceViewModel:
         normalized_project_id = (project_id or "").strip()
-
         return ProjectCatalogWorkspaceViewModel(
             overview=self._build_empty_overview(),
             selected_project_id=normalized_project_id,
             project_financials=ProjectSectionCollectionViewModel(
                 title="Financials",
                 subtitle="Budget, cost, and financial tracking.",
-                empty_state="Project financial lazy loading is not connected yet.",
+                empty_state="Open the Financials workspace to review cost and budget details.",
                 items=(),
             ),
         )
-
 
     def build_project_risks_state(
         self,
@@ -202,18 +243,35 @@ class ProjectProjectsWorkspacePresenter:
         project_id: str,
     ) -> ProjectCatalogWorkspaceViewModel:
         normalized_project_id = (project_id or "").strip()
-
+        risks = (
+            self._register_desktop_api.list_entries(
+                project_id=normalized_project_id,
+                entry_type="RISK",
+            )
+            if normalized_project_id
+            else ()
+        )
+        items = tuple(
+            ProjectRecordViewModel(
+                id=risk.id,
+                title=risk.title,
+                status_label=risk.severity_label,
+                subtitle=risk.status_label,
+                supporting_text=risk.impact_summary or "No impact summary recorded.",
+                meta_text=risk.due_date_label,
+            )
+            for risk in risks
+        )
         return ProjectCatalogWorkspaceViewModel(
             overview=self._build_empty_overview(),
             selected_project_id=normalized_project_id,
             project_risks=ProjectSectionCollectionViewModel(
                 title="Risks",
-                subtitle="Risks and mitigation records.",
-                empty_state="Project risk lazy loading is not connected yet.",
-                items=(),
+                subtitle=f"{len(items)} risk(s) recorded." if items else "Risks and mitigation records.",
+                empty_state="No risks have been logged for this project yet.",
+                items=items,
             ),
         )
-
 
     def build_project_documents_state(
         self,
@@ -221,18 +279,16 @@ class ProjectProjectsWorkspacePresenter:
         project_id: str,
     ) -> ProjectCatalogWorkspaceViewModel:
         normalized_project_id = (project_id or "").strip()
-
         return ProjectCatalogWorkspaceViewModel(
             overview=self._build_empty_overview(),
             selected_project_id=normalized_project_id,
             project_documents=ProjectSectionCollectionViewModel(
                 title="Documents",
                 subtitle="Project documents and references.",
-                empty_state="Project document lazy loading is not connected yet.",
+                empty_state="Open the Documents panel in the project detail to manage linked files.",
                 items=(),
             ),
         )
-
 
     def build_project_activity_state(
         self,
@@ -240,14 +296,13 @@ class ProjectProjectsWorkspacePresenter:
         project_id: str,
     ) -> ProjectCatalogWorkspaceViewModel:
         normalized_project_id = (project_id or "").strip()
-
         return ProjectCatalogWorkspaceViewModel(
             overview=self._build_empty_overview(),
             selected_project_id=normalized_project_id,
             project_activity=ProjectSectionCollectionViewModel(
                 title="Activity",
                 subtitle="Recent project activity.",
-                empty_state="Project activity lazy loading is not connected yet.",
+                empty_state="Open the Collaboration workspace to view the full project activity feed.",
                 items=(),
             ),
         )

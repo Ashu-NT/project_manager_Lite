@@ -45,7 +45,7 @@ Item {
         const n = root._items.length
         const rH = Theme.AppTheme.compactRowHeight
         const hH = Theme.AppTheme.normalRowHeight
-        return n === 0 ? (hH + 80) : Math.min(hH + n * rH + 12, 280)
+        return n === 0 ? (hH + 80) : (hH + n * rH + 12)
     }
 
     readonly property var _columns: [
@@ -68,13 +68,18 @@ Item {
         }
     }
 
-    implicitHeight: _col.implicitHeight
+    implicitHeight: Math.min(_col.implicitHeight, 520)
+
+    Flickable {
+        anchors.fill:   parent
+        contentWidth:   width
+        contentHeight:  _col.implicitHeight
+        clip:           true
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
     ColumnLayout {
         id: _col
-        anchors.left:  parent.left
-        anchors.right: parent.right
-        anchors.top:   parent.top
+        width:   parent.width
         spacing: 0
 
         // ── Section toolbar ───────────────────────────────────────────
@@ -404,5 +409,6 @@ Item {
                 }
             }
         }
-    }
+    }  // ColumnLayout
+    }  // Flickable
 }

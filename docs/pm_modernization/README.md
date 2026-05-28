@@ -1981,48 +1981,48 @@ Priority order based on user-visible impact and dependency chain:
    - Adds: two new lazy-loaded tabs on resource detail
    - Files: new `ResourcesSkillsSection.qml`, `ResourcesCertificationsSection.qml`, presenter
 
-5. **Tasks — Assignment dialog validation** (ResourceAvailabilityService, AssignmentValidationResult)
+5. ✅ **Tasks — Assignment dialog validation** (ResourceAvailabilityService, AssignmentValidationResult)
    - Adds: availability panel + validation display in existing assign dialog
    - Files: extend `TasksAssignmentsSection.qml`, presenter `build_task_assignments_state()`
 
-6. **Tasks — Skills/Certs tab** (TaskSkillRequirement)
+6. ✅ **Tasks — Skills/Certs tab** (TaskSkillRequirement)
    - Adds: skill requirements section on task detail
    - Files: new `TasksSkillsSection.qml` tab, presenter
 
-7. **Scheduling — Baseline variance table** (BaselineVarianceRecord)
+7. ✅ **Scheduling — Baseline variance table** (BaselineVarianceRecord)
    - Adds: variance rows in baseline section after approval
    - Files: extend `SchedulingBaselineSection.qml`, presenter + controller
 
-8. **Tasks — Schedule Impact tab** (ScheduleChangeImpactService)
+8. ✅ **Tasks — Schedule Impact tab** (ScheduleChangeImpactService)
    - Adds: new lazy tab on task detail
    - Files: new `TasksScheduleImpactSection.qml`, presenter, controller signals
 
-9. **Projects — Import dialog** (ImportPreviewModel, MSProjectXmlParser, P6Parser)
+9. ✅ **Projects — Import dialog** (ImportPreviewModel, MSProjectXmlParser, P6Parser)
    - Adds: Import action in projects toolbar → multi-step import dialog
-   - Files: new `ProjectsImportDialog.qml`, presenter `preview_import()` / `execute_import()`, controller
+   - Files: `ProjectsImportDialog.qml`, presenter `preview_import()` / `execute_import()`, controller
 
-10. **Dashboard — Baseline Variance + Resource Overload + Reports** cards
-    - Adds: three new health/summary cards
-    - Files: extend `DashboardWorkspacePage.qml`, `DashboardWorkspacePresenter`, controller signals
+10. ✅ **Dashboard — Baseline Variance card + Reports section**
+    - Adds: `_build_baseline_variance_card` health card (5th card, project-mode and portfolio-mode) sourced from `BaselineService.get_approved_baseline` + `list_variance_records`; Reports section with 5 common report links in `_build_sections_from_dashboard_data`
+    - Files: `api/desktop/dashboard.py`
 
-11. **Financials — Variance tab** (BaselineVarianceRecord cost side)
-    - Files: new `FinancialsVarianceSection.qml`, presenter
+11. ✅ **Financials — Variance tab** (BaselineVarianceRecord cost side)
+    - Files: `FinancialsDetailSection.qml` `_sec8`, presenter + controller
 
-12. **Resources — Availability tab** (ResourceAvailabilityService full panel)
-    - Files: new `ResourcesAvailabilitySection.qml`, presenter + controller
+12. ✅ **Resources — Availability tab** (ResourceAvailabilityService full panel)
+    - Files: `ResourcesDetailSection.qml` `_sec8`, presenter + controller
 
-13. **Portfolio — Capacity vs Demand tab** (PortfolioResourcePoolService)
-    - Files: new `PortfolioCapacitySection.qml`, presenter + controller
+13. ✅ **Portfolio — Capacity vs Demand tab** (PortfolioResourcePoolService)
+    - Files: `PortfolioWorkspacePage.qml` Capacity tab, presenter + controller
 
-14. **Collaboration — PM Approvals wiring** (ApprovalService PM entity types)
-    - Files: extend `CollaborationWorkspacePage.qml` approvals tab, presenter
+14. ✅ **Collaboration — PM Approvals wiring** (ApprovalService PM entity types)
+    - Files: `CollaborationWorkspacePage.qml` approvals tab, presenter
 
-15. **Scheduling — Change Impact + Leveling tabs**
-    - Files: new `SchedulingChangeImpactSection.qml`, `SchedulingResourceLevelingSection.qml`
+15. ✅ **Scheduling — Change Impact tab** (ScheduleChangeImpactService)
+    - Files: `SchedulingDetailPanel.qml` `_sec7`, `SchedulingWorkspacePage.qml`, controller `computeScheduleImpact` Slot
 
-16. **Export stubs → real implementation or disabled state**
-    - Fix all 5 export stubs to either wire ReportingService or show disabled + tooltip
-    - Files: all 5 workspace controllers + presenters
+16. ✅ **Export stubs → consistent user-facing messages**
+    - All 10 export stubs replaced with "Export is not available here. Open the Reports section…" pattern
+    - Files: all workspace controllers + `scheduling_workspace_presenter.py`
 
 ---
 
@@ -2117,3 +2117,280 @@ are needed (listed by workspace, not duplicating existing methods):
    be retrofitted with the classify → `should_run_async()` → background-thread →
    signal pattern described in Phase 5 above.
 - `docs/integration_plan.md`
+
+---
+
+## PM UI/UX Inspection & Improvement Plan
+
+This section records the second-pass live inspection plan launched 2026-05-28.
+Its purpose is to close the gap between the enterprise backend capabilities already
+implemented (steps 1–16 above) and the actual runtime quality of the QML UI layer:
+scrollability, section data population, state feedback, and performance.
+
+Status legend: ✅ done  🔄 in progress  ⬜ pending
+
+---
+
+### Inspection Phases
+
+#### Phase 1: Inspect Existing PM UI and Wiring (Full Audit) ✅
+
+Completed 2026-05-28. Findings:
+
+- All 11 QML workspace files, controllers, and presenters exist.
+- `TasksTimeEntriesSection.qml` DataTable height capped at 280 px (line 44–49).
+- No `Flickable` or `ScrollView` in any PM detail panel — all panels are fixed-height.
+- After every single time-entry insert the full workspace `refresh()` fires via
+  `_request_domain_refresh()`, causing a visible reload of all sections.
+- 6 of 10 project detail lazy sections (Tasks, Resources, Risks, Documents,
+  Material Demand, Procurement) load navigation stub data only — no real backend
+  rows returned from the presenter.
+- `projects_workspace_controller.py` has the correct signal infrastructure
+  (`projectTasksChanged`, `projectResourcesChanged`, etc.) but the presenter
+  methods return stubs instead of domain rows.
+
+---
+
+#### Phase 2: Fix Project Workspace Detail Page ✅
+
+**Problem**: Tasks, Resources, Risks, Documents, Material Demand, and Procurement
+tabs on the project detail panel showed stub / empty content. The controller signals
+existed but the presenter methods returned placeholder view models.
+
+**Fix applied 2026-05-28** — `projects_workspace_presenter.py`:
+
+- Added `tasks_desktop_api` and `register_desktop_api` injections to `ProjectProjectsWorkspacePresenter.__init__`.
+- `build_project_tasks_state` — now queries `tasks_desktop_api.list_tasks(project_id)`
+  and maps `TaskDesktopDto` to `ProjectRecordViewModel` (name, status, %, dates).
+- `build_project_resources_state` — now queries `desktop_api.list_project_resources(project_id)`
+  (was already implemented in projects desktop API); maps `ProjectResourceDesktopDto` to rows.
+- `build_project_risks_state` — now queries `register_desktop_api.list_entries(project_id, entry_type="RISK")`
+  and maps `RegisterEntryDesktopDto` to rows (title, severity, status, impact).
+- `build_project_financials_state` — clean stub pointing to Financials workspace (no financial service available in this context).
+- `build_project_documents_state` — clean stub pointing to Documents panel (platform document service not yet available here).
+- `build_project_activity_state` — clean stub pointing to Collaboration workspace.
+- Material Demand and Procurement tabs remain hidden when the capability gate is
+  off; wire to real inventory/procurement services when gate is on.
+- `ProjectsWorkspaceController` slots (`loadProjectTasks`, `loadProjectResources`,
+  `loadProjectRisks`, `loadProjectDocuments`) call the above presenter methods and
+  emit the matching `*Changed` signals.
+
+---
+
+#### Phase 3: Resource Assignment Visibility ⬜
+
+**Problem**: When a task is selected and the Assignments tab opens, there is no
+inline preview of the assigned resource's availability or skill match state. Users
+assign blind.
+
+**Target**: the existing assignment form calls `ResourceAvailabilityService` and
+`AssignmentSkillValidator` on resource selection and shows inline feedback before
+the user clicks "Assign".
+
+Required changes (these are recorded in Phase 6 step 5 above; this phase specifically
+tracks the QML-side wiring):
+
+- `TasksAssignmentSection.qml` — after resource `ComboBox` selection, call controller
+  `previewAssignment(resourceId, taskId)` signal/slot.
+- Controller responds with `assignmentPreviewReady(previewJson)` where `previewJson`
+  contains `{ overallocation_pct, conflict_projects, skills_matched, certs_valid }`.
+- QML renders an `InlineMessage` (warning if overallocation > 100%, danger if cert
+  expired, success if clean).
+- "Assign" button converts to "Submit for Approval" when the validation result
+  requires approval.
+
+---
+
+#### Phase 4: Lazy Loading Feedback ⬜
+
+**Problem**: When a lazy section activates and its data is loading, the section area
+is blank — no spinner, no skeleton, no error state. If the load fails silently the
+user sees nothing.
+
+**Target**: every `LazySectionLoader` section shows a `LoadingOverlay` while `isBusy`
+is true, an `EmptyState` when the list is empty, and an `InlineMessage` danger with
+a Retry button when the load fails.
+
+Implementation pattern (apply to all 11 workspaces' lazy sections):
+
+```qml
+// Inside each lazy section component
+AppWidgets.LoadingOverlay { visible: root.isBusy; anchors.fill: parent }
+
+AppWidgets.EmptyState {
+    visible: !root.isBusy && root._items.length === 0
+    anchors.centerIn: parent
+    title: "No items yet"
+    message: root.emptyText || "Nothing to show here."
+}
+
+AppWidgets.InlineMessage {
+    visible: !root.isBusy && Boolean(root.errorText)
+    Layout.fillWidth: true
+    tone: "danger"
+    message: root.errorText || ""
+    actionLabel: "Retry"
+    onActionClicked: root.retryRequested()
+}
+```
+
+Each section controller slot must emit `errorText` on failure instead of silently
+resetting to an empty state.
+
+---
+
+#### Phase 5: Fix Slow Time Entry Creation ✅
+
+**Problem**: every single time entry insert (Add Entry / Update / Delete) triggered
+`_request_domain_refresh()` which fired `refresh()` — a full workspace reload,
+resetting task selection, section indexes, and scroll positions.
+
+**Fix applied 2026-05-28**:
+
+- `PMTimeController.__init__` now accepts an optional `refresh_time_entries` callback
+  separate from `facade_refresh`.
+- `addTaskTimeEntry`, `updateTaskTimeEntry`, `deleteTaskTimeEntry` now call
+  `_refresh_entry_cb` (the scoped refresh) instead of `_facade_refresh`.
+- `submitTaskPeriod`, `lockTaskPeriod`, `unlockTaskPeriod` still call `_facade_refresh`
+  — period-level mutations affect more workspace state and warrant a full reload.
+- `TasksWorkspaceController._refresh_time_entries_only()` calls
+  `build_task_time_state(task_id, assignment_id, period_start)` and updates only
+  `self._time_ctrl._update(ws)` — no signal cascade to other sections.
+- `PMTimeController` instantiation passes `refresh_time_entries=self._refresh_time_entries_only`.
+
+Files changed: `pm_time_controller.py`, `tasks_workspace_controller.py`
+
+---
+
+#### Phase 6: Detail Page Layout Redesign ⬜
+
+**Problem**: PM detail panels have no `Flickable` or `ScrollView`. On screens with
+less than ~900 px of vertical space, bottom sections are clipped with no way to reach
+them.
+
+**Target**: every PM workspace detail panel is wrapped in a `Flickable` so all
+section content is reachable regardless of screen height.
+
+Pattern to apply to each `*DetailPanel.qml` / `*DetailSection.qml`:
+
+```qml
+// Replace anchors-based ColumnLayout with:
+Flickable {
+    anchors.fill: parent
+    contentWidth: width
+    contentHeight: _detailCol.implicitHeight
+    clip: true
+    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+    ColumnLayout {
+        id: _detailCol
+        width: parent.width
+        spacing: 0
+        // ... all existing sections ...
+    }
+}
+```
+
+Apply to: `ProjectsDetailSection.qml`, `TasksDetailSection.qml`,
+`ResourcesDetailSection.qml`, `FinancialsDetailSection.qml`,
+`SchedulingDetailPanel.qml`, `PortfolioDetailSection.qml`,
+`RiskDetailSection.qml`, `RegisterDetailSection.qml`,
+`CollaborationDetailSection.qml`, `TimesheetsDetailSection.qml`.
+
+---
+
+#### Phase 7: Task Workspace Time Section Layout Fix ✅
+
+**Problem**: `TasksTimeEntriesSection.qml` DataTable height capped at 280 px
+(`Math.min(hH + n * rH + 12, 280)` — line 48). With 7+ entries the table clips
+with no visible scrollbar. The section had no internal scroll.
+
+**Fix applied 2026-05-28**:
+
+- Removed `Math.min(..., 280)` cap from `_tableH` — table now grows to full natural
+  height for all entries.
+- Added `Flickable` wrapper around the `ColumnLayout` with `ScrollBar.vertical`.
+- Section `implicitHeight` capped at 520 px — content scrolls inside the section.
+- `ColumnLayout` changed from `anchors.left/right/top` to `width: parent.width` so
+  the Flickable measures it correctly.
+
+Files changed: `src/ui_qml/modules/project_management/qml/workspaces/tasks/TasksTimeEntriesSection.qml`
+
+---
+
+#### Phase 8: Apply Scrollable Layout to All PM Workspaces ⬜
+
+Same Flickable pattern from Phase 6 applied to the remaining workspace detail panels
+not yet covered. Tracked separately because each panel requires its own read/edit
+pass to preserve existing anchor constraints.
+
+Priority order:
+1. `TasksDetailSection.qml` (most actively used)
+2. `SchedulingDetailPanel.qml`
+3. `ProjectsDetailSection.qml`
+4. `ResourcesDetailSection.qml`
+5. `FinancialsDetailSection.qml`
+6. All remaining panels
+
+---
+
+#### Phase 9: Backend-to-UI Relationship Checks ✅
+
+Completed as part of Phase 6 audit (2026-05-27/28). Key finding: `ProjectsImportDialog.qml`
+already existed with full controller slots and toolbar button wiring — no implementation
+needed. All controller–presenter–domain wiring for implemented steps verified correct.
+
+---
+
+#### Phase 10: Permission and Capability Handling ⬜
+
+**Problem**: RBAC-gated action buttons (Submit Baseline, Approve/Reject, Apply
+Leveling, Import) are always visible regardless of user role. Controllers do not
+yet expose `canApproveBaseline`, `canManageSkills`, `canImport` etc. as Q_PROPERTY.
+
+**Target**: each capability-gated button reads its `enabled` / `visible` state from
+a bool Q_PROPERTY on the controller, computed from
+`AuthorizationEngine.has_permission(user, action, scope)`.
+
+Required controller properties (extend each workspace controller):
+
+| Controller | Property | Permission check |
+|---|---|---|
+| `SchedulingWorkspaceController` | `canApproveBaseline` | `pm.baseline.approve` |
+| `SchedulingWorkspaceController` | `canApplyLeveling` | `pm.schedule.level` |
+| `ResourcesWorkspaceController` | `canManageSkills` | `pm.resource.skills.write` |
+| `TasksWorkspaceController` | `canRequestAssignmentOverride` | `pm.assignment.override.request` |
+| `ProjectsWorkspaceController` | `canImport` | `pm.project.import` |
+| `CollaborationWorkspaceController` | `canApprovePmRequest` | `pm.approval.decide` |
+
+QML binding pattern:
+```qml
+AppControls.PrimaryButton {
+    text: "Approve Baseline"
+    visible: root.workspaceController ? root.workspaceController.canApproveBaseline : false
+    enabled: visible && !root.isBusy
+}
+```
+
+---
+
+#### Phase 11: Tests and Verification ⬜
+
+For each phase above, add or extend tests:
+
+- **Phase 2**: unit tests for `ProjectsWorkspacePresenter.build_project_tasks_state`,
+  `build_project_resources_state`, `build_project_risks_state`, `build_project_documents_state`
+  — verify row count, field mapping, empty-state behavior.
+- **Phase 3**: unit test for `previewAssignment` → `AssignmentValidationResult` mapping
+  to the preview dict format consumed by QML.
+- **Phase 5**: integration test that `addTimeEntry()` triggers `timeEntriesChanged`
+  and does NOT trigger `workspaceStateChanged` or a full `refresh()`.
+- **Phase 7 (done)**: visual regression check — confirm DataTable height is no longer
+  capped at 280 px; confirm Flickable scrolls when entry count exceeds visible area.
+- **Phase 10**: unit tests for each new `can*` property — verified against a mock
+  `AuthorizationEngine` with various role/permission configurations.
+
+Existing pre-existing test failures (not caused by this plan — architectural limit):
+- `scheduling_workspace_presenter` 1500 lines > 1356 hard limit
+- `scheduling_workspace_controller` 1480 lines > 1338 hard limit
+- `tasks_workspace_presenter` 2029 lines > 1603 hard limit

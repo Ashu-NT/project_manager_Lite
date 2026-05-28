@@ -442,6 +442,7 @@ class ProjectManagementDashboardDesktopApi:
                     dashboard_data=dashboard_data,
                     pending_approvals=pending_approvals,
                     portfolio_mode=True,
+                    project_id=None,
                 ),
                 operational_tabs=self._build_operational_tabs(operational_tables),
                 operational_tables=operational_tables,
@@ -510,6 +511,7 @@ class ProjectManagementDashboardDesktopApi:
                 dashboard_data=dashboard_data,
                 pending_approvals=pending_approvals,
                 portfolio_mode=False,
+                project_id=selected_project_id,
             ),
             operational_tabs=self._build_operational_tabs(operational_tables),
             operational_tables=operational_tables,
@@ -1149,12 +1151,66 @@ class ProjectManagementDashboardDesktopApi:
             ),
         )
 
+    def _build_baseline_variance_card(
+        self,
+        project_id: str | None,
+    ) -> ProjectDashboardHealthCardDescriptor:
+        if not project_id or self._baseline_service is None:
+            return ProjectDashboardHealthCardDescriptor(
+                id="baseline_variance",
+                title="Baseline Variance",
+                status_label="No Baseline",
+                metric_value="—",
+                metric_label="Tasks behind plan",
+                supporting_text="Approve a baseline in the Scheduling workspace to track drift.",
+                meta_text="Baseline variance tracking inactive.",
+                tone="default",
+                route_id="project_management.scheduling",
+            )
+        try:
+            approved = self._baseline_service.get_approved_baseline(project_id)
+        except Exception:
+            approved = None
+        if approved is None:
+            return ProjectDashboardHealthCardDescriptor(
+                id="baseline_variance",
+                title="Baseline Variance",
+                status_label="No Baseline",
+                metric_value="—",
+                metric_label="Tasks behind plan",
+                supporting_text="No approved baseline for this project yet.",
+                meta_text="Approve a baseline to enable variance tracking.",
+                tone="default",
+                route_id="project_management.scheduling",
+            )
+        try:
+            records = tuple(self._baseline_service.list_variance_records(approved.id) or [])
+        except Exception:
+            records = ()
+        behind = sum(1 for r in records if getattr(r, "finish_variance_days", 0) > 0)
+        ahead = sum(1 for r in records if getattr(r, "finish_variance_days", 0) < 0)
+        on_track = len(records) - behind - ahead
+        tone = "danger" if behind > 0 else "success"
+        status = "Behind" if behind > 0 else "On Track"
+        return ProjectDashboardHealthCardDescriptor(
+            id="baseline_variance",
+            title="Baseline Variance",
+            status_label=status,
+            metric_value=_fmt_int(behind),
+            metric_label="Tasks behind plan",
+            supporting_text=f"Ahead: {_fmt_int(ahead)} | On track: {_fmt_int(on_track)} | Behind: {_fmt_int(behind)}",
+            meta_text=f"vs. {getattr(approved, 'name', 'approved baseline')}",
+            tone=tone,
+            route_id="project_management.scheduling",
+        )
+
     def _build_health_cards(
         self,
         *,
         dashboard_data: Any,
         pending_approvals: tuple[Any, ...],
         portfolio_mode: bool,
+        project_id: str | None = None,
     ) -> tuple[ProjectDashboardHealthCardDescriptor, ...]:
         kpi = getattr(dashboard_data, "kpi", None)
         evm = getattr(dashboard_data, "evm", None)
@@ -1215,6 +1271,7 @@ class ProjectManagementDashboardDesktopApi:
                     tone="danger" if overloads > 0 else "success",
                     route_id="project_management.resources",
                 ),
+                self._build_baseline_variance_card(project_id),
             )
 
         late_tasks = int(getattr(kpi, "late_tasks", 0) or 0)
@@ -1292,6 +1349,7 @@ class ProjectManagementDashboardDesktopApi:
                 tone=resource_tone,
                 route_id="project_management.resources",
             ),
+            self._build_baseline_variance_card(project_id),
         )
 
     def _build_operational_tabs(
@@ -1933,7 +1991,33 @@ class ProjectManagementDashboardDesktopApi:
             sections.append(self._build_register_urgent_section(dashboard_data))
         if portfolio_mode:
             sections.append(self._build_portfolio_ranking_section(dashboard_data))
+        sections.append(self._build_reports_section())
         return tuple(sections)
+
+    def _build_reports_section(self) -> ProjectDashboardSectionDescriptor:
+        common_reports = (
+            ("kpi_summary", "Project KPIs", "project_management.dashboard", "Key metrics: task completion, SPI, CPI, and late count."),
+            ("evm_summary", "Earned Value Summary", "project_management.financials", "BCWS, BCWP, ACWP, SPI, CPI, and VAC per period."),
+            ("resource_utilization", "Resource Utilization", "project_management.resources", "Allocation %, peak load, and overload indicators per resource."),
+            ("baseline_variance", "Baseline Variance", "project_management.scheduling", "Start and finish drift vs. the approved baseline per task."),
+            ("risk_register", "Risk Register Summary", "project_management.risk", "Open risks, issues, and change requests by severity and status."),
+        )
+        return ProjectDashboardSectionDescriptor(
+            title="Reports",
+            subtitle="Quick links to common project reports. Open the workspace to run or export each report.",
+            empty_state="No reports are configured for this project.",
+            items=tuple(
+                ProjectDashboardSectionItemDescriptor(
+                    id=report_id,
+                    title=title,
+                    status_label="Available",
+                    subtitle=description,
+                    meta_text="Open workspace →",
+                    state={"routeId": route_id},
+                )
+                for report_id, title, route_id, description in common_reports
+            ),
+        )
 
     def _build_alert_section(self, dashboard_data: Any) -> ProjectDashboardSectionDescriptor:
         alerts = tuple(getattr(dashboard_data, "alerts", []) or [])
