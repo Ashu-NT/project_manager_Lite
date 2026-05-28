@@ -319,6 +319,9 @@ def test_project_management_workspace_catalog_exposes_typed_portfolio_controller
                 ),
             )
 
+        def build_capacity_pool(self):
+            return ()
+
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(
             project_management_portfolio=_FakePortfolioDesktopApi()
@@ -399,22 +402,14 @@ def test_project_management_workspace_catalog_exposes_typed_projects_controller(
 
 
 def test_project_management_workspace_catalog_exposes_typed_financials_controller() -> None:
+    _financials_projects = [
+        SimpleNamespace(id="proj-1", name="Plant Upgrade", planned_budget=5000.0, currency="EUR"),
+        SimpleNamespace(id="proj-2", name="Warehouse Retrofit", planned_budget=3200.0, currency="USD"),
+    ]
     financials_api = build_project_management_financials_desktop_api(
         project_service=SimpleNamespace(
-            list_projects=lambda: [
-                SimpleNamespace(
-                    id="proj-1",
-                    name="Plant Upgrade",
-                    planned_budget=5000.0,
-                    currency="EUR",
-                ),
-                SimpleNamespace(
-                    id="proj-2",
-                    name="Warehouse Retrofit",
-                    planned_budget=3200.0,
-                    currency="USD",
-                ),
-            ]
+            list_projects=lambda: _financials_projects,
+            get_project=lambda pid: next((p for p in _financials_projects if p.id == pid), None),
         ),
         task_service=_FakeTaskOptionService(
             {
@@ -1355,6 +1350,7 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
     controller.setTaskBulkSelection("task-4", True)
 
     bulk_delete_result = controller.bulkDeleteTasks(["task-1", "task-4"])
+    qapp.processEvents()
 
     assert bulk_delete_result == {
         "ok": True,
@@ -1422,11 +1418,13 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
                         id="base-2",
                         name="Weekly Freeze",
                         created_at=date(2026, 5, 7),
+                        status="approved",
                     ),
                     SimpleNamespace(
                         id="base-1",
                         name="Original Plan",
                         created_at=date(2026, 5, 1),
+                        status="approved",
                     ),
                 ]
             }
