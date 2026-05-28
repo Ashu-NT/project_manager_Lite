@@ -73,6 +73,7 @@ class ProjectManagementSchedulingWorkspaceController(
     selectedActivityIdChanged = Signal()
     calculatorResultChanged = Signal()
     baselineVarianceRowsChanged = Signal()
+    scheduleImpactChanged = Signal()
 
     def __init__(
         self,
@@ -212,6 +213,11 @@ class ProjectManagementSchedulingWorkspaceController(
         self._calculator_result = ""
         self._activity_log: list[dict[str, str]] = []
         self._baseline_variance_rows: list[dict[str, object]] = []
+        self._schedule_impact: dict[str, object] = {
+            "taskId": "", "affectedCount": 0, "maxProjectFinishShiftDays": 0,
+            "requiresApproval": False, "newlyCriticalCount": 0,
+            "noLongerCriticalCount": 0, "affectedTasks": [], "available": False,
+        }
         self._bind_domain_events()
         self.refresh()
 
@@ -1475,6 +1481,74 @@ class ProjectManagementSchedulingWorkspaceController(
                 }
             )
         return rows
+
+
+    @Property("QVariantMap", notify=scheduleImpactChanged)
+    def scheduleImpact(self) -> dict[str, object]:
+        return self._schedule_impact
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def computeScheduleImpact(self, payload: dict) -> dict[str, object]:
+        from datetime import date as _date
+        task_id = str((payload or {}).get("taskId") or self._selected_activity_id or "")
+        project_id = str((payload or {}).get("projectId") or self._selected_project_id or "")
+        if not task_id or not project_id:
+            return {"ok": False, "message": "No activity or project selected."}
+
+        def _parse_date(v):
+            if not v:
+                return None
+            try:
+                return _date.fromisoformat(str(v).strip())
+            except (ValueError, TypeError):
+                return None
+
+        proposed_start = _parse_date((payload or {}).get("proposedStart"))
+        proposed_finish = _parse_date((payload or {}).get("proposedFinish"))
+        proposed_duration = (payload or {}).get("proposedDurationDays")
+        proposed_duration_days = int(proposed_duration) if proposed_duration else None
+
+        try:
+            dto = self._scheduling_workspace_presenter._desktop_api.analyse_change_impact(
+                project_id=project_id,
+                task_id=task_id,
+                proposed_start=proposed_start,
+                proposed_finish=proposed_finish,
+                proposed_duration_days=proposed_duration_days,
+            )
+        except Exception as exc:
+            return {"ok": False, "message": str(exc)}
+
+        if dto is None:
+            impact = {
+                "taskId": task_id, "affectedCount": 0, "maxProjectFinishShiftDays": 0,
+                "requiresApproval": False, "newlyCriticalCount": 0,
+                "noLongerCriticalCount": 0, "affectedTasks": [], "available": False,
+            }
+        else:
+            impact = {
+                "taskId": dto.task_id,
+                "affectedCount": dto.affected_count,
+                "maxProjectFinishShiftDays": dto.max_project_finish_shift_days,
+                "requiresApproval": dto.requires_approval,
+                "newlyCriticalCount": dto.newly_critical_count,
+                "noLongerCriticalCount": dto.no_longer_critical_count,
+                "affectedTasks": [
+                    {
+                        "taskId": t.task_id,
+                        "taskName": t.task_name,
+                        "startShiftDays": t.start_shift_days,
+                        "finishShiftDays": t.finish_shift_days,
+                        "isCritical": t.is_critical,
+                    }
+                    for t in dto.affected_tasks
+                ],
+                "available": True,
+            }
+        if impact != self._schedule_impact:
+            self._schedule_impact = impact
+            self.scheduleImpactChanged.emit()
+        return {"ok": True, "message": "Impact analysis complete."}
 
 
 __all__ = ["ProjectManagementSchedulingWorkspaceController"]

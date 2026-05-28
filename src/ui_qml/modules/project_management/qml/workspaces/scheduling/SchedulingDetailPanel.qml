@@ -26,6 +26,12 @@ Item {
     property var resourceLoadingModel: ({ "items": [], "emptyState": "" })
     property var resourceRows: []
     property var activityFeedModel: ({ "items": [], "emptyState": "" })
+    property var scheduleImpactModel: ({
+        "taskId": "", "affectedCount": 0, "maxProjectFinishShiftDays": 0,
+        "requiresApproval": false, "newlyCriticalCount": 0, "noLongerCriticalCount": 0,
+        "affectedTasks": [], "available": false
+    })
+    property var workspaceController: null
 
     readonly property int _sectionIdx: detailPage ? detailPage.activeSectionIndex : 0
     readonly property int _activeSectionH: {
@@ -35,7 +41,8 @@ Item {
         if (root._sectionIdx === 3) return _sec3.implicitHeight
         if (root._sectionIdx === 4) return _sec4.implicitHeight
         if (root._sectionIdx === 5) return _sec5.implicitHeight
-        return _sec6.implicitHeight
+        if (root._sectionIdx === 6) return _sec6.implicitHeight
+        return _sec7.implicitHeight
     }
 
     implicitHeight: _activeSectionH
@@ -354,6 +361,162 @@ Item {
                     Layout.fillHeight: true
                     items: root.activityFeedModel.items || []
                     emptyText: root.activityFeedModel.emptyState || "No planning activity has been recorded."
+                }
+            }
+        }
+    }
+
+    AppWidgets.LazySectionLoader {
+        id: _sec7
+        anchors.left: parent.left
+        anchors.right: parent.right
+        active: root._sectionIdx === 7
+        sourceComponent: Component {
+            SchedulingPanelFrame {
+                width: parent ? parent.width : 0
+                implicitHeight: 520
+                title: "Change Impact"
+                subtitle: "Schedule ripple analysis — affected tasks, critical path shifts, and approval requirements."
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.margins: Theme.AppTheme.marginMd
+                    spacing: Theme.AppTheme.spacingSm
+
+                    AppWidgets.InlineMessage {
+                        Layout.fillWidth: true
+                        visible: !root.scheduleImpactModel.available
+                        tone: "info"
+                        message: "Select an activity and run the analysis to see how a proposed change would ripple through the schedule."
+                    }
+
+                    AppControls.Button {
+                        Layout.alignment: Qt.AlignLeft
+                        text: "Run Impact Analysis"
+                        visible: root.workspaceController !== null
+                        onClicked: {
+                            if (root.workspaceController)
+                                root.workspaceController.computeScheduleImpact({})
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.AppTheme.spacingSm
+                        visible: root.scheduleImpactModel.available === true
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: _metricCol0.implicitHeight + Theme.AppTheme.spacingMd * 2
+                            radius: Theme.AppTheme.radiusSm
+                            color: Theme.AppTheme.surfaceOverlay
+                            border.color: Theme.AppTheme.subtleBorder
+                            border.width: 1
+                            ColumnLayout {
+                                id: _metricCol0
+                                anchors.fill: parent
+                                anchors.margins: Theme.AppTheme.spacingMd
+                                spacing: 2
+                                AppControls.Label {
+                                    text: "Affected Tasks"
+                                    color: Theme.AppTheme.textMuted
+                                    font.pixelSize: Theme.AppTheme.captionSize
+                                    font.bold: true
+                                }
+                                AppControls.Label {
+                                    text: String(root.scheduleImpactModel.affectedCount || 0)
+                                    color: Theme.AppTheme.textPrimary
+                                    font.pixelSize: Theme.AppTheme.headingSize
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: _metricCol1.implicitHeight + Theme.AppTheme.spacingMd * 2
+                            radius: Theme.AppTheme.radiusSm
+                            color: Theme.AppTheme.surfaceOverlay
+                            border.color: Theme.AppTheme.subtleBorder
+                            border.width: 1
+                            ColumnLayout {
+                                id: _metricCol1
+                                anchors.fill: parent
+                                anchors.margins: Theme.AppTheme.spacingMd
+                                spacing: 2
+                                AppControls.Label {
+                                    text: "Max Finish Shift"
+                                    color: Theme.AppTheme.textMuted
+                                    font.pixelSize: Theme.AppTheme.captionSize
+                                    font.bold: true
+                                }
+                                AppControls.Label {
+                                    text: (root.scheduleImpactModel.maxProjectFinishShiftDays || 0) + "d"
+                                    color: (root.scheduleImpactModel.maxProjectFinishShiftDays || 0) > 0
+                                           ? Theme.AppTheme.dangerText : Theme.AppTheme.textPrimary
+                                    font.pixelSize: Theme.AppTheme.headingSize
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: _metricCol2.implicitHeight + Theme.AppTheme.spacingMd * 2
+                            radius: Theme.AppTheme.radiusSm
+                            color: (root.scheduleImpactModel.requiresApproval === true)
+                                   ? Theme.AppTheme.warningSubtle : Theme.AppTheme.surfaceOverlay
+                            border.color: (root.scheduleImpactModel.requiresApproval === true)
+                                          ? Theme.AppTheme.warningBorder : Theme.AppTheme.subtleBorder
+                            border.width: 1
+                            ColumnLayout {
+                                id: _metricCol2
+                                anchors.fill: parent
+                                anchors.margins: Theme.AppTheme.spacingMd
+                                spacing: 2
+                                AppControls.Label {
+                                    text: "Approval"
+                                    color: Theme.AppTheme.textMuted
+                                    font.pixelSize: Theme.AppTheme.captionSize
+                                    font.bold: true
+                                }
+                                AppControls.Label {
+                                    text: root.scheduleImpactModel.requiresApproval === true ? "Required" : "Not Required"
+                                    color: root.scheduleImpactModel.requiresApproval === true
+                                           ? Theme.AppTheme.warningText : Theme.AppTheme.successText
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    font.bold: true
+                                }
+                            }
+                        }
+                    }
+
+                    AppWidgets.DataTable {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        visible: root.scheduleImpactModel.available === true
+                        columns: [
+                            { "key": "taskName", "label": "Task", "flex": 2.0 },
+                            { "key": "startShiftDays", "label": "Start Shift", "flex": 0.8 },
+                            { "key": "finishShiftDays", "label": "Finish Shift", "flex": 0.8 },
+                            { "key": "isCritical", "label": "Critical", "flex": 0.7, "type": "status" }
+                        ]
+                        rows: {
+                            var tasks = root.scheduleImpactModel.affectedTasks || []
+                            return tasks.map(function(t) {
+                                return {
+                                    "taskName": t.taskName || t.task_name || "",
+                                    "startShiftDays": (t.startShiftDays || t.start_shift_days || 0) + "d",
+                                    "finishShiftDays": (t.finishShiftDays || t.finish_shift_days || 0) + "d",
+                                    "isCritical": {
+                                        "label": (t.isCritical || t.is_critical) ? "Critical" : "Normal",
+                                        "tone": (t.isCritical || t.is_critical) ? "danger" : "default"
+                                    }
+                                }
+                            })
+                        }
+                        loading: false
+                        emptyText: "No affected tasks found for this activity."
+                    }
                 }
             }
         }

@@ -601,6 +601,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             work_calendar_engine=pm_work_calendar_engine,
             baseline_service=pm_baseline_service,
             reporting_service=pm_reporting_service,
+            change_impact_service=_build_schedule_change_impact_service(
+                pm_task_service, pm_work_calendar_engine
+            ),
         ),
         project_management_tasks=build_project_management_tasks_desktop_api(
             project_service=pm_project_service,

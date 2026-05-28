@@ -16,6 +16,9 @@ from src.core.modules.project_management.application.scheduling.constraint_valid
 from src.core.modules.project_management.application.scheduling.baseline_service import (
     BaselineService,
 )
+from src.core.modules.project_management.application.scheduling.schedule_change_impact_service import (
+    ScheduleChangeImpactService,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.domain.scheduling.calendar import Holiday, WorkingCalendar
@@ -262,6 +265,26 @@ class SchedulingResourceLoadDto:
     status_label: str
 
 
+@dataclass(frozen=True)
+class SchedulingChangeImpactAffectedTaskDto:
+    task_id: str
+    task_name: str
+    start_shift_days: int
+    finish_shift_days: int
+    is_critical: bool
+
+
+@dataclass(frozen=True)
+class SchedulingChangeImpactDto:
+    task_id: str
+    affected_count: int
+    max_project_finish_shift_days: int
+    requires_approval: bool
+    newly_critical_count: int
+    no_longer_critical_count: int
+    affected_tasks: tuple[SchedulingChangeImpactAffectedTaskDto, ...]
+
+
 class ProjectManagementSchedulingDesktopApi:
     def __init__(
         self,
@@ -273,6 +296,7 @@ class ProjectManagementSchedulingDesktopApi:
         work_calendar_engine: WorkCalendarEngine | None = None,
         baseline_service: BaselineService | None = None,
         reporting_service: ReportingService | None = None,
+        change_impact_service: ScheduleChangeImpactService | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
@@ -281,6 +305,7 @@ class ProjectManagementSchedulingDesktopApi:
         self._work_calendar_engine = work_calendar_engine
         self._baseline_service = baseline_service
         self._reporting_service = reporting_service
+        self._change_impact_service = change_impact_service
 
     def list_projects(self) -> tuple[SchedulingProjectOptionDescriptor, ...]:
         if self._project_service is None:
@@ -973,6 +998,53 @@ class ProjectManagementSchedulingDesktopApi:
         )
 
 
+    def analyse_change_impact(
+        self,
+        project_id: str,
+        task_id: str,
+        proposed_start: "date | None" = None,
+        proposed_finish: "date | None" = None,
+        proposed_duration_days: "int | None" = None,
+    ) -> SchedulingChangeImpactDto | None:
+        if not task_id or not project_id or self._change_impact_service is None:
+            return None
+        try:
+            has_baseline = False
+            if self._baseline_service is not None:
+                try:
+                    has_baseline = self._baseline_service.get_approved_baseline(project_id) is not None
+                except Exception:
+                    pass
+            report = self._change_impact_service.analyse(
+                project_id=project_id,
+                changed_task_id=task_id,
+                proposed_start=proposed_start,
+                proposed_finish=proposed_finish,
+                proposed_duration_days=proposed_duration_days,
+                has_approved_baseline=has_baseline,
+            )
+        except Exception:
+            return None
+        return SchedulingChangeImpactDto(
+            task_id=task_id,
+            affected_count=int(report.max_project_finish_shift_days != 0) + len(report.affected_tasks),
+            max_project_finish_shift_days=int(report.max_project_finish_shift_days or 0),
+            requires_approval=bool(report.requires_approval),
+            newly_critical_count=len(report.newly_critical_task_ids or []),
+            no_longer_critical_count=len(report.no_longer_critical_task_ids or []),
+            affected_tasks=tuple(
+                SchedulingChangeImpactAffectedTaskDto(
+                    task_id=str(t.task_id or ""),
+                    task_name=str(getattr(t, "task_name", t.task_id) or t.task_id or "Task"),
+                    start_shift_days=int(getattr(t, "start_shift_days", 0) or 0),
+                    finish_shift_days=int(getattr(t, "finish_shift_days", 0) or 0),
+                    is_critical=bool(getattr(t, "is_critical", False)),
+                )
+                for t in (report.affected_tasks or [])[:20]
+            ),
+        )
+
+
 def build_project_management_scheduling_desktop_api(
     *,
     project_service: ProjectService | None = None,
@@ -982,6 +1054,7 @@ def build_project_management_scheduling_desktop_api(
     work_calendar_engine: WorkCalendarEngine | None = None,
     baseline_service: BaselineService | None = None,
     reporting_service: ReportingService | None = None,
+    change_impact_service: ScheduleChangeImpactService | None = None,
 ) -> ProjectManagementSchedulingDesktopApi:
     return ProjectManagementSchedulingDesktopApi(
         project_service=project_service,
@@ -991,6 +1064,7 @@ def build_project_management_scheduling_desktop_api(
         work_calendar_engine=work_calendar_engine,
         baseline_service=baseline_service,
         reporting_service=reporting_service,
+        change_impact_service=change_impact_service,
     )
 
 

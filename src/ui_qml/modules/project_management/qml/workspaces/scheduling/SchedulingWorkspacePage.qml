@@ -1487,7 +1487,8 @@ AppLayouts.WorkspaceFrame {
                     "Calendars",
                     "Baselines",
                     "Resources",
-                    "Activity Feed"
+                    "Activity Feed",
+                    "Change Impact"
                 ]
                 z: 20
                 Component.onCompleted: scrollToSection(root._pendingDetailSection)
@@ -1520,6 +1521,8 @@ AppLayouts.WorkspaceFrame {
                     resourceLoadingModel: root.resourceLoadingModel
                     resourceRows: root.resourceRows
                     activityFeedModel: root.activityFeedModel
+                    scheduleImpactModel: root.workspaceController ? (root.workspaceController.scheduleImpact || {}) : ({})
+                    workspaceController: root.workspaceController
                 }
             }
         }
