@@ -24,6 +24,10 @@ Item {
     property var detailPage: null
     property var sectionErrors: ({})
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
+    property var projectTasksModel: ({ "title": "Tasks", "subtitle": "", "emptyState": "Open this section to load project tasks.", "items": [] })
+    property var projectTasksTableModel: null
+    property var projectResourcesModel: ({ "title": "Resources", "subtitle": "", "emptyState": "Open this section to load project resources.", "items": [] })
+    property var projectResourcesTableModel: null
 
     signal editRequested()
     signal statusRequested()
@@ -392,20 +396,18 @@ Item {
                     message: String(root.sectionErrors["tasks"] || "")
                 }
 
-                Item {
+                AppWidgets.DataTable {
                     width: parent.width
-                    implicitHeight: _tasksEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
-                    height: implicitHeight
-
-                    AppWidgets.EmptyState {
-                        id: _tasksEmpty
-                        anchors.top: parent.top
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: Math.min(parent.width - Theme.AppTheme.marginMd * 2, 400)
-                        title: "Task execution data"
-                        message: "Open the Tasks workspace to view delivery tasks assigned to this project."
-                    }
+                    height: Math.min(400, Math.max(200, implicitHeight))
+                    columns: [
+                        { key: "title",       label: "Task",     flex: 2,   sortable: true  },
+                        { key: "statusLabel", label: "Status",   flex: 0,   minWidth: 100,  type: "status" },
+                        { key: "subtitle",    label: "Code",     flex: 1,                   },
+                        { key: "metaText",    label: "Progress", flex: 0,   minWidth: 100   }
+                    ]
+                    sourceModel: root.projectTasksTableModel
+                    loading: root.isBusy
+                    emptyText: root.projectTasksModel.emptyState || "No tasks found for this project."
                 }
             }
         }
@@ -430,20 +432,18 @@ Item {
                     message: String(root.sectionErrors["resources"] || "")
                 }
 
-                Item {
+                AppWidgets.DataTable {
                     width: parent.width
-                    implicitHeight: _resourcesEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
-                    height: implicitHeight
-
-                    AppWidgets.EmptyState {
-                        id: _resourcesEmpty
-                        anchors.top: parent.top
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: Math.min(parent.width - Theme.AppTheme.marginMd * 2, 400)
-                        title: "Resource allocation data"
-                        message: "Open the Resources workspace to review staffing and capacity assigned to this project."
-                    }
+                    height: Math.min(360, Math.max(200, implicitHeight))
+                    columns: [
+                        { key: "title",       label: "Resource",    flex: 2,   sortable: true  },
+                        { key: "statusLabel", label: "Role",        flex: 0,   minWidth: 100,  type: "status" },
+                        { key: "subtitle",    label: "Allocation",  flex: 1                    },
+                        { key: "metaText",    label: "Period",      flex: 0,   minWidth: 100   }
+                    ]
+                    sourceModel: root.projectResourcesTableModel
+                    loading: root.isBusy
+                    emptyText: root.projectResourcesModel.emptyState || "No resources allocated to this project."
                 }
             }
         }

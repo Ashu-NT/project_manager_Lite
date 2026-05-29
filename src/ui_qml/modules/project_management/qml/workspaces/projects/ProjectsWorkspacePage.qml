@@ -70,6 +70,13 @@ AppLayouts.WorkspaceFrame {
         return secs
     }
 
+    readonly property var projectTasksModel: root.workspaceController
+        ? root.workspaceController.projectTasks
+        : ({ "title": "Tasks", "subtitle": "", "emptyState": "Open this section to load project tasks.", "items": [] })
+    readonly property var projectResourcesModel: root.workspaceController
+        ? root.workspaceController.projectResources
+        : ({ "title": "Resources", "subtitle": "", "emptyState": "Open this section to load project resources.", "items": [] })
+
     property string _tableId: "pm.projects.table"
     property var _columns: []
 
@@ -555,6 +562,10 @@ AppLayouts.WorkspaceFrame {
                     projectDetail: root.selectedProjectModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     sectionErrors: root.workspaceController ? root.workspaceController.sectionErrors : ({})
+                    projectTasksModel: root.projectTasksModel
+                    projectTasksTableModel: root.workspaceController ? root.workspaceController.projectTasksTableModel : null
+                    projectResourcesModel: root.projectResourcesModel
+                    projectResourcesTableModel: root.workspaceController ? root.workspaceController.projectResourcesTableModel : null
                     onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedProjectModel)
                     onStatusRequested: dialogHostLoader.invoke("openStatusDialog", root.selectedProjectModel)
                     onDeleteRequested: dialogHostLoader.invoke("openDeleteDialog", root.selectedProjectModel)

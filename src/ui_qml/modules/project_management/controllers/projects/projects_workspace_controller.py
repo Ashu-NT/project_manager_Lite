@@ -100,6 +100,8 @@ class ProjectManagementProjectsWorkspaceController(
         self._selected_project_ids: list[str] = []
         self._selected_project_count = 0
         
+        self._project_tasks_table_model = DynamicTableModel(self)
+        self._project_resources_table_model = DynamicTableModel(self)
         self._project_tasks = {"title": "Tasks", "subtitle": "", "emptyState": "Open this section to load project tasks.", "items": []}
         self._project_resources = {"title": "Resources", "subtitle": "", "emptyState": "Open this section to load project resources.", "items": []}
         self._project_financials = {"title": "Financials", "subtitle": "", "emptyState": "Open this section to load project financials.", "items": []}
@@ -181,9 +183,17 @@ class ProjectManagementProjectsWorkspaceController(
     def projectTasks(self) -> dict[str, object]:
         return self._project_tasks
 
+    @Property(QObject, constant=True)
+    def projectTasksTableModel(self) -> DynamicTableModel:
+        return self._project_tasks_table_model
+
     @Property("QVariantMap", notify=projectResourcesChanged)
     def projectResources(self) -> dict[str, object]:
         return self._project_resources
+
+    @Property(QObject, constant=True)
+    def projectResourcesTableModel(self) -> DynamicTableModel:
+        return self._project_resources_table_model
 
     @Property("QVariantMap", notify=projectFinancialsChanged)
     def projectFinancials(self) -> dict[str, object]:
@@ -748,12 +758,14 @@ class ProjectManagementProjectsWorkspaceController(
         if value == self._project_tasks:
             return
         self._project_tasks = value
+        self._project_tasks_table_model.set_rows(value.get("items", []))
         self.projectTasksChanged.emit()
 
     def _set_project_resources(self, value: dict[str, object]) -> None:
         if value == self._project_resources:
             return
         self._project_resources = value
+        self._project_resources_table_model.set_rows(value.get("items", []))
         self.projectResourcesChanged.emit()
 
     def _set_project_financials(self, value: dict[str, object]) -> None:
