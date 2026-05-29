@@ -92,6 +92,7 @@ Item {
         if (!normalizedKey.length) {
             return
         }
+        // Update visual indicator — applies whether sourceModel is set or not.
         if (root.sortKey === normalizedKey) {
             root.sortDirection = root.sortDirection === Qt.AscendingOrder
                 ? Qt.DescendingOrder
@@ -99,6 +100,11 @@ Item {
         } else {
             root.sortKey = normalizedKey
             root.sortDirection = Qt.AscendingOrder
+        }
+        // Delegate actual sort: Python model when sourceModel is set,
+        // otherwise _displayRows recomputes via clientSideSorting.
+        if (root.sourceModel) {
+            root.sourceModel.toggleSort(normalizedKey)
         }
     }
 

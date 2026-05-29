@@ -78,15 +78,16 @@ AppLayouts.WorkspaceFrame {
         })
 
     property string activePanelId: "inbox"
-    property string selectedProjectId: "all"
-    property string selectedTeamId: "all"
-    property string selectedPeriodKey: "all"
-    property string selectedUnreadKey: "all"
-    property string inboxSearchText: ""
-    property string mentionsSearchText: ""
-    property string approvalsSearchText: ""
+    // Filter/search state moved to Python controller (setSelectedProjectId, setInboxSearchText, etc.)
+    readonly property string selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : "all"
+    readonly property string selectedTeamId: root.workspaceController ? root.workspaceController.selectedTeamId : "all"
+    readonly property string selectedPeriodKey: root.workspaceController ? root.workspaceController.selectedPeriodKey : "all"
+    readonly property string selectedUnreadKey: root.workspaceController ? root.workspaceController.selectedUnreadKey : "all"
+    readonly property string inboxSearchText: root.workspaceController ? root.workspaceController.inboxSearchText : ""
+    readonly property string mentionsSearchText: root.workspaceController ? root.workspaceController.mentionsSearchText : ""
+    readonly property string approvalsSearchText: root.workspaceController ? root.workspaceController.approvalsSearchText : ""
     property string activitySearchText: ""
-    property string teamUpdatesSearchText: ""
+    readonly property string teamUpdatesSearchText: root.workspaceController ? root.workspaceController.teamUpdatesSearchText : ""
     property string auditSearchText: ""
     property int inboxPage: 1
     property int mentionsPage: 1
@@ -237,12 +238,13 @@ AppLayouts.WorkspaceFrame {
     }
 
     function _setPanelSearchText(panelId, text) {
-        if (panelId === "mentions") root.mentionsSearchText = text
-        else if (panelId === "approvals") root.approvalsSearchText = text
-        else if (panelId === "activity") root.activitySearchText = text
-        else if (panelId === "team_updates") root.teamUpdatesSearchText = text
-        else if (panelId === "audit") root.auditSearchText = text
-        else root.inboxSearchText = text
+        if (!root.workspaceController) return
+        if (panelId === "mentions")      root.workspaceController.setMentionsSearchText(text)
+        else if (panelId === "approvals") root.workspaceController.setApprovalsSearchText(text)
+        else if (panelId === "activity")  root.activitySearchText = text
+        else if (panelId === "team_updates") root.workspaceController.setTeamUpdatesSearchText(text)
+        else if (panelId === "audit")     root.auditSearchText = text
+        else root.workspaceController.setInboxSearchText(text)
         root._resetPanelPage(panelId)
     }
 
@@ -785,6 +787,12 @@ AppLayouts.WorkspaceFrame {
                             anchors.bottom: paginationBar.top
                             visible: root.activePanelId !== "activity" && root.activePanelId !== "audit"
                             columns: root._currentTableColumns
+                            sourceModel: root.workspaceController
+                                ? (root.activePanelId === "mentions"      ? root.workspaceController.mentionsTableModel
+                                   : root.activePanelId === "approvals"   ? root.workspaceController.approvalsTableModel
+                                   : root.activePanelId === "team_updates" ? root.workspaceController.teamUpdatesTableModel
+                                   : root.workspaceController.inboxTableModel)
+                                : null
                             selectedRowId: root._selectedRowId
                             emptyText: root._currentPanelModel.emptyState || "No collaboration items are available."
                             loading: root.workspaceController ? root.workspaceController.isLoading : false
@@ -887,6 +895,7 @@ AppLayouts.WorkspaceFrame {
                             CollaborationDetailPanel {
                                 Layout.fillWidth: true
                                 detailModel: root.selectedDetailModel
+                                relatedItemsTableModel: root.workspaceController ? root.workspaceController.relatedItemsTableModel : null
                                 detailPage: detailPage
                                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                                 onRelatedItemActivated: function(itemData) {

@@ -7,12 +7,27 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
+import QtQuick.Dialogs
 
 AppLayouts.WorkspaceFrame {
     id: root
 
     property var platformCatalog
     property var _caps: ({})
+
+    FileDialog {
+        id: _exportDialog
+        title: "Export Reservations"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Excel files (*.xlsx)", "CSV files (*.csv)"]
+        onAccepted: {
+            if (root.workspaceController !== null) {
+                const cols = _reservationsTable.columns.filter(function(c) { return c.visible !== false })
+                    .map(function(c) { return { "key": c.key, "label": c.label } })
+                root.workspaceController.exportTable(cols, String(selectedFile || ""))
+            }
+        }
+    }
 
     Component.onCompleted: {
         if (root.platformCatalog) {
@@ -178,7 +193,7 @@ AppLayouts.WorkspaceFrame {
                     onRefreshRequested: {
                         if (root.workspaceController !== null) root.workspaceController.refresh()
                     }
-                    onExportRequested: {}
+                    onExportRequested: _exportDialog.open()
                     onCreateRequested: dialogHostLoader.invoke(
                         "openCreateReservationDialog",
                         root.workspaceController ? root.workspaceController.selectedItemFilter : "all",

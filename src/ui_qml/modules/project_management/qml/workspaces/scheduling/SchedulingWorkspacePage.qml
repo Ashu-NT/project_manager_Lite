@@ -148,21 +148,65 @@ AppLayouts.WorkspaceFrame {
     property int _pendingDetailSection: 0
     readonly property var detailPage: detailPageLoader.item
 
-    readonly property var _activityColumns: [
-        { "key": "activityCode", "label": "Activity ID", "flex": 0, "minWidth": 96, "sortable": true },
-        { "key": "wbs", "label": "WBS", "flex": 0, "minWidth": 72, "sortable": true },
-        { "key": "taskName", "label": "Task Name", "flex": 2.1, "sortable": true },
-        { "key": "start", "label": "Start", "flex": 0, "minWidth": 90 },
-        { "key": "finish", "label": "Finish", "flex": 0, "minWidth": 90 },
-        { "key": "duration", "label": "Duration", "flex": 0, "minWidth": 88 },
-        { "key": "remainingDuration", "label": "Remaining", "flex": 0, "minWidth": 100 },
-        { "key": "float", "label": "Float", "flex": 0, "minWidth": 72 },
-        { "key": "critical", "label": "Critical", "flex": 0, "minWidth": 88, "type": "status" },
-        { "key": "constraint", "label": "Constraint", "flex": 1.1 },
-        { "key": "calendar", "label": "Calendar", "flex": 0.9 },
-        { "key": "progress", "label": "Progress", "flex": 1.0, "minWidth": 120, "type": "progress" },
-        { "key": "status", "label": "Status", "flex": 0.9, "type": "status" }
-    ]
+    property string _activityTableId: "pm.scheduling.activity.table"
+    property var    _activityColumns: []
+
+    function _activityBaseColumns() {
+        return [
+            { "key": "activityCode",      "label": "Activity ID", "flex": 0, "minWidth": 96,  "sortable": true,  "required": true,  "visibleByDefault": true  },
+            { "key": "wbs",               "label": "WBS",         "flex": 0, "minWidth": 72,  "sortable": true,  "visibleByDefault": true  },
+            { "key": "taskName",          "label": "Task Name",   "flex": 2.1, "sortable": true, "required": true, "visibleByDefault": true  },
+            { "key": "start",             "label": "Start",       "flex": 0, "minWidth": 90,  "visibleByDefault": true  },
+            { "key": "finish",            "label": "Finish",      "flex": 0, "minWidth": 90,  "visibleByDefault": true  },
+            { "key": "duration",          "label": "Duration",    "flex": 0, "minWidth": 88,  "visibleByDefault": true  },
+            { "key": "remainingDuration", "label": "Remaining",   "flex": 0, "minWidth": 100, "visibleByDefault": true  },
+            { "key": "float",             "label": "Float",       "flex": 0, "minWidth": 72,  "visibleByDefault": true  },
+            { "key": "critical",          "label": "Critical",    "flex": 0, "minWidth": 88,  "type": "status",  "visibleByDefault": true  },
+            { "key": "constraint",        "label": "Constraint",  "flex": 1.1,                "visibleByDefault": false },
+            { "key": "calendar",          "label": "Calendar",    "flex": 0.9,                "visibleByDefault": false },
+            { "key": "progress",          "label": "Progress",    "flex": 1.0, "minWidth": 120, "type": "progress", "visibleByDefault": true },
+            { "key": "status",            "label": "Status",      "flex": 0.9, "type": "status", "visibleByDefault": true }
+        ]
+    }
+    function _applyColumnState(base, saved) {
+        const order = saved ? (saved.columnOrder || []) : []
+        const hidden = saved ? (saved.hiddenColumns || []) : []
+        if (order.length === 0) return base.slice()
+        const hiddenSet = {}
+        for (let i = 0; i < hidden.length; i++) hiddenSet[hidden[i]] = true
+        const byKey = {}
+        for (let i = 0; i < base.length; i++) byKey[base[i].key] = base[i]
+        const result = []
+        for (let j = 0; j < order.length; j++) {
+            const col = byKey[order[j]]
+            if (!col) continue
+            const c = Object.assign({}, col)
+            if (c.required !== true) c.visible = !hiddenSet[order[j]]
+            result.push(c)
+        }
+        for (let i = 0; i < base.length; i++) {
+            if (order.indexOf(base[i].key) < 0) result.push(Object.assign({}, base[i]))
+        }
+        return result
+    }
+    function _buildColumnState(columns) {
+        const order = []
+        const hidden = []
+        for (let i = 0; i < columns.length; i++) {
+            order.push(columns[i].key)
+            if (columns[i].visible === false) hidden.push(columns[i].key)
+        }
+        return { "columnOrder": order, "hiddenColumns": hidden }
+    }
+    Component.onCompleted: {
+        const base = root._activityBaseColumns()
+        if (root.workspaceController !== null) {
+            const saved = root.workspaceController.loadTableColumnState(root._activityTableId)
+            root._activityColumns = root._applyColumnState(base, saved)
+        } else {
+            root._activityColumns = base
+        }
+    }
     readonly property var _diagnosticColumns: [
         { "key": "message", "label": "Diagnostic Message", "flex": 2.0, "sortable": true },
         { "key": "severity", "label": "Severity", "flex": 0.9, "type": "status" },
@@ -572,11 +616,16 @@ AppLayouts.WorkspaceFrame {
                                             anchors.left: parent.left
                                             anchors.right: parent.right
                                             anchors.bottom: activityPagination.top
+                                            tableId: root._activityTableId
                                             columns: root._activityColumns
                                             sourceModel: root.workspaceController ? root.workspaceController.scheduleTableModel : null
                                             loading: root.workspaceController ? root.workspaceController.isLoading : false
                                             emptyText: root.scheduleModel.emptyState || "No activities are available for the selected planning scope."
                                             selectedRowId: root.workspaceController ? root.workspaceController.selectedActivityId : ""
+                                            onColumnsStateChanged: function(cols) {
+                                                if (root.workspaceController) root.workspaceController.saveTableColumnState(root._activityTableId, root._buildColumnState(cols))
+                                                root._activityColumns = cols
+                                            }
 
                                             onRowSelected: function(rowId) {
                                                 if (root.workspaceController !== null) {

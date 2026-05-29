@@ -36,6 +36,9 @@ AppLayouts.WorkspaceFrame {
         : []
 
     property int _activePanelIndex: 0
+    onActivePanelIndexChanged: {
+        if (root.workspaceController) root.workspaceController.setActiveSectionIndex(root._activePanelIndex)
+    }
 
     readonly property var _panelColumns: [
         { "key": "title",        "label": "Item",     "flex": 2, "sortable": false },
@@ -181,6 +184,7 @@ AppLayouts.WorkspaceFrame {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 columns: root._panelColumns
+                sourceModel: root.workspaceController ? root.workspaceController.activeSectionTableModel : null
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText: parent._activeSection.emptyState || "No records in this panel."
                 multiSelect: false

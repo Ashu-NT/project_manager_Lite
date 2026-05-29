@@ -9,6 +9,7 @@ import App.Theme 1.0 as Theme
 Item {
     id: root
 
+    property var relatedItemsTableModel: null
     property var detailModel: ({
         "id": "",
         "title": "",
@@ -221,6 +222,7 @@ Item {
                         anchors.rightMargin: Theme.AppTheme.marginMd
                         implicitHeight: 220
                         columns: root._relatedColumns
+                        sourceModel: root.relatedItemsTableModel
                         emptyText: root.detailModel.relatedItems
                             ? (root.detailModel.relatedItems.emptyState || "No related items are available.")
                             : "No related items are available."

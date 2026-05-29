@@ -375,7 +375,7 @@ class ProjectPortfolioWorkspacePresenter:
             id=item.id,
             title=item.title,
             status_label=item.status_label,
-            subtitle=f"Sponsor: {item.sponsor_name}",
+            subtitle=str(item.sponsor_name or ""),
             supporting_text=(
                 f"Budget {item.requested_budget_label} | Capacity {item.requested_capacity_label} | "
                 f"Template {item.scoring_template_name}"

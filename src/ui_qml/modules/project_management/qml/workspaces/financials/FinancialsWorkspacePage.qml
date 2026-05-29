@@ -80,17 +80,61 @@ AppLayouts.WorkspaceFrame {
     readonly property var baselineVarianceModel: root.workspaceController
         ? (root.workspaceController.baselineVariance || []) : []
 
-    readonly property var _tableColumns: [
-        { "key": "title",                 "label": "Description", "flex": 2,   "sortable": true  },
-        { "key": "statusLabel",           "label": "Cost Type",   "flex": 0,   "minWidth": 110, "type": "status" },
-        { "key": "commitmentStatusLabel", "label": "Commitment",  "flex": 0,   "minWidth": 120, "type": "status" },
-        { "key": "subtitle",              "label": "Task",        "flex": 1.5, "sortable": true  },
-        { "key": "plannedAmountLabel",    "label": "Budget",      "flex": 0,   "minWidth": 110  },
-        { "key": "forecastAmountLabel",   "label": "Forecast",    "flex": 0,   "minWidth": 110  },
-        { "key": "actualAmountLabel",     "label": "Actual",      "flex": 0,   "minWidth": 110  },
-        { "key": "committedAmountLabel",  "label": "Committed",   "flex": 0,   "minWidth": 110  },
-        { "key": "incurredDateLabel",   "label": "Date",        "flex": 0,   "minWidth": 90   }
-    ]
+    property string _tableId: "pm.financials.costs.table"
+    property var    _columns: []
+
+    function _baseColumns() {
+        return [
+            { "key": "title",                 "label": "Description", "flex": 2,   "sortable": true,  "required": true,  "visibleByDefault": true  },
+            { "key": "statusLabel",           "label": "Cost Type",   "flex": 0,   "minWidth": 110, "type": "status",  "visibleByDefault": true  },
+            { "key": "commitmentStatusLabel", "label": "Commitment",  "flex": 0,   "minWidth": 120, "type": "status",  "visibleByDefault": true  },
+            { "key": "subtitle",              "label": "Task",        "flex": 1.5, "sortable": true,  "visibleByDefault": true  },
+            { "key": "plannedAmountLabel",    "label": "Budget",      "flex": 0,   "minWidth": 110,   "visibleByDefault": true  },
+            { "key": "forecastAmountLabel",   "label": "Forecast",    "flex": 0,   "minWidth": 110,   "visibleByDefault": true  },
+            { "key": "actualAmountLabel",     "label": "Actual",      "flex": 0,   "minWidth": 110,   "visibleByDefault": true  },
+            { "key": "committedAmountLabel",  "label": "Committed",   "flex": 0,   "minWidth": 110,   "visibleByDefault": false },
+            { "key": "incurredDateLabel",     "label": "Date",        "flex": 0,   "minWidth": 90,    "visibleByDefault": true  }
+        ]
+    }
+    function _applyColumnState(base, saved) {
+        const order = saved ? (saved.columnOrder || []) : []
+        const hidden = saved ? (saved.hiddenColumns || []) : []
+        if (order.length === 0) return base.slice()
+        const hiddenSet = {}
+        for (let i = 0; i < hidden.length; i++) hiddenSet[hidden[i]] = true
+        const byKey = {}
+        for (let i = 0; i < base.length; i++) byKey[base[i].key] = base[i]
+        const result = []
+        for (let j = 0; j < order.length; j++) {
+            const col = byKey[order[j]]
+            if (!col) continue
+            const c = Object.assign({}, col)
+            if (c.required !== true) c.visible = !hiddenSet[order[j]]
+            result.push(c)
+        }
+        for (let i = 0; i < base.length; i++) {
+            if (order.indexOf(base[i].key) < 0) result.push(Object.assign({}, base[i]))
+        }
+        return result
+    }
+    function _buildColumnState(columns) {
+        const order = []
+        const hidden = []
+        for (let i = 0; i < columns.length; i++) {
+            order.push(columns[i].key)
+            if (columns[i].visible === false) hidden.push(columns[i].key)
+        }
+        return { "columnOrder": order, "hiddenColumns": hidden }
+    }
+    Component.onCompleted: {
+        const base = root._baseColumns()
+        if (root.workspaceController !== null) {
+            const saved = root.workspaceController.loadTableColumnState(root._tableId)
+            root._columns = root._applyColumnState(base, saved)
+        } else {
+            root._columns = base
+        }
+    }
 
     readonly property var _detailActions: [
         { "id": "edit",   "label": "Edit",         "icon": "edit",   "enabled": true, "danger": false },
@@ -243,11 +287,16 @@ AppLayouts.WorkspaceFrame {
                         anchors.right:  parent.right
                         anchors.bottom: _paginationBar.top
                         multiSelect: true
-                        columns: root._tableColumns
+                        tableId: root._tableId
+                        columns: root._columns
                         sourceModel: root.workspaceController ? root.workspaceController.costsTableModel : null
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.costsModel.emptyState || "No cost items available."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedCostId : ""
+                        onColumnsStateChanged: function(cols) {
+                            if (root.workspaceController) root.workspaceController.saveTableColumnState(root._tableId, root._buildColumnState(cols))
+                            root._columns = cols
+                        }
                         selectedRowIds: root.workspaceController ? (root.workspaceController.selectedCostIds || []) : []
 
                         onRowSelected: function(rowId) {

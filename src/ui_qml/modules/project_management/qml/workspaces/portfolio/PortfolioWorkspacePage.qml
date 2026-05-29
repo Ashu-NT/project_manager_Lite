@@ -88,11 +88,11 @@ AppLayouts.WorkspaceFrame {
 
     // ── Main table column definitions ─────────────────────────────────
     readonly property var _heatmapColumns: [
-        { "key": "name",     "label": "Project",       "flex": 3, "minWidth": 180, "sortable": true  },
-        { "key": "status",   "label": "Status",        "flex": 1, "minWidth": 90,  "type": "status"  },
-        { "key": "pressure", "label": "Pressure",      "flex": 1, "minWidth": 80,  "type": "status"  },
-        { "key": "details",  "label": "Delivery",      "flex": 2, "minWidth": 160                    },
-        { "key": "variance", "label": "Cost Variance", "flex": 1, "minWidth": 100                    }
+        { "key": "title",          "label": "Project",       "flex": 3, "minWidth": 180, "sortable": true  },
+        { "key": "subtitle",       "label": "Status",        "flex": 1, "minWidth": 90                     },
+        { "key": "statusLabel",    "label": "Pressure",      "flex": 1, "minWidth": 80,  "type": "status"  },
+        { "key": "supportingText", "label": "Delivery",      "flex": 2, "minWidth": 160                    },
+        { "key": "metaText",       "label": "Cost Variance", "flex": 1, "minWidth": 100                    }
     ]
 
     // ── All filtered heatmap rows (client-side search) ─────────────────
@@ -125,11 +125,11 @@ AppLayouts.WorkspaceFrame {
 
     // ── Funding tab DataTable rows ─────────────────────────────────────
     readonly property var _fundingColumns: [
-        { "key": "title",   "label": "Intake Item",       "flex": 3, "minWidth": 160, "sortable": true },
-        { "key": "status",  "label": "Status",            "flex": 1, "minWidth": 90,  "type": "status" },
-        { "key": "sponsor", "label": "Sponsor",           "flex": 2, "minWidth": 120                   },
-        { "key": "details", "label": "Budget / Capacity", "flex": 2, "minWidth": 160                   },
-        { "key": "score",   "label": "Score",             "flex": 1, "minWidth": 60                    }
+        { "key": "title",          "label": "Intake Item",       "flex": 3, "minWidth": 160, "sortable": true },
+        { "key": "statusLabel",    "label": "Status",            "flex": 1, "minWidth": 90,  "type": "status" },
+        { "key": "subtitle",       "label": "Sponsor",           "flex": 2, "minWidth": 120                   },
+        { "key": "supportingText", "label": "Budget / Capacity", "flex": 2, "minWidth": 160                   },
+        { "key": "metaText",       "label": "Score",             "flex": 1, "minWidth": 60                    }
     ]
 
     readonly property var _fundingRows: {
@@ -147,10 +147,10 @@ AppLayouts.WorkspaceFrame {
 
     // ── Risks tab DataTable rows ───────────────────────────────────────
     readonly property var _riskColumns: [
-        { "key": "link",    "label": "Dependency", "flex": 3, "minWidth": 200                   },
-        { "key": "type",    "label": "Type",        "flex": 1, "minWidth": 100                   },
-        { "key": "status",  "label": "Pressure",    "flex": 1, "minWidth": 80, "type": "status"  },
-        { "key": "details", "label": "Status",      "flex": 2, "minWidth": 160                   }
+        { "key": "title",          "label": "Dependency", "flex": 3, "minWidth": 200                   },
+        { "key": "subtitle",       "label": "Type",        "flex": 1, "minWidth": 100                   },
+        { "key": "statusLabel",    "label": "Pressure",    "flex": 1, "minWidth": 80, "type": "status"  },
+        { "key": "supportingText", "label": "Status",      "flex": 2, "minWidth": 160                   }
     ]
 
     readonly property var _riskRows: {
@@ -350,6 +350,7 @@ AppLayouts.WorkspaceFrame {
                         anchors.bottom: _paginationBar.top
                         multiSelect: true
                         columns: root._heatmapColumns
+                        sourceModel: root.workspaceController ? root.workspaceController.heatmapTableModel : null
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root._heatmapModel.emptyState
                             || "No portfolio projects available."
@@ -586,6 +587,7 @@ AppLayouts.WorkspaceFrame {
                                             Layout.fillWidth: true
                                             Layout.fillHeight: true
                                             columns:  root._fundingColumns
+                                            sourceModel: root.workspaceController ? root.workspaceController.intakeItemsTableModel : null
                                             emptyText: root._intakeModel.emptyState
                                                 || "No intake items available."
                                             multiSelect: false
@@ -688,6 +690,7 @@ AppLayouts.WorkspaceFrame {
                                     AppWidgets.DataTable {
                                         anchors.fill: parent
                                         columns:  root._riskColumns
+                                        sourceModel: root.workspaceController ? root.workspaceController.portfolioDependenciesTableModel : null
                                         emptyText: root._dependenciesModel.emptyState
                                             || "No cross-project dependencies recorded."
                                         onRowSelected: function(rowId) {}

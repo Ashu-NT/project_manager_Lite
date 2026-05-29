@@ -76,6 +76,9 @@ class DynamicTableModel(QAbstractTableModel):
         self._rows: list = []
         self._columns: list = []
         self._vis_cols: list = []
+        self._unsorted_rows: list = []
+        self._sort_key: str = ""
+        self._sort_ascending: bool = True
 
     # ── QAbstractTableModel interface ─────────────────────────────────
 
@@ -212,7 +215,42 @@ class DynamicTableModel(QAbstractTableModel):
 
     def set_rows(self, rows: list[dict]) -> None:
         """Push a new row dataset from Python without crossing the QML bridge."""
-        self._set_rows(rows)
+        self._unsorted_rows = list(rows) if rows is not None else []
+        if self._sort_key:
+            self._set_rows(self._sorted(self._unsorted_rows))
+        else:
+            self._set_rows(self._unsorted_rows)
+
+    @Slot(str)
+    def toggleSort(self, key: str) -> None:
+        """Called from QML onSortRequested — toggles sort direction then re-sorts in place."""
+        if not key:
+            return
+        if self._sort_key == key:
+            self._sort_ascending = not self._sort_ascending
+        else:
+            self._sort_key = key
+            self._sort_ascending = True
+        self._set_rows(self._sorted(self._unsorted_rows))
+
+    def _sorted(self, rows: list[dict]) -> list[dict]:
+        key = self._sort_key
+        if not key or not rows:
+            return rows
+        asc = self._sort_ascending
+
+        def _val(row: dict):
+            v = row.get(key)
+            if v is None:
+                return (1, "")
+            if isinstance(v, (int, float)):
+                return (0, v)
+            return (0, str(v).lower())
+
+        try:
+            return sorted(rows, key=_val, reverse=not asc)
+        except Exception:
+            return rows
 
     def set_columns(self, columns: list[dict]) -> None:
         """Push a new column definition list from Python."""

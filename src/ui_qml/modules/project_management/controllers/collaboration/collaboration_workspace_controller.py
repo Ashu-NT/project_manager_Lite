@@ -5,6 +5,8 @@ import logging
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
 from src.core.platform.notifications.domain_events import domain_events
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
@@ -40,6 +42,15 @@ class ProjectManagementCollaborationWorkspaceController(
 ):
     overviewChanged = Signal()
     notificationsChanged = Signal()
+    # Panel filter / search state
+    selectedProjectIdChanged = Signal()
+    selectedTeamIdChanged = Signal()
+    selectedPeriodKeyChanged = Signal()
+    selectedUnreadKeyChanged = Signal()
+    inboxSearchTextChanged = Signal()
+    mentionsSearchTextChanged = Signal()
+    approvalsSearchTextChanged = Signal()
+    teamUpdatesSearchTextChanged = Signal()
     inboxChanged = Signal()
     recentActivityChanged = Signal()
     activePresenceChanged = Signal()
@@ -68,6 +79,20 @@ class ProjectManagementCollaborationWorkspaceController(
             collaboration_workspace_presenter
             or ProjectCollaborationWorkspacePresenter()
         )
+        self._inbox_table_model = DynamicTableModel(self)
+        self._mentions_table_model = DynamicTableModel(self)
+        self._approvals_table_model = DynamicTableModel(self)
+        self._team_updates_table_model = DynamicTableModel(self)
+        self._related_items_table_model = DynamicTableModel(self)
+        # Filter and search state (owned by Python, replaces QML-local properties)
+        self._selected_project_id = "all"
+        self._selected_team_id = "all"
+        self._selected_period_key = "all"
+        self._selected_unread_key = "all"
+        self._inbox_search_text = ""
+        self._mentions_search_text = ""
+        self._approvals_search_text = ""
+        self._team_updates_search_text = ""
         self._overview: dict[str, object] = {"title": "", "subtitle": "", "metrics": []}
         self._notifications: dict[str, object] = {
             "title": "",
@@ -158,6 +183,134 @@ class ProjectManagementCollaborationWorkspaceController(
     @Property("QVariantMap", notify=notificationsChanged)
     def notifications(self) -> dict[str, object]:
         return self._notifications
+
+    # ── Panel table models ────────────────────────────────────────────
+
+    @Property(QObject, constant=True)
+    def inboxTableModel(self) -> DynamicTableModel:
+        return self._inbox_table_model
+
+    @Property(QObject, constant=True)
+    def mentionsTableModel(self) -> DynamicTableModel:
+        return self._mentions_table_model
+
+    @Property(QObject, constant=True)
+    def approvalsTableModel(self) -> DynamicTableModel:
+        return self._approvals_table_model
+
+    @Property(QObject, constant=True)
+    def teamUpdatesTableModel(self) -> DynamicTableModel:
+        return self._team_updates_table_model
+
+    @Property(QObject, constant=True)
+    def relatedItemsTableModel(self) -> DynamicTableModel:
+        return self._related_items_table_model
+
+    # ── Filter and search state ───────────────────────────────────────
+
+    @Property(str, notify=selectedProjectIdChanged)
+    def selectedProjectId(self) -> str:
+        return self._selected_project_id
+
+    @Property(str, notify=selectedTeamIdChanged)
+    def selectedTeamId(self) -> str:
+        return self._selected_team_id
+
+    @Property(str, notify=selectedPeriodKeyChanged)
+    def selectedPeriodKey(self) -> str:
+        return self._selected_period_key
+
+    @Property(str, notify=selectedUnreadKeyChanged)
+    def selectedUnreadKey(self) -> str:
+        return self._selected_unread_key
+
+    @Property(str, notify=inboxSearchTextChanged)
+    def inboxSearchText(self) -> str:
+        return self._inbox_search_text
+
+    @Property(str, notify=mentionsSearchTextChanged)
+    def mentionsSearchText(self) -> str:
+        return self._mentions_search_text
+
+    @Property(str, notify=approvalsSearchTextChanged)
+    def approvalsSearchText(self) -> str:
+        return self._approvals_search_text
+
+    @Property(str, notify=teamUpdatesSearchTextChanged)
+    def teamUpdatesSearchText(self) -> str:
+        return self._team_updates_search_text
+
+    @Slot(str)
+    def setSelectedProjectId(self, value: str) -> None:
+        v = (value or "").strip() or "all"
+        if v == self._selected_project_id:
+            return
+        self._selected_project_id = v
+        self.selectedProjectIdChanged.emit()
+        self._rebuild_all_panel_models()
+
+    @Slot(str)
+    def setSelectedTeamId(self, value: str) -> None:
+        v = (value or "").strip() or "all"
+        if v == self._selected_team_id:
+            return
+        self._selected_team_id = v
+        self.selectedTeamIdChanged.emit()
+        self._rebuild_all_panel_models()
+
+    @Slot(str)
+    def setSelectedPeriodKey(self, value: str) -> None:
+        v = (value or "").strip() or "all"
+        if v == self._selected_period_key:
+            return
+        self._selected_period_key = v
+        self.selectedPeriodKeyChanged.emit()
+        self._rebuild_all_panel_models()
+
+    @Slot(str)
+    def setSelectedUnreadKey(self, value: str) -> None:
+        v = (value or "").strip() or "all"
+        if v == self._selected_unread_key:
+            return
+        self._selected_unread_key = v
+        self.selectedUnreadKeyChanged.emit()
+        self._rebuild_all_panel_models()
+
+    @Slot(str)
+    def setInboxSearchText(self, text: str) -> None:
+        v = (text or "").strip()
+        if v == self._inbox_search_text:
+            return
+        self._inbox_search_text = v
+        self.inboxSearchTextChanged.emit()
+        self._inbox_table_model.set_rows(self._build_inbox_rows())
+
+    @Slot(str)
+    def setMentionsSearchText(self, text: str) -> None:
+        v = (text or "").strip()
+        if v == self._mentions_search_text:
+            return
+        self._mentions_search_text = v
+        self.mentionsSearchTextChanged.emit()
+        self._mentions_table_model.set_rows(self._build_mentions_rows())
+
+    @Slot(str)
+    def setApprovalsSearchText(self, text: str) -> None:
+        v = (text or "").strip()
+        if v == self._approvals_search_text:
+            return
+        self._approvals_search_text = v
+        self.approvalsSearchTextChanged.emit()
+        self._approvals_table_model.set_rows(self._build_approvals_rows())
+
+    @Slot(str)
+    def setTeamUpdatesSearchText(self, text: str) -> None:
+        v = (text or "").strip()
+        if v == self._team_updates_search_text:
+            return
+        self._team_updates_search_text = v
+        self.teamUpdatesSearchTextChanged.emit()
+        self._team_updates_table_model.set_rows(self._build_team_updates_rows())
 
     @Property("QVariantMap", notify=inboxChanged)
     def inbox(self) -> dict[str, object]:
@@ -580,10 +733,138 @@ class ProjectManagementCollaborationWorkspaceController(
         self._overview = overview
         self.overviewChanged.emit()
 
+    # ── Panel row build helpers ───────────────────────────────────────
+
+    @staticmethod
+    def _title_case(value: str) -> str:
+        raw = str(value or "").replace("_", " ").strip()
+        return " ".join(w.capitalize() for w in raw.split()) if raw else ""
+
+    def _matches_global_filters(self, item: dict) -> bool:
+        state = item.get("state") or {}
+        if self._selected_project_id != "all":
+            if str(state.get("projectId") or "") != self._selected_project_id:
+                return False
+        if self._selected_team_id != "all":
+            key = str(
+                state.get("actorUsername") or state.get("requestor") or state.get("username") or ""
+            )
+            if key != self._selected_team_id:
+                return False
+        if self._selected_unread_key == "unread" and not bool(state.get("unread")):
+            return False
+        if self._selected_unread_key == "attention" and not bool(state.get("attention")):
+            return False
+        return True
+
+    def _matches_search(self, item: dict, search: str) -> bool:
+        if not search:
+            return True
+        term = search.lower()
+        for key in ("title", "subtitle", "supportingText", "metaText", "statusLabel"):
+            if term in str(item.get(key) or "").lower():
+                return True
+        return False
+
+    def _build_inbox_rows(self) -> list[dict]:
+        result = []
+        for item in self._notifications.get("items", []):
+            if not self._matches_global_filters(item):
+                continue
+            if not self._matches_search(item, self._inbox_search_text):
+                continue
+            state = item.get("state") or {}
+            result.append({
+                "id":             item.get("id"),
+                "title":          str(item.get("title") or ""),
+                "workflowType":   self._title_case(state.get("notificationType") or "workflow"),
+                "projectName":    str(state.get("projectName") or "Cross-project"),
+                "supportingText": str(item.get("supportingText") or ""),
+                "statusLabel":    str(item.get("statusLabel") or ""),
+                "subtitle":       str(item.get("subtitle") or ""),
+                "metaText":       str(item.get("metaText") or ""),
+                "state":          dict(state),
+            })
+        return result
+
+    def _build_mentions_rows(self) -> list[dict]:
+        result = []
+        for item in self._mentions.get("items", []):
+            if not self._matches_global_filters(item):
+                continue
+            if not self._matches_search(item, self._mentions_search_text):
+                continue
+            state = item.get("state") or {}
+            actor = state.get("actorUsername") or ""
+            result.append({
+                "id":             item.get("id"),
+                "title":          str(item.get("title") or ""),
+                "sourceName":     str(state.get("taskId") or item.get("subtitle") or ""),
+                "actorLabel":     ("@" + actor) if actor else "",
+                "metaText":       str(item.get("metaText") or ""),
+                "statusLabel":    str(item.get("statusLabel") or ""),
+                "subtitle":       str(item.get("subtitle") or ""),
+                "supportingText": str(item.get("supportingText") or ""),
+                "state":          dict(state),
+            })
+        return result
+
+    def _build_approvals_rows(self) -> list[dict]:
+        result = []
+        for item in self._approvals.get("items", []):
+            if not self._matches_global_filters(item):
+                continue
+            if not self._matches_search(item, self._approvals_search_text):
+                continue
+            state = item.get("state") or {}
+            req = state.get("requestor") or ""
+            result.append({
+                "id":             item.get("id"),
+                "title":          str(item.get("title") or ""),
+                "approvalType":   self._title_case(
+                    state.get("requestType") or state.get("entityType") or "approval"
+                ),
+                "requestor":      ("@" + req) if req else "",
+                "moduleLabel":    str(state.get("moduleLabel") or ""),
+                "statusLabel":    str(item.get("statusLabel") or ""),
+                "subtitle":       str(item.get("subtitle") or ""),
+                "supportingText": str(item.get("supportingText") or ""),
+                "metaText":       str(item.get("metaText") or ""),
+                "state":          dict(state),
+            })
+        return result
+
+    def _build_team_updates_rows(self) -> list[dict]:
+        result = []
+        for item in self._team_updates.get("items", []):
+            if not self._matches_global_filters(item):
+                continue
+            if not self._matches_search(item, self._team_updates_search_text):
+                continue
+            state = item.get("state") or {}
+            result.append({
+                "id":           item.get("id"),
+                "title":        str(item.get("title") or ""),
+                "activityType": self._title_case(state.get("activityType") or ""),
+                "sourceName":   str(state.get("taskName") or item.get("subtitle") or ""),
+                "projectName":  str(state.get("projectName") or ""),
+                "metaText":     str(item.get("metaText") or ""),
+                "statusLabel":  str(item.get("statusLabel") or ""),
+                "state":        dict(state),
+            })
+        return result
+
+    def _rebuild_all_panel_models(self) -> None:
+        self._inbox_table_model.set_rows(self._build_inbox_rows())
+        self._mentions_table_model.set_rows(self._build_mentions_rows())
+        self._approvals_table_model.set_rows(self._build_approvals_rows())
+        self._team_updates_table_model.set_rows(self._build_team_updates_rows())
+
     def _set_notifications(self, notifications: dict[str, object]) -> None:
         if notifications == self._notifications:
             return
         self._notifications = notifications
+        self._inbox_table_model.set_rows(self._build_inbox_rows())
         self.notificationsChanged.emit()
 
     def _set_inbox(self, inbox: dict[str, object]) -> None:
@@ -620,12 +901,14 @@ class ProjectManagementCollaborationWorkspaceController(
         if mentions == self._mentions:
             return
         self._mentions = mentions
+        self._mentions_table_model.set_rows(self._build_mentions_rows())
         self.mentionsChanged.emit()
 
     def _set_approvals(self, approvals: dict[str, object]) -> None:
         if approvals == self._approvals:
             return
         self._approvals = approvals
+        self._approvals_table_model.set_rows(self._build_approvals_rows())
         self.approvalsChanged.emit()
 
     def _set_activity_feed(self, activity_feed: dict[str, object]) -> None:
@@ -638,6 +921,7 @@ class ProjectManagementCollaborationWorkspaceController(
         if team_updates == self._team_updates:
             return
         self._team_updates = team_updates
+        self._team_updates_table_model.set_rows(self._build_team_updates_rows())
         self.teamUpdatesChanged.emit()
 
     def _set_audit_feed(self, audit_feed: dict[str, object]) -> None:
@@ -650,6 +934,10 @@ class ProjectManagementCollaborationWorkspaceController(
         if selected_item_detail == self._selected_item_detail:
             return
         self._selected_item_detail = selected_item_detail
+        related = selected_item_detail.get("relatedItems") if isinstance(selected_item_detail, dict) else {}
+        self._related_items_table_model.set_rows(
+            related.get("items", []) if isinstance(related, dict) else []
+        )
         self.selectedItemDetailChanged.emit()
 
 

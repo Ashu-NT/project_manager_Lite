@@ -96,6 +96,8 @@ class ProjectManagementResourcesWorkspaceController(
         self._resource_total_count = 0
         self._selected_resource_ids: list[str] = []
         self._selected_resource_count = 0
+        self._resource_skills_table_model = DynamicTableModel(self)
+        self._resource_certifications_table_model = DynamicTableModel(self)
         self._resource_skills: list[dict[str, object]] = []
         self._resource_certifications: list[dict[str, object]] = []
         self._resource_availability: dict[str, object] = {
@@ -177,6 +179,14 @@ class ProjectManagementResourcesWorkspaceController(
     @Property("QVariantList", notify=resourceCertificationsChanged)
     def resourceCertifications(self) -> list[dict[str, object]]:
         return list(self._resource_certifications)
+
+    @Property(QObject, constant=True)
+    def resourceSkillsTableModel(self) -> DynamicTableModel:
+        return self._resource_skills_table_model
+
+    @Property(QObject, constant=True)
+    def resourceCertificationsTableModel(self) -> DynamicTableModel:
+        return self._resource_certifications_table_model
 
     @Property("QVariantMap", notify=resourceAvailabilityChanged)
     def resourceAvailability(self) -> dict[str, object]:
@@ -611,12 +621,14 @@ class ProjectManagementResourcesWorkspaceController(
         if skills == self._resource_skills:
             return
         self._resource_skills = skills
+        self._resource_skills_table_model.set_rows(skills)
         self.resourceSkillsChanged.emit()
 
     def _set_resource_certifications(self, certs: list[dict[str, object]]) -> None:
         if certs == self._resource_certifications:
             return
         self._resource_certifications = certs
+        self._resource_certifications_table_model.set_rows(certs)
         self.resourceCertificationsChanged.emit()
 
     def _set_resource_availability(self, availability: dict[str, object]) -> None:

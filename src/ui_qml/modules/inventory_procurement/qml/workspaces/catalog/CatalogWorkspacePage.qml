@@ -7,12 +7,28 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
+import QtQuick.Dialogs
 
 AppLayouts.WorkspaceFrame {
     id: root
 
     property var platformCatalog
     property var _caps: ({})
+
+    FileDialog {
+        id: _exportDialog
+        title: "Export Catalog"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Excel files (*.xlsx)", "CSV files (*.csv)"]
+        onAccepted: {
+            if (root.workspaceController !== null) {
+                const tbl = root._isItemsView ? _itemsTable : _categoriesTable
+                const cols = tbl.columns.filter(function(c) { return c.visible !== false })
+                    .map(function(c) { return { "key": c.key, "label": c.label } })
+                root.workspaceController.exportTable(cols, String(selectedFile || ""))
+            }
+        }
+    }
 
     Component.onCompleted: {
         if (root.platformCatalog) {
@@ -232,7 +248,7 @@ AppLayouts.WorkspaceFrame {
                     onRefreshRequested: {
                         if (root.workspaceController !== null) root.workspaceController.refresh()
                     }
-                    onExportRequested: {}
+                                    onExportRequested: _exportDialog.open()
                     onCreateRequested: {
                         if (root._isItemsView) {
                             dialogHostLoader.invoke("openCreateItemDialog")

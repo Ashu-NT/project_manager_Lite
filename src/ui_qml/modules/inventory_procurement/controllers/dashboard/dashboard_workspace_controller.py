@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
+
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
     InventoryProcurementWorkspaceControllerBase,
@@ -26,6 +28,7 @@ class InventoryProcurementDashboardWorkspaceController(
     overviewChanged = Signal()
     contextLabelChanged = Signal()
     sectionsChanged = Signal()
+    activeSectionIndexChanged = Signal()
 
     def __init__(
         self,
@@ -41,6 +44,8 @@ class InventoryProcurementDashboardWorkspaceController(
         self._dashboard_workspace_presenter = (
             dashboard_workspace_presenter or InventoryDashboardWorkspacePresenter()
         )
+        self._active_section_table_model = DynamicTableModel(self)
+        self._active_section_index = 0
         self._overview: dict[str, object] = {"title": "", "subtitle": "", "metrics": []}
         self._context_label = ""
         self._sections: list[dict[str, object]] = []
@@ -58,6 +63,23 @@ class InventoryProcurementDashboardWorkspaceController(
     @Property("QVariantList", notify=sectionsChanged)
     def sections(self) -> list[dict[str, object]]:
         return self._sections
+
+    @Property(QObject, constant=True)
+    def activeSectionTableModel(self) -> DynamicTableModel:
+        return self._active_section_table_model
+
+    @Property(int, notify=activeSectionIndexChanged)
+    def activeSectionIndex(self) -> int:
+        return self._active_section_index
+
+    @Slot(int)
+    def setActiveSectionIndex(self, index: int) -> None:
+        idx = max(0, index)
+        if idx == self._active_section_index and idx < len(self._sections):
+            return
+        self._active_section_index = idx
+        self.activeSectionIndexChanged.emit()
+        self._push_active_section_rows()
 
     @Slot()
     def refresh(self) -> None:
@@ -104,6 +126,14 @@ class InventoryProcurementDashboardWorkspaceController(
             return
         self._sections = sections
         self.sectionsChanged.emit()
+        self._push_active_section_rows()
+
+    def _push_active_section_rows(self) -> None:
+        idx = self._active_section_index
+        if idx < len(self._sections):
+            self._active_section_table_model.set_rows(
+                self._sections[idx].get("rows", [])
+            )
 
 
 __all__ = ["InventoryProcurementDashboardWorkspaceController"]

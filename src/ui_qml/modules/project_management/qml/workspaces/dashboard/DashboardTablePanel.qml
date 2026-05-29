@@ -9,7 +9,7 @@ Item {
     property string subtitle: ""
     property string emptyText: "No records available."
     property var columns: []
-    property var rows: []
+    property var sourceModel: null
     property bool loading: false
     property real tablePreferredHeight: 220
 
@@ -26,6 +26,7 @@ Item {
             Layout.fillHeight: true
             Layout.preferredHeight: root.tablePreferredHeight
             columns: root.columns
+            sourceModel: root.sourceModel
             loading: root.loading
             emptyText: root.emptyText
         }

@@ -253,6 +253,16 @@ class InventoryProcurementInventoryWorkspaceController(
     def balancesTableModel(self) -> DynamicTableModel:
         return self._balances_table_model
 
+    @Slot("QVariantList", str, result="QVariantMap")
+    def exportTable(self, columns: list, file_path: str) -> dict[str, object]:
+        from src.ui_qml.modules.project_management.utils.table_exporter import export_to_file
+        model = self._balances_table_model if self._is_balances_view else self._storerooms_table_model
+        return export_to_file(list(model._rows), list(columns), (file_path or "").strip())
+
+    @property
+    def _is_balances_view(self) -> bool:
+        return getattr(self, "_active_view", "balances") != "storerooms"
+
     @Property("QVariantMap", notify=selectedBalanceChanged)
     def selectedBalance(self) -> dict[str, object]:
         return self._selected_balance

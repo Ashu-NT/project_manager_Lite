@@ -1,7 +1,7 @@
 # Enterprise DataTable Architecture Migration Plan
 
-**Status:** Phases 1–7 Complete — Core migration done  
-**Remaining:** Phase 8 deferred items (Portfolio, Collaboration, sort wiring, export unification)  
+**Status:** Migration complete. All tables have Python-owned models. Full feature parity achieved.  
+**Remaining:** none  
 **Date:** 2026-05-29  
 **Author:** Claude Code (architecture assessment)
 

@@ -7,12 +7,28 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
+import QtQuick.Dialogs
 
 AppLayouts.WorkspaceFrame {
     id: root
 
     property var platformCatalog
     property var _caps: ({})
+
+    FileDialog {
+        id: _exportDialog
+        title: "Export Procurement"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Excel files (*.xlsx)", "CSV files (*.csv)"]
+        onAccepted: {
+            if (root.workspaceController !== null) {
+                const tbl = root._isRequisitionsView ? _requisitionsTable : _purchaseOrdersTable
+                const cols = tbl.columns.filter(function(c) { return c.visible !== false })
+                    .map(function(c) { return { "key": c.key, "label": c.label } })
+                root.workspaceController.exportTable(cols, String(selectedFile || ""))
+            }
+        }
+    }
 
     Component.onCompleted: {
         if (root.platformCatalog) {
@@ -225,7 +241,7 @@ AppLayouts.WorkspaceFrame {
                     onRefreshRequested: {
                         if (root.workspaceController !== null) root.workspaceController.refresh()
                     }
-                    onExportRequested: {}
+                    onExportRequested: _exportDialog.open()
                     onCreateRequested: {
                         if (root._isRequisitionsView) {
                             dialogHostLoader.invoke("openCreateRequisitionDialog",
@@ -736,6 +752,11 @@ AppLayouts.WorkspaceFrame {
                                     { "key": "subtitle", "label": "Details",  "flex": 1.5 },
                                     { "key": "metaText", "label": "Quantity", "flex": 1 }
                                 ]
+                                sourceModel: root.workspaceController
+                                    ? (root._isRequisitionsView
+                                        ? root.workspaceController.requisitionLinesTableModel
+                                        : root.workspaceController.purchaseOrderLinesTableModel)
+                                    : null
                                 loading: false
                                 emptyText: _procDetailContent._lines
                                     ? (_procDetailContent._lines.emptyState || "No lines.")
@@ -778,7 +799,7 @@ AppLayouts.WorkspaceFrame {
                                     { "key": "statusLabel", "label": "Status",   "flex": 0, "minWidth": 90, "type": "status" },
                                     { "key": "metaText",    "label": "Date",     "flex": 1 }
                                 ]
-                                    ? (_procDetailContent._receipts.items || []) : []
+                                sourceModel: root.workspaceController ? root.workspaceController.receiptsTableModel : null
                                 loading: false
                                 emptyText: _procDetailContent._receipts
                                     ? (_procDetailContent._receipts.emptyState || "No receipts.")

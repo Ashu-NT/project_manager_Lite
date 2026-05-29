@@ -445,6 +445,7 @@ Item {
                         AppWidgets.DataTable {
                             anchors.fill: parent
                             columns: _skillsSection._columns
+                            sourceModel: root.workspaceController ? root.workspaceController.resourceSkillsTableModel : null
                             selectedRowId: _skillsSection._selectedSkillId
                             loading: root.isBusy
                             emptyText: root._hasResource
@@ -537,6 +538,7 @@ Item {
                         AppWidgets.DataTable {
                             anchors.fill: parent
                             columns: _certsSection._columns
+                            sourceModel: root.workspaceController ? root.workspaceController.resourceCertificationsTableModel : null
                             selectedRowId: _certsSection._selectedCertId
                             loading: root.isBusy
                             emptyText: root._hasResource

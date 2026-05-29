@@ -136,6 +136,11 @@ class InventoryProcurementReservationsWorkspaceController(
     def reservationsTableModel(self) -> DynamicTableModel:
         return self._reservations_table_model
 
+    @Slot("QVariantList", str, result="QVariantMap")
+    def exportTable(self, columns: list, file_path: str) -> dict[str, object]:
+        from src.ui_qml.modules.project_management.utils.table_exporter import export_to_file
+        return export_to_file(list(self._reservations_table_model._rows), list(columns), (file_path or "").strip())
+
     @Property("QVariantMap", notify=selectedReservationChanged)
     def selectedReservation(self) -> dict[str, object]:
         return self._selected_reservation
