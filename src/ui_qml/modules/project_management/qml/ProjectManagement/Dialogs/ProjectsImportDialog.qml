@@ -169,6 +169,8 @@ AppControls.CenteredDialog {
                     ]
 
                     delegate: Rectangle {
+                        id: delegateRoot
+
                         required property var modelData
                         Layout.fillWidth: true
                         implicitHeight: _sc.implicitHeight + Theme.AppTheme.spacingMd
@@ -182,17 +184,17 @@ AppControls.CenteredDialog {
 
                             AppControls.Label {
                                 Layout.alignment: Qt.AlignHCenter
-                                text: modelData.value
+                                text: delegateRoot.modelData.value
                                 font.bold: true
                                 font.pixelSize: Theme.AppTheme.subtitleSize
                                 font.family: Theme.AppTheme.fontFamily
-                                color: modelData.warn ? Theme.AppTheme.danger
-                                    : (modelData.ok ? Theme.AppTheme.success : Theme.AppTheme.textPrimary)
+                                color: delegateRoot.modelData.warn ? Theme.AppTheme.danger
+                                    : (delegateRoot.modelData.ok ? Theme.AppTheme.success : Theme.AppTheme.textPrimary)
                             }
 
                             AppControls.Label {
                                 Layout.alignment: Qt.AlignHCenter
-                                text: modelData.label
+                                text: delegateRoot.modelData.label
                                 font.pixelSize: Theme.AppTheme.captionSize
                                 font.family: Theme.AppTheme.fontFamily
                                 color: Theme.AppTheme.textMuted
@@ -273,6 +275,7 @@ AppControls.CenteredDialog {
                         model: root._preview.rows || []
 
                         delegate: Rectangle {
+                            id: _delegateRoot
                             required property var modelData
                             required property int index
                             width: parent ? parent.width : 0
@@ -290,7 +293,7 @@ AppControls.CenteredDialog {
                                 spacing: Theme.AppTheme.spacingSm
 
                                 AppControls.Label {
-                                    text: String(modelData.rowNumber || "")
+                                    text: String(_delegateRoot.modelData.rowNumber || "")
                                     color: Theme.AppTheme.textMuted
                                     font.pixelSize: Theme.AppTheme.captionSize
                                     font.family: Theme.AppTheme.fontFamily
@@ -299,15 +302,15 @@ AppControls.CenteredDialog {
 
                                 AppControls.Label {
                                     Layout.fillWidth: true
-                                    text: modelData.name || "(no name)"
+                                    text: _delegateRoot.modelData.name || "(no name)"
                                     font.pixelSize: Theme.AppTheme.bodySize
                                     font.family: Theme.AppTheme.fontFamily
-                                    color: modelData.hasErrors ? Theme.AppTheme.danger : Theme.AppTheme.textPrimary
+                                    color: _delegateRoot.modelData.hasErrors ? Theme.AppTheme.danger : Theme.AppTheme.textPrimary
                                     elide: Text.ElideRight
                                 }
 
                                 AppControls.Label {
-                                    text: modelData.startDate || ""
+                                    text: _delegateRoot.modelData.startDate || ""
                                     color: Theme.AppTheme.textMuted
                                     font.pixelSize: Theme.AppTheme.captionSize
                                     font.family: Theme.AppTheme.fontFamily
@@ -315,7 +318,7 @@ AppControls.CenteredDialog {
                                 }
 
                                 AppControls.Label {
-                                    text: modelData.endDate || ""
+                                    text: _delegateRoot.modelData.endDate || ""
                                     color: Theme.AppTheme.textMuted
                                     font.pixelSize: Theme.AppTheme.captionSize
                                     font.family: Theme.AppTheme.fontFamily
@@ -331,52 +334,61 @@ AppControls.CenteredDialog {
         Item { Layout.fillHeight: true; visible: !root._hasPreview }
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-        leftPadding: Theme.AppTheme.marginMd
-        rightPadding: Theme.AppTheme.marginMd
-        bottomPadding: Theme.AppTheme.marginMd
+    footer: Item {
+        implicitHeight: footerRow.implicitHeight + Theme.AppTheme.marginMd * 2
+        RowLayout {
+            id: footerRow
 
-        AppControls.SecondaryButton {
-            text: root._hasPreview ? "Back" : "Cancel"
-            iconName: root._hasPreview ? "back" : "close"
-            enabled: !root._isBusy
-            onClicked: {
-                if (root._hasPreview) {
-                    if (root.workspaceController) root.workspaceController.cancelImport()
-                } else {
-                    root.close()
+            anchors {
+                left: parent.left
+                right: parent.right
+                verticalCenter: parent.verticalCenter
+                leftMargin: Theme.AppTheme.marginMd
+                rightMargin: Theme.AppTheme.marginMd
+            }
+
+            spacing: Theme.AppTheme.spacingSm
+
+            AppControls.SecondaryButton {
+                text: root._hasPreview ? "Back" : "Cancel"
+                iconName: root._hasPreview ? "back" : "close"
+                enabled: !root._isBusy
+                onClicked: {
+                    if (root._hasPreview) {
+                        if (root.workspaceController) root.workspaceController.cancelImport()
+                    } else {
+                        root.close()
+                    }
                 }
             }
-        }
 
-        Item { Layout.fillWidth: true }
+            Item { Layout.fillWidth: true }
 
-        AppControls.PrimaryButton {
-            visible: !root._hasPreview
-            text: "Preview"
-            iconName: "search"
-            enabled: !root._isBusy && root._selectedFilePath.length > 0
-            onClicked: {
-                if (root.workspaceController) {
-                    root.workspaceController.previewImport(root._selectedFilePath, root._selectedFormat)
+            AppControls.PrimaryButton {
+                visible: !root._hasPreview
+                text: "Preview"
+                iconName: "search"
+                enabled: !root._isBusy && root._selectedFilePath.length > 0
+                onClicked: {
+                    if (root.workspaceController) {
+                        root.workspaceController.previewImport(root._selectedFilePath, root._selectedFormat)
+                    }
                 }
             }
-        }
 
-        AppControls.PrimaryButton {
-            visible: root._hasPreview
-            text: "Import"
-            iconName: "upload"
-            enabled: !root._isBusy && (root._preview.canCommit || false)
-            onClicked: {
-                if (root.workspaceController) {
-                    const result = root.workspaceController.executeImport(
-                        String(root._preview.sessionId || "")
-                    )
-                    if (result && result.ok) root.close()
+            AppControls.PrimaryButton {
+                visible: root._hasPreview
+                text: "Import"
+                iconName: "upload"
+                enabled: !root._isBusy && (root._preview.canCommit || false)
+                onClicked: {
+                    if (root.workspaceController) {
+                        const result = root.workspaceController.executeImport(
+                            String(root._preview.sessionId || "")
+                        )
+                        if (result && result.ok) root.close()
+                    }
                 }
             }
-        }
-    }
+    }   }
 }

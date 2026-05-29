@@ -88,6 +88,7 @@ QtObject {
     readonly property int bodySize: 14
     readonly property int sectionSize: 16
     readonly property int titleSize: 20
+    readonly property int subtitleSize: 18
     readonly property int headerSize: 24
 
     // Density-aware sizing

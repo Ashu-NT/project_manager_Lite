@@ -392,7 +392,7 @@ Item {
                         message: "Select an activity and run the analysis to see how a proposed change would ripple through the schedule."
                     }
 
-                    AppControls.Button {
+                    AppControls.SecondaryButton {
                         Layout.alignment: Qt.AlignLeft
                         text: "Run Impact Analysis"
                         visible: root.workspaceController !== null
@@ -428,7 +428,7 @@ Item {
                                 AppControls.Label {
                                     text: String(root.scheduleImpactModel.affectedCount || 0)
                                     color: Theme.AppTheme.textPrimary
-                                    font.pixelSize: Theme.AppTheme.headingSize
+                                    font.pixelSize: Theme.AppTheme.headerSize
                                 }
                             }
                         }
@@ -454,8 +454,8 @@ Item {
                                 AppControls.Label {
                                     text: (root.scheduleImpactModel.maxProjectFinishShiftDays || 0) + "d"
                                     color: (root.scheduleImpactModel.maxProjectFinishShiftDays || 0) > 0
-                                           ? Theme.AppTheme.dangerText : Theme.AppTheme.textPrimary
-                                    font.pixelSize: Theme.AppTheme.headingSize
+                                           ? Theme.AppTheme.danger : Theme.AppTheme.textPrimary
+                                    font.pixelSize: Theme.AppTheme.headerSize
                                 }
                             }
                         }
@@ -465,9 +465,9 @@ Item {
                             implicitHeight: _metricCol2.implicitHeight + Theme.AppTheme.spacingMd * 2
                             radius: Theme.AppTheme.radiusSm
                             color: (root.scheduleImpactModel.requiresApproval === true)
-                                   ? Theme.AppTheme.warningSubtle : Theme.AppTheme.surfaceOverlay
+                                   ? Theme.AppTheme.warning : Theme.AppTheme.surfaceOverlay
                             border.color: (root.scheduleImpactModel.requiresApproval === true)
-                                          ? Theme.AppTheme.warningBorder : Theme.AppTheme.subtleBorder
+                                          ? Theme.AppTheme.warning : Theme.AppTheme.subtleBorder
                             border.width: 1
                             ColumnLayout {
                                 id: _metricCol2
@@ -483,7 +483,7 @@ Item {
                                 AppControls.Label {
                                     text: root.scheduleImpactModel.requiresApproval === true ? "Required" : "Not Required"
                                     color: root.scheduleImpactModel.requiresApproval === true
-                                           ? Theme.AppTheme.warningText : Theme.AppTheme.successText
+                                           ? Theme.AppTheme.warning : Theme.AppTheme.success
                                     font.pixelSize: Theme.AppTheme.smallSize
                                     font.bold: true
                                 }
