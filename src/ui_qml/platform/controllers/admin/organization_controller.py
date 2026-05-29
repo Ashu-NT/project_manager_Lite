@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.platform.presenters.organization_catalog_presenter import (
     PlatformOrganizationCatalogPresenter,
 )
@@ -20,6 +21,7 @@ class PlatformOrganizationController(QObject):
     def __init__(self, presenter: PlatformOrganizationCatalogPresenter, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._presenter = presenter
+        self._table_model = DynamicTableModel(self)
         self._organizations: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._organization_editor_options: dict[str, object] = {"moduleOptions": []}
         self._is_busy = False
@@ -35,6 +37,10 @@ class PlatformOrganizationController(QObject):
     @Property("QVariantMap", notify=organizationsChanged)
     def organizations(self) -> dict[str, object]:
         return self._organizations
+
+    @Property(QObject, constant=True)
+    def tableModel(self) -> DynamicTableModel:
+        return self._table_model
 
     @Property("QVariantMap", notify=organizationEditorOptionsChanged)
     def organizationEditorOptions(self) -> dict[str, object]:
@@ -59,6 +65,7 @@ class PlatformOrganizationController(QObject):
     def _set_organizations(self, value: dict[str, object]) -> None:
         if self._organizations != value:
             self._organizations = value
+            self._table_model.set_rows(value.get("items", []))
             self.organizationsChanged.emit()
 
     def _set_organization_editor_options(self, value: dict[str, object]) -> None:

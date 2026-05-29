@@ -325,6 +325,7 @@ AppLayouts.WorkspaceFrame {
                 anchors.fill: parent
                 visible: libraryTabs.currentIndex === 0
                 columns: root._locationColumns
+                sourceModel: root.workspaceController ? root.workspaceController.locationsTableModel : null
                 rows: root.locationModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedLocationId : ""
 
@@ -346,6 +347,7 @@ AppLayouts.WorkspaceFrame {
                 anchors.fill: parent
                 visible: libraryTabs.currentIndex === 1
                 columns: root._systemColumns
+                sourceModel: root.workspaceController ? root.workspaceController.systemsTableModel : null
                 rows: root.systemModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedSystemId : ""
 
@@ -367,6 +369,7 @@ AppLayouts.WorkspaceFrame {
                 anchors.fill: parent
                 visible: libraryTabs.currentIndex === 2
                 columns: root._assetColumns
+                sourceModel: root.workspaceController ? root.workspaceController.assetsTableModel : null
                 rows: root.assetModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedAssetId : ""
 
@@ -388,6 +391,7 @@ AppLayouts.WorkspaceFrame {
                 anchors.fill: parent
                 visible: libraryTabs.currentIndex === 3
                 columns: root._componentColumns
+                sourceModel: root.workspaceController ? root.workspaceController.componentsTableModel : null
                 rows: root.componentModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedComponentId : ""
 

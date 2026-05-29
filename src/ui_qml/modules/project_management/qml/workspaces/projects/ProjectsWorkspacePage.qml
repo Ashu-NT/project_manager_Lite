@@ -301,6 +301,7 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: true
                         tableId: root._tableId
                         columns: root._columns
+                        sourceModel: root.workspaceController ? root.workspaceController.projectsTableModel : null
                         rows: root.projectsModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.projectsModel.emptyState || "No projects available."

@@ -39,6 +39,11 @@ Item {
     property Item   columnCustomizerAnchorItem: null
     property alias  filterButtonItem: _filterButton
     property string tableId: ""
+    // Optional Python-owned DynamicTableModel.  When set the rows: path is
+    // bypassed entirely — the Python model is used directly as the TableView
+    // model and row-count comes from model.rowCountValue.  The rows: property
+    // continues to work unchanged when sourceModel is null.
+    property var sourceModel: null
 
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
@@ -172,8 +177,13 @@ Item {
         return rowsCopy
     }
 
-    readonly property bool _allChecked:  root._displayRows.length > 0
-        && (root.selectedRowIds || []).length >= root._displayRows.length
+    // Total row count — reads from sourceModel when provided, else from _displayRows.
+    readonly property int _rowCount: root.sourceModel
+        ? root.sourceModel.rowCountValue
+        : root._displayRows.length
+
+    readonly property bool _allChecked:  root._rowCount > 0
+        && (root.selectedRowIds || []).length >= root._rowCount
     readonly property bool _someChecked: (root.selectedRowIds || []).length > 0 && !root._allChecked
 
     readonly property int _cbColW: 32
@@ -283,6 +293,16 @@ Item {
         id: _tableModel
         rows:    root._displayRows
         columns: root.columns
+    }
+
+    // When a controller-owned sourceModel is provided, push the QML column
+    // definitions into it so the model's role lookups (ColumnTypeRole etc.)
+    // resolve correctly against the same column list used by the header.
+    Binding {
+        when:     root.sourceModel !== null
+        target:   root.sourceModel
+        property: "columns"
+        value:    root.columns
     }
 
     // Notify the header's columnWidthProvider when visible-column set changes.
@@ -491,7 +511,7 @@ Item {
         visible: root.multiSelect
         clip:    true
 
-        model:          root._displayRows.length
+        model:          root._rowCount
         reuseItems:     true
         boundsBehavior: Flickable.StopAtBounds
         interactive:    false  // vertical scroll driven by _mainView via syncView
@@ -520,8 +540,9 @@ Item {
             id: _cbCell
             required property int row
 
-            readonly property var    _rowData: root._displayRows[row] || {}
+            readonly property var    _rowData: root.sourceModel ? ({}) : (root._displayRows[row] || {})
             readonly property string _rid: {
+                if (root.sourceModel) return root.sourceModel.rowId(row)
                 const rawId = _rowData.id
                 return String(rawId !== undefined && rawId !== null ? rawId : row)
             }
@@ -604,7 +625,7 @@ Item {
         clip:           true
         focus:          true
 
-        model:          _tableModel
+        model:          root.sourceModel || _tableModel
         reuseItems:     true
         boundsBehavior: Flickable.StopAtBounds
 
@@ -627,15 +648,19 @@ Item {
             }
         }
         Keys.onDownPressed: {
-            if (root._currentRow < root._displayRows.length - 1) {
+            if (root._currentRow < root._rowCount - 1) {
                 root._currentRow++
                 _mainView.positionViewAtRow(root._currentRow, TableView.Contain)
             }
         }
         Keys.onReturnPressed: {
-            if (root._currentRow >= 0 && root._currentRow < root._displayRows.length) {
-                const rd = root._displayRows[root._currentRow]
-                if (rd) root.rowActivated(String(rd.id !== undefined ? rd.id : ""))
+            if (root._currentRow >= 0 && root._currentRow < root._rowCount) {
+                if (root.sourceModel) {
+                    root.rowActivated(root.sourceModel.rowId(root._currentRow))
+                } else {
+                    const rd = root._displayRows[root._currentRow]
+                    if (rd) root.rowActivated(String(rd.id !== undefined ? rd.id : ""))
+                }
             }
         }
 
@@ -791,7 +816,7 @@ Item {
     EmptyState {
         anchors.centerIn: _mainView
         width:   Math.min(_mainView.width, 320)
-        visible: root._displayRows.length === 0 && !root.loading
+        visible: root._rowCount === 0 && !root.loading
         title:   root.emptyText
     }
 

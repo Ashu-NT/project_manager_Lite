@@ -249,6 +249,7 @@ AppLayouts.WorkspaceFrame {
                         visible: root._isStockView
                         multiSelect: false
                         columns: root._stockColumns
+                        sourceModel: root.workspaceController ? root.workspaceController.stockSignalsTableModel : null
                         rows: root.stockSignalsModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.stockSignalsModel.emptyState || "No stock signals."
@@ -273,6 +274,7 @@ AppLayouts.WorkspaceFrame {
                         visible: !root._isStockView
                         multiSelect: false
                         columns: root._supplierColumns
+                        sourceModel: root.workspaceController ? root.workspaceController.supplierPricingTableModel : null
                         rows: root.supplierPricingModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.supplierPricingModel.emptyState || "No supplier pricing records."

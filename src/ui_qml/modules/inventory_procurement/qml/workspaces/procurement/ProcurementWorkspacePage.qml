@@ -253,6 +253,7 @@ AppLayouts.WorkspaceFrame {
                         visible: root._isRequisitionsView
                         multiSelect: true
                         columns: root._requisitionColumns
+                        sourceModel: root.workspaceController ? root.workspaceController.requisitionsTableModel : null
                         rows: root.requisitionsModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.requisitionsModel.emptyState || "No requisitions found."
@@ -286,6 +287,7 @@ AppLayouts.WorkspaceFrame {
                         visible: !root._isRequisitionsView
                         multiSelect: true
                         columns: root._purchaseOrderColumns
+                        sourceModel: root.workspaceController ? root.workspaceController.purchaseOrdersTableModel : null
                         rows: root.purchaseOrdersModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.purchaseOrdersModel.emptyState || "No purchase orders found."

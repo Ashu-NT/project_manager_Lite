@@ -66,6 +66,16 @@ AppLayouts.WorkspaceFrame {
         ? root.workspaceController.documentStructures
         : ({ "title": "Document Structures", "subtitle": "", "emptyState": "", "items": [] })
 
+    // ── Python-owned table models ─────────────────────────────────
+    property var organizationsTableModel:     root.workspaceController ? root.workspaceController.organizationsTableModel     : null
+    property var sitesTableModel:             root.workspaceController ? root.workspaceController.sitesTableModel             : null
+    property var departmentsTableModel:       root.workspaceController ? root.workspaceController.departmentsTableModel       : null
+    property var employeesTableModel:         root.workspaceController ? root.workspaceController.employeesTableModel         : null
+    property var usersTableModel:             root.workspaceController ? root.workspaceController.usersTableModel             : null
+    property var partiesTableModel:           root.workspaceController ? root.workspaceController.partiesTableModel           : null
+    property var documentsTableModel:         root.workspaceController ? root.workspaceController.documentsTableModel         : null
+    property var documentStructuresTableModel:root.workspaceController ? root.workspaceController.documentStructuresTableModel : null
+
     // ── Navigation & selection state ──────────────────────────────
     property string _activeSection: "organizations"
     property string _selectedRowId: ""
@@ -246,6 +256,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Organizations"
                 entityLabel:     "Organization"
                 catalog:         root.organizationCatalog
+                catalogModel:    root.organizationsTableModel
                 columns:         root._orgColumns
                 isBusy:          root._busy
                 isLoading:       root._load
@@ -266,6 +277,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Sites"
                 entityLabel:     "Site"
                 catalog:         root.siteCatalog
+                catalogModel:    root.sitesTableModel
                 columns:         root._siteColumns
                 isBusy:          root._busy
                 isLoading:       root._load
@@ -286,6 +298,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Departments"
                 entityLabel:     "Department"
                 catalog:         root.departmentCatalog
+                catalogModel:    root.departmentsTableModel
                 columns:         root._deptColumns
                 isBusy:          root._busy
                 isLoading:       root._load
@@ -306,6 +319,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Employees"
                 entityLabel:     "Employee"
                 catalog:         root.employeeCatalog
+                catalogModel:    root.employeesTableModel
                 columns:         root._employeeColumns
                 isBusy:          root._busy
                 isLoading:       root._load
@@ -326,6 +340,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Users"
                 entityLabel:     "User"
                 catalog:         root.userCatalog
+                catalogModel:    root.usersTableModel
                 columns:         root._userColumns
                 isBusy:          root._busy
                 isLoading:       root._load
@@ -346,6 +361,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Parties"
                 entityLabel:     "Party"
                 catalog:         root.partyCatalog
+                catalogModel:    root.partiesTableModel
                 columns:         root._partyColumns
                 isBusy:          root._busy
                 isLoading:       root._load
@@ -366,6 +382,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Documents"
                 entityLabel:     "Document"
                 catalog:         root.documentCatalog
+                catalogModel:    root.documentsTableModel
                 columns:         root._documentColumns
                 isBusy:          root._busy
                 isLoading:       root._load
@@ -389,6 +406,7 @@ AppLayouts.WorkspaceFrame {
                 sectionTitle:    "Document Structures"
                 entityLabel:     "Structure"
                 catalog:         root.documentStructureCatalog
+                catalogModel:    root.documentStructuresTableModel
                 columns:         root._structureColumns
                 isBusy:          root._busy
                 isLoading:       root._load

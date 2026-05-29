@@ -212,6 +212,7 @@ AppLayouts.WorkspaceFrame {
                         anchors.bottom: _paginationBar.top
                         multiSelect: true
                         columns: root._tableColumns
+                        sourceModel: root.workspaceController ? root.workspaceController.reviewQueueTableModel : null
                         rows: root.reviewQueueModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.reviewQueueModel.emptyState || "No timesheet periods available."
@@ -512,6 +513,7 @@ AppLayouts.WorkspaceFrame {
                     detailPage: detailPageLoader.item
                     reviewDetail: root.selectedPeriodModel
                     entriesModel: root.entriesModel
+                    entriesTableModel: root.workspaceController ? root.workspaceController.entriesTableModel : null
                     selectedEntry: root.selectedEntryModel
                     selectedEntryId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false

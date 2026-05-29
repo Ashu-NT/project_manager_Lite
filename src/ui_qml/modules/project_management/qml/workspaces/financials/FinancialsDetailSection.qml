@@ -14,6 +14,7 @@ Item {
     })
     property var cashflowModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
     property var ledgerModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
+    property var ledgerTableModel: null
     property var sourceAnalyticsModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
     property var overviewModel: ({ "title": "", "subtitle": "", "metrics": [] })
     property var forecastModel: ({
@@ -241,6 +242,7 @@ Item {
                     AppWidgets.DataTable {
                         anchors.fill: parent
                         columns: root._ledgerColumns
+                        sourceModel: root.ledgerTableModel
                         rows: root.ledgerModel.items || []
                         loading: root.isBusy
                         emptyText: root.ledgerModel.emptyState || "No ledger entries."

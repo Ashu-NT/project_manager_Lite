@@ -3,6 +3,8 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
 from src.core.platform.notifications.domain_events import domain_events
 from src.ui_qml.platform.presenters import (
     PlatformControlQueuePresenter,
@@ -37,6 +39,8 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
         super().__init__(parent)
         self._overview_presenter = overview_presenter
         self._queue_presenter = queue_presenter
+        self._approval_queue_table_model = DynamicTableModel(self)
+        self._audit_feed_table_model = DynamicTableModel(self)
         self._approval_queue: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._audit_feed: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._bind_domain_events()
@@ -49,6 +53,14 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
     @Property("QVariantMap", notify=auditFeedChanged)
     def auditFeed(self) -> dict[str, object]:
         return self._audit_feed
+
+    @Property(QObject, constant=True)
+    def approvalQueueTableModel(self) -> DynamicTableModel:
+        return self._approval_queue_table_model
+
+    @Property(QObject, constant=True)
+    def auditFeedTableModel(self) -> DynamicTableModel:
+        return self._audit_feed_table_model
 
     @Slot()
     def refresh(self) -> None:
@@ -181,12 +193,14 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
         if approval_queue == self._approval_queue:
             return
         self._approval_queue = approval_queue
+        self._approval_queue_table_model.set_rows(approval_queue.get("items", []))
         self.approvalQueueChanged.emit()
 
     def _set_audit_feed(self, audit_feed: dict[str, object]) -> None:
         if audit_feed == self._audit_feed:
             return
         self._audit_feed = audit_feed
+        self._audit_feed_table_model.set_rows(audit_feed.get("items", []))
         self.auditFeedChanged.emit()
 
 

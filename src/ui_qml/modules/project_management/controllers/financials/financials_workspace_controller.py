@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
@@ -75,6 +76,8 @@ class ProjectManagementFinancialsWorkspaceController(
         self._selected_project_id = ""
         self._selected_cost_type = "all"
         self._search_text = ""
+        self._costs_table_model = DynamicTableModel(self)
+        self._ledger_table_model = DynamicTableModel(self)
         self._costs: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -162,6 +165,14 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantMap", notify=ledgerChanged)
     def ledger(self) -> dict[str, object]:
         return self._ledger
+
+    @Property(QObject, constant=True)
+    def costsTableModel(self) -> DynamicTableModel:
+        return self._costs_table_model
+
+    @Property(QObject, constant=True)
+    def ledgerTableModel(self) -> DynamicTableModel:
+        return self._ledger_table_model
 
     @Property("QVariantMap", notify=sourceAnalyticsChanged)
     def sourceAnalytics(self) -> dict[str, object]:
@@ -514,6 +525,7 @@ class ProjectManagementFinancialsWorkspaceController(
         if costs == self._costs:
             return
         self._costs = costs
+        self._costs_table_model.set_rows(costs.get("items", []))
         self.costsChanged.emit()
 
     def _set_selected_cost(self, selected_cost: dict[str, object]) -> None:
@@ -538,6 +550,7 @@ class ProjectManagementFinancialsWorkspaceController(
         if ledger == self._ledger:
             return
         self._ledger = ledger
+        self._ledger_table_model.set_rows(ledger.get("items", []))
         self.ledgerChanged.emit()
 
     def _set_source_analytics(self, source_analytics: dict[str, object]) -> None:

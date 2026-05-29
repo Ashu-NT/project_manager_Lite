@@ -41,6 +41,9 @@ AppLayouts.WorkspaceFrame {
             "emptyState": "Project-management tasks desktop API is not connected in this QML preview.",
             "items": []
         })
+    readonly property var tasksTableModel: root.workspaceController
+        ? root.workspaceController.tasksTableModel
+        : null
     readonly property var selectedTaskModel: root.workspaceController
         ? root.workspaceController.selectedTask
         : ({
@@ -513,6 +516,7 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: true
                         tableId: root._tableId
                         columns: root._columns
+                        sourceModel: root.tasksTableModel
                         rows: root.tasksModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.tasksModel.emptyState || "No tasks available."

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.maintenance.controllers.common import (
     MaintenanceWorkspaceControllerBase,
     run_mutation,
@@ -73,6 +74,10 @@ class MaintenanceAssetsWorkspaceController(MaintenanceWorkspaceControllerBase):
         self._selected_site_filter = "all"
         self._selected_active_filter = "all"
         self._search_text = ""
+        self._locations_table_model = DynamicTableModel(self)
+        self._systems_table_model = DynamicTableModel(self)
+        self._assets_table_model = DynamicTableModel(self)
+        self._components_table_model = DynamicTableModel(self)
         self._locations: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -169,6 +174,22 @@ class MaintenanceAssetsWorkspaceController(MaintenanceWorkspaceControllerBase):
     @Property("QVariantMap", notify=componentsChanged)
     def components(self) -> dict[str, object]:
         return self._components
+
+    @Property(QObject, constant=True)
+    def locationsTableModel(self) -> DynamicTableModel:
+        return self._locations_table_model
+
+    @Property(QObject, constant=True)
+    def systemsTableModel(self) -> DynamicTableModel:
+        return self._systems_table_model
+
+    @Property(QObject, constant=True)
+    def assetsTableModel(self) -> DynamicTableModel:
+        return self._assets_table_model
+
+    @Property(QObject, constant=True)
+    def componentsTableModel(self) -> DynamicTableModel:
+        return self._components_table_model
 
     @Property("QVariantMap", notify=selectedLocationChanged)
     def selectedLocation(self) -> dict[str, object]:
@@ -591,24 +612,28 @@ class MaintenanceAssetsWorkspaceController(MaintenanceWorkspaceControllerBase):
         if value == self._locations:
             return
         self._locations = value
+        self._locations_table_model.set_rows(value.get("items", []))
         self.locationsChanged.emit()
 
     def _set_systems(self, value: dict[str, object]) -> None:
         if value == self._systems:
             return
         self._systems = value
+        self._systems_table_model.set_rows(value.get("items", []))
         self.systemsChanged.emit()
 
     def _set_assets(self, value: dict[str, object]) -> None:
         if value == self._assets:
             return
         self._assets = value
+        self._assets_table_model.set_rows(value.get("items", []))
         self.assetsChanged.emit()
 
     def _set_components(self, value: dict[str, object]) -> None:
         if value == self._components:
             return
         self._components = value
+        self._components_table_model.set_rows(value.get("items", []))
         self.componentsChanged.emit()
 
     def _set_selected_location(self, value: dict[str, object]) -> None:

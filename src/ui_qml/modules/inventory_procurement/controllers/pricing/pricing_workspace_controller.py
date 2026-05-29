@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
     InventoryProcurementWorkspaceControllerBase,
     serialize_audit_entries_for_activity,
@@ -73,6 +74,8 @@ class InventoryProcurementPricingWorkspaceController(
         self._selected_storeroom_filter = "all"
         self._selected_supplier_filter = "all"
         self._selected_limit_filter = "200"
+        self._stock_signals_table_model = DynamicTableModel(self)
+        self._supplier_pricing_table_model = DynamicTableModel(self)
         self._stock_signals: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -146,6 +149,14 @@ class InventoryProcurementPricingWorkspaceController(
     @Property("QVariantMap", notify=supplierPricingChanged)
     def supplierPricing(self) -> dict[str, object]:
         return self._supplier_pricing
+
+    @Property(QObject, constant=True)
+    def stockSignalsTableModel(self) -> DynamicTableModel:
+        return self._stock_signals_table_model
+
+    @Property(QObject, constant=True)
+    def supplierPricingTableModel(self) -> DynamicTableModel:
+        return self._supplier_pricing_table_model
 
     @Property(bool, notify=canExportChanged)
     def canExport(self) -> bool:
@@ -504,12 +515,14 @@ class InventoryProcurementPricingWorkspaceController(
         if stock_signals == self._stock_signals:
             return
         self._stock_signals = stock_signals
+        self._stock_signals_table_model.set_rows(stock_signals.get("items", []))
         self.stockSignalsChanged.emit()
 
     def _set_supplier_pricing(self, supplier_pricing: dict[str, object]) -> None:
         if supplier_pricing == self._supplier_pricing:
             return
         self._supplier_pricing = supplier_pricing
+        self._supplier_pricing_table_model.set_rows(supplier_pricing.get("items", []))
         self.supplierPricingChanged.emit()
 
     def _set_can_export(self, can_export: bool) -> None:

@@ -162,6 +162,7 @@ AppLayouts.WorkspaceFrame {
                 id: workOrdersTable
                 anchors.fill: parent
                 columns: root._tableColumns
+                sourceModel: root.workspaceController ? root.workspaceController.workOrdersTableModel : null
                 rows: root.workOrdersModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedWorkOrderId : ""
                 showFilter: true

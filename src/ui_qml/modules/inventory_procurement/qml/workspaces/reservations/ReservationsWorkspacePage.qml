@@ -199,6 +199,7 @@ AppLayouts.WorkspaceFrame {
                         anchors.bottom: _paginationBar.top
                         multiSelect: true
                         columns: root._reservationColumns
+                        sourceModel: root.workspaceController ? root.workspaceController.reservationsTableModel : null
                         rows: root.reservationsModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.reservationsModel.emptyState || "No reservations found."

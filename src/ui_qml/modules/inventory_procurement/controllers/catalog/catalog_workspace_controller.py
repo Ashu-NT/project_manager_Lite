@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
+
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
     InventoryProcurementWorkspaceControllerBase,
@@ -86,6 +88,8 @@ class InventoryProcurementCatalogWorkspaceController(
         self._selected_category_type_filter = "all"
         self._selected_category_filter = "all"
         self._search_text = ""
+        self._categories_table_model = DynamicTableModel(self)
+        self._items_table_model = DynamicTableModel(self)
         self._categories: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -192,6 +196,10 @@ class InventoryProcurementCatalogWorkspaceController(
     def categories(self) -> dict[str, object]:
         return self._categories
 
+    @Property(QObject, constant=True)
+    def categoriesTableModel(self) -> DynamicTableModel:
+        return self._categories_table_model
+
     @Property("QVariantMap", notify=selectedCategoryChanged)
     def selectedCategory(self) -> dict[str, object]:
         return self._selected_category
@@ -203,6 +211,10 @@ class InventoryProcurementCatalogWorkspaceController(
     @Property("QVariantMap", notify=itemsChanged)
     def items(self) -> dict[str, object]:
         return self._items
+
+    @Property(QObject, constant=True)
+    def itemsTableModel(self) -> DynamicTableModel:
+        return self._items_table_model
 
     @Property("QVariantMap", notify=selectedItemChanged)
     def selectedItem(self) -> dict[str, object]:
@@ -773,6 +785,7 @@ class InventoryProcurementCatalogWorkspaceController(
         if categories == self._categories:
             return
         self._categories = categories
+        self._categories_table_model.set_rows(categories.get("items", []))
         self.categoriesChanged.emit()
 
     def _set_selected_category(self, selected_category: dict[str, object]) -> None:
@@ -791,6 +804,7 @@ class InventoryProcurementCatalogWorkspaceController(
         if items == self._items:
             return
         self._items = items
+        self._items_table_model.set_rows(items.get("items", []))
         self.itemsChanged.emit()
 
     def _set_selected_item(self, selected_item: dict[str, object]) -> None:

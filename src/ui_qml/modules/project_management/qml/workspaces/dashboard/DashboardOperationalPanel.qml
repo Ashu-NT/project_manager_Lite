@@ -13,6 +13,7 @@ Item {
     property ProjectManagementControllers.ProjectManagementDashboardWorkspaceController workspaceController
     property var operationalTabsModel: []
     property var operationalTableModel: ({ "title": "", "subtitle": "", "emptyState": "", "columns": [], "rows": [] })
+    property var operationalSourceModel: null
 
     signal operationalRouteRequested(string routeId)
 
@@ -150,6 +151,7 @@ Item {
                 anchors.right: parent.right
                 anchors.bottom: paginationBar.top
                 columns: root.operationalTableModel.columns || []
+                sourceModel: root.operationalSourceModel
                 rows: root.operationalTableModel.rows || []
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText: root.operationalTableModel.emptyState || "No operational records are available."

@@ -626,6 +626,7 @@ AppLayouts.WorkspaceFrame {
                             AppWidgets.DataTable {
                                 Layout.fillWidth:  true
                                 Layout.fillHeight: true
+                                sourceModel:   root.workspaceController ? root.workspaceController.moduleEntitlementsTableModel : null
                                 rows:          root.workspaceController
                                     ? (root.workspaceController.moduleEntitlements.items || []) : []
                                 columns:       root._moduleColumns
@@ -888,6 +889,7 @@ AppLayouts.WorkspaceFrame {
                             AppWidgets.DataTable {
                                 Layout.fillWidth:  true
                                 Layout.fillHeight: true
+                                sourceModel:   root.workspaceController ? root.workspaceController.integrationCapabilitiesTableModel : null
                                 rows:      root.workspaceController
                                     ? (root.workspaceController.integrationCapabilities.items || []) : []
                                 columns:   root._capColumns

@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
+
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.notifications.domain_events import domain_events
@@ -40,6 +42,8 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
         super().__init__(parent)
         self._overview_presenter = overview_presenter
         self._catalog_presenter = catalog_presenter
+        self._module_entitlements_table_model = DynamicTableModel(self)
+        self._integration_capabilities_table_model = DynamicTableModel(self)
         self._module_entitlements: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._organization_profiles: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._integration_capabilities: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
@@ -62,6 +66,14 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
     @Property("QVariantMap", notify=integrationCapabilitiesChanged)
     def integrationCapabilities(self) -> dict[str, object]:
         return self._integration_capabilities
+
+    @Property(QObject, constant=True)
+    def moduleEntitlementsTableModel(self) -> DynamicTableModel:
+        return self._module_entitlements_table_model
+
+    @Property(QObject, constant=True)
+    def integrationCapabilitiesTableModel(self) -> DynamicTableModel:
+        return self._integration_capabilities_table_model
 
     @Slot()
     def refresh(self) -> None:
@@ -225,6 +237,7 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
         if module_entitlements == self._module_entitlements:
             return
         self._module_entitlements = module_entitlements
+        self._module_entitlements_table_model.set_rows(module_entitlements.get("items", []))
         self.moduleEntitlementsChanged.emit()
 
     def _set_organization_profiles(self, organization_profiles: dict[str, object]) -> None:
@@ -237,6 +250,7 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
         if integration_capabilities == self._integration_capabilities:
             return
         self._integration_capabilities = integration_capabilities
+        self._integration_capabilities_table_model.set_rows(integration_capabilities.get("items", []))
         self.integrationCapabilitiesChanged.emit()
 
 

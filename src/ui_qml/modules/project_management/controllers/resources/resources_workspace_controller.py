@@ -3,6 +3,8 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
 from src.core.platform.notifications.domain_events import domain_events
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
@@ -71,6 +73,7 @@ class ProjectManagementResourcesWorkspaceController(
         self._selected_active_filter = "all"
         self._selected_category_filter = "all"
         self._search_text = ""
+        self._resources_table_model = DynamicTableModel(self)
         self._resources: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -134,6 +137,10 @@ class ProjectManagementResourcesWorkspaceController(
     @Property("QVariantMap", notify=resourcesChanged)
     def resources(self) -> dict[str, object]:
         return self._resources
+
+    @Property(QObject, constant=True)
+    def resourcesTableModel(self) -> DynamicTableModel:
+        return self._resources_table_model
 
     @Property("QVariantMap", notify=selectedResourceChanged)
     def selectedResource(self) -> dict[str, object]:
@@ -529,6 +536,7 @@ class ProjectManagementResourcesWorkspaceController(
         if resources == self._resources:
             return
         self._resources = resources
+        self._resources_table_model.set_rows(resources.get("items", []))
         self.resourcesChanged.emit()
 
     def _set_selected_resource(self, selected_resource: dict[str, object]) -> None:

@@ -16,6 +16,7 @@ from PySide6.QtCore import (
     Qt,
     Property,
     Signal,
+    Slot,
 )
 from PySide6.QtQml import QmlElement
 
@@ -61,10 +62,14 @@ class DynamicTableModel(QAbstractTableModel):
     EditableRole      = Qt.UserRole + 14
     IsRequiredRole    = Qt.UserRole + 15
     ColumnVisibleRole = Qt.UserRole + 16
+    StatusRole        = Qt.UserRole + 17   # row-level status string (for row tinting)
+    MetadataRole      = Qt.UserRole + 18   # per-row metadata dict (for contextual actions)
+    WidthRole         = Qt.UserRole + 19   # explicit column pixel width override
 
     # ── Notify signals (must be declared before Property uses them) ───
-    rowsChanged    = Signal()
-    columnsChanged = Signal()
+    rowsChanged      = Signal()
+    columnsChanged   = Signal()
+    rowCountChanged  = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -99,6 +104,9 @@ class DynamicTableModel(QAbstractTableModel):
             self.EditableRole:        QByteArray(b"editable"),
             self.IsRequiredRole:      QByteArray(b"isRequired"),
             self.ColumnVisibleRole:   QByteArray(b"columnVisible"),
+            self.StatusRole:          QByteArray(b"rowStatus"),
+            self.MetadataRole:        QByteArray(b"rowMetadata"),
+            self.WidthRole:           QByteArray(b"columnWidth"),
         }
 
     def data(self, index: QModelIndex, role: int = Qt.DisplayRole) -> Any:  # type: ignore[override]
@@ -154,6 +162,14 @@ class DynamicTableModel(QAbstractTableModel):
             return bool(col_def.get("required", False))
         if role == self.ColumnVisibleRole:
             return col_def.get("visible", True) is not False
+        if role == self.StatusRole:
+            return _safe_str(row_dict.get("_status", row_dict.get("status", "")))
+        if role == self.MetadataRole:
+            meta = row_dict.get("_meta")
+            return dict(meta) if isinstance(meta, dict) else {}
+        if role == self.WidthRole:
+            v = col_def.get("width")
+            return int(v) if v is not None else 0
         return None
 
     # ── QML-bindable properties ───────────────────────────────────────
@@ -169,6 +185,7 @@ class DynamicTableModel(QAbstractTableModel):
         self._rows = next_rows
         self.endResetModel()
         self.rowsChanged.emit()
+        self.rowCountChanged.emit()
 
     def _get_columns(self) -> list:
         return self._columns
@@ -187,8 +204,41 @@ class DynamicTableModel(QAbstractTableModel):
         self.endResetModel()
         self.columnsChanged.emit()
 
-    rows    = Property("QVariantList", _get_rows,    _set_rows,    notify=rowsChanged)
-    columns = Property("QVariantList", _get_columns, _set_columns, notify=columnsChanged)
+    rows          = Property("QVariantList", _get_rows,    _set_rows,    notify=rowsChanged)
+    columns       = Property("QVariantList", _get_columns, _set_columns, notify=columnsChanged)
+    rowCountValue = Property(int, lambda self: len(self._rows), notify=rowCountChanged)
+
+    # ── Public controller API ─────────────────────────────────────────
+
+    def set_rows(self, rows: list[dict]) -> None:
+        """Push a new row dataset from Python without crossing the QML bridge."""
+        self._set_rows(rows)
+
+    def set_columns(self, columns: list[dict]) -> None:
+        """Push a new column definition list from Python."""
+        self._set_columns(columns)
+
+    def append_rows(self, rows: list[dict]) -> None:
+        """Append rows without a full model reset — for pagination append / lazy loading."""
+        if not rows:
+            return
+        first = len(self._rows)
+        last = first + len(rows) - 1
+        self.beginInsertRows(QModelIndex(), first, last)
+        self._rows.extend(rows)
+        self.endInsertRows()
+        self.rowsChanged.emit()
+        self.rowCountChanged.emit()
+
+    @Slot(int, result=str)
+    def rowId(self, row: int) -> str:
+        """Return the id string for *row* — used by DataTable frozen checkbox column."""
+        if 0 <= row < len(self._rows):
+            row_dict = self._rows[row]
+            if isinstance(row_dict, dict):
+                rid = row_dict.get("id")
+                return str(rid) if rid is not None else str(row)
+        return str(row)
 
     # ── Private helpers ───────────────────────────────────────────────
 

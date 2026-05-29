@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
     InventoryProcurementWorkspaceControllerBase,
     run_mutation,
@@ -94,6 +95,10 @@ class InventoryProcurementInventoryWorkspaceController(
         self._selected_item_filter = "all"
         self._selected_transaction_type_filter = "all"
         self._search_text = ""
+        self._storerooms_table_model = DynamicTableModel(self)
+        self._balances_table_model = DynamicTableModel(self)
+        self._transactions_table_model = DynamicTableModel(self)
+        self._foundation_table_model = DynamicTableModel(self)
         self._storerooms: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -228,6 +233,10 @@ class InventoryProcurementInventoryWorkspaceController(
     def storerooms(self) -> dict[str, object]:
         return self._storerooms
 
+    @Property(QObject, constant=True)
+    def storeroomsTableModel(self) -> DynamicTableModel:
+        return self._storerooms_table_model
+
     @Property("QVariantMap", notify=selectedStoreroomChanged)
     def selectedStoreroom(self) -> dict[str, object]:
         return self._selected_storeroom
@@ -239,6 +248,10 @@ class InventoryProcurementInventoryWorkspaceController(
     @Property("QVariantMap", notify=balancesChanged)
     def balances(self) -> dict[str, object]:
         return self._balances
+
+    @Property(QObject, constant=True)
+    def balancesTableModel(self) -> DynamicTableModel:
+        return self._balances_table_model
 
     @Property("QVariantMap", notify=selectedBalanceChanged)
     def selectedBalance(self) -> dict[str, object]:
@@ -252,9 +265,17 @@ class InventoryProcurementInventoryWorkspaceController(
     def transactions(self) -> dict[str, object]:
         return self._transactions
 
+    @Property(QObject, constant=True)
+    def transactionsTableModel(self) -> DynamicTableModel:
+        return self._transactions_table_model
+
     @Property("QVariantMap", notify=foundationChanged)
     def foundation(self) -> dict[str, object]:
         return self._foundation
+
+    @Property(QObject, constant=True)
+    def foundationTableModel(self) -> DynamicTableModel:
+        return self._foundation_table_model
 
     @Slot()
     def refresh(self) -> None:
@@ -918,6 +939,7 @@ class InventoryProcurementInventoryWorkspaceController(
         if storerooms == self._storerooms:
             return
         self._storerooms = storerooms
+        self._storerooms_table_model.set_rows(storerooms.get("items", []))
         self.storeroomsChanged.emit()
 
     def _set_selected_storeroom(self, selected_storeroom: dict[str, object]) -> None:
@@ -936,6 +958,7 @@ class InventoryProcurementInventoryWorkspaceController(
         if balances == self._balances:
             return
         self._balances = balances
+        self._balances_table_model.set_rows(balances.get("items", []))
         self.balancesChanged.emit()
 
     def _set_selected_balance(self, selected_balance: dict[str, object]) -> None:
@@ -960,12 +983,14 @@ class InventoryProcurementInventoryWorkspaceController(
         if transactions == self._transactions:
             return
         self._transactions = transactions
+        self._transactions_table_model.set_rows(transactions.get("items", []))
         self.transactionsChanged.emit()
 
     def _set_foundation(self, foundation: dict[str, object]) -> None:
         if foundation == self._foundation:
             return
         self._foundation = foundation
+        self._foundation_table_model.set_rows(foundation.get("locations", []))
         self.foundationChanged.emit()
 
 

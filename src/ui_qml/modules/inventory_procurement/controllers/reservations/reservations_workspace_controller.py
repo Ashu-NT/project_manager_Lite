@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
     InventoryProcurementWorkspaceControllerBase,
     run_mutation,
@@ -68,6 +69,7 @@ class InventoryProcurementReservationsWorkspaceController(
         self._selected_item_filter = "all"
         self._selected_storeroom_filter = "all"
         self._search_text = ""
+        self._reservations_table_model = DynamicTableModel(self)
         self._reservations: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -129,6 +131,10 @@ class InventoryProcurementReservationsWorkspaceController(
     @Property("QVariantMap", notify=reservationsChanged)
     def reservations(self) -> dict[str, object]:
         return self._reservations
+
+    @Property(QObject, constant=True)
+    def reservationsTableModel(self) -> DynamicTableModel:
+        return self._reservations_table_model
 
     @Property("QVariantMap", notify=selectedReservationChanged)
     def selectedReservation(self) -> dict[str, object]:
@@ -450,6 +456,7 @@ class InventoryProcurementReservationsWorkspaceController(
         if reservations == self._reservations:
             return
         self._reservations = reservations
+        self._reservations_table_model.set_rows(reservations.get("items", []))
         self.reservationsChanged.emit()
 
     def _set_selected_reservation(

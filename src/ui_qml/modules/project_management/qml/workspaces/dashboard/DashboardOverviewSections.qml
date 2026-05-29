@@ -17,6 +17,9 @@ Item {
     readonly property var operationalTableModel: root.workspaceController
         ? (root.workspaceController.operationalTable || {})
         : ({ "title": "", "subtitle": "", "emptyState": "No operational data is available yet.", "columns": [], "rows": [] })
+    readonly property var operationalSourceModel: root.workspaceController
+        ? root.workspaceController.operationalTableModel
+        : null
     readonly property var activityFeedModel: root.workspaceController
         ? (root.workspaceController.activityFeed || {})
         : ({ "title": "Recent Activity", "subtitle": "", "emptyState": "No recent activity is available yet.", "items": [] })
@@ -97,6 +100,7 @@ Item {
                     workspaceController: root.workspaceController
                     operationalTabsModel: root.operationalTabsModel
                     operationalTableModel: root.operationalTableModel
+                    operationalSourceModel: root.operationalSourceModel
                     onOperationalRouteRequested: function(routeId) {
                         if (root.shellModel && String(routeId || "").length > 0) {
                             root.shellModel.selectRoute(routeId)
@@ -145,6 +149,7 @@ Item {
                 workspaceController: root.workspaceController
                 operationalTabsModel: root.operationalTabsModel
                 operationalTableModel: root.operationalTableModel
+                operationalSourceModel: root.operationalSourceModel
                 onOperationalRouteRequested: function(routeId) {
                     if (root.shellModel && String(routeId || "").length > 0) {
                         root.shellModel.selectRoute(routeId)

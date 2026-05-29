@@ -90,6 +90,7 @@ AppLayouts.WorkspaceFrame {
                 anchors.bottom: _paginationBar.top
                 multiSelect: false
                 columns: root._columns
+                sourceModel: root.workspaceController ? root.workspaceController.transactionsTableModel : null
                 rows: root.transactionsModel.items || []
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText: root.transactionsModel.emptyState || "No stock movements."

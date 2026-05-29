@@ -135,6 +135,40 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def documentStructures(self) -> dict[str, object]:
         return self._document_structure_controller.documentStructures
 
+    # ── Python-owned table models (sourceModel path) ──────────────────
+
+    @Property(QObject, constant=True)
+    def organizationsTableModel(self) -> QObject:
+        return self._organization_controller.tableModel
+
+    @Property(QObject, constant=True)
+    def sitesTableModel(self) -> QObject:
+        return self._site_controller.tableModel
+
+    @Property(QObject, constant=True)
+    def departmentsTableModel(self) -> QObject:
+        return self._department_controller.tableModel
+
+    @Property(QObject, constant=True)
+    def employeesTableModel(self) -> QObject:
+        return self._employee_controller.tableModel
+
+    @Property(QObject, constant=True)
+    def usersTableModel(self) -> QObject:
+        return self._user_controller.tableModel
+
+    @Property(QObject, constant=True)
+    def partiesTableModel(self) -> QObject:
+        return self._party_controller.tableModel
+
+    @Property(QObject, constant=True)
+    def documentsTableModel(self) -> QObject:
+        return self._document_controller.tableModel
+
+    @Property(QObject, constant=True)
+    def documentStructuresTableModel(self) -> QObject:
+        return self._document_structure_controller.tableModel
+
     @Property("QVariantMap", notify=organizationEditorOptionsChanged)
     def organizationEditorOptions(self) -> dict[str, object]:
         return self._organization_controller.organizationEditorOptions

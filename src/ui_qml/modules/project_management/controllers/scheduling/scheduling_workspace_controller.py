@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
@@ -69,6 +70,20 @@ class ProjectManagementSchedulingWorkspaceController(
     violationRowsChanged = Signal()
     calendarSummaryRowsChanged = Signal()
     holidayRowsChanged = Signal()
+    # Tab-local search texts (moved from QML to Python for server-ready filtering)
+    diagnosticsSearchTextChanged = Signal()
+    resourcesSearchTextChanged = Signal()
+    baselinesSearchTextChanged = Signal()
+    delaysSearchTextChanged = Signal()
+    calendarsSearchTextChanged = Signal()
+    # Pre-filtered row lists (replaces QML _filterRows() anti-pattern)
+    filteredDiagnosticsRowsChanged = Signal()
+    filteredViolationRowsChanged = Signal()
+    filteredResourceRowsChanged = Signal()
+    filteredBaselineCompareRowsChanged = Signal()
+    filteredBaselineRegisterRowsChanged = Signal()
+    filteredDelayedRowsChanged = Signal()
+    filteredHolidayRowsChanged = Signal()
     selectedActivityChanged = Signal()
     selectedActivityIdChanged = Signal()
     calculatorResultChanged = Signal()
@@ -190,6 +205,13 @@ class ProjectManagementSchedulingWorkspaceController(
             "emptyState": "",
         }
         self._schedule_rows: list[dict[str, object]] = []
+        self._diagnostics_table_model = DynamicTableModel(self)
+        self._violations_table_model = DynamicTableModel(self)
+        self._resources_loading_table_model = DynamicTableModel(self)
+        self._baseline_compare_table_model = DynamicTableModel(self)
+        self._baseline_register_table_model = DynamicTableModel(self)
+        self._delayed_table_model = DynamicTableModel(self)
+        self._holiday_table_model = DynamicTableModel(self)
         self._diagnostics_rows: list[dict[str, object]] = []
         self._delayed_activity_rows: list[dict[str, object]] = []
         self._resource_loading_rows: list[dict[str, object]] = []
@@ -200,6 +222,12 @@ class ProjectManagementSchedulingWorkspaceController(
         self._violation_rows: list[dict[str, object]] = []
         self._calendar_summary_rows: list[dict[str, object]] = []
         self._holiday_rows: list[dict[str, object]] = []
+        # Tab-local search texts (owned by Python, replaces QML _filterRows anti-pattern)
+        self._diagnostics_search_text = ""
+        self._resources_search_text = ""
+        self._baselines_search_text = ""
+        self._delays_search_text = ""
+        self._calendars_search_text = ""
         self._selected_activity: dict[str, object] = {
             "id": "",
             "title": "",
@@ -384,6 +412,163 @@ class ProjectManagementSchedulingWorkspaceController(
     @Property("QVariantList", notify=holidayRowsChanged)
     def holidayRows(self) -> list[dict[str, object]]:
         return self._holiday_rows
+
+    # ── Tab-local search text properties ─────────────────────────────
+
+    @Property(str, notify=diagnosticsSearchTextChanged)
+    def diagnosticsSearchText(self) -> str:
+        return self._diagnostics_search_text
+
+    @Property(str, notify=resourcesSearchTextChanged)
+    def resourcesSearchText(self) -> str:
+        return self._resources_search_text
+
+    @Property(str, notify=baselinesSearchTextChanged)
+    def baselinesSearchText(self) -> str:
+        return self._baselines_search_text
+
+    @Property(str, notify=delaysSearchTextChanged)
+    def delaysSearchText(self) -> str:
+        return self._delays_search_text
+
+    @Property(str, notify=calendarsSearchTextChanged)
+    def calendarsSearchText(self) -> str:
+        return self._calendars_search_text
+
+    @Slot(str)
+    def setDiagnosticsSearchText(self, text: str) -> None:
+        v = (text or "").strip()
+        if v == self._diagnostics_search_text:
+            return
+        self._diagnostics_search_text = v
+        self.diagnosticsSearchTextChanged.emit()
+        self.filteredDiagnosticsRowsChanged.emit()
+        self.filteredViolationRowsChanged.emit()
+        self._diagnostics_table_model.set_rows(self.filteredDiagnosticsRows)
+        self._violations_table_model.set_rows(self.filteredViolationRows)
+
+    @Slot(str)
+    def setResourcesSearchText(self, text: str) -> None:
+        v = (text or "").strip()
+        if v == self._resources_search_text:
+            return
+        self._resources_search_text = v
+        self.resourcesSearchTextChanged.emit()
+        self.filteredResourceRowsChanged.emit()
+        self._resources_loading_table_model.set_rows(self.filteredResourceRows)
+
+    @Slot(str)
+    def setBaselinesSearchText(self, text: str) -> None:
+        v = (text or "").strip()
+        if v == self._baselines_search_text:
+            return
+        self._baselines_search_text = v
+        self.baselinesSearchTextChanged.emit()
+        self.filteredBaselineCompareRowsChanged.emit()
+        self.filteredBaselineRegisterRowsChanged.emit()
+        self._baseline_compare_table_model.set_rows(self.filteredBaselineCompareRows)
+        self._baseline_register_table_model.set_rows(self.filteredBaselineRegisterRows)
+
+    @Slot(str)
+    def setDelaysSearchText(self, text: str) -> None:
+        v = (text or "").strip()
+        if v == self._delays_search_text:
+            return
+        self._delays_search_text = v
+        self.delaysSearchTextChanged.emit()
+        self.filteredDelayedRowsChanged.emit()
+        self._delayed_table_model.set_rows(self.filteredDelayedRows)
+
+    @Slot(str)
+    def setCalendarsSearchText(self, text: str) -> None:
+        v = (text or "").strip()
+        if v == self._calendars_search_text:
+            return
+        self._calendars_search_text = v
+        self.calendarsSearchTextChanged.emit()
+        self.filteredHolidayRowsChanged.emit()
+        self._holiday_table_model.set_rows(self.filteredHolidayRows)
+
+    # ── Pre-filtered row properties ───────────────────────────────────
+
+    @Property("QVariantList", notify=filteredDiagnosticsRowsChanged)
+    def filteredDiagnosticsRows(self) -> list[dict[str, object]]:
+        return self._filter_rows(
+            self._diagnostics_rows, self._diagnostics_search_text,
+            ["message", "severity", "metric", "status", "details"],
+        )
+
+    @Property("QVariantList", notify=filteredViolationRowsChanged)
+    def filteredViolationRows(self) -> list[dict[str, object]]:
+        return self._filter_rows(
+            self._violation_rows, self._diagnostics_search_text,
+            ["activity", "constraintType", "required", "computed", "severity"],
+        )
+
+    @Property("QVariantList", notify=filteredResourceRowsChanged)
+    def filteredResourceRows(self) -> list[dict[str, object]]:
+        return self._filter_rows(
+            self._resource_loading_rows, self._resources_search_text,
+            ["resource", "allocation", "capacity", "utilization", "tasks", "status"],
+        )
+
+    @Property("QVariantList", notify=filteredBaselineCompareRowsChanged)
+    def filteredBaselineCompareRows(self) -> list[dict[str, object]]:
+        return self._filter_rows(
+            self._baseline_compare_rows, self._baselines_search_text,
+            ["activity", "change", "shift", "dates", "cost"],
+        )
+
+    @Property("QVariantList", notify=filteredBaselineRegisterRowsChanged)
+    def filteredBaselineRegisterRows(self) -> list[dict[str, object]]:
+        return self._filter_rows(
+            self._baseline_register_rows, self._baselines_search_text,
+            ["baseline", "created", "approvedBy", "status"],
+        )
+
+    @Property("QVariantList", notify=filteredDelayedRowsChanged)
+    def filteredDelayedRows(self) -> list[dict[str, object]]:
+        return self._filter_rows(
+            self._delayed_activity_rows, self._delays_search_text,
+            ["activity", "finish", "deadline", "delay", "progress", "status"],
+        )
+
+    @Property("QVariantList", notify=filteredHolidayRowsChanged)
+    def filteredHolidayRows(self) -> list[dict[str, object]]:
+        return self._filter_rows(
+            self._holiday_rows, self._calendars_search_text,
+            ["date", "exception", "calendar", "details"],
+        )
+
+    # ── Python-owned table models for filtered row arrays ─────────────
+
+    @Property(QObject, constant=True)
+    def diagnosticsTableModel(self) -> DynamicTableModel:
+        return self._diagnostics_table_model
+
+    @Property(QObject, constant=True)
+    def violationsTableModel(self) -> DynamicTableModel:
+        return self._violations_table_model
+
+    @Property(QObject, constant=True)
+    def resourcesLoadingTableModel(self) -> DynamicTableModel:
+        return self._resources_loading_table_model
+
+    @Property(QObject, constant=True)
+    def baselineCompareTableModel(self) -> DynamicTableModel:
+        return self._baseline_compare_table_model
+
+    @Property(QObject, constant=True)
+    def baselineRegisterTableModel(self) -> DynamicTableModel:
+        return self._baseline_register_table_model
+
+    @Property(QObject, constant=True)
+    def delayedTableModel(self) -> DynamicTableModel:
+        return self._delayed_table_model
+
+    @Property(QObject, constant=True)
+    def holidayTableModel(self) -> DynamicTableModel:
+        return self._holiday_table_model
 
     @Property("QVariantMap", notify=selectedActivityChanged)
     def selectedActivity(self) -> dict[str, object]:
@@ -1181,6 +1366,22 @@ class ProjectManagementSchedulingWorkspaceController(
         self._activity_feed = activity_feed
         self.activityFeedChanged.emit()
 
+    @staticmethod
+    def _filter_rows(
+        rows: list[dict[str, object]], search_text: str, keys: list[str]
+    ) -> list[dict[str, object]]:
+        if not search_text:
+            return rows
+        term = search_text.lower()
+        result = []
+        for row in rows:
+            for key in keys:
+                val = row.get(key)
+                if val is not None and term in str(val).lower():
+                    result.append(row)
+                    break
+        return result
+
     def _set_schedule_rows(self, rows: list[dict[str, object]]) -> None:
         if rows == self._schedule_rows:
             return
@@ -1192,30 +1393,40 @@ class ProjectManagementSchedulingWorkspaceController(
             return
         self._diagnostics_rows = rows
         self.diagnosticsRowsChanged.emit()
+        self.filteredDiagnosticsRowsChanged.emit()
+        self._diagnostics_table_model.set_rows(self.filteredDiagnosticsRows)
 
     def _set_delayed_activity_rows(self, rows: list[dict[str, object]]) -> None:
         if rows == self._delayed_activity_rows:
             return
         self._delayed_activity_rows = rows
         self.delayedActivityRowsChanged.emit()
+        self.filteredDelayedRowsChanged.emit()
+        self._delayed_table_model.set_rows(self.filteredDelayedRows)
 
     def _set_resource_loading_rows(self, rows: list[dict[str, object]]) -> None:
         if rows == self._resource_loading_rows:
             return
         self._resource_loading_rows = rows
         self.resourceLoadingRowsChanged.emit()
+        self.filteredResourceRowsChanged.emit()
+        self._resources_loading_table_model.set_rows(self.filteredResourceRows)
 
     def _set_baseline_compare_rows(self, rows: list[dict[str, object]]) -> None:
         if rows == self._baseline_compare_rows:
             return
         self._baseline_compare_rows = rows
         self.baselineCompareRowsChanged.emit()
+        self.filteredBaselineCompareRowsChanged.emit()
+        self._baseline_compare_table_model.set_rows(self.filteredBaselineCompareRows)
 
     def _set_baseline_register_rows(self, rows: list[dict[str, object]]) -> None:
         if rows == self._baseline_register_rows:
             return
         self._baseline_register_rows = rows
         self.baselineRegisterRowsChanged.emit()
+        self.filteredBaselineRegisterRowsChanged.emit()
+        self._baseline_register_table_model.set_rows(self.filteredBaselineRegisterRows)
 
     def _set_dependency_rows(self, rows: list[dict[str, object]]) -> None:
         if rows == self._dependency_rows:
@@ -1234,6 +1445,8 @@ class ProjectManagementSchedulingWorkspaceController(
             return
         self._violation_rows = rows
         self.violationRowsChanged.emit()
+        self.filteredViolationRowsChanged.emit()
+        self._violations_table_model.set_rows(self.filteredViolationRows)
 
     def _set_calendar_summary_rows(self, rows: list[dict[str, object]]) -> None:
         if rows == self._calendar_summary_rows:
@@ -1246,6 +1459,8 @@ class ProjectManagementSchedulingWorkspaceController(
             return
         self._holiday_rows = rows
         self.holidayRowsChanged.emit()
+        self.filteredHolidayRowsChanged.emit()
+        self._holiday_table_model.set_rows(self.filteredHolidayRows)
 
     def _set_selected_activity(self, selected_activity: dict[str, object]) -> None:
         if selected_activity == self._selected_activity:

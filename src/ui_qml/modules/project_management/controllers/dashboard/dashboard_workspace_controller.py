@@ -5,6 +5,7 @@ from math import ceil
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     serialize_dashboard_activity_feed_view_model,
@@ -81,6 +82,7 @@ class ProjectManagementDashboardWorkspaceController(
         self._health_cards: list[dict[str, object]] = []
         self._operational_tabs: list[dict[str, object]] = []
         self._selected_operational_tab_id = ""
+        self._operational_table_model = DynamicTableModel(self)
         self._operational_table: dict[str, object] = self._empty_operational_table()
         self._operational_search_text = ""
         self._operational_page = 1
@@ -151,6 +153,10 @@ class ProjectManagementDashboardWorkspaceController(
     @Property("QVariantMap", notify=operationalTableChanged)
     def operationalTable(self) -> dict[str, object]:
         return self._operational_table
+
+    @Property(QObject, constant=True)
+    def operationalTableModel(self) -> DynamicTableModel:
+        return self._operational_table_model
 
     @Property(str, notify=operationalSearchTextChanged)
     def operationalSearchText(self) -> str:
@@ -533,6 +539,7 @@ class ProjectManagementDashboardWorkspaceController(
         if operational_table == self._operational_table:
             return
         self._operational_table = operational_table
+        self._operational_table_model.set_rows(operational_table.get("rows", []))
         self.operationalTableChanged.emit()
 
     def _set_operational_search_text(self, operational_search_text: str) -> None:

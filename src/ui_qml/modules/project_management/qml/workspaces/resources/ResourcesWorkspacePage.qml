@@ -274,6 +274,7 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: true
                         tableId: root._tableId
                         columns: root._columns
+                        sourceModel: root.workspaceController ? root.workspaceController.resourcesTableModel : null
                         rows: root.resourcesModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.resourcesModel.emptyState || "No resources available."

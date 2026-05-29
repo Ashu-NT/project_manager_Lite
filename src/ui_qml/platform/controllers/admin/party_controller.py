@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.platform.presenters.party_catalog_presenter import PlatformPartyCatalogPresenter
 
 from ..common import run_mutation, serialize_action_list
@@ -18,6 +19,7 @@ class PlatformPartyController(QObject):
     def __init__(self, presenter: PlatformPartyCatalogPresenter, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._presenter = presenter
+        self._table_model = DynamicTableModel(self)
         self._parties: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._party_editor_options: dict[str, object] = {"typeOptions": []}
         self._is_busy = False
@@ -33,6 +35,10 @@ class PlatformPartyController(QObject):
     @Property("QVariantMap", notify=partiesChanged)
     def parties(self) -> dict[str, object]:
         return self._parties
+
+    @Property(QObject, constant=True)
+    def tableModel(self) -> DynamicTableModel:
+        return self._table_model
 
     @Property("QVariantMap", notify=partyEditorOptionsChanged)
     def partyEditorOptions(self) -> dict[str, object]:
@@ -57,6 +63,7 @@ class PlatformPartyController(QObject):
     def _set_parties(self, value: dict[str, object]) -> None:
         if self._parties != value:
             self._parties = value
+            self._table_model.set_rows(value.get("items", []))
             self.partiesChanged.emit()
 
     def _set_party_editor_options(self, value: dict[str, object]) -> None:

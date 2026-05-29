@@ -125,11 +125,9 @@ AppLayouts.WorkspaceFrame {
         : []
 
     property string activePanelId: "activity_timeline"
-    property string diagnosticsSearchText: ""
-    property string resourcesSearchText: ""
-    property string baselinesSearchText: ""
-    property string delaysSearchText: ""
-    property string calendarsSearchText: ""
+    // diagnosticsSearchText, resourcesSearchText, baselinesSearchText,
+    // delaysSearchText, calendarsSearchText moved to Python controller
+    // (replaced the _filterRows() anti-pattern with pre-filtered properties)
     property string feedSearchText: ""
     property string selectedBaselineRegisterId: ""
     property string selectedHolidayId: ""
@@ -260,40 +258,6 @@ AppLayouts.WorkspaceFrame {
             }
         }
         return optionList.length > 0 ? 0 : -1
-    }
-
-    function _matchesSearch(row, searchText, keys) {
-        const term = String(searchText || "").trim().toLowerCase()
-        if (!term.length) {
-            return true
-        }
-        for (let i = 0; i < keys.length; i += 1) {
-            const rawValue = row[keys[i]]
-            if (rawValue === undefined || rawValue === null) {
-                continue
-            }
-            let text = ""
-            if (typeof rawValue === "object") {
-                text = String(rawValue.label || rawValue.value || "")
-            } else {
-                text = String(rawValue)
-            }
-            if (text.toLowerCase().indexOf(term) >= 0) {
-                return true
-            }
-        }
-        return false
-    }
-
-    function _filterRows(rows, searchText, keys) {
-        const sourceRows = rows || []
-        const filteredRows = []
-        for (let i = 0; i < sourceRows.length; i += 1) {
-            if (root._matchesSearch(sourceRows[i], searchText, keys)) {
-                filteredRows.push(sourceRows[i])
-            }
-        }
-        return filteredRows
     }
 
     function _syncCalendarDraft() {
@@ -792,13 +756,13 @@ AppLayouts.WorkspaceFrame {
                                 AppWidgets.TableToolbar {
                                     id: diagnosticsToolbar
                                     Layout.fillWidth: true
-                                    searchText: root.diagnosticsSearchText
+                                    searchText: root.workspaceController ? root.workspaceController.diagnosticsSearchText : ""
                                     searchPlaceholder: "Search diagnostics..."
                                     showCustomize: true
                                     showExport: true
                                     showRefresh: false
                                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                                    onSearchChanged: function(text) { root.diagnosticsSearchText = text }
+                                    onSearchChanged: function(text) { if (root.workspaceController) root.workspaceController.setDiagnosticsSearchText(text) }
                                     onCustomizeClicked: diagnosticsTable.openColumnCustomizer(diagnosticsToolbar.customizeButtonItem)
                                     onExportRequested: {
                                         if (root.workspaceController !== null) {
@@ -812,7 +776,8 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 210
                                     columns: root._diagnosticColumns
-                                    rows: root._filterRows(root.diagnosticsRows, root.diagnosticsSearchText, ["message", "severity", "metric", "status", "details"])
+                                    sourceModel: root.workspaceController ? root.workspaceController.diagnosticsTableModel : null
+                                    rows: root.workspaceController ? (root.workspaceController.filteredDiagnosticsRows || []) : []
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.diagnosticsModel.emptyState || "No diagnostics are available."
                                 }
@@ -831,7 +796,8 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
                                     columns: root._violationColumns
-                                    rows: root._filterRows(root.violationRows, root.diagnosticsSearchText, ["activity", "constraintType", "required", "computed", "severity"])
+                                    sourceModel: root.workspaceController ? root.workspaceController.violationsTableModel : null
+                                    rows: root.workspaceController ? (root.workspaceController.filteredViolationRows || []) : []
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.constraintViolationsModel.emptyState || "No constraint violations detected for the current schedule."
                                 }
@@ -875,13 +841,13 @@ AppLayouts.WorkspaceFrame {
                                 AppWidgets.TableToolbar {
                                     id: resourcesToolbar
                                     Layout.fillWidth: true
-                                    searchText: root.resourcesSearchText
+                                    searchText: root.workspaceController ? root.workspaceController.resourcesSearchText : ""
                                     searchPlaceholder: "Search resources..."
                                     showCustomize: true
                                     showExport: true
                                     showRefresh: false
                                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                                    onSearchChanged: function(text) { root.resourcesSearchText = text }
+                                    onSearchChanged: function(text) { if (root.workspaceController) root.workspaceController.setResourcesSearchText(text) }
                                     onCustomizeClicked: resourcesTable.openColumnCustomizer(resourcesToolbar.customizeButtonItem)
                                     onExportRequested: {
                                         if (root.workspaceController !== null) {
@@ -895,7 +861,8 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
                                     columns: root._resourceColumns
-                                    rows: root._filterRows(root.resourceRows, root.resourcesSearchText, ["resource", "allocation", "capacity", "utilization", "tasks", "status"])
+                                    sourceModel: root.workspaceController ? root.workspaceController.resourcesLoadingTableModel : null
+                                    rows: root.workspaceController ? (root.workspaceController.filteredResourceRows || []) : []
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.resourceLoadingModel.emptyState || "No resource load data is available."
                                 }
@@ -1006,13 +973,13 @@ AppLayouts.WorkspaceFrame {
                                 AppWidgets.TableToolbar {
                                     id: baselinesToolbar
                                     Layout.fillWidth: true
-                                    searchText: root.baselinesSearchText
+                                    searchText: root.workspaceController ? root.workspaceController.baselinesSearchText : ""
                                     searchPlaceholder: "Search baselines..."
                                     showCustomize: true
                                     showExport: true
                                     showRefresh: false
                                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                                    onSearchChanged: function(text) { root.baselinesSearchText = text }
+                                    onSearchChanged: function(text) { if (root.workspaceController) root.workspaceController.setBaselinesSearchText(text) }
                                     onCustomizeClicked: baselineRegisterTable.openColumnCustomizer(baselinesToolbar.customizeButtonItem)
                                     onExportRequested: {
                                         if (root.workspaceController !== null) {
@@ -1026,7 +993,8 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 190
                                     columns: root._baselineCompareColumns
-                                    rows: root._filterRows(root.baselineCompareRows, root.baselinesSearchText, ["activity", "change", "shift", "dates", "cost"])
+                                    sourceModel: root.workspaceController ? root.workspaceController.baselineCompareTableModel : null
+                                    rows: root.workspaceController ? (root.workspaceController.filteredBaselineCompareRows || []) : []
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.baselinesModel.emptyState || "Choose two baselines to compare schedule drift."
                                 }
@@ -1036,7 +1004,8 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 200
                                     columns: root._baselineRegisterColumns
-                                    rows: root._filterRows(root.baselineRegisterRows, root.baselinesSearchText, ["baseline", "created", "approvedBy", "status"])
+                                    sourceModel: root.workspaceController ? root.workspaceController.baselineRegisterTableModel : null
+                                    rows: root.workspaceController ? (root.workspaceController.filteredBaselineRegisterRows || []) : []
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.baselineRegisterModel.emptyState || "No baseline register entries are available."
                                     selectedRowId: root.selectedBaselineRegisterId
@@ -1108,13 +1077,13 @@ AppLayouts.WorkspaceFrame {
                                 AppWidgets.TableToolbar {
                                     id: delaysToolbar
                                     Layout.fillWidth: true
-                                    searchText: root.delaysSearchText
+                                    searchText: root.workspaceController ? root.workspaceController.delaysSearchText : ""
                                     searchPlaceholder: "Search delayed activities..."
                                     showCustomize: true
                                     showExport: true
                                     showRefresh: false
                                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                                    onSearchChanged: function(text) { root.delaysSearchText = text }
+                                    onSearchChanged: function(text) { if (root.workspaceController) root.workspaceController.setDelaysSearchText(text) }
                                     onCustomizeClicked: delaysTable.openColumnCustomizer(delaysToolbar.customizeButtonItem)
                                     onExportRequested: {
                                         if (root.workspaceController !== null) {
@@ -1128,7 +1097,8 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
                                     columns: root._delayedColumns
-                                    rows: root._filterRows(root.delayedRows, root.delaysSearchText, ["activity", "finish", "deadline", "delay", "progress", "status"])
+                                    sourceModel: root.workspaceController ? root.workspaceController.delayedTableModel : null
+                                    rows: root.workspaceController ? (root.workspaceController.filteredDelayedRows || []) : []
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.delayedActivitiesModel.emptyState || "No delayed activities are visible."
                                     onRowActivated: function(rowId) {
@@ -1359,13 +1329,13 @@ AppLayouts.WorkspaceFrame {
                                 AppWidgets.TableToolbar {
                                     id: calendarsToolbar
                                     Layout.fillWidth: true
-                                    searchText: root.calendarsSearchText
+                                    searchText: root.workspaceController ? root.workspaceController.calendarsSearchText : ""
                                     searchPlaceholder: "Search calendar exceptions..."
                                     showCustomize: true
                                     showExport: false
                                     showRefresh: false
                                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                                    onSearchChanged: function(text) { root.calendarsSearchText = text }
+                                    onSearchChanged: function(text) { if (root.workspaceController) root.workspaceController.setCalendarsSearchText(text) }
                                     onCustomizeClicked: holidaysTable.openColumnCustomizer(calendarsToolbar.customizeButtonItem)
                                 }
 
@@ -1383,7 +1353,8 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
                                     columns: root._holidayColumns
-                                    rows: root._filterRows(root.holidayRows, root.calendarsSearchText, ["date", "exception", "calendar", "details"])
+                                    sourceModel: root.workspaceController ? root.workspaceController.holidayTableModel : null
+                                    rows: root.workspaceController ? (root.workspaceController.filteredHolidayRows || []) : []
                                     selectedRowId: root.selectedHolidayId
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.calendarModel.emptyState || "No holiday exceptions are configured."

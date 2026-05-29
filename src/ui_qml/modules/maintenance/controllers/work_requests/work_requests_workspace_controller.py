@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.maintenance.controllers.common import (
     MaintenanceWorkspaceControllerBase,
     run_mutation,
@@ -68,6 +69,7 @@ class MaintenanceWorkRequestsWorkspaceController(MaintenanceWorkspaceControllerB
         self._selected_priority_filter = "all"
         self._selected_asset_filter = "all"
         self._search_text = ""
+        self._work_requests_table_model = DynamicTableModel(self)
         self._work_requests: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -139,6 +141,10 @@ class MaintenanceWorkRequestsWorkspaceController(MaintenanceWorkspaceControllerB
     @Property("QVariantMap", notify=workRequestsChanged)
     def workRequests(self) -> dict[str, object]:
         return self._work_requests
+
+    @Property(QObject, constant=True)
+    def workRequestsTableModel(self) -> DynamicTableModel:
+        return self._work_requests_table_model
 
     @Property("QVariantMap", notify=selectedWorkRequestChanged)
     def selectedWorkRequest(self) -> dict[str, object]:
@@ -390,6 +396,7 @@ class MaintenanceWorkRequestsWorkspaceController(MaintenanceWorkspaceControllerB
         if value == self._work_requests:
             return
         self._work_requests = value
+        self._work_requests_table_model.set_rows(value.get("items", []))
         self.workRequestsChanged.emit()
 
     def _set_selected_work_request(self, value: dict[str, object]) -> None:

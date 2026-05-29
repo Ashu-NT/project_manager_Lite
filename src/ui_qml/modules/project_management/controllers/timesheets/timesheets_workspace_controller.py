@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
@@ -74,6 +75,8 @@ class ProjectManagementTimesheetsWorkspaceController(
         self._selected_entry_id = ""
         self._selected_queue_period_id = ""
         self._assignment_summary: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "fields": [], "state": {}}
+        self._entries_table_model = DynamicTableModel(self)
+        self._review_queue_table_model = DynamicTableModel(self)
         self._entries: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._selected_entry: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "fields": [], "state": {}}
         self._review_queue: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
@@ -144,6 +147,14 @@ class ProjectManagementTimesheetsWorkspaceController(
     @Property("QVariantMap", notify=reviewQueueChanged)
     def reviewQueue(self) -> dict[str, object]:
         return self._review_queue
+
+    @Property(QObject, constant=True)
+    def entriesTableModel(self) -> DynamicTableModel:
+        return self._entries_table_model
+
+    @Property(QObject, constant=True)
+    def reviewQueueTableModel(self) -> DynamicTableModel:
+        return self._review_queue_table_model
 
     @Property("QVariantMap", notify=reviewDetailChanged)
     def reviewDetail(self) -> dict[str, object]:
@@ -573,6 +584,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         if entries == self._entries:
             return
         self._entries = entries
+        self._entries_table_model.set_rows(entries.get("items", []))
         self.entriesChanged.emit()
 
     def _set_selected_entry(self, selected_entry: dict[str, object]) -> None:
@@ -585,6 +597,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         if review_queue == self._review_queue:
             return
         self._review_queue = review_queue
+        self._review_queue_table_model.set_rows(review_queue.get("items", []))
         self.reviewQueueChanged.emit()
 
     def _set_review_detail(self, review_detail: dict[str, object]) -> None:

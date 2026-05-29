@@ -257,6 +257,7 @@ AppLayouts.WorkspaceFrame {
                         visible: root._isItemsView
                         multiSelect: true
                         columns: root._itemColumns
+                        sourceModel: root.workspaceController ? root.workspaceController.itemsTableModel : null
                         rows: root.itemsModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.itemsModel.emptyState || "No catalog items."
@@ -294,6 +295,7 @@ AppLayouts.WorkspaceFrame {
                         visible: !root._isItemsView
                         multiSelect: true
                         columns: root._categoryColumns
+                        sourceModel: root.workspaceController ? root.workspaceController.categoriesTableModel : null
                         rows: root.categoriesModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.categoriesModel.emptyState || "No categories."

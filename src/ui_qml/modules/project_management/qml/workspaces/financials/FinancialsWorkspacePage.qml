@@ -244,6 +244,7 @@ AppLayouts.WorkspaceFrame {
                         anchors.bottom: _paginationBar.top
                         multiSelect: true
                         columns: root._tableColumns
+                        sourceModel: root.workspaceController ? root.workspaceController.costsTableModel : null
                         rows: root.costsModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.costsModel.emptyState || "No cost items available."
@@ -524,6 +525,7 @@ AppLayouts.WorkspaceFrame {
                     costDetail: root.selectedCostModel
                     cashflowModel: root.cashflowModel
                     ledgerModel: root.ledgerModel
+                    ledgerTableModel: root.workspaceController ? root.workspaceController.ledgerTableModel : null
                     sourceAnalyticsModel: root.sourceAnalyticsModel
                     overviewModel: root.overviewModel
                     forecastModel: root.workspaceController

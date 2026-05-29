@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
@@ -75,6 +76,7 @@ class ProjectManagementProjectsWorkspaceController(
         self._status_options: list[dict[str, str]] = []
         self._selected_status_filter = "all"
         self._search_text = ""
+        self._projects_table_model = DynamicTableModel(self)
         self._projects: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -142,6 +144,10 @@ class ProjectManagementProjectsWorkspaceController(
     @Property("QVariantMap", notify=projectsChanged)
     def projects(self) -> dict[str, object]:
         return self._projects
+
+    @Property(QObject, constant=True)
+    def projectsTableModel(self) -> DynamicTableModel:
+        return self._projects_table_model
 
     @Property("QVariantMap", notify=selectedProjectChanged)
     def selectedProject(self) -> dict[str, object]:
@@ -695,6 +701,7 @@ class ProjectManagementProjectsWorkspaceController(
         if projects == self._projects:
             return
         self._projects = projects
+        self._projects_table_model.set_rows(projects.get("items", []))
         self.projectsChanged.emit()
 
     def _set_selected_project(self, selected_project: dict[str, object]) -> None:

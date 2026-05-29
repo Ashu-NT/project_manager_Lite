@@ -81,6 +81,7 @@ class ProjectManagementTasksWorkspaceController(
     taskPageChanged = Signal()
     taskPageSizeChanged = Signal()
     taskTotalCountChanged = Signal()
+    tasksTableModelChanged = Signal()
     overviewChanged = Signal()
     projectOptionsChanged = Signal()
     selectedProjectIdChanged = Signal()
@@ -189,6 +190,7 @@ class ProjectManagementTasksWorkspaceController(
         )
         self._collab_ctrl = PMCollaborationController(**_cb)
         # Connect sub-controller signals → facade signals (backward compat)
+        self._task_list.tasksTableModelChanged.connect(self.tasksTableModelChanged)
         self._task_list.overviewChanged.connect(self.overviewChanged)
         self._task_list.projectOptionsChanged.connect(self.projectOptionsChanged)
         self._task_list.statusOptionsChanged.connect(self.statusOptionsChanged)
@@ -321,6 +323,10 @@ class ProjectManagementTasksWorkspaceController(
     @Property("QVariantMap", notify=tasksChanged)
     def tasks(self) -> dict[str, object]:
         return self._task_list.tasks
+
+    @Property(QObject, constant=True)
+    def tasksTableModel(self) -> QObject:
+        return self._task_list.tasksTableModel
 
     @Property("QVariantMap", notify=selectedTaskChanged)
     def selectedTask(self) -> dict[str, object]:
