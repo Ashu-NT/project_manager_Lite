@@ -132,7 +132,8 @@ class ProjectManagementWorkspaceCatalog(QObject):
         if self._projects_workspace is None:
             self._projects_workspace = ProjectManagementProjectsWorkspaceController(
                 projects_workspace_presenter=ProjectProjectsWorkspacePresenter(
-                    desktop_api=self._projects_api
+                    desktop_api=self._projects_api,
+                    tasks_desktop_api=self._tasks_api,
                 ),
                 parent=self,
             )
