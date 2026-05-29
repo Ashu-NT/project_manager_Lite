@@ -47,7 +47,8 @@ Item {
         const n = root._items.length
         const rH = Theme.AppTheme.compactRowHeight
         const hH = Theme.AppTheme.normalRowHeight
-        return n === 0 ? (hH + 80) : (hH + n * rH + 12)
+        const natural = hH + Math.max(n, 1) * rH + 12
+        return Math.max(260, Math.min(natural, 520))
     }
 
     readonly property var _columns: [

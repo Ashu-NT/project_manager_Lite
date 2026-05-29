@@ -470,6 +470,47 @@ class ProjectTasksWorkspacePresenter:
             selected_time_entry_detail=self._build_selected_time_entry_detail(None),
         )
 
+    def build_task_time_entries_refresh(
+        self,
+        *,
+        assignment_id: str | None,
+        period_start: str = "",
+        selected_time_entry_id: str | None = None,
+    ) -> TaskCatalogWorkspaceViewModel | None:
+        """Fast post-mutation refresh — skips list_assignments(), rebuilds only entries.
+
+        Used after add/update/delete time entry to avoid the full build_task_time_state
+        round-trip which re-fetches all assignments before doing the snapshot.
+        """
+        if not assignment_id:
+            return None
+        try:
+            timesheet_snapshot = self._timesheets_desktop_api.build_assignment_snapshot(
+                assignment_id,
+                period_start=self._optional_iso_date(period_start),
+            )
+        except Exception:
+            return None
+
+        resolved_time_entry_id = self._resolve_time_entry_id(
+            selected_time_entry_id,
+            timesheet_snapshot.entries,
+        )
+        selected_time_entry = next(
+            (e for e in timesheet_snapshot.entries if e.entry_id == resolved_time_entry_id),
+            None,
+        )
+        return TaskCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_assignment_id=assignment_id,
+            selected_time_period_start=timesheet_snapshot.selected_period_start or period_start,
+            selected_time_entry_id=resolved_time_entry_id or "",
+            time_period_options=(),
+            time_assignment_summary=self._build_time_assignment_summary(timesheet_snapshot),
+            time_entries=self._build_time_entries_collection(timesheet_snapshot),
+            selected_time_entry_detail=self._build_selected_time_entry_detail(selected_time_entry),
+        )
+
     def build_task_collaboration_state(
         self,
         *,

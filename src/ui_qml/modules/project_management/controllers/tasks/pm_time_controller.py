@@ -81,6 +81,20 @@ class PMTimeController(QObject):
             )
         )
 
+    def _update_entries_only(self, workspace_state: object) -> None:
+        """Fast path: only update entries + summary, skip assignments/period options."""
+        self._set_time_assignment_summary(
+            serialize_timesheet_detail_view_model(workspace_state.time_assignment_summary)
+        )
+        self._set_time_entries(
+            serialize_timesheet_collection_view_model(workspace_state.time_entries)
+        )
+        self._set_selected_time_entry(
+            serialize_timesheet_detail_view_model(
+                workspace_state.selected_time_entry_detail
+            )
+        )
+
     # ── Properties ───────────────────────────────────────────────────
 
     @Property("QVariantList", notify=timeAssignmentOptionsChanged)

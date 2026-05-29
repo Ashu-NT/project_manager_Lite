@@ -1096,17 +1096,18 @@ class ProjectManagementTasksWorkspaceController(
     def _refresh_time_entries_only(self) -> None:
         """Rebuild only the time-entries section after an entry-level mutation.
 
-        Avoids the full workspace reload that _request_domain_refresh() triggers,
-        so task selection, section indexes, and scroll positions are preserved.
+        Uses the fast path (build_task_time_entries_refresh) which skips
+        list_assignments() and directly rebuilds from the known assignment snapshot.
         Period-level mutations (submit/lock/unlock) still call _request_domain_refresh.
         """
         try:
-            ws = self._tasks_workspace_presenter.build_task_time_state(
-                task_id=self._selected_task_id,
-                selected_assignment_id=self._selected_assignment_id or None,
-                selected_time_period_start=self._selected_time_period_start,
+            ws = self._tasks_workspace_presenter.build_task_time_entries_refresh(
+                assignment_id=self._selected_assignment_id or None,
+                period_start=self._selected_time_period_start,
+                selected_time_entry_id=self._selected_time_entry_id or None,
             )
-            self._time_ctrl._update(ws)
+            if ws is not None:
+                self._time_ctrl._update_entries_only(ws)
         except Exception:  # noqa: BLE001 — scoped refresh failure must not mask user success
             pass
 
