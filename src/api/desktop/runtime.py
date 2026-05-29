@@ -585,6 +585,8 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         ),
         project_management_projects=build_project_management_projects_desktop_api(
             project_service=pm_project_service,
+            project_resource_service=pm_project_resource_service,
+            resource_service=pm_resource_service,
         ),
         project_management_register=register_desktop_api,
         project_management_risk=register_desktop_api,
