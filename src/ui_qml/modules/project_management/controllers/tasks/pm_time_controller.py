@@ -4,6 +4,8 @@ from typing import Callable
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
 from src.ui_qml.modules.project_management.controllers.common import (
     run_mutation,
     serialize_selector_options,
@@ -49,6 +51,7 @@ class PMTimeController(QObject):
             "id": "", "title": "", "statusLabel": "", "subtitle": "",
             "description": "", "emptyState": "", "fields": [], "state": {},
         }
+        self._time_entries_table_model = DynamicTableModel(self)
         self._time_entries: dict[str, object] = {
             "title": "", "subtitle": "", "emptyState": "", "items": []
         }
@@ -95,6 +98,10 @@ class PMTimeController(QObject):
     @Property("QVariantMap", notify=timeEntriesChanged)
     def timeEntries(self) -> dict[str, object]:
         return self._time_entries
+
+    @Property(QObject, constant=True)
+    def timeEntriesTableModel(self) -> DynamicTableModel:
+        return self._time_entries_table_model
 
     @Property("QVariantMap", notify=selectedTimeEntryChanged)
     def selectedTimeEntry(self) -> dict[str, object]:
@@ -192,6 +199,7 @@ class PMTimeController(QObject):
         if v == self._time_entries:
             return
         self._time_entries = v
+        self._time_entries_table_model.set_rows(v.get("items", []))
         self.timeEntriesChanged.emit()
 
     def _set_selected_time_entry(self, v: dict) -> None:

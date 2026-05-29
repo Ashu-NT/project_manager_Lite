@@ -75,7 +75,6 @@ Item {
                         anchors.fill: parent
                         columns: root._entryColumns
                         sourceModel: root.entriesTableModel
-                        rows: root.entriesModel.items || []
                         loading: root.isBusy
                         emptyText: root.entriesModel.emptyState || "No time entries for this period."
                         selectedRowId: root.selectedEntryId

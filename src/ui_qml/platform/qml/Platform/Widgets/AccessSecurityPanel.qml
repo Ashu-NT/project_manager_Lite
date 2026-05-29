@@ -314,7 +314,7 @@ ColumnLayout {
             id: _grantsTable
             Layout.fillWidth:  true
             Layout.fillHeight: true
-            rows:          root.controller ? (root.controller.scopeGrants.items || []) : []
+            sourceModel:   root.controller ? root.controller.scopeGrantsTableModel : null
             columns:       root._grantsColumns
             emptyText:     root.controller ? (root.controller.scopeGrants.emptyState || "No access grants") : "No access grants"
             selectedRowId: root._selectedGrantId
@@ -541,7 +541,7 @@ ColumnLayout {
         id: _sessionsTable
         Layout.fillWidth:      true
         Layout.preferredHeight: 200
-        rows:          root.controller ? (root.controller.securityUsers.items || []) : []
+        sourceModel:   root.controller ? root.controller.securityUsersTableModel : null
         columns:       root._sessionsColumns
         emptyText:     root.controller ? (root.controller.securityUsers.emptyState || "No security records") : "No security records"
         selectedRowId: root._selectedSessionId

@@ -4,6 +4,8 @@ from typing import Callable
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
 from src.ui_qml.modules.project_management.controllers.common import (
     run_mutation,
     serialize_selector_options,
@@ -39,6 +41,7 @@ class PMAssignmentController(QObject):
         self._set_error_message = set_error_message
         self._set_feedback_message = set_feedback_message
         self._assignment_options: list[dict[str, str]] = []
+        self._assignments_table_model = DynamicTableModel(self)
         self._assignments: dict[str, object] = {
             "title": "", "subtitle": "", "emptyState": "", "items": []
         }
@@ -79,6 +82,10 @@ class PMAssignmentController(QObject):
     @Property("QVariantMap", notify=assignmentsChanged)
     def assignments(self) -> dict[str, object]:
         return self._assignments
+
+    @Property(QObject, constant=True)
+    def assignmentsTableModel(self) -> DynamicTableModel:
+        return self._assignments_table_model
 
     @Property("QVariantMap", notify=taskSkillRequirementsChanged)
     def taskSkillRequirements(self) -> dict[str, object]:
@@ -209,6 +216,7 @@ class PMAssignmentController(QObject):
         if v == self._assignments:
             return
         self._assignments = v
+        self._assignments_table_model.set_rows(v.get("items", []))
         self.assignmentsChanged.emit()
 
     def _set_task_skill_requirements(self, v: dict) -> None:

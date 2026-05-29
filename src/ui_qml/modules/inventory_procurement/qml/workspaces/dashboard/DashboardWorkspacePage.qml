@@ -181,7 +181,6 @@ AppLayouts.WorkspaceFrame {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 columns: root._panelColumns
-                rows: parent._activeSection.rows || []
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText: parent._activeSection.emptyState || "No records in this panel."
                 multiSelect: false

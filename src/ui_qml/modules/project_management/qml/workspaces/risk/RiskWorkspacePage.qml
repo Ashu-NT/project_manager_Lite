@@ -164,7 +164,6 @@ AppLayouts.WorkspaceFrame {
                 anchors.bottom: _paginationBar.top
                 columns: root._tableColumns
                 sourceModel: root.workspaceController ? root.workspaceController.entriesTableModel : null
-                rows: root.entriesModel.items || []
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText: root.entriesModel.emptyState || "No risk entries available."
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedEntryId : ""

@@ -11,6 +11,7 @@ Item {
     id: root
 
     property var    dependenciesModel: AppMock.MockFactory.catalog()
+    property var    dependenciesTableModel: null
     property bool   isBusy:           false
     property bool   canCreate:        false
     property string errorText:        ""
@@ -98,7 +99,7 @@ Item {
             AppWidgets.DataTable {
                 anchors.fill:  parent
                 columns:       root._columns
-                rows:          root._items
+                sourceModel:   root.dependenciesTableModel
                 selectedRowId: root._selectedId
                 loading:       root.isBusy
                 emptyText:     root.dependenciesModel.emptyState || "No dependencies for this task."

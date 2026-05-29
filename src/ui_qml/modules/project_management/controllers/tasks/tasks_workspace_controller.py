@@ -384,9 +384,17 @@ class ProjectManagementTasksWorkspaceController(
     def assignments(self) -> dict[str, object]:
         return self._assignments_ctrl.assignments
 
+    @Property(QObject, constant=True)
+    def assignmentsTableModel(self) -> QObject:
+        return self._assignments_ctrl.assignmentsTableModel
+
     @Property("QVariantMap", notify=dependenciesChanged)
     def dependencies(self) -> dict[str, object]:
         return self._dependencies_ctrl.dependencies
+
+    @Property(QObject, constant=True)
+    def dependenciesTableModel(self) -> QObject:
+        return self._dependencies_ctrl.dependenciesTableModel
 
     @Property("QVariantList", notify=timeAssignmentOptionsChanged)
     def timeAssignmentOptions(self) -> list[dict[str, str]]:
@@ -407,6 +415,10 @@ class ProjectManagementTasksWorkspaceController(
     @Property("QVariantMap", notify=timeEntriesChanged)
     def timeEntries(self) -> dict[str, object]:
         return self._time_ctrl.timeEntries
+
+    @Property(QObject, constant=True)
+    def timeEntriesTableModel(self) -> QObject:
+        return self._time_ctrl.timeEntriesTableModel
 
     @Property(str, notify=selectedTimeEntryIdChanged)
     def selectedTimeEntryId(self) -> str:

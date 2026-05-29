@@ -517,7 +517,6 @@ AppLayouts.WorkspaceFrame {
                         tableId: root._tableId
                         columns: root._columns
                         sourceModel: root.tasksTableModel
-                        rows: root.tasksModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.tasksModel.emptyState || "No tasks available."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedTaskId : ""
@@ -933,14 +932,17 @@ AppLayouts.WorkspaceFrame {
                     sectionErrors: root.workspaceController ? root.workspaceController.sectionErrors : ({})
 
                     assignmentsModel: root.assignmentsModel
+                    assignmentsTableModel: root.workspaceController ? root.workspaceController.assignmentsTableModel : null
                     selectedAssignmentId: root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
                     assignmentOptions: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
 
                     dependenciesModel: root.dependenciesModel
+                    dependenciesTableModel: root.workspaceController ? root.workspaceController.dependenciesTableModel : null
                     dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
 
                     timeAssignmentSummaryModel: root.timeAssignmentSummaryModel
                     timeEntriesModel: root.timeEntriesModel
+                    timeEntriesTableModel: root.workspaceController ? root.workspaceController.timeEntriesTableModel : null
                     selectedTimeEntryModel: root.selectedTimeEntryModel
                     selectedEntryId: root.workspaceController ? root.workspaceController.selectedTimeEntryId : ""
                     timeAssignmentOptions: root.workspaceController ? (root.workspaceController.timeAssignmentOptions || []) : []

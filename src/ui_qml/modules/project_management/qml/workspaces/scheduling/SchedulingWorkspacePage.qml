@@ -573,7 +573,6 @@ AppLayouts.WorkspaceFrame {
                                             anchors.right: parent.right
                                             anchors.bottom: activityPagination.top
                                             columns: root._activityColumns
-                                            rows: root.scheduleRows || []
                                             loading: root.workspaceController ? root.workspaceController.isLoading : false
                                             emptyText: root.scheduleModel.emptyState || "No activities are available for the selected planning scope."
                                             selectedRowId: root.workspaceController ? root.workspaceController.selectedActivityId : ""
@@ -777,7 +776,6 @@ AppLayouts.WorkspaceFrame {
                                     Layout.preferredHeight: 210
                                     columns: root._diagnosticColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.diagnosticsTableModel : null
-                                    rows: root.workspaceController ? (root.workspaceController.filteredDiagnosticsRows || []) : []
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.diagnosticsModel.emptyState || "No diagnostics are available."
                                 }
@@ -797,7 +795,6 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillHeight: true
                                     columns: root._violationColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.violationsTableModel : null
-                                    rows: root.workspaceController ? (root.workspaceController.filteredViolationRows || []) : []
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.constraintViolationsModel.emptyState || "No constraint violations detected for the current schedule."
                                 }
@@ -862,7 +859,6 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillHeight: true
                                     columns: root._resourceColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.resourcesLoadingTableModel : null
-                                    rows: root.workspaceController ? (root.workspaceController.filteredResourceRows || []) : []
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.resourceLoadingModel.emptyState || "No resource load data is available."
                                 }
@@ -994,7 +990,6 @@ AppLayouts.WorkspaceFrame {
                                     Layout.preferredHeight: 190
                                     columns: root._baselineCompareColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.baselineCompareTableModel : null
-                                    rows: root.workspaceController ? (root.workspaceController.filteredBaselineCompareRows || []) : []
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.baselinesModel.emptyState || "Choose two baselines to compare schedule drift."
                                 }
@@ -1005,7 +1000,6 @@ AppLayouts.WorkspaceFrame {
                                     Layout.preferredHeight: 200
                                     columns: root._baselineRegisterColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.baselineRegisterTableModel : null
-                                    rows: root.workspaceController ? (root.workspaceController.filteredBaselineRegisterRows || []) : []
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.baselineRegisterModel.emptyState || "No baseline register entries are available."
                                     selectedRowId: root.selectedBaselineRegisterId
@@ -1031,7 +1025,6 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
                                     columns: root._baselineVarianceColumns
-                                    rows: root.baselineVarianceRows
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.selectedBaselineRegisterId.length > 0
                                         ? "No variance records are stored for this baseline. Variance is recorded when a baseline supersedes the previously approved one."
@@ -1098,7 +1091,6 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillHeight: true
                                     columns: root._delayedColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.delayedTableModel : null
-                                    rows: root.workspaceController ? (root.workspaceController.filteredDelayedRows || []) : []
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.delayedActivitiesModel.emptyState || "No delayed activities are visible."
                                     onRowActivated: function(rowId) {
@@ -1343,7 +1335,6 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 120
                                     columns: root._calendarColumns
-                                    rows: root.calendarSummaryRows || []
                                     loading: false
                                     emptyText: "No calendar summary is available."
                                 }
@@ -1354,7 +1345,6 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillHeight: true
                                     columns: root._holidayColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.holidayTableModel : null
-                                    rows: root.workspaceController ? (root.workspaceController.filteredHolidayRows || []) : []
                                     selectedRowId: root.selectedHolidayId
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.calendarModel.emptyState || "No holiday exceptions are configured."

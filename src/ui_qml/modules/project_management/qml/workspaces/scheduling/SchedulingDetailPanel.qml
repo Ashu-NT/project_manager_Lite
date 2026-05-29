@@ -161,7 +161,6 @@ Item {
                         { "key": "status", "label": "Status", "flex": 0.9, "type": "status" },
                         { "key": "notes", "label": "Network Note", "flex": 1.4 }
                     ]
-                    rows: root.dependencyRows || []
                     loading: false
                     emptyText: root.dependenciesModel.emptyState || "No dependencies are linked to the selected activity."
                 }
@@ -190,7 +189,6 @@ Item {
                         { "key": "status", "label": "Status", "flex": 0.8, "type": "status" },
                         { "key": "notes", "label": "Notes", "flex": 1.8 }
                     ]
-                    rows: root.constraintRows || []
                     loading: false
                     emptyText: root.constraintsModel.emptyState || "No explicit schedule controls are recorded for the selected activity."
                 }
@@ -233,7 +231,6 @@ Item {
                             { "key": "hoursPerDay", "label": "Hours/Day", "flex": 0.8 },
                             { "key": "exceptions", "label": "Exceptions", "flex": 0.8 }
                         ]
-                        rows: root.calendarSummaryRows || []
                         loading: false
                         emptyText: "No calendar summary is available."
                     }
@@ -247,7 +244,6 @@ Item {
                             { "key": "calendar", "label": "Calendar", "flex": 1.0 },
                             { "key": "details", "label": "Details", "flex": 1.8 }
                         ]
-                        rows: root.holidayRows || []
                         loading: false
                         emptyText: root.calendarModel.emptyState || "No holiday exceptions are configured."
                     }
@@ -291,7 +287,6 @@ Item {
                             { "key": "dates", "label": "Baseline Dates", "flex": 2.1 },
                             { "key": "cost", "label": "Cost Delta", "flex": 1.0 }
                         ]
-                        rows: root.baselineCompareRows || []
                         loading: false
                         emptyText: root.baselinesModel.emptyState || "Choose two baselines in the Baselines panel to compare drift."
                     }
@@ -305,7 +300,6 @@ Item {
                             { "key": "approvedBy", "label": "Approved By", "flex": 1.0 },
                             { "key": "state", "label": "State", "flex": 0.8, "type": "status" }
                         ]
-                        rows: root.baselineRegisterRows || []
                         loading: false
                         emptyText: root.baselineRegisterModel.emptyState || "No baseline register entries are available."
                     }
@@ -337,7 +331,6 @@ Item {
                         { "key": "tasks", "label": "Tasks", "flex": 0.6 },
                         { "key": "status", "label": "Status", "flex": 0.8, "type": "status" }
                     ]
-                    rows: root.resourceRows || []
                     loading: false
                     emptyText: root.resourceLoadingModel.emptyState || "No resource load data is available."
                 }
@@ -501,7 +494,6 @@ Item {
                             { "key": "finishShiftDays", "label": "Finish Shift", "flex": 0.8 },
                             { "key": "isCritical", "label": "Critical", "flex": 0.7, "type": "status" }
                         ]
-                        rows: {
                             var tasks = root.scheduleImpactModel.affectedTasks || []
                             return tasks.map(function(t) {
                                 return {

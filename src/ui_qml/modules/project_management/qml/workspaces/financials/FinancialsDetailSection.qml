@@ -243,7 +243,6 @@ Item {
                         anchors.fill: parent
                         columns: root._ledgerColumns
                         sourceModel: root.ledgerTableModel
-                        rows: root.ledgerModel.items || []
                         loading: root.isBusy
                         emptyText: root.ledgerModel.emptyState || "No ledger entries."
                     }

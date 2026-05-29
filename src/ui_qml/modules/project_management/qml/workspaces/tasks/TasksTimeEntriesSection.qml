@@ -16,6 +16,7 @@ Item {
     property var    periodOptions:       []
     property string selectedPeriodStart: ""
     property var    entriesModel:        AppMock.MockFactory.catalog("Time Entries", "", "Select a task assignment.")
+    property var    entriesTableModel:   null
     property var    selectedEntryDetail: AppMock.MockFactory.fieldRecord()
     property string selectedEntryId:     ""
     property bool   isBusy:             false
@@ -334,7 +335,7 @@ Item {
             AppWidgets.DataTable {
                 anchors.fill:  parent
                 columns:       root._columns
-                rows:          root._items
+                sourceModel:   root.entriesTableModel
                 selectedRowId: root.selectedEntryId
                 loading:       root.isBusy
                 emptyText:     root.entriesModel.emptyState || "No time entries for this period."

@@ -16,14 +16,17 @@ Item {
     property var detailPage: null
 
     property var assignmentsModel: AppMock.MockFactory.catalog("Assignments", "", "Select a task.")
+    property var assignmentsTableModel: null
     property string selectedAssignmentId: ""
     property var assignmentOptions: []
 
     property var dependenciesModel: AppMock.MockFactory.catalog("Dependencies", "", "Select a task.")
+    property var dependenciesTableModel: null
     property var dependencyTaskOptions: []
 
     property var timeAssignmentSummaryModel: AppMock.MockFactory.fieldRecord("", "", "Select a task assignment.")
     property var timeEntriesModel: AppMock.MockFactory.catalog("Time Entries", "", "Select a task assignment.")
+    property var timeEntriesTableModel: null
     property var selectedTimeEntryModel: AppMock.MockFactory.detail()
     property string selectedEntryId: ""
     property var timeAssignmentOptions: []
@@ -299,6 +302,7 @@ Item {
                 TasksAssignmentsSection {
                     width: parent ? parent.width : 0
                     assignmentsModel: root.assignmentsModel
+                    assignmentsTableModel: root.assignmentsTableModel
                     selectedAssignmentId: root.selectedAssignmentId
                     isBusy: root.isBusy
                     canCreate: root._hasTask && root.assignmentOptions.length > 0
@@ -320,6 +324,7 @@ Item {
                 TasksDependenciesSection {
                     width: parent ? parent.width : 0
                     dependenciesModel: root.dependenciesModel
+                    dependenciesTableModel: root.dependenciesTableModel
                     isBusy: root.isBusy
                     canCreate: root._hasTask && root.dependencyTaskOptions.length > 0
                     errorText: String(root.sectionErrors["dependencies"] || "")
@@ -341,6 +346,7 @@ Item {
                     periodOptions: root.periodOptions
                     selectedPeriodStart: root.selectedPeriodStart
                     entriesModel: root.timeEntriesModel
+                    entriesTableModel: root.timeEntriesTableModel
                     selectedEntryDetail: root.selectedTimeEntryModel
                     selectedEntryId: root.selectedEntryId
                     isBusy: root.isBusy

@@ -784,7 +784,6 @@ AppLayouts.WorkspaceFrame {
                             anchors.right: parent.right
                             anchors.bottom: paginationBar.top
                             visible: root.activePanelId !== "activity" && root.activePanelId !== "audit"
-                            rows: root._currentPagedRows
                             columns: root._currentTableColumns
                             selectedRowId: root._selectedRowId
                             emptyText: root._currentPanelModel.emptyState || "No collaboration items are available."

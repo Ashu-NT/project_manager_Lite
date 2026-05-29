@@ -237,7 +237,6 @@ AppLayouts.WorkspaceFrame {
                         Layout.fillWidth:  true
                         Layout.fillHeight: true
                         sourceModel:   root.workspaceController ? root.workspaceController.approvalQueueTableModel : null
-                        rows:          root._queuePageRows
                         columns:       root._queueColumns
                         selectedRowId: root._selectedRowId
                         emptyText:     root.workspaceController

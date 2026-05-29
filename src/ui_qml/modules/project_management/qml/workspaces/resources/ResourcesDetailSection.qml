@@ -445,7 +445,6 @@ Item {
                         AppWidgets.DataTable {
                             anchors.fill: parent
                             columns: _skillsSection._columns
-                            rows: _skillsSection._skills
                             selectedRowId: _skillsSection._selectedSkillId
                             loading: root.isBusy
                             emptyText: root._hasResource
@@ -538,7 +537,6 @@ Item {
                         AppWidgets.DataTable {
                             anchors.fill: parent
                             columns: _certsSection._columns
-                            rows: _certsSection._certs
                             selectedRowId: _certsSection._selectedCertId
                             loading: root.isBusy
                             emptyText: root._hasResource

@@ -220,7 +220,6 @@ Item {
                         anchors.leftMargin: Theme.AppTheme.marginMd
                         anchors.rightMargin: Theme.AppTheme.marginMd
                         implicitHeight: 220
-                        rows: root.detailModel.relatedItems ? (root.detailModel.relatedItems.items || []) : []
                         columns: root._relatedColumns
                         emptyText: root.detailModel.relatedItems
                             ? (root.detailModel.relatedItems.emptyState || "No related items are available.")

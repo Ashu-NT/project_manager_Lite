@@ -124,7 +124,6 @@ ColumnLayout {
         Layout.fillHeight: true
 
         sourceModel: root.catalogModel
-        rows: root._pageRows
         columns: root.columns
         emptyText: root.catalog.emptyState || "No records"
         loading: root.isLoading

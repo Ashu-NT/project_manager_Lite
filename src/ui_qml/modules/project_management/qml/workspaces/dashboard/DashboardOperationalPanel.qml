@@ -152,7 +152,6 @@ Item {
                 anchors.bottom: paginationBar.top
                 columns: root.operationalTableModel.columns || []
                 sourceModel: root.operationalSourceModel
-                rows: root.operationalTableModel.rows || []
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText: root.operationalTableModel.emptyState || "No operational records are available."
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedOperationalRowId : ""

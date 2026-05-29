@@ -250,7 +250,6 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: false
                         columns: root._stockColumns
                         sourceModel: root.workspaceController ? root.workspaceController.stockSignalsTableModel : null
-                        rows: root.stockSignalsModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.stockSignalsModel.emptyState || "No stock signals."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedStockSignalId : ""
@@ -275,7 +274,6 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: false
                         columns: root._supplierColumns
                         sourceModel: root.workspaceController ? root.workspaceController.supplierPricingTableModel : null
-                        rows: root.supplierPricingModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.supplierPricingModel.emptyState || "No supplier pricing records."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedSupplierPricingId : ""

@@ -26,7 +26,6 @@ Item {
             Layout.fillHeight: true
             Layout.preferredHeight: root.tablePreferredHeight
             columns: root.columns
-            rows: root.rows
             loading: root.loading
             emptyText: root.emptyText
         }

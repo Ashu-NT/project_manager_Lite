@@ -11,6 +11,7 @@ Item {
     id: root
 
     property var    assignmentsModel:     AppMock.MockFactory.catalog()
+    property var    assignmentsTableModel: null
     property string selectedAssignmentId: ""
     property bool   isBusy:              false
     property bool   canCreate:           false
@@ -149,7 +150,7 @@ Item {
             AppWidgets.DataTable {
                 anchors.fill:  parent
                 columns:       root._columns
-                rows:          root._items
+                sourceModel:   root.assignmentsTableModel
                 selectedRowId: root.selectedAssignmentId
                 loading:       root.isBusy
                 emptyText:     root.assignmentsModel.emptyState || "No assignments for this task."

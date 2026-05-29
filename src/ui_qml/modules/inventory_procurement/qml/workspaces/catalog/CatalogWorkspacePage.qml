@@ -258,7 +258,6 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: true
                         columns: root._itemColumns
                         sourceModel: root.workspaceController ? root.workspaceController.itemsTableModel : null
-                        rows: root.itemsModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.itemsModel.emptyState || "No catalog items."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedItemId : ""
@@ -296,7 +295,6 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: true
                         columns: root._categoryColumns
                         sourceModel: root.workspaceController ? root.workspaceController.categoriesTableModel : null
-                        rows: root.categoriesModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.categoriesModel.emptyState || "No categories."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedCategoryId : ""

@@ -350,7 +350,6 @@ AppLayouts.WorkspaceFrame {
                         anchors.bottom: _paginationBar.top
                         multiSelect: true
                         columns: root._heatmapColumns
-                        rows:    root._pagedHeatmapRows
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root._heatmapModel.emptyState
                             || "No portfolio projects available."
@@ -587,7 +586,6 @@ AppLayouts.WorkspaceFrame {
                                             Layout.fillWidth: true
                                             Layout.fillHeight: true
                                             columns:  root._fundingColumns
-                                            rows:     root._fundingRows
                                             emptyText: root._intakeModel.emptyState
                                                 || "No intake items available."
                                             multiSelect: false
@@ -690,7 +688,6 @@ AppLayouts.WorkspaceFrame {
                                     AppWidgets.DataTable {
                                         anchors.fill: parent
                                         columns:  root._riskColumns
-                                        rows:     root._riskRows
                                         emptyText: root._dependenciesModel.emptyState
                                             || "No cross-project dependencies recorded."
                                         onRowSelected: function(rowId) {}

@@ -231,7 +231,6 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: true
                         columns: root._tableColumns
                         sourceModel: root.workspaceController ? root.workspaceController.entriesTableModel : null
-                        rows: root.entriesModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.entriesModel.emptyState || "No register entries available."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedEntryId : ""

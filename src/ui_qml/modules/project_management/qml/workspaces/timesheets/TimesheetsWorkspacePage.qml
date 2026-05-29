@@ -213,7 +213,6 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: true
                         columns: root._tableColumns
                         sourceModel: root.workspaceController ? root.workspaceController.reviewQueueTableModel : null
-                        rows: root.reviewQueueModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.reviewQueueModel.emptyState || "No timesheet periods available."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedQueuePeriodId : ""

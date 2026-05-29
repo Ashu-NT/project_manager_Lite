@@ -46,7 +46,6 @@ Item {
                     hint: modelData.hint || ""
                     emptyState: modelData.emptyState || ""
                     metrics: modelData.metrics || []
-                    rows: modelData.rows || []
                 }
             }
         }

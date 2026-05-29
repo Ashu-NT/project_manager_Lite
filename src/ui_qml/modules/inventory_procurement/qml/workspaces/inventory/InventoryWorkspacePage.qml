@@ -238,7 +238,6 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: true
                         columns: root._balanceColumns
                         sourceModel: root.workspaceController ? root.workspaceController.balancesTableModel : null
-                        rows: root.balancesModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.balancesModel.emptyState || "No stock balances."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedBalanceId : ""
@@ -272,7 +271,6 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: true
                         columns: root._storeroomColumns
                         sourceModel: root.workspaceController ? root.workspaceController.storeroomsTableModel : null
-                        rows: root.storeroomsModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.storeroomsModel.emptyState || "No storerooms configured."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedStoreroomId : ""

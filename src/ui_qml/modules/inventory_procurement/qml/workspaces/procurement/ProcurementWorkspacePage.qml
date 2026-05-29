@@ -254,7 +254,6 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: true
                         columns: root._requisitionColumns
                         sourceModel: root.workspaceController ? root.workspaceController.requisitionsTableModel : null
-                        rows: root.requisitionsModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.requisitionsModel.emptyState || "No requisitions found."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedRequisitionId : ""
@@ -288,7 +287,6 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: true
                         columns: root._purchaseOrderColumns
                         sourceModel: root.workspaceController ? root.workspaceController.purchaseOrdersTableModel : null
-                        rows: root.purchaseOrdersModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.purchaseOrdersModel.emptyState || "No purchase orders found."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedPurchaseOrderId : ""
@@ -738,7 +736,6 @@ AppLayouts.WorkspaceFrame {
                                     { "key": "subtitle", "label": "Details",  "flex": 1.5 },
                                     { "key": "metaText", "label": "Quantity", "flex": 1 }
                                 ]
-                                rows: _procDetailContent._lines ? (_procDetailContent._lines.items || []) : []
                                 loading: false
                                 emptyText: _procDetailContent._lines
                                     ? (_procDetailContent._lines.emptyState || "No lines.")
@@ -781,7 +778,6 @@ AppLayouts.WorkspaceFrame {
                                     { "key": "statusLabel", "label": "Status",   "flex": 0, "minWidth": 90, "type": "status" },
                                     { "key": "metaText",    "label": "Date",     "flex": 1 }
                                 ]
-                                rows: _procDetailContent._receipts
                                     ? (_procDetailContent._receipts.items || []) : []
                                 loading: false
                                 emptyText: _procDetailContent._receipts

@@ -627,7 +627,6 @@ AppLayouts.WorkspaceFrame {
                                 Layout.fillWidth:  true
                                 Layout.fillHeight: true
                                 sourceModel:   root.workspaceController ? root.workspaceController.moduleEntitlementsTableModel : null
-                                rows:          root.workspaceController
                                     ? (root.workspaceController.moduleEntitlements.items || []) : []
                                 columns:       root._moduleColumns
                                 selectedRowId: root._selectedRowId
@@ -890,7 +889,6 @@ AppLayouts.WorkspaceFrame {
                                 Layout.fillWidth:  true
                                 Layout.fillHeight: true
                                 sourceModel:   root.workspaceController ? root.workspaceController.integrationCapabilitiesTableModel : null
-                                rows:      root.workspaceController
                                     ? (root.workspaceController.integrationCapabilities.items || []) : []
                                 columns:   root._capColumns
                                 emptyText: root.workspaceController
@@ -1270,7 +1268,6 @@ AppLayouts.WorkspaceFrame {
                                         delegate: PlatformWidgets.OverviewSectionCard {
                                             required property var modelData
                                             title:      modelData.title      || ""
-                                            rows:       modelData.rows       || []
                                             emptyState: modelData.emptyState || ""
                                         }
                                     }

@@ -223,7 +223,6 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: false
                         columns: root._storeroomColumns
                         sourceModel: root.workspaceController ? root.workspaceController.storeroomsTableModel : null
-                        rows: root.storeroomsModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.storeroomsModel.emptyState || "No storerooms configured."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedStoreroomId : ""
@@ -248,7 +247,6 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: false
                         columns: root._locationColumns
                         sourceModel: root.workspaceController ? root.workspaceController.foundationTableModel : null
-                        rows: root.foundationModel.locations || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: "No storage locations found."
                         selectedRowId: root._selectedLocationId

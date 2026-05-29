@@ -245,7 +245,6 @@ AppLayouts.WorkspaceFrame {
                         multiSelect: true
                         columns: root._tableColumns
                         sourceModel: root.workspaceController ? root.workspaceController.costsTableModel : null
-                        rows: root.costsModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.costsModel.emptyState || "No cost items available."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedCostId : ""
