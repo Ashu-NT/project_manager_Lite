@@ -1,10 +1,27 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import subprocess
 import sys
 from pathlib import Path
+
+
+def collect_python_arg_names(py_file: Path) -> dict[str, list[str]]:
+    tree = ast.parse(py_file.read_text(encoding="utf-8"))
+    result: dict[str, list[str]] = {}
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            args = [arg.arg for arg in node.args.args]
+
+            if args and args[0] in {"self", "cls"}:
+                args = args[1:]
+
+            result[node.name] = args
+
+    return result
 
 
 def run_metaobjectdump(py_file: Path) -> list[dict]:
@@ -24,17 +41,25 @@ def run_metaobjectdump(py_file: Path) -> list[dict]:
 def qml_type_for(meta_type: str) -> str:
     return {
         "QString": "QString",
+        "str": "QString",
         "bool": "bool",
         "int": "int",
         "double": "double",
         "float": "double",
         "QObject": "QObject",
+        "QVariant": "var",
         "QVariantMap": "QVariantMap",
         "QVariantList": "QVariantList",
+        "list": "QVariantList",
+        "dict": "QVariantMap",
     }.get(meta_type, meta_type or "var")
 
 
-def emit_component(cls: dict, module_name: str) -> list[str]:
+def emit_component(
+    cls: dict,
+    module_name: str,
+    arg_names_by_method: dict[str, list[str]],
+) -> list[str]:
     class_name = cls["className"]
     prototype = "QObject"
 
@@ -54,8 +79,10 @@ def emit_component(cls: dict, module_name: str) -> list[str]:
     for prop in cls.get("properties", []):
         name = prop.get("name", "")
         prop_type = qml_type_for(prop.get("type", "var"))
+
         if not name or name in seen_props:
             continue
+
         seen_props.add(name)
         lines.append(
             f'        Property {{ name: "{name}"; type: "{prop_type}"; isReadonly: true }}'
@@ -64,20 +91,26 @@ def emit_component(cls: dict, module_name: str) -> list[str]:
     seen_methods: set[str] = set()
     for slot in cls.get("slots", []):
         name = slot.get("name", "")
+
         if not name or name in seen_methods:
             continue
+
         seen_methods.add(name)
 
         return_type = qml_type_for(slot.get("returnType", "void"))
         args = slot.get("arguments", [])
+        real_arg_names = arg_names_by_method.get(name, [])
 
         parts = [f'        Method {{ name: "{name}"']
+
         if return_type and return_type != "void":
             parts.append(f'; type: "{return_type}"')
 
         for i, arg in enumerate(args):
-            arg_name = arg.get("name") or f"arg{i + 1}"
+            fallback_name = arg.get("name") or f"arg{i + 1}"
+            arg_name = real_arg_names[i] if i < len(real_arg_names) else fallback_name
             arg_type = qml_type_for(arg.get("type", "var"))
+
             parts.append(
                 f'; Parameter {{ name: "{arg_name}"; type: "{arg_type}" }}'
             )
@@ -97,11 +130,11 @@ def generate_qmltypes(base_dir: Path, output_file: Path, module_name: str) -> No
     )
 
     lines = ["Module {"]
-
     seen_classes: set[str] = set()
 
     for py_file in py_files:
         try:
+            arg_names_by_method = collect_python_arg_names(py_file)
             dump = run_metaobjectdump(py_file)
         except subprocess.CalledProcessError as exc:
             print(f"[skip] {py_file}: metaobjectdump failed", file=sys.stderr)
@@ -110,6 +143,9 @@ def generate_qmltypes(base_dir: Path, output_file: Path, module_name: str) -> No
             continue
         except json.JSONDecodeError:
             print(f"[skip] {py_file}: invalid JSON output", file=sys.stderr)
+            continue
+        except SyntaxError as exc:
+            print(f"[skip] {py_file}: syntax error: {exc}", file=sys.stderr)
             continue
 
         for item in dump:
@@ -127,7 +163,13 @@ def generate_qmltypes(base_dir: Path, output_file: Path, module_name: str) -> No
                     continue
 
                 seen_classes.add(class_name)
-                lines.extend(emit_component(cls, module_name))
+                lines.extend(
+                    emit_component(
+                        cls=cls,
+                        module_name=module_name,
+                        arg_names_by_method=arg_names_by_method,
+                    )
+                )
 
     lines.append("}")
 
