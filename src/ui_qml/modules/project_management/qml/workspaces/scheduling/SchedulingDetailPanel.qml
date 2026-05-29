@@ -14,17 +14,25 @@ Item {
     property var activityDetail: ({})
     property var dependenciesModel: ({ "items": [], "emptyState": "" })
     property var dependencyRows: []
+    property var dependencyTableModel: null
     property var constraintsModel: ({ "items": [], "emptyState": "" })
     property var constraintRows: []
+    property var constraintTableModel: null
     property var calendarModel: ({ "summaryText": "", "workingDays": [], "hoursPerDay": "8", "holidays": [], "emptyState": "" })
     property var calendarSummaryRows: []
+    property var calendarSummaryTableModel: null
     property var holidayRows: []
+    property var holidayTableModel: null
     property var baselinesModel: ({ "options": [], "rows": [], "summaryText": "", "emptyState": "" })
     property var baselineCompareRows: []
+    property var baselineCompareTableModel: null
     property var baselineRegisterModel: ({ "items": [], "emptyState": "" })
     property var baselineRegisterRows: []
+    property var baselineRegisterTableModel: null
     property var resourceLoadingModel: ({ "items": [], "emptyState": "" })
     property var resourceRows: []
+    property var resourcesLoadingTableModel: null
+    property var scheduleImpactTasksTableModel: null
     property var activityFeedModel: ({ "items": [], "emptyState": "" })
     property var scheduleImpactModel: ({
         "taskId": "", "affectedCount": 0, "maxProjectFinishShiftDays": 0,
@@ -151,6 +159,7 @@ Item {
                 subtitle: "Read-only predecessor and successor visibility from the current schedule network."
 
                 AppWidgets.DataTable {
+                    sourceModel: root.dependencyTableModel
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     columns: [
@@ -183,6 +192,7 @@ Item {
                 AppWidgets.DataTable {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
+                    sourceModel: root.constraintTableModel
                     columns: [
                         { "key": "constraint", "label": "Constraint", "flex": 1.3 },
                         { "key": "value", "label": "Value", "flex": 1.0 },
@@ -224,6 +234,7 @@ Item {
                     AppWidgets.DataTable {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 120
+                        sourceModel: root.calendarSummaryTableModel
                         columns: [
                             { "key": "calendar", "label": "Calendar", "flex": 1.0 },
                             { "key": "workingDays", "label": "Working Days", "flex": 1.7 },
@@ -238,6 +249,7 @@ Item {
                     AppWidgets.DataTable {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
+                        sourceModel: root.holidayTableModel
                         columns: [
                             { "key": "date", "label": "Date", "flex": 0.9 },
                             { "key": "exception", "label": "Exception", "flex": 1.1 },
@@ -280,6 +292,7 @@ Item {
                     AppWidgets.DataTable {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 180
+                        sourceModel: root.baselineCompareTableModel
                         columns: [
                             { "key": "activity", "label": "Activity", "flex": 1.6 },
                             { "key": "change", "label": "Change", "flex": 0.8, "type": "status" },
@@ -294,6 +307,7 @@ Item {
                     AppWidgets.DataTable {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
+                        sourceModel: root.baselineRegisterTableModel
                         columns: [
                             { "key": "baseline", "label": "Baseline", "flex": 1.4 },
                             { "key": "created", "label": "Created", "flex": 1.0 },
@@ -323,6 +337,7 @@ Item {
                 AppWidgets.DataTable {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
+                    sourceModel: root.resourcesLoadingTableModel
                     columns: [
                         { "key": "resource", "label": "Resource", "flex": 1.5 },
                         { "key": "allocation", "label": "Allocation", "flex": 0.9 },
@@ -487,6 +502,7 @@ Item {
                     AppWidgets.DataTable {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
+                        sourceModel: root.scheduleImpactTasksTableModel
                         visible: root.scheduleImpactModel.available === true
                         columns: [
                             { "key": "taskName", "label": "Task", "flex": 2.0 },

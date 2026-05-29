@@ -573,6 +573,7 @@ AppLayouts.WorkspaceFrame {
                                             anchors.right: parent.right
                                             anchors.bottom: activityPagination.top
                                             columns: root._activityColumns
+                                            sourceModel: root.workspaceController ? root.workspaceController.scheduleTableModel : null
                                             loading: root.workspaceController ? root.workspaceController.isLoading : false
                                             emptyText: root.scheduleModel.emptyState || "No activities are available for the selected planning scope."
                                             selectedRowId: root.workspaceController ? root.workspaceController.selectedActivityId : ""
@@ -1025,6 +1026,7 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
                                     columns: root._baselineVarianceColumns
+                                    sourceModel: root.workspaceController ? root.workspaceController.baselineVarianceTableModel : null
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.selectedBaselineRegisterId.length > 0
                                         ? "No variance records are stored for this baseline. Variance is recorded when a baseline supersedes the previously approved one."
@@ -1335,6 +1337,7 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 120
                                     columns: root._calendarColumns
+                                    sourceModel: root.workspaceController ? root.workspaceController.calendarSummaryTableModel : null
                                     loading: false
                                     emptyText: "No calendar summary is available."
                                 }
@@ -1470,17 +1473,25 @@ AppLayouts.WorkspaceFrame {
                     activityDetail: root.selectedActivityModel
                     dependenciesModel: root.dependenciesModel
                     dependencyRows: root.dependencyRows
+                    dependencyTableModel: root.workspaceController ? root.workspaceController.dependencyTableModel : null
                     constraintsModel: root.constraintsModel
                     constraintRows: root.constraintRows
+                    constraintTableModel: root.workspaceController ? root.workspaceController.constraintTableModel : null
                     calendarModel: root.calendarModel
                     calendarSummaryRows: root.calendarSummaryRows
+                    calendarSummaryTableModel: root.workspaceController ? root.workspaceController.calendarSummaryTableModel : null
                     holidayRows: root.holidayRows
+                    holidayTableModel: root.workspaceController ? root.workspaceController.holidayTableModel : null
                     baselinesModel: root.baselinesModel
                     baselineCompareRows: root.baselineCompareRows
+                    baselineCompareTableModel: root.workspaceController ? root.workspaceController.baselineCompareTableModel : null
                     baselineRegisterModel: root.baselineRegisterModel
                     baselineRegisterRows: root.baselineRegisterRows
+                    baselineRegisterTableModel: root.workspaceController ? root.workspaceController.baselineRegisterTableModel : null
                     resourceLoadingModel: root.resourceLoadingModel
                     resourceRows: root.resourceRows
+                    resourcesLoadingTableModel: root.workspaceController ? root.workspaceController.resourcesLoadingTableModel : null
+                    scheduleImpactTasksTableModel: root.workspaceController ? root.workspaceController.scheduleImpactTasksTableModel : null
                     activityFeedModel: root.activityFeedModel
                     scheduleImpactModel: root.workspaceController ? (root.workspaceController.scheduleImpact || {}) : ({})
                     workspaceController: root.workspaceController

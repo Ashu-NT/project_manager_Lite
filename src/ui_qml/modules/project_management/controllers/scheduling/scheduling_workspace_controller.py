@@ -204,6 +204,12 @@ class ProjectManagementSchedulingWorkspaceController(
             "items": [],
             "emptyState": "",
         }
+        self._schedule_table_model = DynamicTableModel(self)
+        self._schedule_impact_tasks_table_model = DynamicTableModel(self)
+        self._dependency_table_model = DynamicTableModel(self)
+        self._constraint_table_model = DynamicTableModel(self)
+        self._calendar_summary_table_model = DynamicTableModel(self)
+        self._baseline_variance_table_model = DynamicTableModel(self)
         self._schedule_rows: list[dict[str, object]] = []
         self._diagnostics_table_model = DynamicTableModel(self)
         self._violations_table_model = DynamicTableModel(self)
@@ -540,7 +546,31 @@ class ProjectManagementSchedulingWorkspaceController(
             ["date", "exception", "calendar", "details"],
         )
 
-    # ── Python-owned table models for filtered row arrays ─────────────
+    # ── Python-owned table models ─────────────────────────────────────
+
+    @Property(QObject, constant=True)
+    def scheduleTableModel(self) -> DynamicTableModel:
+        return self._schedule_table_model
+
+    @Property(QObject, constant=True)
+    def scheduleImpactTasksTableModel(self) -> DynamicTableModel:
+        return self._schedule_impact_tasks_table_model
+
+    @Property(QObject, constant=True)
+    def dependencyTableModel(self) -> DynamicTableModel:
+        return self._dependency_table_model
+
+    @Property(QObject, constant=True)
+    def constraintTableModel(self) -> DynamicTableModel:
+        return self._constraint_table_model
+
+    @Property(QObject, constant=True)
+    def calendarSummaryTableModel(self) -> DynamicTableModel:
+        return self._calendar_summary_table_model
+
+    @Property(QObject, constant=True)
+    def baselineVarianceTableModel(self) -> DynamicTableModel:
+        return self._baseline_variance_table_model
 
     @Property(QObject, constant=True)
     def diagnosticsTableModel(self) -> DynamicTableModel:
@@ -1386,6 +1416,7 @@ class ProjectManagementSchedulingWorkspaceController(
         if rows == self._schedule_rows:
             return
         self._schedule_rows = rows
+        self._schedule_table_model.set_rows(rows)
         self.scheduleRowsChanged.emit()
 
     def _set_diagnostics_rows(self, rows: list[dict[str, object]]) -> None:
@@ -1432,12 +1463,14 @@ class ProjectManagementSchedulingWorkspaceController(
         if rows == self._dependency_rows:
             return
         self._dependency_rows = rows
+        self._dependency_table_model.set_rows(rows)
         self.dependencyRowsChanged.emit()
 
     def _set_constraint_rows(self, rows: list[dict[str, object]]) -> None:
         if rows == self._constraint_rows:
             return
         self._constraint_rows = rows
+        self._constraint_table_model.set_rows(rows)
         self.constraintRowsChanged.emit()
 
     def _set_violation_rows(self, rows: list[dict[str, object]]) -> None:
@@ -1452,6 +1485,7 @@ class ProjectManagementSchedulingWorkspaceController(
         if rows == self._calendar_summary_rows:
             return
         self._calendar_summary_rows = rows
+        self._calendar_summary_table_model.set_rows(rows)
         self.calendarSummaryRowsChanged.emit()
 
     def _set_holiday_rows(self, rows: list[dict[str, object]]) -> None:
@@ -1478,6 +1512,7 @@ class ProjectManagementSchedulingWorkspaceController(
         if rows == self._baseline_variance_rows:
             return
         self._baseline_variance_rows = rows
+        self._baseline_variance_table_model.set_rows(rows)
         self.baselineVarianceRowsChanged.emit()
 
     @staticmethod
@@ -1762,6 +1797,9 @@ class ProjectManagementSchedulingWorkspaceController(
             }
         if impact != self._schedule_impact:
             self._schedule_impact = impact
+            self._schedule_impact_tasks_table_model.set_rows(
+                impact.get("affectedTasks", []) if isinstance(impact, dict) else []
+            )
             self.scheduleImpactChanged.emit()
         return {"ok": True, "message": "Impact analysis complete."}
 

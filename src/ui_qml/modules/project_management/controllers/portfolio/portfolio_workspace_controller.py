@@ -3,6 +3,8 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
@@ -71,6 +73,9 @@ class ProjectManagementPortfolioWorkspaceController(
         self._selected_scenario_id = ""
         self._selected_base_scenario_id = ""
         self._selected_compare_scenario_id = ""
+        self._heatmap_table_model = DynamicTableModel(self)
+        self._intake_items_table_model = DynamicTableModel(self)
+        self._dependencies_table_model = DynamicTableModel(self)
         self._intake_items: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._templates: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._scenarios: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
@@ -127,6 +132,18 @@ class ProjectManagementPortfolioWorkspaceController(
     @Property("QVariantMap", notify=intakeItemsChanged)
     def intakeItems(self) -> dict[str, object]:
         return self._intake_items
+
+    @Property(QObject, constant=True)
+    def heatmapTableModel(self) -> DynamicTableModel:
+        return self._heatmap_table_model
+
+    @Property(QObject, constant=True)
+    def intakeItemsTableModel(self) -> DynamicTableModel:
+        return self._intake_items_table_model
+
+    @Property(QObject, constant=True)
+    def portfolioDependenciesTableModel(self) -> DynamicTableModel:
+        return self._dependencies_table_model
 
     @Property("QVariantMap", notify=templatesChanged)
     def templates(self) -> dict[str, object]:
@@ -437,6 +454,7 @@ class ProjectManagementPortfolioWorkspaceController(
         if intake_items == self._intake_items:
             return
         self._intake_items = intake_items
+        self._intake_items_table_model.set_rows(intake_items.get("items", []))
         self.intakeItemsChanged.emit()
 
     def _set_templates(self, templates: dict[str, object]) -> None:
@@ -467,12 +485,14 @@ class ProjectManagementPortfolioWorkspaceController(
         if heatmap == self._heatmap:
             return
         self._heatmap = heatmap
+        self._heatmap_table_model.set_rows(heatmap.get("items", []))
         self.heatmapChanged.emit()
 
     def _set_dependencies(self, dependencies: dict[str, object]) -> None:
         if dependencies == self._dependencies:
             return
         self._dependencies = dependencies
+        self._dependencies_table_model.set_rows(dependencies.get("items", []))
         self.dependenciesChanged.emit()
 
     def _set_recent_actions(self, recent_actions: dict[str, object]) -> None:
