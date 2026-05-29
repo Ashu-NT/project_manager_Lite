@@ -55,8 +55,9 @@ Item {
     signal columnsStateChanged(var columns)
 
     // ── Private helpers ───────────────────────────────────────────────
-    property int _hoveredRow:  -1
-    property int _currentRow:  -1
+    property int  _hoveredRow:        -1
+    property int  _currentRow:        -1
+    property bool _layoutPending:     false   // debounce guard for forceLayout
 
     function _rebuildSelectedLookup() {
         const map = {}
@@ -80,7 +81,10 @@ Item {
     }
 
     function _scheduleMainViewLayout() {
+        if (root._layoutPending) return
+        root._layoutPending = true
         Qt.callLater(function() {
+            root._layoutPending = false
             if (_mainView.width > 0 && _mainView.height > 0) {
                 _mainView.forceLayout()
             }
