@@ -768,14 +768,19 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
     def _resolve_bootstrap_admin_password(self) -> str:
         configured = os.getenv("PM_ADMIN_PASSWORD")
         if configured is not None and configured.strip():
-            return configured
-        if self._truthy_env(os.getenv("PM_ALLOW_DEFAULT_ADMIN_PASSWORD")):
-            logger.warning("Bootstrapping admin user with insecure default password because PM_ALLOW_DEFAULT_ADMIN_PASSWORD is enabled.")
-            return "ChangeMe123!"
-        raise ValidationError(
-            "PM_ADMIN_PASSWORD must be set before the first administrator account can be bootstrapped.",
-            code="AUTH_BOOTSTRAP_PASSWORD_REQUIRED",
+            return configured.strip()
+        default_password = "ChangeMe123!"  # Intentionally not a strong password since it's meant to be changed immediately
+        logger.warning(
+            "=================================================================\n"
+            "  FIRST-RUN SETUP: Admin account created with default credentials\n"
+            "  Username : admin\n"
+            "  Password : %s\n"
+            "  You will be prompted to change this password after signing in.\n"
+            "  Set PM_ADMIN_PASSWORD in your environment to use a custom value.\n"
+            "=================================================================",
+            default_password,
         )
+        return default_password
 
     @staticmethod
     def _normalize_identity_provider(identity_provider: str | None) -> str | None:
