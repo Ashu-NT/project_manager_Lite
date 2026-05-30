@@ -199,7 +199,7 @@ Rectangle {
         AppControls.SecondaryButton {
             visible: root.showImport
             text: "Import"
-            iconName: "upload"
+            iconName: "export"
             enabled: !root.isBusy
             implicitWidth: 88
             onClicked: root.importRequested()
@@ -208,7 +208,7 @@ Rectangle {
         AppControls.SecondaryButton {
             visible: root.showExport
             text: "Export"
-            iconName: "export"
+            iconName: "upload"
             enabled: !root.isBusy
             implicitWidth: 88
             onClicked: root.exportRequested()
