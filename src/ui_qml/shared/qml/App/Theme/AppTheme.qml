@@ -119,6 +119,22 @@ QtObject {
     readonly property int tableIconSize: 13
     readonly property int headerIconSize: 16
 
+    // Semantic soft borders (derived from semantic colors)
+    readonly property color dangerSoftBorder: Qt.rgba(danger.r, danger.g, danger.b, 0.30)
+    readonly property color successSoftBorder: Qt.rgba(success.r, success.g, success.b, 0.30)
+    readonly property color warningSoftBorder: Qt.rgba(warning.r, warning.g, warning.b, 0.30)
+
+    // Login / Auth screen branding
+    readonly property color loginWindowBackground:    "#0F1117"
+    readonly property color loginBrandGradientStart:  "#0D1B3E"
+    readonly property color loginBrandGradientEnd:    "#1A3461"
+    readonly property color loginBrandRing1:          Qt.rgba(1, 1, 1, 0.05)
+    readonly property color loginBrandRing2:          Qt.rgba(1, 1, 1, 0.04)
+    readonly property color loginBrandSubtitle:       Qt.rgba(1, 1, 1, 0.55)
+    readonly property color loginBrandFeatureText:    Qt.rgba(1, 1, 1, 0.60)
+    readonly property color loginBrandFooter:         Qt.rgba(1, 1, 1, 0.25)
+    readonly property color loginSpinnerBorder:       Qt.rgba(1, 1, 1, 0.70)
+
     // Dialogs
     readonly property color dialogBackground: surfaceRaised
     readonly property color dialogBorder: subtleBorder

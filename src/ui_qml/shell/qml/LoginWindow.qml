@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import Shell.Controllers 1.0 as ShellControllers
 
@@ -9,6 +10,7 @@ ApplicationWindow {
     id: loginWindow
 
     property ShellControllers.ShellLoginController loginController
+    property bool _showPassword: false
 
     width: 900
     height: 560
@@ -16,7 +18,7 @@ ApplicationWindow {
     minimumHeight: 480
     visible: true
     title: "Sign in — TECHASH Enterprise"
-    color: "#0F1117"
+    color: Theme.AppTheme.loginWindowBackground
 
     onClosing: function() {
         if (loginController !== null && !loginController.isAuthenticated) {
@@ -39,8 +41,8 @@ ApplicationWindow {
         width: Math.floor(parent.width * 0.42)
         gradient: Gradient {
             orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: "#0D1B3E" }
-            GradientStop { position: 1.0; color: "#1A3461" }
+            GradientStop { position: 0.0; color: Theme.AppTheme.loginBrandGradientStart }
+            GradientStop { position: 1.0; color: Theme.AppTheme.loginBrandGradientEnd }
         }
 
         // Decorative rings
@@ -51,7 +53,7 @@ ApplicationWindow {
             anchors.verticalCenter: parent.top
             anchors.verticalCenterOffset: 40
             color: "transparent"
-            border.color: Qt.rgba(1, 1, 1, 0.05)
+            border.color: Theme.AppTheme.loginBrandRing1
             border.width: 60
         }
         Rectangle {
@@ -61,9 +63,10 @@ ApplicationWindow {
             anchors.verticalCenter: parent.bottom
             anchors.verticalCenterOffset: -20
             color: "transparent"
-            border.color: Qt.rgba(1, 1, 1, 0.04)
+            border.color: Theme.AppTheme.loginBrandRing2
             border.width: 44
         }
+
         // Accent bar at the top
         Rectangle {
             anchors.top: parent.top
@@ -87,7 +90,7 @@ ApplicationWindow {
                 Text {
                     anchors.centerIn: parent
                     text: "T"
-                    color: "white"
+                    color: Theme.AppTheme.textOnAccent
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: 24
                     font.bold: true
@@ -99,7 +102,7 @@ ApplicationWindow {
 
             Text {
                 text: "TECHASH"
-                color: "white"
+                color: Theme.AppTheme.textOnAccent
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: 28
                 font.bold: true
@@ -110,7 +113,7 @@ ApplicationWindow {
 
             Text {
                 text: "Enterprise Suite"
-                color: Qt.rgba(1, 1, 1, 0.55)
+                color: Theme.AppTheme.loginBrandSubtitle
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: 13
                 font.letterSpacing: 0.5
@@ -118,33 +121,35 @@ ApplicationWindow {
 
             Item { Layout.fillHeight: true }
 
-            // Feature pills
+            // Feature list
             Column {
                 spacing: 10
 
                 Repeater {
                     model: [
-                        { icon: "▸", label: "Project & Portfolio Management" },
-                        { icon: "▸", label: "Resource Planning & Scheduling" },
-                        { icon: "▸", label: "Inventory & Procurement" },
-                        { icon: "▸", label: "Maintenance Operations" }
+                        "Project & Portfolio Management",
+                        "Resource Planning & Scheduling",
+                        "Inventory & Procurement",
+                        "Maintenance Operations"
                     ]
 
                     delegate: Row {
-                        required property var modelData
+                        required property string modelData
                         spacing: 10
 
-                        Text {
-                            text: modelData.icon
-                            color: Theme.AppTheme.accent
-                            font.pixelSize: 11
+                        AppIcons.AppIcon {
+                            name: "checkmark"
+                            size: Theme.AppTheme.iconSm
+                            iconColor: Theme.AppTheme.accent
                             anchors.verticalCenter: parent.verticalCenter
                         }
+
                         Text {
-                            text: modelData.label
-                            color: Qt.rgba(1, 1, 1, 0.6)
+                            text: modelData
+                            color: Theme.AppTheme.loginBrandFeatureText
                             font.family: Theme.AppTheme.fontFamily
                             font.pixelSize: 12
+                            anchors.verticalCenter: parent.verticalCenter
                         }
                     }
                 }
@@ -152,11 +157,23 @@ ApplicationWindow {
 
             Item { Layout.preferredHeight: 24 }
 
-            Text {
-                text: "© 2026 TECHASH • All rights reserved"
-                color: Qt.rgba(1, 1, 1, 0.25)
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: 10
+            Row {
+                spacing: 5
+
+                AppIcons.AppIcon {
+                    name: "building"
+                    size: Theme.AppTheme.iconXs
+                    iconColor: Theme.AppTheme.loginBrandFooter
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                Text {
+                    text: "2026 TECHASH • All rights reserved"
+                    color: Theme.AppTheme.loginBrandFooter
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                }
             }
         }
     }
@@ -195,7 +212,7 @@ ApplicationWindow {
 
             Item { Layout.preferredHeight: 32 }
 
-            // Username field
+            // Username
             Text {
                 text: "Username"
                 color: Theme.AppTheme.textSecondary
@@ -221,7 +238,7 @@ ApplicationWindow {
 
             Item { Layout.preferredHeight: 16 }
 
-            // Password field
+            // Password
             Text {
                 text: "Password"
                 color: Theme.AppTheme.textSecondary
@@ -232,44 +249,66 @@ ApplicationWindow {
 
             Item { Layout.preferredHeight: 6 }
 
-            AppControls.TextField {
-                id: passwordField
+            Item {
                 Layout.fillWidth: true
-                text: loginWindow.loginController ? loginWindow.loginController.password : ""
-                placeholderText: "Enter your password"
-                echoMode: TextInput.Password
-                enabled: loginWindow.loginController ? !loginWindow.loginController.isBusy : true
-                onTextEdited: {
-                    if (loginWindow.loginController !== null)
-                        loginWindow.loginController.setPassword(text)
+                implicitHeight: Theme.AppTheme.inputHeight
+
+                AppControls.TextField {
+                    id: passwordField
+                    anchors.fill: parent
+                    rightPadding: 42
+                    text: loginWindow.loginController ? loginWindow.loginController.password : ""
+                    placeholderText: "Enter your password"
+                    echoMode: loginWindow._showPassword ? TextInput.Normal : TextInput.Password
+                    enabled: loginWindow.loginController ? !loginWindow.loginController.isBusy : true
+                    onTextEdited: {
+                        if (loginWindow.loginController !== null)
+                            loginWindow.loginController.setPassword(text)
+                    }
+                    onAccepted: {
+                        if (loginWindow.loginController !== null && !loginWindow.loginController.isBusy)
+                            loginWindow.loginController.signIn()
+                    }
                 }
-                onAccepted: {
-                    if (loginWindow.loginController !== null && !loginWindow.loginController.isBusy)
-                        loginWindow.loginController.signIn()
+
+                // Password visibility toggle
+                Item {
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: 40
+                    enabled: loginWindow.loginController ? !loginWindow.loginController.isBusy : true
+
+                    AppIcons.AppIcon {
+                        anchors.centerIn: parent
+                        name: loginWindow._showPassword ? "view_off" : "view"
+                        size: 16
+                        iconColor: _eyeMouse.containsMouse
+                            ? Theme.AppTheme.accent
+                            : Theme.AppTheme.textMuted
+                    }
+
+                    MouseArea {
+                        id: _eyeMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: loginWindow._showPassword = !loginWindow._showPassword
+                    }
                 }
             }
 
             Item { Layout.preferredHeight: 8 }
 
-            // Error message
+            // Error banner
             Rectangle {
                 Layout.fillWidth: true
                 visible: loginWindow.loginController !== null
                     && loginWindow.loginController.errorMessage.length > 0
                 height: visible ? _errRow.implicitHeight + 16 : 0
                 radius: Theme.AppTheme.radiusSm
-                color: Qt.rgba(
-                    Theme.AppTheme.danger.r,
-                    Theme.AppTheme.danger.g,
-                    Theme.AppTheme.danger.b,
-                    0.08
-                )
-                border.color: Qt.rgba(
-                    Theme.AppTheme.danger.r,
-                    Theme.AppTheme.danger.g,
-                    Theme.AppTheme.danger.b,
-                    0.3
-                )
+                color: Theme.AppTheme.dangerSoft
+                border.color: Theme.AppTheme.dangerSoftBorder
                 border.width: 1
 
                 Row {
@@ -333,7 +372,7 @@ ApplicationWindow {
                                 radius: 7
                                 anchors.centerIn: parent
                                 color: "transparent"
-                                border.color: Qt.rgba(1,1,1,0.7)
+                                border.color: Theme.AppTheme.loginSpinnerBorder
                                 border.width: 2
                             }
                         }
@@ -344,7 +383,7 @@ ApplicationWindow {
                         text: loginWindow.loginController && loginWindow.loginController.isBusy
                             ? "Signing in…"
                             : "Sign in"
-                        color: "white"
+                        color: Theme.AppTheme.textOnAccent
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: 14
                         font.bold: true
