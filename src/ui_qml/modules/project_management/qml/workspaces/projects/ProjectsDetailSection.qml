@@ -433,7 +433,7 @@ Item {
 
                 Item {
                     width: parent.width
-                    height: 40
+                    implicitHeight: 44
 
                     Rectangle {
                         anchors.bottom: parent.bottom
@@ -456,17 +456,38 @@ Item {
                         font.letterSpacing: 0.8
                     }
 
-                    AppControls.PrimaryButton {
+                    Row {
                         anchors {
                             verticalCenter: parent.verticalCenter
                             right: parent.right
                             rightMargin: Theme.AppTheme.spacingMd
                         }
-                        text: "Assign Resource"
-                        iconName: "add"
-                        enabled: root._hasProject
-                            && !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                        onClicked: _assignPopup.open()
+                        spacing: Theme.AppTheme.spacingSm
+
+                        AppControls.SecondaryButton {
+                            visible: root.selectedProjectResourceId.length > 0
+                            text: "Edit"
+                            iconName: "edit"
+                            enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
+                            onClicked: _editPopup.openForSelected()
+                        }
+
+                        AppControls.SecondaryButton {
+                            visible: root.selectedProjectResourceId.length > 0
+                            text: "Remove"
+                            iconName: "delete"
+                            danger: true
+                            enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
+                            onClicked: _deleteConfirm.open()
+                        }
+
+                        AppControls.PrimaryButton {
+                            text: "Assign Resource"
+                            iconName: "add"
+                            enabled: root._hasProject
+                                && !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
+                            onClicked: _assignPopup.open()
+                        }
                     }
                 }
 
@@ -475,30 +496,6 @@ Item {
                     visible: String(root.sectionErrors["resources"] || "").length > 0
                     tone: "danger"
                     message: String(root.sectionErrors["resources"] || "")
-                }
-
-                // Row-level action bar — visible only when a resource row is selected
-                RowLayout {
-                    width: parent.width
-                    height: root.selectedProjectResourceId.length > 0 ? implicitHeight : 0
-                    visible: root.selectedProjectResourceId.length > 0
-                    spacing: Theme.AppTheme.spacingSm
-
-                    Item { Layout.fillWidth: true }
-
-                    AppControls.SecondaryButton {
-                        text: "Edit"
-                        iconName: "edit"
-                        enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                        onClicked: _editPopup.openForSelected()
-                    }
-
-                    AppControls.SecondaryButton {
-                        text: "Remove"
-                        iconName: "delete"
-                        enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                        onClicked: _deleteConfirm.open()
-                    }
                 }
 
                 AppWidgets.DataTable {
