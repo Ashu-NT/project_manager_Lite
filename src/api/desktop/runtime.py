@@ -491,6 +491,21 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             (f"{storeroom.storeroom_code} - {storeroom.name}", storeroom.id)
             for storeroom in inventory_service.list_storerooms()
         ]
+    # Maintenance scopes — asset-level and location-level access grants
+    _maint_asset_service = services.get("maintenance_asset_service")
+    _maint_location_service = services.get("maintenance_location_service")
+    if _maint_asset_service is not None and hasattr(_maint_asset_service, "list_assets"):
+        access_scope_type_choices.append(("Asset", "maintenance"))
+        access_scope_option_loaders["maintenance"] = lambda: [
+            (f"{a.name} ({a.asset_code})", a.id)
+            for a in _maint_asset_service.list_assets()
+        ]
+    elif _maint_location_service is not None and hasattr(_maint_location_service, "list_locations"):
+        access_scope_type_choices.append(("Maintenance Location", "maintenance"))
+        access_scope_option_loaders["maintenance"] = lambda: [
+            (loc.name, loc.id)
+            for loc in _maint_location_service.list_locations()
+        ]
     register_desktop_api = build_project_management_register_desktop_api(
         project_service=pm_project_service,
         register_service=pm_register_service,

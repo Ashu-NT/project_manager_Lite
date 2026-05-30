@@ -24,6 +24,7 @@ Item {
     signal setHoursRequested(var assignmentData)
     signal deleteRequested(var assignmentData)
     signal previewRequested(string projectResourceId, string taskId)
+    signal retryRequested()
 
     readonly property bool _hasPreview: {
         const p = root.assignmentPreview
@@ -133,6 +134,8 @@ Item {
             visible: root.errorText.length > 0
             tone: "danger"
             message: root.errorText
+            actionLabel: "Retry"
+            onActionClicked: root.retryRequested()
         }
 
         // Assignment preview strip
@@ -159,6 +162,14 @@ Item {
                 onRowSelected: function(rowId) {
                     root.selectedAssignmentId = rowId
                     root.assignmentSelected(rowId)
+                    const item = root._selectedItem
+                    if (item) {
+                        const state = item.state || {}
+                        root.previewRequested(
+                            String(state.projectResourceId || ""),
+                            String(state.taskId || "")
+                        )
+                    }
                 }
                 onRowActivated: function(rowId) {
                     root.selectedAssignmentId = rowId

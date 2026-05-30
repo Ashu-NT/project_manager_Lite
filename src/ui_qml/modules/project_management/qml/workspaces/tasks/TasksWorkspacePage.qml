@@ -935,6 +935,7 @@ AppLayouts.WorkspaceFrame {
                     assignmentsTableModel: root.workspaceController ? root.workspaceController.assignmentsTableModel : null
                     selectedAssignmentId: root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
                     assignmentOptions: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
+                    assignmentPreview: root.workspaceController ? root.workspaceController.assignmentPreview : null
 
                     dependenciesModel: root.dependenciesModel
                     dependenciesTableModel: root.workspaceController ? root.workspaceController.dependenciesTableModel : null
@@ -957,10 +958,24 @@ AppLayouts.WorkspaceFrame {
                     skillRequirementsModel: root.skillRequirementsModel
                     scheduleImpactModel: root.scheduleImpactModel
 
+                    onRetrySectionRequested: function(sectionName) {
+                        const page = detailPageLoader.item
+                        if (!page) return
+                        const idx = page.sections.indexOf(sectionName)
+                        if (idx >= 0) root._loadLazyDetailSection(idx)
+                    }
                     onCreateAssignmentRequested: dialogHostLoader.invoke("openCreateAssignmentDialog", root.selectedTaskModel)
                     onAssignmentSelected: function(assignmentId) {
                         if (root.workspaceController !== null) {
                             root.workspaceController.selectAssignment(assignmentId)
+                        }
+                    }
+                    onAssignmentPreviewRequested: function(projectResourceId, taskId) {
+                        if (root.workspaceController !== null && projectResourceId.length > 0) {
+                            root.workspaceController.assignmentsController.previewAssignment({
+                                "projectResourceId": projectResourceId,
+                                "taskId": taskId
+                            })
                         }
                     }
                     onEditAllocationRequested: function(assignmentData) {

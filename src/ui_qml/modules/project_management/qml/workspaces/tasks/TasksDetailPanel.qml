@@ -19,6 +19,7 @@ Item {
     property var assignmentsTableModel: null
     property string selectedAssignmentId: ""
     property var assignmentOptions: []
+    property var assignmentPreview: null
 
     property var dependenciesModel: AppMock.MockFactory.catalog("Dependencies", "", "Select a task.")
     property var dependenciesTableModel: null
@@ -59,9 +60,11 @@ Item {
     signal editRequested()
     signal progressRequested()
     signal deleteRequested()
+    signal retrySectionRequested(string sectionName)
 
     signal createAssignmentRequested()
     signal assignmentSelected(string assignmentId)
+    signal assignmentPreviewRequested(string projectResourceId, string taskId)
     signal editAllocationRequested(var assignmentData)
     signal setHoursRequested(var assignmentData)
     signal deleteAssignmentRequested(var assignmentData)
@@ -304,12 +307,17 @@ Item {
                     assignmentsModel: root.assignmentsModel
                     assignmentsTableModel: root.assignmentsTableModel
                     selectedAssignmentId: root.selectedAssignmentId
+                    assignmentPreview: root.assignmentPreview
                     isBusy: root.isBusy
                     canCreate: root._hasTask && root.assignmentOptions.length > 0
                     errorText: String(root.sectionErrors["assignments"] || "")
 
                     onCreateRequested: root.createAssignmentRequested()
                     onAssignmentSelected: function(id) { root.assignmentSelected(id) }
+                    onPreviewRequested: function(projectResourceId, taskId) {
+                        root.assignmentPreviewRequested(projectResourceId, taskId)
+                    }
+                    onRetryRequested: root.retrySectionRequested("Assignments")
                     onEditAllocationRequested: function(d) { root.editAllocationRequested(d) }
                     onSetHoursRequested: function(d) { root.setHoursRequested(d) }
                     onDeleteRequested: function(d) { root.deleteAssignmentRequested(d) }

@@ -41,9 +41,10 @@ ColumnLayout {
         if (!item) return []
         const acts = []
         if (item.canPrimaryAction)
-            acts.push({ id: "unlock", label: "Unlock Account",  icon: "approve", enabled: true, danger: false })
+            acts.push({ id: "unlock",          label: "Unlock Account",       icon: "approve", enabled: true, danger: false })
         if (item.canSecondaryAction)
-            acts.push({ id: "revoke", label: "Revoke Sessions", icon: "delete",  enabled: true, danger: true  })
+            acts.push({ id: "revoke",          label: "Revoke Sessions",      icon: "delete",  enabled: true, danger: true  })
+        acts.push(     { id: "force_reset",    label: "Force Password Reset", icon: "edit",    enabled: true, danger: false })
         return acts
     }
 
@@ -532,8 +533,9 @@ ColumnLayout {
         onActionTriggered: function(actionId) {
             if (!root.controller || !root._selectedSessionItem) return
             const userId = root._selectedSessionItem.id || ""
-            if      (actionId === "unlock") root.controller.unlockUser(userId)
-            else if (actionId === "revoke") root.controller.revokeSessions(userId)
+            if      (actionId === "unlock")       root.controller.unlockUser(userId)
+            else if (actionId === "revoke")       root.controller.revokeSessions(userId)
+            else if (actionId === "force_reset")  root.controller.forcePasswordReset(userId)
         }
     }
 

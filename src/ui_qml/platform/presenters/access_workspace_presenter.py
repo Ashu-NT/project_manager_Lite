@@ -214,6 +214,11 @@ class PlatformAccessWorkspacePresenter:
             note="Revoked from the QML access security surface.",
         )
 
+    def force_password_reset(self, user_id: str) -> DesktopApiResult[object]:
+        if self._user_api is None:
+            return preview_error_result("Platform user API is not connected in this QML preview.")
+        return self._user_api.force_user_password_reset(user_id.strip())
+
     def scope_hint(self, scope_type: str, scope_options: tuple[dict[str, object], ...]) -> str:
         options = self.build_scope_type_options()
         selected = next(

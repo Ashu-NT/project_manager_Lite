@@ -213,6 +213,18 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot(str, result="QVariantMap")
+    def forcePasswordReset(self, user_id: str) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.force_password_reset(user_id),
+            success_message="User will be required to set a new password on next login.",
+            on_success=self._refresh_after_security_change,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
     def _bind_domain_events(self) -> None:
         for signal in (
             domain_events.auth_changed,

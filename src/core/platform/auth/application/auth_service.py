@@ -352,6 +352,18 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         domain_events.auth_changed.emit(user.id)
         self._refresh_current_session_if_user(user.id)
 
+    def force_user_password_reset(self, user_id: str) -> None:
+        """Admin operation: flag the user's account so they must set a new password on next login."""
+        require_permission(self._user_session, "auth.manage", operation_label="force password reset")
+        user = self._require_user(user_id)
+        user.must_change_password = True
+        user.updated_at = datetime.now(timezone.utc)
+        self._rotate_session_revision(user)
+        self._revoke_all_persisted_sessions(user, revoked_at=user.updated_at)
+        self._user_repo.update(user)
+        self._session.commit()
+        domain_events.auth_changed.emit(user.id)
+
     def reset_user_password(self, user_id: str, new_password: str) -> None:
         require_permission(self._user_session, "auth.manage", operation_label="reset user password")
         user = self._require_user(user_id)

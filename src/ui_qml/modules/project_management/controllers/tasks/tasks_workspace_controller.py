@@ -107,6 +107,7 @@ class ProjectManagementTasksWorkspaceController(
     dependencyTaskOptionsChanged = Signal()
     dependencyTypeOptionsChanged = Signal()
     assignmentsChanged = Signal()
+    assignmentPreviewChanged = Signal()
     dependenciesChanged = Signal()
     timeAssignmentOptionsChanged = Signal()
     timePeriodOptionsChanged = Signal()
@@ -209,6 +210,7 @@ class ProjectManagementTasksWorkspaceController(
             self.assignmentOptionsChanged
         )
         self._assignments_ctrl.assignmentsChanged.connect(self.assignmentsChanged)
+        self._assignments_ctrl.assignmentPreviewChanged.connect(self.assignmentPreviewChanged)
         self._dependencies_ctrl.dependencyTaskOptionsChanged.connect(
             self.dependencyTaskOptionsChanged
         )
@@ -383,6 +385,10 @@ class ProjectManagementTasksWorkspaceController(
     @Property("QVariantMap", notify=assignmentsChanged)
     def assignments(self) -> dict[str, object]:
         return self._assignments_ctrl.assignments
+
+    @Property("QVariantMap", notify=assignmentPreviewChanged)
+    def assignmentPreview(self) -> dict[str, object]:
+        return self._assignments_ctrl.assignmentPreview
 
     @Property(QObject, constant=True)
     def assignmentsTableModel(self) -> QObject:
