@@ -400,10 +400,10 @@ Item {
                     width: parent.width
                     height: Math.min(400, Math.max(200, implicitHeight))
                     columns: [
-                        { key: "title",       label: "Task",     flex: 2,   sortable: true  },
-                        { key: "statusLabel", label: "Status",   flex: 0,   minWidth: 100,  type: "status" },
-                        { key: "subtitle",    label: "Code",     flex: 1,                   },
-                        { key: "metaText",    label: "Progress", flex: 0,   minWidth: 100   }
+                        { key: "title",          label: "Task",     flex: 2,   sortable: true  },
+                        { key: "statusLabel",    label: "Status",   flex: 0,   minWidth: 110, type: "status" },
+                        { key: "subtitle",       label: "Progress", flex: 0,   minWidth: 100  },
+                        { key: "supportingText", label: "Dates",    flex: 1.5, minWidth: 140  }
                     ]
                     sourceModel: root.projectTasksTableModel
                     loading: root.isBusy
@@ -436,10 +436,10 @@ Item {
                     width: parent.width
                     height: Math.min(360, Math.max(200, implicitHeight))
                     columns: [
-                        { key: "title",       label: "Resource",    flex: 2,   sortable: true  },
-                        { key: "statusLabel", label: "Role",        flex: 0,   minWidth: 100,  type: "status" },
-                        { key: "subtitle",    label: "Allocation",  flex: 1                    },
-                        { key: "metaText",    label: "Period",      flex: 0,   minWidth: 100   }
+                        { key: "title",          label: "Resource",      flex: 2,   sortable: true  },
+                        { key: "subtitle",       label: "Role",          flex: 1.5                   },
+                        { key: "supportingText", label: "Planned Hours", flex: 1,   minWidth: 110   },
+                        { key: "statusLabel",    label: "Status",        flex: 0,   minWidth: 90,  type: "status" }
                     ]
                     sourceModel: root.projectResourcesTableModel
                     loading: root.isBusy
