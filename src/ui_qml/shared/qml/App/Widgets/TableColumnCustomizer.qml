@@ -121,22 +121,25 @@ AnchoredPopup {
                     anchors.rightMargin: Theme.AppTheme.marginMd
                     spacing: Theme.AppTheme.spacingXs
 
-                    // Up / down reorder buttons
+                    // Up / down reorder buttons — visible only on row hover
                     Button {
                         id: _upBtn
                         implicitWidth:  22
                         implicitHeight: 22
+                        visible: _rowHover.containsMouse
                         enabled: checkRow.index > 0
-                        opacity: enabled ? 1.0 : 0.25
+                        opacity: enabled ? 1.0 : 0.35
                         focusPolicy: Qt.NoFocus
                         background: Rectangle {
                             radius: 3
-                            color: _upBtn.pressed ? Theme.AppTheme.hoverSurface : "transparent"
+                            color: _upBtn.pressed ? Theme.AppTheme.accent
+                                 : _upBtn.hovered ? Theme.AppTheme.hoverSurface
+                                 : "transparent"
                         }
                         contentItem: AppIcons.AppIcon {
                             name: "chevron_up"
                             size: 13
-                            iconColor: Theme.AppTheme.textSecondary
+                            iconColor: _upBtn.pressed ? "white" : Theme.AppTheme.textSecondary
                         }
                         onClicked: root._moveUp(checkRow.index)
                     }
@@ -145,20 +148,26 @@ AnchoredPopup {
                         id: _downBtn
                         implicitWidth:  22
                         implicitHeight: 22
+                        visible: _rowHover.containsMouse
                         enabled: checkRow.index < root._draft.length - 1
-                        opacity: enabled ? 1.0 : 0.25
+                        opacity: enabled ? 1.0 : 0.35
                         focusPolicy: Qt.NoFocus
                         background: Rectangle {
                             radius: 3
-                            color: _downBtn.pressed ? Theme.AppTheme.hoverSurface : "transparent"
+                            color: _downBtn.pressed ? Theme.AppTheme.accent
+                                 : _downBtn.hovered ? Theme.AppTheme.hoverSurface
+                                 : "transparent"
                         }
                         contentItem: AppIcons.AppIcon {
                             name: "chevron_down"
                             size: 13
-                            iconColor: Theme.AppTheme.textSecondary
+                            iconColor: _downBtn.pressed ? "white" : Theme.AppTheme.textSecondary
                         }
                         onClicked: root._moveDown(checkRow.index)
                     }
+
+                    // Stable spacer — same total width as the two buttons when hidden
+                    Item { implicitWidth: 44; implicitHeight: 22; visible: !_rowHover.containsMouse }
 
                     AppControls.CheckBox {
                         id: _colCheck
@@ -166,7 +175,12 @@ AnchoredPopup {
                         enabled: !checkRow.modelData.required
                         opacity: checkRow.modelData.required ? 0.55 : 1.0
                         onToggled: {
-                            root._draft[checkRow.index].visible = checked
+                            // Properly reassign the draft array so QML detects the change.
+                            // In-place mutation (root._draft[idx].visible = x) is unreliable
+                            // in Qt 6 because property-var arrays may not propagate notifications.
+                            const arr = root._draft.slice()
+                            arr[checkRow.index] = Object.assign({}, arr[checkRow.index], { visible: checked })
+                            root._draft = arr
                         }
                     }
 
