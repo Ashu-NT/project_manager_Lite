@@ -137,7 +137,7 @@ Item {
         anchors.right: parent.right
         height: 40
         color: Theme.AppTheme.surfaceAlt
-        visible: root._hasTask
+        visible: false     //root._hasTask
 
         Rectangle {
             anchors.left: parent.left

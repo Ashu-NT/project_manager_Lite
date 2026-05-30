@@ -206,6 +206,8 @@ AppLayouts.WorkspaceFrame {
         } else {
             root._activityColumns = base
         }
+
+        root._syncCalendarDraft()
     }
     readonly property var _diagnosticColumns: [
         { "key": "message", "label": "Diagnostic Message", "flex": 2.0, "sortable": true },
@@ -329,7 +331,6 @@ AppLayouts.WorkspaceFrame {
     }
 
     onCalendarModelChanged: root._syncCalendarDraft()
-    Component.onCompleted: root._syncCalendarDraft()
 
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader

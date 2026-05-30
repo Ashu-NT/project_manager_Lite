@@ -510,6 +510,7 @@ Item {
                             { "key": "finishShiftDays", "label": "Finish Shift", "flex": 0.8 },
                             { "key": "isCritical", "label": "Critical", "flex": 0.7, "type": "status" }
                         ]
+                        rows: {
                             var tasks = root.scheduleImpactModel.affectedTasks || []
                             return tasks.map(function(t) {
                                 return {
