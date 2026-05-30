@@ -931,15 +931,18 @@ AppLayouts.WorkspaceFrame {
                                 SchedulingActionBar {
                                     Layout.fillWidth: true
                                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                                    actions: [
-                                        { "id": "save", "label": "Save Baseline", "icon": "register", "enabled": String(root.workspaceController ? root.workspaceController.selectedProjectId : "").length > 0 },
-                                        { "id": "submit", "label": "Submit", "icon": "approve", "enabled": root.selectedBaselineRegisterStatus === "draft" && root.selectedBaselineRegisterId.length > 0 },
-                                        { "id": "approve", "label": "Approve", "icon": "success", "enabled": root.selectedBaselineRegisterStatus === "submitted" && root.selectedBaselineRegisterId.length > 0 },
-                                        { "id": "reject", "label": "Reject", "icon": "reject", "danger": true, "enabled": root.selectedBaselineRegisterStatus === "submitted" && root.selectedBaselineRegisterId.length > 0 },
-                                        { "id": "compare", "label": "Compare", "icon": "refresh", "enabled": (root.baselinesModel.options || []).length > 1 },
-                                        { "id": "archive", "label": "Archive", "icon": "delete", "danger": true, "enabled": root.selectedBaselineRegisterId.length > 0 },
-                                        { "id": "export", "label": "Export", "icon": "export", "enabled": true }
-                                    ]
+                                    actions: {
+                                        const canApprove = root.pmCatalog ? root.pmCatalog.pmCapabilityController.canApproveBaseline : true
+                                        return [
+                                            { "id": "save",    "label": "Save Baseline", "icon": "register", "enabled": String(root.workspaceController ? root.workspaceController.selectedProjectId : "").length > 0 },
+                                            { "id": "submit",  "label": "Submit",  "icon": "approve", "enabled": root.selectedBaselineRegisterStatus === "draft" && root.selectedBaselineRegisterId.length > 0 },
+                                            { "id": "approve", "label": "Approve", "icon": "success", "enabled": canApprove && root.selectedBaselineRegisterStatus === "submitted" && root.selectedBaselineRegisterId.length > 0 },
+                                            { "id": "reject",  "label": "Reject",  "icon": "reject",  "danger": true, "enabled": canApprove && root.selectedBaselineRegisterStatus === "submitted" && root.selectedBaselineRegisterId.length > 0 },
+                                            { "id": "compare", "label": "Compare", "icon": "refresh", "enabled": (root.baselinesModel.options || []).length > 1 },
+                                            { "id": "archive", "label": "Archive", "icon": "delete",  "danger": true, "enabled": root.selectedBaselineRegisterId.length > 0 },
+                                            { "id": "export",  "label": "Export",  "icon": "export",  "enabled": true }
+                                        ]
+                                    }
 
                                     AppControls.ComboBox {
                                         Layout.preferredWidth: 180

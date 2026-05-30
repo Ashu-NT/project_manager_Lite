@@ -21,6 +21,9 @@ from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementTaskViewStore,
     serialize_workspace_view_model,
 )
+from src.ui_qml.modules.project_management.controllers.common.pm_capability_controller import (
+    PMCapabilityController,
+)
 from src.ui_qml.modules.project_management.presenters import (
     ProjectCollaborationWorkspacePresenter,
     ProjectDashboardWorkspacePresenter,
@@ -116,6 +119,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
             getattr(desktop_api_registry, "integration_capability", None)
             if desktop_api_registry is not None else None
         )
+        self._pm_capability = PMCapabilityController(parent=self)
         self._projects_workspace: ProjectManagementProjectsWorkspaceController | None = None
         self._financials_workspace: ProjectManagementFinancialsWorkspaceController | None = None
         self._portfolio_workspace: ProjectManagementPortfolioWorkspaceController | None = None
@@ -294,6 +298,10 @@ class ProjectManagementWorkspaceCatalog(QObject):
     @Property(ProjectManagementTimesheetsWorkspaceController, constant=True)
     def timesheetsWorkspace(self) -> ProjectManagementTimesheetsWorkspaceController:
         return self._get_timesheets_workspace()
+
+    @Property(PMCapabilityController, constant=True)
+    def pmCapabilityController(self) -> PMCapabilityController:
+        return self._pm_capability
 
     @Slot(str, result="QVariantMap")
     def workspace(self, route_id: str) -> dict[str, str]:

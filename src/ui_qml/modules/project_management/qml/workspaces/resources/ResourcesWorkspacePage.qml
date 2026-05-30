@@ -532,6 +532,7 @@ AppLayouts.WorkspaceFrame {
                         ? (root.workspaceController.resourceAvailability || {}) : ({})
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     workspaceController: root.workspaceController
+                    canManageSkills: root.pmCatalog ? root.pmCatalog.pmCapabilityController.canManageSkills : true
                     onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedResourceModel)
                     onDeleteRequested: dialogHostLoader.invoke("openDeleteDialog", root.selectedResourceModel)
                     onAddSkillRequested: dialogHostLoader.invoke("openAddSkillDialog")

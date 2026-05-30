@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
+from dataclasses import dataclass, field
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from src.core.modules.maintenance.domain.enums import (
@@ -189,6 +189,56 @@ class MaintenancePreventivePlanInstance:
             updated_at=now,
             version=1,
         )
+
+
+@dataclass
+class MaintenanceBlackoutWindow:
+    """A date window during which no preventive work order should be generated for a plan."""
+    id: str
+    organization_id: str
+    preventive_plan_id: str
+    name: str
+    start_date: date
+    end_date: date
+    recurrence: str = "NONE"   # NONE | ANNUAL
+    notes: str = ""
+    is_active: bool = True
+    version: int = 1
+
+    @staticmethod
+    def create(
+        *,
+        organization_id: str,
+        preventive_plan_id: str,
+        name: str,
+        start_date: date,
+        end_date: date,
+        recurrence: str = "NONE",
+        notes: str = "",
+    ) -> "MaintenanceBlackoutWindow":
+        from src.core.platform.common.ids import generate_id
+        return MaintenanceBlackoutWindow(
+            id=generate_id(),
+            organization_id=organization_id,
+            preventive_plan_id=preventive_plan_id,
+            name=name,
+            start_date=start_date,
+            end_date=end_date,
+            recurrence=recurrence,
+            notes=notes,
+        )
+
+    def covers(self, check_date: date) -> bool:
+        """Return True if check_date falls within this blackout window (considering annual recurrence)."""
+        if not self.is_active:
+            return False
+        if self.recurrence == "ANNUAL":
+            adjusted = self.start_date.replace(year=check_date.year)
+            adjusted_end = self.end_date.replace(year=check_date.year)
+            if adjusted_end < adjusted:
+                adjusted_end = adjusted_end.replace(year=check_date.year + 1)
+            return adjusted <= check_date <= adjusted_end
+        return self.start_date <= check_date <= self.end_date
 
 
 @dataclass

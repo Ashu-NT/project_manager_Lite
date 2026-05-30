@@ -27,6 +27,8 @@ Item {
         "fromDateLabel": "", "toDateLabel": "", "days": []
     })
 
+    property bool canManageSkills: true
+
     signal editRequested()
     signal toggleRequested()
     signal deleteRequested()
@@ -416,7 +418,7 @@ Item {
                         title: "Skills"
                         subtitle: _skillsSection._skills.length > 0 ? String(_skillsSection._skills.length) : ""
                         busy: root.isBusy
-                        createLabel: root._hasResource ? "Add Skill" : ""
+                        createLabel: (root._hasResource && root.canManageSkills) ? "Add Skill" : ""
                         actions: []
                         onCreateRequested: root.addSkillRequested()
                     }
@@ -509,7 +511,7 @@ Item {
                         title: "Certifications"
                         subtitle: _certsSection._certs.length > 0 ? String(_certsSection._certs.length) : ""
                         busy: root.isBusy
-                        createLabel: root._hasResource ? "Add Certification" : ""
+                        createLabel: (root._hasResource && root.canManageSkills) ? "Add Certification" : ""
                         actions: []
                         onCreateRequested: root.addCertificationRequested()
                     }

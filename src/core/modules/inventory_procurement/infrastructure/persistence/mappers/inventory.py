@@ -139,6 +139,8 @@ def stock_transaction_to_orm(transaction: StockTransaction) -> StockTransactionO
         resulting_on_hand_qty=transaction.resulting_on_hand_qty,
         resulting_available_qty=transaction.resulting_available_qty,
         notes=transaction.notes or None,
+        lot_number=transaction.lot_number or None,
+        serial_number=transaction.serial_number or None,
     )
 
 
@@ -161,6 +163,8 @@ def stock_transaction_from_orm(obj: StockTransactionORM) -> StockTransaction:
         resulting_on_hand_qty=float(obj.resulting_on_hand_qty or 0.0),
         resulting_available_qty=float(obj.resulting_available_qty or 0.0),
         notes=obj.notes or "",
+        lot_number=obj.lot_number or "",
+        serial_number=obj.serial_number or "",
     )
 
 

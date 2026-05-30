@@ -277,7 +277,7 @@ AppLayouts.WorkspaceFrame {
                     showFilter: true
                     showCustomize: true
                     showRefresh: true
-                    showImport: true
+                    showImport: root.pmCatalog ? root.pmCatalog.pmCapabilityController.canImport : true
                     showExport: true
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 

@@ -7,6 +7,7 @@ from src.core.modules.maintenance.contracts.repositories.assets import (
     MaintenanceSystemRepository,
 )
 from src.core.modules.maintenance.contracts.repositories.preventive import (
+    MaintenanceBlackoutWindowRepository,
     MaintenancePreventivePlanInstanceRepository,
     MaintenancePreventivePlanRepository,
     MaintenancePreventivePlanTaskRepository,
@@ -33,6 +34,7 @@ from src.core.modules.maintenance.contracts.repositories.work_requests import (
 )
 
 __all__ = [
+    "MaintenanceBlackoutWindowRepository",
     "MaintenanceAssetComponentRepository",
     "MaintenanceAssetRepository",
     "MaintenanceDowntimeEventRepository",
