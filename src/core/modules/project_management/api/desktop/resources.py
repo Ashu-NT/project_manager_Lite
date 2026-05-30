@@ -5,6 +5,7 @@ from datetime import date
 from typing import Optional
 
 from src.core.modules.project_management.application.resources import ResourceAvailabilityService, ResourceService
+from src.core.modules.project_management.contracts.repositories.task import AssignmentRepository
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.core.modules.project_management.domain.resources.skills import SkillProficiencyLevel
 from src.core.platform.org import EmployeeService
@@ -174,11 +175,15 @@ class ProjectManagementResourcesDesktopApi:
         employee_service: EmployeeService | None = None,
         availability_service: ResourceAvailabilityService | None = None,
         task_service: object | None = None,
+        assignment_repo: AssignmentRepository | None = None,
+        project_service: object | None = None,
     ) -> None:
         self._resource_service = resource_service
         self._employee_service = employee_service
         self._availability_service = availability_service
         self._task_service = task_service
+        self._assignment_repo = assignment_repo
+        self._project_service = project_service
 
     def list_worker_types(self) -> tuple[ResourceWorkerTypeDescriptor, ...]:
         return tuple(
@@ -456,44 +461,60 @@ class ProjectManagementResourcesDesktopApi:
 
     def list_resource_assignments(self, resource_id: str) -> tuple[ResourceAssignmentDesktopDto, ...]:
         normalized_id = str(resource_id or "").strip()
-        if not normalized_id or self._availability_service is None:
+        if not normalized_id:
             return ()
-        assignment_repo = getattr(self._availability_service, "_assignments", None)
-        if assignment_repo is None:
+
+        # Get assignment repo: primary is the injected repo, fallback via availability service
+        repo = self._assignment_repo
+        if repo is None and self._availability_service is not None:
+            repo = getattr(self._availability_service, "_assignments", None)
+        if repo is None:
             return ()
-        list_by_resource = getattr(assignment_repo, "list_by_resource", None)
+
+        list_by_resource = getattr(repo, "list_by_resource", None)
         if not callable(list_by_resource):
             return ()
         try:
             assignments = list(list_by_resource(normalized_id))
         except Exception:
             return ()
-        get_task = getattr(self._task_service, "get_task", None) if self._task_service else None
+
+        if not assignments:
+            return ()
+
+        # Build task lookup using the task service's list_tasks_for_resource (one query)
+        tasks_by_id: dict[str, object] = {}
+        if self._task_service is not None:
+            list_tasks_fn = getattr(self._task_service, "list_tasks_for_resource", None)
+            if callable(list_tasks_fn):
+                try:
+                    for task in list_tasks_fn(normalized_id):
+                        tasks_by_id[str(getattr(task, "id", "") or "")] = task
+                except Exception:
+                    pass
+
+        # Build project name lookup from unique project IDs in the task set
+        project_names: dict[str, str] = {}
+        if self._project_service is not None:
+            get_project = getattr(self._project_service, "get_project", None)
+            for task in tasks_by_id.values():
+                pid = str(getattr(task, "project_id", "") or "")
+                if pid and pid not in project_names and callable(get_project):
+                    try:
+                        proj = get_project(pid)
+                        if proj:
+                            project_names[pid] = str(getattr(proj, "name", "") or pid)
+                    except Exception:
+                        project_names[pid] = pid
+
         results: list[ResourceAssignmentDesktopDto] = []
-        task_cache: dict[str, object] = {}
         for assignment in assignments:
             task_id = str(getattr(assignment, "task_id", "") or "")
-            task_name, project_id, project_name = task_id, "", ""
-            if get_task and task_id:
-                if task_id not in task_cache:
-                    try:
-                        task_cache[task_id] = get_task(task_id)
-                    except Exception:
-                        task_cache[task_id] = None
-                task = task_cache[task_id]
-                if task is not None:
-                    task_name = str(getattr(task, "name", "") or "") or task_id
-                    project_id = str(getattr(task, "project_id", "") or "")
-                    project_name = project_id
-                    if self._resource_service is not None:
-                        get_project = getattr(self._resource_service, "get_project", None)
-                        if callable(get_project):
-                            try:
-                                proj = get_project(project_id)
-                                if proj:
-                                    project_name = str(getattr(proj, "name", "") or "") or project_id
-                            except Exception:
-                                pass
+            task = tasks_by_id.get(task_id)
+            task_name = str(getattr(task, "name", "") or task_id) if task else task_id
+            project_id = str(getattr(task, "project_id", "") or "") if task else ""
+            project_name = project_names.get(project_id, project_id)
+
             alloc = float(getattr(assignment, "allocation_percent", 0.0) or 0.0)
             hours = float(getattr(assignment, "hours_logged", 0.0) or 0.0)
             results.append(ResourceAssignmentDesktopDto(
@@ -554,12 +575,16 @@ def build_project_management_resources_desktop_api(
     employee_service: EmployeeService | None = None,
     availability_service: ResourceAvailabilityService | None = None,
     task_service: object | None = None,
+    assignment_repo: AssignmentRepository | None = None,
+    project_service: object | None = None,
 ) -> ProjectManagementResourcesDesktopApi:
     return ProjectManagementResourcesDesktopApi(
         resource_service=resource_service,
         employee_service=employee_service,
         availability_service=availability_service,
         task_service=task_service,
+        assignment_repo=assignment_repo,
+        project_service=project_service,
     )
 
 
@@ -638,6 +663,7 @@ __all__ = [
     "ProjectManagementResourcesDesktopApi",
     "ResourceAddCertificationCommand",
     "ResourceAddSkillCommand",
+    "ResourceAssignmentDesktopDto",
     "ResourceCategoryDescriptor",
     "ResourceCertificationDesktopDto",
     "ResourceCreateCommand",

@@ -610,6 +610,8 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             employee_service=employee_service,
             availability_service=pm_availability_service,
             task_service=pm_task_service,
+            assignment_repo=getattr(pm_task_service, "_assignment_repo", None),
+            project_service=pm_project_service,
         ),
         project_management_scheduling=build_project_management_scheduling_desktop_api(
             project_service=pm_project_service,
