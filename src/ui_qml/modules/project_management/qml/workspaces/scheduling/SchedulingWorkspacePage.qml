@@ -775,11 +775,16 @@ AppLayouts.WorkspaceFrame {
                             title: "Diagnostics"
                             subtitle: "Planner-quality checks for network logic, float pressure, and schedule stability."
 
-                            ColumnLayout {
+                            ScrollView {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 Layout.margins: Theme.AppTheme.marginMd
-                                spacing: Theme.AppTheme.spacingSm
+                                contentWidth: availableWidth
+                                clip: true
+
+                                ColumnLayout {
+                                    width: parent.width
+                                    spacing: Theme.AppTheme.spacingSm
 
                                 SchedulingActionBar {
                                     Layout.fillWidth: true
@@ -824,7 +829,7 @@ AppLayouts.WorkspaceFrame {
                                 AppWidgets.DataTable {
                                     id: diagnosticsTable
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 210
+                                    Layout.preferredHeight: 320
                                     columns: root._diagnosticColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.diagnosticsTableModel : null
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
@@ -843,11 +848,14 @@ AppLayouts.WorkspaceFrame {
                                 AppWidgets.DataTable {
                                     id: violationsTable
                                     Layout.fillWidth: true
-                                    Layout.fillHeight: true
+                                    Layout.preferredHeight: 480
                                     columns: root._violationColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.violationsTableModel : null
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.constraintViolationsModel.emptyState || "No constraint violations detected for the current schedule."
+                                }
+
+                                Item { Layout.preferredHeight: Theme.AppTheme.marginMd }
                                 }
                             }
                         }
@@ -858,11 +866,16 @@ AppLayouts.WorkspaceFrame {
                             title: "Resources"
                             subtitle: "Resource loading pressure, overload exposure, and utilization visibility."
 
-                            ColumnLayout {
+                            ScrollView {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 Layout.margins: Theme.AppTheme.marginMd
-                                spacing: Theme.AppTheme.spacingSm
+                                contentWidth: availableWidth
+                                clip: true
+
+                                ColumnLayout {
+                                    width: parent.width
+                                    spacing: Theme.AppTheme.spacingSm
 
                                 SchedulingActionBar {
                                     Layout.fillWidth: true
@@ -907,11 +920,14 @@ AppLayouts.WorkspaceFrame {
                                 AppWidgets.DataTable {
                                     id: resourcesTable
                                     Layout.fillWidth: true
-                                    Layout.fillHeight: true
+                                    Layout.preferredHeight: 600
                                     columns: root._resourceColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.resourcesLoadingTableModel : null
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.resourceLoadingModel.emptyState || "No resource load data is available."
+                                }
+
+                                Item { Layout.preferredHeight: Theme.AppTheme.marginMd }
                                 }
                             }
                         }
@@ -922,11 +938,16 @@ AppLayouts.WorkspaceFrame {
                             title: "Baselines"
                             subtitle: "Create, compare, archive, and review schedule freeze points for governance."
 
-                            ColumnLayout {
+                            ScrollView {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 Layout.margins: Theme.AppTheme.marginMd
-                                spacing: Theme.AppTheme.spacingSm
+                                contentWidth: availableWidth
+                                clip: true
+
+                                ColumnLayout {
+                                    width: parent.width
+                                    spacing: Theme.AppTheme.spacingSm
 
                                 SchedulingActionBar {
                                     Layout.fillWidth: true
@@ -1041,7 +1062,7 @@ AppLayouts.WorkspaceFrame {
                                 AppWidgets.DataTable {
                                     id: baselineCompareTable
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 190
+                                    Layout.preferredHeight: 340
                                     columns: root._baselineCompareColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.baselineCompareTableModel : null
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
@@ -1051,7 +1072,7 @@ AppLayouts.WorkspaceFrame {
                                 AppWidgets.DataTable {
                                     id: baselineRegisterTable
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 200
+                                    Layout.preferredHeight: 360
                                     columns: root._baselineRegisterColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.baselineRegisterTableModel : null
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
@@ -1077,13 +1098,16 @@ AppLayouts.WorkspaceFrame {
                                 AppWidgets.DataTable {
                                     id: baselineVarianceTable
                                     Layout.fillWidth: true
-                                    Layout.fillHeight: true
+                                    Layout.preferredHeight: 520
                                     columns: root._baselineVarianceColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.baselineVarianceTableModel : null
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                                     emptyText: root.selectedBaselineRegisterId.length > 0
                                         ? "No variance records are stored for this baseline. Variance is recorded when a baseline supersedes the previously approved one."
                                         : "Select a baseline from the register to review its approval-time variance."
+                                }
+
+                                Item { Layout.preferredHeight: Theme.AppTheme.marginMd }
                                 }
                             }
                         }
@@ -1094,11 +1118,16 @@ AppLayouts.WorkspaceFrame {
                             title: "Delays"
                             subtitle: "Delayed activities and deadline pressure requiring planner attention."
 
-                            ColumnLayout {
+                            ScrollView {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 Layout.margins: Theme.AppTheme.marginMd
-                                spacing: Theme.AppTheme.spacingSm
+                                contentWidth: availableWidth
+                                clip: true
+
+                                ColumnLayout {
+                                    width: parent.width
+                                    spacing: Theme.AppTheme.spacingSm
 
                                 SchedulingActionBar {
                                     Layout.fillWidth: true
@@ -1143,7 +1172,7 @@ AppLayouts.WorkspaceFrame {
                                 AppWidgets.DataTable {
                                     id: delaysTable
                                     Layout.fillWidth: true
-                                    Layout.fillHeight: true
+                                    Layout.preferredHeight: 600
                                     columns: root._delayedColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.delayedTableModel : null
                                     loading: root.workspaceController ? root.workspaceController.isLoading : false
@@ -1158,6 +1187,9 @@ AppLayouts.WorkspaceFrame {
                                         }
                                     }
                                 }
+
+                                Item { Layout.preferredHeight: Theme.AppTheme.marginMd }
+                                }
                             }
                         }
 
@@ -1167,11 +1199,16 @@ AppLayouts.WorkspaceFrame {
                             title: "Calendars"
                             subtitle: "Working-week rules, holiday exceptions, and working-day calculations for the current schedule calendar."
 
-                            ColumnLayout {
+                            ScrollView {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 Layout.margins: Theme.AppTheme.marginMd
-                                spacing: Theme.AppTheme.spacingSm
+                                contentWidth: availableWidth
+                                clip: true
+
+                                ColumnLayout {
+                                    width: parent.width
+                                    spacing: Theme.AppTheme.spacingSm
 
                                 SchedulingActionBar {
                                     Layout.fillWidth: true
@@ -1388,7 +1425,7 @@ AppLayouts.WorkspaceFrame {
 
                                 AppWidgets.DataTable {
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 120
+                                    Layout.preferredHeight: 200
                                     columns: root._calendarColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.calendarSummaryTableModel : null
                                     loading: false
@@ -1398,7 +1435,7 @@ AppLayouts.WorkspaceFrame {
                                 AppWidgets.DataTable {
                                     id: holidaysTable
                                     Layout.fillWidth: true
-                                    Layout.fillHeight: true
+                                    Layout.preferredHeight: 480
                                     columns: root._holidayColumns
                                     sourceModel: root.workspaceController ? root.workspaceController.holidayTableModel : null
                                     selectedRowId: root.selectedHolidayId
@@ -1407,6 +1444,9 @@ AppLayouts.WorkspaceFrame {
                                     onRowSelected: function(rowId) {
                                         root.selectedHolidayId = String(rowId || "")
                                     }
+                                }
+
+                                Item { Layout.preferredHeight: Theme.AppTheme.marginMd }
                                 }
                             }
                         }
@@ -1417,11 +1457,16 @@ AppLayouts.WorkspaceFrame {
                             title: "Activity Feed"
                             subtitle: "Recent planning actions, delay notices, recalculation events, and resource warnings."
 
-                            ColumnLayout {
+                            ScrollView {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 Layout.margins: Theme.AppTheme.marginMd
-                                spacing: Theme.AppTheme.spacingSm
+                                contentWidth: availableWidth
+                                clip: true
+
+                                ColumnLayout {
+                                    width: parent.width
+                                    spacing: Theme.AppTheme.spacingSm
 
                                 SchedulingActionBar {
                                     Layout.fillWidth: true
@@ -1448,7 +1493,7 @@ AppLayouts.WorkspaceFrame {
 
                                 AppWidgets.ActivityFeed {
                                     Layout.fillWidth: true
-                                    Layout.fillHeight: true
+                                    Layout.preferredHeight: 700
                                     items: {
                                         const sourceItems = root.activityFeedModel.items || []
                                         const term = String(root.feedSearchText || "").trim().toLowerCase()
@@ -1470,6 +1515,9 @@ AppLayouts.WorkspaceFrame {
                                         return filtered
                                     }
                                     emptyText: root.activityFeedModel.emptyState || "No planning activity has been recorded."
+                                }
+
+                                Item { Layout.preferredHeight: Theme.AppTheme.marginMd }
                                 }
                             }
                         }
