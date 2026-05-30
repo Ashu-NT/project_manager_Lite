@@ -28,6 +28,7 @@ Item {
     })
 
     property bool canManageSkills: true
+    property var resourceAssignmentsTableModel: null
 
     signal editRequested()
     signal toggleRequested()
@@ -201,20 +202,41 @@ Item {
             Column {
                 width: parent ? parent.width : 0
                 spacing: 0
+
                 AppWidgets.SectionHeading { width: parent.width; label: "Assignments" }
+
                 Item {
                     width: parent.width
-                    implicitHeight: _assignmentsEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
-                    height: implicitHeight
-                    AppWidgets.EmptyState {
-                        id: _assignmentsEmpty
-                        anchors.top: parent.top
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: Math.min(parent.width - Theme.AppTheme.marginMd * 2, 400)
-                        title: "Project assignments"
-                        message: "Open the Tasks workspace to view project and task assignments for this resource."
-                    }
+                    implicitHeight: Theme.AppTheme.spacingMd
+                }
+
+                AppWidgets.EmptyState {
+                    width: parent.width
+                    visible: !root._hasResource
+                    title: "No resource selected"
+                    message: "Select a resource to view its project and task assignments."
+                }
+
+                AppWidgets.DataTable {
+                    width: parent.width
+                    height: Math.min(480, Math.max(200, implicitHeight))
+                    visible: root._hasResource
+                    columns: [
+                        { key: "title",       label: "Task",        flex: 2,   sortable: true  },
+                        { key: "subtitle",    label: "Project",     flex: 2                    },
+                        { key: "statusLabel", label: "Allocation",  flex: 0,   minWidth: 100, type: "status" },
+                        { key: "metaText",    label: "Hours Logged",flex: 1,   minWidth: 100  }
+                    ]
+                    sourceModel: root.resourceAssignmentsTableModel
+                    loading: root.isBusy
+                    emptyText: root._hasResource
+                        ? "No task assignments found for this resource."
+                        : "Select a resource to view assignments."
+                }
+
+                Item {
+                    width: parent.width
+                    implicitHeight: Theme.AppTheme.spacingMd
                 }
             }
         }
@@ -350,20 +372,48 @@ Item {
             Column {
                 width: parent ? parent.width : 0
                 spacing: 0
+
                 AppWidgets.SectionHeading { width: parent.width; label: "Calendar" }
+
+                AppWidgets.ContextualActionToolbar {
+                    width: parent.width
+                    title: root._hasResource ? root.resourceDetail.title : "Calendar"
+                    subtitle: root._hasResource ? "Working schedule and availability exceptions" : ""
+                    busy: root.isBusy
+                    actions: [
+                        { id: "set_hours",     label: "Set Working Hours", icon: "time",     enabled: root._hasResource },
+                        { id: "add_exception", label: "Add Exception",     icon: "add",      enabled: root._hasResource },
+                        { id: "add_leave",     label: "Add Leave",         icon: "calendar", enabled: root._hasResource }
+                    ]
+                    onActionTriggered: function(actionId) {
+                        // Placeholder — calendar management UI to be implemented
+                    }
+                }
+
                 Item {
                     width: parent.width
-                    implicitHeight: _calendarEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
-                    height: implicitHeight
-                    AppWidgets.EmptyState {
-                        id: _calendarEmpty
-                        anchors.top: parent.top
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: Math.min(parent.width - Theme.AppTheme.marginMd * 2, 400)
-                        title: "Work calendar"
-                        message: "Shift schedules, availability exceptions, and leave periods are not yet configured for this resource."
-                    }
+                    implicitHeight: Theme.AppTheme.spacingMd
+                }
+
+                AppWidgets.InlineMessage {
+                    width: parent.width
+                    anchors.leftMargin: Theme.AppTheme.marginMd
+                    anchors.rightMargin: Theme.AppTheme.marginMd
+                    visible: root._hasResource
+                    tone: "info"
+                    message: "Work calendar configuration — shift schedules, leave periods, and availability exceptions — will be available in an upcoming release."
+                }
+
+                AppWidgets.EmptyState {
+                    width: parent.width
+                    visible: !root._hasResource
+                    title: "No resource selected"
+                    message: "Select a resource to view and configure its work calendar."
+                }
+
+                Item {
+                    width: parent.width
+                    implicitHeight: Theme.AppTheme.spacingMd
                 }
             }
         }

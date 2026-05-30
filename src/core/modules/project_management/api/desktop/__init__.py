@@ -83,6 +83,7 @@ from src.core.modules.project_management.api.desktop.projects import (
 from src.core.modules.project_management.api.desktop.resources import (
     ProjectManagementResourcesDesktopApi,
     ResourceAddCertificationCommand,
+    ResourceAssignmentDesktopDto,
     ResourceAddSkillCommand,
     ResourceAvailabilityDayDto,
     ResourceAvailabilityDto,
@@ -271,6 +272,7 @@ __all__ = [
     "build_project_management_register_desktop_api",
     "ResourceAddCertificationCommand",
     "ResourceAddSkillCommand",
+    "ResourceAssignmentDesktopDto",
     "ResourceAvailabilityDayDto",
     "ResourceAvailabilityDto",
     "ResourceCategoryDescriptor",

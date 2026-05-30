@@ -497,6 +497,12 @@ AppLayouts.WorkspaceFrame {
                 z: 20
                 Component.onCompleted: scrollToSection(root._pendingDetailSection)
 
+                onSectionChanged: function(index) {
+                    if (index === 1 && root.workspaceController !== null) {
+                        root.workspaceController.loadResourceAssignments()
+                    }
+                }
+
                 AppWidgets.ContextualActionToolbar {
                     width: parent ? parent.width : 0
                     showBack: true
@@ -532,6 +538,8 @@ AppLayouts.WorkspaceFrame {
                         ? (root.workspaceController.resourceAvailability || {}) : ({})
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     workspaceController: root.workspaceController
+                    resourceAssignmentsTableModel: root.workspaceController
+                        ? root.workspaceController.resourceAssignmentsTableModel : null
                     canManageSkills: root.pmCatalog ? root.pmCatalog.pmCapabilityController.canManageSkills : true
                     onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedResourceModel)
                     onDeleteRequested: dialogHostLoader.invoke("openDeleteDialog", root.selectedResourceModel)

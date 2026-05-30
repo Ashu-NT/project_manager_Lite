@@ -236,6 +236,20 @@ class ProjectResourcesWorkspacePresenter:
                 empty_state="Select a resource from the catalog to review details or edit its setup.",
             )
         state = self._build_resource_state(resource)
+        # Enrich state with activity feed built from assignments
+        try:
+            assignments = self._desktop_api.list_resource_assignments(resource.id)
+            activity_items = [
+                {
+                    "title": f"Assigned to {a.task_name}",
+                    "metaText": a.project_name or "",
+                    "statusLabel": a.allocation_label,
+                }
+                for a in assignments
+            ]
+        except Exception:
+            activity_items = []
+        state = {**state, "activityItems": activity_items}
         subtitle_parts = [state["role"], state["employeeContext"]]
         subtitle_values = [part for part in subtitle_parts if part and part != "-"]
         if not subtitle_values:
@@ -286,12 +300,35 @@ class ProjectResourcesWorkspacePresenter:
             state=state,
         )
 
+    def build_resource_assignments(self, resource_id: str) -> list[dict[str, object]]:
+        normalized_id = (resource_id or "").strip()
+        if not normalized_id:
+            return []
+        assignments = self._desktop_api.list_resource_assignments(normalized_id)
+        return [
+            {
+                "id": a.id,
+                "title": a.task_name,
+                "subtitle": a.project_name or "—",
+                "statusLabel": a.allocation_label,
+                "metaText": a.hours_label,
+                "supportingText": a.project_name,
+                "state": {
+                    "taskId": a.task_id,
+                    "projectId": a.project_id,
+                    "allocationPercent": a.allocation_percent,
+                    "hoursLogged": a.hours_logged,
+                },
+            }
+            for a in assignments
+        ]
+
     def _build_availability_view_model(self, resource_id: str) -> ResourceAvailabilityViewModel:
         if not resource_id:
             return ResourceAvailabilityViewModel()
         dto = self._desktop_api.build_resource_availability(resource_id)
         if dto is None:
-            return ResourceAvailabilityViewModel()
+            return ResourceAvailabilityViewModel(resource_id=resource_id)
         return ResourceAvailabilityViewModel(
             resource_id=dto.resource_id,
             peak_load_percent=dto.peak_load_percent,

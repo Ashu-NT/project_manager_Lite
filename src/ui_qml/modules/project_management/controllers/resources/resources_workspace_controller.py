@@ -51,6 +51,7 @@ class ProjectManagementResourcesWorkspaceController(
     resourceSkillsChanged = Signal()
     resourceCertificationsChanged = Signal()
     resourceAvailabilityChanged = Signal()
+    resourceAssignmentsChanged = Signal()
 
     def __init__(
         self,
@@ -98,8 +99,10 @@ class ProjectManagementResourcesWorkspaceController(
         self._selected_resource_count = 0
         self._resource_skills_table_model = DynamicTableModel(self)
         self._resource_certifications_table_model = DynamicTableModel(self)
+        self._resource_assignments_table_model = DynamicTableModel(self)
         self._resource_skills: list[dict[str, object]] = []
         self._resource_certifications: list[dict[str, object]] = []
+        self._resource_assignments: list[dict[str, object]] = []
         self._resource_availability: dict[str, object] = {
             "resourceId": "", "peakLoadPercent": 0.0, "averageLoadPercent": 0.0,
             "overloadedDays": 0, "availableDays": 0, "isAvailable": True,
@@ -187,6 +190,14 @@ class ProjectManagementResourcesWorkspaceController(
     @Property(QObject, constant=True)
     def resourceCertificationsTableModel(self) -> DynamicTableModel:
         return self._resource_certifications_table_model
+
+    @Property(QObject, constant=True)
+    def resourceAssignmentsTableModel(self) -> DynamicTableModel:
+        return self._resource_assignments_table_model
+
+    @Property("QVariantList", notify=resourceAssignmentsChanged)
+    def resourceAssignments(self) -> list[dict[str, object]]:
+        return list(self._resource_assignments)
 
     @Property("QVariantMap", notify=resourceAvailabilityChanged)
     def resourceAvailability(self) -> dict[str, object]:
@@ -297,10 +308,23 @@ class ProjectManagementResourcesWorkspaceController(
     def activateResource(self, resource_id: str) -> None:
         self.selectResource(resource_id)
         QTimer.singleShot(0, self.refresh)
+        QTimer.singleShot(0, self.loadResourceAssignments)
 
     @Slot(str)
     def loadSkillsAndCerts(self, resource_id: str) -> None:
         self._reload_skills_and_certs((resource_id or "").strip())
+
+    @Slot()
+    def loadResourceAssignments(self) -> None:
+        resource_id = self._selected_resource_id
+        if not resource_id:
+            self._set_resource_assignments([])
+            return
+        try:
+            rows = self._resources_workspace_presenter.build_resource_assignments(resource_id)
+            self._set_resource_assignments(rows)
+        except Exception:
+            self._set_resource_assignments([])
 
     @Slot(int)
     def setResourcePage(self, page: int) -> None:
@@ -489,6 +513,13 @@ class ProjectManagementResourcesWorkspaceController(
         except Exception as exc:
             self._set_error_message(str(exc))
             return {"ok": False, "error": str(exc)}
+
+    def _set_resource_assignments(self, rows: list[dict[str, object]]) -> None:
+        if rows == self._resource_assignments:
+            return
+        self._resource_assignments = rows
+        self._resource_assignments_table_model.set_rows(rows)
+        self.resourceAssignmentsChanged.emit()
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change("resource", scope_code="project_management")

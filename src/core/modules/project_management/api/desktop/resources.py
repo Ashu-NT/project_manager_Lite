@@ -153,6 +153,19 @@ class ResourceAddCertificationCommand:
     notes: str = ""
 
 
+@dataclass(frozen=True)
+class ResourceAssignmentDesktopDto:
+    id: str
+    task_id: str
+    task_name: str
+    project_id: str
+    project_name: str
+    allocation_percent: float
+    hours_logged: float
+    allocation_label: str
+    hours_label: str
+
+
 class ProjectManagementResourcesDesktopApi:
     def __init__(
         self,
@@ -160,10 +173,12 @@ class ProjectManagementResourcesDesktopApi:
         resource_service: ResourceService | None = None,
         employee_service: EmployeeService | None = None,
         availability_service: ResourceAvailabilityService | None = None,
+        task_service: object | None = None,
     ) -> None:
         self._resource_service = resource_service
         self._employee_service = employee_service
         self._availability_service = availability_service
+        self._task_service = task_service
 
     def list_worker_types(self) -> tuple[ResourceWorkerTypeDescriptor, ...]:
         return tuple(
@@ -439,6 +454,61 @@ class ProjectManagementResourcesDesktopApi:
         )
 
 
+    def list_resource_assignments(self, resource_id: str) -> tuple[ResourceAssignmentDesktopDto, ...]:
+        normalized_id = str(resource_id or "").strip()
+        if not normalized_id or self._availability_service is None:
+            return ()
+        assignment_repo = getattr(self._availability_service, "_assignments", None)
+        if assignment_repo is None:
+            return ()
+        list_by_resource = getattr(assignment_repo, "list_by_resource", None)
+        if not callable(list_by_resource):
+            return ()
+        try:
+            assignments = list(list_by_resource(normalized_id))
+        except Exception:
+            return ()
+        get_task = getattr(self._task_service, "get_task", None) if self._task_service else None
+        results: list[ResourceAssignmentDesktopDto] = []
+        task_cache: dict[str, object] = {}
+        for assignment in assignments:
+            task_id = str(getattr(assignment, "task_id", "") or "")
+            task_name, project_id, project_name = task_id, "", ""
+            if get_task and task_id:
+                if task_id not in task_cache:
+                    try:
+                        task_cache[task_id] = get_task(task_id)
+                    except Exception:
+                        task_cache[task_id] = None
+                task = task_cache[task_id]
+                if task is not None:
+                    task_name = str(getattr(task, "name", "") or "") or task_id
+                    project_id = str(getattr(task, "project_id", "") or "")
+                    project_name = project_id
+                    if self._resource_service is not None:
+                        get_project = getattr(self._resource_service, "get_project", None)
+                        if callable(get_project):
+                            try:
+                                proj = get_project(project_id)
+                                if proj:
+                                    project_name = str(getattr(proj, "name", "") or "") or project_id
+                            except Exception:
+                                pass
+            alloc = float(getattr(assignment, "allocation_percent", 0.0) or 0.0)
+            hours = float(getattr(assignment, "hours_logged", 0.0) or 0.0)
+            results.append(ResourceAssignmentDesktopDto(
+                id=str(getattr(assignment, "id", "") or ""),
+                task_id=task_id,
+                task_name=task_name,
+                project_id=project_id,
+                project_name=project_name,
+                allocation_percent=alloc,
+                hours_logged=hours,
+                allocation_label=f"{alloc:.0f}%",
+                hours_label=f"{hours:.1f} hrs",
+            ))
+        return tuple(results)
+
     def build_resource_availability(self, resource_id: str) -> ResourceAvailabilityDto | None:
         if not resource_id or self._availability_service is None:
             return None
@@ -483,11 +553,13 @@ def build_project_management_resources_desktop_api(
     resource_service: ResourceService | None = None,
     employee_service: EmployeeService | None = None,
     availability_service: ResourceAvailabilityService | None = None,
+    task_service: object | None = None,
 ) -> ProjectManagementResourcesDesktopApi:
     return ProjectManagementResourcesDesktopApi(
         resource_service=resource_service,
         employee_service=employee_service,
         availability_service=availability_service,
+        task_service=task_service,
     )
 
 
