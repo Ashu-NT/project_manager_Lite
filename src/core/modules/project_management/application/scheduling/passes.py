@@ -35,8 +35,50 @@ def run_forward_pass(
 
     project_ef_dates = [d for d in ef.values() if d is not None]
     if not project_ef_dates:
-        raise ValidationError("No computed finish dates; ensure tasks have durations or start dates.")
+        # All tasks returned None — root tasks likely have no start_date.
+        # Anchor unanchored root tasks to the earliest known date in the project
+        # (or today), then re-run the FULL forward pass so successors propagate
+        # correctly from the newly anchored roots.
+        known_starts = [
+            t.start_date
+            for t in tasks_by_id.values()
+            if getattr(t, "start_date", None) is not None
+        ]
+        default_start: date = min(known_starts) if known_starts else date.today()
+
+        # Patch root tasks that have no start_date
+        patched: Dict[str, Task] = {}
+        for task_id, task in tasks_by_id.items():
+            incoming = deps_by_successor.get(task_id, [])
+            if not incoming and not getattr(task, "start_date", None):
+                patched[task_id] = _task_with_default_start(task, default_start)
+            else:
+                patched[task_id] = task
+
+        # Re-run forward pass with patched tasks so successors pick up the dates
+        es = {task_id: None for task_id in tasks_by_id}
+        ef = {task_id: None for task_id in tasks_by_id}
+        for task_id in topo_order:
+            task = patched[task_id]
+            incoming = deps_by_successor.get(task_id, [])
+            est, eft = compute_task_dates(task, incoming, es, ef)
+            es[task_id] = est
+            ef[task_id] = eft
+
+        project_ef_dates = [d for d in ef.values() if d is not None]
+        if not project_ef_dates:
+            raise ValidationError(
+                "No computed finish dates. Ensure at least one task has a start date "
+                "or is linked via a dependency to an anchored task."
+            )
+
     return es, ef, max(project_ef_dates)
+
+
+def _task_with_default_start(task: Task, default_start: date) -> Task:
+    """Return a copy of task with default_start as its start_date."""
+    from dataclasses import replace
+    return replace(task, start_date=default_start)
 
 
 def run_backward_pass(
