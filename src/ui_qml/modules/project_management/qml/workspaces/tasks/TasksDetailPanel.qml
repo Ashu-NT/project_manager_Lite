@@ -70,6 +70,7 @@ Item {
     signal deleteAssignmentRequested(var assignmentData)
 
     signal createDependencyRequested()
+    signal editDependencyRequested(var payload)
     signal deleteDependencyRequested(var dependencyData)
 
     signal periodChanged(string periodStart)
@@ -336,8 +337,10 @@ Item {
                     isBusy: root.isBusy
                     canCreate: root._hasTask && root.dependencyTaskOptions.length > 0
                     errorText: String(root.sectionErrors["dependencies"] || "")
+                    dependencyTypeOptions: root.dependencyTypeOptions || []
 
                     onCreateRequested: root.createDependencyRequested()
+                    onEditRequested: function(payload) { root.editDependencyRequested(payload) }
                     onDeleteRequested: function(d) { root.deleteDependencyRequested(d) }
                 }
             }

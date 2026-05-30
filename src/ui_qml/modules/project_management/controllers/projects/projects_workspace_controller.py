@@ -58,6 +58,9 @@ class ProjectManagementProjectsWorkspaceController(
     importBusyChanged = Signal()
     importErrorChanged = Signal()
 
+    assignableResourceOptionsChanged = Signal()
+    selectedProjectResourceIdChanged = Signal()
+
     def __init__(
         self,
         *,
@@ -119,6 +122,8 @@ class ProjectManagementProjectsWorkspaceController(
         self._import_preview: dict[str, object] = {}
         self._import_busy = False
         self._import_error = ""
+        self._assignable_resource_options: list[dict[str, str]] = []
+        self._selected_project_resource_id = ""
 
         self._bind_domain_events()
         self.refresh()
@@ -222,6 +227,14 @@ class ProjectManagementProjectsWorkspaceController(
     @Property(str, notify=importErrorChanged)
     def importError(self) -> str:
         return self._import_error
+
+    @Property("QVariantList", notify=assignableResourceOptionsChanged)
+    def assignableResourceOptions(self) -> list[dict[str, str]]:
+        return self._assignable_resource_options
+
+    @Property(str, notify=selectedProjectResourceIdChanged)
+    def selectedProjectResourceId(self) -> str:
+        return self._selected_project_resource_id
 
     @Slot()
     def refresh(self) -> None:
@@ -568,6 +581,44 @@ class ProjectManagementProjectsWorkspaceController(
             self._set_is_loading(False)
 
     @Slot()
+    def loadAssignableResources(self) -> None:
+        if not self._selected_project_id:
+            self._set_assignable_resource_options([])
+            return
+        try:
+            options = self._projects_workspace_presenter.build_assignable_resource_options(
+                project_id=self._selected_project_id
+            )
+            self._set_assignable_resource_options(options)
+        except Exception:
+            self._set_assignable_resource_options([])
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def assignProjectResource(self, payload: dict[str, object]) -> dict[str, object]:
+        resource_id = str(payload.get("resourceId", "") or "").strip()
+        planned_hours = float(payload.get("plannedHours", 0) or 0)
+        hourly_rate_str = str(payload.get("hourlyRate", "") or "").strip()
+        hourly_rate: float | None = None
+        if hourly_rate_str:
+            try:
+                hourly_rate = float(hourly_rate_str)
+            except ValueError:
+                hourly_rate = None
+        return run_mutation(
+            operation=lambda: self._projects_workspace_presenter.assign_resource_to_project(
+                project_id=self._selected_project_id,
+                resource_id=resource_id,
+                planned_hours=planned_hours,
+                hourly_rate=hourly_rate,
+            ),
+            success_message="Resource assigned to project.",
+            on_success=self._on_resource_assigned,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot()
     def loadProjectFinancials(self) -> None:
         if not self._selected_project_id:
             return
@@ -646,6 +697,71 @@ class ProjectManagementProjectsWorkspaceController(
             self._set_section_error("activity", str(exc))
         finally:
             self._set_is_loading(False)
+
+    @Slot(str)
+    def selectProjectResource(self, project_resource_id: str) -> None:
+        v = (project_resource_id or "").strip()
+        if v == self._selected_project_resource_id:
+            return
+        self._selected_project_resource_id = v
+        self.selectedProjectResourceIdChanged.emit()
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateProjectResource(self, payload: dict[str, object]) -> dict[str, object]:
+        pr_id = str(payload.get("projectResourceId", "") or "").strip()
+        planned_hours = float(payload.get("plannedHours", 0) or 0)
+        hourly_rate_str = str(payload.get("hourlyRate", "") or "").strip()
+        hourly_rate: float | None = None
+        if hourly_rate_str:
+            try:
+                hourly_rate = float(hourly_rate_str)
+            except ValueError:
+                hourly_rate = None
+        is_active = bool(payload.get("isActive", True))
+        return run_mutation(
+            operation=lambda: self._projects_workspace_presenter.update_project_resource(
+                project_resource_id=pr_id,
+                planned_hours=planned_hours,
+                hourly_rate=hourly_rate,
+                is_active=is_active,
+            ),
+            success_message="Resource updated.",
+            on_success=self._on_resource_mutated,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def removeProjectResource(self, project_resource_id: str) -> dict[str, object]:
+        pr_id = (project_resource_id or "").strip()
+        return run_mutation(
+            operation=lambda: self._projects_workspace_presenter.remove_project_resource(
+                project_resource_id=pr_id,
+            ),
+            success_message="Resource removed from project.",
+            on_success=self._on_resource_mutated,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    def _on_resource_assigned(self) -> None:
+        self._project_resources_loaded_for_project_id = ""
+        self.loadProjectResources()
+        self.loadAssignableResources()
+
+    def _on_resource_mutated(self) -> None:
+        self._selected_project_resource_id = ""
+        self.selectedProjectResourceIdChanged.emit()
+        self._project_resources_loaded_for_project_id = ""
+        self.loadProjectResources()
+
+    def _set_assignable_resource_options(self, options: list[dict[str, str]]) -> None:
+        if options == self._assignable_resource_options:
+            return
+        self._assignable_resource_options = options
+        self.assignableResourceOptionsChanged.emit()
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(

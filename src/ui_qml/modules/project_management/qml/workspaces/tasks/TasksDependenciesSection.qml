@@ -15,8 +15,10 @@ Item {
     property bool   isBusy:           false
     property bool   canCreate:        false
     property string errorText:        ""
+    property var    dependencyTypeOptions: []
 
     signal createRequested()
+    signal editRequested(var dependencyData)
     signal deleteRequested(var dependencyData)
 
     readonly property var    _items: root.dependenciesModel.items || []
@@ -83,12 +85,16 @@ Item {
             subtitle: root._selectedItem ? String(root._selectedItem.subtitle || "") : ""
             busy:     root.isBusy
             actions: [
+                { id: "edit",   label: "Edit",   icon: "edit",   enabled: true },
                 { id: "remove", label: "Remove", icon: "delete", enabled: true, danger: true }
             ]
             onBackRequested: root._selectedId = ""
             onActionTriggered: function(actionId) {
-                if (actionId === "remove" && root._selectedItem)
+                if (actionId === "edit" && root._selectedItem) {
+                    _editPopup.openForItem(root._selectedItem)
+                } else if (actionId === "remove" && root._selectedItem) {
                     root.deleteRequested(root._selectedItem)
+                }
             }
         }
 
@@ -107,6 +113,111 @@ Item {
 
                 onRowSelected: function(rowId) { root._selectedId = rowId }
                 onRowActivated: function(rowId) { root._selectedId = rowId }
+            }
+        }
+
+        // Edit dependency dialog
+        AppControls.CenteredDialog {
+            id: _editPopup
+            title: "Edit Dependency"
+            standardButtons: Dialog.NoButton
+
+            property var _item: null
+
+            function openForItem(item) {
+                _item = item
+                const state = item.state || {}
+                // Pre-select dependency type
+                const typeVal = String(state.dependencyType || "FS")
+                const opts = root.dependencyTypeOptions || []
+                _typeCombo.currentIndex = -1
+                for (let i = 0; i < opts.length; i++) {
+                    if (String(opts[i].value || "") === typeVal) {
+                        _typeCombo.currentIndex = i
+                        break
+                    }
+                }
+                _lagField.text = String(state.lagDays || "0")
+                _editError.message = ""
+                open()
+            }
+
+            contentItem: ColumnLayout {
+                spacing: Theme.AppTheme.spacingSm
+                implicitWidth: 300
+
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: "Dependency Type"
+                    color: Theme.AppTheme.textSecondary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold: true
+                }
+
+                AppControls.ComboBox {
+                    id: _typeCombo
+                    Layout.fillWidth: true
+                    model: root.dependencyTypeOptions
+                    textRole: "label"
+                    enabled: !root.isBusy
+                }
+
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: "Lag Days"
+                    color: Theme.AppTheme.textSecondary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold: true
+                }
+
+                AppControls.TextField {
+                    id: _lagField
+                    Layout.fillWidth: true
+                    placeholderText: "0"
+                    inputMethodHints: Qt.ImhFormattedNumbersOnly
+                    enabled: !root.isBusy
+                }
+
+                AppWidgets.InlineMessage {
+                    id: _editError
+                    Layout.fillWidth: true
+                    tone: "danger"
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.AppTheme.spacingSm
+
+                    AppControls.SecondaryButton {
+                        Layout.fillWidth: true
+                        text: "Cancel"
+                        enabled: !root.isBusy
+                        onClicked: _editPopup.close()
+                    }
+
+                    AppControls.PrimaryButton {
+                        Layout.fillWidth: true
+                        text: "Save"
+                        iconName: "approve"
+                        enabled: _typeCombo.currentIndex >= 0 && !root.isBusy
+                        onClicked: {
+                            if (!_editPopup._item) return
+                            const state = _editPopup._item.state || {}
+                            const opts = root.dependencyTypeOptions || []
+                            const selected = opts[_typeCombo.currentIndex]
+                            if (!selected) return
+                            _editError.message = ""
+                            root.editRequested({
+                                "dependencyId":   String(state.dependencyId || _editPopup._item.id || ""),
+                                "dependencyType": String(selected.value || "FS"),
+                                "lagDays":        parseInt(_lagField.text || "0", 10) || 0
+                            })
+                            _editPopup.close()
+                        }
+                    }
+                }
             }
         }
     }

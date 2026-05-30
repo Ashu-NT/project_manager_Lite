@@ -7,6 +7,8 @@ from urllib.parse import unquote
 from src.core.modules.project_management.api.desktop import (
     ProjectCreateCommand,
     ProjectManagementProjectsDesktopApi,
+    ProjectResourceAssignCommand,
+    ProjectResourceUpdateCommand,
     ProjectUpdateCommand,
     build_project_management_projects_desktop_api,
 )
@@ -206,6 +208,12 @@ class ProjectProjectsWorkspacePresenter:
                 subtitle=pr.role or "Team member",
                 supporting_text=pr.planned_hours_label,
                 meta_text=pr.hourly_rate_label,
+                state={
+                    "projectResourceId": pr.id,
+                    "plannedHours": pr.planned_hours,
+                    "hourlyRate": pr.hourly_rate if pr.hourly_rate is not None else "",
+                    "isActive": pr.is_active,
+                },
             )
             for pr in resources
         )
@@ -219,6 +227,64 @@ class ProjectProjectsWorkspacePresenter:
                 items=items,
             ),
         )
+
+    def build_assignable_resource_options(
+        self,
+        *,
+        project_id: str,
+    ) -> list[dict[str, str]]:
+        normalized_project_id = (project_id or "").strip()
+        if not normalized_project_id:
+            return []
+        options = self._desktop_api.list_assignable_resources(normalized_project_id)
+        return [{"label": opt.label, "value": opt.value} for opt in options]
+
+    def assign_resource_to_project(
+        self,
+        *,
+        project_id: str,
+        resource_id: str,
+        planned_hours: float,
+        hourly_rate: float | None,
+    ) -> None:
+        normalized_project_id = (project_id or "").strip()
+        normalized_resource_id = (resource_id or "").strip()
+        if not normalized_project_id or not normalized_resource_id:
+            raise ValueError("Project and resource are required.")
+        self._desktop_api.add_project_resource(
+            ProjectResourceAssignCommand(
+                project_id=normalized_project_id,
+                resource_id=normalized_resource_id,
+                planned_hours=max(0.0, planned_hours),
+                hourly_rate=hourly_rate if hourly_rate and hourly_rate > 0 else None,
+            )
+        )
+
+    def update_project_resource(
+        self,
+        *,
+        project_resource_id: str,
+        planned_hours: float,
+        hourly_rate: float | None,
+        is_active: bool,
+    ) -> None:
+        normalized_id = (project_resource_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Project resource ID is required.")
+        self._desktop_api.update_project_resource(
+            ProjectResourceUpdateCommand(
+                project_resource_id=normalized_id,
+                planned_hours=max(0.0, planned_hours),
+                hourly_rate=hourly_rate if hourly_rate and hourly_rate > 0 else None,
+                is_active=is_active,
+            )
+        )
+
+    def remove_project_resource(self, *, project_resource_id: str) -> None:
+        normalized_id = (project_resource_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Project resource ID is required.")
+        self._desktop_api.remove_project_resource(normalized_id)
 
     def build_project_financials_state(
         self,

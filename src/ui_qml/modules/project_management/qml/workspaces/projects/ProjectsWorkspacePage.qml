@@ -512,6 +512,7 @@ AppLayouts.WorkspaceFrame {
             id: _detailPageComponent
 
             AppWidgets.SectionDetailPage {
+                id: _projectDetailPage
                 open: true
                 anchors.fill: parent
                 showHeader: false
@@ -535,11 +536,13 @@ AppLayouts.WorkspaceFrame {
                     title: root.selectedProjectModel.title || "Project Details"
                     subtitle: root.selectedProjectModel.statusLabel || ""
                     busy: root.workspaceController ? root.workspaceController.isBusy : false
-                    actions: [
-                        { "id": "edit",   "label": "Edit",   "icon": "edit",    "enabled": true, "danger": false },
-                        { "id": "status", "label": "Status", "icon": "approve", "enabled": true, "danger": false },
-                        { "id": "delete", "label": "Delete", "icon": "delete",  "enabled": true, "danger": true  }
-                    ]
+                    actions: _projectDetailPage.activeSectionIndex === 0
+                        ? [
+                            { "id": "edit",   "label": "Edit",   "icon": "edit",    "enabled": true, "danger": false },
+                            { "id": "status", "label": "Status", "icon": "approve", "enabled": true, "danger": false },
+                            { "id": "delete", "label": "Delete", "icon": "delete",  "enabled": true, "danger": true  }
+                          ]
+                        : []
 
                     onBackRequested: {
                         root._detailOpen = false
@@ -566,6 +569,8 @@ AppLayouts.WorkspaceFrame {
                     projectTasksTableModel: root.workspaceController ? root.workspaceController.projectTasksTableModel : null
                     projectResourcesModel: root.projectResourcesModel
                     projectResourcesTableModel: root.workspaceController ? root.workspaceController.projectResourcesTableModel : null
+                    assignableResourceOptions: root.workspaceController ? (root.workspaceController.assignableResourceOptions || []) : []
+                    selectedProjectResourceId: root.workspaceController ? root.workspaceController.selectedProjectResourceId : ""
                     onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedProjectModel)
                     onStatusRequested: dialogHostLoader.invoke("openStatusDialog", root.selectedProjectModel)
                     onDeleteRequested: dialogHostLoader.invoke("openDeleteDialog", root.selectedProjectModel)

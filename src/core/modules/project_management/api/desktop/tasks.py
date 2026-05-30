@@ -153,6 +153,13 @@ class TaskDependencyCreateCommand:
 
 
 @dataclass(frozen=True)
+class TaskDependencyUpdateCommand:
+    dependency_id: str
+    dependency_type: str = DependencyType.FINISH_TO_START.value
+    lag_days: int = 0
+
+
+@dataclass(frozen=True)
 class TaskBulkStatusCommand:
     task_ids: tuple[str, ...]
     status: str
@@ -644,6 +651,19 @@ class ProjectManagementTasksDesktopApi:
             dependency,
             current_task_id=command.task_id,
             tasks_by_id=tasks_by_id,
+        )
+
+    def update_dependency(
+        self,
+        command: TaskDependencyUpdateCommand,
+    ) -> None:
+        normalized_id = (command.dependency_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Dependency ID is required.")
+        self._require_task_method("update_dependency")(
+            normalized_id,
+            dependency_type=_coerce_dependency_type(command.dependency_type),
+            lag_days=command.lag_days,
         )
 
     def delete_dependency(self, dependency_id: str) -> None:
@@ -1304,6 +1324,7 @@ __all__ = [
     "TaskCreateCommand",
     "TaskDesktopDto",
     "TaskDependencyCreateCommand",
+    "TaskDependencyUpdateCommand",
     "TaskDependencyDesktopDto",
     "TaskDependencyTypeDescriptor",
     "TaskMaterialDemandSummary",

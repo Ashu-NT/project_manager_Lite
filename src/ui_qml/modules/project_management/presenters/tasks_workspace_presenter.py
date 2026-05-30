@@ -16,6 +16,7 @@ from src.core.modules.project_management.api.desktop import (
     TaskBulkStatusCommand,
     TaskCreateCommand,
     TaskDependencyCreateCommand,
+    TaskDependencyUpdateCommand,
     TaskProgressCommand,
     TaskUpdateCommand,
     TimesheetEntryCreateCommand,
@@ -1213,6 +1214,20 @@ class ProjectTasksWorkspacePresenter:
             lag_days=self._optional_int(payload, "lagDays") or 0,
         )
         self._desktop_api.create_dependency(command)
+
+    def update_dependency(self, payload: dict[str, Any]) -> None:
+        dependency_id = (payload.get("dependencyId") or "").strip()
+        if not dependency_id:
+            raise ValueError("Dependency ID is required.")
+        dependency_type = (payload.get("dependencyType") or "FS").strip().upper()
+        lag_days = int(payload.get("lagDays") or 0)
+        self._desktop_api.update_dependency(
+            TaskDependencyUpdateCommand(
+                dependency_id=dependency_id,
+                dependency_type=dependency_type,
+                lag_days=lag_days,
+            )
+        )
 
     def delete_dependency(self, dependency_id: str) -> None:
         normalized_dependency_id = (dependency_id or "").strip()

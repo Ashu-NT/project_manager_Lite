@@ -989,6 +989,11 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     onCreateDependencyRequested: dialogHostLoader.invoke("openCreateDependencyDialog", root.selectedTaskModel)
+                    onEditDependencyRequested: function(payload) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.updateDependency(payload)
+                        }
+                    }
                     onDeleteDependencyRequested: function(dependencyData) {
                         dialogHostLoader.invoke("openDeleteDependencyDialog", dependencyData)
                     }

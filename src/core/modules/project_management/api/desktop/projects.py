@@ -108,6 +108,14 @@ class ProjectResourceAssignCommand:
     currency_code: str | None = None
 
 
+@dataclass(frozen=True)
+class ProjectResourceUpdateCommand:
+    project_resource_id: str
+    planned_hours: float = 0.0
+    hourly_rate: float | None = None
+    is_active: bool = True
+
+
 class ProjectManagementProjectsDesktopApi:
     def __init__(
         self,
@@ -315,6 +323,35 @@ class ProjectManagementProjectsDesktopApi:
             project_resource,
             resource_by_id=resource_by_id,
         )
+
+    def update_project_resource(
+        self,
+        command: ProjectResourceUpdateCommand,
+    ) -> None:
+        normalized_id = str(command.project_resource_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Project resource ID is required.")
+        service = self._require_project_resource_service()
+        update = getattr(service, "update", None)
+        if not callable(update):
+            raise RuntimeError("Project resource service does not support updates.")
+        update(
+            normalized_id,
+            hourly_rate=command.hourly_rate,
+            currency_code=None,
+            planned_hours=max(0.0, command.planned_hours),
+            is_active=command.is_active,
+        )
+
+    def remove_project_resource(self, project_resource_id: str) -> None:
+        normalized_id = str(project_resource_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Project resource ID is required.")
+        service = self._require_project_resource_service()
+        delete = getattr(service, "delete", None)
+        if not callable(delete):
+            raise RuntimeError("Project resource service does not support deletion.")
+        delete(normalized_id)
 
     def _require_project_service(self) -> ProjectService:
         if self._project_service is None:
@@ -575,6 +612,7 @@ __all__ = [
     "ProjectDesktopDto",
     "ProjectManagementProjectsDesktopApi",
     "ProjectResourceAssignCommand",
+    "ProjectResourceUpdateCommand",
     "ProjectResourceDesktopDto",
     "ProjectStatusDescriptor",
     "ProjectUpdateCommand",

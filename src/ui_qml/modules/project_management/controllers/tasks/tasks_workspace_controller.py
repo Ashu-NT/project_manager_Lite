@@ -1053,6 +1053,10 @@ class ProjectManagementTasksWorkspaceController(
     def createDependency(self, payload: dict[str, object]) -> dict[str, object]:
         return self._dependencies_ctrl.createDependency(payload)
 
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateDependency(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._dependencies_ctrl.updateDependency(payload)
+
     @Slot(str, result="QVariantMap")
     def deleteDependency(self, dependency_id: str) -> dict[str, object]:
         return self._dependencies_ctrl.deleteDependency(dependency_id)

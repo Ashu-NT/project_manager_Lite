@@ -28,6 +28,8 @@ Component {
     Property { name: "importPreview"; type: "QVariantMap"; isReadonly: true }
     Property { name: "isImportBusy"; type: "bool"; isReadonly: true }
     Property { name: "importError"; type: "QString"; isReadonly: true }
+    Property { name: "assignableResourceOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedProjectResourceId"; type: "QString"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
     Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
@@ -50,6 +52,11 @@ Component {
     Method { name: "deleteProject"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "loadProjectTasks" }
     Method { name: "loadProjectResources" }
+    Method { name: "loadAssignableResources" }
+    Method { name: "assignProjectResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "selectProjectResource"; Parameter { name: "projectResourceId"; type: "QString" } }
+    Method { name: "updateProjectResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "removeProjectResource"; type: "QVariantMap"; Parameter { name: "projectResourceId"; type: "QString" } }
     Method { name: "loadProjectFinancials" }
     Method { name: "loadProjectRisks" }
     Method { name: "loadProjectDocuments" }
