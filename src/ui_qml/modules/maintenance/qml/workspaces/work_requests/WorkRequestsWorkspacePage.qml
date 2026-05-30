@@ -163,9 +163,7 @@ AppLayouts.WorkspaceFrame {
                 onViewDetailRequested: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectWorkRequest(rowId)
                     detailPage.open = true
-                }
-                onSortRequested: function(key) {}
-            }
+                }            }
 
             AppWidgets.AnchoredPopup {
                 id: filterPopup

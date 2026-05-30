@@ -273,9 +273,7 @@ AppLayouts.WorkspaceFrame {
                             if (root.workspaceController === null) return
                             if (allSelected) root.workspaceController.selectVisibleBalances()
                             else root.workspaceController.clearBalanceBulkSelection()
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.DataTable {
                         id: _storeroomsTable
@@ -306,9 +304,7 @@ AppLayouts.WorkspaceFrame {
                             if (root.workspaceController === null) return
                             if (allSelected) root.workspaceController.selectVisibleStorerooms()
                             else root.workspaceController.clearStoreroomBulkSelection()
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.TablePaginationBar {
                         id: _paginationBar

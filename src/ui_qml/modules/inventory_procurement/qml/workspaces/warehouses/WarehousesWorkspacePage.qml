@@ -233,9 +233,7 @@ AppLayouts.WorkspaceFrame {
                         onRowActivated: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.activateStoreroom(rowId)
                             root._openDetail(0)
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.DataTable {
                         id: _locationsTable
@@ -257,9 +255,7 @@ AppLayouts.WorkspaceFrame {
                         onRowActivated: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.activateLocation(rowId)
                             root._openDetail(0)
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.TablePaginationBar {
                         id: _paginationBar

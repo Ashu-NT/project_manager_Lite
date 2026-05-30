@@ -1798,10 +1798,31 @@ class ProjectManagementSchedulingWorkspaceController(
         if impact != self._schedule_impact:
             self._schedule_impact = impact
             self._schedule_impact_tasks_table_model.set_rows(
-                impact.get("affectedTasks", []) if isinstance(impact, dict) else []
+                self._format_impact_tasks(impact.get("affectedTasks", []))
+                if isinstance(impact, dict) else []
             )
             self.scheduleImpactChanged.emit()
         return {"ok": True, "message": "Impact analysis complete."}
+
+    @staticmethod
+    def _format_impact_tasks(tasks: list) -> list:
+        """Transform raw affectedTasks into display-ready rows matching column keys."""
+        result = []
+        for t in tasks:
+            is_critical = bool(t.get("isCritical") or t.get("is_critical"))
+            shift_start = t.get("startShiftDays") or t.get("start_shift_days") or 0
+            shift_finish = t.get("finishShiftDays") or t.get("finish_shift_days") or 0
+            result.append({
+                "id": t.get("taskId") or t.get("task_id") or "",
+                "taskName": t.get("taskName") or t.get("task_name") or "",
+                "startShiftDays": f"+{shift_start}d" if shift_start > 0 else f"{shift_start}d",
+                "finishShiftDays": f"+{shift_finish}d" if shift_finish > 0 else f"{shift_finish}d",
+                "isCritical": {
+                    "label": "Critical" if is_critical else "Normal",
+                    "tone": "danger" if is_critical else "default",
+                },
+            })
+        return result
 
 
 __all__ = ["ProjectManagementSchedulingWorkspaceController"]

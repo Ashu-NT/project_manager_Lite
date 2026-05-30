@@ -289,9 +289,7 @@ AppLayouts.WorkspaceFrame {
                             if (root.workspaceController === null) return
                             if (allSelected) root.workspaceController.selectVisibleRequisitions()
                             else root.workspaceController.clearRequisitionBulkSelection()
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.DataTable {
                         id: _purchaseOrdersTable
@@ -322,9 +320,7 @@ AppLayouts.WorkspaceFrame {
                             if (root.workspaceController === null) return
                             if (allSelected) root.workspaceController.selectVisiblePurchaseOrders()
                             else root.workspaceController.clearPurchaseOrderBulkSelection()
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.TablePaginationBar {
                         id: _paginationBar

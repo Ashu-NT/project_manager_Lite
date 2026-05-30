@@ -510,20 +510,6 @@ Item {
                             { "key": "finishShiftDays", "label": "Finish Shift", "flex": 0.8 },
                             { "key": "isCritical", "label": "Critical", "flex": 0.7, "type": "status" }
                         ]
-                        rows: {
-                            var tasks = root.scheduleImpactModel.affectedTasks || []
-                            return tasks.map(function(t) {
-                                return {
-                                    "taskName": t.taskName || t.task_name || "",
-                                    "startShiftDays": (t.startShiftDays || t.start_shift_days || 0) + "d",
-                                    "finishShiftDays": (t.finishShiftDays || t.finish_shift_days || 0) + "d",
-                                    "isCritical": {
-                                        "label": (t.isCritical || t.is_critical) ? "Critical" : "Normal",
-                                        "tone": (t.isCritical || t.is_critical) ? "danger" : "default"
-                                    }
-                                }
-                            })
-                        }
                         loading: false
                         emptyText: "No affected tasks found for this activity."
                     }

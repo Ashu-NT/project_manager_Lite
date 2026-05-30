@@ -92,10 +92,7 @@ AppLayouts.WorkspaceFrame {
                 columns: root._columns
                 sourceModel: root.workspaceController ? root.workspaceController.transactionsTableModel : null
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
-                emptyText: root.transactionsModel.emptyState || "No stock movements."
-
-                onSortRequested: function(key) {}
-            }
+                emptyText: root.transactionsModel.emptyState || "No stock movements."            }
 
             AppWidgets.TablePaginationBar {
                 id: _paginationBar

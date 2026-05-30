@@ -296,9 +296,7 @@ AppLayouts.WorkspaceFrame {
                             } else {
                                 root.workspaceController.clearItemBulkSelection()
                             }
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     // Categories DataTable
                     AppWidgets.DataTable {
@@ -333,9 +331,7 @@ AppLayouts.WorkspaceFrame {
                             } else {
                                 root.workspaceController.clearCategoryBulkSelection()
                             }
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.TablePaginationBar {
                         id: _paginationBar

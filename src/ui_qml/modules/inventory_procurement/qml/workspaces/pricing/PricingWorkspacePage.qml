@@ -260,9 +260,7 @@ AppLayouts.WorkspaceFrame {
                         onRowActivated: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.selectStockSignal(rowId)
                             root._openDetail(0)
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.DataTable {
                         id: _supplierTable
@@ -284,9 +282,7 @@ AppLayouts.WorkspaceFrame {
                         onRowActivated: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.selectSupplierPricing(rowId)
                             root._openDetail(0)
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.TablePaginationBar {
                         id: _paginationBar

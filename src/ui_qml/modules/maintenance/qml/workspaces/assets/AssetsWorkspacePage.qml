@@ -337,9 +337,7 @@ AppLayouts.WorkspaceFrame {
                 onViewDetailRequested: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectLocation(rowId)
                     detailPage.open = true
-                }
-                onSortRequested: function(key) {}
-            }
+                }            }
 
             AppWidgets.DataTable {
                 id: systemsTable
@@ -358,9 +356,7 @@ AppLayouts.WorkspaceFrame {
                 onViewDetailRequested: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectSystem(rowId)
                     detailPage.open = true
-                }
-                onSortRequested: function(key) {}
-            }
+                }            }
 
             AppWidgets.DataTable {
                 id: assetsTable
@@ -379,9 +375,7 @@ AppLayouts.WorkspaceFrame {
                 onViewDetailRequested: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectAsset(rowId)
                     detailPage.open = true
-                }
-                onSortRequested: function(key) {}
-            }
+                }            }
 
             AppWidgets.DataTable {
                 id: componentsTable
@@ -400,9 +394,7 @@ AppLayouts.WorkspaceFrame {
                 onViewDetailRequested: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectComponent(rowId)
                     detailPage.open = true
-                }
-                onSortRequested: function(key) {}
-            }
+                }            }
 
             AppWidgets.AnchoredPopup {
                 id: filterPopup

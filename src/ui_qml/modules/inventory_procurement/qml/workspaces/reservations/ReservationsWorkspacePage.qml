@@ -234,9 +234,7 @@ AppLayouts.WorkspaceFrame {
                             if (root.workspaceController === null) return
                             if (allSelected) root.workspaceController.selectVisibleReservations()
                             else root.workspaceController.clearReservationBulkSelection()
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.TablePaginationBar {
                         id: _paginationBar
