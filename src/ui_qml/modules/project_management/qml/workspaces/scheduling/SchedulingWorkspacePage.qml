@@ -396,6 +396,79 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
+                SchedulingActionBar {
+                    Layout.fillWidth: true
+                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    actions: [
+                        { "id": "refresh", "label": "Refresh", "icon": "refresh", "enabled": true },
+                        { "id": "run_cpm", "label": "Run CPM", "icon": "approve", "enabled": String(root.workspaceController ? root.workspaceController.selectedProjectId : "").length > 0 }
+                    ]
+
+                    AppControls.ComboBox {
+                        Layout.preferredWidth: 210
+                        model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        currentIndex: root._optionIndexForValue(
+                            root.workspaceController ? (root.workspaceController.projectOptions || []) : [],
+                            root.workspaceController ? root.workspaceController.selectedProjectId : ""
+                        )
+                        onActivated: function(index) {
+                            const options = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+                            if (root.workspaceController !== null && options[index]) {
+                                root.workspaceController.selectProject(String(options[index].value || ""))
+                            }
+                        }
+                    }
+
+                    AppControls.ComboBox {
+                        Layout.preferredWidth: 180
+                        model: root.workspaceController ? (root.workspaceController.baselineOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                            && (root.workspaceController ? (root.workspaceController.baselineOptions || []).length > 0 : false)
+                        currentIndex: root._optionIndexForValue(
+                            root.workspaceController ? (root.workspaceController.baselineOptions || []) : [],
+                            root.workspaceController ? root.workspaceController.selectedBaselineId : ""
+                        )
+                        onActivated: function(index) {
+                            const options = root.workspaceController ? (root.workspaceController.baselineOptions || []) : []
+                            if (root.workspaceController !== null && options[index]) {
+                                root.workspaceController.selectBaseline(String(options[index].value || ""))
+                            }
+                        }
+                    }
+
+                    AppControls.ComboBox {
+                        Layout.preferredWidth: 170
+                        model: root.workspaceController ? (root.workspaceController.calendarOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                            && (root.workspaceController ? (root.workspaceController.calendarOptions || []).length > 0 : false)
+                        currentIndex: root._optionIndexForValue(
+                            root.workspaceController ? (root.workspaceController.calendarOptions || []) : [],
+                            root.workspaceController ? root.workspaceController.selectedCalendarId : "default"
+                        )
+                        onActivated: function(index) {
+                            const options = root.workspaceController ? (root.workspaceController.calendarOptions || []) : []
+                            if (root.workspaceController !== null && options[index]) {
+                                root.workspaceController.selectCalendar(String(options[index].value || "default"))
+                            }
+                        }
+                    }
+
+                    onActionTriggered: function(actionId) {
+                        if (root.workspaceController === null) {
+                            return
+                        }
+                        if (actionId === "refresh") {
+                            root.workspaceController.refresh()
+                        } else if (actionId === "run_cpm") {
+                            root.workspaceController.recalculateSchedule()
+                        }
+                    }
+                }
+
                 Rectangle {
                     Layout.fillWidth: true
                     color: Theme.AppTheme.surfaceRaised
@@ -501,79 +574,6 @@ AppLayouts.WorkspaceFrame {
                                 Layout.fillHeight: true
                                 Layout.margins: Theme.AppTheme.marginMd
                                 spacing: Theme.AppTheme.spacingSm
-
-                                SchedulingActionBar {
-                                    Layout.fillWidth: true
-                                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                                    actions: [
-                                        { "id": "refresh", "label": "Refresh", "icon": "refresh", "enabled": true },
-                                        { "id": "run_cpm", "label": "Run CPM", "icon": "approve", "enabled": String(root.workspaceController ? root.workspaceController.selectedProjectId : "").length > 0 }
-                                    ]
-
-                                    AppControls.ComboBox {
-                                        Layout.preferredWidth: 210
-                                        model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-                                        textRole: "label"
-                                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                        currentIndex: root._optionIndexForValue(
-                                            root.workspaceController ? (root.workspaceController.projectOptions || []) : [],
-                                            root.workspaceController ? root.workspaceController.selectedProjectId : ""
-                                        )
-                                        onActivated: function(index) {
-                                            const options = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-                                            if (root.workspaceController !== null && options[index]) {
-                                                root.workspaceController.selectProject(String(options[index].value || ""))
-                                            }
-                                        }
-                                    }
-
-                                    AppControls.ComboBox {
-                                        Layout.preferredWidth: 180
-                                        model: root.workspaceController ? (root.workspaceController.baselineOptions || []) : []
-                                        textRole: "label"
-                                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                            && (root.workspaceController ? (root.workspaceController.baselineOptions || []).length > 0 : false)
-                                        currentIndex: root._optionIndexForValue(
-                                            root.workspaceController ? (root.workspaceController.baselineOptions || []) : [],
-                                            root.workspaceController ? root.workspaceController.selectedBaselineId : ""
-                                        )
-                                        onActivated: function(index) {
-                                            const options = root.workspaceController ? (root.workspaceController.baselineOptions || []) : []
-                                            if (root.workspaceController !== null && options[index]) {
-                                                root.workspaceController.selectBaseline(String(options[index].value || ""))
-                                            }
-                                        }
-                                    }
-
-                                    AppControls.ComboBox {
-                                        Layout.preferredWidth: 170
-                                        model: root.workspaceController ? (root.workspaceController.calendarOptions || []) : []
-                                        textRole: "label"
-                                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                            && (root.workspaceController ? (root.workspaceController.calendarOptions || []).length > 0 : false)
-                                        currentIndex: root._optionIndexForValue(
-                                            root.workspaceController ? (root.workspaceController.calendarOptions || []) : [],
-                                            root.workspaceController ? root.workspaceController.selectedCalendarId : "default"
-                                        )
-                                        onActivated: function(index) {
-                                            const options = root.workspaceController ? (root.workspaceController.calendarOptions || []) : []
-                                            if (root.workspaceController !== null && options[index]) {
-                                                root.workspaceController.selectCalendar(String(options[index].value || "default"))
-                                            }
-                                        }
-                                    }
-
-                                    onActionTriggered: function(actionId) {
-                                        if (root.workspaceController === null) {
-                                            return
-                                        }
-                                        if (actionId === "refresh") {
-                                            root.workspaceController.refresh()
-                                        } else if (actionId === "run_cpm") {
-                                            root.workspaceController.recalculateSchedule()
-                                        }
-                                    }
-                                }
 
                                 AppWidgets.TableToolbar {
                                     id: activityToolbar
