@@ -22,7 +22,6 @@ AppWidgets.EntityDialog {
     subtitle:     root.modeTitle === "Create Component"
         ? "Capture component identity, supplier context, and lifecycle state under the selected asset."
         : "Update the component record, supplier context, and lifecycle state."
-    errorMessage: root.validationMessage
     primaryText:  root.modeTitle === "Create Component" ? "Create Component" : "Save Changes"
     primaryIcon:  root.modeTitle === "Create Component" ? "add" : "save"
     width: 760
@@ -60,7 +59,7 @@ AppWidgets.EntityDialog {
         notesField.text = String(state.notes || "")
         activeCheck.checked = state.isActive === undefined ? true : !!state.isActive
         criticalCheck.checked = !!state.isCriticalComponent
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -96,18 +95,18 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (String((root.assetOptions[assetCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose an asset before saving."
+            root.errorMessage = "Choose an asset before saving."
             return
         }
         if (componentCodeField.text.trim().length === 0) {
-            root.validationMessage = "Component code is required."
+            root.errorMessage = "Component code is required."
             return
         }
         if (nameField.text.trim().length === 0) {
-            root.validationMessage = "Component name is required."
+            root.errorMessage = "Component name is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

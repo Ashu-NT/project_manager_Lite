@@ -22,7 +22,6 @@ AppWidgets.EntityDialog {
     subtitle:     root.modeTitle === "Create System"
         ? "Capture system hierarchy and lifecycle state for maintenance planning scope."
         : "Update the system record, hierarchy context, and lifecycle state."
-    errorMessage: root.validationMessage
     primaryText:  root.modeTitle === "Create System" ? "Create System" : "Save Changes"
     primaryIcon:  root.modeTitle === "Create System" ? "add" : "save"
     width: 720
@@ -53,7 +52,7 @@ AppWidgets.EntityDialog {
         systemTypeField.text = String(state.systemType || "")
         notesField.text = String(state.notes || "")
         activeCheck.checked = state.isActive === undefined ? true : !!state.isActive
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -82,18 +81,18 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (String((root.siteOptions[siteCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a site before saving."
+            root.errorMessage = "Choose a site before saving."
             return
         }
         if (systemCodeField.text.trim().length === 0) {
-            root.validationMessage = "System code is required."
+            root.errorMessage = "System code is required."
             return
         }
         if (nameField.text.trim().length === 0) {
-            root.validationMessage = "System name is required."
+            root.errorMessage = "System name is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

@@ -20,7 +20,6 @@ AppWidgets.EntityDialog {
     property var workOrderTypeOptions: []
     property var priorityOptions: []
     property var vendorOptions: []
-    property string validationMessage: ""
     readonly property bool createMode: root.modeTitle === "Create Work Order"
     readonly property bool workRequestSourceSelected: String((root.sourceTypeOptions[sourceTypeCombo.currentIndex] || { "value": "" }).value || "") === "WORK_REQUEST"
     readonly property bool showWorkRequestSourceCombo: root.createMode && root.workRequestSourceSelected
@@ -32,7 +31,6 @@ AppWidgets.EntityDialog {
     subtitle:     root.createMode
         ? "Capture execution-scope, source, and readiness details before the work order enters planning."
         : "Update the work-order execution scope, sourcing, and readiness flags."
-    errorMessage: root.validationMessage
     primaryText:  root.createMode ? "Create Work Order" : "Save Changes"
     primaryIcon:  root.createMode ? "add" : "save"
     width: 760
@@ -73,7 +71,7 @@ AppWidgets.EntityDialog {
         approvalRequiredCheck.checked = !!state.approvalRequired
         preventiveCheck.checked = !!state.isPreventive
         emergencyCheck.checked = !!state.isEmergency
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -121,34 +119,34 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (String((root.siteOptions[siteCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a site before saving."
+            root.errorMessage = "Choose a site before saving."
             return
         }
         if (workOrderCodeField.text.trim().length === 0) {
-            root.validationMessage = "Work order code is required."
+            root.errorMessage = "Work order code is required."
             return
         }
         if (String((root.workOrderTypeOptions[workOrderTypeCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a work-order type before saving."
+            root.errorMessage = "Choose a work-order type before saving."
             return
         }
         if (root.createMode && String((root.sourceTypeOptions[sourceTypeCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a source type before saving."
+            root.errorMessage = "Choose a source type before saving."
             return
         }
         if (root.createMode && root.workRequestSourceSelected && String((root.sourceWorkRequestOptions[sourceWorkRequestCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a source work request before saving."
+            root.errorMessage = "Choose a source work request before saving."
             return
         }
         if ((!root.createMode || !root.workRequestSourceSelected) && titleField.text.trim().length === 0) {
-            root.validationMessage = "Title is required."
+            root.errorMessage = "Title is required."
             return
         }
         if (String((root.priorityOptions[priorityCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a priority."
+            root.errorMessage = "Choose a priority."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

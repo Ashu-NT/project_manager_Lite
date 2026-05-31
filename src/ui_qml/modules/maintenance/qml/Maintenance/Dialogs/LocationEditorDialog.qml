@@ -21,7 +21,6 @@ AppWidgets.EntityDialog {
     subtitle:     root.modeTitle === "Create Location"
         ? "Capture site location hierarchy, lifecycle state, and scope notes for maintenance anchors."
         : "Update the location record, hierarchy context, and lifecycle state."
-    errorMessage: root.validationMessage
     primaryText:  root.modeTitle === "Create Location" ? "Create Location" : "Save Changes"
     primaryIcon:  root.modeTitle === "Create Location" ? "add" : "save"
     width: 720
@@ -51,7 +50,7 @@ AppWidgets.EntityDialog {
         locationTypeField.text = String(state.locationType || "")
         notesField.text = String(state.notes || "")
         activeCheck.checked = state.isActive === undefined ? true : !!state.isActive
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -78,18 +77,18 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (String((root.siteOptions[siteCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a site before saving."
+            root.errorMessage = "Choose a site before saving."
             return
         }
         if (locationCodeField.text.trim().length === 0) {
-            root.validationMessage = "Location code is required."
+            root.errorMessage = "Location code is required."
             return
         }
         if (nameField.text.trim().length === 0) {
-            root.validationMessage = "Location name is required."
+            root.errorMessage = "Location name is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

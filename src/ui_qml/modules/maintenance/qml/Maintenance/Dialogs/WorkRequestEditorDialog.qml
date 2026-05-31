@@ -17,7 +17,6 @@ AppWidgets.EntityDialog {
     property var componentOptions: []
     property var sourceTypeOptions: []
     property var priorityOptions: []
-    property string validationMessage: ""
 
     signal submitted(var payload)
 
@@ -25,7 +24,6 @@ AppWidgets.EntityDialog {
     subtitle:     root.modeTitle === "Create Work Request"
         ? "Capture intake details before the request is triaged or converted into execution planning."
         : "Update the work-request intake record, asset scope, and triage context."
-    errorMessage: root.validationMessage
     primaryText:  root.modeTitle === "Create Work Request" ? "Create Request" : "Save Changes"
     primaryIcon:  root.modeTitle === "Create Work Request" ? "add" : "save"
     width: 720
@@ -61,7 +59,7 @@ AppWidgets.EntityDialog {
         safetyRiskField.text = String(state.safetyRiskLevel || "")
         productionImpactField.text = String(state.productionImpactLevel || "")
         notesField.text = String(state.notes || "")
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -97,26 +95,26 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (String((root.siteOptions[siteCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a site before saving."
+            root.errorMessage = "Choose a site before saving."
             return
         }
         if (String((root.sourceTypeOptions[sourceTypeCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a source type before saving."
+            root.errorMessage = "Choose a source type before saving."
             return
         }
         if (requestTypeField.text.trim().length === 0) {
-            root.validationMessage = "Request type is required."
+            root.errorMessage = "Request type is required."
             return
         }
         if (titleField.text.trim().length === 0) {
-            root.validationMessage = "Title is required."
+            root.errorMessage = "Title is required."
             return
         }
         if (String((root.priorityOptions[priorityCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a priority."
+            root.errorMessage = "Choose a priority."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

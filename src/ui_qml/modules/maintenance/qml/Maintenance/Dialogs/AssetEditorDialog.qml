@@ -25,7 +25,6 @@ AppWidgets.EntityDialog {
     subtitle:     root.modeTitle === "Create Asset"
         ? "Capture asset identity, anchor context, lifecycle state, and maintenance strategy."
         : "Update the asset record, anchor context, and maintenance strategy."
-    errorMessage: root.validationMessage
     primaryText:  root.modeTitle === "Create Asset" ? "Create Asset" : "Save Changes"
     primaryIcon:  root.modeTitle === "Create Asset" ? "add" : "save"
     width: 820
@@ -66,7 +65,7 @@ AppWidgets.EntityDialog {
         notesField.text = String(state.notes || "")
         activeCheck.checked = state.isActive === undefined ? true : !!state.isActive
         shutdownCheck.checked = !!state.requiresShutdownForMajorWork
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -108,22 +107,22 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (String((root.siteOptions[siteCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a site before saving."
+            root.errorMessage = "Choose a site before saving."
             return
         }
         if (String((root.locationOptions[locationCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a location before saving."
+            root.errorMessage = "Choose a location before saving."
             return
         }
         if (assetCodeField.text.trim().length === 0) {
-            root.validationMessage = "Asset code is required."
+            root.errorMessage = "Asset code is required."
             return
         }
         if (nameField.text.trim().length === 0) {
-            root.validationMessage = "Asset name is required."
+            root.errorMessage = "Asset name is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 
