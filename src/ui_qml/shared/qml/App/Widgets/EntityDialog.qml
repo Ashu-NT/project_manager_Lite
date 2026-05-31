@@ -15,6 +15,15 @@ import App.Theme 1.0 as Theme
 //   • Standardised footer: [Destructive] ←spacer→ [spinner] [Cancel] [Primary]
 //   • Busy state disables all buttons
 //
+// Submit contract:
+//   The Primary button calls root.submitDialog() if the dialog defines one,
+//   otherwise it falls back to accept(). submitDialog() should VALIDATE first:
+//   on failure set root.errorMessage and return (the dialog stays OPEN); on
+//   success emit a payload signal (e.g. submitted) — the host then closes the
+//   dialog only after the controller reports success (see DialogHost
+//   _handleResult). This is why submit does NOT auto-close: validation and
+//   backend errors must remain visible inside the open dialog.
+//
 // Usage:
 //   AppWidgets.EntityDialog {
 //       title:        "Edit Project"
@@ -22,7 +31,10 @@ import App.Theme 1.0 as Theme
 //       errorMessage: root.validationMessage
 //       primaryText:  "Save Changes"
 //       primaryIcon:  "save"
-//       onAccepted:   root.submitDialog()
+//       function submitDialog() {            // validate → emit; do NOT close
+//           if (!valid) { errorMessage = "..."; return }
+//           submitted(buildPayload())
+//       }
 //       onRejected:   root.close()
 //
 //       GridLayout { ... }   // form fields go here
@@ -199,7 +211,16 @@ AppControls.CenteredDialog {
             text:     root.primaryText
             iconName: root.primaryIcon
             enabled:  root.primaryEnabled && !root.busy
-            onClicked: root.accept()
+            // If the dialog defines submitDialog(), call it directly so it can
+            // validate and keep the dialog OPEN on failure (closing is then
+            // owned by the host's _handleResult on success). Dialogs without a
+            // submitDialog() fall back to accept() → onAccepted (legacy path).
+            onClicked: {
+                if (typeof root.submitDialog === "function")
+                    root.submitDialog()
+                else
+                    root.accept()
+            }
         }
     }
 }

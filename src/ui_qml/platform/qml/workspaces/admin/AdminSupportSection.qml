@@ -236,8 +236,24 @@ ColumnLayout {
     AppWidgets.InlineMessage {
         Layout.fillWidth: true
         visible: root._busy
+            && String(root.supportController ? root.supportController.errorMessage : "").length === 0
         tone:    "info"
         message: "Processing..."
+    }
+
+    AppWidgets.InlineMessage {
+        Layout.fillWidth: true
+        visible: String(root.supportController ? root.supportController.errorMessage : "").length > 0
+        tone:    "danger"
+        message: root.supportController ? root.supportController.errorMessage : ""
+    }
+
+    AppWidgets.InlineMessage {
+        Layout.fillWidth: true
+        visible: String(root.supportController ? root.supportController.feedbackMessage : "").length > 0
+            && String(root.supportController ? root.supportController.errorMessage : "").length === 0
+        tone:    "success"
+        message: root.supportController ? root.supportController.feedbackMessage : ""
     }
 
     // ── Top panels: Release Management | Runtime Status ───────────

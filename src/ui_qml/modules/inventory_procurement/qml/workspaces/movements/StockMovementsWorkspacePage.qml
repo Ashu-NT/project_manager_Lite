@@ -56,6 +56,13 @@ AppLayouts.WorkspaceFrame {
             tone: "danger"
             message: root.workspaceController ? root.workspaceController.errorMessage : ""
         }
+        AppWidgets.InlineMessage {
+            Layout.fillWidth: true
+            visible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+            tone: "success"
+            message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+        }
 
         AppWidgets.TableToolbar {
             id: tableToolbar

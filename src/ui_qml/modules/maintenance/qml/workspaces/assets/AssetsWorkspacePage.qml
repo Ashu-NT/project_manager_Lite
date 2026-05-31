@@ -470,6 +470,23 @@ AppLayouts.WorkspaceFrame {
                 onEditRequested: root._openEditDialogForCurrentTab()
                 onDeleteRequested: detailPage.open = false
 
+                // ── Detail-scoped messages ─────────────────────────
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: detailPage.open
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                }
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: detailPage.open
+                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                    tone: "success"
+                    message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+                }
+
                 AssetLibraryDetailSection {
                     width: parent.width
                     detailPage: detailPage
