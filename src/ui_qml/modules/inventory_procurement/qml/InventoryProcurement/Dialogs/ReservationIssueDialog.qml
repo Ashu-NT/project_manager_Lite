@@ -9,14 +9,12 @@ AppWidgets.EntityDialog {
     id: root
 
     property var reservationData: ({})
-    property string validationMessage: ""
 
     signal submitted(var payload)
 
     width: 560
     title: "Issue Reservation"
     subtitle: "Issue reserved stock to the requesting work order or project."
-    errorMessage: root.validationMessage
     primaryText: "Issue Stock"
     primaryIcon: "approve"
     onAccepted: root.submitDialog()

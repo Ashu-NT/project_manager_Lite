@@ -9,7 +9,6 @@ AppWidgets.EntityDialog {
     id: root
 
     property var documentOptions: []
-    property string validationMessage: ""
 
     signal submitted(string documentId)
 

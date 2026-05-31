@@ -14,13 +14,11 @@ AppWidgets.EntityDialog {
         { value: "advanced",     label: "Advanced"     },
         { value: "expert",       label: "Expert"       }
     ]
-    property string validationMessage: ""
 
     signal submitted(var payload)
 
     title:        "Add Skill"
     subtitle:     "Record a skill or competency for this resource."
-    errorMessage: root.validationMessage
     primaryText:  "Add Skill"
     primaryIcon:  "add"
     width: 480
@@ -42,15 +40,15 @@ AppWidgets.EntityDialog {
         skillNameField.text = ""
         proficiencyCombo.currentIndex = 1
         notesField.text = ""
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function _submit() {
         if (skillCodeField.text.trim().length === 0) {
-            root.validationMessage = "Skill code is required."
+            root.errorMessage = "Skill code is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted({
             "skillCode": skillCodeField.text.trim(),
             "skillName": skillNameField.text.trim(),

@@ -12,7 +12,6 @@ AppWidgets.EntityDialog {
     property var storeroomOptions: []
     property var requisitionLineOptions: []
     property var purchaseOrderData: ({})
-    property string validationMessage: ""
 
     signal submitted(var payload)
 

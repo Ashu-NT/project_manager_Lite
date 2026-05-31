@@ -25,20 +25,21 @@ Item {
     property var collaborationTarget: ({})
     property var bulkDeleteTargetIds: []
 
-    signal createRequested(var payload)
-    signal updateRequested(var payload)
-    signal progressRequested(var payload)
     signal deleteRequested(string taskId)
-    signal createAssignmentRequested(var payload)
-    signal updateAssignmentAllocationRequested(var payload)
-    signal setAssignmentHoursRequested(var payload)
     signal deleteAssignmentRequested(string assignmentId)
-    signal createDependencyRequested(var payload)
     signal deleteDependencyRequested(string dependencyId)
-    signal postTaskCommentRequested(var payload)
     signal bulkDeleteRequested(var taskIds)
     signal taskPresenceStarted(string taskId, string activity)
     signal taskPresenceEnded(string taskId)
+
+    function _handleResult(dialog, result) {
+        if (!result || result.ok === false) {
+            dialog.errorMessage = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+        } else {
+            dialog.errorMessage = ""
+            dialog.close()
+        }
+    }
 
     function openCreateDialog() {
         root.editTarget = {
@@ -49,6 +50,7 @@ Item {
         }
         editorDialog.modeTitle = "Create Task"
         editorDialog.taskData = root.editTarget
+        editorDialog.errorMessage = ""
         editorDialog.open()
     }
 
@@ -60,6 +62,7 @@ Item {
         }
         editorDialog.modeTitle = "Edit Task"
         editorDialog.taskData = root.editTarget
+        editorDialog.errorMessage = ""
         editorDialog.open()
     }
 
@@ -70,6 +73,7 @@ Item {
             root.taskPresenceStarted(String(state.taskId), "updating progress")
         }
         progressDialog.taskData = root.progressTarget
+        progressDialog.errorMessage = ""
         progressDialog.open()
     }
 
@@ -83,6 +87,7 @@ Item {
         assignmentEditorDialog.mode = "create"
         assignmentEditorDialog.taskData = taskData || ({})
         assignmentEditorDialog.assignmentData = ({})
+        assignmentEditorDialog.errorMessage = ""
         assignmentEditorDialog.open()
     }
 
@@ -91,12 +96,14 @@ Item {
         assignmentEditorDialog.mode = "allocation"
         assignmentEditorDialog.taskData = taskData || root.selectedTaskData || ({})
         assignmentEditorDialog.assignmentData = root.assignmentTarget
+        assignmentEditorDialog.errorMessage = ""
         assignmentEditorDialog.open()
     }
 
     function openAssignmentHoursDialog(assignmentData) {
         root.assignmentTarget = assignmentData || ({})
         assignmentHoursDialog.assignmentData = root.assignmentTarget
+        assignmentHoursDialog.errorMessage = ""
         assignmentHoursDialog.open()
     }
 
@@ -108,6 +115,7 @@ Item {
     function openCreateDependencyDialog(taskData) {
         root.dependencyTarget = taskData || ({})
         dependencyEditorDialog.taskData = root.dependencyTarget
+        dependencyEditorDialog.errorMessage = ""
         dependencyEditorDialog.open()
     }
 
@@ -123,6 +131,7 @@ Item {
             root.taskPresenceStarted(String(state.taskId || state.id), "commenting")
         }
         collaborationComposerDialog.taskData = root.collaborationTarget
+        collaborationComposerDialog.errorMessage = ""
         collaborationComposerDialog.open()
     }
 
@@ -138,6 +147,7 @@ Item {
         projectOptions: root.projectOptions
         selectedProjectId: root.selectedProjectId
         statusOptions: root.statusOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onClosed: {
             const state = root.editTarget && root.editTarget.state
@@ -149,18 +159,20 @@ Item {
         }
 
         onSubmitted: function(payload) {
+            if (root.workspaceController === null) return
             const state = root.editTarget && root.editTarget.state
                 ? root.editTarget.state
                 : (root.editTarget || {})
+            var result
             if (state.taskId) {
                 payload.projectId = String(state.projectId || payload.projectId || root.selectedProjectId || "")
                 payload.taskId = String(state.taskId)
                 payload.expectedVersion = state.version
-                root.updateRequested(payload)
+                result = root.workspaceController.updateTask(payload)
             } else {
-                root.createRequested(payload)
+                result = root.workspaceController.createTask(payload)
             }
-            editorDialog.close()
+            root._handleResult(editorDialog, result)
         }
     }
 
@@ -169,6 +181,7 @@ Item {
         objectName: "taskProgressDialog"
 
         statusOptions: root.statusOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onClosed: {
             const state = root.progressTarget && root.progressTarget.state
@@ -180,8 +193,9 @@ Item {
         }
 
         onSubmitted: function(payload) {
-            root.progressRequested(payload)
-            progressDialog.close()
+            if (root.workspaceController === null) return
+            const result = root.workspaceController.updateProgress(payload)
+            root._handleResult(progressDialog, result)
         }
     }
 
@@ -191,14 +205,17 @@ Item {
 
         resourceOptions: root.assignmentOptions
         workspaceController: root.workspaceController
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
+            if (root.workspaceController === null) return
+            var result
             if (assignmentEditorDialog.mode === "create") {
-                root.createAssignmentRequested(payload)
+                result = root.workspaceController.createAssignment(payload)
             } else {
-                root.updateAssignmentAllocationRequested(payload)
+                result = root.workspaceController.updateAssignmentAllocation(payload)
             }
-            assignmentEditorDialog.close()
+            root._handleResult(assignmentEditorDialog, result)
         }
     }
 
@@ -206,9 +223,12 @@ Item {
         id: assignmentHoursDialog
         objectName: "taskAssignmentHoursDialog"
 
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+
         onSubmitted: function(payload) {
-            root.setAssignmentHoursRequested(payload)
-            assignmentHoursDialog.close()
+            if (root.workspaceController === null) return
+            const result = root.workspaceController.setAssignmentHours(payload)
+            root._handleResult(assignmentHoursDialog, result)
         }
     }
 
@@ -218,10 +238,12 @@ Item {
 
         taskOptions: root.dependencyTaskOptions
         dependencyTypeOptions: root.dependencyTypeOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
-            root.createDependencyRequested(payload)
-            dependencyEditorDialog.close()
+            if (root.workspaceController === null) return
+            const result = root.workspaceController.createDependency(payload)
+            root._handleResult(dependencyEditorDialog, result)
         }
     }
 
@@ -231,6 +253,7 @@ Item {
 
         mentionOptions: root.collaborationMentionOptions
         documentOptions: root.collaborationDocumentOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onClosed: {
             const state = root.collaborationTarget && root.collaborationTarget.state
@@ -242,8 +265,9 @@ Item {
         }
 
         onSubmitted: function(payload) {
-            root.postTaskCommentRequested(payload)
-            collaborationComposerDialog.close()
+            if (root.workspaceController === null) return
+            const result = root.workspaceController.postTaskComment(payload)
+            root._handleResult(collaborationComposerDialog, result)
         }
     }
 
@@ -332,4 +356,3 @@ Item {
         }
     }
 }
-

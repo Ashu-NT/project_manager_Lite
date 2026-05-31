@@ -6,15 +6,22 @@ import ProjectManagement.Dialogs 1.0 as ProjectManagementDialogs
 Item {
     id: root
 
+    property var workspaceController: null
     property string selectedProjectId: ""
     property var taskOptions: []
     property var costTypeOptions: []
     property var editTarget: ({})
     property var deleteTarget: ({})
 
-    signal createRequested(var payload)
-    signal updateRequested(var payload)
     signal deleteRequested(string costId)
+
+    function _handleResult(dialog, result) {
+        if (!result || result.success) {
+            dialog.close()
+        } else {
+            dialog.errorMessage = result.error || "An unexpected error occurred."
+        }
+    }
 
     function openCreateDialog() {
         root.editTarget = {
@@ -27,6 +34,7 @@ Item {
         }
         editorDialog.modeTitle = "Create Cost Item"
         editorDialog.costData = root.editTarget
+        editorDialog.errorMessage = ""
         editorDialog.open()
     }
 
@@ -34,6 +42,7 @@ Item {
         root.editTarget = costData || ({})
         editorDialog.modeTitle = "Edit Cost Item"
         editorDialog.costData = root.editTarget
+        editorDialog.errorMessage = ""
         editorDialog.open()
     }
 
@@ -47,18 +56,21 @@ Item {
 
         taskOptions: root.taskOptions
         costTypeOptions: root.costTypeOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
+            if (!root.workspaceController) return
             var state = root.editTarget && root.editTarget.state ? root.editTarget.state : (root.editTarget || {})
+            var result
             if (state.costId) {
                 payload.costId = state.costId
                 payload.expectedVersion = state.version
-                root.updateRequested(payload)
+                result = root.workspaceController.updateCostItem(payload)
             } else {
                 payload.projectId = root.selectedProjectId
-                root.createRequested(payload)
+                result = root.workspaceController.createCostItem(payload)
             }
-            editorDialog.close()
+            root._handleResult(editorDialog, result)
         }
     }
 
@@ -82,4 +94,3 @@ Item {
         }
     }
 }
-

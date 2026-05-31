@@ -12,7 +12,6 @@ AppWidgets.EntityDialog {
 
     property var purchaseOrderData: ({})
     property var purchaseOrderLines: []
-    property string validationMessage: ""
 
     signal submitted(var payload)
 

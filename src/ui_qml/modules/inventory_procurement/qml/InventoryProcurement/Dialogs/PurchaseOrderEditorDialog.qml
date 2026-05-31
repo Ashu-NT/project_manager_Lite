@@ -13,7 +13,6 @@ AppWidgets.EntityDialog {
     property var supplierOptions: []
     property var requisitionOptions: []
     property var purchaseOrderData: ({})
-    property string validationMessage: ""
 
     signal submitted(var payload)
 
@@ -22,7 +21,6 @@ AppWidgets.EntityDialog {
     subtitle: root.modeTitle === "Create Purchase Order"
         ? "Commit approved demand to a supplier with a clear site scope, expected delivery date, and shared source-requisition context."
         : "Update the purchase order scope, supplier details, and expected delivery before lines are committed."
-    errorMessage: root.validationMessage
     primaryText: root.modeTitle === "Create Purchase Order" ? "Create Order" : "Save Changes"
     primaryIcon: root.modeTitle === "Create Purchase Order" ? "add" : "save"
     onAccepted: root.submitDialog()

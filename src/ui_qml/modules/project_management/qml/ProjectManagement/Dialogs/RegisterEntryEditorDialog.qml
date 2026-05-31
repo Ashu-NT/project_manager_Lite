@@ -16,7 +16,6 @@ AppWidgets.EntityDialog {
     property var entryData: ({})
     property bool typeFieldVisible: true
     property string fixedTypeValue: "RISK"
-    property string validationMessage: ""
     readonly property var editableProjectOptions: (root.projectOptions || []).filter(function(option) {
         return String(option.value || "").toLowerCase() !== "all"
     })
@@ -34,7 +33,6 @@ AppWidgets.EntityDialog {
 
     title:        root.modeTitle
     subtitle:     "Capture the project, entry type, severity, status, and response context for this governance item."
-    errorMessage: root.validationMessage
     primaryText:  root.modeTitle.indexOf("Create") === 0 ? "Create Entry" : "Save Changes"
     primaryIcon:  root.modeTitle.indexOf("Create") === 0 ? "add" : "save"
     width: 680
@@ -65,7 +63,7 @@ AppWidgets.EntityDialog {
         descriptionField.text = String(state.description || "")
         impactField.text = String(state.impactSummary || "")
         responseField.text = String(state.responsePlan || "")
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -89,18 +87,18 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (root.editableProjectOptions.length === 0) {
-            root.validationMessage = "Create a project before adding a register entry."
+            root.errorMessage = "Create a project before adding a register entry."
             return
         }
         if (String((root.editableProjectOptions[projectCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a project before saving."
+            root.errorMessage = "Choose a project before saving."
             return
         }
         if (titleField.text.trim().length === 0) {
-            root.validationMessage = "Register title is required."
+            root.errorMessage = "Register title is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

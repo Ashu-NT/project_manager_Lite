@@ -12,7 +12,6 @@ AppWidgets.EntityDialog {
     property var taskOptions: []
     property var costTypeOptions: []
     property var costData: ({})
-    property string validationMessage: ""
     readonly property bool editingExistingCost: {
         var state = root.costData && root.costData.state ? root.costData.state : (root.costData || {})
         return String(state.costId || "").length > 0
@@ -28,7 +27,6 @@ AppWidgets.EntityDialog {
     subtitle: root.editingExistingCost
         ? "Adjust the commercial line, amounts, or finance coding for this cost item."
         : "Add a financial control line for the selected project and optionally link it to a task."
-    errorMessage: root.validationMessage
     primaryText: root.editingExistingCost ? "Save Changes" : "Create Cost Item"
     primaryIcon: root.editingExistingCost ? "save" : "add"
 
@@ -54,7 +52,7 @@ AppWidgets.EntityDialog {
         incurredDateField.text = String(state.incurredDate || "")
         costTypeCombo.currentIndex = root.indexForValue(root.costTypeOptions, state.costType || "OVERHEAD")
         taskCombo.currentIndex = root.indexForValue(root.taskOptions, state.taskId || "")
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -72,14 +70,14 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (descriptionField.text.trim().length === 0) {
-            root.validationMessage = "Description is required."
+            root.errorMessage = "Description is required."
             return
         }
         if (plannedAmountField.text.trim().length === 0) {
-            root.validationMessage = "Planned amount is required."
+            root.errorMessage = "Planned amount is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

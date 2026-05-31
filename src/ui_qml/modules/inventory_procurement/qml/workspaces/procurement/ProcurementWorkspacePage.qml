@@ -147,28 +147,7 @@ AppLayouts.WorkspaceFrame {
                 itemOptions: root.workspaceController ? (root.workspaceController.itemOptions || []) : []
                 requisitionOptions: root.workspaceController ? (root.workspaceController.requisitionOptions || []) : []
                 requisitionLineOptions: root.workspaceController ? (root.workspaceController.requisitionLineOptions || []) : []
-
-                onCreateRequisitionRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createRequisition(payload)
-                }
-                onUpdateRequisitionRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateRequisition(payload)
-                }
-                onAddRequisitionLineRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.addRequisitionLine(payload)
-                }
-                onCreatePurchaseOrderRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createPurchaseOrder(payload)
-                }
-                onUpdatePurchaseOrderRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updatePurchaseOrder(payload)
-                }
-                onAddPurchaseOrderLineRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.addPurchaseOrderLine(payload)
-                }
-                onPostReceiptRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.postReceipt(payload)
-                }
+                workspaceController: root.workspaceController
             }
         }
     }

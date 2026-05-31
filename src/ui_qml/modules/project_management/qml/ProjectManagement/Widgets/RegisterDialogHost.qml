@@ -6,6 +6,7 @@ import ProjectManagement.Dialogs 1.0 as ProjectManagementDialogs
 Item {
     id: root
 
+    property var workspaceController: null
     property var projectOptions: []
     property var typeOptions: []
     property var statusOptions: []
@@ -16,9 +17,15 @@ Item {
     property var editTarget: ({})
     property var deleteTarget: ({})
 
-    signal createRequested(var payload)
-    signal updateRequested(var payload)
     signal deleteRequested(string entryId)
+
+    function _handleResult(dialog, result) {
+        if (!result || result.success) {
+            dialog.close()
+        } else {
+            dialog.errorMessage = result.error || "An unexpected error occurred."
+        }
+    }
 
     function openCreateDialog() {
         root.editTarget = {
@@ -30,6 +37,7 @@ Item {
         }
         editorDialog.modeTitle = "Create " + root.entryLabel
         editorDialog.entryData = root.editTarget
+        editorDialog.errorMessage = ""
         editorDialog.open()
     }
 
@@ -37,6 +45,7 @@ Item {
         root.editTarget = entryData || ({})
         editorDialog.modeTitle = "Edit " + root.entryLabel
         editorDialog.entryData = root.editTarget
+        editorDialog.errorMessage = ""
         editorDialog.open()
     }
 
@@ -54,17 +63,20 @@ Item {
         severityOptions: root.severityOptions
         typeFieldVisible: root.typeFieldVisible
         fixedTypeValue: root.fixedTypeValue
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
+            if (!root.workspaceController) return
             var state = root.editTarget && root.editTarget.state ? root.editTarget.state : (root.editTarget || {})
+            var result
             if (state.entryId) {
                 payload.entryId = state.entryId
                 payload.expectedVersion = state.version
-                root.updateRequested(payload)
+                result = root.workspaceController.updateEntry(payload)
             } else {
-                root.createRequested(payload)
+                result = root.workspaceController.createEntry(payload)
             }
-            editorDialog.close()
+            root._handleResult(editorDialog, result)
         }
     }
 
@@ -88,4 +100,3 @@ Item {
         }
     }
 }
-

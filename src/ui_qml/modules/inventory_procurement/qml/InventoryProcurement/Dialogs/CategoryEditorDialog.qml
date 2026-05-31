@@ -11,7 +11,6 @@ AppWidgets.EntityDialog {
     property string modeTitle: "Create Category"
     property var categoryTypeOptions: []
     property var categoryData: ({})
-    property string validationMessage: ""
     readonly property var formCategoryTypeOptions: categoryTypeOptions.filter(function(option) {
         return String(option.value || "") !== "all"
     })
@@ -22,7 +21,6 @@ AppWidgets.EntityDialog {
     subtitle:     root.modeTitle === "Create Category"
         ? "Define a reusable inventory category and its cross-module usage flags."
         : "Update category governance, equipment scope, and usage flags."
-    errorMessage: root.validationMessage
     primaryText:  "Save"
     primaryIcon:  "save"
     width: 560

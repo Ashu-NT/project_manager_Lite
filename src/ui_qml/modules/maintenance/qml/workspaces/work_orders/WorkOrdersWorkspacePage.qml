@@ -92,12 +92,8 @@ AppLayouts.WorkspaceFrame {
         statusOptions: root.workspaceController ? (root.workspaceController.formStatusOptions || []) : []
         vendorOptions: root.workspaceController ? (root.workspaceController.formVendorOptions || []) : []
 
-                onCreateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createWorkOrder(payload)
-                }
-                onUpdateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateWorkOrder(payload)
-                }
+                workspaceController: root.workspaceController
+
                 onStatusChangeRequested: function(workOrderId, statusValue, expectedVersion) {
                     if (root.workspaceController !== null)
                         root.workspaceController.setWorkOrderStatus(workOrderId, statusValue, expectedVersion)

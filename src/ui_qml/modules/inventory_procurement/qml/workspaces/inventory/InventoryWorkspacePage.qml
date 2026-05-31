@@ -141,28 +141,7 @@ AppLayouts.WorkspaceFrame {
                 managerPartyOptions: root.workspaceController ? (root.workspaceController.managerPartyOptions || []) : []
                 itemOptions: root.workspaceController ? (root.workspaceController.itemOptions || []) : []
                 storeroomOptions: root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
-
-                onCreateStoreroomRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createStoreroom(payload)
-                }
-                onUpdateStoreroomRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateStoreroom(payload)
-                }
-                onPostOpeningBalanceRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.postOpeningBalance(payload)
-                }
-                onPostAdjustmentRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.postAdjustment(payload)
-                }
-                onIssueStockRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.issueStock(payload)
-                }
-                onReturnStockRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.returnStock(payload)
-                }
-                onTransferStockRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.transferStock(payload)
-                }
+                workspaceController: root.workspaceController
             }
         }
     }

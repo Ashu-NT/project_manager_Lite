@@ -11,7 +11,6 @@ AppWidgets.EntityDialog {
     property string modeTitle: "Create Project"
     property var statusOptions: []
     property var projectData: ({})
-    property string validationMessage: ""
     readonly property var workflowStatusOptions: (root.statusOptions || []).filter(function(option) {
         return String(option.value || "").toLowerCase() !== "all"
     })
@@ -22,7 +21,6 @@ AppWidgets.EntityDialog {
     subtitle:     root.modeTitle === "Create Project"
         ? "Set up a project record and delivery baseline context."
         : "Update the project profile, schedule dates, or status."
-    errorMessage: root.validationMessage
     primaryText:  root.modeTitle === "Create Project" ? "Create Project" : "Save Changes"
     primaryIcon:  root.modeTitle === "Create Project" ? "add" : "save"
     width: 560
@@ -51,7 +49,7 @@ AppWidgets.EntityDialog {
         endDateField.text = String(state.endDate || "")
         descriptionField.text = String(state.description || "")
         statusCombo.currentIndex = root.statusIndexForValue(state.status || "PLANNED")
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -71,10 +69,10 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (nameField.text.trim().length === 0) {
-            root.validationMessage = "Project name is required."
+            root.errorMessage = "Project name is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

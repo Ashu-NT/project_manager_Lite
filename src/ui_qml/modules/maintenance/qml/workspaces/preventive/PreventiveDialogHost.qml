@@ -4,19 +4,20 @@ import Maintenance.Dialogs 1.0 as MaintenanceDialogs
 Item {
     id: root
 
+    property var workspaceController: null
     property var planFormOptions: ({})
     property var planTaskFormOptions: ({})
     property var templateFormOptions: ({})
     property var stepFormOptions: ({})
 
-    signal createPlanRequested(var payload)
-    signal updatePlanRequested(var payload)
-    signal createPlanTaskRequested(var payload)
-    signal updatePlanTaskRequested(var payload)
-    signal createTaskTemplateRequested(var payload)
-    signal updateTaskTemplateRequested(var payload)
-    signal createTaskStepRequested(var payload)
-    signal updateTaskStepRequested(var payload)
+    function _handleResult(dialog, result) {
+        if (!result || result.ok === false) {
+            dialog.errorMessage = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+        } else {
+            dialog.errorMessage = ""
+            dialog.close()
+        }
+    }
 
     function openCreatePlanDialog() {
         planDialog.openForCreate()
@@ -56,9 +57,9 @@ Item {
 
         onSaveRequested: function(payload) {
             if (payload.planId) {
-                root.updatePlanRequested(payload)
+                root._handleResult(planDialog, root.workspaceController.updatePlan(payload))
             } else {
-                root.createPlanRequested(payload)
+                root._handleResult(planDialog, root.workspaceController.createPlan(payload))
             }
         }
     }
@@ -69,9 +70,9 @@ Item {
 
         onSaveRequested: function(payload) {
             if (payload.planTaskId) {
-                root.updatePlanTaskRequested(payload)
+                root._handleResult(planTaskDialog, root.workspaceController.updatePlanTask(payload))
             } else {
-                root.createPlanTaskRequested(payload)
+                root._handleResult(planTaskDialog, root.workspaceController.createPlanTask(payload))
             }
         }
     }
@@ -82,9 +83,9 @@ Item {
 
         onSaveRequested: function(payload) {
             if (payload.taskTemplateId) {
-                root.updateTaskTemplateRequested(payload)
+                root._handleResult(taskTemplateDialog, root.workspaceController.updateTaskTemplate(payload))
             } else {
-                root.createTaskTemplateRequested(payload)
+                root._handleResult(taskTemplateDialog, root.workspaceController.createTaskTemplate(payload))
             }
         }
     }
@@ -95,11 +96,10 @@ Item {
 
         onSaveRequested: function(payload) {
             if (payload.taskStepTemplateId) {
-                root.updateTaskStepRequested(payload)
+                root._handleResult(taskStepDialog, root.workspaceController.updateTaskStep(payload))
             } else {
-                root.createTaskStepRequested(payload)
+                root._handleResult(taskStepDialog, root.workspaceController.createTaskStep(payload))
             }
         }
     }
 }
-

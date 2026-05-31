@@ -13,7 +13,6 @@ AppWidgets.EntityDialog {
     property string selectedProjectId: ""
     property var statusOptions: []
     property var taskData: ({})
-    property string validationMessage: ""
     readonly property bool editingExistingTask: {
         var state = root.taskData && root.taskData.state ? root.taskData.state : (root.taskData || {})
         return String(state.taskId || "").length > 0
@@ -31,7 +30,6 @@ AppWidgets.EntityDialog {
     subtitle:     root.modeTitle === "Create Task"
         ? "Add a delivery task and choose the project context when needed."
         : "Adjust dates, duration, status, and execution metadata for this task."
-    errorMessage: root.validationMessage
     primaryText:  root.modeTitle === "Create Task" ? "Create Task" : "Save Changes"
     primaryIcon:  root.modeTitle === "Create Task" ? "add" : "save"
     primaryEnabled: root.editingExistingTask || root.editableProjectOptions.length > 0
@@ -60,7 +58,7 @@ AppWidgets.EntityDialog {
         priorityField.text = String(state.priority || "")
         descriptionField.text = String(state.description || "")
         statusCombo.currentIndex = root.statusIndexForValue(state.status || "TODO")
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -89,14 +87,14 @@ AppWidgets.EntityDialog {
     function submitDialog() {
         if (!root.editingExistingTask
                 && String((root.editableProjectOptions[projectCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a project before creating a task."
+            root.errorMessage = "Choose a project before creating a task."
             return
         }
         if (nameField.text.trim().length === 0) {
-            root.validationMessage = "Task name is required."
+            root.errorMessage = "Task name is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

@@ -48,53 +48,7 @@ AppLayouts.WorkspaceFrame {
         templateFormOptions: root.workspaceController ? (root.workspaceController.templateFormOptions || {}) : ({})
         stepFormOptions: root.workspaceController ? (root.workspaceController.stepFormOptions || {}) : ({})
 
-                onCreatePlanRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.createPlan(payload)
-                    }
-                }
-
-                onUpdatePlanRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.updatePlan(payload)
-                    }
-                }
-
-                onCreatePlanTaskRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.createPlanTask(payload)
-                    }
-                }
-
-                onUpdatePlanTaskRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.updatePlanTask(payload)
-                    }
-                }
-
-                onCreateTaskTemplateRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.createTaskTemplate(payload)
-                    }
-                }
-
-                onUpdateTaskTemplateRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.updateTaskTemplate(payload)
-                    }
-                }
-
-                onCreateTaskStepRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.createTaskStep(payload)
-                    }
-                }
-
-                onUpdateTaskStepRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.updateTaskStep(payload)
-                    }
-                }
+                workspaceController: root.workspaceController
             }
         }
     }

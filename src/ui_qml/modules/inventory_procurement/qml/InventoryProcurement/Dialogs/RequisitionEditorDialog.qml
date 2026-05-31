@@ -12,7 +12,6 @@ AppWidgets.EntityDialog {
     property var siteOptions: []
     property var storeroomOptions: []
     property var requisitionData: ({})
-    property string validationMessage: ""
 
     signal submitted(var payload)
 
@@ -21,7 +20,6 @@ AppWidgets.EntityDialog {
     subtitle: root.modeTitle === "Create Requisition"
         ? "Capture internal supply demand against a real site and storeroom before the approval and sourcing flow starts."
         : "Update the requisition scope, priority, and delivery target before sourcing begins."
-    errorMessage: root.validationMessage
     primaryText: root.modeTitle === "Create Requisition" ? "Create Requisition" : "Save Changes"
     primaryIcon: root.modeTitle === "Create Requisition" ? "add" : "save"
     onAccepted: root.submitDialog()

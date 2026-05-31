@@ -110,19 +110,7 @@ AppLayouts.WorkspaceFrame {
             ReservationsDialogHost {
                 itemOptions: root.workspaceController ? (root.workspaceController.itemOptions || []) : []
                 storeroomOptions: root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
-
-                onCreateReservationRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createReservation(payload)
-                }
-                onIssueReservationRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.issueReservation(payload)
-                }
-                onReleaseReservationRequested: function(reservationId) {
-                    if (root.workspaceController !== null) root.workspaceController.releaseReservation(reservationId)
-                }
-                onCancelReservationRequested: function(reservationId) {
-                    if (root.workspaceController !== null) root.workspaceController.cancelReservation(reservationId)
-                }
+                workspaceController: root.workspaceController
             }
         }
     }

@@ -150,22 +150,7 @@ AppLayouts.WorkspaceFrame {
                 itemStatusOptions: root.workspaceController ? (root.workspaceController.itemStatusOptions || []) : []
                 businessPartyOptions: root.workspaceController ? (root.workspaceController.businessPartyOptions || []) : []
                 availableDocuments: root.workspaceController ? (root.workspaceController.availableDocuments || []) : []
-
-                onCreateCategoryRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createCategory(payload)
-                }
-                onUpdateCategoryRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateCategory(payload)
-                }
-                onCreateItemRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createItem(payload)
-                }
-                onUpdateItemRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateItem(payload)
-                }
-                onLinkDocumentRequested: function(itemId, documentId) {
-                    if (root.workspaceController !== null) root.workspaceController.linkDocument(itemId, documentId)
-                }
+                workspaceController: root.workspaceController
             }
         }
     }

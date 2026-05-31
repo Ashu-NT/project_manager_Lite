@@ -326,39 +326,9 @@ AppLayouts.WorkspaceFrame {
                 collaborationDocumentOptions: root.workspaceController ? (root.workspaceController.collaborationDocumentOptions || []) : []
                 selectedTaskIds: root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
 
-                onCreateRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.createTask(payload)
-                    }
-                }
-                onUpdateRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.updateTask(payload)
-                    }
-                }
-                onProgressRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.updateProgress(payload)
-                    }
-                }
                 onDeleteRequested: function(taskId) {
                     if (root.workspaceController !== null) {
                         root.workspaceController.deleteTask(taskId)
-                    }
-                }
-                onCreateAssignmentRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.createAssignment(payload)
-                    }
-                }
-                onUpdateAssignmentAllocationRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.updateAssignmentAllocation(payload)
-                    }
-                }
-                onSetAssignmentHoursRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setAssignmentHours(payload)
                     }
                 }
                 onDeleteAssignmentRequested: function(assignmentId) {
@@ -366,19 +336,9 @@ AppLayouts.WorkspaceFrame {
                         root.workspaceController.deleteAssignment(assignmentId)
                     }
                 }
-                onCreateDependencyRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.createDependency(payload)
-                    }
-                }
                 onDeleteDependencyRequested: function(dependencyId) {
                     if (root.workspaceController !== null) {
                         root.workspaceController.deleteDependency(dependencyId)
-                    }
-                }
-                onPostTaskCommentRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.postTaskComment(payload)
                     }
                 }
                 onBulkDeleteRequested: function(taskIds) {

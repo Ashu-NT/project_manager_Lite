@@ -4,6 +4,7 @@ import InventoryProcurement.Dialogs 1.0 as InventoryDialogs
 Item {
     id: root
 
+    property var workspaceController: null
     property var siteOptions: []
     property var storeroomOptions: []
     property var supplierOptions: []
@@ -14,13 +15,14 @@ Item {
     property var purchaseOrderEditTarget: ({})
     property var lineTarget: ({})
 
-    signal createRequisitionRequested(var payload)
-    signal updateRequisitionRequested(var payload)
-    signal addRequisitionLineRequested(var payload)
-    signal createPurchaseOrderRequested(var payload)
-    signal updatePurchaseOrderRequested(var payload)
-    signal addPurchaseOrderLineRequested(var payload)
-    signal postReceiptRequested(var payload)
+    function _handleResult(dialog, result) {
+        if (!result || result.ok === false) {
+            dialog.errorMessage = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+        } else {
+            dialog.errorMessage = ""
+            dialog.close()
+        }
+    }
 
     function openCreateRequisitionDialog(defaultSiteId, defaultStoreroomId) {
         root.requisitionEditTarget = {
@@ -32,6 +34,7 @@ Item {
         }
         requisitionEditor.modeTitle = "Create Requisition"
         requisitionEditor.requisitionData = root.requisitionEditTarget
+        requisitionEditor.errorMessage = ""
         requisitionEditor.open()
     }
 
@@ -39,12 +42,14 @@ Item {
         root.requisitionEditTarget = requisitionData || ({})
         requisitionEditor.modeTitle = "Edit Requisition"
         requisitionEditor.requisitionData = root.requisitionEditTarget
+        requisitionEditor.errorMessage = ""
         requisitionEditor.open()
     }
 
     function openRequisitionLineDialog(requisitionData) {
         root.lineTarget = requisitionData || ({})
         requisitionLineDialog.requisitionData = root.lineTarget
+        requisitionLineDialog.errorMessage = ""
         requisitionLineDialog.open()
     }
 
@@ -59,6 +64,7 @@ Item {
         }
         purchaseOrderEditor.modeTitle = "Create Purchase Order"
         purchaseOrderEditor.purchaseOrderData = root.purchaseOrderEditTarget
+        purchaseOrderEditor.errorMessage = ""
         purchaseOrderEditor.open()
     }
 
@@ -66,18 +72,21 @@ Item {
         root.purchaseOrderEditTarget = purchaseOrderData || ({})
         purchaseOrderEditor.modeTitle = "Edit Purchase Order"
         purchaseOrderEditor.purchaseOrderData = root.purchaseOrderEditTarget
+        purchaseOrderEditor.errorMessage = ""
         purchaseOrderEditor.open()
     }
 
     function openPurchaseOrderLineDialog(purchaseOrderData) {
         root.lineTarget = purchaseOrderData || ({})
         purchaseOrderLineDialog.purchaseOrderData = root.lineTarget
+        purchaseOrderLineDialog.errorMessage = ""
         purchaseOrderLineDialog.open()
     }
 
     function openReceiptPostDialog(purchaseOrderData, purchaseOrderLines) {
         receiptDialog.purchaseOrderData = purchaseOrderData || ({})
         receiptDialog.purchaseOrderLines = purchaseOrderLines || []
+        receiptDialog.errorMessage = ""
         receiptDialog.open()
     }
 
@@ -87,17 +96,17 @@ Item {
 
         siteOptions: root.siteOptions
         storeroomOptions: root.storeroomOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
             var state = root.requisitionEditTarget && root.requisitionEditTarget.state ? root.requisitionEditTarget.state : (root.requisitionEditTarget || {})
             if (state.requisitionId) {
                 payload.requisitionId = state.requisitionId
                 payload.expectedVersion = state.version
-                root.updateRequisitionRequested(payload)
+                root._handleResult(requisitionEditor, root.workspaceController.updateRequisition(payload))
             } else {
-                root.createRequisitionRequested(payload)
+                root._handleResult(requisitionEditor, root.workspaceController.createRequisition(payload))
             }
-            requisitionEditor.close()
         }
     }
 
@@ -107,10 +116,10 @@ Item {
 
         itemOptions: root.itemOptions
         supplierOptions: root.supplierOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
-            root.addRequisitionLineRequested(payload)
-            requisitionLineDialog.close()
+            root._handleResult(requisitionLineDialog, root.workspaceController.addRequisitionLine(payload))
         }
     }
 
@@ -121,17 +130,17 @@ Item {
         siteOptions: root.siteOptions
         supplierOptions: root.supplierOptions
         requisitionOptions: root.requisitionOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
             var state = root.purchaseOrderEditTarget && root.purchaseOrderEditTarget.state ? root.purchaseOrderEditTarget.state : (root.purchaseOrderEditTarget || {})
             if (state.purchaseOrderId) {
                 payload.purchaseOrderId = state.purchaseOrderId
                 payload.expectedVersion = state.version
-                root.updatePurchaseOrderRequested(payload)
+                root._handleResult(purchaseOrderEditor, root.workspaceController.updatePurchaseOrder(payload))
             } else {
-                root.createPurchaseOrderRequested(payload)
+                root._handleResult(purchaseOrderEditor, root.workspaceController.createPurchaseOrder(payload))
             }
-            purchaseOrderEditor.close()
         }
     }
 
@@ -142,10 +151,10 @@ Item {
         itemOptions: root.itemOptions
         storeroomOptions: root.storeroomOptions
         requisitionLineOptions: root.requisitionLineOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
-            root.addPurchaseOrderLineRequested(payload)
-            purchaseOrderLineDialog.close()
+            root._handleResult(purchaseOrderLineDialog, root.workspaceController.addPurchaseOrderLine(payload))
         }
     }
 
@@ -153,10 +162,10 @@ Item {
         id: receiptDialog
         objectName: "receiptPostDialog"
 
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+
         onSubmitted: function(payload) {
-            root.postReceiptRequested(payload)
-            receiptDialog.close()
+            root._handleResult(receiptDialog, root.workspaceController.postReceipt(payload))
         }
     }
 }
-

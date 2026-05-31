@@ -9,6 +9,7 @@ import InventoryProcurement.Dialogs 1.0 as InventoryDialogs
 Item {
     id: root
 
+    property var workspaceController: null
     property var itemOptions: []
     property var storeroomOptions: []
     property var createTarget: ({})
@@ -16,10 +17,14 @@ Item {
     property var confirmationTarget: ({})
     property string confirmationMode: ""
 
-    signal createReservationRequested(var payload)
-    signal issueReservationRequested(var payload)
-    signal releaseReservationRequested(string reservationId)
-    signal cancelReservationRequested(string reservationId)
+    function _handleResult(dialog, result) {
+        if (!result || result.ok === false) {
+            dialog.errorMessage = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+        } else {
+            dialog.errorMessage = ""
+            dialog.close()
+        }
+    }
 
     function openCreateReservationDialog(itemFilterValue, storeroomFilterValue) {
         root.createTarget = {
@@ -29,12 +34,14 @@ Item {
             }
         }
         createDialog.reservationData = root.createTarget
+        createDialog.errorMessage = ""
         createDialog.open()
     }
 
     function openIssueReservationDialog(reservationData) {
         root.issueTarget = reservationData || ({})
         issueDialog.reservationData = root.issueTarget
+        issueDialog.errorMessage = ""
         issueDialog.open()
     }
 
@@ -60,10 +67,10 @@ Item {
 
         itemOptions: root.itemOptions
         storeroomOptions: root.storeroomOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
-            root.createReservationRequested(payload)
-            createDialog.close()
+            root._handleResult(createDialog, root.workspaceController.createReservation(payload))
         }
     }
 
@@ -71,9 +78,10 @@ Item {
         id: issueDialog
         objectName: "reservationIssueDialog"
 
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+
         onSubmitted: function(payload) {
-            root.issueReservationRequested(payload)
-            issueDialog.close()
+            root._handleResult(issueDialog, root.workspaceController.issueReservation(payload))
         }
     }
 
@@ -89,9 +97,9 @@ Item {
             var state = root.confirmationTarget && root.confirmationTarget.state ? root.confirmationTarget.state : (root.confirmationTarget || {})
             var reservationId = String(state.reservationId || "")
             if (root.confirmationMode === "release" && reservationId.length > 0) {
-                root.releaseReservationRequested(reservationId)
+                root.workspaceController.releaseReservation(reservationId)
             } else if (root.confirmationMode === "cancel" && reservationId.length > 0) {
-                root.cancelReservationRequested(reservationId)
+                root.workspaceController.cancelReservation(reservationId)
             }
             confirmationDialog.close()
         }
@@ -101,4 +109,3 @@ Item {
         AppControls.Label { id: confirmationMessage; visible: false; text: "" }
     }
 }
-

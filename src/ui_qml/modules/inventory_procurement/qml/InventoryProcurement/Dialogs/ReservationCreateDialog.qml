@@ -11,7 +11,6 @@ AppWidgets.EntityDialog {
     property var itemOptions: []
     property var storeroomOptions: []
     property var reservationData: ({})
-    property string validationMessage: ""
     readonly property var formItemOptions: itemOptions.filter(function(option) {
         return String(option.value || "") !== "all"
     })
@@ -24,7 +23,6 @@ AppWidgets.EntityDialog {
     width: 720
     title: "Create Reservation"
     subtitle: "Reserve inventory against an open work order or project."
-    errorMessage: root.validationMessage
     primaryText: "Create Reservation"
     primaryIcon: "add"
     onAccepted: root.submitDialog()

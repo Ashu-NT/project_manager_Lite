@@ -227,30 +227,7 @@ AppLayouts.WorkspaceFrame {
                 manufacturerOptions: root.workspaceController ? (root.workspaceController.formManufacturerOptions || []) : []
                 supplierOptions: root.workspaceController ? (root.workspaceController.formSupplierOptions || []) : []
 
-                onCreateLocationRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createLocation(payload)
-                }
-                onUpdateLocationRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateLocation(payload)
-                }
-                onCreateSystemRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createSystem(payload)
-                }
-                onUpdateSystemRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateSystem(payload)
-                }
-                onCreateAssetRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createAsset(payload)
-                }
-                onUpdateAssetRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateAsset(payload)
-                }
-                onCreateComponentRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createComponent(payload)
-                }
-                onUpdateComponentRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateComponent(payload)
-                }
+                workspaceController: root.workspaceController
             }
         }
     }

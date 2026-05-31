@@ -11,14 +11,12 @@ AppWidgets.EntityDialog {
     property var itemOptions: []
     property var storeroomOptions: []
     property var transferData: ({})
-    property string validationMessage: ""
 
     signal submitted(var payload)
 
     width: 720
     title: "Transfer Stock"
     subtitle: "Transfer stock between storeroom locations."
-    errorMessage: root.validationMessage
     primaryText: "Transfer Stock"
     primaryIcon: "approve"
     onAccepted: root.submitDialog()

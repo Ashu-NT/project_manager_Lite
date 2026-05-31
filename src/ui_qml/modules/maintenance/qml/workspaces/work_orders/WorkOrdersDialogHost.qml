@@ -4,6 +4,7 @@ import Maintenance.Dialogs 1.0 as MaintenanceDialogs
 Item {
     id: root
 
+    property var workspaceController: null
     property var siteOptions: []
     property var locationOptions: []
     property var systemOptions: []
@@ -16,8 +17,6 @@ Item {
     property var statusOptions: []
     property var vendorOptions: []
 
-    signal createRequested(var payload)
-    signal updateRequested(var payload)
     signal statusChangeRequested(string workOrderId, string statusValue, int expectedVersion)
 
     function openCreateDialog() {
@@ -37,6 +36,15 @@ Item {
         statusDialog.open()
     }
 
+    function _handleResult(dialog, result) {
+        if (!result || result.ok === false) {
+            dialog.errorMessage = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+        } else {
+            dialog.errorMessage = ""
+            dialog.close()
+        }
+    }
+
     MaintenanceDialogs.WorkOrderEditorDialog {
         id: editorDialog
         objectName: "workOrderEditorDialog"
@@ -54,11 +62,10 @@ Item {
 
         onSubmitted: function(payload) {
             if (editorDialog.modeTitle === "Create Work Order") {
-                root.createRequested(payload)
+                root._handleResult(editorDialog, root.workspaceController.createWorkOrder(payload))
             } else {
-                root.updateRequested(payload)
+                root._handleResult(editorDialog, root.workspaceController.updateWorkOrder(payload))
             }
-            editorDialog.close()
         }
     }
 
@@ -81,4 +88,3 @@ Item {
         }
     }
 }
-

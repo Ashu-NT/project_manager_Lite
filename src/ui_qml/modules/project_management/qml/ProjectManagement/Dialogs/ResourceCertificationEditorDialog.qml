@@ -8,13 +8,10 @@ import App.Theme 1.0 as Theme
 AppWidgets.EntityDialog {
     id: root
 
-    property string validationMessage: ""
-
     signal submitted(var payload)
 
     title:        "Add Certification"
     subtitle:     "Record a professional certification or compliance credential for this resource."
-    errorMessage: root.validationMessage
     primaryText:  "Add Certification"
     primaryIcon:  "add"
     width: 480
@@ -30,15 +27,15 @@ AppWidgets.EntityDialog {
         expiryDateField.text = ""
         issuingBodyField.text = ""
         notesField.text = ""
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function _submit() {
         if (certCodeField.text.trim().length === 0) {
-            root.validationMessage = "Certification code is required."
+            root.errorMessage = "Certification code is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted({
             "certCode": certCodeField.text.trim(),
             "certName": certNameField.text.trim(),

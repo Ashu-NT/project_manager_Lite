@@ -4,6 +4,7 @@ import InventoryProcurement.Dialogs 1.0 as InventoryDialogs
 Item {
     id: root
 
+    property var workspaceController: null
     property var siteOptions: []
     property var storeroomStatusOptions: []
     property var managerPartyOptions: []
@@ -13,13 +14,14 @@ Item {
     property var movementTarget: ({})
     property var transferTarget: ({})
 
-    signal createStoreroomRequested(var payload)
-    signal updateStoreroomRequested(var payload)
-    signal postOpeningBalanceRequested(var payload)
-    signal postAdjustmentRequested(var payload)
-    signal issueStockRequested(var payload)
-    signal returnStockRequested(var payload)
-    signal transferStockRequested(var payload)
+    function _handleResult(dialog, result) {
+        if (!result || result.ok === false) {
+            dialog.errorMessage = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+        } else {
+            dialog.errorMessage = ""
+            dialog.close()
+        }
+    }
 
     function openCreateStoreroomDialog() {
         root.storeroomEditTarget = {
@@ -32,6 +34,7 @@ Item {
         }
         storeroomEditor.modeTitle = "Create Storeroom"
         storeroomEditor.storeroomData = root.storeroomEditTarget
+        storeroomEditor.errorMessage = ""
         storeroomEditor.open()
     }
 
@@ -39,6 +42,7 @@ Item {
         root.storeroomEditTarget = storeroomData || ({})
         storeroomEditor.modeTitle = "Edit Storeroom"
         storeroomEditor.storeroomData = root.storeroomEditTarget
+        storeroomEditor.errorMessage = ""
         storeroomEditor.open()
     }
 
@@ -69,6 +73,7 @@ Item {
         movementDialog.defaultReferenceType = ""
         movementDialog.defaultDirection = "INCREASE"
         movementDialog.movementData = root.movementTarget
+        movementDialog.errorMessage = ""
         movementDialog.visible = true
         movementDialog.open()
         root._movementMode = "opening"
@@ -84,6 +89,7 @@ Item {
         movementDialog.defaultReferenceType = "adjustment"
         movementDialog.defaultDirection = "INCREASE"
         movementDialog.movementData = root.movementTarget
+        movementDialog.errorMessage = ""
         movementDialog.open()
         root._movementMode = "adjustment"
     }
@@ -98,6 +104,7 @@ Item {
         movementDialog.defaultReferenceType = "issue"
         movementDialog.defaultDirection = "DECREASE"
         movementDialog.movementData = root.movementTarget
+        movementDialog.errorMessage = ""
         movementDialog.open()
         root._movementMode = "issue"
     }
@@ -112,6 +119,7 @@ Item {
         movementDialog.defaultReferenceType = "return"
         movementDialog.defaultDirection = "INCREASE"
         movementDialog.movementData = root.movementTarget
+        movementDialog.errorMessage = ""
         movementDialog.open()
         root._movementMode = "return"
     }
@@ -119,6 +127,7 @@ Item {
     function openTransferDialog(balanceData) {
         root.transferTarget = root.buildMovementSeed(balanceData, null, "")
         transferDialog.transferData = root.transferTarget
+        transferDialog.errorMessage = ""
         transferDialog.open()
     }
 
@@ -131,17 +140,17 @@ Item {
         siteOptions: root.siteOptions
         statusOptions: root.storeroomStatusOptions
         managerPartyOptions: root.managerPartyOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
             var state = root.storeroomEditTarget && root.storeroomEditTarget.state ? root.storeroomEditTarget.state : (root.storeroomEditTarget || {})
             if (state.storeroomId) {
                 payload.storeroomId = state.storeroomId
                 payload.expectedVersion = state.version
-                root.updateStoreroomRequested(payload)
+                root._handleResult(storeroomEditor, root.workspaceController.updateStoreroom(payload))
             } else {
-                root.createStoreroomRequested(payload)
+                root._handleResult(storeroomEditor, root.workspaceController.createStoreroom(payload))
             }
-            storeroomEditor.close()
         }
     }
 
@@ -151,18 +160,18 @@ Item {
 
         itemOptions: root.itemOptions
         storeroomOptions: root.storeroomOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
             if (root._movementMode === "opening") {
-                root.postOpeningBalanceRequested(payload)
+                root._handleResult(movementDialog, root.workspaceController.postOpeningBalance(payload))
             } else if (root._movementMode === "adjustment") {
-                root.postAdjustmentRequested(payload)
+                root._handleResult(movementDialog, root.workspaceController.postAdjustment(payload))
             } else if (root._movementMode === "issue") {
-                root.issueStockRequested(payload)
+                root._handleResult(movementDialog, root.workspaceController.issueStock(payload))
             } else if (root._movementMode === "return") {
-                root.returnStockRequested(payload)
+                root._handleResult(movementDialog, root.workspaceController.returnStock(payload))
             }
-            movementDialog.close()
         }
     }
 
@@ -172,11 +181,10 @@ Item {
 
         itemOptions: root.itemOptions
         storeroomOptions: root.storeroomOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
-            root.transferStockRequested(payload)
-            transferDialog.close()
+            root._handleResult(transferDialog, root.workspaceController.transferStock(payload))
         }
     }
 }
-

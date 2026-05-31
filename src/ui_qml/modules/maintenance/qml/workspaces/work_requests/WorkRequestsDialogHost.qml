@@ -4,6 +4,7 @@ import Maintenance.Dialogs 1.0 as MaintenanceDialogs
 Item {
     id: root
 
+    property var workspaceController: null
     property var siteOptions: []
     property var locationOptions: []
     property var systemOptions: []
@@ -13,8 +14,6 @@ Item {
     property var priorityOptions: []
     property var statusOptions: []
 
-    signal createRequested(var payload)
-    signal updateRequested(var payload)
     signal statusChangeRequested(string workRequestId, string statusValue, int expectedVersion)
 
     function openCreateDialog() {
@@ -34,6 +33,15 @@ Item {
         statusDialog.open()
     }
 
+    function _handleResult(dialog, result) {
+        if (!result || result.ok === false) {
+            dialog.errorMessage = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+        } else {
+            dialog.errorMessage = ""
+            dialog.close()
+        }
+    }
+
     MaintenanceDialogs.WorkRequestEditorDialog {
         id: editorDialog
         objectName: "workRequestEditorDialog"
@@ -48,11 +56,10 @@ Item {
 
         onSubmitted: function(payload) {
             if (editorDialog.modeTitle === "Create Work Request") {
-                root.createRequested(payload)
+                root._handleResult(editorDialog, root.workspaceController.createWorkRequest(payload))
             } else {
-                root.updateRequested(payload)
+                root._handleResult(editorDialog, root.workspaceController.updateWorkRequest(payload))
             }
-            editorDialog.close()
         }
     }
 
@@ -75,4 +82,3 @@ Item {
         }
     }
 }
-

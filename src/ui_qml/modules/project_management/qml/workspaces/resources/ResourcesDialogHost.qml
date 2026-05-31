@@ -6,19 +6,24 @@ import ProjectManagement.Dialogs 1.0 as ProjectManagementDialogs
 Item {
     id: root
 
+    property var workspaceController: null
     property var workerTypeOptions: []
     property var categoryOptions: []
     property var employeeOptions: []
     property var editTarget: ({})
     property var deleteTarget: ({})
 
-    signal createRequested(var payload)
-    signal updateRequested(var payload)
     signal deleteRequested(string resourceId)
-    signal addSkillRequested(var payload)
-    signal addCertificationRequested(var payload)
     signal removeSkillRequested(string skillId)
     signal removeCertificationRequested(string certId)
+
+    function _handleResult(dialog, result) {
+        if (!result || result.success) {
+            dialog.close()
+        } else {
+            dialog.errorMessage = result.error || "An unexpected error occurred."
+        }
+    }
 
     function openCreateDialog() {
         root.editTarget = {
@@ -31,6 +36,7 @@ Item {
         }
         editorDialog.modeTitle = "Create Resource"
         editorDialog.resourceData = root.editTarget
+        editorDialog.errorMessage = ""
         editorDialog.open()
     }
 
@@ -38,6 +44,7 @@ Item {
         root.editTarget = resourceData || ({})
         editorDialog.modeTitle = "Edit Resource"
         editorDialog.resourceData = root.editTarget
+        editorDialog.errorMessage = ""
         editorDialog.open()
     }
 
@@ -47,26 +54,32 @@ Item {
     }
 
     function openAddSkillDialog() {
+        skillEditorDialog.errorMessage = ""
         skillEditorDialog.open()
     }
 
     function openAddCertificationDialog() {
+        certEditorDialog.errorMessage = ""
         certEditorDialog.open()
     }
 
     ProjectManagementDialogs.ResourceSkillEditorDialog {
         id: skillEditorDialog
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
         onSubmitted: function(payload) {
-            root.addSkillRequested(payload)
-            skillEditorDialog.close()
+            if (!root.workspaceController) return
+            var result = root.workspaceController.addSkill(payload)
+            root._handleResult(skillEditorDialog, result)
         }
     }
 
     ProjectManagementDialogs.ResourceCertificationEditorDialog {
         id: certEditorDialog
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
         onSubmitted: function(payload) {
-            root.addCertificationRequested(payload)
-            certEditorDialog.close()
+            if (!root.workspaceController) return
+            var result = root.workspaceController.addCertification(payload)
+            root._handleResult(certEditorDialog, result)
         }
     }
 
@@ -76,17 +89,20 @@ Item {
         workerTypeOptions: root.workerTypeOptions
         categoryOptions: root.categoryOptions
         employeeOptions: root.employeeOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
+            if (!root.workspaceController) return
             var state = root.editTarget && root.editTarget.state ? root.editTarget.state : (root.editTarget || {})
+            var result
             if (state.resourceId) {
                 payload.resourceId = state.resourceId
                 payload.expectedVersion = state.version
-                root.updateRequested(payload)
+                result = root.workspaceController.updateResource(payload)
             } else {
-                root.createRequested(payload)
+                result = root.workspaceController.createResource(payload)
             }
-            editorDialog.close()
+            root._handleResult(editorDialog, result)
         }
     }
 
@@ -110,4 +126,3 @@ Item {
         }
     }
 }
-

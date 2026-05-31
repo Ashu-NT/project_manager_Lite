@@ -11,14 +11,12 @@ AppWidgets.EntityDialog {
     property var itemOptions: []
     property var supplierOptions: []
     property var requisitionData: ({})
-    property string validationMessage: ""
 
     signal submitted(var payload)
 
     width: 720
     title: "Add Requisition Line"
     subtitle: "Add a line item to the requisition."
-    errorMessage: root.validationMessage
     primaryText: "Add Line"
     primaryIcon: "add"
     onAccepted: root.submitDialog()

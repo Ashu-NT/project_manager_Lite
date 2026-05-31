@@ -149,13 +149,8 @@ AppLayouts.WorkspaceFrame {
                 workerTypeOptions: root.workspaceController ? (root.workspaceController.workerTypeOptions || []) : []
                 categoryOptions: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
                 employeeOptions: root.workspaceController ? (root.workspaceController.employeeOptions || []) : []
+                workspaceController: root.workspaceController
 
-                onCreateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createResource(payload)
-                }
-                onUpdateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateResource(payload)
-                }
                 onDeleteRequested: function(resourceId) {
                     if (root.workspaceController !== null) root.workspaceController.deleteResource(resourceId)
                 }

@@ -4,6 +4,7 @@ import InventoryProcurement.Dialogs 1.0 as InventoryDialogs
 Item {
     id: root
 
+    property var workspaceController: null
     property var categoryTypeOptions: []
     property var categoryOptions: []
     property var itemStatusOptions: []
@@ -13,11 +14,14 @@ Item {
     property var itemEditTarget: ({})
     property var linkTarget: ({})
 
-    signal createCategoryRequested(var payload)
-    signal updateCategoryRequested(var payload)
-    signal createItemRequested(var payload)
-    signal updateItemRequested(var payload)
-    signal linkDocumentRequested(string itemId, string documentId)
+    function _handleResult(dialog, result) {
+        if (!result || result.ok === false) {
+            dialog.errorMessage = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+        } else {
+            dialog.errorMessage = ""
+            dialog.close()
+        }
+    }
 
     function openCreateCategoryDialog() {
         root.categoryEditTarget = {
@@ -27,6 +31,7 @@ Item {
         }
         categoryEditor.modeTitle = "Create Category"
         categoryEditor.categoryData = root.categoryEditTarget
+        categoryEditor.errorMessage = ""
         categoryEditor.open()
     }
 
@@ -34,6 +39,7 @@ Item {
         root.categoryEditTarget = categoryData || ({})
         categoryEditor.modeTitle = "Edit Category"
         categoryEditor.categoryData = root.categoryEditTarget
+        categoryEditor.errorMessage = ""
         categoryEditor.open()
     }
 
@@ -54,6 +60,7 @@ Item {
         }
         itemEditor.modeTitle = "Create Item"
         itemEditor.itemData = root.itemEditTarget
+        itemEditor.errorMessage = ""
         itemEditor.open()
     }
 
@@ -61,6 +68,7 @@ Item {
         root.itemEditTarget = itemData || ({})
         itemEditor.modeTitle = "Edit Item"
         itemEditor.itemData = root.itemEditTarget
+        itemEditor.errorMessage = ""
         itemEditor.open()
     }
 
@@ -75,6 +83,7 @@ Item {
             return !linkedIds[String(option.value || "")]
         })
         documentLinkDialog.documentOptions = remainingOptions
+        documentLinkDialog.errorMessage = ""
         documentLinkDialog.open()
     }
 
@@ -83,17 +92,17 @@ Item {
         objectName: "categoryEditorDialog"
 
         categoryTypeOptions: root.categoryTypeOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
             var state = root.categoryEditTarget && root.categoryEditTarget.state ? root.categoryEditTarget.state : (root.categoryEditTarget || {})
             if (state.categoryId) {
                 payload.categoryId = state.categoryId
                 payload.expectedVersion = state.version
-                root.updateCategoryRequested(payload)
+                root._handleResult(categoryEditor, root.workspaceController.updateCategory(payload))
             } else {
-                root.createCategoryRequested(payload)
+                root._handleResult(categoryEditor, root.workspaceController.createCategory(payload))
             }
-            categoryEditor.close()
         }
     }
 
@@ -104,17 +113,17 @@ Item {
         itemStatusOptions: root.itemStatusOptions
         categoryOptions: root.categoryOptions
         businessPartyOptions: root.businessPartyOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
             var state = root.itemEditTarget && root.itemEditTarget.state ? root.itemEditTarget.state : (root.itemEditTarget || {})
             if (state.itemId) {
                 payload.itemId = state.itemId
                 payload.expectedVersion = state.version
-                root.updateItemRequested(payload)
+                root._handleResult(itemEditor, root.workspaceController.updateItem(payload))
             } else {
-                root.createItemRequested(payload)
+                root._handleResult(itemEditor, root.workspaceController.createItem(payload))
             }
-            itemEditor.close()
         }
     }
 
@@ -122,13 +131,13 @@ Item {
         id: documentLinkDialog
         objectName: "documentLinkDialog"
 
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+
         onSubmitted: function(documentId) {
             var state = root.linkTarget && root.linkTarget.state ? root.linkTarget.state : (root.linkTarget || {})
             if (state.itemId) {
-                root.linkDocumentRequested(String(state.itemId || ""), documentId)
+                root._handleResult(documentLinkDialog, root.workspaceController.linkDocument(String(state.itemId || ""), documentId))
             }
-            documentLinkDialog.close()
         }
     }
 }
-

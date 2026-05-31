@@ -177,13 +177,8 @@ AppLayouts.WorkspaceFrame {
                 selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
                 taskOptions: root.workspaceController ? (root.workspaceController.taskOptions || []) : []
                 costTypeOptions: root.workspaceController ? (root.workspaceController.costTypeOptions || []) : []
+                workspaceController: root.workspaceController
 
-                onCreateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createCostItem(payload)
-                }
-                onUpdateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateCostItem(payload)
-                }
                 onDeleteRequested: function(costId) {
                     if (root.workspaceController !== null) root.workspaceController.deleteCostItem(costId)
                 }

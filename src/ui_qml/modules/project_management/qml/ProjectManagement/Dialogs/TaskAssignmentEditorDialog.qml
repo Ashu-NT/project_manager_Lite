@@ -13,7 +13,6 @@ AppWidgets.EntityDialog {
     property var resourceOptions: []
     property var taskData: ({})
     property var assignmentData: ({})
-    property string validationMessage: ""
     property var workspaceController: null
     property var _skillValidation: ({})
 
@@ -27,7 +26,6 @@ AppWidgets.EntityDialog {
     subtitle: root.mode === "create"
         ? "Link a project resource to the selected task and set the starting allocation."
         : "Adjust the active allocation commitment for this task assignment."
-    errorMessage: root.validationMessage
     primaryText: root.mode === "create" ? "Assign Resource" : "Save Allocation"
     primaryIcon: root.mode === "create" ? "resources" : "save"
     primaryEnabled: root.mode !== "create" || (root.resourceOptions || []).length > 0
@@ -67,7 +65,7 @@ AppWidgets.EntityDialog {
                 ? assignmentState.allocationPercent
                 : "100.0"
         )
-        root.validationMessage = ""
+        root.errorMessage = ""
         root._skillValidation = {}
     }
 
@@ -104,18 +102,18 @@ AppWidgets.EntityDialog {
     function submitDialog() {
         if (root.mode === "create"
                 && String((root.resourceOptions[resourceCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Select a project resource before creating the assignment."
+            root.errorMessage = "Select a project resource before creating the assignment."
             return
         }
         if (allocationField.text.trim().length === 0) {
-            root.validationMessage = "Allocation percentage is required."
+            root.errorMessage = "Allocation percentage is required."
             return
         }
         if (root.mode === "create" && root._skillValidation.isBlocked === true) {
-            root.validationMessage = "Assignment is blocked due to unmet skill/certification requirements."
+            root.errorMessage = "Assignment is blocked due to unmet skill/certification requirements."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

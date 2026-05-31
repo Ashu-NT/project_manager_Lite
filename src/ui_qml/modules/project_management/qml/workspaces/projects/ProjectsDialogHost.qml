@@ -12,10 +12,16 @@ Item {
     property var statusTarget: ({})
     property var deleteTarget: ({})
 
-    signal createRequested(var payload)
-    signal updateRequested(var payload)
-    signal statusChangeRequested(string projectId, string statusValue)
     signal deleteRequested(string projectId)
+
+    function _handleResult(dialog, result) {
+        if (!result || result.ok === false) {
+            dialog.errorMessage = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+        } else {
+            dialog.errorMessage = ""
+            dialog.close()
+        }
+    }
 
     function openImportDialog() {
         importDialog.open()
@@ -25,6 +31,7 @@ Item {
         root.editTarget = { "state": { "status": "PLANNED" } }
         editorDialog.modeTitle = "Create Project"
         editorDialog.projectData = root.editTarget
+        editorDialog.errorMessage = ""
         editorDialog.open()
     }
 
@@ -32,12 +39,14 @@ Item {
         root.editTarget = projectData || ({})
         editorDialog.modeTitle = "Edit Project"
         editorDialog.projectData = root.editTarget
+        editorDialog.errorMessage = ""
         editorDialog.open()
     }
 
     function openStatusDialog(projectData) {
         root.statusTarget = projectData || ({})
         statusDialog.projectData = root.statusTarget
+        statusDialog.errorMessage = ""
         statusDialog.open()
     }
 
@@ -53,33 +62,35 @@ Item {
 
     ProjectManagementDialogs.ProjectEditorDialog {
         id: editorDialog
-
         statusOptions: root.statusOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
+            if (root.workspaceController === null) return
             var state = root.editTarget && root.editTarget.state ? root.editTarget.state : (root.editTarget || {})
+            var result
             if (state.projectId) {
                 payload.projectId = state.projectId
                 payload.expectedVersion = state.version
-                root.updateRequested(payload)
+                result = root.workspaceController.updateProject(payload)
             } else {
-                root.createRequested(payload)
+                result = root.workspaceController.createProject(payload)
             }
-            editorDialog.close()
+            root._handleResult(editorDialog, result)
         }
     }
 
     ProjectManagementDialogs.ProjectStatusDialog {
         id: statusDialog
-
         statusOptions: root.statusOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(statusValue) {
+            if (root.workspaceController === null) return
             var state = root.statusTarget && root.statusTarget.state ? root.statusTarget.state : (root.statusTarget || {})
-            if (state.projectId) {
-                root.statusChangeRequested(String(state.projectId), statusValue)
-            }
-            statusDialog.close()
+            if (!state.projectId) return
+            const result = root.workspaceController.setProjectStatus(String(state.projectId), statusValue)
+            root._handleResult(statusDialog, result)
         }
     }
 
@@ -103,4 +114,3 @@ Item {
         }
     }
 }
-

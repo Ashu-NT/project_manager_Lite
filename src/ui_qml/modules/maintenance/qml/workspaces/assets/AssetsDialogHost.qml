@@ -4,6 +4,7 @@ import Maintenance.Dialogs 1.0 as MaintenanceDialogs
 Item {
     id: root
 
+    property var workspaceController: null
     property var siteOptions: []
     property var locationOptions: []
     property var parentLocationOptions: []
@@ -18,14 +19,14 @@ Item {
     property var manufacturerOptions: []
     property var supplierOptions: []
 
-    signal createLocationRequested(var payload)
-    signal updateLocationRequested(var payload)
-    signal createSystemRequested(var payload)
-    signal updateSystemRequested(var payload)
-    signal createAssetRequested(var payload)
-    signal updateAssetRequested(var payload)
-    signal createComponentRequested(var payload)
-    signal updateComponentRequested(var payload)
+    function _handleResult(dialog, result) {
+        if (!result || result.ok === false) {
+            dialog.errorMessage = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+        } else {
+            dialog.errorMessage = ""
+            dialog.close()
+        }
+    }
 
     function openCreateLocationDialog() {
         locationEditor.modeTitle = "Create Location"
@@ -86,11 +87,10 @@ Item {
 
         onSubmitted: function(payload) {
             if (locationEditor.modeTitle === "Create Location") {
-                root.createLocationRequested(payload)
+                root._handleResult(locationEditor, root.workspaceController.createLocation(payload))
             } else {
-                root.updateLocationRequested(payload)
+                root._handleResult(locationEditor, root.workspaceController.updateLocation(payload))
             }
-            locationEditor.close()
         }
     }
 
@@ -106,11 +106,10 @@ Item {
 
         onSubmitted: function(payload) {
             if (systemEditor.modeTitle === "Create System") {
-                root.createSystemRequested(payload)
+                root._handleResult(systemEditor, root.workspaceController.createSystem(payload))
             } else {
-                root.updateSystemRequested(payload)
+                root._handleResult(systemEditor, root.workspaceController.updateSystem(payload))
             }
-            systemEditor.close()
         }
     }
 
@@ -129,11 +128,10 @@ Item {
 
         onSubmitted: function(payload) {
             if (assetEditor.modeTitle === "Create Asset") {
-                root.createAssetRequested(payload)
+                root._handleResult(assetEditor, root.workspaceController.createAsset(payload))
             } else {
-                root.updateAssetRequested(payload)
+                root._handleResult(assetEditor, root.workspaceController.updateAsset(payload))
             }
-            assetEditor.close()
         }
     }
 
@@ -149,12 +147,10 @@ Item {
 
         onSubmitted: function(payload) {
             if (componentEditor.modeTitle === "Create Component") {
-                root.createComponentRequested(payload)
+                root._handleResult(componentEditor, root.workspaceController.createComponent(payload))
             } else {
-                root.updateComponentRequested(payload)
+                root._handleResult(componentEditor, root.workspaceController.updateComponent(payload))
             }
-            componentEditor.close()
         }
     }
 }
-

@@ -162,13 +162,8 @@ AppLayouts.WorkspaceFrame {
                 typeFieldVisible: true
                 fixedTypeValue: "RISK"
                 entryLabel: "Register Entry"
+                workspaceController: root.workspaceController
 
-                onCreateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createEntry(payload)
-                }
-                onUpdateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateEntry(payload)
-                }
                 onDeleteRequested: function(entryId) {
                     if (root.workspaceController !== null) root.workspaceController.deleteEntry(entryId)
                 }

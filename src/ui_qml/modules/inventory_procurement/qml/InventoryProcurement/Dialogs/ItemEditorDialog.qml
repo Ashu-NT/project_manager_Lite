@@ -13,7 +13,6 @@ AppWidgets.EntityDialog {
     property var categoryOptions: []
     property var businessPartyOptions: []
     property var itemData: ({})
-    property string validationMessage: ""
     readonly property var formCategoryOptions: categoryOptions.filter(function(option) {
         return String(option.value || "") !== "all"
     })
@@ -25,7 +24,6 @@ AppWidgets.EntityDialog {
     subtitle: root.modeTitle === "Create Item"
         ? "Create a reusable inventory item with operational fields, replenishment settings, and supplier context."
         : "Update item settings, preferred party, replenishment, and linked operational attributes."
-    errorMessage: root.validationMessage
     primaryText: root.modeTitle === "Create Item" ? "Create Item" : "Save Changes"
     primaryIcon: root.modeTitle === "Create Item" ? "add" : "save"
     onAccepted: root.submitDialog()

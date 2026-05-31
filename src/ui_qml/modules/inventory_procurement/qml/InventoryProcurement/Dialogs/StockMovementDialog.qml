@@ -18,7 +18,6 @@ AppWidgets.EntityDialog {
     property var movementData: ({})
     property string defaultReferenceType: ""
     property string defaultDirection: "INCREASE"
-    property string validationMessage: ""
 
     signal submitted(var payload)
 
@@ -29,7 +28,6 @@ AppWidgets.EntityDialog {
         : root.defaultDirection === "DECREASE"
             ? "Post a stock decrease against an item and storeroom location."
             : "Post a stock increase against an item and storeroom location."
-    errorMessage: root.validationMessage
     primaryText: "Post Movement"
     primaryIcon: "approve"
     onAccepted: root.submitDialog()

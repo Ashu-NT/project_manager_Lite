@@ -79,12 +79,8 @@ AppLayouts.WorkspaceFrame {
         priorityOptions: root.workspaceController ? (root.workspaceController.formPriorityOptions || []) : []
         statusOptions: root.workspaceController ? (root.workspaceController.formStatusOptions || []) : []
 
-                onCreateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createWorkRequest(payload)
-                }
-                onUpdateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateWorkRequest(payload)
-                }
+                workspaceController: root.workspaceController
+
                 onStatusChangeRequested: function(workRequestId, statusValue, expectedVersion) {
                     if (root.workspaceController !== null)
                         root.workspaceController.setWorkRequestStatus(workRequestId, statusValue, expectedVersion)

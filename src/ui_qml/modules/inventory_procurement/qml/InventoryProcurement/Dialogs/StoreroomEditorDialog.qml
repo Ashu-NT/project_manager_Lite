@@ -13,7 +13,6 @@ AppWidgets.EntityDialog {
     property var statusOptions: []
     property var managerPartyOptions: []
     property var storeroomData: ({})
-    property string validationMessage: ""
     readonly property var formSiteOptions: siteOptions.filter(function(option) {
         return String(option.value || "") !== "all"
     })
@@ -25,7 +24,6 @@ AppWidgets.EntityDialog {
     subtitle: root.modeTitle === "Create Storeroom"
         ? "Create an operational stock location with capability flags, ownership, and receipt policy."
         : "Update storeroom governance, capability flags, manager ownership, and receipt policy."
-    errorMessage: root.validationMessage
     primaryText: root.modeTitle === "Create Storeroom" ? "Create Storeroom" : "Save Changes"
     primaryIcon: root.modeTitle === "Create Storeroom" ? "add" : "save"
     onAccepted: root.submitDialog()

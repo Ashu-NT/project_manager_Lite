@@ -185,15 +185,6 @@ AppLayouts.WorkspaceFrame {
                 statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                 workspaceController: root.workspaceController
 
-                onCreateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createProject(payload)
-                }
-                onUpdateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateProject(payload)
-                }
-                onStatusChangeRequested: function(projectId, statusValue) {
-                    if (root.workspaceController !== null) root.workspaceController.setProjectStatus(projectId, statusValue)
-                }
                 onDeleteRequested: function(projectId) {
                     if (root.workspaceController !== null) root.workspaceController.deleteProject(projectId)
                 }

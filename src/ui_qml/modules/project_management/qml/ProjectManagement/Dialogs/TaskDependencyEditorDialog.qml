@@ -11,7 +11,6 @@ AppWidgets.EntityDialog {
     property var taskData: ({})
     property var taskOptions: []
     property var dependencyTypeOptions: []
-    property string validationMessage: ""
     readonly property var relationshipOptions: [
         { "value": "PREDECESSOR", "label": "Current task depends on other task" },
         { "value": "SUCCESSOR",   "label": "Other task depends on current task" }
@@ -23,7 +22,6 @@ AppWidgets.EntityDialog {
     subtitle:     root.taskData && root.taskData.title
         ? "Define sequencing around " + root.taskData.title + "."
         : "Define predecessor or successor flow for the selected task."
-    errorMessage: root.validationMessage
     primaryText:  "Create Dependency"
     primaryIcon:  "add"
     primaryEnabled: (root.taskOptions || []).length > 0
@@ -34,7 +32,7 @@ AppWidgets.EntityDialog {
         relationshipCombo.currentIndex = 0
         dependencyTypeCombo.currentIndex = root.indexForValue(root.dependencyTypeOptions, "FS")
         lagField.text = "0"
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
     onAccepted: root.submitDialog()
     onRejected: root.close()
@@ -67,10 +65,10 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (String((root.taskOptions[linkedTaskCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Select a linked task before creating the dependency."
+            root.errorMessage = "Select a linked task before creating the dependency."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

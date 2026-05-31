@@ -13,7 +13,6 @@ AppWidgets.EntityDialog {
     property var categoryOptions: []
     property var employeeOptions: []
     property var resourceData: ({})
-    property string validationMessage: ""
     readonly property bool employeeWorkerSelected: String(root.currentWorkerTypeValue() || "") === "EMPLOYEE"
 
     signal submitted(var payload)
@@ -22,7 +21,6 @@ AppWidgets.EntityDialog {
     subtitle:     root.modeTitle === "Create Resource"
         ? "Set up a PM resource record for internal staffing or external support."
         : "Update capacity, category, worker linkage, or resource availability."
-    errorMessage: root.validationMessage
     primaryText:  root.modeTitle === "Create Resource" ? "Create Resource" : "Save Changes"
     primaryIcon:  root.modeTitle === "Create Resource" ? "add" : "save"
     width: 620
@@ -77,7 +75,7 @@ AppWidgets.EntityDialog {
         addressField.text = String(state.address || "")
         contactField.text = String(state.contact || "")
         activeCheck.checked = state.isActive !== false
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.applyEmployeeDefaults()
     }
 
@@ -99,14 +97,14 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (root.employeeWorkerSelected && String((root.employeeOptions[employeeCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Select an employee before saving an employee-linked resource."
+            root.errorMessage = "Select an employee before saving an employee-linked resource."
             return
         }
         if (!root.employeeWorkerSelected && nameField.text.trim().length === 0) {
-            root.validationMessage = "Resource name is required."
+            root.errorMessage = "Resource name is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 
