@@ -131,4 +131,13 @@ AppLayouts.WorkspaceFrame {
             }
         }
     }
+
+    // Full loading overlay while data loads
+    AppWidgets.LoadingOverlay {
+        anchors.fill: parent
+        z: 10
+        loading: (root.workspaceController ? root.workspaceController.isLoading : false)
+            && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+        message: "Loading maintenance dashboard..."
+    }
 }
