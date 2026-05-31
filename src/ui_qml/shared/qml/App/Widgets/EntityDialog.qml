@@ -64,8 +64,8 @@ AppControls.CenteredDialog {
     property bool   destructiveEnabled: true
 
     // ── Signals ───────────────────────────────────────────────────────────────
-    signal accepted()
-    signal rejected()
+    // accepted() and rejected() are inherited from Dialog — do NOT redeclare them.
+    // Buttons call root.accept() / root.reject() which emit those built-in signals.
     signal destructiveRequested()
 
     // ── Sizing ────────────────────────────────────────────────────────────────
@@ -190,7 +190,7 @@ AppControls.CenteredDialog {
             text:     root.secondaryText
             iconName: root.secondaryIcon
             enabled:  !root.busy
-            onClicked: root.rejected()
+            onClicked: root.reject()
         }
 
         // Primary
@@ -199,7 +199,7 @@ AppControls.CenteredDialog {
             text:     root.primaryText
             iconName: root.primaryIcon
             enabled:  root.primaryEnabled && !root.busy
-            onClicked: root.accepted()
+            onClicked: root.accept()
         }
     }
 }

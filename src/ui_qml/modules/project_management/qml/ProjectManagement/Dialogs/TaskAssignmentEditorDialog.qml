@@ -187,7 +187,6 @@ AppWidgets.EntityDialog {
         border.color: _isBlocked
             ? Theme.AppTheme.dangerSoftBorder
             : Theme.AppTheme.warningSoftBorder
-                : "#B8860B"
         border.width: 1
 
         ColumnLayout {
