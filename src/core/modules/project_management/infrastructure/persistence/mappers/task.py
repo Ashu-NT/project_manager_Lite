@@ -8,6 +8,7 @@ def task_to_orm(task: Task) -> TaskORM:
     return TaskORM(
         id=task.id,
         project_id=task.project_id,
+        task_code=getattr(task, "code", "") or None,
         name=task.name,
         description=task.description,
         start_date=task.start_date,
@@ -27,6 +28,7 @@ def task_from_orm(obj: TaskORM) -> Task:
     return Task(
         id=obj.id,
         project_id=obj.project_id,
+        code=getattr(obj, "task_code", "") or "",
         name=obj.name,
         description=obj.description,
         start_date=obj.start_date,

@@ -25,6 +25,7 @@ class CostItemORM(Base):
         ForeignKey("tasks.id", ondelete="SET NULL"),
         nullable=True,
     )
+    cost_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     description: Mapped[str] = mapped_column(String, nullable=False)
     cost_type: Mapped[str] = mapped_column(String, nullable=False, default="OVERHEAD")
     currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
@@ -36,6 +37,7 @@ class CostItemORM(Base):
 
 
 Index("idx_costs_project", CostItemORM.project_id)
+Index("ux_costs_project_code", CostItemORM.project_id, CostItemORM.cost_code, unique=True)
 Index("idx_costs_task", CostItemORM.task_id)
 Index("idx_costs_type", CostItemORM.cost_type)
 

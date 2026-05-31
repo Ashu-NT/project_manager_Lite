@@ -11,6 +11,7 @@ from src.core.modules.project_management.domain.identifiers import generate_id
 class Resource:
     id: str
     name: str
+    code: str = ""
     role: str = ""
     hourly_rate: float = 0.0
     is_active: bool = True
@@ -36,10 +37,12 @@ class Resource:
         contact: str = "",
         worker_type: WorkerType = WorkerType.EXTERNAL,
         employee_id: str | None = None,
+        code: str = "",
     ) -> "Resource":
         return Resource(
             id=generate_id(),
             name=name,
+            code=code,
             role=role,
             hourly_rate=hourly_rate,
             is_active=is_active,

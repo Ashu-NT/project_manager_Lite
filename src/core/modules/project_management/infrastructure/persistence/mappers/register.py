@@ -8,6 +8,7 @@ def register_entry_to_orm(entry: RegisterEntry) -> RegisterEntryORM:
     return RegisterEntryORM(
         id=entry.id,
         project_id=entry.project_id,
+        entry_code=getattr(entry, "code", "") or None,
         entry_type=entry.entry_type,
         title=entry.title,
         description=entry.description,
@@ -27,6 +28,7 @@ def register_entry_from_orm(obj: RegisterEntryORM) -> RegisterEntry:
     return RegisterEntry(
         id=obj.id,
         project_id=obj.project_id,
+        code=getattr(obj, "entry_code", "") or "",
         entry_type=obj.entry_type,
         title=obj.title,
         description=obj.description,

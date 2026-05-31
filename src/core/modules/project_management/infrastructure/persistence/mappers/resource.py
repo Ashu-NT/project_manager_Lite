@@ -7,6 +7,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.resource
 def resource_to_orm(resource: Resource) -> ResourceORM:
     return ResourceORM(
         id=resource.id,
+        resource_code=getattr(resource, "code", "") or None,
         name=resource.name,
         role=resource.role,
         hourly_rate=resource.hourly_rate,
@@ -25,6 +26,7 @@ def resource_to_orm(resource: Resource) -> ResourceORM:
 def resource_from_orm(obj: ResourceORM) -> Resource:
     return Resource(
         id=obj.id,
+        code=getattr(obj, "resource_code", "") or "",
         name=obj.name,
         role=obj.role,
         hourly_rate=obj.hourly_rate,

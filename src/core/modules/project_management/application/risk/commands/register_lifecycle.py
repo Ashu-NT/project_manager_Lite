@@ -26,6 +26,33 @@ class RegisterLifecycleMixin:
     _register_repo: RegisterEntryRepository
     _UNSET = object()
 
+    def _resolve_entry_code(self, code: str, project_id: str, title: str) -> str:
+        """Normalize a manual code or auto-generate a unique one (per-project, REG prefix)."""
+        from src.core.platform.common.code_generation import (
+            CodeGenerator,
+            assert_code_unique,
+            normalize_manual_code,
+        )
+
+        existing = {
+            str(getattr(entry, "code", "") or "").upper()
+            for entry in self._register_repo.list_entries(project_id=project_id)
+        }
+        manual = normalize_manual_code(code)
+        if manual:
+            assert_code_unique(
+                manual,
+                exists=lambda candidate: candidate.upper() in existing,
+                label="Register code",
+            )
+            return manual
+        return CodeGenerator().generate(
+            "register",
+            exists=lambda candidate: candidate.upper() in existing,
+            name=(title or "").strip() or None,
+            use_year=not bool((title or "").strip()),
+        )
+
     def create_entry(
         self,
         project_id: str,
@@ -39,6 +66,7 @@ class RegisterLifecycleMixin:
         due_date=None,
         impact_summary: str = "",
         response_plan: str = "",
+        code: str = "",
     ) -> RegisterEntry:
         require_permission(self._user_session, "register.manage", operation_label="create register entry")
         require_project_permission(
@@ -54,6 +82,7 @@ class RegisterLifecycleMixin:
             project_id,
             entry_type=as_register_entry_type(entry_type),
             title=self._normalize_title(title),
+            code=self._resolve_entry_code(code, project_id, title),
             description=(description or "").strip(),
             severity=as_register_entry_severity(severity),
             status=as_register_entry_status(status),

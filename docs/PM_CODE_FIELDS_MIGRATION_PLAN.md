@@ -1,7 +1,14 @@
 # Project Management — Human-Readable Code Columns: Migration Plan
 
 **Date:** 2026-06-01
-**Status:** APPROVED (scopes per §2; auto-generate; register prefix = single **REG**; backfill = name token; add Code table columns). **Project — FULLY DONE end-to-end (A+B+C), verified.** Remaining: Task / Resource / Cost / Register verticals.
+**Status:** APPROVED (scopes per §2; auto-generate; register prefix = single **REG**; backfill = name token; add Code table columns). **Project — FULLY DONE (A+B+C). Task/Resource/Cost/Register — backend (A+B) DONE + verified.** Remaining: UI (Phase C) for those four — DTO/api threading, presenter `suggest_code`, controller generate slot, dialog `CodeFieldRow`, host wiring, serializer + table "Code" column, update-path code.
+
+**Task/Resource/Cost/Register backend (A+B) — DONE (2026-06-01):**
+- ORM code columns + unique indexes: `tasks.task_code` (`ux_tasks_project_code` on project_id+code), `resources.resource_code` (`ux_resources_code` global), `cost_items.cost_code` (`ux_costs_project_code`), `register_entries.entry_code` (`ux_register_entries_project_code`).
+- Domain `code` field + `.create(code=...)` on Task/Resource/CostItem/RegisterEntry; mappers both ways.
+- Service create auto-generates (`_resolve_*_code`): Task/Cost/Register per-project (`list_by_project`/`list_entries(project_id=)`); Resource global (`list_all`). Manual codes normalized + `assert_code_unique` (`CODE_DUPLICATE`). Prefixes TSK/RES/CST/REG (REG added to `ENTITY_PREFIXES`).
+- Migration `m6n7o8p9q0r1_add_pm_entity_codes` (down_revision `l5m6n7o8p9q0`): add 4 nullable columns → scoped name-token backfill → 4 unique indexes; reversible.
+- Tests `test_pm_entity_code_generation.py` (6): per-entity autogenerate, per-project scoping (same token, different projects → both 0001), manual duplicate reject. 117 PM tests green across targeted runs.
 
 **Project — COMPLETE (2026-06-01):**
 - ORM `projects.project_code` (nullable) + unique `ux_projects_code`; domain `Project.code`; mapper both ways.

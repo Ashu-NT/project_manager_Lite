@@ -15,6 +15,7 @@ class ResourceORM(Base):
     __tablename__ = "resources"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    resource_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, default="")
     hourly_rate: Mapped[float] = mapped_column(Float, default=0.0)
@@ -48,3 +49,4 @@ class ResourceORM(Base):
 
 
 Index("idx_resources_employee", ResourceORM.employee_id)
+Index("ux_resources_code", ResourceORM.resource_code, unique=True)

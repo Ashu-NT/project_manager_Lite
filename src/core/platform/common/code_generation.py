@@ -37,6 +37,7 @@ ENTITY_PREFIXES: dict[str, str] = {
     "asset": "AST",
     "document": "DOC",
     "risk": "RSK",
+    "register": "REG",
     "cost": "CST",
     # entities that already carry user-facing codes today
     "organization": "ORG",
