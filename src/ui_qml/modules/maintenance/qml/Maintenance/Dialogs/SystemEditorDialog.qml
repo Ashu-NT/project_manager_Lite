@@ -15,7 +15,6 @@ AppWidgets.EntityDialog {
     property var parentSystemOptions: []
     property var statusOptions: []
     property var criticalityOptions: []
-    property string validationMessage: ""
 
     signal submitted(var payload)
 
