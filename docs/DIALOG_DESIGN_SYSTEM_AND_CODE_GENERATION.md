@@ -1,7 +1,7 @@
 # Enterprise Dialog Design System & Code Generation
 
 **Date:** 2026-05-31
-**Status:** Foundations + **all 7 Platform admin dialogs** wired end-to-end (Organization, Site, Department, Employee, Party, Document, Document Structure). Decision taken: apply to existing-code modules first (Platform done → Inventory → Maintenance); PM code columns later. Inventory/Maintenance: mechanical replication (recipe in §7).
+**Status:** Foundations + **Platform admin (7 dialogs)** + **Inventory catalog (Category, Item, Storeroom)** wired end-to-end. Decision: existing-code modules first (Platform done, Inventory done → Maintenance next); PM code columns later. Maintenance: mechanical replication (recipe in §7).
 **Builds on:** `DIALOG_ARCHITECTURE_MIGRATION_PLAN.md`, `INLINE_MESSAGE_STANDARDIZATION_*`
 
 ---
@@ -78,7 +78,9 @@ Every editor dialog already extends `AppWidgets.EntityDialog` (consistent header
 4. Ensure the service validates code uniqueness on save (`normalize_manual_code` + `assert_code_unique` available for any that don't yet — Inventory/Maintenance have `find_*_by_code`/`normalize_*_code`).
 5. Add a presenter/service test (mirror `test_admin_code_generation.py`).
 
-**Rollout order:** Platform admin (done) → Inventory catalog → Maintenance assets. PM only if code columns are introduced (separate, explicit decision).
+**Inventory catalog — DONE:** Category (CAT), Item (ITM), Storeroom (STR). `suggest_*_code` added to `catalog_workspace_presenter` (category/item via `list_categories`/`list_items`) and `inventory_workspace_presenter` (storeroom via `list_storerooms`); `generateEntityCode(entityType, payload)` slot on `catalog_workspace_controller` + `inventory_workspace_controller`; `CodeFieldRow` (column-spanning) in CategoryEditorDialog/ItemEditorDialog/StoreroomEditorDialog; `CatalogDialogHost`/`InventoryDialogHost` pass `workspaceController`. Backend already rejects dup codes (`INVENTORY_*_CODE_EXISTS`). Runtime-verified (Category → `CAT-SPAR-0001`); tests in `test_inventory_code_generation.py`.
+
+**Rollout order:** Platform admin (done) → Inventory catalog (done) → Maintenance assets. PM only if code columns are introduced (separate, explicit decision).
 
 ## 8. Files changed
 

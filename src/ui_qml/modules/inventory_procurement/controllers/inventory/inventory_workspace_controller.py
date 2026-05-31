@@ -449,6 +449,17 @@ class InventoryProcurementInventoryWorkspaceController(
         self._set_selected_balance_id(normalized)
         self.refresh()
 
+    @Slot(str, "QVariantMap", result=str)
+    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
+        """Suggest a unique inventory code (storeroom) for an editor dialog."""
+        key = (entity_type or "").strip().lower()
+        try:
+            if key == "storeroom":
+                return self._inventory_workspace_presenter.suggest_storeroom_code(dict(payload))
+        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
+            self._set_error_message(str(exc))
+        return ""
+
     @Slot("QVariantMap", result="QVariantMap")
     def createStoreroom(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(

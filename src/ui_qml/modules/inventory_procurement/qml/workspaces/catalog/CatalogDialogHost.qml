@@ -92,6 +92,7 @@ Item {
         objectName: "categoryEditorDialog"
 
         categoryTypeOptions: root.categoryTypeOptions
+        workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
@@ -113,6 +114,7 @@ Item {
         itemStatusOptions: root.itemStatusOptions
         categoryOptions: root.categoryOptions
         businessPartyOptions: root.businessPartyOptions
+        workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {

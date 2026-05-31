@@ -140,6 +140,7 @@ Item {
         siteOptions: root.siteOptions
         statusOptions: root.storeroomStatusOptions
         managerPartyOptions: root.managerPartyOptions
+        workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {

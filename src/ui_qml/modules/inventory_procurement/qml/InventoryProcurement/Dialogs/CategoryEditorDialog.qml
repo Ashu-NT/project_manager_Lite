@@ -11,6 +11,8 @@ AppWidgets.EntityDialog {
     property string modeTitle: "Create Category"
     property var categoryTypeOptions: []
     property var categoryData: ({})
+    property var workspaceController: null
+    property string categoryCode: ""
     readonly property var formCategoryTypeOptions: categoryTypeOptions.filter(function(option) {
         return String(option.value || "") !== "all"
     })
@@ -40,7 +42,7 @@ AppWidgets.EntityDialog {
 
     function populateFromCategory() {
         var state = root.categoryData && root.categoryData.state ? root.categoryData.state : (root.categoryData || {})
-        categoryCodeField.text = String(state.categoryCode || "")
+        root.categoryCode = String(state.categoryCode || "")
         nameField.text = String(state.name || "")
         descriptionField.text = String(state.description || "")
         categoryTypeCombo.currentIndex = root.indexForValue(root.formCategoryTypeOptions, state.categoryType || "")
@@ -54,7 +56,7 @@ AppWidgets.EntityDialog {
     function buildPayload() {
         var selectedType = root.formCategoryTypeOptions[categoryTypeCombo.currentIndex] || { "value": "" }
         return {
-            "categoryCode": categoryCodeField.text,
+            "categoryCode": root.categoryCode,
             "name": nameField.text,
             "description": descriptionField.text,
             "categoryType": String(selectedType.value || ""),
@@ -66,7 +68,7 @@ AppWidgets.EntityDialog {
     }
 
     function submitDialog() {
-        if (categoryCodeField.text.trim().length === 0) {
+        if (root.categoryCode.trim().length === 0) {
             root.errorMessage = "Category code is required."
             return
         }
@@ -90,8 +92,25 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Category code"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: categoryCodeField; Layout.fillWidth: true; placeholderText: "SPARE" }
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            label: "Category code"
+            value: root.categoryCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.busy
+            onValueEdited: function(code) { root.categoryCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("category", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.categoryCode = suggested
+                    }
+                }
+            }
+        }
 
         AppControls.Label { text: "Name"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
         AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Spare Parts" }

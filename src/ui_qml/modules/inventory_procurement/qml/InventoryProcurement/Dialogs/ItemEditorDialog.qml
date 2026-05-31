@@ -13,6 +13,8 @@ AppWidgets.EntityDialog {
     property var categoryOptions: []
     property var businessPartyOptions: []
     property var itemData: ({})
+    property var workspaceController: null
+    property string itemCode: ""
     readonly property var formCategoryOptions: categoryOptions.filter(function(option) {
         return String(option.value || "") !== "all"
     })
@@ -40,7 +42,7 @@ AppWidgets.EntityDialog {
 
     function populateFromItem() {
         var state = root.itemData && root.itemData.state ? root.itemData.state : (root.itemData || {})
-        itemCodeField.text = String(state.itemCode || "")
+        root.itemCode = String(state.itemCode || "")
         nameField.text = String(state.name || "")
         descriptionField.text = String(state.description || "")
         itemTypeField.text = String(state.itemType || "")
@@ -73,7 +75,7 @@ AppWidgets.EntityDialog {
         var selectedCategory = root.formCategoryOptions[categoryCombo.currentIndex] || { "value": "" }
         var selectedParty = root.businessPartyOptions[preferredPartyCombo.currentIndex] || { "value": "" }
         return {
-            "itemCode": itemCodeField.text,
+            "itemCode": root.itemCode,
             "name": nameField.text,
             "description": descriptionField.text,
             "itemType": itemTypeField.text,
@@ -102,7 +104,7 @@ AppWidgets.EntityDialog {
     }
 
     function submitDialog() {
-        if (itemCodeField.text.trim().length === 0) {
+        if (root.itemCode.trim().length === 0) {
             root.errorMessage = "Item code is required."
             return
         }
@@ -130,8 +132,25 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Item code" }
-        AppControls.TextField { id: itemCodeField; Layout.fillWidth: true; placeholderText: "BRG-100" }
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            label: "Item code"
+            value: root.itemCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.busy
+            onValueEdited: function(code) { root.itemCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("item", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.itemCode = suggested
+                    }
+                }
+            }
+        }
 
         AppControls.Label { text: "Name" }
         AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Bearing 100" }

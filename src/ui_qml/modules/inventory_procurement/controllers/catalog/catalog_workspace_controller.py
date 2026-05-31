@@ -379,6 +379,19 @@ class InventoryProcurementCatalogWorkspaceController(
         self._set_selected_item_id(normalized_value)
         self.refresh()
 
+    @Slot(str, "QVariantMap", result=str)
+    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
+        """Suggest a unique catalog code (category/item) for an editor dialog."""
+        key = (entity_type or "").strip().lower()
+        try:
+            if key == "category":
+                return self._catalog_workspace_presenter.suggest_category_code(dict(payload))
+            if key == "item":
+                return self._catalog_workspace_presenter.suggest_item_code(dict(payload))
+        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
+            self._set_error_message(str(exc))
+        return ""
+
     @Slot("QVariantMap", result="QVariantMap")
     def createCategory(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(

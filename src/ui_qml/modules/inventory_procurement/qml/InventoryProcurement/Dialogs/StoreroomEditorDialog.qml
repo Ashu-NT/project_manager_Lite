@@ -13,6 +13,8 @@ AppWidgets.EntityDialog {
     property var statusOptions: []
     property var managerPartyOptions: []
     property var storeroomData: ({})
+    property var workspaceController: null
+    property string storeroomCode: ""
     readonly property var formSiteOptions: siteOptions.filter(function(option) {
         return String(option.value || "") !== "all"
     })
@@ -40,7 +42,7 @@ AppWidgets.EntityDialog {
 
     function populateFromStoreroom() {
         var state = root.storeroomData && root.storeroomData.state ? root.storeroomData.state : (root.storeroomData || {})
-        storeroomCodeField.text = String(state.storeroomCode || "")
+        root.storeroomCode = String(state.storeroomCode || "")
         nameField.text = String(state.name || "")
         descriptionField.text = String(state.description || "")
         siteCombo.currentIndex = root.indexForValue(root.formSiteOptions, state.siteId || "")
@@ -63,7 +65,7 @@ AppWidgets.EntityDialog {
         var selectedStatus = root.statusOptions[statusCombo.currentIndex] || { "value": "" }
         var selectedParty = root.managerPartyOptions[managerPartyCombo.currentIndex] || { "value": "" }
         return {
-            "storeroomCode": storeroomCodeField.text,
+            "storeroomCode": root.storeroomCode,
             "name": nameField.text,
             "description": descriptionField.text,
             "siteId": String(selectedSite.value || ""),
@@ -82,7 +84,7 @@ AppWidgets.EntityDialog {
     }
 
     function submitDialog() {
-        if (storeroomCodeField.text.trim().length === 0) {
+        if (root.storeroomCode.trim().length === 0) {
             root.errorMessage = "Storeroom code is required."
             return
         }
@@ -110,8 +112,25 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Storeroom code" }
-        AppControls.TextField { id: storeroomCodeField; Layout.fillWidth: true; placeholderText: "MAIN" }
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            label: "Storeroom code"
+            value: root.storeroomCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.busy
+            onValueEdited: function(code) { root.storeroomCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("storeroom", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.storeroomCode = suggested
+                    }
+                }
+            }
+        }
 
         AppControls.Label { text: "Name" }
         AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Main Storeroom" }
