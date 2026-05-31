@@ -213,6 +213,28 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         self._refresh_empty_state()
         self._set_is_loading(False)
 
+    @Slot(str, "QVariantMap", result=str)
+    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
+        """Suggest a unique code for an admin entity editor dialog.
+
+        Generic dispatch by entity type so a single slot serves every admin
+        dialog. Returns "" if the entity type has no generator wired yet.
+        """
+        key = (entity_type or "").strip().lower()
+        generators = {
+            "organization": self._organization_controller.generateCode,
+            "site": self._site_controller.generateCode,
+            "department": self._department_controller.generateCode,
+            "employee": self._employee_controller.generateCode,
+            "party": self._party_controller.generateCode,
+            "document": self._document_controller.generateCode,
+            "document_structure": self._document_structure_controller.generateCode,
+        }
+        handler = generators.get(key)
+        if handler is None:
+            return ""
+        return handler(dict(payload))
+
     @Slot("QVariantMap", result="QVariantMap")
     def createOrganization(self, payload: dict[str, object]) -> dict[str, object]:
         return self._run_admin_action(

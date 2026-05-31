@@ -12,6 +12,8 @@ AppWidgets.EntityDialog {
     property var draft: ({})
     property var siteOptions: []
     property var departmentOptions: []
+    property var workspaceController: null
+    property string employeeCode: ""
 
     signal saveRequested(string mode, var payload)
 
@@ -26,7 +28,7 @@ AppWidgets.EntityDialog {
     onRejected: root.close()
 
     function submitDialog() {
-        if (employeeCodeField.text.trim().length === 0) {
+        if (root.employeeCode.trim().length === 0) {
             root.errorMessage = "Employee code is required."
             return
         }
@@ -41,7 +43,7 @@ AppWidgets.EntityDialog {
     readonly property var formData: ({
         employeeId: root.draft.employeeId || root.draft.id || "",
         expectedVersion: root.draft.version || 0,
-        employeeCode: employeeCodeField.text.trim(),
+        employeeCode: root.employeeCode.trim(),
         fullName: fullNameField.text.trim(),
         departmentId: _currentValue(departmentModel, departmentCombo),
         departmentName: _currentLabel(departmentModel, departmentCombo),
@@ -90,7 +92,7 @@ AppWidgets.EntityDialog {
     }
 
     function _loadDraft() {
-        employeeCodeField.text = root.draft.employeeCode || ""
+        root.employeeCode = root.draft.employeeCode || ""
         fullNameField.text = root.draft.fullName || ""
         titleField.text = root.draft.title || ""
         emailField.text = root.draft.email || ""
@@ -136,23 +138,30 @@ AppWidgets.EntityDialog {
         ListElement { label: "Temporary"; value: "TEMPORARY" }
     }
 
-    RowLayout {
+    AppWidgets.CodeFieldRow {
         Layout.fillWidth: true
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.TextField {
-            id: employeeCodeField
-
-            Layout.preferredWidth: 180
-            placeholderText: "Employee code"
+        label: "Employee Code"
+        value: root.employeeCode
+        placeholderText: "Auto-generated if empty"
+        required: true
+        generateVisible: true
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onValueEdited: function(code) { root.employeeCode = code }
+        onGenerateRequested: {
+            if (root.workspaceController) {
+                const suggested = root.workspaceController.generateEntityCode("employee", root.formData)
+                if (suggested && suggested.length > 0) {
+                    root.employeeCode = suggested
+                }
+            }
         }
+    }
 
-        AppControls.TextField {
-            id: fullNameField
+    AppControls.TextField {
+        id: fullNameField
 
-            Layout.fillWidth: true
-            placeholderText: "Full name"
-        }
+        Layout.fillWidth: true
+        placeholderText: "Full name"
     }
 
     AppControls.ComboBox {

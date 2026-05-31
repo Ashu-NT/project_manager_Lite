@@ -59,6 +59,23 @@ class PlatformSiteCatalogPresenter:
             items=tuple(self._serialize_site(row) for row in sites_result.data),
         )
 
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique site code (SITE-<NAME>-0001 / SITE-<YEAR>-0001)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        existing: set[str] = set()
+        if self._site_api is not None:
+            result = self._site_api.list_sites(active_only=None)
+            if result.ok and result.data is not None:
+                existing = {str(getattr(row, "site_code", "") or "").upper() for row in result.data}
+        name = string_value(payload, "name")
+        return CodeGenerator().generate(
+            "site",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def create_site(self, payload: dict[str, Any]) -> DesktopApiResult[SiteDto]:
         if self._site_api is None:
             return preview_error_result("Platform site API is not connected in this QML preview.")

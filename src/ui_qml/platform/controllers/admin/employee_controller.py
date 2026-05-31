@@ -113,6 +113,16 @@ class PlatformEmployeeController(QObject):
     def refresh(self) -> None:
         self._refresh_employees()
 
+    @Slot("QVariantMap", result=str)
+    def generateCode(self, payload: dict[str, object]) -> str:
+        try:
+            return self._presenter.suggest_code(dict(payload))
+        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
+            setter = getattr(self, "_set_error_message", None)
+            if setter is not None:
+                setter(str(exc))
+            return ""
+
     @Slot("QVariantMap", result="QVariantMap")
     def createEmployee(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(

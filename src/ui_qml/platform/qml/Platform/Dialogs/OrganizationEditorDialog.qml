@@ -12,6 +12,8 @@ AppWidgets.EntityDialog {
     property string mode: "create"
     property var draft: ({})
     property var moduleOptions: []
+    property var workspaceController: null
+    property string organizationCode: ""
 
     signal saveRequested(string mode, var payload)
 
@@ -26,7 +28,7 @@ AppWidgets.EntityDialog {
     onRejected: root.close()
 
     function submitDialog() {
-        if (organizationCodeField.text.trim().length === 0) {
+        if (root.organizationCode.trim().length === 0) {
             root.errorMessage = "Organization code is required."
             return
         }
@@ -41,7 +43,7 @@ AppWidgets.EntityDialog {
     readonly property var formData: ({
         organizationId: root.draft.organizationId || root.draft.id || "",
         expectedVersion: root.draft.version || 0,
-        organizationCode: organizationCodeField.text.trim(),
+        organizationCode: root.organizationCode.trim(),
         displayName: displayNameField.text.trim(),
         timezoneName: timezoneField.text.trim(),
         baseCurrency: currencyField.text.trim().toUpperCase(),
@@ -65,7 +67,7 @@ AppWidgets.EntityDialog {
     }
 
     function _loadDraft() {
-        organizationCodeField.text = root.draft.organizationCode || ""
+        root.organizationCode = root.draft.organizationCode || ""
         displayNameField.text = root.draft.displayName || ""
         timezoneField.text = root.draft.timezoneName || "UTC"
         currencyField.text = root.draft.baseCurrency || "USD"
@@ -102,11 +104,23 @@ AppWidgets.EntityDialog {
         id: moduleModel
     }
 
-    AppControls.TextField {
-        id: organizationCodeField
-
+    AppWidgets.CodeFieldRow {
         Layout.fillWidth: true
-        placeholderText: "Organization code"
+        label: "Organization Code"
+        value: root.organizationCode
+        placeholderText: "Auto-generated if empty"
+        required: true
+        generateVisible: true
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onValueEdited: function(code) { root.organizationCode = code }
+        onGenerateRequested: {
+            if (root.workspaceController) {
+                const suggested = root.workspaceController.generateEntityCode("organization", root.formData)
+                if (suggested && suggested.length > 0) {
+                    root.organizationCode = suggested
+                }
+            }
+        }
     }
 
     AppControls.TextField {

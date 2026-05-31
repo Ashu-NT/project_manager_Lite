@@ -10,6 +10,8 @@ AppWidgets.EntityDialog {
 
     property string mode: "create"
     property var draft: ({})
+    property var workspaceController: null
+    property string siteCode: ""
 
     signal saveRequested(string mode, var payload)
 
@@ -24,7 +26,7 @@ AppWidgets.EntityDialog {
     onRejected: root.close()
 
     function submitDialog() {
-        if (siteCodeField.text.trim().length === 0) {
+        if (root.siteCode.trim().length === 0) {
             root.errorMessage = "Site code is required."
             return
         }
@@ -39,7 +41,7 @@ AppWidgets.EntityDialog {
     readonly property var formData: ({
         siteId: root.draft.siteId || root.draft.id || "",
         expectedVersion: root.draft.version || 0,
-        siteCode: siteCodeField.text.trim(),
+        siteCode: root.siteCode.trim(),
         name: nameField.text.trim(),
         description: descriptionField.text.trim(),
         city: cityField.text.trim(),
@@ -67,7 +69,7 @@ AppWidgets.EntityDialog {
     }
 
     function _loadDraft() {
-        siteCodeField.text = root.draft.siteCode || ""
+        root.siteCode = root.draft.siteCode || ""
         nameField.text = root.draft.name || ""
         descriptionField.text = root.draft.description || ""
         cityField.text = root.draft.city || ""
@@ -80,23 +82,30 @@ AppWidgets.EntityDialog {
         activeCheck.checked = root.draft.isActive !== undefined ? root.draft.isActive : true
     }
 
-    RowLayout {
+    AppWidgets.CodeFieldRow {
         Layout.fillWidth: true
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.TextField {
-            id: siteCodeField
-
-            Layout.preferredWidth: 180
-            placeholderText: "Site code"
+        label: "Site Code"
+        value: root.siteCode
+        placeholderText: "Auto-generated if empty"
+        required: true
+        generateVisible: true
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onValueEdited: function(code) { root.siteCode = code }
+        onGenerateRequested: {
+            if (root.workspaceController) {
+                const suggested = root.workspaceController.generateEntityCode("site", root.formData)
+                if (suggested && suggested.length > 0) {
+                    root.siteCode = suggested
+                }
+            }
         }
+    }
 
-        AppControls.TextField {
-            id: nameField
+    AppControls.TextField {
+        id: nameField
 
-            Layout.fillWidth: true
-            placeholderText: "Site name"
-        }
+        Layout.fillWidth: true
+        placeholderText: "Site name"
     }
 
     AppControls.TextField {

@@ -13,6 +13,8 @@ AppWidgets.EntityDialog {
     property var parentOptions: []
     property var objectScopeOptions: []
     property var defaultTypeOptions: []
+    property var workspaceController: null
+    property string structureCode: ""
 
     signal saveRequested(string mode, var payload)
 
@@ -27,7 +29,7 @@ AppWidgets.EntityDialog {
     onRejected: root.close()
 
     function submitDialog() {
-        if (structureCodeField.text.trim().length === 0) {
+        if (root.structureCode.trim().length === 0) {
             root.errorMessage = "Structure code is required."
             return
         }
@@ -42,7 +44,7 @@ AppWidgets.EntityDialog {
     readonly property var formData: ({
         structureId: root.draft.structureId || root.draft.id || "",
         expectedVersion: root.draft.version || 0,
-        structureCode: structureCodeField.text.trim(),
+        structureCode: root.structureCode.trim(),
         name: nameField.text.trim(),
         description: descriptionField.text.trim(),
         parentStructureId: _currentValue(parentModel, parentCombo),
@@ -94,7 +96,7 @@ AppWidgets.EntityDialog {
     }
 
     function _loadDraft() {
-        structureCodeField.text = root.draft.structureCode || ""
+        root.structureCode = root.draft.structureCode || ""
         nameField.text = root.draft.name || ""
         descriptionField.text = root.draft.description || ""
         notesField.text = root.draft.notes || ""
@@ -126,23 +128,30 @@ AppWidgets.EntityDialog {
     ListModel { id: scopeModel }
     ListModel { id: typeModel }
 
-    RowLayout {
+    AppWidgets.CodeFieldRow {
         Layout.fillWidth: true
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.TextField {
-            id: structureCodeField
-
-            Layout.preferredWidth: 180
-            placeholderText: "Structure code"
+        label: "Structure Code"
+        value: root.structureCode
+        placeholderText: "Auto-generated if empty"
+        required: true
+        generateVisible: true
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onValueEdited: function(code) { root.structureCode = code }
+        onGenerateRequested: {
+            if (root.workspaceController) {
+                const suggested = root.workspaceController.generateEntityCode("document_structure", root.formData)
+                if (suggested && suggested.length > 0) {
+                    root.structureCode = suggested
+                }
+            }
         }
+    }
 
-        AppControls.TextField {
-            id: nameField
+    AppControls.TextField {
+        id: nameField
 
-            Layout.fillWidth: true
-            placeholderText: "Structure name"
-        }
+        Layout.fillWidth: true
+        placeholderText: "Structure name"
     }
 
     AppControls.TextField {

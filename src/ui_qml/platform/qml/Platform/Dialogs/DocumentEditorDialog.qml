@@ -13,6 +13,8 @@ AppWidgets.EntityDialog {
     property var typeOptions: []
     property var structureOptions: []
     property var storageKindOptions: []
+    property var workspaceController: null
+    property string documentCode: ""
 
     signal saveRequested(string mode, var payload)
 
@@ -27,7 +29,7 @@ AppWidgets.EntityDialog {
     onRejected: root.close()
 
     function submitDialog() {
-        if (documentCodeField.text.trim().length === 0) {
+        if (root.documentCode.trim().length === 0) {
             root.errorMessage = "Document code is required."
             return
         }
@@ -42,7 +44,7 @@ AppWidgets.EntityDialog {
     readonly property var formData: ({
         documentId: root.draft.documentId || root.draft.id || "",
         expectedVersion: root.draft.version || 0,
-        documentCode: documentCodeField.text.trim(),
+        documentCode: root.documentCode.trim(),
         title: titleField.text.trim(),
         documentType: _currentValue(typeModel, typeCombo) || "GENERAL",
         documentStructureId: _currentValue(structureModel, structureCombo),
@@ -98,7 +100,7 @@ AppWidgets.EntityDialog {
     }
 
     function _loadDraft() {
-        documentCodeField.text = root.draft.documentCode || ""
+        root.documentCode = root.draft.documentCode || ""
         titleField.text = root.draft.title || ""
         storageUriField.text = root.draft.storageUri || ""
         fileNameField.text = root.draft.fileName || ""
@@ -135,23 +137,30 @@ AppWidgets.EntityDialog {
     ListModel { id: structureModel }
     ListModel { id: storageKindModel }
 
-    RowLayout {
+    AppWidgets.CodeFieldRow {
         Layout.fillWidth: true
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.TextField {
-            id: documentCodeField
-
-            Layout.preferredWidth: 180
-            placeholderText: "Document code"
+        label: "Document Code"
+        value: root.documentCode
+        placeholderText: "Auto-generated if empty"
+        required: true
+        generateVisible: true
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onValueEdited: function(code) { root.documentCode = code }
+        onGenerateRequested: {
+            if (root.workspaceController) {
+                const suggested = root.workspaceController.generateEntityCode("document", root.formData)
+                if (suggested && suggested.length > 0) {
+                    root.documentCode = suggested
+                }
+            }
         }
+    }
 
-        AppControls.TextField {
-            id: titleField
+    AppControls.TextField {
+        id: titleField
 
-            Layout.fillWidth: true
-            placeholderText: "Title"
-        }
+        Layout.fillWidth: true
+        placeholderText: "Title"
     }
 
     AppControls.ComboBox {

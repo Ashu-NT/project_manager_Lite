@@ -181,6 +181,23 @@ class PlatformDocumentManagementPresenter:
         )
         return (selected_document.id, detail, preview, link_catalog)
 
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique document-structure code (DST-<NAME>-0001 / DST-<YEAR>-0001)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        existing: set[str] = set()
+        if self._document_api is not None:
+            result = self._document_api.list_document_structures(active_only=None)
+            if result.ok and result.data is not None:
+                existing = {str(getattr(row, "structure_code", "") or "").upper() for row in result.data}
+        name = string_value(payload, "name")
+        return CodeGenerator().generate(
+            "document_structure",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def create_document_structure(
         self,
         payload: dict[str, Any],

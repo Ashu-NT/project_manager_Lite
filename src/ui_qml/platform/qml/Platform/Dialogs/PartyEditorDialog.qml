@@ -11,6 +11,8 @@ AppWidgets.EntityDialog {
     property string mode: "create"
     property var draft: ({})
     property var typeOptions: []
+    property var workspaceController: null
+    property string partyCode: ""
 
     signal saveRequested(string mode, var payload)
 
@@ -25,7 +27,7 @@ AppWidgets.EntityDialog {
     onRejected: root.close()
 
     function submitDialog() {
-        if (partyCodeField.text.trim().length === 0) {
+        if (root.partyCode.trim().length === 0) {
             root.errorMessage = "Party code is required."
             return
         }
@@ -40,7 +42,7 @@ AppWidgets.EntityDialog {
     readonly property var formData: ({
         partyId: root.draft.partyId || root.draft.id || "",
         expectedVersion: root.draft.version || 0,
-        partyCode: partyCodeField.text.trim(),
+        partyCode: root.partyCode.trim(),
         partyName: partyNameField.text.trim(),
         partyType: _currentValue(typeModel, typeCombo) || "GENERAL",
         legalName: legalNameField.text.trim(),
@@ -92,7 +94,7 @@ AppWidgets.EntityDialog {
     }
 
     function _loadDraft() {
-        partyCodeField.text = root.draft.partyCode || ""
+        root.partyCode = root.draft.partyCode || ""
         partyNameField.text = root.draft.partyName || ""
         legalNameField.text = root.draft.legalName || ""
         contactNameField.text = root.draft.contactName || ""
@@ -130,23 +132,30 @@ AppWidgets.EntityDialog {
 
     ListModel { id: typeModel }
 
-    RowLayout {
+    AppWidgets.CodeFieldRow {
         Layout.fillWidth: true
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.TextField {
-            id: partyCodeField
-
-            Layout.preferredWidth: 180
-            placeholderText: "Party code"
+        label: "Party Code"
+        value: root.partyCode
+        placeholderText: "Auto-generated if empty"
+        required: true
+        generateVisible: true
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onValueEdited: function(code) { root.partyCode = code }
+        onGenerateRequested: {
+            if (root.workspaceController) {
+                const suggested = root.workspaceController.generateEntityCode("party", root.formData)
+                if (suggested && suggested.length > 0) {
+                    root.partyCode = suggested
+                }
+            }
         }
+    }
 
-        AppControls.TextField {
-            id: partyNameField
+    AppControls.TextField {
+        id: partyNameField
 
-            Layout.fillWidth: true
-            placeholderText: "Party name"
-        }
+        Layout.fillWidth: true
+        placeholderText: "Party name"
     }
 
     AppControls.ComboBox {

@@ -151,6 +151,7 @@ Item {
         id: organizationDialog
 
         parent: Overlay.overlay
+        workspaceController: root.workspaceController
 
         onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
@@ -167,6 +168,7 @@ Item {
         id: siteDialog
 
         parent: Overlay.overlay
+        workspaceController: root.workspaceController
 
         onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
@@ -183,6 +185,7 @@ Item {
         id: departmentDialog
 
         parent: Overlay.overlay
+        workspaceController: root.workspaceController
 
         onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
@@ -199,6 +202,7 @@ Item {
         id: employeeDialog
 
         parent: Overlay.overlay
+        workspaceController: root.workspaceController
 
         onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
@@ -231,6 +235,7 @@ Item {
         id: partyDialog
 
         parent: Overlay.overlay
+        workspaceController: root.workspaceController
 
         onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
@@ -247,6 +252,7 @@ Item {
         id: documentDialog
 
         parent: Overlay.overlay
+        workspaceController: root.workspaceController
 
         onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
@@ -277,6 +283,7 @@ Item {
         id: documentStructureDialog
 
         parent: Overlay.overlay
+        workspaceController: root.workspaceController
 
         onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {

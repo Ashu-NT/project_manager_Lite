@@ -91,6 +91,23 @@ class PlatformEmployeeCatalogPresenter:
             for row in result.data
         )
 
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique employee code (EMP-<NAME>-0001 / EMP-<YEAR>-0001)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        existing: set[str] = set()
+        if self._employee_api is not None:
+            result = self._employee_api.list_employees(active_only=None)
+            if result.ok and result.data is not None:
+                existing = {str(getattr(row, "employee_code", "") or "").upper() for row in result.data}
+        name = string_value(payload, "fullName")
+        return CodeGenerator().generate(
+            "employee",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def create_employee(self, payload: dict[str, Any]) -> DesktopApiResult[EmployeeDto]:
         if self._employee_api is None:
             return preview_error_result("Platform employee API is not connected in this QML preview.")

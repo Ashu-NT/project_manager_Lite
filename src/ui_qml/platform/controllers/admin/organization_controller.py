@@ -126,6 +126,15 @@ class PlatformOrganizationController(QObject):
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot("QVariantMap", result=str)
+    def generateCode(self, payload: dict[str, object]) -> str:
+        """Return a suggested unique organization code for the editor dialog."""
+        try:
+            return self._presenter.suggest_code(dict(payload))
+        except Exception as exc:  # surface generation errors via the dialog/banner
+            self._set_error_message(str(exc))
+            return ""
+
     @Slot(str, result="QVariantMap")
     def setActiveOrganization(self, organization_id: str) -> dict[str, object]:
         normalized_id = organization_id.strip()

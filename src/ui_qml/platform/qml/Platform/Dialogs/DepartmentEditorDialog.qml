@@ -13,6 +13,8 @@ AppWidgets.EntityDialog {
     property var siteOptions: []
     property var locationOptions: []
     property var parentOptions: []
+    property var workspaceController: null
+    property string departmentCode: ""
 
     signal saveRequested(string mode, var payload)
 
@@ -27,7 +29,7 @@ AppWidgets.EntityDialog {
     onRejected: root.close()
 
     function submitDialog() {
-        if (departmentCodeField.text.trim().length === 0) {
+        if (root.departmentCode.trim().length === 0) {
             root.errorMessage = "Department code is required."
             return
         }
@@ -42,7 +44,7 @@ AppWidgets.EntityDialog {
     readonly property var formData: ({
         departmentId: root.draft.departmentId || root.draft.id || "",
         expectedVersion: root.draft.version || 0,
-        departmentCode: departmentCodeField.text.trim(),
+        departmentCode: root.departmentCode.trim(),
         name: nameField.text.trim(),
         description: descriptionField.text.trim(),
         siteId: _currentValue(siteModel, siteCombo),
@@ -95,7 +97,7 @@ AppWidgets.EntityDialog {
     }
 
     function _loadDraft() {
-        departmentCodeField.text = root.draft.departmentCode || ""
+        root.departmentCode = root.draft.departmentCode || ""
         nameField.text = root.draft.name || ""
         descriptionField.text = root.draft.description || ""
         departmentTypeField.text = root.draft.departmentType || ""
@@ -128,23 +130,30 @@ AppWidgets.EntityDialog {
     ListModel { id: locationModel }
     ListModel { id: parentModel }
 
-    RowLayout {
+    AppWidgets.CodeFieldRow {
         Layout.fillWidth: true
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.TextField {
-            id: departmentCodeField
-
-            Layout.preferredWidth: 180
-            placeholderText: "Department code"
+        label: "Department Code"
+        value: root.departmentCode
+        placeholderText: "Auto-generated if empty"
+        required: true
+        generateVisible: true
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onValueEdited: function(code) { root.departmentCode = code }
+        onGenerateRequested: {
+            if (root.workspaceController) {
+                const suggested = root.workspaceController.generateEntityCode("department", root.formData)
+                if (suggested && suggested.length > 0) {
+                    root.departmentCode = suggested
+                }
+            }
         }
+    }
 
-        AppControls.TextField {
-            id: nameField
+    AppControls.TextField {
+        id: nameField
 
-            Layout.fillWidth: true
-            placeholderText: "Department name"
-        }
+        Layout.fillWidth: true
+        placeholderText: "Department name"
     }
 
     AppControls.TextField {
