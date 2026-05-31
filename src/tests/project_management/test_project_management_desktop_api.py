@@ -61,7 +61,6 @@ EXPECTED_PM_WORKSPACE_KEYS = [
     "scheduling",
     "resources",
     "financials",
-    "risk",
     "portfolio",
     "register",
     "collaboration",

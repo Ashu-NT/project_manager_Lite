@@ -23,6 +23,12 @@ class TaskAssignmentBridgeMixin:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
 
         if not self._project_resource_repo:
+            existing = self._assignment_repo.list_by_task(task_id)
+            if any(a.resource_id == resource_id for a in existing):
+                raise ValidationError(
+                    "Resource is already assigned to this task.",
+                    code="ASSIGNMENT_DUPLICATE",
+                )
             self._check_resource_overallocation(
                 project_id=task.project_id,
                 resource_id=resource_id,

@@ -784,7 +784,7 @@ def test_project_management_workspace_catalog_exposes_typed_timesheets_controlle
     assert controller.reviewDetail["title"] == "Electrical Crew | May 2026"
 
 
-def test_project_management_workspace_catalog_exposes_typed_risk_and_register_controller() -> None:
+def test_project_management_workspace_catalog_exposes_typed_register_controller() -> None:
     register_api = build_project_management_register_desktop_api(
         project_service=SimpleNamespace(
             list_projects=lambda: [
@@ -839,31 +839,27 @@ def test_project_management_workspace_catalog_exposes_typed_risk_and_register_co
             ]
         ),
     )
+    # Risk was consolidated into the unified Register workspace (no standalone
+    # risk controller/route). The Register controller now serves risks via its
+    # RISK type filter. See docs/REGISTER_RISK_CONSOLIDATION.md.
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(
-            project_management_risk=register_api,
             project_management_register=register_api,
         )
     )
 
-    risk_controller = catalog.riskWorkspace
     register_controller = catalog.registerWorkspace
-
-    assert risk_controller.workspace["routeId"] == "project_management.risk"
-    assert risk_controller.overview["title"] == "Risk"
-    assert risk_controller.entries["items"][0]["title"] == "Critical supplier dependency"
-    assert risk_controller.selectedEntry["title"] == "Critical supplier dependency"
-    assert risk_controller.urgentEntries["items"][0]["title"] == "Critical supplier dependency"
-
-    risk_controller.setSeverityFilter("HIGH")
-
-    assert [item["title"] for item in risk_controller.entries["items"]] == []
-    assert risk_controller.emptyState == "No risks match the current filters."
 
     assert register_controller.workspace["routeId"] == "project_management.register"
     assert register_controller.typeOptions[1]["value"] == "RISK"
     assert register_controller.entries["items"][0]["title"] == "Critical supplier dependency"
     assert register_controller.selectedEntry["fields"][2]["label"] == "Impact"
+
+    register_controller.setTypeFilter("RISK")
+
+    assert [item["title"] for item in register_controller.entries["items"]] == [
+        "Critical supplier dependency"
+    ]
 
     register_controller.setTypeFilter("CHANGE")
 
@@ -1670,7 +1666,7 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "import ProjectManagement.Widgets 1.0" in qml_text
     assert "property var pmCatalog" not in qml_text
     assert "QML landing zone ready" in qml_text
-    assert "Project risk register, mitigation, severity, and review workflows." in qml_text
+    assert "Risks, issues, and changes — unified project governance register." in qml_text
     assert "Task planning, progress, dependencies, assignments, and execution state." in qml_text
     assert "Enterprise planning and schedule control workspace." in qml_text
     assert 'searchPlaceholder: "Search tasks..."' in qml_text

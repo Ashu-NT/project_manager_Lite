@@ -66,6 +66,12 @@ class TaskAssignmentORM(Base):
 
 
 Index("idx_task_assignments_project_resource", TaskAssignmentORM.project_resource_id)
+Index(
+    "ux_task_assignments_task_resource",
+    TaskAssignmentORM.task_id,
+    TaskAssignmentORM.resource_id,
+    unique=True,
+)
 
 
 class TaskDependencyORM(Base):
@@ -92,3 +98,9 @@ class TaskDependencyORM(Base):
 
 Index("idx_dep_predecessor", TaskDependencyORM.predecessor_task_id)
 Index("idx_dep_successor", TaskDependencyORM.successor_task_id)
+Index(
+    "ux_task_dependencies_pair",
+    TaskDependencyORM.predecessor_task_id,
+    TaskDependencyORM.successor_task_id,
+    unique=True,
+)

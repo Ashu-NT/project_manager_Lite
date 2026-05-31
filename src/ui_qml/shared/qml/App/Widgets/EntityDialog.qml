@@ -198,6 +198,7 @@ AppControls.CenteredDialog {
 
         // Cancel
         AppControls.SecondaryButton {
+            objectName: "dialogCancelButton"
             visible:  root.showSecondary
             text:     root.secondaryText
             iconName: root.secondaryIcon
@@ -207,6 +208,7 @@ AppControls.CenteredDialog {
 
         // Primary
         AppControls.PrimaryButton {
+            objectName: "dialogSubmitButton"
             visible:  root.showPrimary
             text:     root.primaryText
             iconName: root.primaryIcon
