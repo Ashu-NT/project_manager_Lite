@@ -22,7 +22,7 @@ AppLayouts.WorkspaceFrame {
         : ({
             "routeId": "project_management.register",
             "title": "Register",
-            "summary": "Controlled project register records and governance-facing project history."
+            "summary": "Risks, issues, and changes — unified project governance register."
         })
     readonly property var overviewModel: root.workspaceController
         ? root.workspaceController.overview
@@ -66,19 +66,46 @@ AppLayouts.WorkspaceFrame {
     property int _pendingDetailSection: 0
     readonly property var detailPage: detailPageLoader.item
 
+    // ── Type tab navigation ───────────────────────────────────────────────────
+    readonly property var _typeTabs: [
+        { "value": "all",    "label": "All Entries" },
+        { "value": "RISK",   "label": "Risks"       },
+        { "value": "ISSUE",  "label": "Issues"      },
+        { "value": "CHANGE", "label": "Changes"     }
+    ]
+
+    readonly property string _activeType: root.workspaceController
+        ? (root.workspaceController.selectedTypeFilter || "all")
+        : "all"
+
+    // Dialog config driven by active type tab
+    readonly property bool   _typeFieldVisible: root._activeType === "all"
+    readonly property string _fixedTypeValue:   root._activeType === "all" ? "RISK" : root._activeType
+    readonly property string _createLabel: {
+        switch (root._activeType) {
+            case "RISK":   return "New Risk"
+            case "ISSUE":  return "New Issue"
+            case "CHANGE": return "New Change"
+            default:       return "New Entry"
+        }
+    }
+
+    // ── Column state ──────────────────────────────────────────────────────────
     property string _tableId: "pm.register.table"
     property var    _columns: []
 
     function _baseColumns() {
         return [
-            { "key": "title",        "label": "Issue",    "flex": 2,   "sortable": true,  "visibleByDefault": true  },
-            { "key": "statusLabel",  "label": "Severity", "flex": 0,   "minWidth": 100, "type": "status", "visibleByDefault": true  },
-            { "key": "typeLabel",    "label": "Type",     "flex": 0,   "minWidth": 90,  "type": "status", "visibleByDefault": true  },
-            { "key": "projectName",  "label": "Project",  "flex": 1.5, "sortable": true,  "visibleByDefault": true  },
-            { "key": "ownerName",    "label": "Owner",    "flex": 1.5,                     "visibleByDefault": true  },
-            { "key": "dueDateLabel", "label": "Due",      "flex": 0,   "minWidth": 90,     "visibleByDefault": true  }
+            { "key": "title",        "label": "Title",    "flex": 2,   "sortable": true,  "visibleByDefault": true,  "required": true  },
+            { "key": "typeLabel",    "label": "Type",     "flex": 0,   "minWidth": 90,  "type": "status", "visibleByDefault": true   },
+            { "key": "projectName",  "label": "Project",  "flex": 1.5, "sortable": true,  "visibleByDefault": true   },
+            { "key": "ownerName",    "label": "Owner",    "flex": 1,                       "visibleByDefault": true   },
+            { "key": "statusLabel",  "label": "Severity", "flex": 0,   "minWidth": 90,  "type": "status", "visibleByDefault": true   },
+            { "key": "entryStatus",  "label": "Status",   "flex": 0,   "minWidth": 90,  "type": "status", "visibleByDefault": true   },
+            { "key": "dueDateLabel", "label": "Due",      "flex": 0,   "minWidth": 90,     "visibleByDefault": true   }
         ]
     }
+
     function _applyColumnState(base, saved) {
         const order = saved ? (saved.columnOrder || []) : []
         const hidden = saved ? (saved.hiddenColumns || []) : []
@@ -100,6 +127,7 @@ AppLayouts.WorkspaceFrame {
         }
         return result
     }
+
     function _buildColumnState(columns) {
         const order = []
         const hidden = []
@@ -109,6 +137,7 @@ AppLayouts.WorkspaceFrame {
         }
         return { "columnOrder": order, "hiddenColumns": hidden }
     }
+
     Component.onCompleted: {
         const base = root._baseColumns()
         if (root.workspaceController !== null) {
@@ -146,22 +175,21 @@ AppLayouts.WorkspaceFrame {
     function _openDetail(sectionIndex) {
         root._pendingDetailSection = sectionIndex
         root._detailOpen = true
-        if (detailPage) {
-            detailPage.scrollToSection(sectionIndex)
-        }
+        if (detailPage) detailPage.scrollToSection(sectionIndex)
     }
 
+    // ── Dialog host ───────────────────────────────────────────────────────────
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
             ProjectManagementWidgets.RegisterDialogHost {
-                projectOptions: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-                typeOptions: root.workspaceController ? (root.workspaceController.typeOptions || []) : []
-                statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-                severityOptions: root.workspaceController ? (root.workspaceController.severityOptions || []) : []
-                typeFieldVisible: true
-                fixedTypeValue: "RISK"
-                entryLabel: "Register Entry"
+                projectOptions:   root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+                typeOptions:      root.workspaceController ? (root.workspaceController.typeOptions || []) : []
+                statusOptions:    root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                severityOptions:  root.workspaceController ? (root.workspaceController.severityOptions || []) : []
+                typeFieldVisible: root._typeFieldVisible
+                fixedTypeValue:   root._fixedTypeValue
+                entryLabel:       root._createLabel.replace("New ", "")
                 workspaceController: root.workspaceController
 
                 onDeleteRequested: function(entryId) {
@@ -171,11 +199,11 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    // ── Stacked layout: list page / detail page ───────────────────────
+    // ── Main layout ───────────────────────────────────────────────────────────
     Item {
         anchors.fill: parent
 
-        // ── List page (hidden when detail is open) ────────────────────
+        // ── List page ─────────────────────────────────────────────────────────
         Item {
             id: _listPage
             anchors.fill: parent
@@ -185,11 +213,13 @@ AppLayouts.WorkspaceFrame {
                 anchors.fill: parent
                 spacing: Theme.AppTheme.spacingSm
 
+                // KPI strip
                 AppWidgets.KpiStrip {
                     Layout.fillWidth: true
                     metrics: root.overviewModel.metrics || []
                 }
 
+                // State messages
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
                     visible: (root.workspaceController ? root.workspaceController.isLoading : false)
@@ -198,7 +228,6 @@ AppLayouts.WorkspaceFrame {
                     tone: "info"
                     message: "Loading register..."
                 }
-
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
                     visible: root.workspaceController
@@ -207,14 +236,12 @@ AppLayouts.WorkspaceFrame {
                     tone: "info"
                     message: "Saving changes..."
                 }
-
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
                     visible: String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
                     tone: "danger"
                     message: root.workspaceController ? root.workspaceController.errorMessage : ""
                 }
-
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
                     visible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
@@ -223,6 +250,76 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
+                // ── Type navigation tabs ──────────────────────────────────────
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: _tabRow.implicitHeight + Theme.AppTheme.spacingSm * 2
+                    color: Theme.AppTheme.surfaceRaised
+                    radius: Theme.AppTheme.radiusMd
+                    border.color: Theme.AppTheme.subtleBorder
+                    border.width: 1
+
+                    Row {
+                        id: _tabRow
+                        anchors {
+                            left: parent.left
+                            right: parent.right
+                            verticalCenter: parent.verticalCenter
+                            leftMargin: Theme.AppTheme.spacingSm
+                            rightMargin: Theme.AppTheme.spacingSm
+                        }
+                        spacing: Theme.AppTheme.spacingXs
+
+                        Repeater {
+                            model: root._typeTabs
+
+                            delegate: Rectangle {
+                                id: _tabBtn
+                                required property var modelData
+
+                                readonly property bool _active: root._activeType === _tabBtn.modelData.value
+
+                                implicitWidth:  _tabLabel.implicitWidth + Theme.AppTheme.spacingMd * 2
+                                implicitHeight: Theme.AppTheme.toolbarHeight - 8
+                                radius: Theme.AppTheme.radiusSm
+                                color: _tabBtn._active
+                                    ? Theme.AppTheme.navSelectedBackground
+                                    : _tabHover.containsMouse
+                                        ? Theme.AppTheme.hoverSurface
+                                        : "transparent"
+                                border.color: _tabBtn._active ? Theme.AppTheme.accent : "transparent"
+                                border.width: _tabBtn._active ? 1 : 0
+
+                                AppControls.Label {
+                                    id: _tabLabel
+                                    anchors.centerIn: parent
+                                    text: _tabBtn.modelData.label
+                                    color: _tabBtn._active
+                                        ? Theme.AppTheme.navSelectedText
+                                        : Theme.AppTheme.textSecondary
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    font.bold: _tabBtn._active
+                                }
+
+                                MouseArea {
+                                    id: _tabHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        if (root.workspaceController !== null)
+                                            root.workspaceController.setTypeFilter(
+                                                String(_tabBtn.modelData.value || "all")
+                                            )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── Table toolbar ─────────────────────────────────────────────
                 AppWidgets.TableToolbar {
                     id: tableToolbar
                     Layout.fillWidth: true
@@ -233,10 +330,9 @@ AppLayouts.WorkspaceFrame {
                             return String(option.value || "").toLowerCase() !== "all"
                         })
                         : false
-                    createLabel: "New Entry"
+                    createLabel: root._createLabel
                     showFilter: true
                     showCustomize: true
-                    showViews: true
                     showRefresh: true
                     showExport: true
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
@@ -244,9 +340,8 @@ AppLayouts.WorkspaceFrame {
                     onSearchChanged: function(text) {
                         if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
                     }
-                    onFilterClicked: filterPopup.open()
+                    onFilterClicked:   filterPopup.open()
                     onCustomizeClicked: registerTable.openColumnCustomizer(tableToolbar.customizeButtonItem)
-                    onViewsClicked: viewsPopup.open()
                     onRefreshRequested: {
                         if (root.workspaceController !== null) root.workspaceController.refresh()
                     }
@@ -256,6 +351,7 @@ AppLayouts.WorkspaceFrame {
                     onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
                 }
 
+                // ── Table + pagination ────────────────────────────────────────
                 Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -273,13 +369,14 @@ AppLayouts.WorkspaceFrame {
                         sourceModel: root.workspaceController ? root.workspaceController.entriesTableModel : null
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.entriesModel.emptyState || "No register entries available."
-                        onColumnsStateChanged: function(cols) {
-                            if (root.workspaceController) root.workspaceController.saveTableColumnState(root._tableId, root._buildColumnState(cols))
-                            root._columns = cols
-                        }
-                        selectedRowId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
+                        selectedRowId:  root.workspaceController ? root.workspaceController.selectedEntryId : ""
                         selectedRowIds: root.workspaceController ? (root.workspaceController.selectedEntryIds || []) : []
 
+                        onColumnsStateChanged: function(cols) {
+                            if (root.workspaceController)
+                                root.workspaceController.saveTableColumnState(root._tableId, root._buildColumnState(cols))
+                            root._columns = cols
+                        }
                         onRowSelected: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)
                         }
@@ -298,7 +395,7 @@ AppLayouts.WorkspaceFrame {
                         onSelectAllToggled: function(allSelected) {
                             if (root.workspaceController === null) return
                             if (allSelected) root.workspaceController.selectVisibleEntries()
-                            else root.workspaceController.clearEntryBulkSelection()
+                            else             root.workspaceController.clearEntryBulkSelection()
                         }
                     }
 
@@ -307,10 +404,10 @@ AppLayouts.WorkspaceFrame {
                         anchors.left:   parent.left
                         anchors.right:  parent.right
                         anchors.bottom: parent.bottom
-                        currentPage:  root.workspaceController ? root.workspaceController.entryPage       : 1
-                        pageSize:     root.workspaceController ? root.workspaceController.entryPageSize    : 25
-                        totalItems:   root.workspaceController ? root.workspaceController.entryTotalCount  : 0
-                        busy:         root.workspaceController ? root.workspaceController.isBusy           : false
+                        currentPage:  root.workspaceController ? root.workspaceController.entryPage      : 1
+                        pageSize:     root.workspaceController ? root.workspaceController.entryPageSize   : 25
+                        totalItems:   root.workspaceController ? root.workspaceController.entryTotalCount : 0
+                        busy:         root.workspaceController ? root.workspaceController.isBusy          : false
                         onPageRequested: function(page) {
                             if (root.workspaceController !== null) root.workspaceController.setEntryPage(page)
                         }
@@ -319,6 +416,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
+                    // Bulk action bar
                     AppWidgets.BulkActionBar {
                         id: _bulkActionBar
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -328,8 +426,8 @@ AppLayouts.WorkspaceFrame {
                         selectedCount: root.workspaceController ? root.workspaceController.selectedEntryCount : 0
                         busy: root.workspaceController ? root.workspaceController.isBusy : false
                         actions: [
-                            { "id": "delete",          "label": "Delete",         "icon": "delete", "danger": true,  "enabled": true },
-                            { "id": "change_property", "label": "Change Status",  "icon": "edit",   "danger": false, "enabled": true }
+                            { "id": "delete",          "label": "Delete",        "icon": "delete", "danger": true,  "enabled": true },
+                            { "id": "change_property", "label": "Change Status", "icon": "edit",   "danger": false, "enabled": true }
                         ]
 
                         onCancelRequested: {
@@ -349,11 +447,10 @@ AppLayouts.WorkspaceFrame {
 
                     AppWidgets.BulkChangePropertyPopup {
                         id: _bulkChangePropertyPopup
-                        anchorItem: _bulkActionBar.actionButtonForId("change_property")
+                        anchorItem:    _bulkActionBar.actionButtonForId("change_property")
                         selectedCount: root.workspaceController ? root.workspaceController.selectedEntryCount : 0
-                        busy: root.workspaceController ? root.workspaceController.isBusy : false
-                        properties: root._bulkChangeProperties
-
+                        busy:          root.workspaceController ? root.workspaceController.isBusy : false
+                        properties:    root._bulkChangeProperties
                         onApplyRequested: function(payload) {
                             if (root.workspaceController === null) return
                             if (payload.propertyId === "status")
@@ -361,17 +458,17 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    // ── Filter popup ──────────────────────────────────────
+                    // ── Filter popup (project / status / severity — NOT type, tabs handle that) ──
                     AppWidgets.AnchoredPopup {
                         id: filterPopup
-                        anchorItem: tableToolbar.filterButtonItem
+                        anchorItem:  tableToolbar.filterButtonItem
                         width: 280
                         padding: Theme.AppTheme.marginMd
                         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                         background: Rectangle {
                             radius: Theme.AppTheme.radiusLg
-                            color: Theme.AppTheme.surfaceRaised
+                            color:  Theme.AppTheme.surfaceRaised
                             border.color: Theme.AppTheme.divider
                             border.width: 1
                         }
@@ -381,10 +478,8 @@ AppLayouts.WorkspaceFrame {
 
                             AppControls.Label {
                                 text: "Project"
-                                font.bold: true
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.family: Theme.AppTheme.fontFamily
-                                color: Theme.AppTheme.textMuted
+                                font.bold: true; font.pixelSize: Theme.AppTheme.captionSize
+                                font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted
                             }
                             AppControls.ComboBox {
                                 Layout.fillWidth: true
@@ -403,34 +498,9 @@ AppLayouts.WorkspaceFrame {
                             }
 
                             AppControls.Label {
-                                text: "Type"
-                                font.bold: true
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.family: Theme.AppTheme.fontFamily
-                                color: Theme.AppTheme.textMuted
-                            }
-                            AppControls.ComboBox {
-                                Layout.fillWidth: true
-                                model: root.workspaceController ? (root.workspaceController.typeOptions || []) : []
-                                textRole: "label"
-                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                currentIndex: root._optionIndexForValue(
-                                    root.workspaceController ? (root.workspaceController.typeOptions || []) : [],
-                                    root.workspaceController ? root.workspaceController.selectedTypeFilter : "all"
-                                )
-                                onActivated: function(index) {
-                                    const opts = root.workspaceController ? (root.workspaceController.typeOptions || []) : []
-                                    if (root.workspaceController !== null && opts[index])
-                                        root.workspaceController.setTypeFilter(String(opts[index].value || "all"))
-                                }
-                            }
-
-                            AppControls.Label {
                                 text: "Status"
-                                font.bold: true
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.family: Theme.AppTheme.fontFamily
-                                color: Theme.AppTheme.textMuted
+                                font.bold: true; font.pixelSize: Theme.AppTheme.captionSize
+                                font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted
                             }
                             AppControls.ComboBox {
                                 Layout.fillWidth: true
@@ -450,10 +520,8 @@ AppLayouts.WorkspaceFrame {
 
                             AppControls.Label {
                                 text: "Severity"
-                                font.bold: true
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.family: Theme.AppTheme.fontFamily
-                                color: Theme.AppTheme.textMuted
+                                font.bold: true; font.pixelSize: Theme.AppTheme.captionSize
+                                font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted
                             }
                             AppControls.ComboBox {
                                 Layout.fillWidth: true
@@ -482,7 +550,6 @@ AppLayouts.WorkspaceFrame {
                                     onClicked: {
                                         if (root.workspaceController !== null) {
                                             root.workspaceController.selectProject("all")
-                                            root.workspaceController.setTypeFilter("all")
                                             root.workspaceController.setStatusFilter("all")
                                             root.workspaceController.setSeverityFilter("all")
                                         }
@@ -498,61 +565,15 @@ AppLayouts.WorkspaceFrame {
                             }
                         }
                     }
-
-                    // ── Views popup ───────────────────────────────────────
-                    AppWidgets.AnchoredPopup {
-                        id: viewsPopup
-                        anchorItem: tableToolbar.viewsButtonItem
-                        width: 260
-                        padding: Theme.AppTheme.marginMd
-                        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-                        background: Rectangle {
-                            radius: Theme.AppTheme.radiusLg
-                            color: Theme.AppTheme.surfaceRaised
-                            border.color: Theme.AppTheme.divider
-                            border.width: 1
-                        }
-
-                        contentItem: ColumnLayout {
-                            spacing: Theme.AppTheme.spacingSm
-
-                            AppControls.Label {
-                                text: "View by Type"
-                                font.bold: true
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.family: Theme.AppTheme.fontFamily
-                                color: Theme.AppTheme.textMuted
-                            }
-
-                            AppControls.ComboBox {
-                                Layout.fillWidth: true
-                                model: root.workspaceController ? (root.workspaceController.typeOptions || []) : []
-                                textRole: "label"
-                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                currentIndex: root._optionIndexForValue(
-                                    root.workspaceController ? (root.workspaceController.typeOptions || []) : [],
-                                    root.workspaceController ? root.workspaceController.selectedTypeFilter : "all"
-                                )
-                                onActivated: function(index) {
-                                    const opts = root.workspaceController ? (root.workspaceController.typeOptions || []) : []
-                                    if (root.workspaceController !== null && opts[index]) {
-                                        root.workspaceController.setTypeFilter(String(opts[index].value || "all"))
-                                        viewsPopup.close()
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
 
-        // ── Detail page (covers full area, z:20) ─────────────────────────
+        // ── Detail page (covers full area, z:20) ──────────────────────────────
         Loader {
             id: detailPageLoader
             anchors.fill: parent
-            active: root._detailOpen
+            active:  root._detailOpen
             visible: root._detailOpen && status === Loader.Ready
             asynchronous: true
             sourceComponent: _detailPageComponent
@@ -575,10 +596,10 @@ AppLayouts.WorkspaceFrame {
                 AppWidgets.ContextualActionToolbar {
                     width: parent ? parent.width : 0
                     showBack: true
-                    title: root.selectedEntryModel.title || "Register Entry"
+                    title:    root.selectedEntryModel.title || "Register Entry"
                     subtitle: root.selectedEntryModel.statusLabel || root.selectedEntryModel.subtitle || ""
-                    busy: root.workspaceController ? root.workspaceController.isBusy : false
-                    actions: root._detailActions
+                    busy:     root.workspaceController ? root.workspaceController.isBusy : false
+                    actions:  root._detailActions
 
                     onBackRequested: root._detailOpen = false
                     onActionTriggered: function(actionId) {
@@ -592,12 +613,12 @@ AppLayouts.WorkspaceFrame {
 
                 RegisterDetailPanel {
                     width: parent ? parent.width : 0
-                    detailPage: detailPageLoader.item
-                    entryDetail: root.selectedEntryModel
-                    urgentModel: root.urgentModel
+                    detailPage:      detailPageLoader.item
+                    entryDetail:     root.selectedEntryModel
+                    urgentModel:     root.urgentModel
                     selectedEntryId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
-                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                    onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedEntryModel)
+                    isBusy:          root.workspaceController ? root.workspaceController.isBusy : false
+                    onEditRequested:  dialogHostLoader.invoke("openEditDialog", root.selectedEntryModel)
                     onDeleteRequested: dialogHostLoader.invoke("openDeleteDialog", root.selectedEntryModel)
                     onUrgentEntrySelected: function(entryId) {
                         if (root.workspaceController !== null) root.workspaceController.selectEntry(entryId)

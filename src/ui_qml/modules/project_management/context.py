@@ -100,11 +100,6 @@ class ProjectManagementWorkspaceCatalog(QObject):
             "project_management_register",
             None,
         )
-        self._risk_api = getattr(
-            desktop_api_registry,
-            "project_management_risk",
-            self._register_api,
-        )
         self._scheduling_api = getattr(
             desktop_api_registry,
             "project_management_scheduling",
@@ -124,7 +119,6 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._financials_workspace: ProjectManagementFinancialsWorkspaceController | None = None
         self._portfolio_workspace: ProjectManagementPortfolioWorkspaceController | None = None
         self._resources_workspace: ProjectManagementResourcesWorkspaceController | None = None
-        self._risk_workspace: ProjectManagementRegisterWorkspaceController | None = None
         self._register_workspace: ProjectManagementRegisterWorkspaceController | None = None
         self._scheduling_workspace: ProjectManagementSchedulingWorkspaceController | None = None
         self._tasks_workspace: ProjectManagementTasksWorkspaceController | None = None
@@ -152,20 +146,6 @@ class ProjectManagementWorkspaceCatalog(QObject):
                 parent=self,
             )
         return self._resources_workspace
-
-    def _get_risk_workspace(self) -> ProjectManagementRegisterWorkspaceController:
-        if self._risk_workspace is None:
-            self._risk_workspace = ProjectManagementRegisterWorkspaceController(
-                workspace_presenter=ProjectManagementWorkspacePresenter(
-                    "project_management.risk"
-                ),
-                register_workspace_presenter=ProjectRegisterWorkspacePresenter(
-                    desktop_api=self._risk_api,
-                    workspace_mode="risk",
-                ),
-                parent=self,
-            )
-        return self._risk_workspace
 
     def _get_register_workspace(self) -> ProjectManagementRegisterWorkspaceController:
         if self._register_workspace is None:
@@ -262,10 +242,6 @@ class ProjectManagementWorkspaceCatalog(QObject):
     @Property(ProjectManagementResourcesWorkspaceController, constant=True)
     def resourcesWorkspace(self) -> ProjectManagementResourcesWorkspaceController:
         return self._get_resources_workspace()
-
-    @Property(ProjectManagementRegisterWorkspaceController, constant=True)
-    def riskWorkspace(self) -> ProjectManagementRegisterWorkspaceController:
-        return self._get_risk_workspace()
 
     @Property(ProjectManagementRegisterWorkspaceController, constant=True)
     def registerWorkspace(self) -> ProjectManagementRegisterWorkspaceController:

@@ -34,7 +34,6 @@ Rectangle {
             "project_management.scheduling": "calendar",
             "project_management.resources": "resources",
             "project_management.financials": "financials",
-            "project_management.risk": "risk",
             "project_management.portfolio": "portfolio",
             "project_management.register": "register",
             "project_management.collaboration": "collaboration",

@@ -1,1539 +1,525 @@
 ﻿import QtQuick.tooling 1.2
 
 Module {
-    Component {
-        name: "PMCapabilityController"
-        accessSemantics: "reference"
-        prototype: "QObject"
-        exports: ["ProjectManagement.Controllers/PMCapabilityController 1.0"]
-        Property { name: "canApproveBaseline"; type: "bool"; isReadonly: true }
-        Property { name: "canApplyLeveling"; type: "bool"; isReadonly: true }
-        Property { name: "canManageSkills"; type: "bool"; isReadonly: true }
-        Property { name: "canRequestAssignmentOverride"; type: "bool"; isReadonly: true }
-        Property { name: "canImport"; type: "bool"; isReadonly: true }
-        Property { name: "canApprovePmRequest"; type: "bool"; isReadonly: true }
-        Method {
-            name: "refresh"
-        }
-    }
+Component {
+    name: "ProjectManagementWorkspaceCatalog"
+    accessSemantics: "reference"
+    prototype: "QObject"
+    exports: ["ProjectManagement.Controllers/ProjectManagementWorkspaceCatalog 1.0"]
+    Property { name: "projectsWorkspace"; type: "ProjectManagementProjectsWorkspaceController"; isReadonly: true }
+    Property { name: "collaborationWorkspace"; type: "ProjectManagementCollaborationWorkspaceController"; isReadonly: true }
+    Property { name: "financialsWorkspace"; type: "ProjectManagementFinancialsWorkspaceController"; isReadonly: true }
+    Property { name: "portfolioWorkspace"; type: "ProjectManagementPortfolioWorkspaceController"; isReadonly: true }
+    Property { name: "registerWorkspace"; type: "ProjectManagementRegisterWorkspaceController"; isReadonly: true }
+    Property { name: "resourcesWorkspace"; type: "ProjectManagementResourcesWorkspaceController"; isReadonly: true }
+    Property { name: "schedulingWorkspace"; type: "ProjectManagementSchedulingWorkspaceController"; isReadonly: true }
+    Property { name: "tasksWorkspace"; type: "ProjectManagementTasksWorkspaceController"; isReadonly: true }
+    Property { name: "dashboardWorkspace"; type: "ProjectManagementDashboardWorkspaceController"; isReadonly: true }
+    Property { name: "timesheetsWorkspace"; type: "ProjectManagementTimesheetsWorkspaceController"; isReadonly: true }
+    Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }
+    Method { name: "dashboardOverview"; type: "QVariantMap" }
+}
 
-    Component {
-        name: "ProjectManagementCollaborationWorkspaceController"
-        accessSemantics: "reference"
-        prototype: "ProjectManagementWorkspaceControllerBase"
-        exports: ["ProjectManagement.Controllers/ProjectManagementCollaborationWorkspaceController 1.0"]
-        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "notifications"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "inboxTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "mentionsTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "approvalsTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "teamUpdatesTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "relatedItemsTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
-        Property { name: "selectedTeamId"; type: "QString"; isReadonly: true }
-        Property { name: "selectedPeriodKey"; type: "QString"; isReadonly: true }
-        Property { name: "selectedUnreadKey"; type: "QString"; isReadonly: true }
-        Property { name: "inboxSearchText"; type: "QString"; isReadonly: true }
-        Property { name: "mentionsSearchText"; type: "QString"; isReadonly: true }
-        Property { name: "approvalsSearchText"; type: "QString"; isReadonly: true }
-        Property { name: "teamUpdatesSearchText"; type: "QString"; isReadonly: true }
-        Property { name: "inbox"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "recentActivity"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "activePresence"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "context"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "panelTabs"; type: "QVariantList"; isReadonly: true }
-        Property { name: "mentions"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "approvals"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "activityFeed"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "teamUpdates"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "auditFeed"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "selectedItemDetail"; type: "QVariantMap"; isReadonly: true }
-        Method {
-            name: "setSelectedProjectId"
-            Parameter { name: "value"; type: "QString" }
-        }
-        Method {
-            name: "setSelectedTeamId"
-            Parameter { name: "value"; type: "QString" }
-        }
-        Method {
-            name: "setSelectedPeriodKey"
-            Parameter { name: "value"; type: "QString" }
-        }
-        Method {
-            name: "setSelectedUnreadKey"
-            Parameter { name: "value"; type: "QString" }
-        }
-        Method {
-            name: "setInboxSearchText"
-            Parameter { name: "text"; type: "QString" }
-        }
-        Method {
-            name: "setMentionsSearchText"
-            Parameter { name: "text"; type: "QString" }
-        }
-        Method {
-            name: "setApprovalsSearchText"
-            Parameter { name: "text"; type: "QString" }
-        }
-        Method {
-            name: "setTeamUpdatesSearchText"
-            Parameter { name: "text"; type: "QString" }
-        }
-        Method {
-            name: "refresh"
-        }
-        Method {
-            name: "markTaskRead"
-            type: "QVariantMap"
-            Parameter { name: "task_id"; type: "QString" }
-        }
-        Method {
-            name: "markItemRead"
-            type: "QVariantMap"
-            Parameter { name: "panel_id"; type: "QString" }
-            Parameter { name: "item_id"; type: "QString" }
-        }
-        Method {
-            name: "approveRequest"
-            type: "QVariantMap"
-            Parameter { name: "request_id"; type: "QString" }
-        }
-        Method {
-            name: "rejectRequest"
-            type: "QVariantMap"
-            Parameter { name: "request_id"; type: "QString" }
-        }
-        Method {
-            name: "exportPanel"
-            type: "QVariantMap"
-            Parameter { name: "panel_id"; type: "QString" }
-        }
-        Method {
-            name: "selectItem"
-            Parameter { name: "panel_id"; type: "QString" }
-            Parameter { name: "item_id"; type: "QString" }
-        }
-        Method {
-            name: "clearSelection"
-        }
-        Method {
-            name: "routeForItem"
-            type: "QString"
-            Parameter { name: "panel_id"; type: "QString" }
-            Parameter { name: "item_id"; type: "QString" }
-        }
-    }
 
-    Component {
-        name: "ProjectManagementDashboardWorkspaceController"
-        accessSemantics: "reference"
-        prototype: "ProjectManagementWorkspaceControllerBase"
-        exports: ["ProjectManagement.Controllers/ProjectManagementDashboardWorkspaceController 1.0"]
-        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
-        Property { name: "baselineOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedBaselineId"; type: "QString"; isReadonly: true }
-        Property { name: "periodOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedPeriodKey"; type: "QString"; isReadonly: true }
-        Property { name: "viewOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedViewKey"; type: "QString"; isReadonly: true }
-        Property { name: "healthCards"; type: "QVariantList"; isReadonly: true }
-        Property { name: "operationalTabs"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedOperationalTabId"; type: "QString"; isReadonly: true }
-        Property { name: "operationalTable"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "operationalTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "operationalSearchText"; type: "QString"; isReadonly: true }
-        Property { name: "operationalPage"; type: "int"; isReadonly: true }
-        Property { name: "operationalPageSize"; type: "int"; isReadonly: true }
-        Property { name: "operationalTotalCount"; type: "int"; isReadonly: true }
-        Property { name: "selectedOperationalRowId"; type: "QString"; isReadonly: true }
-        Property { name: "activityFeed"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "panels"; type: "QVariantList"; isReadonly: true }
-        Property { name: "charts"; type: "QVariantList"; isReadonly: true }
-        Property { name: "sections"; type: "QVariantList"; isReadonly: true }
-        Method {
-            name: "refresh"
-        }
-        Method {
-            name: "selectProject"
-            Parameter { name: "project_id"; type: "QString" }
-        }
-        Method {
-            name: "selectBaseline"
-            Parameter { name: "baseline_id"; type: "QString" }
-        }
-        Method {
-            name: "selectPeriod"
-            Parameter { name: "period_key"; type: "QString" }
-        }
-        Method {
-            name: "selectView"
-            Parameter { name: "view_key"; type: "QString" }
-        }
-        Method {
-            name: "selectOperationalTab"
-            Parameter { name: "tab_id"; type: "QString" }
-        }
-        Method {
-            name: "setOperationalSearchText"
-            Parameter { name: "search_text"; type: "QString" }
-        }
-        Method {
-            name: "setOperationalPage"
-            Parameter { name: "page"; type: "int" }
-        }
-        Method {
-            name: "setOperationalPageSize"
-            Parameter { name: "page_size"; type: "int" }
-        }
-        Method {
-            name: "selectOperationalRow"
-            Parameter { name: "row_id"; type: "QString" }
-        }
-        Method {
-            name: "exportDashboard"
-            type: "QVariantMap"
-        }
-    }
+Component {
+    name: "ProjectManagementCollaborationWorkspaceController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementCollaborationWorkspaceController 1.0"]
+    Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "notifications"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "inbox"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "recentActivity"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "activePresence"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "context"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "panelTabs"; type: "QVariantList"; isReadonly: true }
+    Property { name: "mentions"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "approvals"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "activityFeed"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "teamUpdates"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "auditFeed"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedItemDetail"; type: "QVariantMap"; isReadonly: true }
+    Method { name: "refresh" }
+    Method { name: "markTaskRead"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
+    Method { name: "markItemRead"; type: "QVariantMap"; Parameter { name: "panelId"; type: "QString" } Parameter { name: "itemId"; type: "QString" } }
+    Method { name: "approveRequest"; type: "QVariantMap"; Parameter { name: "requestId"; type: "QString" } }
+    Method { name: "rejectRequest"; type: "QVariantMap"; Parameter { name: "requestId"; type: "QString" } }
+    Method { name: "exportPanel"; type: "QVariantMap"; Parameter { name: "panelId"; type: "QString" } }
+    Method { name: "selectItem"; Parameter { name: "panelId"; type: "QString" } Parameter { name: "itemId"; type: "QString" } }
+    Method { name: "clearSelection" }
+    Method { name: "routeForItem"; type: "QString"; Parameter { name: "panelId"; type: "QString" } Parameter { name: "itemId"; type: "QString" } }
+}
 
-    Component {
-        name: "ProjectManagementFinancialsWorkspaceController"
-        accessSemantics: "reference"
-        prototype: "ProjectManagementWorkspaceControllerBase"
-        exports: ["ProjectManagement.Controllers/ProjectManagementFinancialsWorkspaceController 1.0"]
-        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "costTypeOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "taskOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
-        Property { name: "selectedCostType"; type: "QString"; isReadonly: true }
-        Property { name: "searchText"; type: "QString"; isReadonly: true }
-        Property { name: "costs"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "selectedCost"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "selectedCostId"; type: "QString"; isReadonly: true }
-        Property { name: "cashflow"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "ledger"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "costsTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "ledgerTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "sourceAnalytics"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "costTypeAnalytics"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "notes"; type: "QVariantList"; isReadonly: true }
-        Property { name: "forecast"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "commitmentSummary"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "baselineVariance"; type: "QVariantList"; isReadonly: true }
-        Property { name: "bulkCostTypeOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "costPage"; type: "int"; isReadonly: true }
-        Property { name: "costPageSize"; type: "int"; isReadonly: true }
-        Property { name: "costTotalCount"; type: "int"; isReadonly: true }
-        Property { name: "selectedCostIds"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedCostCount"; type: "int"; isReadonly: true }
-        Method {
-            name: "refresh"
-        }
-        Method {
-            name: "selectProject"
-            Parameter { name: "project_id"; type: "QString" }
-        }
-        Method {
-            name: "setCostTypeFilter"
-            Parameter { name: "cost_type"; type: "QString" }
-        }
-        Method {
-            name: "setSearchText"
-            Parameter { name: "search_text"; type: "QString" }
-        }
-        Method {
-            name: "selectCost"
-            Parameter { name: "cost_id"; type: "QString" }
-        }
-        Method {
-            name: "computeForecast"
-            type: "QVariantMap"
-            Parameter { name: "method"; type: "QString" }
-        }
-        Method {
-            name: "exportFinancials"
-        }
-        Method {
-            name: "setCostPage"
-            Parameter { name: "page"; type: "int" }
-        }
-        Method {
-            name: "setCostPageSize"
-            Parameter { name: "page_size"; type: "int" }
-        }
-        Method {
-            name: "setCostBulkSelection"
-            Parameter { name: "cost_id"; type: "QString" }
-            Parameter { name: "selected"; type: "bool" }
-        }
-        Method {
-            name: "selectVisibleCosts"
-        }
-        Method {
-            name: "clearCostBulkSelection"
-        }
-        Method {
-            name: "bulkDeleteCosts"
-            type: "QVariantMap"
-            Parameter { name: "cost_ids"; type: "QVariantList" }
-        }
-        Method {
-            name: "applyBulkCostType"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "createCostItem"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "updateCostItem"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "deleteCostItem"
-            type: "QVariantMap"
-            Parameter { name: "cost_id"; type: "QString" }
-        }
-    }
 
-    Component {
-        name: "ProjectManagementPortfolioWorkspaceController"
-        accessSemantics: "reference"
-        prototype: "ProjectManagementWorkspaceControllerBase"
-        exports: ["ProjectManagement.Controllers/ProjectManagementPortfolioWorkspaceController 1.0"]
-        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "intakeStatusOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "templateOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "scenarioOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedIntakeStatusFilter"; type: "QString"; isReadonly: true }
-        Property { name: "selectedScenarioId"; type: "QString"; isReadonly: true }
-        Property { name: "selectedBaseScenarioId"; type: "QString"; isReadonly: true }
-        Property { name: "selectedCompareScenarioId"; type: "QString"; isReadonly: true }
-        Property { name: "intakeItems"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "heatmapTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "intakeItemsTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "portfolioDependenciesTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "templates"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "scenarios"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "evaluation"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "comparison"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "heatmap"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "recentActions"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "capacityPool"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "activeTemplateSummary"; type: "QString"; isReadonly: true }
-        Method {
-            name: "refresh"
-        }
-        Method {
-            name: "setIntakeStatusFilter"
-            Parameter { name: "intake_status_filter"; type: "QString" }
-        }
-        Method {
-            name: "selectScenario"
-            Parameter { name: "scenario_id"; type: "QString" }
-        }
-        Method {
-            name: "selectCompareBase"
-            Parameter { name: "scenario_id"; type: "QString" }
-        }
-        Method {
-            name: "selectCompareScenario"
-            Parameter { name: "scenario_id"; type: "QString" }
-        }
-        Method {
-            name: "exportPortfolio"
-        }
-        Method {
-            name: "createTemplate"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "activateTemplate"
-            type: "QVariantMap"
-            Parameter { name: "template_id"; type: "QString" }
-        }
-        Method {
-            name: "createIntakeItem"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "createScenario"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "createDependency"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "removeDependency"
-            type: "QVariantMap"
-            Parameter { name: "dependency_id"; type: "QString" }
-        }
-        Method {
-            name: "updateIntakeItemStatus"
-            type: "QVariantMap"
-            Parameter { name: "item_id"; type: "QString" }
-            Parameter { name: "status"; type: "QString" }
-        }
-    }
+Component {
+    name: "ProjectManagementWorkspaceControllerBase"
+    accessSemantics: "reference"
+    prototype: "QObject"
+    exports: ["ProjectManagement.Controllers/ProjectManagementWorkspaceControllerBase 1.0"]
+    Property { name: "workspace"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "isLoading"; type: "bool"; isReadonly: true }
+    Property { name: "isBusy"; type: "bool"; isReadonly: true }
+    Property { name: "errorMessage"; type: "QString"; isReadonly: true }
+    Property { name: "feedbackMessage"; type: "QString"; isReadonly: true }
+    Property { name: "emptyState"; type: "QString"; isReadonly: true }
+    Method { name: "clearMessages" }
+}
 
-    Component {
-        name: "ProjectManagementProjectsWorkspaceController"
-        accessSemantics: "reference"
-        prototype: "ProjectManagementWorkspaceControllerBase"
-        exports: ["ProjectManagement.Controllers/ProjectManagementProjectsWorkspaceController 1.0"]
-        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "bulkStatusOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
-        Property { name: "searchText"; type: "QString"; isReadonly: true }
-        Property { name: "projects"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "projectsTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "selectedProject"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
-        Property { name: "projectPage"; type: "int"; isReadonly: true }
-        Property { name: "projectPageSize"; type: "int"; isReadonly: true }
-        Property { name: "projectTotalCount"; type: "int"; isReadonly: true }
-        Property { name: "selectedProjectIds"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedProjectCount"; type: "int"; isReadonly: true }
-        Property { name: "projectTasks"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "projectTasksTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "projectResources"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "projectResourcesTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "projectFinancials"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "projectRisks"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "projectDocuments"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "projectActivity"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "importPreview"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "isImportBusy"; type: "bool"; isReadonly: true }
-        Property { name: "importError"; type: "QString"; isReadonly: true }
-        Property { name: "assignableResourceOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedProjectResourceId"; type: "QString"; isReadonly: true }
-        Method {
-            name: "refresh"
-        }
-        Method {
-            name: "setSearchText"
-            Parameter { name: "search_text"; type: "QString" }
-        }
-        Method {
-            name: "setStatusFilter"
-            Parameter { name: "status_filter"; type: "QString" }
-        }
-        Method {
-            name: "selectProject"
-            Parameter { name: "project_id"; type: "QString" }
-        }
-        Method {
-            name: "activateProject"
-            Parameter { name: "project_id"; type: "QString" }
-        }
-        Method {
-            name: "setProjectPage"
-            Parameter { name: "page"; type: "int" }
-        }
-        Method {
-            name: "setProjectPageSize"
-            Parameter { name: "page_size"; type: "int" }
-        }
-        Method {
-            name: "setProjectBulkSelection"
-            Parameter { name: "project_id"; type: "QString" }
-            Parameter { name: "selected"; type: "bool" }
-        }
-        Method {
-            name: "clearProjectBulkSelection"
-        }
-        Method {
-            name: "selectVisibleProjects"
-        }
-        Method {
-            name: "bulkDeleteProjects"
-            type: "QVariantMap"
-            Parameter { name: "project_ids"; type: "QVariantList" }
-        }
-        Method {
-            name: "applyBulkStatus"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "exportProjects"
-            type: "QVariantMap"
-            Parameter { name: "columns"; type: "QVariantList" }
-            Parameter { name: "file_path"; type: "QString" }
-        }
-        Method {
-            name: "previewImport"
-            type: "QVariantMap"
-            Parameter { name: "file_path"; type: "QString" }
-            Parameter { name: "source_format"; type: "QString" }
-        }
-        Method {
-            name: "executeImport"
-            type: "QVariantMap"
-            Parameter { name: "session_id"; type: "QString" }
-        }
-        Method {
-            name: "cancelImport"
-        }
-        Method {
-            name: "createProject"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "updateProject"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "setProjectStatus"
-            type: "QVariantMap"
-            Parameter { name: "project_id"; type: "QString" }
-            Parameter { name: "status"; type: "QString" }
-        }
-        Method {
-            name: "deleteProject"
-            type: "QVariantMap"
-            Parameter { name: "project_id"; type: "QString" }
-        }
-        Method {
-            name: "loadProjectTasks"
-        }
-        Method {
-            name: "loadProjectResources"
-        }
-        Method {
-            name: "loadAssignableResources"
-        }
-        Method {
-            name: "assignProjectResource"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "loadProjectFinancials"
-        }
-        Method {
-            name: "loadProjectRisks"
-        }
-        Method {
-            name: "loadProjectDocuments"
-        }
-        Method {
-            name: "loadProjectActivity"
-        }
-        Method {
-            name: "selectProjectResource"
-            Parameter { name: "project_resource_id"; type: "QString" }
-        }
-        Method {
-            name: "updateProjectResource"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "removeProjectResource"
-            type: "QVariantMap"
-            Parameter { name: "project_resource_id"; type: "QString" }
-        }
-    }
 
-    Component {
-        name: "ProjectManagementRegisterWorkspaceController"
-        accessSemantics: "reference"
-        prototype: "ProjectManagementWorkspaceControllerBase"
-        exports: ["ProjectManagement.Controllers/ProjectManagementRegisterWorkspaceController 1.0"]
-        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "typeOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "severityOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
-        Property { name: "selectedTypeFilter"; type: "QString"; isReadonly: true }
-        Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
-        Property { name: "selectedSeverityFilter"; type: "QString"; isReadonly: true }
-        Property { name: "searchText"; type: "QString"; isReadonly: true }
-        Property { name: "entries"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "entriesTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "selectedEntry"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "selectedEntryId"; type: "QString"; isReadonly: true }
-        Property { name: "urgentEntries"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "bulkStatusOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "entryPage"; type: "int"; isReadonly: true }
-        Property { name: "entryPageSize"; type: "int"; isReadonly: true }
-        Property { name: "entryTotalCount"; type: "int"; isReadonly: true }
-        Property { name: "selectedEntryIds"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedEntryCount"; type: "int"; isReadonly: true }
-        Method {
-            name: "refresh"
-        }
-        Method {
-            name: "selectProject"
-            Parameter { name: "project_id"; type: "QString" }
-        }
-        Method {
-            name: "setTypeFilter"
-            Parameter { name: "type_filter"; type: "QString" }
-        }
-        Method {
-            name: "setStatusFilter"
-            Parameter { name: "status_filter"; type: "QString" }
-        }
-        Method {
-            name: "setSeverityFilter"
-            Parameter { name: "severity_filter"; type: "QString" }
-        }
-        Method {
-            name: "setSearchText"
-            Parameter { name: "search_text"; type: "QString" }
-        }
-        Method {
-            name: "selectEntry"
-            Parameter { name: "entry_id"; type: "QString" }
-        }
-        Method {
-            name: "setEntryPage"
-            Parameter { name: "page"; type: "int" }
-        }
-        Method {
-            name: "setEntryPageSize"
-            Parameter { name: "page_size"; type: "int" }
-        }
-        Method {
-            name: "setEntryBulkSelection"
-            Parameter { name: "entry_id"; type: "QString" }
-            Parameter { name: "selected"; type: "bool" }
-        }
-        Method {
-            name: "selectVisibleEntries"
-        }
-        Method {
-            name: "clearEntryBulkSelection"
-        }
-        Method {
-            name: "exportRegister"
-        }
-        Method {
-            name: "bulkDeleteEntries"
-            type: "QVariantMap"
-            Parameter { name: "entry_ids"; type: "QVariantList" }
-        }
-        Method {
-            name: "applyBulkEntryStatus"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "createEntry"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "updateEntry"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "deleteEntry"
-            type: "QVariantMap"
-            Parameter { name: "entry_id"; type: "QString" }
-        }
-    }
+Component {
+    name: "ProjectManagementDashboardWorkspaceController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementDashboardWorkspaceController 1.0"]
+    Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+    Property { name: "baselineOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedBaselineId"; type: "QString"; isReadonly: true }
+    Property { name: "periodOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedPeriodKey"; type: "QString"; isReadonly: true }
+    Property { name: "viewOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedViewKey"; type: "QString"; isReadonly: true }
+    Property { name: "healthCards"; type: "QVariantList"; isReadonly: true }
+    Property { name: "operationalTabs"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedOperationalTabId"; type: "QString"; isReadonly: true }
+    Property { name: "operationalTable"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "operationalSearchText"; type: "QString"; isReadonly: true }
+    Property { name: "operationalPage"; type: "int"; isReadonly: true }
+    Property { name: "operationalPageSize"; type: "int"; isReadonly: true }
+    Property { name: "operationalTotalCount"; type: "int"; isReadonly: true }
+    Property { name: "selectedOperationalRowId"; type: "QString"; isReadonly: true }
+    Property { name: "activityFeed"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "panels"; type: "QVariantList"; isReadonly: true }
+    Property { name: "charts"; type: "QVariantList"; isReadonly: true }
+    Property { name: "sections"; type: "QVariantList"; isReadonly: true }
+    Method { name: "refresh" }
+    Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "selectBaseline"; Parameter { name: "baselineId"; type: "QString" } }
+    Method { name: "selectPeriod"; Parameter { name: "periodKey"; type: "QString" } }
+    Method { name: "selectView"; Parameter { name: "viewKey"; type: "QString" } }
+    Method { name: "selectOperationalTab"; Parameter { name: "tabId"; type: "QString" } }
+    Method { name: "setOperationalSearchText"; Parameter { name: "searchText"; type: "QString" } }
+    Method { name: "setOperationalPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setOperationalPageSize"; Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "selectOperationalRow"; Parameter { name: "rowId"; type: "QString" } }
+    Method { name: "exportDashboard"; type: "QVariantMap" }
+}
 
-    Component {
-        name: "ProjectManagementResourcesWorkspaceController"
-        accessSemantics: "reference"
-        prototype: "ProjectManagementWorkspaceControllerBase"
-        exports: ["ProjectManagement.Controllers/ProjectManagementResourcesWorkspaceController 1.0"]
-        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "workerTypeOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "categoryOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "employeeOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedActiveFilter"; type: "QString"; isReadonly: true }
-        Property { name: "selectedCategoryFilter"; type: "QString"; isReadonly: true }
-        Property { name: "searchText"; type: "QString"; isReadonly: true }
-        Property { name: "resources"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "resourcesTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "selectedResource"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "selectedResourceId"; type: "QString"; isReadonly: true }
-        Property { name: "resourcePage"; type: "int"; isReadonly: true }
-        Property { name: "resourcePageSize"; type: "int"; isReadonly: true }
-        Property { name: "resourceTotalCount"; type: "int"; isReadonly: true }
-        Property { name: "selectedResourceIds"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedResourceCount"; type: "int"; isReadonly: true }
-        Property { name: "resourceSkills"; type: "QVariantList"; isReadonly: true }
-        Property { name: "resourceCertifications"; type: "QVariantList"; isReadonly: true }
-        Property { name: "resourceSkillsTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "resourceCertificationsTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "resourceAssignmentsTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "resourceAssignments"; type: "QVariantList"; isReadonly: true }
-        Property { name: "resourceAvailability"; type: "QVariantMap"; isReadonly: true }
-        Method {
-            name: "refresh"
-        }
-        Method {
-            name: "setSearchText"
-            Parameter { name: "search_text"; type: "QString" }
-        }
-        Method {
-            name: "setActiveFilter"
-            Parameter { name: "active_filter"; type: "QString" }
-        }
-        Method {
-            name: "setCategoryFilter"
-            Parameter { name: "category_filter"; type: "QString" }
-        }
-        Method {
-            name: "selectResource"
-            Parameter { name: "resource_id"; type: "QString" }
-        }
-        Method {
-            name: "activateResource"
-            Parameter { name: "resource_id"; type: "QString" }
-        }
-        Method {
-            name: "loadSkillsAndCerts"
-            Parameter { name: "resource_id"; type: "QString" }
-        }
-        Method {
-            name: "loadResourceAssignments"
-        }
-        Method {
-            name: "setResourcePage"
-            Parameter { name: "page"; type: "int" }
-        }
-        Method {
-            name: "setResourcePageSize"
-            Parameter { name: "page_size"; type: "int" }
-        }
-        Method {
-            name: "createResource"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "updateResource"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "toggleResourceActive"
-            type: "QVariantMap"
-            Parameter { name: "resource_id"; type: "QString" }
-            Parameter { name: "expected_version"; type: "int" }
-        }
-        Method {
-            name: "deleteResource"
-            type: "QVariantMap"
-            Parameter { name: "resource_id"; type: "QString" }
-        }
-        Method {
-            name: "setResourceBulkSelection"
-            Parameter { name: "resource_id"; type: "QString" }
-            Parameter { name: "selected"; type: "bool" }
-        }
-        Method {
-            name: "clearResourceBulkSelection"
-        }
-        Method {
-            name: "selectVisibleResources"
-        }
-        Method {
-            name: "bulkDeleteResources"
-            type: "QVariantMap"
-            Parameter { name: "resource_ids"; type: "QVariantList" }
-        }
-        Method {
-            name: "addSkill"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "removeSkill"
-            type: "QVariantMap"
-            Parameter { name: "skill_id"; type: "QString" }
-        }
-        Method {
-            name: "addCertification"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "removeCertification"
-            type: "QVariantMap"
-            Parameter { name: "cert_id"; type: "QString" }
-        }
-        Method {
-            name: "exportResources"
-            type: "QVariantMap"
-            Parameter { name: "columns"; type: "QVariantList" }
-            Parameter { name: "file_path"; type: "QString" }
-        }
-    }
 
-    Component {
-        name: "ProjectManagementSchedulingWorkspaceController"
-        accessSemantics: "reference"
-        prototype: "ProjectManagementWorkspaceControllerBase"
-        exports: ["ProjectManagement.Controllers/ProjectManagementSchedulingWorkspaceController 1.0"]
-        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "calendarOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "baselineOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "dependencyTaskOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
-        Property { name: "selectedCalendarId"; type: "QString"; isReadonly: true }
-        Property { name: "selectedBaselineId"; type: "QString"; isReadonly: true }
-        Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
-        Property { name: "searchText"; type: "QString"; isReadonly: true }
-        Property { name: "showCriticalOnly"; type: "bool"; isReadonly: true }
-        Property { name: "showDelayedOnly"; type: "bool"; isReadonly: true }
-        Property { name: "activityPage"; type: "int"; isReadonly: true }
-        Property { name: "activityPageSize"; type: "int"; isReadonly: true }
-        Property { name: "activityTotalCount"; type: "int"; isReadonly: true }
-        Property { name: "calendar"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "baselines"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "schedule"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "timeline"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "criticalPath"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "diagnostics"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "delayedActivities"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "resourceLoading"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "baselineRegister"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "constraints"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "constraintViolations"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "activityFeed"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "scheduleRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "diagnosticsRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "delayedActivityRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "resourceLoadingRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "baselineCompareRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "baselineRegisterRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "dependencyRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "constraintRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "violationRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "calendarSummaryRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "holidayRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "diagnosticsSearchText"; type: "QString"; isReadonly: true }
-        Property { name: "resourcesSearchText"; type: "QString"; isReadonly: true }
-        Property { name: "baselinesSearchText"; type: "QString"; isReadonly: true }
-        Property { name: "delaysSearchText"; type: "QString"; isReadonly: true }
-        Property { name: "calendarsSearchText"; type: "QString"; isReadonly: true }
-        Property { name: "filteredDiagnosticsRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "filteredViolationRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "filteredResourceRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "filteredBaselineCompareRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "filteredBaselineRegisterRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "filteredDelayedRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "filteredHolidayRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "scheduleTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "scheduleImpactTasksTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "dependencyTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "constraintTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "calendarSummaryTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "baselineVarianceTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "diagnosticsTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "violationsTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "resourcesLoadingTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "baselineCompareTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "baselineRegisterTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "delayedTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "holidayTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "selectedActivity"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "selectedActivityId"; type: "QString"; isReadonly: true }
-        Property { name: "calculatorResult"; type: "QString"; isReadonly: true }
-        Property { name: "baselineVarianceRows"; type: "QVariantList"; isReadonly: true }
-        Property { name: "scheduleImpact"; type: "QVariantMap"; isReadonly: true }
-        Method {
-            name: "setDiagnosticsSearchText"
-            Parameter { name: "text"; type: "QString" }
-        }
-        Method {
-            name: "setResourcesSearchText"
-            Parameter { name: "text"; type: "QString" }
-        }
-        Method {
-            name: "setBaselinesSearchText"
-            Parameter { name: "text"; type: "QString" }
-        }
-        Method {
-            name: "setDelaysSearchText"
-            Parameter { name: "text"; type: "QString" }
-        }
-        Method {
-            name: "setCalendarsSearchText"
-            Parameter { name: "text"; type: "QString" }
-        }
-        Method {
-            name: "refresh"
-        }
-        Method {
-            name: "selectProject"
-            Parameter { name: "project_id"; type: "QString" }
-        }
-        Method {
-            name: "selectCalendar"
-            Parameter { name: "calendar_id"; type: "QString" }
-        }
-        Method {
-            name: "selectBaseline"
-            Parameter { name: "baseline_id"; type: "QString" }
-        }
-        Method {
-            name: "selectBaselineA"
-            Parameter { name: "baseline_id"; type: "QString" }
-        }
-        Method {
-            name: "selectBaselineB"
-            Parameter { name: "baseline_id"; type: "QString" }
-        }
-        Method {
-            name: "setIncludeUnchanged"
-            Parameter { name: "include_unchanged"; type: "bool" }
-        }
-        Method {
-            name: "setSearchText"
-            Parameter { name: "search_text"; type: "QString" }
-        }
-        Method {
-            name: "setStatusFilter"
-            Parameter { name: "status_filter"; type: "QString" }
-        }
-        Method {
-            name: "setShowCriticalOnly"
-            Parameter { name: "enabled"; type: "bool" }
-        }
-        Method {
-            name: "setShowDelayedOnly"
-            Parameter { name: "enabled"; type: "bool" }
-        }
-        Method {
-            name: "clearFilters"
-        }
-        Method {
-            name: "selectActivity"
-            Parameter { name: "activity_id"; type: "QString" }
-        }
-        Method {
-            name: "activateActivity"
-            Parameter { name: "activity_id"; type: "QString" }
-        }
-        Method {
-            name: "setActivityPage"
-            Parameter { name: "page"; type: "int" }
-        }
-        Method {
-            name: "setActivityPageSize"
-            Parameter { name: "page_size"; type: "int" }
-        }
-        Method {
-            name: "saveCalendar"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "addHoliday"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "deleteHoliday"
-            type: "QVariantMap"
-            Parameter { name: "holiday_id"; type: "QString" }
-        }
-        Method {
-            name: "createBaseline"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "deleteBaseline"
-            type: "QVariantMap"
-            Parameter { name: "baseline_id"; type: "QString" }
-        }
-        Method {
-            name: "submitBaseline"
-            type: "QVariantMap"
-            Parameter { name: "baseline_id"; type: "QString" }
-        }
-        Method {
-            name: "approveBaseline"
-            type: "QVariantMap"
-            Parameter { name: "baseline_id"; type: "QString" }
-        }
-        Method {
-            name: "rejectBaseline"
-            type: "QVariantMap"
-            Parameter { name: "baseline_id"; type: "QString" }
-        }
-        Method {
-            name: "recalculateSchedule"
-            type: "QVariantMap"
-        }
-        Method {
-            name: "createDependency"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "updateDependency"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "deleteDependency"
-            type: "QVariantMap"
-            Parameter { name: "dependency_id"; type: "QString" }
-        }
-        Method {
-            name: "calculateWorkingDays"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "exportSchedule"
-            type: "QVariantMap"
-        }
-        Method {
-            name: "loadVarianceRecordsForBaseline"
-            Parameter { name: "baseline_id"; type: "QString" }
-        }
-        Method {
-            name: "computeScheduleImpact"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-    }
+Component {
+    name: "ProjectManagementFinancialsWorkspaceController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementFinancialsWorkspaceController 1.0"]
+    Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "costTypeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "taskOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedCostType"; type: "QString"; isReadonly: true }
+    Property { name: "searchText"; type: "QString"; isReadonly: true }
+    Property { name: "costs"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedCost"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedCostId"; type: "QString"; isReadonly: true }
+    Property { name: "cashflow"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "ledger"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "sourceAnalytics"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "costTypeAnalytics"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "notes"; type: "QVariantList"; isReadonly: true }
+    Method { name: "refresh" }
+    Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "setCostTypeFilter"; Parameter { name: "costType"; type: "QString" } }
+    Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+    Method { name: "selectCost"; Parameter { name: "costId"; type: "QString" } }
+    Method { name: "createCostItem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateCostItem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteCostItem"; type: "QVariantMap"; Parameter { name: "costId"; type: "QString" } }
+}
 
-    Component {
-        name: "ProjectManagementTasksWorkspaceController"
-        accessSemantics: "reference"
-        prototype: "ProjectManagementWorkspaceControllerBase"
-        exports: ["ProjectManagement.Controllers/ProjectManagementTasksWorkspaceController 1.0"]
-        Property { name: "taskListController"; type: "QObject"; isReadonly: true }
-        Property { name: "assignmentsController"; type: "QObject"; isReadonly: true }
-        Property { name: "dependenciesController"; type: "QObject"; isReadonly: true }
-        Property { name: "timeController"; type: "QObject"; isReadonly: true }
-        Property { name: "collaborationController"; type: "QObject"; isReadonly: true }
-        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
-        Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "bulkStatusOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "priorityOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "scheduleOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "taskViewOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
-        Property { name: "selectedPriorityFilter"; type: "QString"; isReadonly: true }
-        Property { name: "selectedScheduleFilter"; type: "QString"; isReadonly: true }
-        Property { name: "selectedTaskViewName"; type: "QString"; isReadonly: true }
-        Property { name: "searchText"; type: "QString"; isReadonly: true }
-        Property { name: "tasks"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "tasksTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "selectedTask"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "selectedTaskId"; type: "QString"; isReadonly: true }
-        Property { name: "selectedTaskIds"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedTaskCount"; type: "int"; isReadonly: true }
-        Property { name: "selectedTaskDoneCount"; type: "int"; isReadonly: true }
-        Property { name: "canUndoTaskAction"; type: "bool"; isReadonly: true }
-        Property { name: "canRedoTaskAction"; type: "bool"; isReadonly: true }
-        Property { name: "nextUndoLabel"; type: "QString"; isReadonly: true }
-        Property { name: "nextRedoLabel"; type: "QString"; isReadonly: true }
-        Property { name: "assignmentOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedAssignmentId"; type: "QString"; isReadonly: true }
-        Property { name: "dependencyTaskOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "assignments"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "assignmentPreview"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "assignmentsTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "dependenciesTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "timeAssignmentOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "timePeriodOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedTimePeriodStart"; type: "QString"; isReadonly: true }
-        Property { name: "timeAssignmentSummary"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "timeEntries"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "timeEntriesTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "selectedTimeEntryId"; type: "QString"; isReadonly: true }
-        Property { name: "selectedTimeEntry"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "collaborationMentionOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "collaborationDocumentOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "collaborationComments"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "collaborationPresence"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "isTimeSectionLoaded"; type: "bool"; isReadonly: true }
-        Property { name: "isCollaborationSectionLoaded"; type: "bool"; isReadonly: true }
-        Property { name: "taskSkillRequirements"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "isSkillRequirementsSectionLoaded"; type: "bool"; isReadonly: true }
-        Property { name: "scheduleImpact"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "isScheduleImpactSectionLoaded"; type: "bool"; isReadonly: true }
-        Property { name: "taskPage"; type: "int"; isReadonly: true }
-        Property { name: "taskPageSize"; type: "int"; isReadonly: true }
-        Property { name: "taskTotalCount"; type: "int"; isReadonly: true }
-        Method {
-            name: "refresh"
-        }
-        Method {
-            name: "selectProject"
-            Parameter { name: "project_id"; type: "QString" }
-        }
-        Method {
-            name: "setSearchText"
-            Parameter { name: "search_text"; type: "QString" }
-        }
-        Method {
-            name: "setStatusFilter"
-            Parameter { name: "status_filter"; type: "QString" }
-        }
-        Method {
-            name: "setPriorityFilter"
-            Parameter { name: "priority_filter"; type: "QString" }
-        }
-        Method {
-            name: "setScheduleFilter"
-            Parameter { name: "schedule_filter"; type: "QString" }
-        }
-        Method {
-            name: "clearFilters"
-        }
-        Method {
-            name: "selectTask"
-            Parameter { name: "task_id"; type: "QString" }
-        }
-        Method {
-            name: "setTaskPage"
-            Parameter { name: "page"; type: "int" }
-        }
-        Method {
-            name: "setTaskPageSize"
-            Parameter { name: "page_size"; type: "int" }
-        }
-        Method {
-            name: "activateTask"
-            Parameter { name: "task_id"; type: "QString" }
-        }
-        Method {
-            name: "loadTaskAssignmentsAndDependencies"
-        }
-        Method {
-            name: "loadSelectedTaskAssignments"
-        }
-        Method {
-            name: "loadSelectedTaskDependencies"
-        }
-        Method {
-            name: "loadSelectedTaskTime"
-        }
-        Method {
-            name: "loadSelectedTaskCollaboration"
-        }
-        Method {
-            name: "loadSelectedTaskSkillRequirements"
-        }
-        Method {
-            name: "loadSelectedTaskScheduleImpact"
-        }
-        Method {
-            name: "setTaskReviewActive"
-            Parameter { name: "active"; type: "bool" }
-        }
-        Method {
-            name: "setTaskBulkSelection"
-            Parameter { name: "task_id"; type: "QString" }
-            Parameter { name: "selected"; type: "bool" }
-        }
-        Method {
-            name: "selectVisibleTasks"
-        }
-        Method {
-            name: "clearTaskBulkSelection"
-        }
-        Method {
-            name: "selectAssignment"
-            Parameter { name: "assignment_id"; type: "QString" }
-        }
-        Method {
-            name: "selectTimePeriod"
-            Parameter { name: "period_start"; type: "QString" }
-        }
-        Method {
-            name: "selectTimeEntry"
-            Parameter { name: "entry_id"; type: "QString" }
-        }
-        Method {
-            name: "selectTaskView"
-            Parameter { name: "view_name"; type: "QString" }
-        }
-        Method {
-            name: "saveCurrentTaskView"
-            type: "QVariantMap"
-            Parameter { name: "view_name"; type: "QString" }
-        }
-        Method {
-            name: "applySelectedTaskView"
-            type: "QVariantMap"
-        }
-        Method {
-            name: "deleteSelectedTaskView"
-            type: "QVariantMap"
-        }
-        Method {
-            name: "exportTasks"
-            type: "QVariantMap"
-            Parameter { name: "columns"; type: "QVariantList" }
-            Parameter { name: "file_path"; type: "QString" }
-        }
-        Method {
-            name: "createTask"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "updateTask"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "updateProgress"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "deleteTask"
-            type: "QVariantMap"
-            Parameter { name: "task_id"; type: "QString" }
-        }
-        Method {
-            name: "applyBulkStatus"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "bulkDeleteTasks"
-            type: "QVariantMap"
-            Parameter { name: "task_ids"; type: "QVariantList" }
-        }
-        Method {
-            name: "undoLastTaskAction"
-            type: "QVariantMap"
-        }
-        Method {
-            name: "redoLastTaskAction"
-            type: "QVariantMap"
-        }
-        Method {
-            name: "createAssignment"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "updateAssignmentAllocation"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "setAssignmentHours"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "deleteAssignment"
-            type: "QVariantMap"
-            Parameter { name: "assignment_id"; type: "QString" }
-        }
-        Method {
-            name: "validateAssignment"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "createDependency"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "updateDependency"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "deleteDependency"
-            type: "QVariantMap"
-            Parameter { name: "dependency_id"; type: "QString" }
-        }
-        Method {
-            name: "addTaskTimeEntry"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "updateTaskTimeEntry"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "deleteTaskTimeEntry"
-            type: "QVariantMap"
-            Parameter { name: "entry_id"; type: "QString" }
-        }
-        Method {
-            name: "submitTaskPeriod"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "lockTaskPeriod"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "unlockTaskPeriod"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "postTaskComment"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "markTaskCollaborationRead"
-            type: "QVariantMap"
-            Parameter { name: "task_id"; type: "QString" }
-        }
-        Method {
-            name: "beginTaskPresence"
-            type: "QVariantMap"
-            Parameter { name: "task_id"; type: "QString" }
-            Parameter { name: "activity"; type: "QString" }
-        }
-        Method {
-            name: "endTaskPresence"
-            type: "QVariantMap"
-            Parameter { name: "task_id"; type: "QString" }
-        }
-    }
 
-    Component {
-        name: "ProjectManagementTimesheetsWorkspaceController"
-        accessSemantics: "reference"
-        prototype: "ProjectManagementWorkspaceControllerBase"
-        exports: ["ProjectManagement.Controllers/ProjectManagementTimesheetsWorkspaceController 1.0"]
-        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "assignmentOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "periodOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "queueStatusOptions"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
-        Property { name: "selectedAssignmentId"; type: "QString"; isReadonly: true }
-        Property { name: "selectedPeriodStart"; type: "QString"; isReadonly: true }
-        Property { name: "selectedQueueStatus"; type: "QString"; isReadonly: true }
-        Property { name: "selectedEntryId"; type: "QString"; isReadonly: true }
-        Property { name: "selectedQueuePeriodId"; type: "QString"; isReadonly: true }
-        Property { name: "assignmentSummary"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "entries"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "selectedEntry"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "reviewQueue"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "entriesTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "reviewQueueTableModel"; type: "QObject"; isReadonly: true }
-        Property { name: "reviewDetail"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "queuePage"; type: "int"; isReadonly: true }
-        Property { name: "queuePageSize"; type: "int"; isReadonly: true }
-        Property { name: "queueTotalCount"; type: "int"; isReadonly: true }
-        Property { name: "selectedQueuePeriodIds"; type: "QVariantList"; isReadonly: true }
-        Property { name: "selectedQueuePeriodCount"; type: "int"; isReadonly: true }
-        Method {
-            name: "refresh"
-        }
-        Method {
-            name: "selectProject"
-            Parameter { name: "project_id"; type: "QString" }
-        }
-        Method {
-            name: "selectAssignment"
-            Parameter { name: "assignment_id"; type: "QString" }
-        }
-        Method {
-            name: "selectPeriod"
-            Parameter { name: "period_start"; type: "QString" }
-        }
-        Method {
-            name: "setQueueStatus"
-            Parameter { name: "queue_status"; type: "QString" }
-        }
-        Method {
-            name: "selectEntry"
-            Parameter { name: "entry_id"; type: "QString" }
-        }
-        Method {
-            name: "selectQueuePeriod"
-            Parameter { name: "period_id"; type: "QString" }
-        }
-        Method {
-            name: "setQueuePage"
-            Parameter { name: "page"; type: "int" }
-        }
-        Method {
-            name: "setQueuePageSize"
-            Parameter { name: "page_size"; type: "int" }
-        }
-        Method {
-            name: "setQueueBulkSelection"
-            Parameter { name: "period_id"; type: "QString" }
-            Parameter { name: "selected"; type: "bool" }
-        }
-        Method {
-            name: "selectVisibleQueuePeriods"
-        }
-        Method {
-            name: "clearQueueBulkSelection"
-        }
-        Method {
-            name: "exportTimesheets"
-        }
-        Method {
-            name: "bulkApprovePeriods"
-            type: "QVariantMap"
-            Parameter { name: "period_ids"; type: "QVariantList" }
-        }
-        Method {
-            name: "bulkRejectPeriods"
-            type: "QVariantMap"
-            Parameter { name: "period_ids"; type: "QVariantList" }
-        }
-        Method {
-            name: "addTimeEntry"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "updateTimeEntry"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "deleteTimeEntry"
-            type: "QVariantMap"
-            Parameter { name: "entry_id"; type: "QString" }
-        }
-        Method {
-            name: "submitPeriod"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "approvePeriod"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "rejectPeriod"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "lockPeriod"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-        Method {
-            name: "unlockPeriod"
-            type: "QVariantMap"
-            Parameter { name: "payload"; type: "QVariantMap" }
-        }
-    }
+Component {
+    name: "ProjectManagementPortfolioWorkspaceController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementPortfolioWorkspaceController 1.0"]
+    Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "intakeStatusOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "templateOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "scenarioOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedIntakeStatusFilter"; type: "QString"; isReadonly: true }
+    Property { name: "selectedScenarioId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedBaseScenarioId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedCompareScenarioId"; type: "QString"; isReadonly: true }
+    Property { name: "intakeItems"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "templates"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "scenarios"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "evaluation"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "comparison"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "heatmap"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "recentActions"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "activeTemplateSummary"; type: "QString"; isReadonly: true }
+    Method { name: "refresh" }
+    Method { name: "exportPortfolio" }
+    Method { name: "setIntakeStatusFilter"; Parameter { name: "intakeStatusFilter"; type: "QString" } }
+    Method { name: "selectScenario"; Parameter { name: "scenarioId"; type: "QString" } }
+    Method { name: "selectCompareBase"; Parameter { name: "scenarioId"; type: "QString" } }
+    Method { name: "selectCompareScenario"; Parameter { name: "scenarioId"; type: "QString" } }
+    Method { name: "createTemplate"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "activateTemplate"; type: "QVariantMap"; Parameter { name: "templateId"; type: "QString" } }
+    Method { name: "createIntakeItem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "createScenario"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "createDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "removeDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
+}
 
-    Component {
-        name: "ProjectManagementWorkspaceCatalog"
-        accessSemantics: "reference"
-        prototype: "QObject"
-        exports: ["ProjectManagement.Controllers/ProjectManagementWorkspaceCatalog 1.0"]
-        Property { name: "projectsWorkspace"; type: "ProjectManagementProjectsWorkspaceController"; isReadonly: true }
-        Property { name: "resourcesWorkspace"; type: "ProjectManagementResourcesWorkspaceController"; isReadonly: true }
-        Property { name: "riskWorkspace"; type: "ProjectManagementRegisterWorkspaceController"; isReadonly: true }
-        Property { name: "registerWorkspace"; type: "ProjectManagementRegisterWorkspaceController"; isReadonly: true }
-        Property { name: "financialsWorkspace"; type: "ProjectManagementFinancialsWorkspaceController"; isReadonly: true }
-        Property { name: "portfolioWorkspace"; type: "ProjectManagementPortfolioWorkspaceController"; isReadonly: true }
-        Property { name: "schedulingWorkspace"; type: "ProjectManagementSchedulingWorkspaceController"; isReadonly: true }
-        Property { name: "tasksWorkspace"; type: "ProjectManagementTasksWorkspaceController"; isReadonly: true }
-        Property { name: "dashboardWorkspace"; type: "ProjectManagementDashboardWorkspaceController"; isReadonly: true }
-        Property { name: "collaborationWorkspace"; type: "ProjectManagementCollaborationWorkspaceController"; isReadonly: true }
-        Property { name: "timesheetsWorkspace"; type: "ProjectManagementTimesheetsWorkspaceController"; isReadonly: true }
-        Property { name: "pmCapabilityController"; type: "PMCapabilityController"; isReadonly: true }
-        Method {
-            name: "workspace"
-            type: "QVariantMap"
-            Parameter { name: "route_id"; type: "QString" }
-        }
-        Method {
-            name: "dashboardOverview"
-            type: "QVariantMap"
-        }
-        Method {
-            name: "isModuleEnabled"
-            type: "bool"
-            Parameter { name: "module_code"; type: "QString" }
-        }
-        Method {
-            name: "hasCapability"
-            type: "bool"
-            Parameter { name: "capability_id"; type: "QString" }
-        }
-        Method {
-            name: "canUseIntegration"
-            type: "bool"
-            Parameter { name: "source_module"; type: "QString" }
-            Parameter { name: "target_module"; type: "QString" }
-            Parameter { name: "capability"; type: "QString" }
-        }
-        Method {
-            name: "capabilitySnapshot"
-            type: "QVariantMap"
-        }
-    }
 
-    Component {
-        name: "ProjectManagementWorkspaceControllerBase"
-        accessSemantics: "reference"
-        prototype: "QObject"
-        exports: ["ProjectManagement.Controllers/ProjectManagementWorkspaceControllerBase 1.0"]
-        Property { name: "workspace"; type: "QVariantMap"; isReadonly: true }
-        Property { name: "isLoading"; type: "bool"; isReadonly: true }
-        Property { name: "isBusy"; type: "bool"; isReadonly: true }
-        Property { name: "errorMessage"; type: "QString"; isReadonly: true }
-        Property { name: "feedbackMessage"; type: "QString"; isReadonly: true }
-        Property { name: "emptyState"; type: "QString"; isReadonly: true }
-        Property { name: "sectionErrors"; type: "QVariantMap"; isReadonly: true }
-        Method {
-            name: "clearMessages"
-        }
-        Method {
-            name: "loadTableColumnState"
-            type: "QVariantMap"
-            Parameter { name: "table_id"; type: "QString" }
-        }
-        Method {
-            name: "saveTableColumnState"
-            Parameter { name: "table_id"; type: "QString" }
-            Parameter { name: "state"; type: "QVariantMap" }
-        }
-    }
+Component {
+    name: "ProjectManagementProjectsWorkspaceController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementProjectsWorkspaceController 1.0"]
+    Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "bulkStatusOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
+    Property { name: "searchText"; type: "QString"; isReadonly: true }
+    Property { name: "projects"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "selectedProject"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+    Property { name: "projectPage"; type: "int"; isReadonly: true }
+    Property { name: "projectPageSize"; type: "int"; isReadonly: true }
+    Property { name: "projectTotalCount"; type: "int"; isReadonly: true }
+    Property { name: "selectedProjectIds"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedProjectCount"; type: "int"; isReadonly: true }
+    Property { name: "projectTasks"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectTasksTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "projectResources"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectResourcesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "projectFinancials"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectRisks"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectDocuments"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectActivity"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "importPreview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "isImportBusy"; type: "bool"; isReadonly: true }
+    Property { name: "importError"; type: "QString"; isReadonly: true }
+    Property { name: "assignableResourceOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedProjectResourceId"; type: "QString"; isReadonly: true }
+    Method { name: "refresh" }
+    Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+    Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
+    Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "activateProject"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "setProjectPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setProjectPageSize"; Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "setProjectBulkSelection"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "selected"; type: "bool" } }
+    Method { name: "clearProjectBulkSelection" }
+    Method { name: "selectVisibleProjects" }
+    Method { name: "bulkDeleteProjects"; type: "QVariantMap"; Parameter { name: "projectIds"; type: "QVariantList" } }
+    Method { name: "applyBulkStatus"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "exportProjects"; type: "QVariantMap"; Parameter { name: "columns"; type: "QVariantList" } Parameter { name: "filePath"; type: "QString" } }
+    Method { name: "previewImport"; type: "QVariantMap"; Parameter { name: "filePath"; type: "QString" } Parameter { name: "sourceFormat"; type: "QString" } }
+    Method { name: "executeImport"; type: "QVariantMap"; Parameter { name: "sessionId"; type: "QString" } }
+    Method { name: "cancelImport" }
+    Method { name: "createProject"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateProject"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "setProjectStatus"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "status"; type: "QString" } }
+    Method { name: "deleteProject"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "loadProjectTasks" }
+    Method { name: "loadProjectResources" }
+    Method { name: "loadAssignableResources" }
+    Method { name: "assignProjectResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "selectProjectResource"; Parameter { name: "projectResourceId"; type: "QString" } }
+    Method { name: "updateProjectResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "removeProjectResource"; type: "QVariantMap"; Parameter { name: "projectResourceId"; type: "QString" } }
+    Method { name: "loadProjectFinancials" }
+    Method { name: "loadProjectRisks" }
+    Method { name: "loadProjectDocuments" }
+    Method { name: "loadProjectActivity" }
+}
 
+
+Component {
+    name: "ProjectManagementRegisterWorkspaceController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementRegisterWorkspaceController 1.0"]
+    Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "typeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "severityOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedTypeFilter"; type: "QString"; isReadonly: true }
+    Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
+    Property { name: "selectedSeverityFilter"; type: "QString"; isReadonly: true }
+    Property { name: "searchText"; type: "QString"; isReadonly: true }
+    Property { name: "entries"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedEntry"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedEntryId"; type: "QString"; isReadonly: true }
+    Property { name: "urgentEntries"; type: "QVariantMap"; isReadonly: true }
+    Method { name: "refresh" }
+    Method { name: "exportRegister" }
+    Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "setTypeFilter"; Parameter { name: "typeFilter"; type: "QString" } }
+    Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
+    Method { name: "setSeverityFilter"; Parameter { name: "severityFilter"; type: "QString" } }
+    Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+    Method { name: "selectEntry"; Parameter { name: "entryId"; type: "QString" } }
+    Method { name: "createEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteEntry"; type: "QVariantMap"; Parameter { name: "entryId"; type: "QString" } }
+}
+
+
+Component {
+    name: "ProjectManagementResourcesWorkspaceController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementResourcesWorkspaceController 1.0"]
+    Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "workerTypeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "categoryOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "employeeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedActiveFilter"; type: "QString"; isReadonly: true }
+    Property { name: "selectedCategoryFilter"; type: "QString"; isReadonly: true }
+    Property { name: "searchText"; type: "QString"; isReadonly: true }
+    Property { name: "resources"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedResource"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedResourceId"; type: "QString"; isReadonly: true }
+    Method { name: "refresh" }
+    Method { name: "exportResources" }
+    Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+    Method { name: "setActiveFilter"; Parameter { name: "activeFilter"; type: "QString" } }
+    Method { name: "setCategoryFilter"; Parameter { name: "categoryFilter"; type: "QString" } }
+    Method { name: "selectResource"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "createResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "toggleResourceActive"; type: "QVariantMap"; Parameter { name: "resourceId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+    Method { name: "deleteResource"; type: "QVariantMap"; Parameter { name: "resourceId"; type: "QString" } }
+}
+
+
+Component {
+    name: "ProjectManagementSchedulingWorkspaceController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementSchedulingWorkspaceController 1.0"]
+    Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "calendarOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "baselineOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "dependencyTaskOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedCalendarId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedBaselineId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
+    Property { name: "searchText"; type: "QString"; isReadonly: true }
+    Property { name: "showCriticalOnly"; type: "bool"; isReadonly: true }
+    Property { name: "showDelayedOnly"; type: "bool"; isReadonly: true }
+    Property { name: "activityPage"; type: "int"; isReadonly: true }
+    Property { name: "activityPageSize"; type: "int"; isReadonly: true }
+    Property { name: "activityTotalCount"; type: "int"; isReadonly: true }
+    Property { name: "selectedActivityId"; type: "QString"; isReadonly: true }
+    Property { name: "calendar"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "baselines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "schedule"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "timeline"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "criticalPath"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "diagnostics"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "delayedActivities"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "resourceLoading"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "baselineRegister"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "constraints"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "activityFeed"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "scheduleRows"; type: "QVariantList"; isReadonly: true }
+    Property { name: "diagnosticsRows"; type: "QVariantList"; isReadonly: true }
+    Property { name: "delayedActivityRows"; type: "QVariantList"; isReadonly: true }
+    Property { name: "resourceLoadingRows"; type: "QVariantList"; isReadonly: true }
+    Property { name: "baselineCompareRows"; type: "QVariantList"; isReadonly: true }
+    Property { name: "baselineRegisterRows"; type: "QVariantList"; isReadonly: true }
+    Property { name: "dependencyRows"; type: "QVariantList"; isReadonly: true }
+    Property { name: "constraintRows"; type: "QVariantList"; isReadonly: true }
+    Property { name: "calendarSummaryRows"; type: "QVariantList"; isReadonly: true }
+    Property { name: "holidayRows"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedActivity"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "calculatorResult"; type: "QString"; isReadonly: true }
+    Method { name: "refresh" }
+    Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "selectCalendar"; Parameter { name: "calendarId"; type: "QString" } }
+    Method { name: "selectBaseline"; Parameter { name: "baselineId"; type: "QString" } }
+    Method { name: "selectBaselineA"; Parameter { name: "baselineId"; type: "QString" } }
+    Method { name: "selectBaselineB"; Parameter { name: "baselineId"; type: "QString" } }
+    Method { name: "setIncludeUnchanged"; Parameter { name: "includeUnchanged"; type: "bool" } }
+    Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+    Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
+    Method { name: "setShowCriticalOnly"; Parameter { name: "enabled"; type: "bool" } }
+    Method { name: "setShowDelayedOnly"; Parameter { name: "enabled"; type: "bool" } }
+    Method { name: "clearFilters" }
+    Method { name: "selectActivity"; Parameter { name: "activityId"; type: "QString" } }
+    Method { name: "activateActivity"; Parameter { name: "activityId"; type: "QString" } }
+    Method { name: "setActivityPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setActivityPageSize"; Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "saveCalendar"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "addHoliday"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteHoliday"; type: "QVariantMap"; Parameter { name: "holidayId"; type: "QString" } }
+    Method { name: "createBaseline"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteBaseline"; type: "QVariantMap"; Parameter { name: "baselineId"; type: "QString" } }
+    Method { name: "recalculateSchedule"; type: "QVariantMap" }
+    Method { name: "createDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
+    Method { name: "calculateWorkingDays"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "exportSchedule"; type: "QVariantMap" }
+}
+
+
+Component {
+    name: "ProjectManagementTasksWorkspaceController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementTasksWorkspaceController 1.0"]
+    Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+    Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "bulkStatusOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "priorityOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "scheduleOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "taskViewOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
+    Property { name: "selectedPriorityFilter"; type: "QString"; isReadonly: true }
+    Property { name: "selectedScheduleFilter"; type: "QString"; isReadonly: true }
+    Property { name: "selectedTaskViewName"; type: "QString"; isReadonly: true }
+    Property { name: "searchText"; type: "QString"; isReadonly: true }
+    Property { name: "tasks"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedTask"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedTaskId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedTaskIds"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedTaskCount"; type: "int"; isReadonly: true }
+    Property { name: "selectedTaskDoneCount"; type: "int"; isReadonly: true }
+    Property { name: "canUndoTaskAction"; type: "bool"; isReadonly: true }
+    Property { name: "canRedoTaskAction"; type: "bool"; isReadonly: true }
+    Property { name: "nextUndoLabel"; type: "QString"; isReadonly: true }
+    Property { name: "nextRedoLabel"; type: "QString"; isReadonly: true }
+    Property { name: "assignmentOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedAssignmentId"; type: "QString"; isReadonly: true }
+    Property { name: "dependencyTaskOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "assignments"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "timeAssignmentOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "timePeriodOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedTimePeriodStart"; type: "QString"; isReadonly: true }
+    Property { name: "timeAssignmentSummary"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "timeEntries"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedTimeEntryId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedTimeEntry"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "collaborationMentionOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "collaborationDocumentOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "collaborationComments"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "collaborationPresence"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "taskPage"; type: "int"; isReadonly: true }
+    Property { name: "taskPageSize"; type: "int"; isReadonly: true }
+    Property { name: "taskTotalCount"; type: "int"; isReadonly: true }
+    Method { name: "refresh" }
+    Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+    Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
+    Method { name: "setPriorityFilter"; Parameter { name: "priorityFilter"; type: "QString" } }
+    Method { name: "setScheduleFilter"; Parameter { name: "scheduleFilter"; type: "QString" } }
+    Method { name: "clearFilters" }
+    Method { name: "selectTaskView"; Parameter { name: "viewName"; type: "QString" } }
+    Method { name: "beginTaskPresence"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } Parameter { name: "activity"; type: "QString" } }
+    Method { name: "endTaskPresence"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
+    Method { name: "saveCurrentTaskView"; type: "QVariantMap"; Parameter { name: "viewName"; type: "QString" } }
+    Method { name: "applySelectedTaskView"; type: "QVariantMap" }
+    Method { name: "deleteSelectedTaskView"; type: "QVariantMap" }
+    Method { name: "exportTasks"; type: "QVariantMap" }
+    Method { name: "selectTask"; Parameter { name: "taskId"; type: "QString" } }
+    Method { name: "setTaskBulkSelection"; Parameter { name: "taskId"; type: "QString" } Parameter { name: "selected"; type: "bool" } }
+    Method { name: "selectVisibleTasks" }
+    Method { name: "clearTaskBulkSelection" }
+    Method { name: "undoLastTaskAction"; type: "QVariantMap" }
+    Method { name: "redoLastTaskAction"; type: "QVariantMap" }
+    Method { name: "selectAssignment"; Parameter { name: "assignmentId"; type: "QString" } }
+    Method { name: "selectTimePeriod"; Parameter { name: "periodStart"; type: "QString" } }
+    Method { name: "selectTimeEntry"; Parameter { name: "entryId"; type: "QString" } }
+    Method { name: "createTask"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateTask"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateProgress"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteTask"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
+    Method { name: "createAssignment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateAssignmentAllocation"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "setAssignmentHours"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "applyBulkStatus"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "bulkDeleteTasks"; type: "QVariantMap"; Parameter { name: "taskIds"; type: "QVariantList" } }
+    Method { name: "addTaskTimeEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateTaskTimeEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteTaskTimeEntry"; type: "QVariantMap"; Parameter { name: "entryId"; type: "QString" } }
+    Method { name: "submitTaskPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "lockTaskPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "unlockTaskPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteAssignment"; type: "QVariantMap"; Parameter { name: "assignmentId"; type: "QString" } }
+    Method { name: "createDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
+    Method { name: "postTaskComment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "activateTask"; Parameter { name: "task_id"; type: "QString" } }
+    Method { name: "setTaskPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setTaskPageSize"; Parameter { name: "page_size"; type: "int" } }
+    Method { name: "loadSelectedTaskAssignments" }
+    Method { name: "loadSelectedTaskDependencies" }
+    Method { name: "loadSelectedTaskTime"}
+    Method { name: "loadSelectedTaskCollaboration"}
+    Method { name: "setTaskReviewActive"; Parameter { name: "active"; type: "bool" } }
+    Method { name: "markTaskCollaborationRead"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
+}
+
+
+Component {
+    name: "ProjectManagementTimesheetsWorkspaceController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementTimesheetsWorkspaceController 1.0"]
+    Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "assignmentOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "periodOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "queueStatusOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedAssignmentId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedPeriodStart"; type: "QString"; isReadonly: true }
+    Property { name: "selectedQueueStatus"; type: "QString"; isReadonly: true }
+    Property { name: "selectedEntryId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedQueuePeriodId"; type: "QString"; isReadonly: true }
+    Property { name: "assignmentSummary"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "entries"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedEntry"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "reviewQueue"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "reviewDetail"; type: "QVariantMap"; isReadonly: true }
+    Method { name: "refresh" }
+    Method { name: "exportTimesheets" }
+    Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "selectAssignment"; Parameter { name: "assignmentId"; type: "QString" } }
+    Method { name: "selectPeriod"; Parameter { name: "periodStart"; type: "QString" } }
+    Method { name: "setQueueStatus"; Parameter { name: "queueStatus"; type: "QString" } }
+    Method { name: "selectEntry"; Parameter { name: "entryId"; type: "QString" } }
+    Method { name: "selectQueuePeriod"; Parameter { name: "periodId"; type: "QString" } }
+    Method { name: "addTimeEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateTimeEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteTimeEntry"; type: "QVariantMap"; Parameter { name: "entryId"; type: "QString" } }
+    Method { name: "submitPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "approvePeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "rejectPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "lockPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "unlockPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+}
 }

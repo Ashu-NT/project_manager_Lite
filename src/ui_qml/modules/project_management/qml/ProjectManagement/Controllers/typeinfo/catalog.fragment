@@ -7,7 +7,6 @@ Component {
     Property { name: "collaborationWorkspace"; type: "ProjectManagementCollaborationWorkspaceController"; isReadonly: true }
     Property { name: "financialsWorkspace"; type: "ProjectManagementFinancialsWorkspaceController"; isReadonly: true }
     Property { name: "portfolioWorkspace"; type: "ProjectManagementPortfolioWorkspaceController"; isReadonly: true }
-    Property { name: "riskWorkspace"; type: "ProjectManagementRegisterWorkspaceController"; isReadonly: true }
     Property { name: "registerWorkspace"; type: "ProjectManagementRegisterWorkspaceController"; isReadonly: true }
     Property { name: "resourcesWorkspace"; type: "ProjectManagementResourcesWorkspaceController"; isReadonly: true }
     Property { name: "schedulingWorkspace"; type: "ProjectManagementSchedulingWorkspaceController"; isReadonly: true }

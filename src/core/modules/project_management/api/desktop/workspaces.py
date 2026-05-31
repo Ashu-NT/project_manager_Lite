@@ -37,11 +37,6 @@ _WORKSPACE_DESCRIPTORS: tuple[ProjectManagementWorkspaceDescriptor, ...] = (
         summary="Project cost, labor, baseline budget, and financial reporting workflows.",
     ),
     ProjectManagementWorkspaceDescriptor(
-        key="risk",
-        title="Risk",
-        summary="Project risk register, mitigation, severity, and review workflows.",
-    ),
-    ProjectManagementWorkspaceDescriptor(
         key="portfolio",
         title="Portfolio",
         summary="Portfolio summaries, cross-project visibility, and decision support.",
@@ -49,7 +44,7 @@ _WORKSPACE_DESCRIPTORS: tuple[ProjectManagementWorkspaceDescriptor, ...] = (
     ProjectManagementWorkspaceDescriptor(
         key="register",
         title="Register",
-        summary="Controlled project register records and governance-facing project history.",
+        summary="Risks, issues, and changes — unified project governance register with type filtering.",
     ),
     ProjectManagementWorkspaceDescriptor(
         key="collaboration",
