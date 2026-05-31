@@ -19,8 +19,26 @@ AppWidgets.EntityDialog {
     subtitle: "Connect the selected shared document to a business record in another module."
     primaryText: "Add Link"
     primaryIcon: "add"
-    onAccepted: root.saveRequested(root.formData)
+    onOpened: root.errorMessage = ""
+    onAccepted: root.submitDialog()
     onRejected: root.close()
+
+    function submitDialog() {
+        if (moduleCodeField.text.trim().length === 0) {
+            root.errorMessage = "Module code is required."
+            return
+        }
+        if (entityTypeField.text.trim().length === 0) {
+            root.errorMessage = "Entity type is required."
+            return
+        }
+        if (entityIdField.text.trim().length === 0) {
+            root.errorMessage = "Entity id is required."
+            return
+        }
+        root.errorMessage = ""
+        root.saveRequested(root.formData)
+    }
 
     readonly property var formData: ({
         documentId: root.documentId,

@@ -19,8 +19,22 @@ AppWidgets.EntityDialog {
     title: root.mode === "create" ? "New Site" : "Edit Site"
     primaryText: root.mode === "create" ? "Create" : "Save"
     primaryIcon: root.mode === "create" ? "add" : "save"
-    onAccepted: root.saveRequested(root.mode, root.formData)
+    onOpened: root.errorMessage = ""
+    onAccepted: root.submitDialog()
     onRejected: root.close()
+
+    function submitDialog() {
+        if (siteCodeField.text.trim().length === 0) {
+            root.errorMessage = "Site code is required."
+            return
+        }
+        if (nameField.text.trim().length === 0) {
+            root.errorMessage = "Site name is required."
+            return
+        }
+        root.errorMessage = ""
+        root.saveRequested(root.mode, root.formData)
+    }
 
     readonly property var formData: ({
         siteId: root.draft.siteId || root.draft.id || "",

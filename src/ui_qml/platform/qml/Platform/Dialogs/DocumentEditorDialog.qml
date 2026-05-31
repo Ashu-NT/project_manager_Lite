@@ -22,8 +22,22 @@ AppWidgets.EntityDialog {
     title: root.mode === "create" ? "New Document" : "Edit Document"
     primaryText: root.mode === "create" ? "Create" : "Save"
     primaryIcon: root.mode === "create" ? "add" : "save"
-    onAccepted: root.saveRequested(root.mode, root.formData)
+    onOpened: root.errorMessage = ""
+    onAccepted: root.submitDialog()
     onRejected: root.close()
+
+    function submitDialog() {
+        if (documentCodeField.text.trim().length === 0) {
+            root.errorMessage = "Document code is required."
+            return
+        }
+        if (titleField.text.trim().length === 0) {
+            root.errorMessage = "Document title is required."
+            return
+        }
+        root.errorMessage = ""
+        root.saveRequested(root.mode, root.formData)
+    }
 
     readonly property var formData: ({
         documentId: root.draft.documentId || root.draft.id || "",

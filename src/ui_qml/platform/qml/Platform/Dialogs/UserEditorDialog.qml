@@ -23,8 +23,22 @@ AppWidgets.EntityDialog {
     primaryText: root.mode === "create" ? "Create" : "Save"
     primaryIcon: root.mode === "create" ? "add" : "save"
     primaryEnabled: usernameField.text.trim().length > 0 && (root.mode === "edit" || passwordField.text.length > 0)
-    onAccepted: root.saveRequested(root.mode, root.formData)
+    onOpened: root.errorMessage = ""
+    onAccepted: root.submitDialog()
     onRejected: root.close()
+
+    function submitDialog() {
+        if (usernameField.text.trim().length === 0) {
+            root.errorMessage = "Username is required."
+            return
+        }
+        if (root.mode === "create" && passwordField.text.length === 0) {
+            root.errorMessage = "A password is required for a new user."
+            return
+        }
+        root.errorMessage = ""
+        root.saveRequested(root.mode, root.formData)
+    }
 
     readonly property var formData: ({
         userId: root.draft.userId || root.draft.id || "",

@@ -21,8 +21,22 @@ AppWidgets.EntityDialog {
     title: root.mode === "create" ? "New Employee" : "Edit Employee"
     primaryText: root.mode === "create" ? "Create" : "Save"
     primaryIcon: root.mode === "create" ? "add" : "save"
-    onAccepted: root.saveRequested(root.mode, root.formData)
+    onOpened: root.errorMessage = ""
+    onAccepted: root.submitDialog()
     onRejected: root.close()
+
+    function submitDialog() {
+        if (employeeCodeField.text.trim().length === 0) {
+            root.errorMessage = "Employee code is required."
+            return
+        }
+        if (fullNameField.text.trim().length === 0) {
+            root.errorMessage = "Full name is required."
+            return
+        }
+        root.errorMessage = ""
+        root.saveRequested(root.mode, root.formData)
+    }
 
     readonly property var formData: ({
         employeeId: root.draft.employeeId || root.draft.id || "",

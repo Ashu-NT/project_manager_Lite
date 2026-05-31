@@ -8,6 +8,18 @@ Item {
 
     property PlatformControllers.PlatformAdminWorkspaceController workspaceController
 
+    // Keeps the dialog open and shows the backend error inside it on failure;
+    // clears and closes only on success. Mirrors the dialog-result handling in
+    // the other modules' dialog hosts.
+    function _handleResult(dialog, result) {
+        if (!result || result.ok === false) {
+            dialog.errorMessage = String((result && result.message) || "Operation failed. Please try again.")
+        } else {
+            dialog.errorMessage = ""
+            dialog.close()
+        }
+    }
+
     function openOrganizationCreate() {
         if (root.workspaceController === null) {
             return
@@ -147,9 +159,7 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createOrganization(payload)
                 : root.workspaceController.updateOrganization(payload)
-            if (result.ok) {
-                organizationDialog.close()
-            }
+            root._handleResult(organizationDialog, result)
         }
     }
 
@@ -165,9 +175,7 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createSite(payload)
                 : root.workspaceController.updateSite(payload)
-            if (result.ok) {
-                siteDialog.close()
-            }
+            root._handleResult(siteDialog, result)
         }
     }
 
@@ -183,9 +191,7 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createDepartment(payload)
                 : root.workspaceController.updateDepartment(payload)
-            if (result.ok) {
-                departmentDialog.close()
-            }
+            root._handleResult(departmentDialog, result)
         }
     }
 
@@ -201,9 +207,7 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createEmployee(payload)
                 : root.workspaceController.updateEmployee(payload)
-            if (result.ok) {
-                employeeDialog.close()
-            }
+            root._handleResult(employeeDialog, result)
         }
     }
 
@@ -219,9 +223,7 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createUser(payload)
                 : root.workspaceController.updateUser(payload)
-            if (result.ok) {
-                userDialog.close()
-            }
+            root._handleResult(userDialog, result)
         }
     }
 
@@ -237,9 +239,7 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createParty(payload)
                 : root.workspaceController.updateParty(payload)
-            if (result.ok) {
-                partyDialog.close()
-            }
+            root._handleResult(partyDialog, result)
         }
     }
 
@@ -255,9 +255,7 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createDocument(payload)
                 : root.workspaceController.updateDocument(payload)
-            if (result.ok) {
-                documentDialog.close()
-            }
+            root._handleResult(documentDialog, result)
         }
     }
 
@@ -271,9 +269,7 @@ Item {
                 return
             }
             const result = root.workspaceController.addDocumentLink(payload)
-            if (result.ok) {
-                documentLinkDialog.close()
-            }
+            root._handleResult(documentLinkDialog, result)
         }
     }
 
@@ -289,9 +285,7 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createDocumentStructure(payload)
                 : root.workspaceController.updateDocumentStructure(payload)
-            if (result.ok) {
-                documentStructureDialog.close()
-            }
+            root._handleResult(documentStructureDialog, result)
         }
     }
 }

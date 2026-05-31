@@ -22,8 +22,22 @@ AppWidgets.EntityDialog {
     title: root.mode === "create" ? "New Department" : "Edit Department"
     primaryText: root.mode === "create" ? "Create" : "Save"
     primaryIcon: root.mode === "create" ? "add" : "save"
-    onAccepted: root.saveRequested(root.mode, root.formData)
+    onOpened: root.errorMessage = ""
+    onAccepted: root.submitDialog()
     onRejected: root.close()
+
+    function submitDialog() {
+        if (departmentCodeField.text.trim().length === 0) {
+            root.errorMessage = "Department code is required."
+            return
+        }
+        if (nameField.text.trim().length === 0) {
+            root.errorMessage = "Department name is required."
+            return
+        }
+        root.errorMessage = ""
+        root.saveRequested(root.mode, root.formData)
+    }
 
     readonly property var formData: ({
         departmentId: root.draft.departmentId || root.draft.id || "",

@@ -20,8 +20,22 @@ AppWidgets.EntityDialog {
     title: root.mode === "create" ? "New Party" : "Edit Party"
     primaryText: root.mode === "create" ? "Create" : "Save"
     primaryIcon: root.mode === "create" ? "add" : "save"
-    onAccepted: root.saveRequested(root.mode, root.formData)
+    onOpened: root.errorMessage = ""
+    onAccepted: root.submitDialog()
     onRejected: root.close()
+
+    function submitDialog() {
+        if (partyCodeField.text.trim().length === 0) {
+            root.errorMessage = "Party code is required."
+            return
+        }
+        if (partyNameField.text.trim().length === 0) {
+            root.errorMessage = "Party name is required."
+            return
+        }
+        root.errorMessage = ""
+        root.saveRequested(root.mode, root.formData)
+    }
 
     readonly property var formData: ({
         partyId: root.draft.partyId || root.draft.id || "",

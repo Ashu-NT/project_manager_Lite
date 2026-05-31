@@ -21,8 +21,22 @@ AppWidgets.EntityDialog {
     title: root.mode === "create" ? "New Organization" : "Edit Organization"
     primaryText: root.mode === "create" ? "Create" : "Save"
     primaryIcon: root.mode === "create" ? "add" : "save"
-    onAccepted: root.saveRequested(root.mode, root.formData)
+    onOpened: root.errorMessage = ""
+    onAccepted: root.submitDialog()
     onRejected: root.close()
+
+    function submitDialog() {
+        if (organizationCodeField.text.trim().length === 0) {
+            root.errorMessage = "Organization code is required."
+            return
+        }
+        if (displayNameField.text.trim().length === 0) {
+            root.errorMessage = "Display name is required."
+            return
+        }
+        root.errorMessage = ""
+        root.saveRequested(root.mode, root.formData)
+    }
 
     readonly property var formData: ({
         organizationId: root.draft.organizationId || root.draft.id || "",

@@ -22,8 +22,22 @@ AppWidgets.EntityDialog {
     title: root.mode === "create" ? "New Document Structure" : "Edit Document Structure"
     primaryText: root.mode === "create" ? "Create" : "Save"
     primaryIcon: root.mode === "create" ? "add" : "save"
-    onAccepted: root.saveRequested(root.mode, root.formData)
+    onOpened: root.errorMessage = ""
+    onAccepted: root.submitDialog()
     onRejected: root.close()
+
+    function submitDialog() {
+        if (structureCodeField.text.trim().length === 0) {
+            root.errorMessage = "Structure code is required."
+            return
+        }
+        if (nameField.text.trim().length === 0) {
+            root.errorMessage = "Structure name is required."
+            return
+        }
+        root.errorMessage = ""
+        root.saveRequested(root.mode, root.formData)
+    }
 
     readonly property var formData: ({
         structureId: root.draft.structureId || root.draft.id || "",
