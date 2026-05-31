@@ -218,16 +218,6 @@ AppLayouts.WorkspaceFrame {
                 // State banners
                 AppWidgets.LoadingOverlay {
                     Layout.fillWidth: true
-                    loading: (root.workspaceController ? root.workspaceController.isLoading : false)
-                        && !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-                    message: "Loading portfolio data..."
-                    compact: true
-                    modal:   false
-                }
-
-                AppWidgets.LoadingOverlay {
-                    Layout.fillWidth: true
                     loading: root.workspaceController
                         ? root.workspaceController.isBusy
                             && String(root.workspaceController.errorMessage || "").length === 0
@@ -933,6 +923,16 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
             }
+        }
+
+        // ── Full loading overlay over list page ───────────────────────
+        AppWidgets.LoadingOverlay {
+            anchors.fill: _listPage
+            z: 15
+            loading: _listPage.visible
+                && (root.workspaceController ? root.workspaceController.isLoading : false)
+                && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+            message: "Loading portfolio data..."
         }
 
         // ── Detail page (covers full area, z:20) ──────────────────────

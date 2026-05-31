@@ -85,18 +85,6 @@ AppLayouts.WorkspaceFrame {
             }
         }
 
-        AppWidgets.LoadingOverlay {
-            Layout.fillWidth: true
-            loading: root.workspaceController !== null
-                && root.workspaceController.errorMessage.length === 0
-                && (root.workspaceController.isLoading || root.workspaceController.isBusy)
-            message: root.workspaceController && root.workspaceController.isBusy
-                ? "Refreshing dashboard state..."
-                : "Loading dashboard data..."
-            compact: true
-            modal:   false
-        }
-
         AppWidgets.InlineMessage {
             Layout.fillWidth: true
             visible: root.workspaceController !== null
@@ -114,47 +102,67 @@ AppLayouts.WorkspaceFrame {
             message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
         }
 
-        AppWidgets.KpiStrip {
-            Layout.fillWidth: true
-            metrics: root.overviewModel.metrics || []
-        }
-
-        ScrollView {
-            id: dashboardScrollArea
-
+        // ── Content area: full overlay during loading ─────────────────
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            clip: true
-            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
-            ColumnLayout {
-                id: dashboardScrollContent
+            AppWidgets.KpiStrip {
+                id: _dashKpi
+                anchors.top:   parent.top
+                anchors.left:  parent.left
+                anchors.right: parent.right
+                metrics: root.overviewModel.metrics || []
+            }
 
-                width: dashboardScrollArea.availableWidth
-                spacing: Theme.AppTheme.spacingSm
+            ScrollView {
+                id: dashboardScrollArea
+                anchors.top:    _dashKpi.bottom
+                anchors.left:   parent.left
+                anchors.right:  parent.right
+                anchors.bottom: parent.bottom
+                anchors.topMargin: Theme.AppTheme.spacingSm
+                clip: true
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
-                DashboardAnalysisPanels {
-                    Layout.fillWidth: true
-                    workspaceController: root.workspaceController
-                    shellModel: root.shellModel
+                ColumnLayout {
+                    id: dashboardScrollContent
+                    width: dashboardScrollArea.availableWidth
+                    spacing: Theme.AppTheme.spacingSm
+
+                    DashboardAnalysisPanels {
+                        Layout.fillWidth: true
+                        workspaceController: root.workspaceController
+                        shellModel: root.shellModel
+                    }
+
+                    DashboardChartsSection {
+                        Layout.fillWidth: true
+                        workspaceController: root.workspaceController
+                    }
+
+                    DashboardPanelsSection {
+                        Layout.fillWidth: true
+                        workspaceController: root.workspaceController
+                    }
+
+                    DashboardOverviewSections {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: width >= 1360 ? 520 : 760
+                        workspaceController: root.workspaceController
+                        shellModel: root.shellModel
+                    }
                 }
+            }
 
-                DashboardChartsSection {
-                    Layout.fillWidth: true
-                    workspaceController: root.workspaceController
-                }
-
-                DashboardPanelsSection {
-                    Layout.fillWidth: true
-                    workspaceController: root.workspaceController
-                }
-
-                DashboardOverviewSections {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: width >= 1360 ? 520 : 760
-                    workspaceController: root.workspaceController
-                    shellModel: root.shellModel
-                }
+            // Full loading overlay covering KpiStrip + content
+            AppWidgets.LoadingOverlay {
+                anchors.fill: parent
+                z: 10
+                loading: root.workspaceController !== null
+                    && root.workspaceController.errorMessage.length === 0
+                    && root.workspaceController.isLoading
+                message: "Loading dashboard data..."
             }
         }
     }
