@@ -5,6 +5,7 @@ from datetime import date
 from typing import Optional
 
 from src.core.modules.project_management.application.resources import ResourceAvailabilityService, ResourceService
+from src.core.modules.project_management.application.scheduling.work_calendar_engine import WorkCalendarEngine
 from src.core.modules.project_management.contracts.repositories.task import AssignmentRepository
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.core.modules.project_management.domain.resources.skills import SkillProficiencyLevel
@@ -177,6 +178,7 @@ class ProjectManagementResourcesDesktopApi:
         task_service: object | None = None,
         assignment_repo: AssignmentRepository | None = None,
         project_service: object | None = None,
+        work_calendar_engine: WorkCalendarEngine | None = None,
     ) -> None:
         self._resource_service = resource_service
         self._employee_service = employee_service
@@ -184,6 +186,31 @@ class ProjectManagementResourcesDesktopApi:
         self._task_service = task_service
         self._assignment_repo = assignment_repo
         self._project_service = project_service
+        self._work_calendar_engine = work_calendar_engine
+
+    def _get_availability_service(self) -> ResourceAvailabilityService | None:
+        if self._availability_service is not None:
+            return self._availability_service
+        # Build from injected components when the service wasn't registered
+        assignment_repo = self._assignment_repo
+        resource_repo = (
+            getattr(self._resource_service, "_resource_repo", None)
+            or getattr(self._task_service, "_resource_repo", None)
+        )
+        task_repo = getattr(self._task_service, "_task_repo", None)
+        calendar = (
+            self._work_calendar_engine
+            or getattr(self._task_service, "_work_calendar_engine", None)
+            or getattr(self._task_service, "_calendar", None)
+        )
+        if assignment_repo and resource_repo and task_repo and calendar:
+            return ResourceAvailabilityService(
+                resource_repo=resource_repo,
+                assignment_repo=assignment_repo,
+                task_repo=task_repo,
+                calendar=calendar,
+            )
+        return None
 
     def list_worker_types(self) -> tuple[ResourceWorkerTypeDescriptor, ...]:
         return tuple(
@@ -531,13 +558,16 @@ class ProjectManagementResourcesDesktopApi:
         return tuple(results)
 
     def build_resource_availability(self, resource_id: str) -> ResourceAvailabilityDto | None:
-        if not resource_id or self._availability_service is None:
+        if not resource_id:
+            return None
+        svc = self._get_availability_service()
+        if svc is None:
             return None
         from datetime import date as _date, timedelta
         today = _date.today()
         to_date = today + timedelta(days=90)
         try:
-            report = self._availability_service.check_availability(
+            report = svc.check_availability(
                 resource_ids=[resource_id],
                 from_date=today,
                 to_date=to_date,
@@ -547,7 +577,8 @@ class ProjectManagementResourcesDesktopApi:
         window = next((r for r in report.resources if str(r.resource_id) == resource_id), None)
         if window is None:
             return None
-        overloaded = [d for d in window.daily_loads if d.overloaded]
+        # Return ALL working days (not just overloaded) for timeline chart — cap at 90 days
+        all_days = getattr(window, "daily_loads", []) or []
         return ResourceAvailabilityDto(
             resource_id=resource_id,
             peak_load_percent=float(window.peak_load_percent or 0.0),
@@ -564,7 +595,7 @@ class ProjectManagementResourcesDesktopApi:
                     allocation_label=f"{d.total_allocation_percent:.0f}%",
                     overloaded=bool(d.overloaded),
                 )
-                for d in overloaded[:20]
+                for d in all_days[:90]
             ),
         )
 
@@ -577,6 +608,7 @@ def build_project_management_resources_desktop_api(
     task_service: object | None = None,
     assignment_repo: AssignmentRepository | None = None,
     project_service: object | None = None,
+    work_calendar_engine: WorkCalendarEngine | None = None,
 ) -> ProjectManagementResourcesDesktopApi:
     return ProjectManagementResourcesDesktopApi(
         resource_service=resource_service,
@@ -585,6 +617,7 @@ def build_project_management_resources_desktop_api(
         task_service=task_service,
         assignment_repo=assignment_repo,
         project_service=project_service,
+        work_calendar_engine=work_calendar_engine,
     )
 
 
