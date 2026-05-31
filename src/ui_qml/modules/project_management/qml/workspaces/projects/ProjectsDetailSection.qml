@@ -310,6 +310,13 @@ Item {
                     label: "Schedule"
                 }
 
+                AppWidgets.InlineMessage {
+                    width: parent.width
+                    visible: String(root.sectionErrors["schedule"] || "").length > 0
+                    tone: "danger"
+                    message: String(root.sectionErrors["schedule"] || "")
+                }
+
                 Item {
                     width: parent.width
                     implicitHeight: _scheduleContent.implicitHeight + Theme.AppTheme.spacingMd * 2
@@ -1035,6 +1042,13 @@ Item {
 
                 AppWidgets.SectionHeading { width: parent.width; label: "Material Demand" }
 
+                AppWidgets.InlineMessage {
+                    width: parent.width
+                    visible: String(root.sectionErrors["materialDemand"] || "").length > 0
+                    tone: "danger"
+                    message: String(root.sectionErrors["materialDemand"] || "")
+                }
+
                 Item {
                     width: parent.width
                     implicitHeight: _matDemandContent.implicitHeight + Theme.AppTheme.spacingMd * 2
@@ -1082,6 +1096,13 @@ Item {
                 spacing: 0
 
                 AppWidgets.SectionHeading { width: parent.width; label: "Procurement" }
+
+                AppWidgets.InlineMessage {
+                    width: parent.width
+                    visible: String(root.sectionErrors["procurement"] || "").length > 0
+                    tone: "danger"
+                    message: String(root.sectionErrors["procurement"] || "")
+                }
 
                 Item {
                     width: parent.width

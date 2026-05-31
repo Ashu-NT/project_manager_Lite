@@ -12,12 +12,23 @@ Item {
 
     property string selectedProjectId: ""
     property var selectedActivityData: ({})
+    property var workspaceController: null
 
     signal createBaselineRequested(var payload)
 
     function openCreateBaselineDialog() {
         baselineNameField.text = ""
+        createBaselineDialog.errorMessage = ""
         createBaselineDialog.open()
+    }
+
+    function _handleResult(dialog, result) {
+        if (!result || result.ok === false) {
+            dialog.errorMessage = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+        } else {
+            dialog.errorMessage = ""
+            dialog.close()
+        }
     }
 
     AppWidgets.EntityDialog {
@@ -30,11 +41,21 @@ Item {
         width: 420
 
         onAccepted: {
-            root.createBaselineRequested({
-                "projectId": root.selectedProjectId,
-                "name": baselineNameField.text
-            })
-            createBaselineDialog.close()
+            const result = root.workspaceController
+                ? root.workspaceController.createBaseline({
+                      "projectId": root.selectedProjectId,
+                      "name": baselineNameField.text
+                  })
+                : null
+            if (result === null && !root.workspaceController) {
+                root.createBaselineRequested({
+                    "projectId": root.selectedProjectId,
+                    "name": baselineNameField.text
+                })
+                createBaselineDialog.close()
+            } else {
+                root._handleResult(createBaselineDialog, result)
+            }
         }
         onRejected: createBaselineDialog.close()
 
