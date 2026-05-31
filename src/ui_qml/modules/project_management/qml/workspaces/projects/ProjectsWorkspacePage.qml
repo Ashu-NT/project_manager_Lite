@@ -160,7 +160,7 @@ AppLayouts.WorkspaceFrame {
     function _loadLazyProjectSection(sectionIndex) {
         if (root.workspaceController === null) return
         const page = detailPageLoader.item
-        const secName = page ? (page.sections[sectionIndex] || "") : ""
+        const secName = root._detailSections[sectionIndex] || ""
         if      (secName === "Tasks")     root.workspaceController.loadProjectTasks()
         else if (secName === "Resources") root.workspaceController.loadProjectResources()
         else if (secName === "Financials") root.workspaceController.loadProjectFinancials()

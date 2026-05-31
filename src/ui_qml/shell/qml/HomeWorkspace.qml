@@ -123,7 +123,7 @@ AppLayouts.WorkspaceFrame {
 
                         Rectangle {
                             anchors.fill: parent
-                            color: tileHover.containsMouse
+                            color: tileHover.hovered
                                 ? Theme.AppTheme.hoverSurface
                                 : Theme.AppTheme.surfaceAlt
                             radius: Theme.AppTheme.radiusMd
@@ -143,8 +143,8 @@ AppLayouts.WorkspaceFrame {
                             spacing: Theme.AppTheme.spacingMd
 
                             Rectangle {
-                                width: 40
-                                height: 40
+                                Layout.preferredWidth: 40
+                                Layout.preferredHeight: 40
                                 radius: Theme.AppTheme.radiusMd
                                 color: Theme.AppTheme.accentSoft
 
@@ -152,13 +152,13 @@ AppLayouts.WorkspaceFrame {
                                     anchors.centerIn: parent
                                     name: root.iconForModule(moduleDelegate.modelData.label)
                                     iconColor: Theme.AppTheme.accent
-                                    size: 18
+                                    size: Theme.AppTheme.sizeXs
                                 }
                             }
 
                             ColumnLayout {
                                 Layout.fillWidth: true
-                                spacing: 2
+                                spacing: Theme.AppTheme.spacingXs
 
                                 AppControls.Label {
                                     Layout.fillWidth: true
@@ -178,15 +178,17 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            AppControls.Label {
-                                text: "›"
-                                color: tileHover.containsMouse
+                            AppIcons.AppIcon {
+                                name: "chevron_right"
+                                size: Theme.AppTheme.iconLg
+
+                                iconColor: tileHover.hovered
                                     ? Theme.AppTheme.accent
                                     : Theme.AppTheme.textMuted
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: 18
 
-                                Behavior on color { ColorAnimation { duration: 100 } }
+                                Behavior on iconColor {
+                                    ColorAnimation { duration: 100 }
+                                }
                             }
                         }
 
