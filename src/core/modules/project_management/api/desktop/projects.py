@@ -23,6 +23,7 @@ class ProjectStatusDescriptor:
 class ProjectDesktopDto:
     id: str
     name: str
+    code: str
     description: str
     status: str
     status_label: str
@@ -43,6 +44,7 @@ class ProjectDesktopDto:
 @dataclass(frozen=True)
 class ProjectCreateCommand:
     name: str
+    code: str = ""
     description: str = ""
     status: str = ProjectStatus.PLANNED.value
     client_name: str | None = None
@@ -61,6 +63,7 @@ class ProjectCreateCommand:
 class ProjectUpdateCommand:
     project_id: str
     name: str
+    code: str = ""
     description: str = ""
     status: str = ProjectStatus.PLANNED.value
     client_name: str | None = None
@@ -152,6 +155,7 @@ class ProjectManagementProjectsDesktopApi:
         project = _call_with_supported_kwargs(
             service.create_project,
             name=command.name,
+            code=getattr(command, "code", ""),
             description=command.description,
             status=desired_status,
             client_name=command.client_name,
@@ -174,6 +178,7 @@ class ProjectManagementProjectsDesktopApi:
             command.project_id,
             expected_version=command.expected_version,
             name=command.name,
+            code=getattr(command, "code", ""),
             description=command.description,
             status=_coerce_project_status(command.status),
             start_date=command.start_date,
@@ -373,6 +378,7 @@ class ProjectManagementProjectsDesktopApi:
         return ProjectDesktopDto(
             id=project.id,
             name=project.name,
+            code=getattr(project, "code", "") or "",
             description=project.description or "",
             status=project.status.value,
             status_label=project.status.value.replace("_", " ").title(),

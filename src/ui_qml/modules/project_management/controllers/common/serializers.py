@@ -621,6 +621,7 @@ def serialize_project_record_view_models(
         {
             "id": view_model.id,
             "title": view_model.title,
+            "projectCode": str(view_model.state.get("projectCode", "") or ""),
             "statusLabel": view_model.status_label,
             "subtitle": view_model.subtitle,
             "supportingText": view_model.supporting_text,

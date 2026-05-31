@@ -11,6 +11,8 @@ AppWidgets.EntityDialog {
     property string modeTitle: "Create Project"
     property var statusOptions: []
     property var projectData: ({})
+    property var workspaceController: null
+    property string projectCode: ""
     readonly property var workflowStatusOptions: (root.statusOptions || []).filter(function(option) {
         return String(option.value || "").toLowerCase() !== "all"
     })
@@ -40,6 +42,7 @@ AppWidgets.EntityDialog {
 
     function populateFromProject() {
         var state = root.projectData && root.projectData.state ? root.projectData.state : (root.projectData || {})
+        root.projectCode = String(state.projectCode || "")
         nameField.text = String(state.name || "")
         clientNameField.text = String(state.clientName || "")
         clientContactField.text = String(state.clientContact || "")
@@ -56,6 +59,7 @@ AppWidgets.EntityDialog {
         var statusOption = root.workflowStatusOptions[statusCombo.currentIndex] || { "value": "PLANNED" }
         return {
             "name": nameField.text,
+            "projectCode": root.projectCode,
             "clientName": clientNameField.text,
             "clientContact": clientContactField.text,
             "plannedBudget": plannedBudgetField.text,
@@ -83,6 +87,26 @@ AppWidgets.EntityDialog {
         columns: root.width > 520 ? 2 : 1
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
+
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: parent.columns
+            Layout.fillWidth: true
+            label: "Project code"
+            value: root.projectCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            onValueEdited: function(code) { root.projectCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("project", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.projectCode = suggested
+                    }
+                }
+            }
+        }
 
         AppControls.Label { text: "Project name"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
         AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Plant Upgrade" }

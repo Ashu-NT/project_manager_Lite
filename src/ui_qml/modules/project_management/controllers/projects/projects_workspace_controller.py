@@ -483,6 +483,17 @@ class ProjectManagementProjectsWorkspaceController(
         self._set_import_preview({})
         self._set_import_error("")
 
+    @Slot(str, "QVariantMap", result=str)
+    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
+        """Suggest a unique project code for the editor dialog."""
+        if (entity_type or "").strip().lower() != "project":
+            return ""
+        try:
+            return self._projects_workspace_presenter.suggest_code(dict(payload))
+        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
+            self._set_error_message(str(exc))
+            return ""
+
     @Slot("QVariantMap", result="QVariantMap")
     def createProject(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(

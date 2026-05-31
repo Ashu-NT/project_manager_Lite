@@ -373,9 +373,26 @@ class ProjectProjectsWorkspacePresenter:
             ),
         )
 
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique project code (PRJ-<NAME>-0001 / PRJ-<YEAR>-0001)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        existing = {
+            str(getattr(row, "code", "") or "").upper()
+            for row in self._desktop_api.list_projects()
+        }
+        name = self._optional_text(payload, "name")
+        return CodeGenerator().generate(
+            "project",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def create_project(self, payload: dict[str, Any]) -> None:
         command = ProjectCreateCommand(
             name=self._require_text(payload, "name", "Project name is required."),
+            code=self._optional_text(payload, "projectCode"),
             description=self._optional_text(payload, "description"),
             status=self._optional_text(payload, "status") or "PLANNED",
             client_name=self._optional_text(payload, "clientName"),
@@ -395,6 +412,7 @@ class ProjectProjectsWorkspacePresenter:
                 "Project ID is required for updates.",
             ),
             name=self._require_text(payload, "name", "Project name is required."),
+            code=self._optional_text(payload, "projectCode"),
             description=self._optional_text(payload, "description"),
             status=self._optional_text(payload, "status") or "PLANNED",
             client_name=self._optional_text(payload, "clientName"),
@@ -533,6 +551,7 @@ class ProjectProjectsWorkspacePresenter:
         return {
             "projectId": project.id,
             "name": project.name,
+            "projectCode": getattr(project, "code", "") or "",
             "status": project.status,
             "statusLabel": project.status_label,
             "clientName": project.client_name or "",

@@ -63,6 +63,7 @@ Item {
     ProjectManagementDialogs.ProjectEditorDialog {
         id: editorDialog
         statusOptions: root.statusOptions
+        workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {

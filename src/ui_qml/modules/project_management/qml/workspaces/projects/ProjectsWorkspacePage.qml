@@ -83,6 +83,7 @@ AppLayouts.WorkspaceFrame {
     function _baseColumns() {
         return [
             { "key": "title",              "label": "Project",  "flex": 2,   "sortable": true, "required": true, "visibleByDefault": true  },
+            { "key": "projectCode",        "label": "Code",     "flex": 0,   "minWidth": 120, "sortable": true, "visibleByDefault": true  },
             { "key": "statusLabel",        "label": "Status",   "flex": 0,   "minWidth": 110, "type": "status", "required": true, "visibleByDefault": true  },
             { "key": "clientName",         "label": "Client",   "flex": 1.5, "sortable": true, "visibleByDefault": true  },
             { "key": "clientContact",      "label": "Contact",  "flex": 1.5,                   "visibleByDefault": false },

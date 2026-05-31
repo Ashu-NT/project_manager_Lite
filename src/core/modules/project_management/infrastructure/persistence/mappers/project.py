@@ -7,6 +7,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.project 
 def project_to_orm(project: Project) -> ProjectORM:
     return ProjectORM(
         id=project.id,
+        project_code=getattr(project, "code", "") or None,
         name=project.name,
         description=project.description,
         start_date=project.start_date,
@@ -27,6 +28,7 @@ def project_to_orm(project: Project) -> ProjectORM:
 def project_from_orm(obj: ProjectORM) -> Project:
     return Project(
         id=obj.id,
+        code=getattr(obj, "project_code", "") or "",
         name=obj.name,
         description=obj.description,
         start_date=obj.start_date,
