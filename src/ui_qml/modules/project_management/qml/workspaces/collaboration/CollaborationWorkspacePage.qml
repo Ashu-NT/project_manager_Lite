@@ -612,14 +612,15 @@ AppLayouts.WorkspaceFrame {
             metrics: root.overviewModel.metrics || []
         }
 
-        AppWidgets.InlineMessage {
+        AppWidgets.LoadingOverlay {
             Layout.fillWidth: true
-            visible: (root.workspaceController ? root.workspaceController.isLoading : false)
+            loading: (root.workspaceController ? root.workspaceController.isLoading : false)
                 && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-            tone: "info"
             message: root.workspaceController && root.workspaceController.isBusy
                 ? "Updating collaboration workflows..."
                 : "Loading collaboration workspace..."
+            compact: true
+            modal:   false
         }
 
         AppWidgets.InlineMessage {

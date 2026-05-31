@@ -393,22 +393,24 @@ AppLayouts.WorkspaceFrame {
                     metrics: root.overviewModel.metrics || []
                 }
 
-                AppWidgets.InlineMessage {
+                AppWidgets.LoadingOverlay {
                     Layout.fillWidth: true
-                    visible: (root.workspaceController ? root.workspaceController.isLoading : false)
+                    loading: (root.workspaceController ? root.workspaceController.isLoading : false)
                         && !(root.workspaceController ? root.workspaceController.isBusy : false)
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-                    tone: "info"
                     message: "Loading tasks..."
+                    compact: true
+                    modal:   false
                 }
 
-                AppWidgets.InlineMessage {
+                AppWidgets.LoadingOverlay {
                     Layout.fillWidth: true
-                    visible: root.workspaceController
+                    loading: root.workspaceController
                         ? root.workspaceController.isBusy && String(root.workspaceController.errorMessage || "").length === 0
                         : false
-                    tone: "info"
                     message: "Saving task changes..."
+                    compact: true
+                    modal:   false
                 }
 
                 AppWidgets.InlineMessage {

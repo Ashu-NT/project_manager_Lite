@@ -85,15 +85,16 @@ AppLayouts.WorkspaceFrame {
             }
         }
 
-        AppWidgets.InlineMessage {
+        AppWidgets.LoadingOverlay {
             Layout.fillWidth: true
-            visible: root.workspaceController !== null
+            loading: root.workspaceController !== null
                 && root.workspaceController.errorMessage.length === 0
                 && (root.workspaceController.isLoading || root.workspaceController.isBusy)
-            tone: "info"
             message: root.workspaceController && root.workspaceController.isBusy
                 ? "Refreshing dashboard state..."
                 : "Loading dashboard data..."
+            compact: true
+            modal:   false
         }
 
         AppWidgets.InlineMessage {
