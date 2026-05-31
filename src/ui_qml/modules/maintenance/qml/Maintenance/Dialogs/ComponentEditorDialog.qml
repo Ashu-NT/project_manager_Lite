@@ -15,6 +15,8 @@ AppWidgets.EntityDialog {
     property var statusOptions: []
     property var manufacturerOptions: []
     property var supplierOptions: []
+    property var workspaceController: null
+    property string componentCode: ""
 
     signal submitted(var payload)
 
@@ -46,7 +48,7 @@ AppWidgets.EntityDialog {
         statusCombo.currentIndex = root.indexForValue(root.statusOptions, state.status || "ACTIVE")
         manufacturerCombo.currentIndex = root.indexForValue(root.manufacturerOptions, state.manufacturerPartyId || "")
         supplierCombo.currentIndex = root.indexForValue(root.supplierOptions, state.supplierPartyId || "")
-        componentCodeField.text = String(state.componentCode || "")
+        root.componentCode = String(state.componentCode || "")
         nameField.text = String(state.name || "")
         descriptionField.text = String(state.description || "")
         componentTypeField.text = String(state.componentType || "")
@@ -72,7 +74,7 @@ AppWidgets.EntityDialog {
         return {
             "componentId": String(state.componentId || ""),
             "assetId": String(selectedAsset.value || ""),
-            "componentCode": componentCodeField.text,
+            "componentCode": root.componentCode,
             "name": nameField.text,
             "description": descriptionField.text,
             "parentComponentId": String(selectedParent.value || ""),
@@ -98,7 +100,7 @@ AppWidgets.EntityDialog {
             root.errorMessage = "Choose an asset before saving."
             return
         }
-        if (componentCodeField.text.trim().length === 0) {
+        if (root.componentCode.trim().length === 0) {
             root.errorMessage = "Component code is required."
             return
         }
@@ -124,8 +126,25 @@ AppWidgets.EntityDialog {
         AppControls.Label { text: "Parent component" }
         AppControls.ComboBox { id: parentComponentCombo; Layout.fillWidth: true; model: root.parentComponentOptions; textRole: "label" }
 
-        AppControls.Label { text: "Component code" }
-        AppControls.TextField { id: componentCodeField; Layout.fillWidth: true; placeholderText: "CMP-100" }
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            label: "Component code"
+            value: root.componentCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            onValueEdited: function(code) { root.componentCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("component", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.componentCode = suggested
+                    }
+                }
+            }
+        }
 
         AppControls.Label { text: "Name" }
         AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Drive Motor" }

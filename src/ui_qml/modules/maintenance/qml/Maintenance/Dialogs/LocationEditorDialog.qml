@@ -14,6 +14,8 @@ AppWidgets.EntityDialog {
     property var parentLocationOptions: []
     property var statusOptions: []
     property var criticalityOptions: []
+    property var workspaceController: null
+    property string locationCode: ""
 
     signal submitted(var payload)
 
@@ -44,7 +46,7 @@ AppWidgets.EntityDialog {
         parentLocationCombo.currentIndex = root.indexForValue(root.parentLocationOptions, state.parentLocationId || "")
         statusCombo.currentIndex = root.indexForValue(root.statusOptions, state.status || "ACTIVE")
         criticalityCombo.currentIndex = root.indexForValue(root.criticalityOptions, state.criticality || "MEDIUM")
-        locationCodeField.text = String(state.locationCode || "")
+        root.locationCode = String(state.locationCode || "")
         nameField.text = String(state.name || "")
         descriptionField.text = String(state.description || "")
         locationTypeField.text = String(state.locationType || "")
@@ -62,7 +64,7 @@ AppWidgets.EntityDialog {
         return {
             "locationId": String(state.locationId || ""),
             "siteId": String(selectedSite.value || ""),
-            "locationCode": locationCodeField.text,
+            "locationCode": root.locationCode,
             "name": nameField.text,
             "description": descriptionField.text,
             "parentLocationId": String(selectedParent.value || ""),
@@ -80,7 +82,7 @@ AppWidgets.EntityDialog {
             root.errorMessage = "Choose a site before saving."
             return
         }
-        if (locationCodeField.text.trim().length === 0) {
+        if (root.locationCode.trim().length === 0) {
             root.errorMessage = "Location code is required."
             return
         }
@@ -103,8 +105,25 @@ AppWidgets.EntityDialog {
         AppControls.Label { text: "Site" }
         AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
 
-        AppControls.Label { text: "Location code" }
-        AppControls.TextField { id: locationCodeField; Layout.fillWidth: true; placeholderText: "LOC-100" }
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            label: "Location code"
+            value: root.locationCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            onValueEdited: function(code) { root.locationCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("location", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.locationCode = suggested
+                    }
+                }
+            }
+        }
 
         AppControls.Label { text: "Name" }
         AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Production Area A" }

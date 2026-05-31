@@ -80,6 +80,8 @@ Item {
         id: locationEditor
         objectName: "locationEditorDialog"
 
+        workspaceController: root.workspaceController
+
         siteOptions: root.siteOptions
         parentLocationOptions: root.parentLocationOptions
         statusOptions: root.statusOptions
@@ -97,6 +99,8 @@ Item {
     MaintenanceDialogs.SystemEditorDialog {
         id: systemEditor
         objectName: "systemEditorDialog"
+
+        workspaceController: root.workspaceController
 
         siteOptions: root.siteOptions
         locationOptions: root.locationOptions
@@ -116,6 +120,8 @@ Item {
     MaintenanceDialogs.AssetEditorDialog {
         id: assetEditor
         objectName: "assetEditorDialog"
+
+        workspaceController: root.workspaceController
 
         siteOptions: root.siteOptions
         locationOptions: root.locationOptions
@@ -138,6 +144,8 @@ Item {
     MaintenanceDialogs.ComponentEditorDialog {
         id: componentEditor
         objectName: "componentEditorDialog"
+
+        workspaceController: root.workspaceController
 
         assetOptions: root.assetOptions
         parentComponentOptions: root.parentComponentOptions

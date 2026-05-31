@@ -15,6 +15,8 @@ AppWidgets.EntityDialog {
     property var parentSystemOptions: []
     property var statusOptions: []
     property var criticalityOptions: []
+    property var workspaceController: null
+    property string systemCode: ""
 
     signal submitted(var payload)
 
@@ -46,7 +48,7 @@ AppWidgets.EntityDialog {
         parentSystemCombo.currentIndex = root.indexForValue(root.parentSystemOptions, state.parentSystemId || "")
         statusCombo.currentIndex = root.indexForValue(root.statusOptions, state.status || "ACTIVE")
         criticalityCombo.currentIndex = root.indexForValue(root.criticalityOptions, state.criticality || "MEDIUM")
-        systemCodeField.text = String(state.systemCode || "")
+        root.systemCode = String(state.systemCode || "")
         nameField.text = String(state.name || "")
         descriptionField.text = String(state.description || "")
         systemTypeField.text = String(state.systemType || "")
@@ -66,7 +68,7 @@ AppWidgets.EntityDialog {
             "systemId": String(state.systemId || ""),
             "siteId": String(selectedSite.value || ""),
             "locationId": String(selectedLocation.value || ""),
-            "systemCode": systemCodeField.text,
+            "systemCode": root.systemCode,
             "name": nameField.text,
             "description": descriptionField.text,
             "parentSystemId": String(selectedParent.value || ""),
@@ -84,7 +86,7 @@ AppWidgets.EntityDialog {
             root.errorMessage = "Choose a site before saving."
             return
         }
-        if (systemCodeField.text.trim().length === 0) {
+        if (root.systemCode.trim().length === 0) {
             root.errorMessage = "System code is required."
             return
         }
@@ -107,8 +109,25 @@ AppWidgets.EntityDialog {
         AppControls.Label { text: "Site" }
         AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
 
-        AppControls.Label { text: "System code" }
-        AppControls.TextField { id: systemCodeField; Layout.fillWidth: true; placeholderText: "SYS-100" }
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            label: "System code"
+            value: root.systemCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            onValueEdited: function(code) { root.systemCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("system", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.systemCode = suggested
+                    }
+                }
+            }
+        }
 
         AppControls.Label { text: "Name" }
         AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Packaging Line" }

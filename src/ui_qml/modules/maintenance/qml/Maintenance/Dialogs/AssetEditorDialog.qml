@@ -18,6 +18,8 @@ AppWidgets.EntityDialog {
     property var criticalityOptions: []
     property var manufacturerOptions: []
     property var supplierOptions: []
+    property var workspaceController: null
+    property string assetCode: ""
 
     signal submitted(var payload)
 
@@ -52,7 +54,7 @@ AppWidgets.EntityDialog {
         criticalityCombo.currentIndex = root.indexForValue(root.criticalityOptions, state.criticality || "MEDIUM")
         manufacturerCombo.currentIndex = root.indexForValue(root.manufacturerOptions, state.manufacturerPartyId || "")
         supplierCombo.currentIndex = root.indexForValue(root.supplierOptions, state.supplierPartyId || "")
-        assetCodeField.text = String(state.assetCode || "")
+        root.assetCode = String(state.assetCode || "")
         nameField.text = String(state.name || "")
         descriptionField.text = String(state.description || "")
         assetTypeField.text = String(state.assetType || "")
@@ -84,7 +86,7 @@ AppWidgets.EntityDialog {
             "locationId": String(selectedLocation.value || ""),
             "systemId": String(selectedSystem.value || ""),
             "parentAssetId": String(selectedParentAsset.value || ""),
-            "assetCode": assetCodeField.text,
+            "assetCode": root.assetCode,
             "name": nameField.text,
             "description": descriptionField.text,
             "assetType": assetTypeField.text,
@@ -114,7 +116,7 @@ AppWidgets.EntityDialog {
             root.errorMessage = "Choose a location before saving."
             return
         }
-        if (assetCodeField.text.trim().length === 0) {
+        if (root.assetCode.trim().length === 0) {
             root.errorMessage = "Asset code is required."
             return
         }
@@ -146,8 +148,25 @@ AppWidgets.EntityDialog {
         AppControls.Label { text: "Parent asset" }
         AppControls.ComboBox { id: parentAssetCombo; Layout.fillWidth: true; model: root.parentAssetOptions; textRole: "label" }
 
-        AppControls.Label { text: "Asset code" }
-        AppControls.TextField { id: assetCodeField; Layout.fillWidth: true; placeholderText: "AST-100" }
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            label: "Asset code"
+            value: root.assetCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            onValueEdited: function(code) { root.assetCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("asset", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.assetCode = suggested
+                    }
+                }
+            }
+        }
 
         AppControls.Label { text: "Name" }
         AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Conveyor 100" }

@@ -392,6 +392,26 @@ class MaintenanceAssetsWorkspaceController(MaintenanceWorkspaceControllerBase):
         self._set_selected_component_id(normalized)
         self.refresh()
 
+    @Slot(str, "QVariantMap", result=str)
+    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
+        """Suggest a unique maintenance code (asset/component/location/system)."""
+        key = (entity_type or "").strip().lower()
+        presenter = self._assets_workspace_presenter
+        generators = {
+            "location": presenter.suggest_location_code,
+            "system": presenter.suggest_system_code,
+            "asset": presenter.suggest_asset_code,
+            "component": presenter.suggest_component_code,
+        }
+        handler = generators.get(key)
+        if handler is None:
+            return ""
+        try:
+            return handler(dict(payload))
+        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
+            self._set_error_message(str(exc))
+            return ""
+
     @Slot("QVariantMap", result="QVariantMap")
     def createLocation(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(

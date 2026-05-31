@@ -1,7 +1,7 @@
 # Enterprise Dialog Design System & Code Generation
 
 **Date:** 2026-05-31
-**Status:** Foundations + **Platform admin (7 dialogs)** + **Inventory catalog (Category, Item, Storeroom)** wired end-to-end. Decision: existing-code modules first (Platform done, Inventory done → Maintenance next); PM code columns later. Maintenance: mechanical replication (recipe in §7).
+**Status:** Foundations + **Platform admin (7)** + **Inventory catalog (Category, Item, Storeroom)** + **Maintenance assets (Asset, Component, Location, System)** wired end-to-end. All existing-code modules done. Remaining: PM code columns (separate, explicit decision — schema change).
 **Builds on:** `DIALOG_ARCHITECTURE_MIGRATION_PLAN.md`, `INLINE_MESSAGE_STANDARDIZATION_*`
 
 ---
@@ -80,7 +80,9 @@ Every editor dialog already extends `AppWidgets.EntityDialog` (consistent header
 
 **Inventory catalog — DONE:** Category (CAT), Item (ITM), Storeroom (STR). `suggest_*_code` added to `catalog_workspace_presenter` (category/item via `list_categories`/`list_items`) and `inventory_workspace_presenter` (storeroom via `list_storerooms`); `generateEntityCode(entityType, payload)` slot on `catalog_workspace_controller` + `inventory_workspace_controller`; `CodeFieldRow` (column-spanning) in CategoryEditorDialog/ItemEditorDialog/StoreroomEditorDialog; `CatalogDialogHost`/`InventoryDialogHost` pass `workspaceController`. Backend already rejects dup codes (`INVENTORY_*_CODE_EXISTS`). Runtime-verified (Category → `CAT-SPAR-0001`); tests in `test_inventory_code_generation.py`.
 
-**Rollout order:** Platform admin (done) → Inventory catalog (done) → Maintenance assets. PM only if code columns are introduced (separate, explicit decision).
+**Maintenance assets — DONE:** Asset (AST), Component (CMP), Location (LOC), System (SYS). `suggest_*_code` (shared `_suggest_code` helper) in `assets_workspace_presenter` (via `list_assets/components/locations/systems`); `generateEntityCode(entityType, payload)` dispatch slot on `assets_workspace_controller`; `CodeFieldRow` (column-spanning) in Asset/Component/Location/SystemEditorDialog; `AssetsDialogHost` passes `workspaceController`. Backend already rejects dup codes (`MAINTENANCE_*_CODE_EXISTS`). Runtime-verified (Asset → `AST-CONV-0001`); tests in `test_maintenance_code_generation.py`.
+
+**Rollout order:** Platform admin (done) → Inventory catalog (done) → Maintenance assets (done). PM only if code columns are introduced (separate, explicit decision).
 
 ## 8. Files changed
 
