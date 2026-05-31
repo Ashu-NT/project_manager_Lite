@@ -15,7 +15,6 @@ AppWidgets.EntityDialog {
     width: 500
     title: "Link Document"
     subtitle: "Link a shared document to this inventory item."
-    errorMessage: root.validationMessage
     primaryText: "Link Document"
     primaryIcon: "add"
     onAccepted: root.submitDialog()

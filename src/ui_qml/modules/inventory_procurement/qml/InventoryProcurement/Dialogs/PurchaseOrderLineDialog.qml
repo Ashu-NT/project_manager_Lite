@@ -18,7 +18,6 @@ AppWidgets.EntityDialog {
     width: 760
     title: "Add Purchase-Order Line"
     subtitle: "Add a purchase line to the order."
-    errorMessage: root.validationMessage
     primaryText: "Add Line"
     primaryIcon: "add"
     onAccepted: root.submitDialog()

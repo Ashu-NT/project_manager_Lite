@@ -18,7 +18,6 @@ AppWidgets.EntityDialog {
     width: 860
     title: "Post Receipt"
     subtitle: "Post receipt quantities for the selected purchase order lines."
-    errorMessage: root.validationMessage
     primaryText: "Post Receipt"
     primaryIcon: "approve"
     onAccepted: root.submitDialog()
