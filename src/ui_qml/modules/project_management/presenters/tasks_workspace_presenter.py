@@ -974,6 +974,7 @@ class ProjectTasksWorkspacePresenter:
                 "Select a project before creating a task.",
             ),
             name=self._require_text(payload, "name", "Task name is required."),
+            code=self._optional_text(payload, "taskCode"),
             description=self._optional_text(payload, "description") or "",
             start_date=self._optional_date(payload, "startDate"),
             duration_days=self._optional_int(payload, "durationDays"),
@@ -983,6 +984,23 @@ class ProjectTasksWorkspacePresenter:
         )
         self._desktop_api.create_task(command)
 
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique task code (per-project, TSK-<NAME>-NNNN)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        project_id = self._optional_text(payload, "projectId")
+        existing = {
+            str(getattr(row, "code", "") or "").upper()
+            for row in (self._desktop_api.list_tasks(project_id) if project_id else [])
+        }
+        name = self._optional_text(payload, "name")
+        return CodeGenerator().generate(
+            "task",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def update_task(self, payload: dict[str, Any]) -> None:
         command = TaskUpdateCommand(
             task_id=self._require_text(
@@ -991,6 +1009,7 @@ class ProjectTasksWorkspacePresenter:
                 "Task ID is required for updates.",
             ),
             name=self._require_text(payload, "name", "Task name is required."),
+            code=self._optional_text(payload, "taskCode"),
             description=self._optional_text(payload, "description") or "",
             start_date=self._optional_date(payload, "startDate"),
             duration_days=self._optional_int(payload, "durationDays"),
@@ -1845,6 +1864,7 @@ class ProjectTasksWorkspacePresenter:
             "projectId": task.project_id,
             "projectName": task.project_name or "",
             "name": task.name,
+            "taskCode": getattr(task, "code", "") or "",
             "description": task.description or "",
             "status": task.status,
             "statusLabel": task.status_label,

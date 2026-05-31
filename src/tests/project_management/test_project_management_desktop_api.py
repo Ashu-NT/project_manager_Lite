@@ -2219,6 +2219,7 @@ class _FakeTaskService:
         *,
         project_id: str,
         name: str,
+        code: str = "",
         description: str = "",
         start_date: date | None = None,
         duration_days: int | None = None,
@@ -2229,6 +2230,7 @@ class _FakeTaskService:
             id=f"task-{self._next_id}",
             project_id=project_id,
             name=name,
+            code=code,
             description=description,
             start_date=start_date,
             end_date=_derive_end_date(start_date, duration_days),
@@ -2353,6 +2355,7 @@ class _FakeTaskService:
         *,
         expected_version: int | None = None,
         name: str | None = None,
+        code: str | None = None,
         description: str | None = None,
         status: TaskStatus | None = None,
         start_date: date | None = None,
@@ -2363,6 +2366,8 @@ class _FakeTaskService:
         task = self._tasks[task_id]
         if name is not None:
             task.name = name
+        if code is not None and code:
+            task.code = code
         if description is not None:
             task.description = description
         if status is not None:

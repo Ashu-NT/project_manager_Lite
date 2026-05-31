@@ -211,11 +211,14 @@ class TaskLifecycleMixin:
         priority: int | None = None,
         deadline: date | None = None,
         expected_version: int | None = None,
+        code: str | None = None,
     ) -> Task:
         require_permission(self._user_session, "task.manage", operation_label="update task")
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        if code is not None and code.strip():
+            task.code = self._resolve_task_code(code, task.project_id, task.name, exclude_id=task.id)
         require_project_permission(
             self._user_session,
             task.project_id,

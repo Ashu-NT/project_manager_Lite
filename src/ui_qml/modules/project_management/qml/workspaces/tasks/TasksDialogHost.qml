@@ -147,6 +147,7 @@ Item {
         projectOptions: root.projectOptions
         selectedProjectId: root.selectedProjectId
         statusOptions: root.statusOptions
+        workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onClosed: {

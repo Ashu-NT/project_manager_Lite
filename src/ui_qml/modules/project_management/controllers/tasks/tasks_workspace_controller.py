@@ -994,6 +994,10 @@ class ProjectManagementTasksWorkspaceController(
             self._set_error_message(str(exc))
             return {"ok": False, "error": str(exc)}
 
+    @Slot(str, "QVariantMap", result=str)
+    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
+        return self._task_list.generateEntityCode(entity_type, payload)
+
     @Slot("QVariantMap", result="QVariantMap")
     def createTask(self, payload: dict[str, object]) -> dict[str, object]:
         return self._task_list.createTask(payload)

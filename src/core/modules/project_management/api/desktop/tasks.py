@@ -51,6 +51,7 @@ class TaskDesktopDto:
     project_id: str
     project_name: str
     name: str
+    code: str
     description: str
     status: str
     status_label: str
@@ -69,6 +70,7 @@ class TaskDesktopDto:
 class TaskCreateCommand:
     project_id: str
     name: str
+    code: str = ""
     description: str = ""
     start_date: date | None = None
     duration_days: int | None = None
@@ -81,6 +83,7 @@ class TaskCreateCommand:
 class TaskUpdateCommand:
     task_id: str
     name: str
+    code: str = ""
     description: str = ""
     start_date: date | None = None
     duration_days: int | None = None
@@ -438,6 +441,7 @@ class ProjectManagementTasksDesktopApi:
         task = service.create_task(
             project_id=command.project_id,
             name=command.name,
+            code=getattr(command, "code", ""),
             description=command.description,
             start_date=command.start_date,
             duration_days=command.duration_days,
@@ -462,6 +466,7 @@ class ProjectManagementTasksDesktopApi:
         task = service.update_task(
             command.task_id,
             name=command.name,
+            code=getattr(command, "code", ""),
             description=command.description,
             start_date=command.start_date,
             duration_days=command.duration_days,
@@ -1100,6 +1105,7 @@ class ProjectManagementTasksDesktopApi:
             project_id=task.project_id,
             project_name=project_name,
             name=task.name,
+            code=getattr(task, "code", "") or "",
             description=task.description or "",
             status=task.status.value,
             status_label=task.status.value.replace("_", " ").title(),

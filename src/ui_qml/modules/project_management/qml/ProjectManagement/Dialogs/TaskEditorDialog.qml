@@ -13,6 +13,8 @@ AppWidgets.EntityDialog {
     property string selectedProjectId: ""
     property var statusOptions: []
     property var taskData: ({})
+    property var workspaceController: null
+    property string taskCode: ""
     readonly property bool editingExistingTask: {
         var state = root.taskData && root.taskData.state ? root.taskData.state : (root.taskData || {})
         return String(state.taskId || "").length > 0
@@ -51,6 +53,7 @@ AppWidgets.EntityDialog {
     function populateFromTask() {
         var state = root.taskData && root.taskData.state ? root.taskData.state : (root.taskData || {})
         projectCombo.currentIndex = root.indexForValue(root.editableProjectOptions, state.projectId || root.selectedProjectId || "")
+        root.taskCode = String(state.taskCode || "")
         nameField.text = String(state.name || "")
         startDateField.text = String(state.startDate || "")
         durationField.text = String(state.durationDays || "")
@@ -66,6 +69,7 @@ AppWidgets.EntityDialog {
         return {
             "projectId": String((root.editableProjectOptions[projectCombo.currentIndex] || { "value": "" }).value || ""),
             "name": nameField.text,
+            "taskCode": root.taskCode,
             "startDate": startDateField.text,
             "durationDays": durationField.text,
             "deadline": deadlineField.text,
@@ -115,6 +119,26 @@ AppWidgets.EntityDialog {
         columns: root.width > 520 ? 2 : 1
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
+
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: parent.columns
+            Layout.fillWidth: true
+            label: "Task code"
+            value: root.taskCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            onValueEdited: function(code) { root.taskCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("task", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.taskCode = suggested
+                    }
+                }
+            }
+        }
 
         AppControls.Label { text: "Task name"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
         AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Cable Pull" }

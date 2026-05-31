@@ -1,7 +1,9 @@
 # Project Management — Human-Readable Code Columns: Migration Plan
 
 **Date:** 2026-06-01
-**Status:** APPROVED (scopes per §2; auto-generate; register prefix = single **REG**; backfill = name token; add Code table columns). **Project — FULLY DONE (A+B+C). Task/Resource/Cost/Register — backend (A+B) DONE + verified.** Remaining: UI (Phase C) for those four — DTO/api threading, presenter `suggest_code`, controller generate slot, dialog `CodeFieldRow`, host wiring, serializer + table "Code" column, update-path code.
+**Status:** APPROVED. **Project — FULLY DONE (A+B+C). Task — FULLY DONE (A+B+C). Resource/Cost/Register — backend (A+B) DONE.** Remaining: UI (Phase C) for Resource/Cost/Register; per-entity table "Code" columns (Project done; Task/Resource/Cost/Register pending).
+
+**Task Phase C — DONE (2026-06-01):** `TaskCreateCommand`/`TaskUpdateCommand`/`TaskDesktopDto` gained `code`; desktop api threads it; `_serialize_task` emits it; service `update_task(code=None)` resolves per-project (`exclude_id`); presenter `suggest_code` (per-project via `list_tasks`) + create/update read `taskCode`; `_build_task_state` emits `taskCode`; `PMTaskListController.generateEntityCode` + delegating slot on `tasks_workspace_controller`; `TaskEditorDialog` `CodeFieldRow` ↔ `taskCode`; `TasksDialogHost` passes `workspaceController`. Test fake `_FakeTaskService` updated for `code`. 31 tests pass.
 
 **Task/Resource/Cost/Register backend (A+B) — DONE (2026-06-01):**
 - ORM code columns + unique indexes: `tasks.task_code` (`ux_tasks_project_code` on project_id+code), `resources.resource_code` (`ux_resources_code` global), `cost_items.cost_code` (`ux_costs_project_code`), `register_entries.entry_code` (`ux_register_entries_project_code`).
