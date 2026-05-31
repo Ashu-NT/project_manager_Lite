@@ -39,7 +39,7 @@ AppWidgets.EntityDialog {
         descriptionField.text = ""
         neededByDateField.text = ""
         notesField.text = ""
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -60,14 +60,14 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (String((root.itemOptions[itemCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose an item before adding a requisition line."
+            root.errorMessage = "Choose an item before adding a requisition line."
             return
         }
         if (quantityField.text.trim().length === 0 || Number(quantityField.text) <= 0) {
-            root.validationMessage = "Requested quantity must be greater than zero."
+            root.errorMessage = "Requested quantity must be greater than zero."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

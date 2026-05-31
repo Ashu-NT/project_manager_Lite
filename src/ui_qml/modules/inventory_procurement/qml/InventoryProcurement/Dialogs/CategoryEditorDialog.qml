@@ -48,7 +48,7 @@ AppWidgets.EntityDialog {
         projectUsageCheck.checked = state.supportsProjectUsage === true
         maintenanceUsageCheck.checked = state.supportsMaintenanceUsage === true
         activeCheck.checked = state.isActive !== false
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -67,18 +67,18 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (categoryCodeField.text.trim().length === 0) {
-            root.validationMessage = "Category code is required."
+            root.errorMessage = "Category code is required."
             return
         }
         if (nameField.text.trim().length === 0) {
-            root.validationMessage = "Category name is required."
+            root.errorMessage = "Category name is required."
             return
         }
         if (String((root.formCategoryTypeOptions[categoryTypeCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a category type before saving."
+            root.errorMessage = "Choose a category type before saving."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

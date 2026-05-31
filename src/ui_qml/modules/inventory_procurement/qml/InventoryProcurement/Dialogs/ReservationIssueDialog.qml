@@ -24,7 +24,7 @@ AppWidgets.EntityDialog {
         var state = root.reservationData && root.reservationData.state ? root.reservationData.state : (root.reservationData || {})
         quantityField.text = String(state.remainingQty || "")
         notesField.text = ""
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -38,10 +38,10 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (quantityField.text.trim().length === 0 || Number(quantityField.text) <= 0) {
-            root.validationMessage = "Issue quantity must be greater than zero."
+            root.errorMessage = "Issue quantity must be greater than zero."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

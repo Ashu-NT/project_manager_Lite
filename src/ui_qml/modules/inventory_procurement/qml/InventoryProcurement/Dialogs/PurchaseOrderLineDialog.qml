@@ -41,7 +41,7 @@ AppWidgets.EntityDialog {
         expectedDeliveryDateField.text = ""
         descriptionField.text = ""
         notesField.text = ""
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -64,18 +64,18 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (String((root.itemOptions[itemCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose an item before adding a purchase-order line."
+            root.errorMessage = "Choose an item before adding a purchase-order line."
             return
         }
         if (String((root.storeroomOptions[storeroomCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a destination storeroom before adding a purchase-order line."
+            root.errorMessage = "Choose a destination storeroom before adding a purchase-order line."
             return
         }
         if (quantityField.text.trim().length === 0 || Number(quantityField.text) <= 0) {
-            root.validationMessage = "Ordered quantity must be greater than zero."
+            root.errorMessage = "Ordered quantity must be greater than zero."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

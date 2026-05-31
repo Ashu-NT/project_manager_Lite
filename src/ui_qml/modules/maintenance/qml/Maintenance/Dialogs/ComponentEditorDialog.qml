@@ -15,7 +15,6 @@ AppWidgets.EntityDialog {
     property var statusOptions: []
     property var manufacturerOptions: []
     property var supplierOptions: []
-    property string validationMessage: ""
 
     signal submitted(var payload)
 

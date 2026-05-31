@@ -52,7 +52,7 @@ AppWidgets.EntityDialog {
                 "notes": ""
             })
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -86,10 +86,10 @@ AppWidgets.EntityDialog {
             }
         }
         if (!hasAnyQuantity) {
-            root.validationMessage = "Enter at least one accepted or rejected quantity before posting the receipt."
+            root.errorMessage = "Enter at least one accepted or rejected quantity before posting the receipt."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

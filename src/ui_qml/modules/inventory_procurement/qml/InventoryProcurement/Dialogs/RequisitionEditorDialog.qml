@@ -42,7 +42,7 @@ AppWidgets.EntityDialog {
         purposeField.text = String(state.purpose || root.requisitionData.description || "")
         neededByDateField.text = String(state.neededByDateIso || "")
         notesField.text = String(state.notes || "")
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -61,14 +61,14 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (String((root.siteOptions[siteCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a site before saving the requisition."
+            root.errorMessage = "Choose a site before saving the requisition."
             return
         }
         if (String((root.storeroomOptions[storeroomCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a storeroom before saving the requisition."
+            root.errorMessage = "Choose a storeroom before saving the requisition."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

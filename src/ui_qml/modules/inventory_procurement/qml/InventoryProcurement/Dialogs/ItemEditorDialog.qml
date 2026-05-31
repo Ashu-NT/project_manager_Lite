@@ -65,7 +65,7 @@ AppWidgets.EntityDialog {
         lotTrackedCheck.checked = state.isLotTracked === true
         serialTrackedCheck.checked = state.isSerialTracked === true
         notesField.text = String(state.notes || "")
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -103,22 +103,22 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (itemCodeField.text.trim().length === 0) {
-            root.validationMessage = "Item code is required."
+            root.errorMessage = "Item code is required."
             return
         }
         if (nameField.text.trim().length === 0) {
-            root.validationMessage = "Item name is required."
+            root.errorMessage = "Item name is required."
             return
         }
         if (stockUomField.text.trim().length === 0) {
-            root.validationMessage = "Stock UOM is required."
+            root.errorMessage = "Stock UOM is required."
             return
         }
         if (String((root.itemStatusOptions[statusCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose an item status before saving."
+            root.errorMessage = "Choose an item status before saving."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

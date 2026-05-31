@@ -18,7 +18,6 @@ AppWidgets.EntityDialog {
     property var criticalityOptions: []
     property var manufacturerOptions: []
     property var supplierOptions: []
-    property string validationMessage: ""
 
     signal submitted(var payload)
 

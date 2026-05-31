@@ -39,7 +39,7 @@ AppWidgets.EntityDialog {
         quantityField.text = ""
         uomField.text = String(state.uom || "")
         notesField.text = ""
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -58,27 +58,27 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (String((root.itemOptions[itemCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose an item before saving."
+            root.errorMessage = "Choose an item before saving."
             return
         }
         if (String((root.storeroomOptions[sourceStoreroomCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a source storeroom before saving."
+            root.errorMessage = "Choose a source storeroom before saving."
             return
         }
         if (String((root.storeroomOptions[destinationStoreroomCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a destination storeroom before saving."
+            root.errorMessage = "Choose a destination storeroom before saving."
             return
         }
         if (String((root.storeroomOptions[sourceStoreroomCombo.currentIndex] || { "value": "" }).value || "")
             === String((root.storeroomOptions[destinationStoreroomCombo.currentIndex] || { "value": "" }).value || "")) {
-            root.validationMessage = "Source and destination storerooms must be different."
+            root.errorMessage = "Source and destination storerooms must be different."
             return
         }
         if (quantityField.text.trim().length === 0 || Number(quantityField.text) <= 0) {
-            root.validationMessage = "Quantity must be greater than zero."
+            root.errorMessage = "Quantity must be greater than zero."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

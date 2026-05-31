@@ -55,7 +55,7 @@ AppWidgets.EntityDialog {
         requiresReservationCheck.checked = state.requiresReservationForIssue === true
         requiresSupplierReferenceCheck.checked = state.requiresSupplierReferenceForReceipt === true
         notesField.text = String(state.notes || "")
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -83,22 +83,22 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (storeroomCodeField.text.trim().length === 0) {
-            root.validationMessage = "Storeroom code is required."
+            root.errorMessage = "Storeroom code is required."
             return
         }
         if (nameField.text.trim().length === 0) {
-            root.validationMessage = "Storeroom name is required."
+            root.errorMessage = "Storeroom name is required."
             return
         }
         if (String((root.formSiteOptions[siteCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a site before saving."
+            root.errorMessage = "Choose a site before saving."
             return
         }
         if (String((root.statusOptions[statusCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a storeroom status before saving."
+            root.errorMessage = "Choose a storeroom status before saving."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

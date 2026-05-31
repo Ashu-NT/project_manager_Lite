@@ -24,16 +24,16 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (root.currentDocumentId.length === 0) {
-            root.validationMessage = "Choose a document before saving."
+            root.errorMessage = "Choose a document before saving."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.currentDocumentId)
     }
 
     onOpened: {
         documentCombo.currentIndex = 0
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     AppControls.ComboBox {

@@ -46,7 +46,7 @@ AppWidgets.EntityDialog {
         sourceTypeField.text = String(state.sourceReferenceType || "")
         sourceIdField.text = String(state.sourceReferenceId || "")
         notesField.text = ""
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -65,18 +65,18 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (String((root.formItemOptions[itemCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose an item before saving."
+            root.errorMessage = "Choose an item before saving."
             return
         }
         if (String((root.formStoreroomOptions[storeroomCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a storeroom before saving."
+            root.errorMessage = "Choose a storeroom before saving."
             return
         }
         if (quantityField.text.trim().length === 0 || Number(quantityField.text) <= 0) {
-            root.validationMessage = "Reserved quantity must be greater than zero."
+            root.errorMessage = "Reserved quantity must be greater than zero."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 

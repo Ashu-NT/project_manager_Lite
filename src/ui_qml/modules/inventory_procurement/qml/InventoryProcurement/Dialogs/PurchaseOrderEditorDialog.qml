@@ -44,7 +44,7 @@ AppWidgets.EntityDialog {
         expectedDeliveryDateField.text = String(state.expectedDeliveryDateIso || "")
         supplierReferenceField.text = String(state.supplierReference || "")
         notesField.text = String(state.notes || "")
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -64,14 +64,14 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (String((root.siteOptions[siteCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a site before saving the purchase order."
+            root.errorMessage = "Choose a site before saving the purchase order."
             return
         }
         if (String((root.supplierOptions[supplierCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a supplier before saving the purchase order."
+            root.errorMessage = "Choose a supplier before saving the purchase order."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 
