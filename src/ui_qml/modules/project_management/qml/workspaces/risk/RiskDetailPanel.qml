@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -169,7 +170,7 @@ Item {
 
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 1
+                            Layout.preferredHeight: 1
                             color: Theme.AppTheme.divider
                         }
 
@@ -195,7 +196,7 @@ Item {
 
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 1
+                            Layout.preferredHeight: 1
                             color: Theme.AppTheme.divider
                         }
 

@@ -474,10 +474,12 @@ AppLayouts.WorkspaceFrame {
     }
 
     function _clearFilters() {
-        root.selectedProjectId = "all"
-        root.selectedTeamId = "all"
-        root.selectedPeriodKey = "all"
-        root.selectedUnreadKey = "all"
+        if (root.workspaceController !== null) {
+            root.workspaceController.setSelectedProjectId("all")
+            root.workspaceController.setSelectedTeamId("all")
+            root.workspaceController.setSelectedPeriodKey("all")
+            root.workspaceController.setSelectedUnreadKey("all")
+        }
         root._resetAllTablePages()
     }
 
@@ -582,10 +584,21 @@ AppLayouts.WorkspaceFrame {
             selectedPeriodKey: root.selectedPeriodKey
             selectedUnreadKey: root.selectedUnreadKey
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-            onProjectChanged: function(value) { root.selectedProjectId = value }
-            onTeamChanged: function(value) { root.selectedTeamId = value }
-            onPeriodChanged: function(value) { root.selectedPeriodKey = value }
-            onUnreadChanged: function(value) { root.selectedUnreadKey = value }
+            onProjectChanged: function(value) {
+                if (root.workspaceController) root.workspaceController.setSelectedProjectId(value)
+            }
+
+            onTeamChanged: function(value) {
+                if (root.workspaceController) root.workspaceController.setSelectedTeamId(value)
+            }
+
+            onPeriodChanged: function(value) {
+                if (root.workspaceController) root.workspaceController.setSelectedPeriodKey(value)
+            }
+
+            onUnreadChanged: function(value) {
+                if (root.workspaceController) root.workspaceController.setSelectedUnreadKey(value)
+            }
             onRefreshRequested: function() {
                 if (root.workspaceController !== null) {
                     root.workspaceController.refresh()
@@ -642,6 +655,8 @@ AppLayouts.WorkspaceFrame {
                     model: root.panelTabsModel
 
                     delegate: Item {
+                        id: delegateRoot
+
                         required property var modelData
                         width: _tabRow.implicitWidth + 18
                         height: parent.height
@@ -651,9 +666,9 @@ AppLayouts.WorkspaceFrame {
                         Rectangle {
                             anchors.fill: parent
                             radius: Theme.AppTheme.radiusSm
-                            color: _active
+                            color: delegateRoot._active
                                 ? Theme.AppTheme.navSelectedBackground
-                                : (_tabHover.containsMouse ? Theme.AppTheme.hoverSurface : "transparent")
+                                : (_tabHover.hovered ? Theme.AppTheme.hoverSurface : "transparent")
                         }
 
                         Row {
@@ -662,25 +677,25 @@ AppLayouts.WorkspaceFrame {
                             spacing: Theme.AppTheme.spacingXs
 
                             AppControls.Label {
-                                text: String(modelData.label || "")
-                                color: _active ? Theme.AppTheme.navSelectedText : Theme.AppTheme.textSecondary
+                                text: String(delegateRoot.modelData.label || "")
+                                color: delegateRoot._active ? Theme.AppTheme.navSelectedText : Theme.AppTheme.textSecondary
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.smallSize
-                                font.bold: _active
+                                font.bold: delegateRoot._active
                             }
 
                             Rectangle {
-                                visible: Number(modelData.count || 0) > 0
+                                visible: Number(delegateRoot.modelData.count || 0) > 0
                                 width: _countLabel.implicitWidth + 10
                                 height: 18
                                 radius: 9
-                                color: _active ? Theme.AppTheme.accent : Theme.AppTheme.surfaceOverlay
+                                color: delegateRoot._active ? Theme.AppTheme.accent : Theme.AppTheme.surfaceOverlay
 
                                 AppControls.Label {
                                     id: _countLabel
                                     anchors.centerIn: parent
-                                    text: String(modelData.count || 0)
-                                    color: _active ? Theme.AppTheme.textOnAccent : Theme.AppTheme.textMuted
+                                    text: String(delegateRoot.modelData.count || 0)
+                                    color: delegateRoot._active ? Theme.AppTheme.textOnAccent : Theme.AppTheme.textMuted
                                     font.family: Theme.AppTheme.fontFamily
                                     font.pixelSize: Theme.AppTheme.captionSize
                                     font.bold: true
@@ -691,7 +706,7 @@ AppLayouts.WorkspaceFrame {
                         HoverHandler { id: _tabHover }
 
                         TapHandler {
-                            onTapped: root.activePanelId = String(modelData.id || "inbox")
+                            onTapped: root.activePanelId = String(delegateRoot.modelData.id || "inbox")
                         }
                     }
                 }
@@ -1005,7 +1020,9 @@ AppLayouts.WorkspaceFrame {
                     text: String(modelData.label || "")
                     onClicked: {
                         root.activePanelId = String(modelData.panelId || "inbox")
-                        root.selectedUnreadKey = String(modelData.unread || "all")
+                        if (root.workspaceController) {
+                            root.workspaceController.setSelectedUnreadKey(String(modelData.unread || "all"))
+                        }
                         panelViewsPopup.close()
                     }
                 }

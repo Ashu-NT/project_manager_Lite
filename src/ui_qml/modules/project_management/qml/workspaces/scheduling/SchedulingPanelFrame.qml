@@ -78,7 +78,7 @@ Rectangle {
                             AppControls.Label {
                                 id: _actionLabel
                                 anchors.centerIn: parent
-                                text: String(modelData.label || "")
+                                text: String(_actionRect.modelData.label || "")
                                 color: Theme.AppTheme.accent
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize

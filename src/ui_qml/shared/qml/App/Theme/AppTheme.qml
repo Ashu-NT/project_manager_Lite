@@ -91,6 +91,15 @@ QtObject {
     readonly property int subtitleSize: 18
     readonly property int headerSize: 24
 
+    // Sizing
+    readonly property int sizeXs: 16
+    readonly property int sizeSm: 24
+    readonly property int sizeMd: 32
+    readonly property int sizeLg: 40
+    readonly property int sizeXl: 48
+    readonly property int size2Xl: 64
+    readonly property int size3Xl: 96
+
     // Density-aware sizing
     readonly property int compactRowHeight: spaciousDensity ? 36 : comfortableDensity ? 34 : 30
     readonly property int normalRowHeight: spaciousDensity ? 44 : comfortableDensity ? 40 : 36

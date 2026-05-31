@@ -83,7 +83,7 @@ ApplicationWindow {
 
             // Logo mark
             Rectangle {
-                width: 44; height: 44
+                Layout.preferredWidth: 44; Layout.preferredHeight: 44
                 radius: 10
                 color: Theme.AppTheme.accent
 
@@ -134,6 +134,8 @@ ApplicationWindow {
                     ]
 
                     delegate: Row {
+                        id: delegateRoot
+
                         required property string modelData
                         spacing: 10
 
@@ -145,7 +147,7 @@ ApplicationWindow {
                         }
 
                         Text {
-                            text: modelData
+                            text: delegateRoot.modelData
                             color: Theme.AppTheme.loginBrandFeatureText
                             font.family: Theme.AppTheme.fontFamily
                             font.pixelSize: 12
@@ -305,7 +307,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 visible: loginWindow.loginController !== null
                     && loginWindow.loginController.errorMessage.length > 0
-                height: visible ? _errRow.implicitHeight + 16 : 0
+                 Layout.preferredHeight: visible ? _errRow.implicitHeight + 16 : 0
                 radius: Theme.AppTheme.radiusSm
                 color: Theme.AppTheme.dangerSoft
                 border.color: Theme.AppTheme.dangerSoftBorder
@@ -319,10 +321,10 @@ ApplicationWindow {
                     anchors.margins: 12
                     spacing: 8
 
-                    Text {
-                        text: "⚠"
-                        color: Theme.AppTheme.danger
-                        font.pixelSize: 13
+                    AppIcons.AppIcon {
+                        name: "warning"
+                        size: Theme.AppTheme.iconSm
+                        iconColor: Theme.AppTheme.danger
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
@@ -342,7 +344,7 @@ ApplicationWindow {
             // Sign in button
             Rectangle {
                 Layout.fillWidth: true
-                height: 44
+                Layout.preferredHeight: 44
                 radius: Theme.AppTheme.radiusSm
                 color: _signInMouse.containsMouse && !_signInMouse.pressed
                     ? Theme.AppTheme.accentHover

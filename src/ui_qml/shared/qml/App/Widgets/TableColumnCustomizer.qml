@@ -6,13 +6,11 @@ import App.Controls 1.0 as AppControls
 import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 
-// Column visibility + reorder popup for DataTable.
-// Pass in `columns` (same array as DataTable, may include required/configurable flags).
-// Emits columnVisibilityChanged with ordered draft on Apply.
 AnchoredPopup {
     id: root
 
     property var columns: []
+    property var _draft: []
 
     signal columnVisibilityChanged(var updatedColumns)
 
@@ -21,39 +19,45 @@ AnchoredPopup {
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
     placement: "below-right"
 
-    // Internal draft — only configurable columns, in user-controlled order
-    property var _draft: []
-
     function _moveUp(idx) {
-        if (idx <= 0) return
+        if (idx <= 0 || idx >= root._draft.length)
+            return
+
         const arr = root._draft.slice()
-        const tmp = arr[idx - 1]
-        arr[idx - 1] = arr[idx]
-        arr[idx] = tmp
+        const item = arr.splice(idx, 1)[0]
+        arr.splice(idx - 1, 0, item)
         root._draft = arr
+        _colList.currentIndex = idx - 1
     }
 
     function _moveDown(idx) {
-        if (idx >= root._draft.length - 1) return
+        if (idx < 0 || idx >= root._draft.length - 1)
+            return
+
         const arr = root._draft.slice()
-        const tmp = arr[idx + 1]
-        arr[idx + 1] = arr[idx]
-        arr[idx] = tmp
+        const item = arr.splice(idx, 1)[0]
+        arr.splice(idx + 1, 0, item)
         root._draft = arr
+        _colList.currentIndex = idx + 1
     }
 
     onAboutToShow: {
         const copy = []
+
         for (let i = 0; i < root.columns.length; i++) {
             const col = root.columns[i]
-            if (col.configurable === false) continue
+
+            if (col.configurable === false)
+                continue
+
             copy.push({
-                key:      col.key,
-                label:    col.label,
-                visible:  col.visible !== false,
+                key: col.key,
+                label: col.label,
+                visible: col.visible !== false,
                 required: col.required === true
             })
         }
+
         root._draft = copy
     }
 
@@ -70,7 +74,6 @@ AnchoredPopup {
     contentItem: ColumnLayout {
         spacing: 0
 
-        // Header
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.AppTheme.dialogHeaderHeight
@@ -95,9 +98,9 @@ AnchoredPopup {
             color: Theme.AppTheme.divider
         }
 
-        // Column list
         ListView {
             id: _colList
+
             Layout.fillWidth: true
             Layout.preferredHeight: Math.min(contentHeight, 300)
             clip: true
@@ -106,80 +109,106 @@ AnchoredPopup {
 
             delegate: Rectangle {
                 id: checkRow
+
                 required property var modelData
                 required property int index
 
                 width: _colList.width
                 height: Theme.AppTheme.normalRowHeight
-                color: _rowHover.containsMouse
+                color: _rowHover.hovered
                     ? Theme.AppTheme.hoverSurface
                     : "transparent"
 
+                HoverHandler {
+                    id: _rowHover
+                }
+
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin:  Theme.AppTheme.spacingXs
+                    anchors.leftMargin: Theme.AppTheme.spacingXs
                     anchors.rightMargin: Theme.AppTheme.marginMd
                     spacing: Theme.AppTheme.spacingXs
 
-                    // Up / down reorder buttons — visible only on row hover
                     Button {
                         id: _upBtn
-                        implicitWidth:  22
+
+                        implicitWidth: 22
                         implicitHeight: 22
-                        visible: _rowHover.containsMouse
+                        visible: _rowHover.hovered
                         enabled: checkRow.index > 0
                         opacity: enabled ? 1.0 : 0.35
                         focusPolicy: Qt.NoFocus
+
                         background: Rectangle {
                             radius: 3
-                            color: _upBtn.pressed ? Theme.AppTheme.accent
-                                 : _upBtn.hovered ? Theme.AppTheme.hoverSurface
-                                 : "transparent"
+                            color: _upBtn.pressed
+                                ? Theme.AppTheme.accent
+                                : _upBtn.hovered
+                                    ? Theme.AppTheme.hoverSurface
+                                    : "transparent"
                         }
+
                         contentItem: AppIcons.AppIcon {
                             name: "chevron_up"
                             size: 13
-                            iconColor: _upBtn.pressed ? "white" : Theme.AppTheme.textSecondary
+                            iconColor: _upBtn.pressed
+                                ? "white"
+                                : Theme.AppTheme.textSecondary
                         }
+
                         onClicked: root._moveUp(checkRow.index)
                     }
 
                     Button {
                         id: _downBtn
-                        implicitWidth:  22
+
+                        implicitWidth: 22
                         implicitHeight: 22
-                        visible: _rowHover.containsMouse
+                        visible: _rowHover.hovered
                         enabled: checkRow.index < root._draft.length - 1
                         opacity: enabled ? 1.0 : 0.35
                         focusPolicy: Qt.NoFocus
+
                         background: Rectangle {
                             radius: 3
-                            color: _downBtn.pressed ? Theme.AppTheme.accent
-                                 : _downBtn.hovered ? Theme.AppTheme.hoverSurface
-                                 : "transparent"
+                            color: _downBtn.pressed
+                                ? Theme.AppTheme.accent
+                                : _downBtn.hovered
+                                    ? Theme.AppTheme.hoverSurface
+                                    : "transparent"
                         }
+
                         contentItem: AppIcons.AppIcon {
                             name: "chevron_down"
                             size: 13
-                            iconColor: _downBtn.pressed ? "white" : Theme.AppTheme.textSecondary
+                            iconColor: _downBtn.pressed
+                                ? "white"
+                                : Theme.AppTheme.textSecondary
                         }
+
                         onClicked: root._moveDown(checkRow.index)
                     }
 
-                    // Stable spacer — same total width as the two buttons when hidden
-                    Item { implicitWidth: 44; implicitHeight: 22; visible: !_rowHover.containsMouse }
+                    Item {
+                        implicitWidth: 44
+                        implicitHeight: 22
+                        visible: !_rowHover.hovered
+                    }
 
                     AppControls.CheckBox {
                         id: _colCheck
+
                         checked: checkRow.modelData.visible
                         enabled: !checkRow.modelData.required
                         opacity: checkRow.modelData.required ? 0.55 : 1.0
+
                         onToggled: {
-                            // Properly reassign the draft array so QML detects the change.
-                            // In-place mutation (root._draft[idx].visible = x) is unreliable
-                            // in Qt 6 because property-var arrays may not propagate notifications.
                             const arr = root._draft.slice()
-                            arr[checkRow.index] = Object.assign({}, arr[checkRow.index], { visible: checked })
+                            arr[checkRow.index] = Object.assign(
+                                {},
+                                arr[checkRow.index],
+                                { visible: checked }
+                            )
                             root._draft = arr
                         }
                     }
@@ -193,15 +222,6 @@ AnchoredPopup {
                         elide: Text.ElideRight
                     }
                 }
-
-                MouseArea {
-                    id: _rowHover
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        if (!checkRow.modelData.required) _colCheck.toggle()
-                    }
-                }
             }
         }
 
@@ -211,12 +231,11 @@ AnchoredPopup {
             color: Theme.AppTheme.divider
         }
 
-        // Footer actions
         RowLayout {
             Layout.fillWidth: true
-            Layout.leftMargin:   Theme.AppTheme.marginMd
-            Layout.rightMargin:  Theme.AppTheme.marginMd
-            Layout.topMargin:    Theme.AppTheme.spacingSm
+            Layout.leftMargin: Theme.AppTheme.marginMd
+            Layout.rightMargin: Theme.AppTheme.marginMd
+            Layout.topMargin: Theme.AppTheme.spacingSm
             Layout.bottomMargin: Theme.AppTheme.spacingSm
             spacing: Theme.AppTheme.spacingSm
 
@@ -224,23 +243,31 @@ AnchoredPopup {
                 text: "Reset"
                 iconName: "refresh"
                 implicitWidth: 70
+
                 onClicked: {
                     const reset = []
+
                     for (let i = 0; i < root.columns.length; i++) {
                         const col = root.columns[i]
-                        if (col.configurable === false) continue
+
+                        if (col.configurable === false)
+                            continue
+
                         reset.push({
-                            key:      col.key,
-                            label:    col.label,
-                            visible:  col.visibleByDefault !== false,
+                            key: col.key,
+                            label: col.label,
+                            visible: col.visibleByDefault !== false,
                             required: col.required === true
                         })
                     }
+
                     root._draft = reset
                 }
             }
 
-            Item { Layout.fillWidth: true }
+            Item {
+                Layout.fillWidth: true
+            }
 
             AppControls.SecondaryButton {
                 text: "Cancel"
@@ -253,6 +280,7 @@ AnchoredPopup {
                 text: "Apply"
                 iconName: "approve"
                 implicitWidth: 70
+
                 onClicked: {
                     root.columnVisibilityChanged(root._draft)
                     root.close()
