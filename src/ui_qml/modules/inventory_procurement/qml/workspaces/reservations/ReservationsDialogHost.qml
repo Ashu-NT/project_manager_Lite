@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import InventoryProcurement.Dialogs 1.0 as InventoryDialogs
 
@@ -76,39 +77,13 @@ Item {
         }
     }
 
-    AppControls.CenteredDialog {
+    AppWidgets.EntityDialog {
         id: confirmationDialog
         objectName: "reservationConfirmationDialog"
-
-        modal: true
-
-        contentItem: AppControls.Label {
-            id: confirmationMessage
-            text: ""
-            wrapMode: Text.WordWrap
-        }
-
-        footer: RowLayout {
-            spacing: Theme.AppTheme.spacingSm
-
-            Item {
-                Layout.fillWidth: true
-            }
-
-            AppControls.SecondaryButton {
-                objectName: "dialogCancelButton"
-                text: "Cancel"
-                iconName: "close"
-                onClicked: confirmationDialog.close()
-            }
-
-            AppControls.PrimaryButton {
-                objectName: "dialogSubmitButton"
-                text: root.confirmationMode === "cancel" ? "Cancel Reservation" : "Release Reservation"
-                iconName: root.confirmationMode === "cancel" ? "close" : "approve"
-                onClicked: confirmationDialog.accept()
-            }
-        }
+        title:       root.confirmationMode === "cancel" ? "Cancel Reservation" : "Release Reservation"
+        subtitle:    confirmationMessage.text
+        primaryText: root.confirmationMode === "cancel" ? "Cancel Reservation" : "Release Reservation"
+        primaryIcon: root.confirmationMode === "cancel" ? "close" : "approve"
 
         onAccepted: {
             var state = root.confirmationTarget && root.confirmationTarget.state ? root.confirmationTarget.state : (root.confirmationTarget || {})
@@ -120,6 +95,10 @@ Item {
             }
             confirmationDialog.close()
         }
+        onRejected: confirmationDialog.close()
+
+        // Message ID kept for external text assignment
+        AppControls.Label { id: confirmationMessage; visible: false; text: "" }
     }
 }
 

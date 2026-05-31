@@ -519,7 +519,7 @@ Item {
                 }
 
                 // Edit dialog
-                AppControls.CenteredDialog {
+                AppWidgets.EntityDialog {
                     id: _editPopup
                     title: "Edit Resource Assignment"
                     standardButtons: Dialog.NoButton
@@ -657,7 +657,7 @@ Item {
                     }
                 }
 
-                AppControls.CenteredDialog {
+                AppWidgets.EntityDialog {
                     id: _assignPopup
                     title: "Assign Resource"
                     standardButtons: Dialog.NoButton

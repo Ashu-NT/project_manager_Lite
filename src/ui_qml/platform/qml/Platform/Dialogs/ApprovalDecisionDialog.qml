@@ -3,8 +3,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string mode: "approve"
@@ -16,8 +17,16 @@ AppControls.CenteredDialog {
     modal: true
     focus: true
     width: 520
-    closePolicy: Popup.NoAutoClose
     title: root.mode === "reject" ? "Reject Request" : "Approve Request"
+    subtitle: root.requestTitle.length > 0
+        ? root.requestTitle
+        : (root.mode === "reject"
+            ? "Capture an optional rejection reason before closing the request."
+            : "Capture an optional approval note before applying the request.")
+    primaryText: root.mode === "reject" ? "Reject" : "Approve"
+    primaryIcon: root.mode === "reject" ? "reject" : "approve"
+    onAccepted: root.decisionConfirmed(root.mode, root.requestId, noteField.text)
+    onRejected: root.close()
 
     function openForDecision(modeValue, itemData) {
         root.mode = modeValue || "approve"
@@ -28,72 +37,15 @@ AppControls.CenteredDialog {
         noteField.forceActiveFocus()
     }
 
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
+    AppControls.TextArea {
+        id: noteField
 
-        AppControls.Label {
-            Layout.fillWidth: true
-            text: root.requestTitle.length > 0
-                ? root.requestTitle
-                : "Add an optional note for this decision."
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            font.bold: true
-            wrapMode: Text.WordWrap
-        }
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            text: root.mode === "reject"
-                ? "Capture an optional rejection reason before closing the request."
-                : "Capture an optional approval note before applying the request."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
-
-        AppControls.TextArea {
-            id: noteField
-
-            Layout.fillWidth: true
-            Layout.preferredHeight: 140
-            placeholderText: root.mode === "reject"
-                ? "Optional rejection reason"
-                : "Optional approval note"
-            wrapMode: TextEdit.Wrap
-            selectByMouse: true
-        }
-    }
-
-    footer: Frame {
-        padding: Theme.AppTheme.marginMd
-
-        RowLayout {
-            anchors.fill: parent
-            spacing: Theme.AppTheme.spacingSm
-
-            Item {
-                Layout.fillWidth: true
-            }
-
-            AppControls.SecondaryButton {
-                objectName: "dialogCancelButton"
-                text: "Cancel"
-                iconName: "close"
-                onClicked: root.close()
-            }
-
-            AppControls.PrimaryButton {
-                objectName: "dialogSubmitButton"
-                text: root.mode === "reject" ? "Reject" : "Approve"
-                iconName: root.mode === "reject" ? "reject" : "approve"
-                danger: root.mode === "reject"
-                enabled: root.requestId.length > 0
-                onClicked: root.decisionConfirmed(root.mode, root.requestId, noteField.text)
-            }
-        }
+        Layout.fillWidth: true
+        Layout.preferredHeight: 140
+        placeholderText: root.mode === "reject"
+            ? "Optional rejection reason"
+            : "Optional approval note"
+        wrapMode: TextEdit.Wrap
+        selectByMouse: true
     }
 }
-

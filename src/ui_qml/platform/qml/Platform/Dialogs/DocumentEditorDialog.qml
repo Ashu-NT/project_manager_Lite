@@ -3,8 +3,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string mode: "create"
@@ -18,8 +19,11 @@ AppControls.CenteredDialog {
     modal: true
     focus: true
     width: 660
-    closePolicy: Popup.NoAutoClose
     title: root.mode === "create" ? "New Document" : "Edit Document"
+    primaryText: root.mode === "create" ? "Create" : "Save"
+    primaryIcon: root.mode === "create" ? "add" : "save"
+    onAccepted: root.saveRequested(root.mode, root.formData)
+    onRejected: root.close()
 
     readonly property var formData: ({
         documentId: root.draft.documentId || root.draft.id || "",
@@ -117,163 +121,124 @@ AppControls.CenteredDialog {
     ListModel { id: structureModel }
     ListModel { id: storageKindModel }
 
-    contentItem: ScrollView {
-        implicitWidth: 620
-        implicitHeight: 560
-        clip: true
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
 
-        ColumnLayout {
-            width: parent.availableWidth
-            spacing: Theme.AppTheme.spacingMd
+        AppControls.TextField {
+            id: documentCodeField
 
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
+            Layout.preferredWidth: 180
+            placeholderText: "Document code"
+        }
 
-                AppControls.TextField {
-                    id: documentCodeField
+        AppControls.TextField {
+            id: titleField
 
-                    Layout.preferredWidth: 180
-                    placeholderText: "Document code"
-                }
-
-                AppControls.TextField {
-                    id: titleField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Title"
-                }
-            }
-
-            AppControls.ComboBox {
-                id: typeCombo
-
-                Layout.fillWidth: true
-                model: typeModel
-                textRole: "label"
-            }
-
-            AppControls.ComboBox {
-                id: structureCombo
-
-                Layout.fillWidth: true
-                model: structureModel
-                textRole: "label"
-            }
-
-            AppControls.ComboBox {
-                id: storageKindCombo
-
-                Layout.fillWidth: true
-                model: storageKindModel
-                textRole: "label"
-            }
-
-            AppControls.TextField {
-                id: storageUriField
-
-                Layout.fillWidth: true
-                placeholderText: "Storage URI"
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: fileNameField
-
-                    Layout.fillWidth: true
-                    placeholderText: "File name"
-                }
-
-                AppControls.TextField {
-                    id: mimeTypeField
-
-                    Layout.fillWidth: true
-                    placeholderText: "MIME type"
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: sourceSystemField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Source system"
-                }
-
-                AppControls.TextField {
-                    id: confidentialityField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Confidentiality"
-                }
-            }
-
-            AppControls.TextField {
-                id: versionField
-
-                Layout.fillWidth: true
-                placeholderText: "Business version"
-            }
-
-            AppControls.TextArea {
-                id: notesField
-
-                Layout.fillWidth: true
-                Layout.preferredHeight: 110
-                placeholderText: "Notes"
-                wrapMode: TextEdit.WordWrap
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.CheckBox {
-                    id: currentCheck
-
-                    text: "Current version"
-                }
-
-                AppControls.CheckBox {
-                    id: activeCheck
-
-                    text: "Active document"
-                }
-            }
+            Layout.fillWidth: true
+            placeholderText: "Title"
         }
     }
 
-    footer: Frame {
-        padding: Theme.AppTheme.marginMd
+    AppControls.ComboBox {
+        id: typeCombo
 
-        RowLayout {
-            anchors.fill: parent
-            spacing: Theme.AppTheme.spacingSm
+        Layout.fillWidth: true
+        model: typeModel
+        textRole: "label"
+    }
 
-            Item {
-                Layout.fillWidth: true
-            }
+    AppControls.ComboBox {
+        id: structureCombo
 
-            AppControls.SecondaryButton {
-                text: "Cancel"
-                iconName: "close"
-                onClicked: root.close()
-            }
+        Layout.fillWidth: true
+        model: structureModel
+        textRole: "label"
+    }
 
-            AppControls.PrimaryButton {
-                enabled: documentCodeField.text.trim().length > 0
-                    && titleField.text.trim().length > 0
-                text: root.mode === "create" ? "Create" : "Save"
-                iconName: root.mode === "create" ? "add" : "save"
-                onClicked: root.saveRequested(root.mode, root.formData)
-            }
+    AppControls.ComboBox {
+        id: storageKindCombo
+
+        Layout.fillWidth: true
+        model: storageKindModel
+        textRole: "label"
+    }
+
+    AppControls.TextField {
+        id: storageUriField
+
+        Layout.fillWidth: true
+        placeholderText: "Storage URI"
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppControls.TextField {
+            id: fileNameField
+
+            Layout.fillWidth: true
+            placeholderText: "File name"
+        }
+
+        AppControls.TextField {
+            id: mimeTypeField
+
+            Layout.fillWidth: true
+            placeholderText: "MIME type"
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppControls.TextField {
+            id: sourceSystemField
+
+            Layout.fillWidth: true
+            placeholderText: "Source system"
+        }
+
+        AppControls.TextField {
+            id: confidentialityField
+
+            Layout.fillWidth: true
+            placeholderText: "Confidentiality"
+        }
+    }
+
+    AppControls.TextField {
+        id: versionField
+
+        Layout.fillWidth: true
+        placeholderText: "Business version"
+    }
+
+    AppControls.TextArea {
+        id: notesField
+
+        Layout.fillWidth: true
+        Layout.preferredHeight: 110
+        placeholderText: "Notes"
+        wrapMode: TextEdit.WordWrap
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppControls.CheckBox {
+            id: currentCheck
+
+            text: "Current version"
+        }
+
+        AppControls.CheckBox {
+            id: activeCheck
+
+            text: "Active document"
         }
     }
 }
-

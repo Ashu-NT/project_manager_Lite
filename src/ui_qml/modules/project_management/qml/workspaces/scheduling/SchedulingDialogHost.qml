@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
 Item {
@@ -19,69 +20,28 @@ Item {
         createBaselineDialog.open()
     }
 
-    AppControls.CenteredDialog {
+    AppWidgets.EntityDialog {
         id: createBaselineDialog
-        modal: true
+        title:       "Save Baseline"
+        subtitle:    "Create a controlled schedule snapshot for comparison and governance."
+        primaryText: "Save Baseline"
+        primaryIcon: "register"
+        primaryEnabled: String(root.selectedProjectId || "").length > 0
         width: 420
-        padding: Theme.AppTheme.marginMd
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-        background: Rectangle {
-            radius: Theme.AppTheme.radiusLg
-            color: Theme.AppTheme.surfaceRaised
-            border.color: Theme.AppTheme.divider
-            border.width: 1
+        onAccepted: {
+            root.createBaselineRequested({
+                "projectId": root.selectedProjectId,
+                "name": baselineNameField.text
+            })
+            createBaselineDialog.close()
         }
+        onRejected: createBaselineDialog.close()
 
-        contentItem: ColumnLayout {
-            spacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label {
-                text: "Save Baseline"
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.sectionSize
-                font.bold: true
-            }
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: "Create a controlled schedule snapshot for comparison and governance."
-                color: Theme.AppTheme.textMuted
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-
-            AppControls.TextField {
-                id: baselineNameField
-                Layout.fillWidth: true
-                placeholderText: "Baseline name"
-            }
-
-        }
-
-        footer: AppControls.DialogActionFooter {
-            Item { Layout.fillWidth: true }
-
-            AppControls.SecondaryButton {
-                text: "Cancel"
-                iconName: "close"
-                onClicked: createBaselineDialog.close()
-            }
-
-            AppControls.PrimaryButton {
-                text: "Save Baseline"
-                iconName: "register"
-                enabled: String(root.selectedProjectId || "").length > 0
-                onClicked: {
-                    root.createBaselineRequested({
-                        "projectId": root.selectedProjectId,
-                        "name": baselineNameField.text
-                    })
-                    createBaselineDialog.close()
-                }
-            }
+        AppControls.TextField {
+            id: baselineNameField
+            Layout.fillWidth: true
+            placeholderText: "Baseline name"
         }
     }
 

@@ -3,8 +3,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string modeTitle: "Post Movement"
@@ -21,10 +22,18 @@ AppControls.CenteredDialog {
 
     signal submitted(var payload)
 
-    modal: true
     width: 720
     title: root.modeTitle
-    closePolicy: Popup.CloseOnEscape
+    subtitle: root.showDirection
+        ? "Post a stock adjustment against an item and storeroom location."
+        : root.defaultDirection === "DECREASE"
+            ? "Post a stock decrease against an item and storeroom location."
+            : "Post a stock increase against an item and storeroom location."
+    errorMessage: root.validationMessage
+    primaryText: "Post Movement"
+    primaryIcon: "approve"
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (var index = 0; index < options.length; index += 1) {
@@ -87,130 +96,88 @@ AppControls.CenteredDialog {
 
     onOpened: root.populateFromMovement()
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-    }
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 620 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
 
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
+        AppControls.Label { text: "Item" }
+        AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+
+        AppControls.Label { text: "Storeroom" }
+        AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+
+        AppControls.Label { text: "Quantity" }
+        AppControls.TextField { id: quantityField; objectName: "quantityField"; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+
+        AppControls.Label { text: "UOM" }
+        AppControls.TextField { id: uomField; Layout.fillWidth: true; placeholderText: "EA" }
 
         AppControls.Label {
+            visible: root.showDirection
+            text: "Direction"
+        }
+        AppControls.ComboBox {
+            id: directionCombo
+            visible: root.showDirection
             Layout.fillWidth: true
-            visible: root.validationMessage.length > 0
-            text: root.validationMessage
-            color: "#8B1E1E"
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
+            model: [
+                { "value": "INCREASE", "label": "Increase" },
+                { "value": "DECREASE", "label": "Decrease" }
+            ]
+            textRole: "label"
         }
 
-        GridLayout {
+        AppControls.Label { text: "Unit cost" }
+        AppControls.TextField { id: unitCostField; Layout.fillWidth: true; placeholderText: "0.00"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+
+        AppControls.Label {
+            visible: root.showReleaseReservedField
+            text: "Release reserved qty"
+        }
+        AppControls.TextField {
+            id: releaseReservedField
+            visible: root.showReleaseReservedField
             Layout.fillWidth: true
-            columns: root.width > 620 ? 2 : 1
-            columnSpacing: Theme.AppTheme.spacingMd
-            rowSpacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label { text: "Item" }
-            AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
-
-            AppControls.Label { text: "Storeroom" }
-            AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
-
-            AppControls.Label { text: "Quantity" }
-            AppControls.TextField { id: quantityField; objectName: "quantityField"; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
-
-            AppControls.Label { text: "UOM" }
-            AppControls.TextField { id: uomField; Layout.fillWidth: true; placeholderText: "EA" }
-
-            AppControls.Label {
-                visible: root.showDirection
-                text: "Direction"
-            }
-            AppControls.ComboBox {
-                id: directionCombo
-                visible: root.showDirection
-                Layout.fillWidth: true
-                model: [
-                    { "value": "INCREASE", "label": "Increase" },
-                    { "value": "DECREASE", "label": "Decrease" }
-                ]
-                textRole: "label"
-            }
-
-            AppControls.Label { text: "Unit cost" }
-            AppControls.TextField { id: unitCostField; Layout.fillWidth: true; placeholderText: "0.00"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
-
-            AppControls.Label {
-                visible: root.showReleaseReservedField
-                text: "Release reserved qty"
-            }
-            AppControls.TextField {
-                id: releaseReservedField
-                visible: root.showReleaseReservedField
-                Layout.fillWidth: true
-                placeholderText: "0"
-                inputMethodHints: Qt.ImhFormattedNumbersOnly
-            }
-
-            AppControls.Label {
-                visible: root.showReferenceFields
-                text: "Reference type"
-            }
-            AppControls.TextField {
-                id: referenceTypeField
-                visible: root.showReferenceFields
-                Layout.fillWidth: true
-                placeholderText: "issue"
-            }
-
-            AppControls.Label {
-                visible: root.showReferenceFields
-                text: "Reference id"
-            }
-            AppControls.TextField {
-                id: referenceIdField
-                visible: root.showReferenceFields
-                Layout.fillWidth: true
-                placeholderText: "WO-100"
-            }
+            placeholderText: "0"
+            inputMethodHints: Qt.ImhFormattedNumbersOnly
         }
 
         AppControls.Label {
-            text: "Notes"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
+            visible: root.showReferenceFields
+            text: "Reference type"
+        }
+        AppControls.TextField {
+            id: referenceTypeField
+            visible: root.showReferenceFields
+            Layout.fillWidth: true
+            placeholderText: "issue"
         }
 
-        AppControls.TextArea {
-            id: notesField
+        AppControls.Label {
+            visible: root.showReferenceFields
+            text: "Reference id"
+        }
+        AppControls.TextField {
+            id: referenceIdField
+            visible: root.showReferenceFields
             Layout.fillWidth: true
-            Layout.preferredHeight: 96
-            wrapMode: TextEdit.WordWrap
-            placeholderText: "Optional notes"
+            placeholderText: "WO-100"
         }
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
+    AppControls.Label {
+        text: "Notes"
+        color: Theme.AppTheme.textPrimary
+        font.family: Theme.AppTheme.fontFamily
+    }
 
-        Item {
-            Layout.fillWidth: true
-        }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
-        }
-
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: root.submitLabel
-            iconName: "approve"
-            onClicked: root.submitDialog()
-        }
+    AppControls.TextArea {
+        id: notesField
+        Layout.fillWidth: true
+        Layout.preferredHeight: 96
+        wrapMode: TextEdit.WordWrap
+        placeholderText: "Optional notes"
     }
 }
-

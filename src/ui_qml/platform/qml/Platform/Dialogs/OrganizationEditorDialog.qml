@@ -4,8 +4,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string mode: "create"
@@ -17,8 +18,11 @@ AppControls.CenteredDialog {
     modal: true
     focus: true
     width: 560
-    closePolicy: Popup.NoAutoClose
     title: root.mode === "create" ? "New Organization" : "Edit Organization"
+    primaryText: root.mode === "create" ? "Create" : "Save"
+    primaryIcon: root.mode === "create" ? "add" : "save"
+    onAccepted: root.saveRequested(root.mode, root.formData)
+    onRejected: root.close()
 
     readonly property var formData: ({
         organizationId: root.draft.organizationId || root.draft.id || "",
@@ -84,123 +88,80 @@ AppControls.CenteredDialog {
         id: moduleModel
     }
 
-    contentItem: ScrollView {
-        implicitWidth: 520
-        implicitHeight: 420
-        clip: true
+    AppControls.TextField {
+        id: organizationCodeField
 
-        ColumnLayout {
-            width: parent.availableWidth
-            spacing: Theme.AppTheme.spacingMd
+        Layout.fillWidth: true
+        placeholderText: "Organization code"
+    }
 
-            AppControls.TextField {
-                id: organizationCodeField
+    AppControls.TextField {
+        id: displayNameField
 
-                Layout.fillWidth: true
-                placeholderText: "Organization code"
-            }
+        Layout.fillWidth: true
+        placeholderText: "Display name"
+    }
 
-            AppControls.TextField {
-                id: displayNameField
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
 
-                Layout.fillWidth: true
-                placeholderText: "Display name"
-            }
+        AppControls.TextField {
+            id: timezoneField
 
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
+            Layout.fillWidth: true
+            placeholderText: "Timezone"
+        }
 
-                AppControls.TextField {
-                    id: timezoneField
+        AppControls.TextField {
+            id: currencyField
 
-                    Layout.fillWidth: true
-                    placeholderText: "Timezone"
-                }
-
-                AppControls.TextField {
-                    id: currencyField
-
-                    Layout.preferredWidth: 120
-                    placeholderText: "Currency"
-                }
-            }
-
-            AppControls.CheckBox {
-                id: activeCheck
-
-                text: "Active organization"
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                visible: root.mode === "create"
-                spacing: Theme.AppTheme.spacingSm
-
-                AppControls.Label {
-                    Layout.fillWidth: true
-                    text: "Initial modules"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
-                    font.bold: true
-                }
-
-                AppControls.Label {
-                    Layout.fillWidth: true
-                    text: "Choose the modules available immediately after organization provisioning."
-                    color: Theme.AppTheme.textSecondary
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.smallSize
-                    wrapMode: Text.WordWrap
-                }
-
-                Repeater {
-                    model: moduleModel
-
-                    delegate: AppControls.CheckBox {
-                        required property int index
-                        required property string label
-                        required property bool selected
-
-                        text: label
-                        checked: selected
-                        onToggled: moduleModel.setProperty(index, "selected", checked)
-                    }
-                }
-            }
+            Layout.preferredWidth: 120
+            placeholderText: "Currency"
         }
     }
 
-    footer: Frame {
-        padding: Theme.AppTheme.marginMd
+    AppControls.CheckBox {
+        id: activeCheck
 
-        RowLayout {
-            anchors.fill: parent
-            spacing: Theme.AppTheme.spacingSm
+        text: "Active organization"
+    }
 
-            Item {
-                Layout.fillWidth: true
-            }
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: root.mode === "create"
+        spacing: Theme.AppTheme.spacingSm
 
-            AppControls.SecondaryButton {
-                objectName: "dialogCancelButton"
-                text: "Cancel"
-                iconName: "close"
-                onClicked: root.close()
-            }
+        AppControls.Label {
+            Layout.fillWidth: true
+            text: "Initial modules"
+            color: Theme.AppTheme.textPrimary
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.bodySize
+            font.bold: true
+        }
 
-            AppControls.PrimaryButton {
-                objectName: "dialogSubmitButton"
-                enabled: organizationCodeField.text.trim().length > 0
-                    && displayNameField.text.trim().length > 0
-                    && timezoneField.text.trim().length > 0
-                    && currencyField.text.trim().length > 0
-                text: root.mode === "create" ? "Create" : "Save"
-                iconName: root.mode === "create" ? "add" : "save"
-                onClicked: root.saveRequested(root.mode, root.formData)
+        AppControls.Label {
+            Layout.fillWidth: true
+            text: "Choose the modules available immediately after organization provisioning."
+            color: Theme.AppTheme.textSecondary
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.smallSize
+            wrapMode: Text.WordWrap
+        }
+
+        Repeater {
+            model: moduleModel
+
+            delegate: AppControls.CheckBox {
+                required property int index
+                required property string label
+                required property bool selected
+
+                text: label
+                checked: selected
+                onToggled: moduleModel.setProperty(index, "selected", checked)
             }
         }
     }
 }
-

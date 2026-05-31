@@ -3,8 +3,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string mode: "create"
@@ -18,8 +19,11 @@ AppControls.CenteredDialog {
     modal: true
     focus: true
     width: 620
-    closePolicy: Popup.NoAutoClose
     title: root.mode === "create" ? "New Department" : "Edit Department"
+    primaryText: root.mode === "create" ? "Create" : "Save"
+    primaryIcon: root.mode === "create" ? "add" : "save"
+    onAccepted: root.saveRequested(root.mode, root.formData)
+    onRejected: root.close()
 
     readonly property var formData: ({
         departmentId: root.draft.departmentId || root.draft.id || "",
@@ -110,126 +114,87 @@ AppControls.CenteredDialog {
     ListModel { id: locationModel }
     ListModel { id: parentModel }
 
-    contentItem: ScrollView {
-        implicitWidth: 580
-        implicitHeight: 470
-        clip: true
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
 
-        ColumnLayout {
-            width: parent.availableWidth
-            spacing: Theme.AppTheme.spacingMd
+        AppControls.TextField {
+            id: departmentCodeField
 
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
+            Layout.preferredWidth: 180
+            placeholderText: "Department code"
+        }
 
-                AppControls.TextField {
-                    id: departmentCodeField
+        AppControls.TextField {
+            id: nameField
 
-                    Layout.preferredWidth: 180
-                    placeholderText: "Department code"
-                }
-
-                AppControls.TextField {
-                    id: nameField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Department name"
-                }
-            }
-
-            AppControls.TextField {
-                id: descriptionField
-
-                Layout.fillWidth: true
-                placeholderText: "Description"
-            }
-
-            AppControls.ComboBox {
-                id: siteCombo
-
-                Layout.fillWidth: true
-                model: siteModel
-                textRole: "label"
-            }
-
-            AppControls.ComboBox {
-                id: locationCombo
-
-                Layout.fillWidth: true
-                model: locationModel
-                textRole: "label"
-            }
-
-            AppControls.ComboBox {
-                id: parentCombo
-
-                Layout.fillWidth: true
-                model: parentModel
-                textRole: "label"
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: departmentTypeField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Department type"
-                }
-
-                AppControls.TextField {
-                    id: costCenterField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Cost center"
-                }
-            }
-
-            AppControls.TextArea {
-                id: notesField
-
-                Layout.fillWidth: true
-                Layout.preferredHeight: 96
-                placeholderText: "Notes"
-                wrapMode: TextEdit.WordWrap
-            }
-
-            AppControls.CheckBox {
-                id: activeCheck
-
-                text: "Active department"
-            }
+            Layout.fillWidth: true
+            placeholderText: "Department name"
         }
     }
 
-    footer: Frame {
-        padding: Theme.AppTheme.marginMd
+    AppControls.TextField {
+        id: descriptionField
 
-        RowLayout {
-            anchors.fill: parent
-            spacing: Theme.AppTheme.spacingSm
+        Layout.fillWidth: true
+        placeholderText: "Description"
+    }
 
-            Item {
-                Layout.fillWidth: true
-            }
+    AppControls.ComboBox {
+        id: siteCombo
 
-            AppControls.SecondaryButton {
-                text: "Cancel"
-                iconName: "close"
-                onClicked: root.close()
-            }
+        Layout.fillWidth: true
+        model: siteModel
+        textRole: "label"
+    }
 
-            AppControls.PrimaryButton {
-                enabled: departmentCodeField.text.trim().length > 0
-                    && nameField.text.trim().length > 0
-                text: root.mode === "create" ? "Create" : "Save"
-                iconName: root.mode === "create" ? "add" : "save"
-                onClicked: root.saveRequested(root.mode, root.formData)
-            }
+    AppControls.ComboBox {
+        id: locationCombo
+
+        Layout.fillWidth: true
+        model: locationModel
+        textRole: "label"
+    }
+
+    AppControls.ComboBox {
+        id: parentCombo
+
+        Layout.fillWidth: true
+        model: parentModel
+        textRole: "label"
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppControls.TextField {
+            id: departmentTypeField
+
+            Layout.fillWidth: true
+            placeholderText: "Department type"
         }
+
+        AppControls.TextField {
+            id: costCenterField
+
+            Layout.fillWidth: true
+            placeholderText: "Cost center"
+        }
+    }
+
+    AppControls.TextArea {
+        id: notesField
+
+        Layout.fillWidth: true
+        Layout.preferredHeight: 96
+        placeholderText: "Notes"
+        wrapMode: TextEdit.WordWrap
+    }
+
+    AppControls.CheckBox {
+        id: activeCheck
+
+        text: "Active department"
     }
 }
-

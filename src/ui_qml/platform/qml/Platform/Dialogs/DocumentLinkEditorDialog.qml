@@ -3,8 +3,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string documentId: ""
@@ -14,8 +15,12 @@ AppControls.CenteredDialog {
     modal: true
     focus: true
     width: 520
-    closePolicy: Popup.NoAutoClose
     title: "Add Document Link"
+    subtitle: "Connect the selected shared document to a business record in another module."
+    primaryText: "Add Link"
+    primaryIcon: "add"
+    onAccepted: root.saveRequested(root.formData)
+    onRejected: root.close()
 
     readonly property var formData: ({
         documentId: root.documentId,
@@ -34,74 +39,31 @@ AppControls.CenteredDialog {
         open()
     }
 
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
+    AppControls.TextField {
+        id: moduleCodeField
 
-        AppControls.Label {
-            Layout.fillWidth: true
-            text: "Connect the selected shared document to a business record in another module."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
-
-        AppControls.TextField {
-            id: moduleCodeField
-
-            Layout.fillWidth: true
-            placeholderText: "Module code"
-        }
-
-        AppControls.TextField {
-            id: entityTypeField
-
-            Layout.fillWidth: true
-            placeholderText: "Entity type"
-        }
-
-        AppControls.TextField {
-            id: entityIdField
-
-            Layout.fillWidth: true
-            placeholderText: "Entity id"
-        }
-
-        AppControls.TextField {
-            id: linkRoleField
-
-            Layout.fillWidth: true
-            placeholderText: "Link role"
-        }
+        Layout.fillWidth: true
+        placeholderText: "Module code"
     }
 
-    footer: Frame {
-        padding: Theme.AppTheme.marginMd
+    AppControls.TextField {
+        id: entityTypeField
 
-        RowLayout {
-            anchors.fill: parent
-            spacing: Theme.AppTheme.spacingSm
+        Layout.fillWidth: true
+        placeholderText: "Entity type"
+    }
 
-            Item {
-                Layout.fillWidth: true
-            }
+    AppControls.TextField {
+        id: entityIdField
 
-            AppControls.SecondaryButton {
-                text: "Cancel"
-                iconName: "close"
-                onClicked: root.close()
-            }
+        Layout.fillWidth: true
+        placeholderText: "Entity id"
+    }
 
-            AppControls.PrimaryButton {
-                enabled: root.documentId.length > 0
-                    && moduleCodeField.text.trim().length > 0
-                    && entityTypeField.text.trim().length > 0
-                    && entityIdField.text.trim().length > 0
-                text: "Add Link"
-                iconName: "add"
-                onClicked: root.saveRequested(root.formData)
-            }
-        }
+    AppControls.TextField {
+        id: linkRoleField
+
+        Layout.fillWidth: true
+        placeholderText: "Link role"
     }
 }
-

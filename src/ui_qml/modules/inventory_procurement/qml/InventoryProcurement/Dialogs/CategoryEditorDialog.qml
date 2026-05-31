@@ -2,9 +2,10 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string modeTitle: "Create Category"
@@ -17,10 +18,18 @@ AppControls.CenteredDialog {
 
     signal submitted(var payload)
 
-    modal: true
+    title:        root.modeTitle
+    subtitle:     root.modeTitle === "Create Category"
+        ? "Define a reusable inventory category and its cross-module usage flags."
+        : "Update category governance, equipment scope, and usage flags."
+    errorMessage: root.validationMessage
+    primaryText:  "Save"
+    primaryIcon:  "save"
     width: 560
-    title: root.modeTitle
-    closePolicy: Popup.CloseOnEscape
+
+    onOpened:   root.populateFromCategory()
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (var index = 0; index < options.length; index += 1) {
@@ -75,127 +84,29 @@ AppControls.CenteredDialog {
         root.submitted(root.buildPayload())
     }
 
-    onOpened: root.populateFromCategory()
+    // ── Form content ──────────────────────────────────────────────────────────
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 500 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
+
+        AppControls.Label { text: "Category code"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+        AppControls.TextField { id: categoryCodeField; Layout.fillWidth: true; placeholderText: "SPARE" }
+
+        AppControls.Label { text: "Name"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+        AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Spare Parts" }
+
+        AppControls.Label { text: "Category type"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+        AppControls.ComboBox { id: categoryTypeCombo; Layout.fillWidth: true; model: root.formCategoryTypeOptions; textRole: "label" }
+
+        AppControls.Label { text: "Description"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
+        AppControls.TextArea { id: descriptionField; Layout.fillWidth: true; Layout.preferredHeight: 96; wrapMode: TextEdit.WordWrap; placeholderText: "Optional category description" }
     }
 
-    contentItem: Flickable {
-        id: dialogFlickable
-
-        contentWidth: width
-        contentHeight: formLayout.implicitHeight
-        clip: true
-
-        ColumnLayout {
-            id: formLayout
-
-            width: dialogFlickable.width
-            spacing: Theme.AppTheme.spacingMd
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: root.modeTitle === "Create Category"
-                    ? "Define a reusable inventory category and its cross-module usage flags."
-                    : "Update category governance, equipment scope, and usage flags."
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                wrapMode: Text.WordWrap
-            }
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                visible: root.validationMessage.length > 0
-                text: root.validationMessage
-                color: "#8B1E1E"
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-
-            GridLayout {
-                Layout.fillWidth: true
-                columns: root.width > 500 ? 2 : 1
-                columnSpacing: Theme.AppTheme.spacingMd
-                rowSpacing: Theme.AppTheme.spacingSm
-
-                AppControls.Label { text: "Category code" }
-                AppControls.TextField {
-                    id: categoryCodeField
-                    Layout.fillWidth: true
-                    placeholderText: "SPARE"
-                }
-
-                AppControls.Label { text: "Name" }
-                AppControls.TextField {
-                    id: nameField
-                    Layout.fillWidth: true
-                    placeholderText: "Spare Parts"
-                }
-
-                AppControls.Label { text: "Category type" }
-                AppControls.ComboBox {
-                    id: categoryTypeCombo
-                    Layout.fillWidth: true
-                    model: root.formCategoryTypeOptions
-                    textRole: "label"
-                }
-
-                AppControls.Label { text: "Description" }
-                AppControls.TextArea {
-                    id: descriptionField
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 96
-                    wrapMode: TextEdit.WordWrap
-                    placeholderText: "Optional category description"
-                }
-            }
-
-            AppControls.CheckBox {
-                id: equipmentCheck
-                text: "Category represents equipment or reusable asset types"
-            }
-
-            AppControls.CheckBox {
-                id: projectUsageCheck
-                text: "Available for project-management usage"
-            }
-
-            AppControls.CheckBox {
-                id: maintenanceUsageCheck
-                text: "Available for maintenance usage"
-            }
-
-            AppControls.CheckBox {
-                id: activeCheck
-                text: "Category is active"
-            }
-        }
-    }
-
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item {
-            Layout.fillWidth: true
-        }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
-        }
-
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: "Save"
-            iconName: "save"
-            onClicked: root.submitDialog()
-        }
-    }
+    AppControls.CheckBox { id: equipmentCheck; text: "Category represents equipment or reusable asset types" }
+    AppControls.CheckBox { id: projectUsageCheck; text: "Available for project-management usage" }
+    AppControls.CheckBox { id: maintenanceUsageCheck; text: "Available for maintenance usage" }
+    AppControls.CheckBox { id: activeCheck; text: "Category is active" }
 }
-

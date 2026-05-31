@@ -7,7 +7,7 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property var workspaceController: null
@@ -17,6 +17,8 @@ AppControls.CenteredDialog {
     height: Math.min(720, parent ? parent.height - Theme.AppTheme.marginLg * 2 : 720)
     title: "Import Project Plan"
     closePolicy: Popup.CloseOnEscape
+    showPrimary: false
+    showSecondary: false
 
     readonly property var _preview: root.workspaceController
         ? (root.workspaceController.importPreview || {}) : ({})

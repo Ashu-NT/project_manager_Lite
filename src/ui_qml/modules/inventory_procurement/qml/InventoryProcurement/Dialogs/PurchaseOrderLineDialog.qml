@@ -3,8 +3,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property var itemOptions: []
@@ -15,10 +16,14 @@ AppControls.CenteredDialog {
 
     signal submitted(var payload)
 
-    modal: true
     width: 760
     title: "Add Purchase-Order Line"
-    closePolicy: Popup.CloseOnEscape
+    subtitle: "Add a purchase line to the order."
+    errorMessage: root.validationMessage
+    primaryText: "Add Line"
+    primaryIcon: "add"
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (var index = 0; index < options.length; index += 1) {
@@ -80,94 +85,45 @@ AppControls.CenteredDialog {
 
     onOpened: root.populateFromTarget()
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 640 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
+
+        AppControls.Label { text: "Item" }
+        AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+
+        AppControls.Label { text: "Destination storeroom" }
+        AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+
+        AppControls.Label { text: "Quantity" }
+        AppControls.TextField { id: quantityField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+
+        AppControls.Label { text: "Unit price" }
+        AppControls.TextField { id: unitPriceField; Layout.fillWidth: true; placeholderText: "0.0000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+
+        AppControls.Label { text: "Source requisition line" }
+        AppControls.ComboBox { id: sourceRequisitionLineCombo; Layout.fillWidth: true; model: root.formRequisitionLineOptions; textRole: "label" }
+
+        AppControls.Label { text: "Expected delivery (YYYY-MM-DD)" }
+        AppControls.DateField { id: expectedDeliveryDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+
+        AppControls.Label { text: "Description" }
+        AppControls.TextField { id: descriptionField; Layout.fillWidth: true; placeholderText: "Line description or supplier note" }
     }
 
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            text: "Create a supplier commitment line with the final receiving destination and, when useful, the originating requisition line."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            wrapMode: Text.WordWrap
-        }
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            visible: root.validationMessage.length > 0
-            text: root.validationMessage
-            color: "#8B1E1E"
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
-
-        GridLayout {
-            Layout.fillWidth: true
-            columns: root.width > 640 ? 2 : 1
-            columnSpacing: Theme.AppTheme.spacingMd
-            rowSpacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label { text: "Item" }
-            AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
-
-            AppControls.Label { text: "Destination storeroom" }
-            AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
-
-            AppControls.Label { text: "Quantity" }
-            AppControls.TextField { id: quantityField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
-
-            AppControls.Label { text: "Unit price" }
-            AppControls.TextField { id: unitPriceField; Layout.fillWidth: true; placeholderText: "0.0000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
-
-            AppControls.Label { text: "Source requisition line" }
-            AppControls.ComboBox { id: sourceRequisitionLineCombo; Layout.fillWidth: true; model: root.formRequisitionLineOptions; textRole: "label" }
-
-            AppControls.Label { text: "Expected delivery (YYYY-MM-DD)" }
-            AppControls.DateField { id: expectedDeliveryDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
-
-            AppControls.Label { text: "Description" }
-            AppControls.TextField { id: descriptionField; Layout.fillWidth: true; placeholderText: "Line description or supplier note" }
-        }
-
-        AppControls.Label {
-            text: "Notes"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
-        AppControls.TextArea {
-            id: notesField
-            Layout.fillWidth: true
-            Layout.preferredHeight: 100
-            wrapMode: TextEdit.WordWrap
-            placeholderText: "Receiving notes or line-level supplier remarks."
-        }
+    AppControls.Label {
+        text: "Notes"
+        color: Theme.AppTheme.textPrimary
+        font.family: Theme.AppTheme.fontFamily
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item { Layout.fillWidth: true }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
-        }
-
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: "Add Line"
-            iconName: "add"
-            onClicked: root.submitDialog()
-        }
+    AppControls.TextArea {
+        id: notesField
+        Layout.fillWidth: true
+        Layout.preferredHeight: 100
+        wrapMode: TextEdit.WordWrap
+        placeholderText: "Receiving notes or line-level supplier remarks."
     }
 }
-

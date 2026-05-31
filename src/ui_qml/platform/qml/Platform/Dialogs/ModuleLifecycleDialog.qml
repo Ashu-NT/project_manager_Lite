@@ -3,8 +3,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string moduleCode: ""
@@ -17,8 +18,14 @@ AppControls.CenteredDialog {
     modal: true
     focus: true
     width: 480
-    closePolicy: Popup.NoAutoClose
     title: "Module Lifecycle"
+    subtitle: root.moduleLabel.length > 0
+        ? root.moduleLabel
+        : "Lifecycle state controls whether a licensed module can run at runtime."
+    primaryText: "Apply"
+    primaryIcon: "approve"
+    onAccepted: root.statusConfirmed(root.moduleCode, root._selectedValue())
+    onRejected: root.close()
 
     function openForItem(itemData, options) {
         root.moduleCode = itemData && itemData.id ? String(itemData.id) : ""
@@ -50,63 +57,11 @@ AppControls.CenteredDialog {
         return String(root.statusOptions[statusCombo.currentIndex].value || "")
     }
 
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
+    AppControls.ComboBox {
+        id: statusCombo
 
-        AppControls.Label {
-            Layout.fillWidth: true
-            text: root.moduleLabel.length > 0
-                ? root.moduleLabel
-                : "Select a lifecycle status for this module."
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            font.bold: true
-            wrapMode: Text.WordWrap
-        }
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            text: "Lifecycle state controls whether a licensed module can run at runtime."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
-
-        AppControls.ComboBox {
-            id: statusCombo
-
-            Layout.fillWidth: true
-            model: root.statusOptions
-            textRole: "label"
-        }
-    }
-
-    footer: Frame {
-        padding: Theme.AppTheme.marginMd
-
-        RowLayout {
-            anchors.fill: parent
-            spacing: Theme.AppTheme.spacingSm
-
-            Item {
-                Layout.fillWidth: true
-            }
-
-            AppControls.SecondaryButton {
-                text: "Cancel"
-                iconName: "close"
-                onClicked: root.close()
-            }
-
-            AppControls.PrimaryButton {
-                text: "Apply"
-                iconName: "approve"
-                enabled: root.moduleCode.length > 0 && root._selectedValue().length > 0
-                onClicked: root.statusConfirmed(root.moduleCode, root._selectedValue())
-            }
-        }
+        Layout.fillWidth: true
+        model: root.statusOptions
+        textRole: "label"
     }
 }
-

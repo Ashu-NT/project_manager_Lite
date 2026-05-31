@@ -2,9 +2,10 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property var statusOptions: []
@@ -15,10 +16,23 @@ AppControls.CenteredDialog {
 
     signal submitted(string statusValue)
 
-    modal: true
+    title:       "Change Work Order Status"
+    subtitle:    root.workOrderData && root.workOrderData.title
+        ? "Update the execution lifecycle state for " + root.workOrderData.title + "."
+        : "Update the lifecycle state for the selected work order."
+    primaryText: "Update Status"
+    primaryIcon: "approve"
     width: 420
-    title: "Change Work Order Status"
-    closePolicy: Popup.CloseOnEscape
+
+    onOpened: {
+        const state = root.workOrderData && root.workOrderData.state ? root.workOrderData.state : (root.workOrderData || {})
+        statusCombo.currentIndex = root.statusIndexForValue(state.status || "DRAFT")
+    }
+    onAccepted: {
+        const option = root.workflowStatusOptions[statusCombo.currentIndex] || { "value": "DRAFT" }
+        root.submitted(String(option.value || "DRAFT"))
+    }
+    onRejected: root.close()
 
     function statusIndexForValue(statusValue) {
         for (let index = 0; index < root.workflowStatusOptions.length; index += 1) {
@@ -29,63 +43,13 @@ AppControls.CenteredDialog {
         return 0
     }
 
-    function submitDialog() {
-        const option = root.workflowStatusOptions[statusCombo.currentIndex] || { "value": "DRAFT" }
-        root.submitted(String(option.value || "DRAFT"))
-    }
+    // ── Form content ──────────────────────────────────────────────────────────
 
-    onOpened: {
-        const state = root.workOrderData && root.workOrderData.state ? root.workOrderData.state : (root.workOrderData || {})
-        statusCombo.currentIndex = root.statusIndexForValue(state.status || "DRAFT")
-    }
-
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-    }
-
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            text: root.workOrderData && root.workOrderData.title
-                ? "Update the execution lifecycle state for " + root.workOrderData.title + "."
-                : "Update the lifecycle state for the selected work order."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            wrapMode: Text.WordWrap
-        }
-
-        AppControls.ComboBox {
-            id: statusCombo
-            objectName: "statusCombo"
-
-            Layout.fillWidth: true
-            model: root.workflowStatusOptions
-            textRole: "label"
-        }
-    }
-
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item { Layout.fillWidth: true }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
-        }
-
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: "Update Status"
-            iconName: "workflow"
-            onClicked: root.submitDialog()
-        }
+    AppControls.ComboBox {
+        id: statusCombo
+        objectName: "statusCombo"
+        Layout.fillWidth: true
+        model: root.workflowStatusOptions
+        textRole: "label"
     }
 }
-

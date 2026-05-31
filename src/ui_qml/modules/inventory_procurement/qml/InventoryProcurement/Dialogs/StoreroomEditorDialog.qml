@@ -3,8 +3,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string modeTitle: "Create Storeroom"
@@ -19,11 +20,16 @@ AppControls.CenteredDialog {
 
     signal submitted(var payload)
 
-    modal: true
     width: 760
-    height: Math.min(860, parent ? parent.height - (Theme.AppTheme.marginLg * 2) : 860)
     title: root.modeTitle
-    closePolicy: Popup.CloseOnEscape
+    subtitle: root.modeTitle === "Create Storeroom"
+        ? "Create an operational stock location with capability flags, ownership, and receipt policy."
+        : "Update storeroom governance, capability flags, manager ownership, and receipt policy."
+    errorMessage: root.validationMessage
+    primaryText: root.modeTitle === "Create Storeroom" ? "Create Storeroom" : "Save Changes"
+    primaryIcon: root.modeTitle === "Create Storeroom" ? "add" : "save"
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (var index = 0; index < options.length; index += 1) {
@@ -100,130 +106,66 @@ AppControls.CenteredDialog {
 
     onOpened: root.populateFromStoreroom()
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 680 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
+
+        AppControls.Label { text: "Storeroom code" }
+        AppControls.TextField { id: storeroomCodeField; Layout.fillWidth: true; placeholderText: "MAIN" }
+
+        AppControls.Label { text: "Name" }
+        AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Main Storeroom" }
+
+        AppControls.Label { text: "Site" }
+        AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.formSiteOptions; textRole: "label" }
+
+        AppControls.Label { text: "Status" }
+        AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+
+        AppControls.Label { text: "Storeroom type" }
+        AppControls.TextField { id: storeroomTypeField; Layout.fillWidth: true; placeholderText: "MAIN" }
+
+        AppControls.Label { text: "Default currency" }
+        AppControls.TextField { id: defaultCurrencyField; Layout.fillWidth: true; placeholderText: "EUR" }
+
+        AppControls.Label { text: "Manager party" }
+        AppControls.ComboBox { id: managerPartyCombo; Layout.fillWidth: true; model: root.managerPartyOptions; textRole: "label" }
     }
 
-    contentItem: Flickable {
-        id: dialogFlickable
+    AppControls.CheckBox { id: internalSupplierCheck; text: "Storeroom acts as an internal supplier" }
+    AppControls.CheckBox { id: allowsIssueCheck; text: "Allow issue transactions" }
+    AppControls.CheckBox { id: allowsTransferCheck; text: "Allow transfer transactions" }
+    AppControls.CheckBox { id: allowsReceivingCheck; text: "Allow receiving transactions" }
+    AppControls.CheckBox { id: requiresReservationCheck; text: "Require reservations before issue" }
+    AppControls.CheckBox { id: requiresSupplierReferenceCheck; text: "Require supplier reference for receipts" }
 
-        contentWidth: width
-        contentHeight: formLayout.implicitHeight
-        clip: true
-
-        ColumnLayout {
-            id: formLayout
-
-            width: dialogFlickable.width
-            spacing: Theme.AppTheme.spacingMd
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: root.modeTitle === "Create Storeroom"
-                    ? "Create an operational stock location with capability flags, ownership, and receipt policy."
-                    : "Update storeroom governance, capability flags, manager ownership, and receipt policy."
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                wrapMode: Text.WordWrap
-            }
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                visible: root.validationMessage.length > 0
-                text: root.validationMessage
-                color: "#8B1E1E"
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-
-            GridLayout {
-                Layout.fillWidth: true
-                columns: root.width > 680 ? 2 : 1
-                columnSpacing: Theme.AppTheme.spacingMd
-                rowSpacing: Theme.AppTheme.spacingSm
-
-                AppControls.Label { text: "Storeroom code" }
-                AppControls.TextField { id: storeroomCodeField; Layout.fillWidth: true; placeholderText: "MAIN" }
-
-                AppControls.Label { text: "Name" }
-                AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Main Storeroom" }
-
-                AppControls.Label { text: "Site" }
-                AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.formSiteOptions; textRole: "label" }
-
-                AppControls.Label { text: "Status" }
-                AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
-
-                AppControls.Label { text: "Storeroom type" }
-                AppControls.TextField { id: storeroomTypeField; Layout.fillWidth: true; placeholderText: "MAIN" }
-
-                AppControls.Label { text: "Default currency" }
-                AppControls.TextField { id: defaultCurrencyField; Layout.fillWidth: true; placeholderText: "EUR" }
-
-                AppControls.Label { text: "Manager party" }
-                AppControls.ComboBox { id: managerPartyCombo; Layout.fillWidth: true; model: root.managerPartyOptions; textRole: "label" }
-            }
-
-            AppControls.CheckBox { id: internalSupplierCheck; text: "Storeroom acts as an internal supplier" }
-            AppControls.CheckBox { id: allowsIssueCheck; text: "Allow issue transactions" }
-            AppControls.CheckBox { id: allowsTransferCheck; text: "Allow transfer transactions" }
-            AppControls.CheckBox { id: allowsReceivingCheck; text: "Allow receiving transactions" }
-            AppControls.CheckBox { id: requiresReservationCheck; text: "Require reservations before issue" }
-            AppControls.CheckBox { id: requiresSupplierReferenceCheck; text: "Require supplier reference for receipts" }
-
-            AppControls.Label {
-                text: "Description"
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-            }
-
-            AppControls.TextArea {
-                id: descriptionField
-                Layout.fillWidth: true
-                Layout.preferredHeight: 88
-                wrapMode: TextEdit.WordWrap
-                placeholderText: "Optional storeroom description"
-            }
-
-            AppControls.Label {
-                text: "Notes"
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-            }
-
-            AppControls.TextArea {
-                id: notesField
-                Layout.fillWidth: true
-                Layout.preferredHeight: 88
-                wrapMode: TextEdit.WordWrap
-                placeholderText: "Receiving or routing notes"
-            }
-        }
+    AppControls.Label {
+        text: "Description"
+        color: Theme.AppTheme.textPrimary
+        font.family: Theme.AppTheme.fontFamily
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
+    AppControls.TextArea {
+        id: descriptionField
+        Layout.fillWidth: true
+        Layout.preferredHeight: 88
+        wrapMode: TextEdit.WordWrap
+        placeholderText: "Optional storeroom description"
+    }
 
-        Item {
-            Layout.fillWidth: true
-        }
+    AppControls.Label {
+        text: "Notes"
+        color: Theme.AppTheme.textPrimary
+        font.family: Theme.AppTheme.fontFamily
+    }
 
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
-        }
-
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: "Save"
-            iconName: "save"
-            onClicked: root.submitDialog()
-        }
+    AppControls.TextArea {
+        id: notesField
+        Layout.fillWidth: true
+        Layout.preferredHeight: 88
+        wrapMode: TextEdit.WordWrap
+        placeholderText: "Receiving or routing notes"
     }
 }
-

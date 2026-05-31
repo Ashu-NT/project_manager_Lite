@@ -117,7 +117,7 @@ Item {
         }
 
         // Edit dependency dialog
-        AppControls.CenteredDialog {
+        AppWidgets.EntityDialog {
             id: _editPopup
             title: "Edit Dependency"
             standardButtons: Dialog.NoButton

@@ -3,8 +3,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string modeTitle: "Create Requisition"
@@ -15,10 +16,16 @@ AppControls.CenteredDialog {
 
     signal submitted(var payload)
 
-    modal: true
     width: 720
     title: root.modeTitle
-    closePolicy: Popup.CloseOnEscape
+    subtitle: root.modeTitle === "Create Requisition"
+        ? "Capture internal supply demand against a real site and storeroom before the approval and sourcing flow starts."
+        : "Update the requisition scope, priority, and delivery target before sourcing begins."
+    errorMessage: root.validationMessage
+    primaryText: root.modeTitle === "Create Requisition" ? "Create Requisition" : "Save Changes"
+    primaryIcon: root.modeTitle === "Create Requisition" ? "add" : "save"
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (var index = 0; index < options.length; index += 1) {
@@ -76,88 +83,39 @@ AppControls.CenteredDialog {
 
     onOpened: root.populateFromRequisition()
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 620 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
+
+        AppControls.Label { text: "Site" }
+        AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+
+        AppControls.Label { text: "Storeroom" }
+        AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+
+        AppControls.Label { text: "Priority" }
+        AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
+
+        AppControls.Label { text: "Purpose" }
+        AppControls.TextField { id: purposeField; Layout.fillWidth: true; placeholderText: "Why is the supply needed?" }
+
+        AppControls.Label { text: "Needed by (YYYY-MM-DD)" }
+        AppControls.DateField { id: neededByDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
     }
 
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            text: "Capture internal supply demand against a real site and storeroom before the approval and sourcing flow starts."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            wrapMode: Text.WordWrap
-        }
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            visible: root.validationMessage.length > 0
-            text: root.validationMessage
-            color: "#8B1E1E"
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
-
-        GridLayout {
-            Layout.fillWidth: true
-            columns: root.width > 620 ? 2 : 1
-            columnSpacing: Theme.AppTheme.spacingMd
-            rowSpacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label { text: "Site" }
-            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
-
-            AppControls.Label { text: "Storeroom" }
-            AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
-
-            AppControls.Label { text: "Priority" }
-            AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
-
-            AppControls.Label { text: "Purpose" }
-            AppControls.TextField { id: purposeField; Layout.fillWidth: true; placeholderText: "Why is the supply needed?" }
-
-            AppControls.Label { text: "Needed by (YYYY-MM-DD)" }
-            AppControls.DateField { id: neededByDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
-        }
-
-        AppControls.Label {
-            text: "Notes"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
-        AppControls.TextArea {
-            id: notesField
-            Layout.fillWidth: true
-            Layout.preferredHeight: 100
-            wrapMode: TextEdit.WordWrap
-            placeholderText: "Scope, urgency, or requester context."
-        }
+    AppControls.Label {
+        text: "Notes"
+        color: Theme.AppTheme.textPrimary
+        font.family: Theme.AppTheme.fontFamily
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item { Layout.fillWidth: true }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
-        }
-
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: "Save"
-            iconName: "save"
-            onClicked: root.submitDialog()
-        }
+    AppControls.TextArea {
+        id: notesField
+        Layout.fillWidth: true
+        Layout.preferredHeight: 100
+        wrapMode: TextEdit.WordWrap
+        placeholderText: "Scope, urgency, or requester context."
     }
 }
-

@@ -3,8 +3,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property var itemOptions: []
@@ -14,10 +15,14 @@ AppControls.CenteredDialog {
 
     signal submitted(var payload)
 
-    modal: true
     width: 720
     title: "Transfer Stock"
-    closePolicy: Popup.CloseOnEscape
+    subtitle: "Transfer stock between storeroom locations."
+    errorMessage: root.validationMessage
+    primaryText: "Transfer Stock"
+    primaryIcon: "approve"
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (var index = 0; index < options.length; index += 1) {
@@ -81,81 +86,39 @@ AppControls.CenteredDialog {
 
     onOpened: root.populateFromTransfer()
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 620 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
+
+        AppControls.Label { text: "Item" }
+        AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+
+        AppControls.Label { text: "Source storeroom" }
+        AppControls.ComboBox { id: sourceStoreroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+
+        AppControls.Label { text: "Destination storeroom" }
+        AppControls.ComboBox { id: destinationStoreroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+
+        AppControls.Label { text: "Quantity" }
+        AppControls.TextField { id: quantityField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+
+        AppControls.Label { text: "UOM" }
+        AppControls.TextField { id: uomField; Layout.fillWidth: true; placeholderText: "EA" }
     }
 
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            visible: root.validationMessage.length > 0
-            text: root.validationMessage
-            color: "#8B1E1E"
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
-
-        GridLayout {
-            Layout.fillWidth: true
-            columns: root.width > 620 ? 2 : 1
-            columnSpacing: Theme.AppTheme.spacingMd
-            rowSpacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label { text: "Item" }
-            AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
-
-            AppControls.Label { text: "Source storeroom" }
-            AppControls.ComboBox { id: sourceStoreroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
-
-            AppControls.Label { text: "Destination storeroom" }
-            AppControls.ComboBox { id: destinationStoreroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
-
-            AppControls.Label { text: "Quantity" }
-            AppControls.TextField { id: quantityField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
-
-            AppControls.Label { text: "UOM" }
-            AppControls.TextField { id: uomField; Layout.fillWidth: true; placeholderText: "EA" }
-        }
-
-        AppControls.Label {
-            text: "Notes"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
-        AppControls.TextArea {
-            id: notesField
-            Layout.fillWidth: true
-            Layout.preferredHeight: 96
-            wrapMode: TextEdit.WordWrap
-            placeholderText: "Optional transfer notes"
-        }
+    AppControls.Label {
+        text: "Notes"
+        color: Theme.AppTheme.textPrimary
+        font.family: Theme.AppTheme.fontFamily
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item {
-            Layout.fillWidth: true
-        }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
-        }
-
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: "Post Transfer"
-            iconName: "export"
-            onClicked: root.submitDialog()
-        }
+    AppControls.TextArea {
+        id: notesField
+        Layout.fillWidth: true
+        Layout.preferredHeight: 96
+        wrapMode: TextEdit.WordWrap
+        placeholderText: "Optional transfer notes"
     }
 }
-

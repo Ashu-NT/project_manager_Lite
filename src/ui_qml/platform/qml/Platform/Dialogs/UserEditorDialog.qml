@@ -3,9 +3,10 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string mode: "create"
@@ -17,8 +18,13 @@ AppControls.CenteredDialog {
     modal: true
     focus: true
     width: 560
-    closePolicy: Popup.NoAutoClose
     title: root.mode === "create" ? "New User" : "Edit User"
+
+    primaryText: root.mode === "create" ? "Create" : "Save"
+    primaryIcon: root.mode === "create" ? "add" : "save"
+    primaryEnabled: usernameField.text.trim().length > 0 && (root.mode === "edit" || passwordField.text.length > 0)
+    onAccepted: root.saveRequested(root.mode, root.formData)
+    onRejected: root.close()
 
     readonly property var formData: ({
         userId: root.draft.userId || root.draft.id || "",
@@ -91,112 +97,73 @@ AppControls.CenteredDialog {
         id: roleModel
     }
 
-    contentItem: ScrollView {
-        implicitWidth: 520
-        implicitHeight: 460
-        clip: true
+    AppControls.TextField {
+        id: usernameField
 
-        ColumnLayout {
-            width: parent.availableWidth
-            spacing: Theme.AppTheme.spacingMd
+        Layout.fillWidth: true
+        placeholderText: "Username"
+    }
 
-            AppControls.TextField {
-                id: usernameField
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
 
-                Layout.fillWidth: true
-                placeholderText: "Username"
-            }
+        AppControls.TextField {
+            id: displayNameField
 
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
+            Layout.fillWidth: true
+            placeholderText: "Display name"
+        }
 
-                AppControls.TextField {
-                    id: displayNameField
+        AppControls.TextField {
+            id: emailField
 
-                    Layout.fillWidth: true
-                    placeholderText: "Display name"
-                }
-
-                AppControls.TextField {
-                    id: emailField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Email"
-                }
-            }
-
-            AppControls.TextField {
-                id: passwordField
-
-                Layout.fillWidth: true
-                placeholderText: root.mode === "create"
-                    ? "Password"
-                    : "Reset password (optional)"
-                echoMode: TextInput.Password
-            }
-
-            AppControls.CheckBox {
-                id: activeCheck
-
-                text: "Active account"
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingSm
-
-                AppControls.Label {
-                    Layout.fillWidth: true
-                    text: "Roles"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
-                    font.bold: true
-                }
-
-                Repeater {
-                    model: roleModel
-
-                    delegate: AppControls.CheckBox {
-                        required property int index
-                        required property string label
-                        required property bool selected
-
-                        text: label
-                        checked: selected
-                        onToggled: roleModel.setProperty(index, "selected", checked)
-                    }
-                }
-            }
+            Layout.fillWidth: true
+            placeholderText: "Email"
         }
     }
 
-    footer: Frame {
-        padding: Theme.AppTheme.marginMd
+    AppControls.TextField {
+        id: passwordField
 
-        RowLayout {
-            anchors.fill: parent
-            spacing: Theme.AppTheme.spacingSm
+        Layout.fillWidth: true
+        placeholderText: root.mode === "create"
+            ? "Password"
+            : "Reset password (optional)"
+        echoMode: TextInput.Password
+    }
 
-            Item {
-                Layout.fillWidth: true
-            }
+    AppControls.CheckBox {
+        id: activeCheck
 
-            AppControls.SecondaryButton {
-                text: "Cancel"
-                iconName: "close"
-                onClicked: root.close()
-            }
+        text: "Active account"
+    }
 
-            AppControls.PrimaryButton {
-                enabled: usernameField.text.trim().length > 0
-                    && (root.mode === "edit" || passwordField.text.length > 0)
-                text: root.mode === "create" ? "Create" : "Save"
-                iconName: root.mode === "create" ? "add" : "save"
-                onClicked: root.saveRequested(root.mode, root.formData)
+    ColumnLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingSm
+
+        AppControls.Label {
+            Layout.fillWidth: true
+            text: "Roles"
+            color: Theme.AppTheme.textPrimary
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.bodySize
+            font.bold: true
+        }
+
+        Repeater {
+            model: roleModel
+
+            delegate: AppControls.CheckBox {
+                required property int index
+                required property string label
+                required property bool selected
+
+                text: label
+                checked: selected
+                onToggled: roleModel.setProperty(index, "selected", checked)
             }
         }
     }
 }
-

@@ -5,8 +5,9 @@ import QtQuick.Layouts
 import QtQml
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property var purchaseOrderData: ({})
@@ -15,10 +16,14 @@ AppControls.CenteredDialog {
 
     signal submitted(var payload)
 
-    modal: true
     width: 860
     title: "Post Receipt"
-    closePolicy: Popup.CloseOnEscape
+    subtitle: "Post receipt quantities for the selected purchase order lines."
+    errorMessage: root.validationMessage
+    primaryText: "Post Receipt"
+    primaryIcon: "approve"
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     ListModel {
         id: receiptLineModel
@@ -92,143 +97,115 @@ AppControls.CenteredDialog {
 
     onOpened: root.populateFromPurchaseOrder()
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
+    GridLayout {
+        Layout.fillWidth: true
+        columns: 2
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
+
+        AppControls.Label { text: "Delivery reference" }
+        AppControls.TextField { id: supplierDeliveryReferenceField; Layout.fillWidth: true; placeholderText: "Carrier or supplier slip number" }
+
+        AppControls.Label { text: "Notes" }
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 72
+            wrapMode: TextEdit.WordWrap
+            placeholderText: "Receipt header notes, carrier remarks, or inspection summary."
+        }
     }
 
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
+    ScrollView {
+        Layout.fillWidth: true
+        Layout.preferredHeight: 340
+        clip: true
 
-        AppControls.Label {
-            Layout.fillWidth: true
-            text: "Post accepted and rejected quantities against the selected purchase order. Accepted quantities increase stock while rejected quantities close supplier demand without increasing on-hand."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            wrapMode: Text.WordWrap
-        }
+        ColumnLayout {
+            width: parent.width
+            spacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label {
-            Layout.fillWidth: true
-            visible: root.validationMessage.length > 0
-            text: root.validationMessage
-            color: "#8B1E1E"
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
+            Repeater {
+                model: receiptLineModel
 
-        GridLayout {
-            Layout.fillWidth: true
-            columns: 2
-            columnSpacing: Theme.AppTheme.spacingMd
-            rowSpacing: Theme.AppTheme.spacingSm
+                delegate: Rectangle {
+                    id: receiptLineCard
 
-            AppControls.Label { text: "Delivery reference" }
-            AppControls.TextField { id: supplierDeliveryReferenceField; Layout.fillWidth: true; placeholderText: "Carrier or supplier slip number" }
+                    required property int index
+                    required property string title
+                    required property string subtitle
+                    required property string supportingText
+                    required property string quantityAccepted
+                    required property string quantityRejected
+                    required property string unitPrice
 
-            AppControls.Label { text: "Notes" }
-            AppControls.TextArea {
-                id: notesField
-                Layout.fillWidth: true
-                Layout.preferredHeight: 72
-                wrapMode: TextEdit.WordWrap
-                placeholderText: "Receipt header notes, carrier remarks, or inspection summary."
-            }
-        }
+                    Layout.fillWidth: true
+                    radius: Theme.AppTheme.radiusMd
+                    color: Theme.AppTheme.surfaceAlt
+                    implicitHeight: lineLayout.implicitHeight + (Theme.AppTheme.marginMd * 2)
 
-        ScrollView {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 340
-            clip: true
+                    ColumnLayout {
+                        id: lineLayout
+                        anchors.fill: parent
+                        anchors.margins: Theme.AppTheme.marginMd
+                        spacing: Theme.AppTheme.spacingSm
 
-            ColumnLayout {
-                width: parent.width
-                spacing: Theme.AppTheme.spacingSm
+                        AppControls.Label {
+                            Layout.fillWidth: true
+                            text: receiptLineCard.title
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.bodySize
+                            font.bold: true
+                            wrapMode: Text.WordWrap
+                        }
 
-                Repeater {
-                    model: receiptLineModel
+                        AppControls.Label {
+                            Layout.fillWidth: true
+                            text: receiptLineCard.subtitle
+                            color: Theme.AppTheme.textSecondary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            wrapMode: Text.WordWrap
+                        }
 
-                    delegate: Rectangle {
-                        id: receiptLineCard
+                        AppControls.Label {
+                            Layout.fillWidth: true
+                            text: receiptLineCard.supportingText
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            wrapMode: Text.WordWrap
+                        }
 
-                        required property int index
-                        required property string title
-                        required property string subtitle
-                        required property string supportingText
-                        required property string quantityAccepted
-                        required property string quantityRejected
-                        required property string unitPrice
+                        GridLayout {
+                            Layout.fillWidth: true
+                            columns: root.width > 720 ? 3 : 1
+                            columnSpacing: Theme.AppTheme.spacingMd
+                            rowSpacing: Theme.AppTheme.spacingSm
 
-                        Layout.fillWidth: true
-                        radius: Theme.AppTheme.radiusMd
-                        color: Theme.AppTheme.surfaceAlt
-                        implicitHeight: lineLayout.implicitHeight + (Theme.AppTheme.marginMd * 2)
-
-                        ColumnLayout {
-                            id: lineLayout
-                            anchors.fill: parent
-                            anchors.margins: Theme.AppTheme.marginMd
-                            spacing: Theme.AppTheme.spacingSm
-
-                            AppControls.Label {
+                            AppControls.TextField {
                                 Layout.fillWidth: true
-                                text: receiptLineCard.title
-                                color: Theme.AppTheme.textPrimary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.bodySize
-                                font.bold: true
-                                wrapMode: Text.WordWrap
+                                placeholderText: "Accepted qty"
+                                text: receiptLineCard.quantityAccepted
+                                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                                onTextChanged: receiptLineModel.setProperty(receiptLineCard.index, "quantityAccepted", text)
                             }
 
-                            AppControls.Label {
+                            AppControls.TextField {
                                 Layout.fillWidth: true
-                                text: receiptLineCard.subtitle
-                                color: Theme.AppTheme.textSecondary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.smallSize
-                                wrapMode: Text.WordWrap
+                                placeholderText: "Rejected qty"
+                                text: receiptLineCard.quantityRejected
+                                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                                onTextChanged: receiptLineModel.setProperty(receiptLineCard.index, "quantityRejected", text)
                             }
 
-                            AppControls.Label {
+                            AppControls.TextField {
                                 Layout.fillWidth: true
-                                text: receiptLineCard.supportingText
-                                color: Theme.AppTheme.textMuted
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.smallSize
-                                wrapMode: Text.WordWrap
-                            }
-
-                            GridLayout {
-                                Layout.fillWidth: true
-                                columns: root.width > 720 ? 3 : 1
-                                columnSpacing: Theme.AppTheme.spacingMd
-                                rowSpacing: Theme.AppTheme.spacingSm
-
-                                AppControls.TextField {
-                                    Layout.fillWidth: true
-                                    placeholderText: "Accepted qty"
-                                    text: receiptLineCard.quantityAccepted
-                                    inputMethodHints: Qt.ImhFormattedNumbersOnly
-                                    onTextChanged: receiptLineModel.setProperty(receiptLineCard.index, "quantityAccepted", text)
-                                }
-
-                                AppControls.TextField {
-                                    Layout.fillWidth: true
-                                    placeholderText: "Rejected qty"
-                                    text: receiptLineCard.quantityRejected
-                                    inputMethodHints: Qt.ImhFormattedNumbersOnly
-                                    onTextChanged: receiptLineModel.setProperty(receiptLineCard.index, "quantityRejected", text)
-                                }
-
-                                AppControls.TextField {
-                                    Layout.fillWidth: true
-                                    placeholderText: "Unit cost"
-                                    text: receiptLineCard.unitPrice
-                                    inputMethodHints: Qt.ImhFormattedNumbersOnly
-                                    onTextChanged: receiptLineModel.setProperty(receiptLineCard.index, "unitPrice", text)
-                                }
+                                placeholderText: "Unit cost"
+                                text: receiptLineCard.unitPrice
+                                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                                onTextChanged: receiptLineModel.setProperty(receiptLineCard.index, "unitPrice", text)
                             }
                         }
                     }
@@ -236,25 +213,4 @@ AppControls.CenteredDialog {
             }
         }
     }
-
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item { Layout.fillWidth: true }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
-        }
-
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: "Post Receipt"
-            iconName: "approve"
-            onClicked: root.submitDialog()
-        }
-    }
 }
-
