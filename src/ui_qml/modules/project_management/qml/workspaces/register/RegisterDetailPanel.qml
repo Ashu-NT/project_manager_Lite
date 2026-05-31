@@ -61,6 +61,7 @@ Item {
         anchors.left:  parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Details")
+        loadingMessage: "Loading details..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -98,6 +99,7 @@ Item {
         anchors.left:  parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Impact")
+        loadingMessage: "Loading impact..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -319,6 +321,7 @@ Item {
         anchors.left:  parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Response")
+        loadingMessage: "Loading response..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -389,6 +392,7 @@ Item {
         anchors.left:  parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Links")
+        loadingMessage: "Loading links..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0

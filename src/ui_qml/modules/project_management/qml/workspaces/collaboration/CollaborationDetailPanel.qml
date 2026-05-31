@@ -100,6 +100,7 @@ Item {
         AppWidgets.LazySectionLoader {
             id: _sec0
             active: root._idx === 0
+            loadingMessage: "Loading collaboration..."
             sourceComponent: Component {
                 Item {
                     width: parent ? parent.width : 0
@@ -174,6 +175,7 @@ Item {
         AppWidgets.LazySectionLoader {
             id: _sec1
             active: root._idx === 1
+            loadingMessage: "Loading collaboration..."
             sourceComponent: Component {
                 Item {
                     width: parent ? parent.width : 0
@@ -207,6 +209,7 @@ Item {
         AppWidgets.LazySectionLoader {
             id: _sec2
             active: root._idx === 2
+            loadingMessage: "Loading comments..."
             sourceComponent: Component {
                 Item {
                     width: parent ? parent.width : 0
@@ -244,6 +247,7 @@ Item {
         AppWidgets.LazySectionLoader {
             id: _sec3
             active: root._idx === 3
+            loadingMessage: "Loading collaboration..."
             sourceComponent: Component {
                 Item {
                     width: parent ? parent.width : 0

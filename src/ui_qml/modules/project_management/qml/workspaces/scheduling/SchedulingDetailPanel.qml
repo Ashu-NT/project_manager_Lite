@@ -61,6 +61,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._sectionIdx === 0
+        loadingMessage: "Loading..."
         sourceComponent: Component {
             SchedulingPanelFrame {
                 width: parent ? parent.width : 0
@@ -151,6 +152,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._sectionIdx === 1
+        loadingMessage: "Loading..."
         sourceComponent: Component {
             SchedulingPanelFrame {
                 width: parent ? parent.width : 0
@@ -182,6 +184,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._sectionIdx === 2
+        loadingMessage: "Loading..."
         sourceComponent: Component {
             SchedulingPanelFrame {
                 width: parent ? parent.width : 0
@@ -211,6 +214,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._sectionIdx === 3
+        loadingMessage: "Loading..."
         sourceComponent: Component {
             SchedulingPanelFrame {
                 width: parent ? parent.width : 0
@@ -269,6 +273,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._sectionIdx === 4
+        loadingMessage: "Loading..."
         sourceComponent: Component {
             SchedulingPanelFrame {
                 width: parent ? parent.width : 0
@@ -327,6 +332,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._sectionIdx === 5
+        loadingMessage: "Loading..."
         sourceComponent: Component {
             SchedulingPanelFrame {
                 width: parent ? parent.width : 0
@@ -358,6 +364,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._sectionIdx === 6
+        loadingMessage: "Loading..."
         sourceComponent: Component {
             SchedulingPanelFrame {
                 width: parent ? parent.width : 0
@@ -380,6 +387,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._sectionIdx === 7
+        loadingMessage: "Loading..."
         sourceComponent: Component {
             SchedulingPanelFrame {
                 width: parent ? parent.width : 0

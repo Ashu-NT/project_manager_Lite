@@ -50,6 +50,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 0
+        loadingMessage: "Loading timesheet..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -99,6 +100,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 1
+        loadingMessage: "Loading entries..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -193,6 +195,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 2
+        loadingMessage: "Loading entries..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -280,6 +283,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 3
+        loadingMessage: "Loading entries..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0

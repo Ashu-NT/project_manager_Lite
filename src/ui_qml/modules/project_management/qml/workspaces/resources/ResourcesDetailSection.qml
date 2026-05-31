@@ -67,6 +67,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 0
+        loadingMessage: "Loading overview..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -199,6 +200,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 1
+        loadingMessage: "Loading assignments..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -248,6 +250,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 2
+        loadingMessage: "Loading capacity..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -369,6 +372,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 3
+        loadingMessage: "Loading calendar..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -425,6 +429,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 4
+        loadingMessage: "Loading skills..."
         sourceComponent: Component {
             Item {
                 id: _skillsSection
@@ -518,6 +523,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 5
+        loadingMessage: "Loading certifications..."
         sourceComponent: Component {
             Item {
                 id: _certsSection
@@ -611,6 +617,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 6
+        loadingMessage: "Loading cost rates..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -671,6 +678,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 7
+        loadingMessage: "Loading availability..."
         sourceComponent: Component {
             Column {
                 id: _availSection
@@ -1052,6 +1060,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 8
+        loadingMessage: "Loading activity..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0

@@ -208,6 +208,7 @@ Item {
         AppWidgets.LazySectionLoader {
             id: _sec0
             active: root._idx === root._secIdx("Details")
+            loadingMessage: "Loading task details..."
             sourceComponent: Component {
                 Item {
                     width: parent ? parent.width : 0
@@ -302,6 +303,7 @@ Item {
         AppWidgets.LazySectionLoader {
             id: _sec1
             active: root._idx === root._secIdx("Assignments")
+            loadingMessage: "Loading assignments..."
             sourceComponent: Component {
                 TasksAssignmentsSection {
                     width: parent ? parent.width : 0
@@ -329,6 +331,7 @@ Item {
         AppWidgets.LazySectionLoader {
             id: _sec2
             active: root._idx === root._secIdx("Dependencies")
+            loadingMessage: "Loading dependencies..."
             sourceComponent: Component {
                 TasksDependenciesSection {
                     width: parent ? parent.width : 0
@@ -349,6 +352,7 @@ Item {
         AppWidgets.LazySectionLoader {
             id: _sec3
             active: root._idx === root._secIdx("Time")
+            loadingMessage: "Loading time entries..."
             sourceComponent: Component {
                 TasksTimeEntriesSection {
                     width: parent ? parent.width : 0
@@ -379,6 +383,7 @@ Item {
         AppWidgets.LazySectionLoader {
             id: _sec4
             active: root._idx === root._secIdx("Activity")
+            loadingMessage: "Loading activity..."
             sourceComponent: Component {
                 TasksCollaborationSection {
                     width: parent ? parent.width : 0
@@ -399,6 +404,7 @@ Item {
         AppWidgets.LazySectionLoader {
             id: _sec5
             active: root._idx === root._secIdx("Material Demand")
+            loadingMessage: "Loading..."
             sourceComponent: Component {
                 Item {
                     width: parent ? parent.width : 0
@@ -454,6 +460,7 @@ Item {
         AppWidgets.LazySectionLoader {
             id: _sec6
             active: root._idx === root._secIdx("Reservations")
+            loadingMessage: "Loading..."
             sourceComponent: Component {
                 Item {
                     width: parent ? parent.width : 0
@@ -502,6 +509,7 @@ Item {
         AppWidgets.LazySectionLoader {
             id: _sec7
             active: root._idx === root._secIdx("Procurement")
+            loadingMessage: "Loading..."
             sourceComponent: Component {
                 Item {
                     width: parent ? parent.width : 0
@@ -546,6 +554,7 @@ Item {
         AppWidgets.LazySectionLoader {
             id: _sec8
             active: root._idx === root._secIdx("Skills")
+            loadingMessage: "Loading..."
             sourceComponent: Component {
                 Item {
                     width: parent ? parent.width : 0
@@ -652,6 +661,7 @@ Item {
         AppWidgets.LazySectionLoader {
             id: _sec9
             active: root._idx === root._secIdx("Schedule Impact")
+            loadingMessage: "Loading..."
             sourceComponent: Component {
                 Item {
                     width: parent ? parent.width : 0

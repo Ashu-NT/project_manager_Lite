@@ -69,6 +69,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Overview")
+        loadingMessage: "Loading overview..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -298,6 +299,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Schedule")
+        loadingMessage: "Loading schedule..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -384,6 +386,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Tasks")
+        loadingMessage: "Loading tasks..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -420,6 +423,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Resources")
+        loadingMessage: "Loading resources..."
         sourceComponent: Component {
             Column {
                 id: _resourcesCol
@@ -795,6 +799,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Financials")
+        loadingMessage: "Loading financials..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -899,6 +904,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Risks")
+        loadingMessage: "Loading risks..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -937,6 +943,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Documents")
+        loadingMessage: "Loading documents..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -975,6 +982,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Activity")
+        loadingMessage: "Loading activity..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -1019,6 +1027,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Material Demand")
+        loadingMessage: "Loading..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -1066,6 +1075,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Procurement")
+        loadingMessage: "Loading..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0

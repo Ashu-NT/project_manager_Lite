@@ -93,6 +93,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Budget")
+        loadingMessage: "Loading financials..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -224,6 +225,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Actuals")
+        loadingMessage: "Loading costs..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -256,6 +258,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Forecast")
+        loadingMessage: "Loading financials..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -367,6 +370,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Commitments")
+        loadingMessage: "Loading costs..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -517,6 +521,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Invoices")
+        loadingMessage: "Loading financials..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -536,6 +541,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Purchase Orders")
+        loadingMessage: "Loading financials..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -555,6 +561,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Earned Value")
+        loadingMessage: "Loading financials..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -650,6 +657,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Activity")
+        loadingMessage: "Loading activity..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -678,6 +686,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Variance")
+        loadingMessage: "Loading financials..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
