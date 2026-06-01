@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -284,6 +285,8 @@ Item {
                             visible: root._hasResource
 
                             Rectangle {
+                                id: capacityCard
+
                                 anchors.fill: parent
                                 radius: Theme.AppTheme.radiusMd
                                 color: Theme.AppTheme.surfaceAlt
@@ -312,7 +315,7 @@ Item {
 
                                     AppWidgets.ProgressBar {
                                         Layout.fillWidth: true
-                                        value: parent.parent._pct
+                                        value: capacityCard._pct
                                         Layout.preferredHeight: 6
                                     }
                                 }
@@ -899,7 +902,7 @@ Item {
 
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 8
+                            implicitHeight: 8
                             radius: 4
                             color: Theme.AppTheme.surfaceAlt
 
@@ -947,7 +950,7 @@ Item {
                         // Mini bar chart
                         Item {
                             Layout.fillWidth: true
-                            height: 56
+                            implicitHeight: 56
 
                             Row {
                                 anchors.fill: parent

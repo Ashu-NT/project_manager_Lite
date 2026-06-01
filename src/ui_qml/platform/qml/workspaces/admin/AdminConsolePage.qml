@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -29,6 +30,9 @@ AppLayouts.WorkspaceFrame {
         : null
     property PlatformControllers.PlatformSupportWorkspaceController supportController: root.platformCatalog
         ? root.platformCatalog.adminSupportWorkspace
+        : null
+    property PlatformControllers.PlatformSettingsWorkspaceController settingsController: root.platformCatalog
+        ? root.platformCatalog.settingsWorkspace
         : null
     property var organizationCatalog: root.workspaceController
         ? root.workspaceController.organizations
@@ -65,6 +69,9 @@ AppLayouts.WorkspaceFrame {
     property var documentStructureCatalog: root.workspaceController
         ? root.workspaceController.documentStructures
         : ({ "title": "Document Structures", "subtitle": "", "emptyState": "", "items": [] })
+    property var moduleEntitlementCatalog: root.settingsController
+        ? root.settingsController.moduleEntitlements
+        : ({ "title": "Module Entitlements", "subtitle": "", "emptyState": "", "items": [] })
 
     // ── Python-owned table models ─────────────────────────────────
     property var organizationsTableModel:     root.workspaceController ? root.workspaceController.organizationsTableModel     : null
@@ -79,10 +86,12 @@ AppLayouts.WorkspaceFrame {
     // ── Navigation & selection state ──────────────────────────────
     property string _activeSection: "organizations"
     property string _selectedRowId: ""
+    property bool _entityDetailOpen: false
 
     readonly property bool _detailOpen: {
         const s = root._activeSection
-        return root._selectedRowId.length > 0
+        return root._entityDetailOpen
+            && root._selectedRowId.length > 0
             && s !== "access" && s !== "support" && s !== "audit"
     }
 
@@ -149,6 +158,12 @@ AppLayouts.WorkspaceFrame {
         { key: "statusLabel", label: "Status",         flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
         { key: "metaText",    label: "Storage",        flex: 3, minWidth: 160, sortable: false, visible: true }
     ]
+    readonly property var _moduleColumns: [
+        { key: "title",       label: "Module",          flex: 2, minWidth: 140, sortable: true,  visible: true },
+        { key: "subtitle",    label: "Stage / License", flex: 3, minWidth: 160, sortable: false, visible: true },
+        { key: "statusLabel", label: "Lifecycle",       flex: 0, minWidth: 100, sortable: false, visible: true, type: "status" },
+        { key: "metaText",    label: "Runtime",         flex: 3, minWidth: 200, sortable: false, visible: true }
+    ]
     readonly property var _structureColumns: [
         { key: "title",       label: "Name",           flex: 3, minWidth: 160, sortable: true,  visible: true },
         { key: "subtitle",    label: "Code / Type",    flex: 3, minWidth: 160, sortable: false, visible: true },
@@ -173,6 +188,89 @@ AppLayouts.WorkspaceFrame {
     function openOrganizationEdit(itemId) {
         const item = root.catalogItemById(root.organizationCatalog, itemId)
         if (item !== null) dialogHostLoader.invoke("openOrganizationEdit", item.state || {})
+    }
+
+    function openEntityDetail(sectionId, itemId) {
+        root._activeSection = String(sectionId || root._activeSection || "")
+        root._selectedRowId = String(itemId || "")
+        if (root._activeSection === "documents" && root._selectedRowId.length > 0) {
+            root.inspectDocument(root._selectedRowId)
+        }
+        root._entityDetailOpen = root._selectedRowId.length > 0
+    }
+
+    function openAdminEntitySection(sectionId, rowId) {
+        root._activeSection = String(sectionId || "")
+        root._selectedRowId = rowId ? String(rowId) : ""
+        if (root._activeSection === "documents" && root._selectedRowId.length > 0) {
+            root.inspectDocument(root._selectedRowId)
+        }
+        root._entityDetailOpen = root._selectedRowId.length > 0
+    }
+
+    function closeEntityDetail() {
+        root._entityDetailOpen = false
+    }
+
+    function handleEntityDetailAction(sectionId, actionId) {
+        const id = root._selectedRowId
+        if (actionId === "create_department") {
+            dialogHostLoader.invoke("openDepartmentCreate")
+            return
+        }
+        if (actionId === "create_employee") {
+            dialogHostLoader.invoke("openEmployeeCreate")
+            return
+        }
+        if (actionId === "show_departments") {
+            root.openAdminEntitySection("departments", "")
+            return
+        }
+        if (actionId === "show_employees") {
+            root.openAdminEntitySection("employees", "")
+            return
+        }
+        if (actionId === "show_users") {
+            root.openAdminEntitySection("users", "")
+            return
+        }
+        if (actionId === "show_access") {
+            root.openAdminEntitySection("access", "")
+            return
+        }
+        if (actionId === "show_documents") {
+            root.openAdminEntitySection("documents", "")
+            return
+        }
+        if (actionId === "refresh") {
+            if (root.workspaceController) {
+                root.workspaceController.refresh()
+            }
+            return
+        }
+        if (actionId === "show_audit") {
+            root.openAdminEntitySection("audit", "")
+            return
+        }
+        if (actionId === "edit") {
+            if      (sectionId === "sites")      root.openSiteEdit(id)
+            else if (sectionId === "departments") root.openDepartmentEdit(id)
+            else if (sectionId === "employees")   root.openEmployeeEdit(id)
+            else if (sectionId === "users")       root.openUserEdit(id)
+            else if (sectionId === "parties")     root.openPartyEdit(id)
+            else if (sectionId === "documents")   root.openDocumentEdit(id)
+            else if (sectionId === "structures")  root.openDocumentStructureEdit(id)
+            return
+        }
+        if (actionId === "toggle_active" && root.workspaceController) {
+            if      (sectionId === "sites")       root.workspaceController.toggleSiteActive(id)
+            else if (sectionId === "departments") root.workspaceController.toggleDepartmentActive(id)
+            else if (sectionId === "employees")   root.workspaceController.toggleEmployeeActive(id)
+            else if (sectionId === "users")       root.workspaceController.toggleUserActive(id)
+            else if (sectionId === "parties")     root.workspaceController.togglePartyActive(id)
+            else if (sectionId === "documents")   root.workspaceController.toggleDocumentActive(id)
+            else if (sectionId === "structures")  root.workspaceController.toggleDocumentStructureActive(id)
+        }
     }
 
     function openSiteEdit(itemId) {
@@ -233,16 +331,17 @@ AppLayouts.WorkspaceFrame {
         spacing: 0
 
         // ── Left navigation sidebar ───────────────────────────────
-        AdminNavSidebar {
-            id: _sidebar
-            Layout.fillHeight:     true
-            Layout.preferredWidth: implicitWidth
-            activeSection: root._activeSection
-            onSectionChanged: function(section) {
-                root._activeSection = section
-                root._selectedRowId = ""
+            AdminNavSidebar {
+                id: _sidebar
+                Layout.fillHeight:     true
+                Layout.preferredWidth: implicitWidth
+                activeSection: root._activeSection
+                onSectionChanged: function(section) {
+                    root._activeSection = section
+                    root._entityDetailOpen = false
+                    root._selectedRowId = ""
+                }
             }
-        }
 
         // ── Center workspace ──────────────────────────────────────
         Item {
@@ -252,7 +351,7 @@ AppLayouts.WorkspaceFrame {
             // ── Organizations ─────────────────────────────────────
             AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         root._activeSection === "organizations"
+                visible:         root._activeSection === "organizations" && !root._detailOpen
                 sectionTitle:    "Organizations"
                 entityLabel:     "Organization"
                 catalog:         root.organizationCatalog
@@ -266,14 +365,47 @@ AppLayouts.WorkspaceFrame {
 
                 onCreateRequested:  dialogHostLoader.invoke("openOrganizationCreate")
                 onRowSelected:      function(id) { root._selectedRowId = id }
-                onRowActivated:     function(id) { root.openOrganizationEdit(id) }
+                onRowActivated:     function(id) { root.openEntityDetail("organizations", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
+            }
+
+            Loader {
+                id: organizationDetailLoader
+                anchors.fill: parent
+                active: root._activeSection === "organizations" && root._detailOpen
+                visible: active
+                asynchronous: true
+
+                sourceComponent: Component {
+                    AdminOrganizationDetailPage {
+                        organization: root._detailItem || ({})
+                        busy: root._busy
+                        errorMessage: root._err
+                        feedbackMessage: root._ok
+
+                        onBackRequested: root.closeEntityDetail()
+
+                        onActionRequested: function(actionId) {
+                            if (actionId === "edit") {
+                                root.openOrganizationEdit(root._selectedRowId)
+                            } else if (actionId === "set_active") {
+                                if (root.workspaceController)
+                                    root.workspaceController.setActiveOrganization(root._selectedRowId)
+                            } else if (actionId === "refresh") {
+                                if (root.workspaceController)
+                                    root.workspaceController.refresh()
+                            } else if (actionId === "show_audit") {
+                                root.openAdminEntitySection("audit", "")
+                            }
+                        }
+                    }
+                }
             }
 
             // ── Sites ─────────────────────────────────────────────
             AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         root._activeSection === "sites"
+                visible:         root._activeSection === "sites" && !root._detailOpen
                 sectionTitle:    "Sites"
                 entityLabel:     "Site"
                 catalog:         root.siteCatalog
@@ -287,14 +419,14 @@ AppLayouts.WorkspaceFrame {
 
                 onCreateRequested:  dialogHostLoader.invoke("openSiteCreate")
                 onRowSelected:      function(id) { root._selectedRowId = id }
-                onRowActivated:     function(id) { root.openSiteEdit(id) }
+                onRowActivated:     function(id) { root.openEntityDetail("sites", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
             // ── Departments ───────────────────────────────────────
             AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         root._activeSection === "departments"
+                visible:         root._activeSection === "departments" && !root._detailOpen
                 sectionTitle:    "Departments"
                 entityLabel:     "Department"
                 catalog:         root.departmentCatalog
@@ -308,14 +440,14 @@ AppLayouts.WorkspaceFrame {
 
                 onCreateRequested:  dialogHostLoader.invoke("openDepartmentCreate")
                 onRowSelected:      function(id) { root._selectedRowId = id }
-                onRowActivated:     function(id) { root.openDepartmentEdit(id) }
+                onRowActivated:     function(id) { root.openEntityDetail("departments", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
             // ── Employees ─────────────────────────────────────────
             AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         root._activeSection === "employees"
+                visible:         root._activeSection === "employees" && !root._detailOpen
                 sectionTitle:    "Employees"
                 entityLabel:     "Employee"
                 catalog:         root.employeeCatalog
@@ -329,14 +461,14 @@ AppLayouts.WorkspaceFrame {
 
                 onCreateRequested:  dialogHostLoader.invoke("openEmployeeCreate")
                 onRowSelected:      function(id) { root._selectedRowId = id }
-                onRowActivated:     function(id) { root.openEmployeeEdit(id) }
+                onRowActivated:     function(id) { root.openEntityDetail("employees", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
             // ── Users ─────────────────────────────────────────────
             AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         root._activeSection === "users"
+                visible:         root._activeSection === "users" && !root._detailOpen
                 sectionTitle:    "Users"
                 entityLabel:     "User"
                 catalog:         root.userCatalog
@@ -350,14 +482,14 @@ AppLayouts.WorkspaceFrame {
 
                 onCreateRequested:  dialogHostLoader.invoke("openUserCreate")
                 onRowSelected:      function(id) { root._selectedRowId = id }
-                onRowActivated:     function(id) { root.openUserEdit(id) }
+                onRowActivated:     function(id) { root.openEntityDetail("users", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
             // ── Parties ───────────────────────────────────────────
             AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         root._activeSection === "parties"
+                visible:         root._activeSection === "parties" && !root._detailOpen
                 sectionTitle:    "Parties"
                 entityLabel:     "Party"
                 catalog:         root.partyCatalog
@@ -371,14 +503,14 @@ AppLayouts.WorkspaceFrame {
 
                 onCreateRequested:  dialogHostLoader.invoke("openPartyCreate")
                 onRowSelected:      function(id) { root._selectedRowId = id }
-                onRowActivated:     function(id) { root.openPartyEdit(id) }
+                onRowActivated:     function(id) { root.openEntityDetail("parties", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
             // ── Documents ─────────────────────────────────────────
             AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         root._activeSection === "documents"
+                visible:         root._activeSection === "documents" && !root._detailOpen
                 sectionTitle:    "Documents"
                 entityLabel:     "Document"
                 catalog:         root.documentCatalog
@@ -395,14 +527,14 @@ AppLayouts.WorkspaceFrame {
                     root._selectedRowId = id
                     root.inspectDocument(id)
                 }
-                onRowActivated:     function(id) { root.openDocumentEdit(id) }
+                onRowActivated:     function(id) { root.openEntityDetail("documents", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
             // ── Document Structures ───────────────────────────────
             AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         root._activeSection === "structures"
+                visible:         root._activeSection === "structures" && !root._detailOpen
                 sectionTitle:    "Document Structures"
                 entityLabel:     "Structure"
                 catalog:         root.documentStructureCatalog
@@ -416,8 +548,179 @@ AppLayouts.WorkspaceFrame {
 
                 onCreateRequested:  dialogHostLoader.invoke("openDocumentStructureCreate")
                 onRowSelected:      function(id) { root._selectedRowId = id }
-                onRowActivated:     function(id) { root.openDocumentStructureEdit(id) }
+                onRowActivated:     function(id) { root.openEntityDetail("structures", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
+            }
+
+            Loader {
+                id: siteDetailLoader
+                anchors.fill: parent
+                active: root._activeSection === "sites" && root._detailOpen
+                visible: active
+                asynchronous: true
+
+                sourceComponent: Component {
+                    AdminSiteDetailPage {
+                        platformCatalog: root.platformCatalog
+                        site: root._detailItem || ({})
+                        departmentCatalog: root.departmentCatalog
+                        departmentColumns: root._deptColumns
+                        busy: root._busy
+                        errorMessage: root._err
+                        feedbackMessage: root._ok
+                        onBackRequested: root.closeEntityDetail()
+                        onActionRequested: function(actionId) {
+                            root.handleEntityDetailAction("sites", actionId)
+                        }
+                        onRelatedRowActivated: function(sectionId, rowId) {
+                            root.openAdminEntitySection(sectionId, rowId)
+                        }
+                    }
+                }
+            }
+
+            Loader {
+                id: departmentDetailLoader
+                anchors.fill: parent
+                active: root._activeSection === "departments" && root._detailOpen
+                visible: active
+                asynchronous: true
+
+                sourceComponent: Component {
+                    AdminDepartmentDetailPage {
+                        platformCatalog: root.platformCatalog
+                        department: root._detailItem || ({})
+                        employeeCatalog: root.employeeCatalog
+                        employeeColumns: root._employeeColumns
+                        busy: root._busy
+                        errorMessage: root._err
+                        feedbackMessage: root._ok
+                        onBackRequested: root.closeEntityDetail()
+                        onActionRequested: function(actionId) {
+                            root.handleEntityDetailAction("departments", actionId)
+                        }
+                        onRelatedRowActivated: function(sectionId, rowId) {
+                            root.openAdminEntitySection(sectionId, rowId)
+                        }
+                    }
+                }
+            }
+
+            Loader {
+                id: employeeDetailLoader
+                anchors.fill: parent
+                active: root._activeSection === "employees" && root._detailOpen
+                visible: active
+                asynchronous: true
+
+                sourceComponent: Component {
+                    AdminEmployeeDetailPage {
+                        employee: root._detailItem || ({})
+                        busy: root._busy
+                        errorMessage: root._err
+                        feedbackMessage: root._ok
+                        onBackRequested: root.closeEntityDetail()
+                        onActionRequested: function(actionId) {
+                            root.handleEntityDetailAction("employees", actionId)
+                        }
+                    }
+                }
+            }
+
+            Loader {
+                id: userDetailLoader
+                anchors.fill: parent
+                active: root._activeSection === "users" && root._detailOpen
+                visible: active
+                asynchronous: true
+
+                sourceComponent: Component {
+                    AdminUserDetailPage {
+                        user: root._detailItem || ({})
+                        moduleEntitlementCatalog: root.moduleEntitlementCatalog
+                        moduleEntitlementColumns: root._moduleColumns
+                        busy: root._busy
+                        errorMessage: root._err
+                        feedbackMessage: root._ok
+                        onBackRequested: root.closeEntityDetail()
+                        onActionRequested: function(actionId) {
+                            root.handleEntityDetailAction("users", actionId)
+                        }
+                    }
+                }
+            }
+
+            Loader {
+                id: partyDetailLoader
+                anchors.fill: parent
+                active: root._activeSection === "parties" && root._detailOpen
+                visible: active
+                asynchronous: true
+
+                sourceComponent: Component {
+                    AdminPartyDetailPage {
+                        party: root._detailItem || ({})
+                        busy: root._busy
+                        errorMessage: root._err
+                        feedbackMessage: root._ok
+                        onBackRequested: root.closeEntityDetail()
+                        onActionRequested: function(actionId) {
+                            root.handleEntityDetailAction("parties", actionId)
+                        }
+                    }
+                }
+            }
+
+            Loader {
+                id: documentDetailLoader
+                anchors.fill: parent
+                active: root._activeSection === "documents" && root._detailOpen
+                visible: active
+                asynchronous: true
+
+                sourceComponent: Component {
+                    AdminDocumentsDetailPage {
+                        document: root._detailItem || ({})
+                        selectedDocument: root.selectedDocument
+                        documentPreviewState: root.documentPreviewState
+                        documentLinkCatalog: root.documentLinkCatalog
+                        documentStructureCatalog: root.documentStructureCatalog
+                        workspaceController: root.workspaceController
+                        busy: root._busy
+                        errorMessage: root._err
+                        feedbackMessage: root._ok
+                        onBackRequested: root.closeEntityDetail()
+                        onActionRequested: function(actionId) {
+                            root.handleEntityDetailAction("documents", actionId)
+                        }
+                        onDocumentLinkCreateRequested: root.openDocumentLinkCreate()
+                        onDocumentStructureCreateRequested: dialogHostLoader.invoke("openDocumentStructureCreate")
+                        onDocumentStructureEditRequested: function(itemId) {
+                            root.openDocumentStructureEdit(itemId)
+                        }
+                    }
+                }
+            }
+
+            Loader {
+                id: structureDetailLoader
+                anchors.fill: parent
+                active: root._activeSection === "structures" && root._detailOpen
+                visible: active
+                asynchronous: true
+
+                sourceComponent: Component {
+                    AdminDocumentStructureDetailPage {
+                        structure: root._detailItem || ({})
+                        busy: root._busy
+                        errorMessage: root._err
+                        feedbackMessage: root._ok
+                        onBackRequested: root.closeEntityDetail()
+                        onActionRequested: function(actionId) {
+                            root.handleEntityDetailAction("structures", actionId)
+                        }
+                    }
+                }
             }
 
             // ── Roles & Access ────────────────────────────────────
@@ -447,7 +750,7 @@ AppLayouts.WorkspaceFrame {
             id: _detailPanel
             Layout.fillHeight:     true
             Layout.preferredWidth: 288
-            visible:               root._detailOpen
+            visible:               false
             color:                 Theme.AppTheme.surface
             z:                     1
 
@@ -463,7 +766,7 @@ AppLayouts.WorkspaceFrame {
                 // Panel header
                 Rectangle {
                     Layout.fillWidth: true
-                    height: Theme.AppTheme.toolbarHeight - 6
+                    implicitHeight : Theme.AppTheme.toolbarHeight - 6
                     color:  Theme.AppTheme.surfaceRaised
 
                     Rectangle {
@@ -542,7 +845,7 @@ AppLayouts.WorkspaceFrame {
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: 1; color: Theme.AppTheme.divider
+                                Layout.preferredHeight: 1; color: Theme.AppTheme.divider
                             }
 
                             // Document actions
@@ -587,7 +890,7 @@ AppLayouts.WorkspaceFrame {
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: 1; color: Theme.AppTheme.divider
+                                implicitHeight : 1; color: Theme.AppTheme.divider
                             }
 
                             // Linked records header
@@ -629,6 +932,7 @@ AppLayouts.WorkspaceFrame {
                                 model: root.documentLinkCatalog.items || []
 
                                 delegate: Rectangle {
+                                    id : delegateRoot
                                     required property var modelData
                                     required property int index
 
@@ -650,7 +954,7 @@ AppLayouts.WorkspaceFrame {
 
                                         AppControls.Label {
                                             Layout.fillWidth: true
-                                            text:           modelData.title || ""
+                                            text:           delegateRoot.modelData.title || ""
                                             color:          Theme.AppTheme.textPrimary
                                             font.family:    Theme.AppTheme.fontFamily
                                             font.pixelSize: Theme.AppTheme.smallSize
@@ -658,7 +962,7 @@ AppLayouts.WorkspaceFrame {
                                         }
 
                                         Rectangle {
-                                            width: 22; height: 22; radius: 4
+                                            Layout.preferredWidth: 22; Layout.preferredHeight: 22; radius: 4
                                             color: _removeLinkMA.containsMouse
                                                 ? Theme.AppTheme.dangerSoft : "transparent"
 

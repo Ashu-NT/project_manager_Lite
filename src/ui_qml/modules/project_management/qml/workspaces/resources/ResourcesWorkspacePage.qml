@@ -155,12 +155,12 @@ AppLayouts.WorkspaceFrame {
                 onDeleteRequested: function(resourceId) {
                     if (root.workspaceController !== null) root.workspaceController.deleteResource(resourceId)
                 }
-                onAddSkillRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.addSkill(payload)
-                }
-                onAddCertificationRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.addCertification(payload)
-                }
+                //onAddSkillRequested: function(payload) {
+                //    if (root.workspaceController !== null) root.workspaceController.addSkill(payload)
+                //}
+                //onAddCertificationRequested: function(payload) {
+                //    if (root.workspaceController !== null) root.workspaceController.addCertification(payload)
+                //}
             }
         }
     }
