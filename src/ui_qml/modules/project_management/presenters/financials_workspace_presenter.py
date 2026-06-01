@@ -148,6 +148,23 @@ class ProjectFinancialsWorkspacePresenter:
             empty_state=empty_state,
         )
 
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique cost code (per-project, CST-<NAME>-NNNN)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        project_id = self._optional_text(payload, "projectId")
+        existing = {
+            str(getattr(row, "code", "") or "").upper()
+            for row in (self._desktop_api.list_cost_items(project_id) if project_id else [])
+        }
+        name = self._optional_text(payload, "description")
+        return CodeGenerator().generate(
+            "cost",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def create_cost_item(self, payload: dict[str, Any]) -> None:
         command = FinancialCreateCommand(
             project_id=self._require_text(
@@ -179,6 +196,7 @@ class ProjectFinancialsWorkspacePresenter:
             ),
             incurred_date=self._optional_date(payload, "incurredDate"),
             currency_code=self._optional_text(payload, "currency"),
+            code=self._optional_text(payload, "costCode"),
         )
         self._desktop_api.create_cost_item(command)
 
@@ -214,6 +232,7 @@ class ProjectFinancialsWorkspacePresenter:
             incurred_date=self._optional_date(payload, "incurredDate"),
             currency_code=self._optional_text(payload, "currency"),
             expected_version=self._optional_int(payload, "expectedVersion"),
+            code=self._optional_text(payload, "costCode"),
         )
         self._desktop_api.update_cost_item(command)
 
@@ -537,6 +556,7 @@ class ProjectFinancialsWorkspacePresenter:
             "projectId": cost.project_id,
             "taskId": cost.task_id or "",
             "taskName": cost.task_name or "",
+            "costCode": getattr(cost, "code", "") or "",
             "description": cost.description,
             "plannedAmount": f"{cost.planned_amount:.2f}",
             "plannedAmountLabel": cost.planned_amount_label,

@@ -86,6 +86,7 @@ Item {
     ProjectManagementDialogs.ResourceEditorDialog {
         id: editorDialog
 
+        workspaceController: root.workspaceController
         workerTypeOptions: root.workerTypeOptions
         categoryOptions: root.categoryOptions
         employeeOptions: root.employeeOptions

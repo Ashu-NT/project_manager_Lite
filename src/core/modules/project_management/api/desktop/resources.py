@@ -39,6 +39,7 @@ class ResourceEmployeeOptionDescriptor:
 class ResourceDesktopDto:
     id: str
     name: str
+    code: str
     role: str
     worker_type: str
     worker_type_label: str
@@ -61,6 +62,7 @@ class ResourceDesktopDto:
 @dataclass(frozen=True)
 class ResourceCreateCommand:
     name: str = ""
+    code: str = ""
     role: str = ""
     hourly_rate: float = 0.0
     is_active: bool = True
@@ -77,6 +79,7 @@ class ResourceCreateCommand:
 class ResourceUpdateCommand:
     resource_id: str
     name: str = ""
+    code: str = ""
     role: str = ""
     hourly_rate: float = 0.0
     is_active: bool = True
@@ -281,6 +284,7 @@ class ProjectManagementResourcesDesktopApi:
         service = self._require_resource_service()
         resource = service.create_resource(
             name=command.name,
+            code=getattr(command, "code", ""),
             role=command.role,
             hourly_rate=command.hourly_rate,
             is_active=command.is_active,
@@ -302,6 +306,7 @@ class ProjectManagementResourcesDesktopApi:
         resource = service.update_resource(
             command.resource_id,
             name=command.name,
+            code=getattr(command, "code", ""),
             role=command.role,
             hourly_rate=command.hourly_rate,
             is_active=command.is_active,
@@ -463,6 +468,7 @@ class ProjectManagementResourcesDesktopApi:
         return ResourceDesktopDto(
             id=resource.id,
             name=resource.name,
+            code=getattr(resource, "code", "") or "",
             role=getattr(resource, "role", "") or "",
             worker_type=worker_type.value,
             worker_type_label=_format_enum_label(worker_type.value),

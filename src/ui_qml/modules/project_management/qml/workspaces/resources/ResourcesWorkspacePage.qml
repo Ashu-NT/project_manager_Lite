@@ -63,6 +63,7 @@ AppLayouts.WorkspaceFrame {
     function _baseColumns() {
         return [
             { "key": "title",              "label": "Employee",     "flex": 2,   "sortable": true, "required": true, "visibleByDefault": true },
+            { "key": "resourceCode",       "label": "Code",         "flex": 0,   "minWidth": 120, "sortable": true,  "visibleByDefault": true },
             { "key": "statusLabel",        "label": "Load",         "flex": 0,   "minWidth": 110, "type": "status", "required": true, "visibleByDefault": true },
             { "key": "department",         "label": "Department",   "flex": 1.2, "sortable": true,                   "visibleByDefault": true },
             { "key": "site",               "label": "Site",         "flex": 1,   "sortable": true,                   "visibleByDefault": true },

@@ -167,11 +167,14 @@ class ResourceCommandMixin:
         worker_type: WorkerType | str | None = None,
         employee_id: str | None = None,
         expected_version: int | None = None,
+        code: str | None = None,
     ) -> Resource:
         require_permission(self._user_session, "resource.manage", operation_label="update resource")
         resource = self._resource_repo.get(resource_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+        if code is not None and code.strip():
+            resource.code = self._resolve_resource_code(code, resource.name, exclude_id=resource.id)
         if expected_version is not None and resource.version != expected_version:
             raise ConcurrencyError(
                 "Resource changed since you opened it. Refresh and try again.",

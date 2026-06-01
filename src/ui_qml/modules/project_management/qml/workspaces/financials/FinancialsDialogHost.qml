@@ -54,6 +54,8 @@ Item {
     ProjectManagementDialogs.CostItemEditorDialog {
         id: editorDialog
 
+        workspaceController: root.workspaceController
+        selectedProjectId: root.selectedProjectId
         taskOptions: root.taskOptions
         costTypeOptions: root.costTypeOptions
         busy: root.workspaceController ? root.workspaceController.isBusy : false

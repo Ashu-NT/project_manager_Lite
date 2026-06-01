@@ -86,6 +86,7 @@ AppLayouts.WorkspaceFrame {
     function _baseColumns() {
         return [
             { "key": "title",                 "label": "Description", "flex": 2,   "sortable": true,  "required": true,  "visibleByDefault": true  },
+            { "key": "costCode",              "label": "Code",        "flex": 0,   "minWidth": 120, "sortable": true,  "visibleByDefault": true  },
             { "key": "statusLabel",           "label": "Cost Type",   "flex": 0,   "minWidth": 110, "type": "status",  "visibleByDefault": true  },
             { "key": "commitmentStatusLabel", "label": "Commitment",  "flex": 0,   "minWidth": 120, "type": "status",  "visibleByDefault": true  },
             { "key": "subtitle",              "label": "Task",        "flex": 1.5, "sortable": true,  "visibleByDefault": true  },

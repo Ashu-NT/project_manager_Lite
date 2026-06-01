@@ -440,6 +440,7 @@ def serialize_financials_record_view_models(
         {
             "id": view_model.id,
             "title": view_model.title,
+            "costCode": str(view_model.state.get("costCode", "") or ""),
             "statusLabel": view_model.status_label,
             "subtitle": view_model.subtitle,
             "supportingText": view_model.supporting_text,
@@ -703,6 +704,7 @@ def serialize_resource_record_view_models(
         {
             "id": view_model.id,
             "title": view_model.title,
+            "resourceCode": str(view_model.state.get("resourceCode", "") or ""),
             "statusLabel": view_model.status_label,
             "subtitle": view_model.subtitle,
             "supportingText": view_model.supporting_text,
@@ -837,6 +839,7 @@ def serialize_register_record_view_models(
         {
             "id": view_model.id,
             "title": view_model.title,
+            "entryCode": str(view_model.state.get("entryCode", "") or ""),
             "statusLabel": view_model.status_label,
             "subtitle": view_model.subtitle,
             "supportingText": view_model.supporting_text,

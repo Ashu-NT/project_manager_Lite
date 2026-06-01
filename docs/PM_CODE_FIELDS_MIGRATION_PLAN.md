@@ -151,3 +151,32 @@ Each phase is independently shippable and reversible. Phases A/B can land withou
 ## 10. Effort estimate
 
 ~5 ORM + 5 domain + 5 mapper + ~10 command/service files + 5 presenters + 5 controller slots + 5 dialogs + serializers + 1 migration + tests. Mechanical and pattern-identical to the three modules already done — but spread across the full PM stack, so it's the largest single slice. Suggest landing **Phase A+B first** (schema + auto-generate, no UI), verify, then **Phase C** (UI).
+
+---
+
+## 11. Implementation status (2026-06-01) — COMPLETE end-to-end
+
+All five PM entities are fully wired (Phase A schema + B auto-generate + C UI):
+
+| Entity | Scope | Prefix | Column / index | Status |
+|---|---|---|---|---|
+| Project | global | PRJ | `projects.project_code` / `ux_projects_code` | DONE |
+| Task | per-project | TSK | `tasks.task_code` / `ux_tasks_project_code` | DONE |
+| Resource | global | RES | `resources.resource_code` / `ux_resources_code` | DONE |
+| Cost | per-project | CST | `cost_items.cost_code` / `ux_costs_project_code` | DONE |
+| Register | per-project | REG | `register_entries.entry_code` / `ux_register_entries_project_code` | DONE |
+
+**Decisions applied:** scopes per §2; auto-generate (nullable+unique, no NOT NULL); single REG prefix; name-token backfill; visible "Code" column added to all five PM list tables.
+
+**Phase C recipe per entity (Resource/Cost/Register, mirroring Project/Task):**
+- DTO + Create/Update commands gained `code`; desktop api threads `code=getattr(command,"code","")`; `_serialize_*` emits `code`.
+- Service `update_*` gained `code=None` with `_resolve_*_code(..., exclude_id=...)` (per-project for Cost/Register, global for Resource).
+- Presenter `suggest_code(payload)` (scoped via the entity list API) + create/update read the `resourceCode`/`costCode`/`entryCode` payload key; `_build_*_state` emits that key.
+- Controller `generateEntityCode(entity_type, payload)` slot guarding on the entity type.
+- Editor dialog: `AppWidgets.CodeFieldRow` (columnSpan parent.columns, required, Generate) + `property string <entity>Code` + `property var workspaceController`; buildPayload/populate thread the code.
+- Dialog host passes `workspaceController` (and `selectedProjectId` for Cost so suggest is per-project).
+- Row serializer surfaces the code; workspace page `_baseColumns()` has a "Code" column.
+
+**Migrations:** `l5m6n7o8p9q0_add_project_code` + `m6n7o8p9q0r1_add_pm_entity_codes` (reversible, nullable→name-token backfill→unique index). Alembic head = `m6n7o8p9q0r1`.
+
+**Tests verified green (targeted runs):** `test_project_management_desktop_api.py` (test fakes `_FakeResourceService`/`_FakeCostService`/`_FakeRegisterService`/`_FakeTaskService` accept `code`), `test_pm_entity_code_generation.py` (6), `test_project_code_generation.py` (5), platform `test_code_generation.py` (38), plus cost/resource/finance/presenter flows. All six edited QML dialogs/hosts compile clean offscreen.

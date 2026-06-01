@@ -1986,12 +1986,14 @@ class _FakeResourceService:
         contact: str = "",
         worker_type: WorkerType = WorkerType.EXTERNAL,
         employee_id: str | None = None,
+        code: str = "",
     ) -> SimpleNamespace:
         employee = self._employee_service.get_employee(employee_id) if employee_id else None
         resource = SimpleNamespace(
             id=f"res-{self._next_id}",
             name=employee.full_name if employee is not None else name,
             role=employee.title if employee is not None else role,
+            code=code or f"RES-{self._next_id:04d}",
             hourly_rate=hourly_rate,
             is_active=is_active,
             cost_type=cost_type,
@@ -2023,8 +2025,11 @@ class _FakeResourceService:
         worker_type: WorkerType | None = None,
         employee_id: str | None = None,
         expected_version: int | None = None,
+        code: str | None = None,
     ) -> SimpleNamespace:
         resource = self._resources[resource_id]
+        if code is not None and code.strip():
+            resource.code = code
         if name is not None:
             resource.name = name
         if role is not None:
@@ -2138,12 +2143,14 @@ class _FakeRegisterService:
         due_date: date | None = None,
         impact_summary: str = "",
         response_plan: str = "",
+        code: str = "",
     ) -> SimpleNamespace:
         entry = SimpleNamespace(
             id=f"reg-{self._next_id}",
             project_id=project_id,
             entry_type=entry_type,
             title=title,
+            code=code or f"REG-{self._next_id:04d}",
             description=description,
             severity=severity,
             status=status,
@@ -2171,8 +2178,11 @@ class _FakeRegisterService:
         due_date: date | None = None,
         impact_summary: str | None = None,
         response_plan: str | None = None,
+        code: str | None = None,
     ) -> SimpleNamespace:
         entry = self._entries[entry_id]
+        if code is not None and code.strip():
+            entry.code = code
         if entry_type is not None:
             entry.entry_type = entry_type
         if title is not None:
@@ -3031,12 +3041,14 @@ class _FakeCostService:
         actual_amount: float = 0.0,
         incurred_date: date | None = None,
         currency_code: str | None = None,
+        code: str = "",
     ) -> SimpleNamespace:
         item = SimpleNamespace(
             id=f"cost-{self._next_id}",
             project_id=project_id,
             task_id=task_id,
             description=description,
+            code=code or f"CST-{self._next_id:04d}",
             planned_amount=planned_amount,
             committed_amount=committed_amount,
             actual_amount=actual_amount,
@@ -3061,8 +3073,11 @@ class _FakeCostService:
         incurred_date: date | None = None,
         currency_code: str | None = None,
         expected_version: int | None = None,
+        code: str | None = None,
     ) -> SimpleNamespace:
         item = self._items[cost_id]
+        if code is not None and code.strip():
+            item.code = code
         if description is not None:
             item.description = description
         if planned_amount is not None:

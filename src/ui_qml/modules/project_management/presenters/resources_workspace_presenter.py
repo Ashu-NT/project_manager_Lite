@@ -129,9 +129,26 @@ class ProjectResourcesWorkspacePresenter:
             page_size=_page_size,
         )
 
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique resource code (global, RES-<NAME>-NNNN)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        existing = {
+            str(getattr(row, "code", "") or "").upper()
+            for row in self._desktop_api.list_resources()
+        }
+        name = self._optional_text(payload, "name")
+        return CodeGenerator().generate(
+            "resource",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def create_resource(self, payload: dict[str, Any]) -> None:
         command = ResourceCreateCommand(
             name=self._optional_text(payload, "name") or "",
+            code=self._optional_text(payload, "resourceCode"),
             role=self._optional_text(payload, "role") or "",
             hourly_rate=self._optional_float(payload, "hourlyRate", "Hourly rate must be a valid number.", default=0.0),
             is_active=self._optional_bool(payload, "isActive", default=True),
@@ -153,6 +170,7 @@ class ProjectResourcesWorkspacePresenter:
                 "Resource ID is required for updates.",
             ),
             name=self._optional_text(payload, "name") or "",
+            code=self._optional_text(payload, "resourceCode"),
             role=self._optional_text(payload, "role") or "",
             hourly_rate=self._optional_float(payload, "hourlyRate", "Hourly rate must be a valid number.", default=0.0),
             is_active=self._optional_bool(payload, "isActive", default=True),
@@ -375,6 +393,7 @@ class ProjectResourcesWorkspacePresenter:
         return {
             "resourceId": resource.id,
             "name": resource.name,
+            "resourceCode": getattr(resource, "code", "") or "",
             "role": resource.role or "",
             "workerType": resource.worker_type,
             "workerTypeLabel": resource.worker_type_label,

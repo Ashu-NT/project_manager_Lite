@@ -26,7 +26,9 @@ class RegisterLifecycleMixin:
     _register_repo: RegisterEntryRepository
     _UNSET = object()
 
-    def _resolve_entry_code(self, code: str, project_id: str, title: str) -> str:
+    def _resolve_entry_code(
+        self, code: str, project_id: str, title: str, *, exclude_id: str | None = None
+    ) -> str:
         """Normalize a manual code or auto-generate a unique one (per-project, REG prefix)."""
         from src.core.platform.common.code_generation import (
             CodeGenerator,
@@ -37,6 +39,7 @@ class RegisterLifecycleMixin:
         existing = {
             str(getattr(entry, "code", "") or "").upper()
             for entry in self._register_repo.list_entries(project_id=project_id)
+            if exclude_id is None or entry.id != exclude_id
         }
         manual = normalize_manual_code(code)
         if manual:
@@ -122,6 +125,7 @@ class RegisterLifecycleMixin:
         due_date: Any = _UNSET,
         impact_summary: str | None = None,
         response_plan: str | None = None,
+        code: str | None = None,
     ) -> RegisterEntry:
         require_permission(self._user_session, "register.manage", operation_label="update register entry")
         entry = self._register_repo.get(entry_id)
@@ -156,6 +160,10 @@ class RegisterLifecycleMixin:
             entry.impact_summary = impact_summary.strip()
         if response_plan is not None:
             entry.response_plan = response_plan.strip()
+        if code is not None and code.strip():
+            entry.code = self._resolve_entry_code(
+                code, entry.project_id, entry.title, exclude_id=entry.id
+            )
         entry.updated_at = datetime.now(timezone.utc)
         try:
             self._register_repo.update(entry)

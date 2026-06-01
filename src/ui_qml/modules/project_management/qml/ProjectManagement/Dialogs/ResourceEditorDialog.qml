@@ -13,6 +13,8 @@ AppWidgets.EntityDialog {
     property var categoryOptions: []
     property var employeeOptions: []
     property var resourceData: ({})
+    property var workspaceController: null
+    property string resourceCode: ""
     readonly property bool employeeWorkerSelected: String(root.currentWorkerTypeValue() || "") === "EMPLOYEE"
 
     signal submitted(var payload)
@@ -67,6 +69,7 @@ AppWidgets.EntityDialog {
         workerTypeCombo.currentIndex = root.indexForValue(root.workerTypeOptions, state.workerType || "EXTERNAL")
         employeeCombo.currentIndex = root.indexForValue(root.employeeOptions, state.employeeId || "")
         categoryCombo.currentIndex = root.indexForValue(root.categoryOptions, state.costType || "LABOR")
+        root.resourceCode = String(state.resourceCode || "")
         nameField.text = String(state.name || "")
         roleField.text = String(state.role || "")
         hourlyRateField.text = String(state.hourlyRate || "0.00")
@@ -82,6 +85,7 @@ AppWidgets.EntityDialog {
     function buildPayload() {
         return {
             "name": nameField.text,
+            "resourceCode": root.resourceCode,
             "role": roleField.text,
             "hourlyRate": hourlyRateField.text,
             "capacityPercent": capacityField.text,
@@ -115,6 +119,26 @@ AppWidgets.EntityDialog {
         columns: root.width > 560 ? 2 : 1
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
+
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: parent.columns
+            Layout.fillWidth: true
+            label: "Resource code"
+            value: root.resourceCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            onValueEdited: function(code) { root.resourceCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("resource", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.resourceCode = suggested
+                    }
+                }
+            }
+        }
 
         AppControls.Label { text: "Worker type"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
         AppControls.ComboBox { id: workerTypeCombo; Layout.fillWidth: true; model: root.workerTypeOptions; textRole: "label"; onCurrentIndexChanged: root.applyEmployeeDefaults() }

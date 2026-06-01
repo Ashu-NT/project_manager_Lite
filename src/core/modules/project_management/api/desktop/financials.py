@@ -39,6 +39,7 @@ class FinancialCostItemDto:
     project_id: str
     task_id: str | None
     task_name: str
+    code: str
     description: str
     planned_amount: float
     planned_amount_label: str
@@ -111,6 +112,7 @@ class FinancialCreateCommand:
     actual_amount: float = 0.0
     incurred_date: date | None = None
     currency_code: str | None = None
+    code: str = ""
 
 
 @dataclass(frozen=True)
@@ -125,6 +127,7 @@ class FinancialUpdateCommand:
     incurred_date: date | None = None
     currency_code: str | None = None
     expected_version: int | None = None
+    code: str = ""
 
 
 @dataclass(frozen=True)
@@ -313,6 +316,7 @@ class ProjectManagementFinancialsDesktopApi:
             actual_amount=command.actual_amount,
             incurred_date=command.incurred_date,
             currency_code=command.currency_code,
+            code=getattr(command, "code", ""),
         )
         return self._serialize_cost_item(
             item,
@@ -331,6 +335,7 @@ class ProjectManagementFinancialsDesktopApi:
             incurred_date=command.incurred_date,
             currency_code=command.currency_code,
             expected_version=command.expected_version,
+            code=getattr(command, "code", ""),
         )
         return self._serialize_cost_item(
             item,
@@ -557,6 +562,7 @@ class ProjectManagementFinancialsDesktopApi:
             project_id=item.project_id,
             task_id=task_id,
             task_name=task_lookup.get(task_id or "", "Not linked to a task"),
+            code=str(getattr(item, "code", "") or ""),
             description=(item.description or "").strip(),
             planned_amount=planned,
             planned_amount_label=_format_money(planned, resolved_currency),

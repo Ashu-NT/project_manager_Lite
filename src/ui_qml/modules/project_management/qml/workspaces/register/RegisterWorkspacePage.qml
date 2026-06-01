@@ -97,6 +97,7 @@ AppLayouts.WorkspaceFrame {
     function _baseColumns() {
         return [
             { "key": "title",        "label": "Title",    "flex": 2,   "sortable": true,  "visibleByDefault": true,  "required": true  },
+            { "key": "entryCode",    "label": "Code",     "flex": 0,   "minWidth": 120, "sortable": true,  "visibleByDefault": true   },
             { "key": "typeLabel",    "label": "Type",     "flex": 0,   "minWidth": 90,  "type": "status", "visibleByDefault": true   },
             { "key": "projectName",  "label": "Project",  "flex": 1.5, "sortable": true,  "visibleByDefault": true   },
             { "key": "ownerName",    "label": "Owner",    "flex": 1,                       "visibleByDefault": true   },

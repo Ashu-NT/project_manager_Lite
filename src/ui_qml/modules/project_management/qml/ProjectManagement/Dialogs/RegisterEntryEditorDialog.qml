@@ -16,6 +16,8 @@ AppWidgets.EntityDialog {
     property var entryData: ({})
     property bool typeFieldVisible: true
     property string fixedTypeValue: "RISK"
+    property var workspaceController: null
+    property string entryCode: ""
     readonly property var editableProjectOptions: (root.projectOptions || []).filter(function(option) {
         return String(option.value || "").toLowerCase() !== "all"
     })
@@ -57,6 +59,7 @@ AppWidgets.EntityDialog {
         typeCombo.currentIndex = root.indexForValue(root.editableTypeOptions, state.type || root.fixedTypeValue)
         statusCombo.currentIndex = root.indexForValue(root.editableStatusOptions, state.status || "OPEN")
         severityCombo.currentIndex = root.indexForValue(root.editableSeverityOptions, state.severity || "MEDIUM")
+        root.entryCode = String(state.entryCode || "")
         titleField.text = String(state.title || "")
         ownerField.text = String(state.ownerName || "")
         dueDateField.text = String(state.dueDate || "")
@@ -73,6 +76,7 @@ AppWidgets.EntityDialog {
         var projectOption = root.editableProjectOptions[projectCombo.currentIndex] || { "value": "" }
         return {
             "projectId": String(projectOption.value || ""),
+            "entryCode": root.entryCode,
             "entryType": root.typeFieldVisible ? String(typeOption.value || root.fixedTypeValue) : root.fixedTypeValue,
             "title": titleField.text,
             "status": String(statusOption.value || "OPEN"),
@@ -109,6 +113,26 @@ AppWidgets.EntityDialog {
         columns: root.width > 600 ? 2 : 1
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
+
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: parent.columns
+            Layout.fillWidth: true
+            label: "Register code"
+            value: root.entryCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            onValueEdited: function(code) { root.entryCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("register", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.entryCode = suggested
+                    }
+                }
+            }
+        }
 
         AppControls.Label { text: "Project"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
         AppControls.ComboBox {

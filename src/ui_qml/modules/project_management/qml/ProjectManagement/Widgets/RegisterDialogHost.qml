@@ -57,6 +57,7 @@ Item {
     ProjectManagementDialogs.RegisterEntryEditorDialog {
         id: editorDialog
 
+        workspaceController: root.workspaceController
         projectOptions: root.projectOptions
         typeOptions: root.typeOptions
         statusOptions: root.statusOptions

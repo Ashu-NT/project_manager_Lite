@@ -375,6 +375,16 @@ class ProjectManagementRegisterWorkspaceController(
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot(str, "QVariantMap", result=str)
+    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
+        if (entity_type or "").strip().lower() != "register":
+            return ""
+        try:
+            return self._register_workspace_presenter.suggest_code(dict(payload))
+        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
+            self._set_error_message(str(exc))
+            return ""
+
     @Slot("QVariantMap", result="QVariantMap")
     def createEntry(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(

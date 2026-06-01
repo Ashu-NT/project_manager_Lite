@@ -12,6 +12,13 @@ AppWidgets.EntityDialog {
     property var taskOptions: []
     property var costTypeOptions: []
     property var costData: ({})
+    property var workspaceController: null
+    property string selectedProjectId: ""
+    property string costCode: ""
+    readonly property string resolvedProjectId: {
+        var state = root.costData && root.costData.state ? root.costData.state : (root.costData || {})
+        return String(state.projectId || root.selectedProjectId || "")
+    }
     readonly property bool editingExistingCost: {
         var state = root.costData && root.costData.state ? root.costData.state : (root.costData || {})
         return String(state.costId || "").length > 0
@@ -44,6 +51,7 @@ AppWidgets.EntityDialog {
 
     function populateFromCost() {
         var state = root.costData && root.costData.state ? root.costData.state : (root.costData || {})
+        root.costCode = String(state.costCode || "")
         descriptionField.text = String(state.description || "")
         plannedAmountField.text = String(state.plannedAmount || "0.00")
         committedAmountField.text = String(state.committedAmount || "0.00")
@@ -57,6 +65,8 @@ AppWidgets.EntityDialog {
 
     function buildPayload() {
         return {
+            "projectId": root.resolvedProjectId,
+            "costCode": root.costCode,
             "description": descriptionField.text,
             "plannedAmount": plannedAmountField.text,
             "committedAmount": committedAmountField.text,
@@ -88,6 +98,26 @@ AppWidgets.EntityDialog {
         columns: root.width > 560 ? 2 : 1
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
+
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: parent.columns
+            Layout.fillWidth: true
+            label: "Cost code"
+            value: root.costCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            onValueEdited: function(code) { root.costCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("cost", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.costCode = suggested
+                    }
+                }
+            }
+        }
 
         AppControls.Label {
             text: "Description"

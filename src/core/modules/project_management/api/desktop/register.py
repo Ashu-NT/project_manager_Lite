@@ -44,6 +44,7 @@ class RegisterEntryDesktopDto:
     id: str
     project_id: str
     project_name: str
+    code: str
     entry_type: str
     entry_type_label: str
     title: str
@@ -73,6 +74,7 @@ class RegisterEntryCreateCommand:
     due_date: date | None = None
     impact_summary: str = ""
     response_plan: str = ""
+    code: str = ""
 
 
 @dataclass(frozen=True)
@@ -89,6 +91,7 @@ class RegisterEntryUpdateCommand:
     impact_summary: str = ""
     response_plan: str = ""
     expected_version: int | None = None
+    code: str = ""
 
 
 class ProjectManagementRegisterDesktopApi:
@@ -204,6 +207,7 @@ class ProjectManagementRegisterDesktopApi:
             due_date=command.due_date,
             impact_summary=command.impact_summary,
             response_plan=command.response_plan,
+            code=getattr(command, "code", ""),
         )
         project_name_by_id = {
             option.value: option.label
@@ -228,6 +232,7 @@ class ProjectManagementRegisterDesktopApi:
             due_date=command.due_date,
             impact_summary=command.impact_summary,
             response_plan=command.response_plan,
+            code=getattr(command, "code", ""),
         )
         project_name_by_id = {
             option.value: option.label
@@ -256,6 +261,7 @@ class ProjectManagementRegisterDesktopApi:
             id=entry.id,
             project_id=entry.project_id,
             project_name=project_name_by_id.get(entry.project_id, entry.project_id),
+            code=str(getattr(entry, "code", "") or ""),
             entry_type=entry_type.value,
             entry_type_label=_format_enum_label(entry_type.value),
             title=entry.title,
