@@ -13,6 +13,10 @@ ColumnLayout {
 
     property PlatformControllers.PlatformAdminAccessWorkspaceController controller: null
 
+    // Emitted when a grant row is activated (double-click / Enter) so a host can open a
+    // full SectionDetailPage detail; single-click still drives the inline inspector.
+    signal grantActivated(string grantId)
+
     property string _selectedGrantId:   ""
     property string _selectedSessionId: ""
 
@@ -320,7 +324,7 @@ ColumnLayout {
             emptyText:     root.controller ? (root.controller.scopeGrants.emptyState || "No access grants") : "No access grants"
             selectedRowId: root._selectedGrantId
             onRowSelected:  function(rowId) { root._selectedGrantId = rowId }
-            onRowActivated: function(rowId) { root._selectedGrantId = rowId }
+            onRowActivated: function(rowId) { root._selectedGrantId = rowId; root.grantActivated(rowId) }
         }
 
         // Grant inspector

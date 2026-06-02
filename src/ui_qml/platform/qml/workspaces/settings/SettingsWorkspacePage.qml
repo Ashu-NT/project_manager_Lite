@@ -597,37 +597,13 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            // Contextual module actions — visible when a module is selected
-                            AppWidgets.ContextualActionToolbar {
-                                Layout.fillWidth: true
-                                visible:  root._activeSection === "modules"
-                                    && root._selectedRowId.length > 0
-                                title:    root._selectedItem ? (root._selectedItem.title || "") : ""
-                                subtitle: root._selectedItem ? (root._selectedItem.statusLabel || "") : ""
-                                busy:     root._busy
-                                actions:  root._moduleContextActions
-                                onActionTriggered: function(id) {
-                                    if (id === "lifecycle") {
-                                        if (root._selectedItem && root.workspaceController)
-                                            lifecycleDialog.openForItem(
-                                                root._selectedItem,
-                                                root.workspaceController.lifecycleOptions || []
-                                            )
-                                    } else if (id === "licensed") {
-                                        if (root.workspaceController)
-                                            root.workspaceController.toggleModuleLicensed(root._selectedRowId)
-                                    } else if (id === "enabled") {
-                                        if (root.workspaceController)
-                                            root.workspaceController.toggleModuleEnabled(root._selectedRowId)
-                                    }
-                                }
-                            }
+                            // Module actions live in the detail inspector (ContextualActionToolbar
+                            // in _detailPanel) — no duplicate inline toolbar above the list.
 
                             AppWidgets.DataTable {
                                 Layout.fillWidth:  true
                                 Layout.fillHeight: true
                                 sourceModel:   root.workspaceController ? root.workspaceController.moduleEntitlementsTableModel : null
-                                    ? (root.workspaceController.moduleEntitlements.items || []) : []
                                 columns:       root._moduleColumns
                                 selectedRowId: root._selectedRowId
                                 emptyText:     root.workspaceController
@@ -889,7 +865,6 @@ AppLayouts.WorkspaceFrame {
                                 Layout.fillWidth:  true
                                 Layout.fillHeight: true
                                 sourceModel:   root.workspaceController ? root.workspaceController.integrationCapabilitiesTableModel : null
-                                    ? (root.workspaceController.integrationCapabilities.items || []) : []
                                 columns:   root._capColumns
                                 emptyText: root.workspaceController
                                     ? (root.workspaceController.integrationCapabilities.emptyState || "No capabilities registered")
