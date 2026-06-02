@@ -1,1 +1,2 @@
-module ProjectManagement.RegisterComponents
+﻿module ProjectManagement.RegisterComponents
+RegisterListPage 1.0 RegisterListPage.qml
