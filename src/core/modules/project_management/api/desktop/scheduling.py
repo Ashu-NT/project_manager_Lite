@@ -2,13 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-
+from types import SimpleNamespace
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
-    WorkCalendarEngine,
-    WorkCalendarService,
 )
 from src.core.modules.project_management.application.scheduling.constraint_validator import (
     ConstraintValidator,
@@ -21,7 +19,8 @@ from src.core.modules.project_management.application.scheduling.schedule_change_
 )
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.modules.project_management.domain.scheduling.calendar import Holiday, WorkingCalendar
+from src.core.platform.calendar import WorkCalendarEngine, WorkCalendarService
+from src.core.platform.calendar.domain import Holiday, WorkingCalendar
 
 
 _DAY_LABELS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -292,6 +291,7 @@ class ProjectManagementSchedulingDesktopApi:
         project_service: ProjectService | None = None,
         task_service: TaskService | None = None,
         scheduling_engine: SchedulingEngine | None = None,
+        platform_calendar_api: object | None = None,
         work_calendar_service: WorkCalendarService | None = None,
         work_calendar_engine: WorkCalendarEngine | None = None,
         baseline_service: BaselineService | None = None,
@@ -301,6 +301,7 @@ class ProjectManagementSchedulingDesktopApi:
         self._project_service = project_service
         self._task_service = task_service
         self._scheduling_engine = scheduling_engine
+        self._platform_calendar_api = platform_calendar_api
         self._work_calendar_service = work_calendar_service
         self._work_calendar_engine = work_calendar_engine
         self._baseline_service = baseline_service
@@ -320,6 +321,18 @@ class ProjectManagementSchedulingDesktopApi:
         )
 
     def list_calendars(self) -> tuple[SchedulingCalendarOptionDescriptor, ...]:
+        if self._platform_calendar_api is not None:
+            options = self._unwrap_platform_calendar_result(
+                self._platform_calendar_api.list_calendars()
+            ) or ()
+            return tuple(
+                SchedulingCalendarOptionDescriptor(
+                    value=option.value,
+                    label=option.label,
+                    summary_label=option.summary_label,
+                )
+                for option in options
+            )
         calendar = self._get_calendar()
         working_days = set(calendar.working_days or {0, 1, 2, 3, 4})
         active_labels = [
@@ -339,6 +352,29 @@ class ProjectManagementSchedulingDesktopApi:
         )
 
     def get_calendar_snapshot(self) -> SchedulingCalendarSnapshotDto:
+        if self._platform_calendar_api is not None:
+            snapshot = self._unwrap_platform_calendar_result(
+                self._platform_calendar_api.get_calendar_snapshot()
+            )
+            return SchedulingCalendarSnapshotDto(
+                working_days=tuple(
+                    SchedulingDayDescriptor(
+                        index=day.index,
+                        label=day.label,
+                        checked=day.checked,
+                    )
+                    for day in snapshot.working_days
+                ),
+                hours_per_day=float(snapshot.hours_per_day or 8.0),
+                holidays=tuple(
+                    SchedulingHolidayDto(
+                        id=holiday.id,
+                        date=holiday.date,
+                        name=holiday.name or "",
+                    )
+                    for holiday in snapshot.holidays
+                ),
+            )
         calendar = self._get_calendar()
         holidays = self._list_holidays()
         working_days = set(calendar.working_days or {0, 1, 2, 3, 4})
@@ -366,6 +402,34 @@ class ProjectManagementSchedulingDesktopApi:
         self,
         command: SchedulingCalendarUpdateCommand,
     ) -> SchedulingCalendarSnapshotDto:
+        if self._platform_calendar_api is not None:
+            snapshot = self._unwrap_platform_calendar_result(
+                self._platform_calendar_api.update_calendar(
+                    SimpleNamespace(
+                        working_days=command.working_days,
+                        hours_per_day=command.hours_per_day,
+                    )
+                )
+            )
+            return SchedulingCalendarSnapshotDto(
+                working_days=tuple(
+                    SchedulingDayDescriptor(
+                        index=day.index,
+                        label=day.label,
+                        checked=day.checked,
+                    )
+                    for day in snapshot.working_days
+                ),
+                hours_per_day=float(snapshot.hours_per_day or 8.0),
+                holidays=tuple(
+                    SchedulingHolidayDto(
+                        id=holiday.id,
+                        date=holiday.date,
+                        name=holiday.name or "",
+                    )
+                    for holiday in snapshot.holidays
+                ),
+            )
         service = self._require_work_calendar_service()
         service.set_working_days(
             set(command.working_days),
@@ -377,6 +441,20 @@ class ProjectManagementSchedulingDesktopApi:
         self,
         command: SchedulingHolidayCreateCommand,
     ) -> SchedulingHolidayDto:
+        if self._platform_calendar_api is not None:
+            holiday = self._unwrap_platform_calendar_result(
+                self._platform_calendar_api.add_holiday(
+                    SimpleNamespace(
+                        holiday_date=command.holiday_date,
+                        name=command.name,
+                    )
+                )
+            )
+            return SchedulingHolidayDto(
+                id=holiday.id,
+                date=holiday.date,
+                name=holiday.name or "",
+            )
         holiday = self._require_work_calendar_service().add_holiday(
             command.holiday_date,
             command.name,
@@ -388,12 +466,32 @@ class ProjectManagementSchedulingDesktopApi:
         )
 
     def delete_holiday(self, holiday_id: str) -> None:
+        if self._platform_calendar_api is not None:
+            self._unwrap_platform_calendar_result(
+                self._platform_calendar_api.delete_holiday(holiday_id)
+            )
+            return
         self._require_work_calendar_service().delete_holiday(holiday_id)
 
     def calculate_working_days(
         self,
         command: SchedulingWorkingDayCalculationCommand,
     ) -> SchedulingWorkingDayCalculationDto:
+        if self._platform_calendar_api is not None:
+            result = self._unwrap_platform_calendar_result(
+                self._platform_calendar_api.calculate_working_day(
+                    SimpleNamespace(
+                        start_date=command.start_date,
+                        working_days=command.working_days,
+                    )
+                )
+            )
+            return SchedulingWorkingDayCalculationDto(
+                start_date=result.start_date,
+                working_days=result.working_days,
+                result_date=result.result_date,
+                skipped_non_working_days=result.skipped_non_working_days,
+            )
         engine = self._require_work_calendar_engine()
         result_date = engine.add_working_days(command.start_date, command.working_days)
         skipped_non_working = 0
@@ -928,6 +1026,21 @@ class ProjectManagementSchedulingDesktopApi:
             raise RuntimeError("Project management scheduling desktop API is not connected.")
         return self._work_calendar_engine
 
+    @staticmethod
+    def _unwrap_platform_calendar_result(result):
+        if bool(getattr(result, "ok", False)):
+            return getattr(result, "data", None)
+        error = getattr(result, "error", None)
+        category = str(getattr(error, "category", "") or "").strip().lower()
+        message = str(getattr(error, "message", "") or "Platform calendar operation failed.")
+        if category == "validation":
+            raise ValueError(message)
+        if category == "permission":
+            raise PermissionError(message)
+        if message:
+            raise RuntimeError(message)
+        raise RuntimeError("Platform calendar operation failed.")
+
     def _require_scheduling_engine(self) -> SchedulingEngine:
         if self._scheduling_engine is None:
             raise RuntimeError("Project management scheduling desktop API is not connected.")
@@ -1050,6 +1163,7 @@ def build_project_management_scheduling_desktop_api(
     project_service: ProjectService | None = None,
     task_service: TaskService | None = None,
     scheduling_engine: SchedulingEngine | None = None,
+    platform_calendar_api: object | None = None,
     work_calendar_service: WorkCalendarService | None = None,
     work_calendar_engine: WorkCalendarEngine | None = None,
     baseline_service: BaselineService | None = None,
@@ -1060,6 +1174,7 @@ def build_project_management_scheduling_desktop_api(
         project_service=project_service,
         task_service=task_service,
         scheduling_engine=scheduling_engine,
+        platform_calendar_api=platform_calendar_api,
         work_calendar_service=work_calendar_service,
         work_calendar_engine=work_calendar_engine,
         baseline_service=baseline_service,

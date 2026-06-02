@@ -3,6 +3,14 @@ from src.api.desktop.platform.models import (
     ApprovalRequestDto,
     ApprovalStatus,
     AuditLogEntryDto,
+    WorkingCalendarDayDto,
+    WorkingCalendarHolidayCreateCommand,
+    WorkingCalendarHolidayDto,
+    WorkingCalendarOptionDto,
+    WorkingCalendarSnapshotDto,
+    WorkingCalendarUpdateCommand,
+    WorkingDayCalculationCommand,
+    WorkingDayCalculationDto,
     DepartmentCreateCommand,
     DepartmentDto,
     DepartmentLocationReferenceDto,
@@ -52,6 +60,7 @@ from src.api.desktop.platform.models import (
     UserPasswordResetCommand,
     UserUpdateCommand,
 )
+from src.api.desktop.platform.calendar import PlatformCalendarDesktopApi
 from src.api.desktop.platform.access import PlatformAccessDesktopApi
 from src.api.desktop.platform.approval import PlatformApprovalDesktopApi
 from src.api.desktop.platform.audit import PlatformAuditDesktopApi
@@ -69,6 +78,14 @@ __all__ = [
     "ApprovalRequestDto",
     "ApprovalStatus",
     "AuditLogEntryDto",
+    "WorkingCalendarDayDto",
+    "WorkingCalendarHolidayCreateCommand",
+    "WorkingCalendarHolidayDto",
+    "WorkingCalendarOptionDto",
+    "WorkingCalendarSnapshotDto",
+    "WorkingCalendarUpdateCommand",
+    "WorkingDayCalculationCommand",
+    "WorkingDayCalculationDto",
     "DepartmentCreateCommand",
     "DepartmentDto",
     "DepartmentLocationReferenceDto",
@@ -101,6 +118,7 @@ __all__ = [
     "PlatformAccessDesktopApi",
     "PlatformApprovalDesktopApi",
     "PlatformAuditDesktopApi",
+    "PlatformCalendarDesktopApi",
     "PlatformDocumentDesktopApi",
     "PlatformPartyDesktopApi",
     "PlatformRuntimeContextDto",

@@ -9,6 +9,7 @@ from src.api.desktop.platform import (
     PlatformAccessDesktopApi,
     PlatformApprovalDesktopApi,
     PlatformAuditDesktopApi,
+    PlatformCalendarDesktopApi,
     PlatformSupportDesktopApi,
 )
 from src.api.desktop.platform import (
@@ -132,8 +133,6 @@ from src.core.modules.project_management.application.resources import (
 )
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
-    WorkCalendarEngine,
-    WorkCalendarService,
 )
 from src.core.modules.project_management.application.tasks import (
     CollaborationService,
@@ -143,6 +142,7 @@ from src.core.modules.project_management.application.resources.assignment_valida
     AssignmentSkillValidator,
 )
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
+from src.core.platform.calendar import WorkCalendarEngine, WorkCalendarService
 from src.core.platform.access import AccessControlService
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.approval import ApprovalService
@@ -157,6 +157,7 @@ from src.core.platform.party import PartyService
 class DesktopApiRegistry:
     integration_capability: IntegrationCapabilityDesktopApi
     platform_runtime: PlatformRuntimeDesktopApi
+    platform_calendar: PlatformCalendarDesktopApi
     platform_site: PlatformSiteDesktopApi
     platform_department: PlatformDepartmentDesktopApi
     platform_employee: PlatformEmployeeDesktopApi
@@ -474,6 +475,12 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         else None
     )
     platform_site_api = PlatformSiteDesktopApi(site_service=site_service)
+    if pm_work_calendar_service is None or pm_work_calendar_engine is None:
+        raise RuntimeError("Platform calendar services are not configured.")
+    platform_calendar_api = PlatformCalendarDesktopApi(
+        work_calendar_service=pm_work_calendar_service,
+        work_calendar_engine=pm_work_calendar_engine,
+    )
     access_scope_type_choices: list[tuple[str, str]] = []
     access_scope_option_loaders: dict[str, object] = {}
     access_scope_disabled_hints: dict[str, str] = {}
@@ -532,6 +539,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         platform_runtime=PlatformRuntimeDesktopApi(
             platform_runtime_application_service=platform_runtime_application_service,
         ),
+        platform_calendar=platform_calendar_api,
         platform_site=platform_site_api,
         platform_department=PlatformDepartmentDesktopApi(
             department_service=department_service,
@@ -618,6 +626,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             project_service=pm_project_service,
             task_service=pm_task_service,
             scheduling_engine=pm_scheduling_engine,
+            platform_calendar_api=platform_calendar_api,
             work_calendar_service=pm_work_calendar_service,
             work_calendar_engine=pm_work_calendar_engine,
             baseline_service=pm_baseline_service,

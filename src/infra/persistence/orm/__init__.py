@@ -4,6 +4,7 @@ from src.infra.persistence.orm.base import Base
 import src.infra.persistence.orm.maintenance.models  # noqa: F401
 import src.infra.persistence.orm.maintenance.preventive_runtime_models  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.org  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.calendar  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.documents  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.party  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.modules  # noqa: F401

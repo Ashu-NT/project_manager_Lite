@@ -18,6 +18,8 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.repositories.cost_calendar import (
     SqlAlchemyCalendarEventRepository,
     SqlAlchemyCostRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.calendar import (
     SqlAlchemyWorkingCalendarRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.project import (

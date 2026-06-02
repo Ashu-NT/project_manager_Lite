@@ -3,8 +3,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from src.core.modules.project_management.domain.scheduling.calendar import CalendarEvent, Holiday, WorkingCalendar
+from src.core.modules.project_management.domain.scheduling.calendar import CalendarEvent
 from src.core.modules.project_management.domain.financials.cost import CostItem
+from src.core.platform.calendar import Holiday, WorkingCalendar, WorkingCalendarRepository
 
 
 class CostRepository(ABC):
@@ -51,23 +52,3 @@ class CalendarEventRepository(ABC):
 
     @abstractmethod
     def delete_for_project(self, project_id: str) -> None: ...
-
-
-class WorkingCalendarRepository(ABC):
-    @abstractmethod
-    def get(self, calendar_id: str) -> Optional[WorkingCalendar]: ...
-
-    @abstractmethod
-    def get_default(self) -> Optional[WorkingCalendar]: ...
-
-    @abstractmethod
-    def upsert(self, calendar: WorkingCalendar) -> None: ...
-
-    @abstractmethod
-    def list_holidays(self, calendar_id: str) -> List[Holiday]: ...
-
-    @abstractmethod
-    def add_holiday(self, holiday: Holiday) -> None: ...
-
-    @abstractmethod
-    def delete_holiday(self, holiday_id: str) -> None: ...

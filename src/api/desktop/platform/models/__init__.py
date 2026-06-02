@@ -10,6 +10,16 @@ from src.api.desktop.platform.models.approval import (
     ApprovalRequestDto,
 )
 from src.api.desktop.platform.models.audit import AuditLogEntryDto
+from src.api.desktop.platform.models.calendar import (
+    WorkingCalendarDayDto,
+    WorkingCalendarHolidayCreateCommand,
+    WorkingCalendarHolidayDto,
+    WorkingCalendarOptionDto,
+    WorkingCalendarSnapshotDto,
+    WorkingCalendarUpdateCommand,
+    WorkingDayCalculationCommand,
+    WorkingDayCalculationDto,
+)
 from src.api.desktop.platform.models.common import DesktopApiError, DesktopApiResult
 from src.api.desktop.platform.models.document import (
     DocumentCreateCommand,
@@ -69,6 +79,14 @@ __all__ = [
     "ApprovalRequestDto",
     "ApprovalStatus",
     "AuditLogEntryDto",
+    "WorkingCalendarDayDto",
+    "WorkingCalendarHolidayCreateCommand",
+    "WorkingCalendarHolidayDto",
+    "WorkingCalendarOptionDto",
+    "WorkingCalendarSnapshotDto",
+    "WorkingCalendarUpdateCommand",
+    "WorkingDayCalculationCommand",
+    "WorkingDayCalculationDto",
     "DepartmentCreateCommand",
     "DepartmentDto",
     "DepartmentLocationReferenceDto",
