@@ -14,6 +14,7 @@ import Platform.Widgets 1.0 as PlatformWidgets
 import Shell.Context 1.0 as ShellContexts
 import "components" as Components
 import "sections" as Sections
+import "detail" as Detail
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -219,7 +220,7 @@ AppLayouts.WorkspaceFrame {
         visible: root._detailOpen && status === Loader.Ready
         asynchronous: true
         sourceComponent: Component {
-            SettingsModuleDetailPage {
+            Detail.SettingsModuleDetailPage {
                 module: root._selectedItem || ({})
                 lifecycleOptions: root.workspaceController ? (root.workspaceController.lifecycleOptions || []) : []
                 busy: root._busy

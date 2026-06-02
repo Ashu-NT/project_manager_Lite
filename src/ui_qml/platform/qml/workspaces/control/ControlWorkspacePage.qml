@@ -8,6 +8,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Dialogs 1.0 as PlatformDialogs
+import "detail" as Detail
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -480,7 +481,7 @@ AppLayouts.WorkspaceFrame {
                     visible:      root._detailOpen && status === Loader.Ready
                     asynchronous: true
                     sourceComponent: Component {
-                        ControlApprovalDetailPage {
+                        Detail.ControlApprovalDetailPage {
                             approval:        root._queueItem || ({})
                             busy:            root._busy
                             errorMessage:    root._err

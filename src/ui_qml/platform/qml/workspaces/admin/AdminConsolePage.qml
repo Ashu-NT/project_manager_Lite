@@ -1,4 +1,4 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -9,6 +9,11 @@ import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Widgets 1.0 as PlatformWidgets
+import "components" as Components
+import "detail" as Detail
+import "panels" as Panels
+import "sections" as Sections
+import "dialogs" as Dialogs
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -351,7 +356,7 @@ AppLayouts.WorkspaceFrame {
         spacing: 0
 
         // ── Left navigation sidebar ───────────────────────────────
-            AdminNavSidebar {
+            Components.AdminNavSidebar {
                 id: _sidebar
                 Layout.fillHeight:     true
                 Layout.preferredWidth: implicitWidth
@@ -369,7 +374,7 @@ AppLayouts.WorkspaceFrame {
             Layout.fillHeight: true
 
             // ── Organizations ─────────────────────────────────────
-            AdminEntityWorkspace {
+            Components.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         root._activeSection === "organizations" && !root._detailOpen
                 sectionTitle:    "Organizations"
@@ -397,7 +402,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    AdminOrganizationDetailPage {
+                    Detail.AdminOrganizationDetailPage {
                         organization: root._detailItem || ({})
                         busy: root._busy
                         errorMessage: root._err
@@ -423,7 +428,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // ── Sites ─────────────────────────────────────────────
-            AdminEntityWorkspace {
+            Components.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         root._activeSection === "calendars" && !root._detailOpen
                 sectionTitle:    "Calendars"
@@ -450,7 +455,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    AdminCalendarDetailPage {
+                    Detail.AdminCalendarDetailPage {
                         workspaceController: root.workspaceController
                         calendar: root._detailItem || ({})
                         busy: root._busy
@@ -464,7 +469,7 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
-            AdminEntityWorkspace {
+            Components.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         root._activeSection === "sites" && !root._detailOpen
                 sectionTitle:    "Sites"
@@ -485,7 +490,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // ── Departments ───────────────────────────────────────
-            AdminEntityWorkspace {
+            Components.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         root._activeSection === "departments" && !root._detailOpen
                 sectionTitle:    "Departments"
@@ -506,7 +511,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // ── Employees ─────────────────────────────────────────
-            AdminEntityWorkspace {
+            Components.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         root._activeSection === "employees" && !root._detailOpen
                 sectionTitle:    "Employees"
@@ -527,7 +532,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // ── Users ─────────────────────────────────────────────
-            AdminEntityWorkspace {
+            Components.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         root._activeSection === "users" && !root._detailOpen
                 sectionTitle:    "Users"
@@ -548,7 +553,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // ── Parties ───────────────────────────────────────────
-            AdminEntityWorkspace {
+            Components.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         root._activeSection === "parties" && !root._detailOpen
                 sectionTitle:    "Parties"
@@ -569,7 +574,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // ── Documents ─────────────────────────────────────────
-            AdminEntityWorkspace {
+            Components.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         root._activeSection === "documents" && !root._detailOpen
                 sectionTitle:    "Documents"
@@ -593,7 +598,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // ── Document Structures ───────────────────────────────
-            AdminEntityWorkspace {
+            Components.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         root._activeSection === "structures" && !root._detailOpen
                 sectionTitle:    "Document Structures"
@@ -621,7 +626,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    AdminSiteDetailPage {
+                    Detail.AdminSiteDetailPage {
                         platformCatalog: root.platformCatalog
                         site: root._detailItem || ({})
                         departmentCatalog: root.departmentCatalog
@@ -648,7 +653,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    AdminDepartmentDetailPage {
+                    Detail.AdminDepartmentDetailPage {
                         platformCatalog: root.platformCatalog
                         department: root._detailItem || ({})
                         employeeCatalog: root.employeeCatalog
@@ -675,7 +680,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    AdminEmployeeDetailPage {
+                    Detail.AdminEmployeeDetailPage {
                         employee: root._detailItem || ({})
                         pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
                         busy: root._busy
@@ -697,7 +702,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    AdminUserDetailPage {
+                    Detail.AdminUserDetailPage {
                         user: root._detailItem || ({})
                         moduleEntitlementCatalog: root.moduleEntitlementCatalog
                         moduleEntitlementColumns: root._moduleColumns
@@ -720,7 +725,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    AdminPartyDetailPage {
+                    Detail.AdminPartyDetailPage {
                         party: root._detailItem || ({})
                         inventoryEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("inventory_procurement") : false
                         pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
@@ -743,7 +748,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    AdminDocumentsDetailPage {
+                    Detail.AdminDocumentsDetailPage {
                         document: root._detailItem || ({})
                         selectedDocument: root.selectedDocument
                         documentPreviewState: root.documentPreviewState
@@ -769,7 +774,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    AdminDocumentStructureDetailPage {
+                    Detail.AdminDocumentStructureDetailPage {
                         structure: root._detailItem || ({})
                         busy: root._busy
                         errorMessage: root._err
@@ -803,7 +808,7 @@ AppLayouts.WorkspaceFrame {
                     visible:      active && status === Loader.Ready
                     asynchronous: true
                     sourceComponent: Component {
-                        AdminAccessDetailPage {
+                        Detail.AdminAccessDetailPage {
                             controller:      root.accessController
                             grantId:         root._accessGrantId
                             busy:            root.accessController ? root.accessController.isBusy : false
@@ -816,14 +821,14 @@ AppLayouts.WorkspaceFrame {
             }
 
             // ── Support ───────────────────────────────────────────
-            AdminSupportSection {
+            Sections.AdminSupportSection {
                 anchors.fill:      parent
                 visible:           root._activeSection === "support"
                 supportController: root.supportController
             }
 
             // ── Audit / Overview ──────────────────────────────────
-            AdminAuditSection {
+            Sections.AdminAuditSection {
                 anchors.fill:        parent
                 visible:             root._activeSection === "audit"
                 workspaceController: root.workspaceController
@@ -832,7 +837,7 @@ AppLayouts.WorkspaceFrame {
 
 
         // ── Right detail panel ────────────────────────────────────
-        AdminEntityDetailPanel {
+        Panels.AdminEntityDetailPanel {
             id: _detailPanel
             Layout.fillHeight:     true
             Layout.preferredWidth: 288
@@ -878,7 +883,7 @@ AppLayouts.WorkspaceFrame {
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            AdminDialogHost {
+            Dialogs.AdminDialogHost {
                 workspaceController: root.workspaceController
             }
         }

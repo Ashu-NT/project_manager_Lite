@@ -1,1 +1,3 @@
-module Platform.AdminSections
+﻿module Platform.AdminSections
+AdminAuditSection 1.0 AdminAuditSection.qml
+AdminSupportSection 1.0 AdminSupportSection.qml

@@ -1,14 +1,16 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import "../components"
 
 Item {
     id: root
 
-    property var employee: ({})
+    property var party: ({})
+    property bool inventoryEnabled: false
     property bool pmEnabled: false
     property bool busy: false
     property string errorMessage: ""
@@ -18,20 +20,26 @@ Item {
     signal backRequested()
     signal actionRequested(string actionId)
 
-    readonly property var _state: (root.employee && root.employee.state) ? root.employee.state : ({})
-    readonly property string _title: String(root.employee && root.employee.title ? root.employee.title : "Employee")
-    readonly property string _status: String(root.employee && root.employee.statusLabel ? root.employee.statusLabel : "")
-    readonly property string _subtitle: String(root.employee && root.employee.subtitle ? root.employee.subtitle : "")
+    readonly property var _state: (root.party && root.party.state) ? root.party.state : ({})
+    readonly property string _title: String(root.party && root.party.title ? root.party.title : "Party")
+    readonly property string _status: String(root.party && root.party.statusLabel ? root.party.statusLabel : "")
+    readonly property string _subtitle: String(root.party && root.party.subtitle ? root.party.subtitle : "")
     readonly property bool _isActive: root._state.isActive === true
+    readonly property string _partyType: String(root._state.partyType || "")
     readonly property var _sections: {
         const sections = [
             { "label": "Overview" },
-            { "label": "User Account" },
-            { "label": "Assignments" }
+            { "label": "Contacts" }
         ]
+        if (root.inventoryEnabled) {
+            sections.push({ "label": "Supplier Profile" })
+        }
+        sections.push({ "label": "Customer / Client Profile" })
         if (root.pmEnabled) {
-            sections.push({ "label": "Timesheets" })
-            sections.push({ "label": "Certifications" })
+            sections.push({ "label": "Linked Projects" })
+        }
+        if (root.inventoryEnabled) {
+            sections.push({ "label": "Linked Procurement" })
         }
         sections.push({ "label": "Documents" })
         sections.push({ "label": "Audit" })
@@ -45,16 +53,18 @@ Item {
         switch (root._activeSectionLabel) {
         case "Overview":
             return root._subtitle
-        case "User Account":
-            return "Identity accounts remain governed by the shared Users workspace."
-        case "Assignments":
-            return "Project assignments and staffing usage remain governed by Project Management."
-        case "Timesheets":
-            return "Time-entry workflows remain governed by shared timesheet and PM execution surfaces."
-        case "Certifications":
-            return "Skill and certification posture remains governed by Project Management resource controls."
+        case "Contacts":
+            return "Shared platform contact and address information used across modules by reference."
+        case "Supplier Profile":
+            return "Supplier-facing procurement posture remains governed by Inventory & Procurement."
+        case "Customer / Client Profile":
+            return "Customer and client master-data posture remains platform-owned for downstream commercial workflows."
+        case "Linked Projects":
+            return "Project relationships remain governed by the Project Management module."
+        case "Linked Procurement":
+            return "Procurement transactions and supplier usage remain governed by Inventory & Procurement."
         case "Documents":
-            return "Employee-linked document governance stays in the shared document workspace."
+            return "Party-linked document governance stays in the shared document workspace."
         case "Audit":
             return "Entity-level audit detail stays in the shared audit workspace."
         default:
@@ -69,19 +79,14 @@ Item {
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }
-        if (root._activeSectionLabel === "User Account") {
+        if (root._activeSectionLabel === "Linked Projects") {
             return [
-                { "id": "show_users", "label": "Open Users", "icon": "chevron_right" }
+                { "id": "open_projects", "label": "Open Projects", "icon": "chevron_right" }
             ]
         }
-        if (root._activeSectionLabel === "Assignments" || root._activeSectionLabel === "Certifications") {
+        if (root._activeSectionLabel === "Linked Procurement") {
             return [
-                { "id": "open_resources", "label": "Open Resources", "icon": "chevron_right" }
-            ]
-        }
-        if (root._activeSectionLabel === "Timesheets") {
-            return [
-                { "id": "open_timesheets", "label": "Open Timesheets", "icon": "chevron_right" }
+                { "id": "open_procurement", "label": "Open Procurement", "icon": "chevron_right" }
             ]
         }
         if (root._activeSectionLabel === "Documents") {
@@ -99,16 +104,25 @@ Item {
         ]
     }
     readonly property var _overviewFields: [
-        { "label": "Employee Code", "value": root._state.employeeCode },
-        { "label": "Full Name", "value": root._state.fullName || root.employee.title },
-        { "label": "Job Title", "value": root._state.title },
-        { "label": "Employment Type", "value": root._state.employmentType },
+        { "label": "Party Code", "value": root._state.partyCode },
+        { "label": "Party Name", "value": root._state.partyName || root.party.title },
+        { "label": "Party Type", "value": root._partyType },
+        { "label": "Legal Name", "value": root._state.legalName },
         { "label": "Status", "value": root._status },
         { "label": "Version", "value": root._state.version },
-        { "label": "Department", "value": root._state.departmentName },
-        { "label": "Site", "value": root._state.siteName },
+        { "label": "External Reference", "value": root._state.externalReference },
+        { "label": "Tax Registration", "value": root._state.taxRegistrationNumber }
+    ]
+    readonly property var _contactFields: [
+        { "label": "Contact Name", "value": root._state.contactName },
         { "label": "Email", "value": root._state.email },
-        { "label": "Phone", "value": root._state.phone }
+        { "label": "Phone", "value": root._state.phone },
+        { "label": "Address Line 1", "value": root._state.addressLine1 },
+        { "label": "Address Line 2", "value": root._state.addressLine2 },
+        { "label": "Postal Code", "value": root._state.postalCode },
+        { "label": "City", "value": root._state.city },
+        { "label": "Country", "value": root._state.country },
+        { "label": "Website", "value": root._state.website }
     ]
 
     AppWidgets.SectionDetailPage {
@@ -164,7 +178,7 @@ Item {
                 anchors.top: parent.top
                 active: root._activeSectionLabel === "Overview"
                 keepLoaded: true
-                loadingMessage: "Loading employee overview..."
+                loadingMessage: "Loading party overview..."
                 sourceComponent: Component {
                     Column {
                         width: parent ? parent.width : 0
@@ -192,7 +206,7 @@ Item {
                                 AppWidgets.SectionCard {
                                     Layout.fillWidth: true
                                     implicitHeight: overviewGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
-                                    title: "Employment Summary"
+                                    title: "Commercial Summary"
                                     outlined: true
 
                                     GridLayout {
@@ -225,7 +239,7 @@ Item {
                                                     Layout.fillWidth: true
                                                     text: modelData.value === undefined || modelData.value === null || String(modelData.value).length === 0
                                                         ? "-"
-                                                        : String(modelData.value)
+                                                        : (typeof modelData.value === "boolean" ? (modelData.value ? "Yes" : "No") : String(modelData.value))
                                                     color: Theme.AppTheme.textPrimary
                                                     font.pixelSize: Theme.AppTheme.smallSize
                                                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
@@ -251,7 +265,7 @@ Item {
 
                                         AppControls.Label {
                                             Layout.fillWidth: true
-                                            text: String(root.employee.supportingText || root.employee.metaText || "Employees remain platform-owned master records. Downstream modules should reference them through shared staffing and identity integrations.")
+                                            text: String(root._state.notes || root.party.supportingText || "Party records stay platform-owned. Procurement, maintenance, and PM should reference these masters rather than duplicating them.")
                                             color: Theme.AppTheme.textSecondary
                                             font.pixelSize: Theme.AppTheme.smallSize
                                             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
@@ -267,26 +281,117 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "User Account" ? userLoader.implicitHeight : 0
+            implicitHeight: root._activeSectionLabel === "Contacts" ? contactsLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
             AppWidgets.LazySectionLoader {
-                id: userLoader
+                id: contactsLoader
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                active: root._activeSectionLabel === "User Account"
+                active: root._activeSectionLabel === "Contacts"
                 keepLoaded: true
-                loadingMessage: "Loading user-account guidance..."
+                loadingMessage: "Loading contact profile..."
+                sourceComponent: Component {
+                    Column {
+                        width: parent ? parent.width : 0
+                        spacing: 0
+
+                        AppWidgets.SectionHeading {
+                            width: parent.width
+                            label: "Contacts"
+                        }
+
+                        Item {
+                            width: parent.width
+                            implicitHeight: contactsColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+                            ColumnLayout {
+                                id: contactsColumn
+                                anchors.top: parent.top
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.topMargin: Theme.AppTheme.spacingMd
+                                anchors.leftMargin: Theme.AppTheme.spacingMd
+                                anchors.rightMargin: Theme.AppTheme.spacingMd
+                                spacing: Theme.AppTheme.spacingMd
+
+                                AppWidgets.SectionCard {
+                                    Layout.fillWidth: true
+                                    implicitHeight: contactsGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                    title: "Contact & Address"
+                                    outlined: true
+
+                                    GridLayout {
+                                        id: contactsGrid
+                                        anchors.left: parent.left
+                                        anchors.right: parent.right
+                                        anchors.top: parent.top
+                                        anchors.margins: Theme.AppTheme.marginMd
+                                        columns: 2
+                                        columnSpacing: Theme.AppTheme.spacingLg
+                                        rowSpacing: Theme.AppTheme.spacingSm
+
+                                        Repeater {
+                                            model: root._contactFields
+
+                                            delegate: ColumnLayout {
+                                                required property var modelData
+                                                Layout.fillWidth: true
+                                                spacing: 2
+
+                                                AppControls.Label {
+                                                    Layout.fillWidth: true
+                                                    text: String(modelData.label || "")
+                                                    color: Theme.AppTheme.textMuted
+                                                    font.pixelSize: Theme.AppTheme.captionSize
+                                                    font.bold: true
+                                                }
+
+                                                AppControls.Label {
+                                                    Layout.fillWidth: true
+                                                    text: modelData.value === undefined || modelData.value === null || String(modelData.value).length === 0
+                                                        ? "-"
+                                                        : String(modelData.value)
+                                                    color: Theme.AppTheme.textPrimary
+                                                    font.pixelSize: Theme.AppTheme.smallSize
+                                                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : root.width
+            implicitHeight: root._activeSectionLabel === "Supplier Profile" ? supplierLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: supplierLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: root._activeSectionLabel === "Supplier Profile"
+                keepLoaded: true
+                loadingMessage: "Loading supplier profile..."
                 sourceComponent: Component {
                     AdminInformationalDetailSection {
-                        sectionLabel: "User Account"
-                        infoMessage: "Identity accounts remain governed by the shared Users workspace."
-                        cardTitle: "Identity Boundary"
+                        sectionLabel: "Supplier Profile"
+                        infoMessage: "Supplier-specific procurement posture is governed by Inventory & Procurement."
+                        cardTitle: "Procurement Boundary"
                         notes: [
-                            "Use the Users workspace for credential, role, and activation governance.",
-                            "Employee records should stay linked to identity and staffing workflows by reference instead of duplicating user-account state here."
+                            "Use Inventory & Procurement to validate whether this party is acting as a supplier, vendor, contractor, or service provider.",
+                            "Supplier usage, purchasing history, and approval workflows should remain in the Procurement workspace.",
+                            root._partyType.length > 0 ? ("Current party type: " + root._partyType) : "Current party type is not explicitly set on this record."
                         ]
                     }
                 }
@@ -295,26 +400,27 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Assignments" ? assignmentsLoader.implicitHeight : 0
+            implicitHeight: root._activeSectionLabel === "Customer / Client Profile" ? customerLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
             AppWidgets.LazySectionLoader {
-                id: assignmentsLoader
+                id: customerLoader
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                active: root._activeSectionLabel === "Assignments"
+                active: root._activeSectionLabel === "Customer / Client Profile"
                 keepLoaded: true
-                loadingMessage: "Loading assignment guidance..."
+                loadingMessage: "Loading customer profile..."
                 sourceComponent: Component {
                     AdminInformationalDetailSection {
-                        sectionLabel: "Assignments"
-                        infoMessage: "Project and task assignments remain governed by the Project Management resource model."
-                        cardTitle: "PM Staffing Boundary"
+                        sectionLabel: "Customer / Client Profile"
+                        infoMessage: "Customer and client semantics remain platform-owned and should be referenced by downstream modules."
+                        cardTitle: "Commercial Context"
                         notes: [
-                            "Open the Project Management Resources workspace to inspect allocations, assignments, and utilization.",
-                            "Platform Admin should not duplicate PM staffing ledgers inside the employee detail page."
+                            "Use this record as the shared commercial identity for client, customer, and partner references across modules.",
+                            "Project Management should reference client parties by ID instead of maintaining a separate client master.",
+                            root._state.legalName ? ("Legal name: " + root._state.legalName) : "No legal-name override is stored on this record."
                         ]
                     }
                 }
@@ -323,26 +429,26 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Timesheets" ? timesheetsLoader.implicitHeight : 0
+            implicitHeight: root._activeSectionLabel === "Linked Projects" ? projectsLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
             AppWidgets.LazySectionLoader {
-                id: timesheetsLoader
+                id: projectsLoader
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                active: root._activeSectionLabel === "Timesheets"
+                active: root._activeSectionLabel === "Linked Projects"
                 keepLoaded: true
-                loadingMessage: "Loading timesheet guidance..."
+                loadingMessage: "Loading project linkage guidance..."
                 sourceComponent: Component {
                     AdminInformationalDetailSection {
-                        sectionLabel: "Timesheets"
-                        infoMessage: "Time-entry workflows remain governed by PM and shared timesheet services."
-                        cardTitle: "Timesheet Boundary"
+                        sectionLabel: "Linked Projects"
+                        infoMessage: "Project/client and party-linked project behavior remains governed by the Project Management module."
+                        cardTitle: "PM Boundary"
                         notes: [
-                            "Open the PM Timesheets workspace to review submitted hours, approvals, and task-linked labor usage.",
-                            "Employee detail pages should not duplicate timesheet approval or entry-management workflows."
+                            "Open the Project Management workspace to inspect projects that reference this party as a client or commercial counterparty.",
+                            "Platform Admin should not duplicate project lists or project-level CRUD here."
                         ]
                     }
                 }
@@ -351,26 +457,26 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Certifications" ? certificationsLoader.implicitHeight : 0
+            implicitHeight: root._activeSectionLabel === "Linked Procurement" ? procurementLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
             AppWidgets.LazySectionLoader {
-                id: certificationsLoader
+                id: procurementLoader
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                active: root._activeSectionLabel === "Certifications"
+                active: root._activeSectionLabel === "Linked Procurement"
                 keepLoaded: true
-                loadingMessage: "Loading certification guidance..."
+                loadingMessage: "Loading procurement linkage guidance..."
                 sourceComponent: Component {
                     AdminInformationalDetailSection {
-                        sectionLabel: "Certifications"
-                        infoMessage: "Resource skills and certifications remain governed by Project Management resource controls."
-                        cardTitle: "Certification Boundary"
+                        sectionLabel: "Linked Procurement"
+                        infoMessage: "Procurement transactions and supplier usage remain governed by Inventory & Procurement."
+                        cardTitle: "Procurement Boundary"
                         notes: [
-                            "Open the PM Resources workspace to manage certifications, skills, and assignment-readiness.",
-                            "Platform employee records should stay focused on shared master data rather than duplicating PM qualification ledgers."
+                            "Open Inventory & Procurement to review purchase orders, requisitions, and supplier usage tied to this party.",
+                            "Platform Admin should not duplicate procurement-ledger or receiving views here."
                         ]
                     }
                 }
@@ -394,11 +500,11 @@ Item {
                 sourceComponent: Component {
                     AdminInformationalDetailSection {
                         sectionLabel: "Documents"
-                        infoMessage: "Employee-linked document governance stays in the shared document workspace."
+                        infoMessage: "Party-linked document governance stays in the shared document workspace."
                         cardTitle: "Document Governance"
                         notes: [
-                            "Use the shared Documents workspace for attachment, revision, and access workflows.",
-                            "Platform Admin should not duplicate document lifecycle controls in the employee detail page."
+                            "Use the shared Documents workspace for attachment, revision, and permission management.",
+                            "Platform Admin should not duplicate document lifecycle workflows in the party detail page."
                         ]
                     }
                 }
@@ -422,11 +528,11 @@ Item {
                 sourceComponent: Component {
                     AdminInformationalDetailSection {
                         sectionLabel: "Audit"
-                        infoMessage: "Employee audit trails stay centralized in the shared audit workspace."
+                        infoMessage: "Party audit trails stay centralized in the shared audit workspace."
                         cardTitle: "Audit Boundary"
                         notes: [
                             "Use the Audit workspace for actor history, change payloads, and export workflows.",
-                            "Employee detail pages should link into shared audit flows rather than duplicate audit storage."
+                            "Party detail pages should link into shared audit flows rather than duplicate audit storage."
                         ]
                     }
                 }

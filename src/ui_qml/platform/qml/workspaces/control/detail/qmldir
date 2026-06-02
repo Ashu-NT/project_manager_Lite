@@ -1,1 +1,2 @@
-module Platform.ControlDetail
+﻿module Platform.ControlDetail
+ControlApprovalDetailPage 1.0 ControlApprovalDetailPage.qml
