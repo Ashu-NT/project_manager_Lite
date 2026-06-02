@@ -698,18 +698,25 @@ Implementation note:
 
 #### Employees
 
-- [ ] map current workspace/controller/presenter/dialogs
-- [ ] migrate list/detail flow
-- [ ] add sections:
-  - [ ] Overview
-  - [ ] User Account
-  - [ ] Assignments
-  - [ ] Timesheets when PM is enabled
-  - [ ] Certifications when present
-  - [ ] Documents
-  - [ ] Audit
-- [ ] implement section-aware actions
-- [ ] add lazy loading
+- [x] map current workspace/controller/presenter/dialogs
+- [x] migrate list/detail flow
+- [x] add sections:
+  - [x] Overview
+  - [x] User Account
+  - [x] Assignments
+  - [x] Timesheets when PM is enabled
+  - [x] Certifications when present
+  - [x] Documents
+  - [x] Audit
+- [x] implement section-aware actions
+- [x] add lazy loading
+
+Implementation note:
+
+- `Employees` now uses a dedicated `AdminEmployeeDetailPage.qml` with
+  employment summary, identity boundary guidance, and PM-routed actions for
+  assignments, timesheets, and certifications instead of relying on the
+  generic transitional detail shell.
 
 #### Users
 
@@ -733,19 +740,26 @@ Implementation note:
 
 #### Parties
 
-- [ ] map current workspace/controller/presenter/dialogs
-- [ ] migrate list/detail flow
-- [ ] add sections:
-  - [ ] Overview
-  - [ ] Contacts
-  - [ ] Supplier Profile when Procurement is enabled
-  - [ ] Customer / Client Profile
-  - [ ] Linked Projects when PM is enabled
-  - [ ] Linked Procurement when Procurement is enabled
-  - [ ] Documents
-  - [ ] Audit
-- [ ] implement section-aware actions
-- [ ] add lazy loading
+- [x] map current workspace/controller/presenter/dialogs
+- [x] migrate list/detail flow
+- [x] add sections:
+  - [x] Overview
+  - [x] Contacts
+  - [x] Supplier Profile when Procurement is enabled
+  - [x] Customer / Client Profile
+  - [x] Linked Projects when PM is enabled
+  - [x] Linked Procurement when Procurement is enabled
+  - [x] Documents
+  - [x] Audit
+- [x] implement section-aware actions
+- [x] add lazy loading
+
+Implementation note:
+
+- `Parties` now uses a dedicated `AdminPartyDetailPage.qml` with contact and
+  commercial-profile sections, plus module-gated PM / Procurement linkage
+  actions routed through the shared shell model instead of duplicating
+  downstream business records inside Platform Admin.
 
 #### Documents
 

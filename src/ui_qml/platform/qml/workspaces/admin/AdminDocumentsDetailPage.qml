@@ -5,6 +5,7 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
+import Platform.Widgets 1.0 as PlatformWidgets
 
 Item {
     id: root
@@ -13,7 +14,6 @@ Item {
     property var selectedDocument: ({})
     property var documentPreviewState: ({})
     property var documentLinkCatalog: ({})
-    property var documentStructureCatalog: ({})
     property PlatformControllers.PlatformAdminWorkspaceController workspaceController
     property bool busy: false
     property string errorMessage: ""
@@ -23,8 +23,6 @@ Item {
     signal backRequested()
     signal actionRequested(string actionId)
     signal documentLinkCreateRequested()
-    signal documentStructureCreateRequested()
-    signal documentStructureEditRequested(string itemId)
 
     readonly property var _state: (root.document && root.document.state) ? root.document.state : ({})
     readonly property string _title: String(root.selectedDocument && root.selectedDocument.title
@@ -37,7 +35,10 @@ Item {
     readonly property bool _isActive: root._state.isActive === true
     readonly property var _sections: [
         { "label": "Overview" },
-        { "label": "Links & Structures" },
+        { "label": "Revisions" },
+        { "label": "Linked Entities", "count": (root.documentLinkCatalog.items || []).length },
+        { "label": "Approvals" },
+        { "label": "Access" },
         { "label": "Audit" }
     ]
     readonly property string _activeSectionLabel: {
@@ -45,13 +46,22 @@ Item {
         return section ? String(section.label || "") : "Overview"
     }
     readonly property string _toolbarSubtitle: {
-        if (root._activeSectionLabel === "Overview") {
+        switch (root._activeSectionLabel) {
+        case "Overview":
             return root._subtitle
+        case "Revisions":
+            return "Business version, source-system, and revision context for the governed document record."
+        case "Linked Entities":
+            return "Linked records stay entity-scoped while structure governance remains a separate shared admin concern."
+        case "Approvals":
+            return "Approval and workflow history stays governed by the shared Platform Control workspace."
+        case "Access":
+            return "Confidentiality, storage, and access posture stay governed through shared document controls."
+        case "Audit":
+            return "Entity-level document audit detail is routed through the shared Platform audit workspace."
+        default:
+            return ""
         }
-        if (root._activeSectionLabel === "Links & Structures") {
-            return "Linked records, structure governance, and preview context for this document."
-        }
-        return "Entity-level document audit detail is still routed through the shared Platform audit workspace."
     }
     readonly property var _toolbarActions: {
         if (root._activeSectionLabel === "Overview") {
@@ -61,13 +71,23 @@ Item {
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }
-        if (root._activeSectionLabel === "Links & Structures") {
+        if (root._activeSectionLabel === "Linked Entities") {
             return [
-                { "id": "refresh", "label": "Refresh", "icon": "refresh" }
+                { "id": "create_document_link", "label": "Add Link", "icon": "add" }
+            ]
+        }
+        if (root._activeSectionLabel === "Approvals") {
+            return [
+                { "id": "open_control", "label": "Open Control", "icon": "chevron_right" }
+            ]
+        }
+        if (root._activeSectionLabel === "Audit") {
+            return [
+                { "id": "show_audit", "label": "Open Audit", "icon": "chevron_right" }
             ]
         }
         return [
-            { "id": "show_audit", "label": "Open Audit", "icon": "chevron_right" }
+            { "id": "refresh", "label": "Refresh", "icon": "refresh" }
         ]
     }
     readonly property var _overviewFields: {
@@ -85,6 +105,25 @@ Item {
             { "label": "Source System", "value": root._state.sourceSystem },
             { "label": "Version / Revision", "value": root._state.businessVersionLabel }
         ]
+    }
+    readonly property var _revisionRows: [
+        { "label": "Version / Revision", "value": root._state.businessVersionLabel },
+        { "label": "Source System", "value": root._state.sourceSystem },
+        { "label": "MIME Type", "value": root._state.mimeType },
+        { "label": "File Name", "value": root._state.fileName },
+        { "label": "Notes", "value": root.selectedDocument && root.selectedDocument.notes ? root.selectedDocument.notes : root._state.notes }
+    ]
+    readonly property var _accessRows: [
+        { "label": "Confidentiality", "value": root._state.confidentialityLevel },
+        { "label": "Storage Kind", "value": root._state.storageKind },
+        { "label": "Storage URI", "value": root._state.storageUri },
+        { "label": "Source System", "value": root._state.sourceSystem },
+        { "label": "Preview Status", "value": root.documentPreviewState.statusLabel }
+    ]
+
+    function _tableHeightForCount(count) {
+        const visibleRows = Math.max(1, Math.min(count, 8))
+        return Theme.AppTheme.headerHeight + (visibleRows * Theme.AppTheme.normalRowHeight) + Theme.AppTheme.spacingLg
     }
 
     AppWidgets.SectionDetailPage {
@@ -165,71 +204,14 @@ Item {
                                 anchors.rightMargin: Theme.AppTheme.spacingMd
                                 spacing: Theme.AppTheme.spacingMd
 
-                                AppWidgets.SectionCard {
+                                PlatformWidgets.DocumentDetailPanel {
                                     Layout.fillWidth: true
-                                    implicitHeight: badgesColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
-                                    title: "Document Summary"
-                                    outlined: true
-
-                                    ColumnLayout {
-                                        id: badgesColumn
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        anchors.margins: Theme.AppTheme.marginMd
-                                        spacing: Theme.AppTheme.spacingSm
-
-                                        AppWidgets.StatusChip {
-                                            visible: root._status.length > 0
-                                            status: root._status
-                                        }
-
-                                        Flow {
-                                            width: parent.width
-                                            spacing: Theme.AppTheme.spacingSm
-
-                                            Repeater {
-                                                model: root.selectedDocument && root.selectedDocument.badges
-                                                    ? root.selectedDocument.badges
-                                                    : []
-
-                                                delegate: Rectangle {
-                                                    required property var modelData
-                                                    radius: Theme.AppTheme.radiusSm
-                                                    color: Theme.AppTheme.surfaceOverlay
-                                                    border.color: Theme.AppTheme.divider
-                                                    border.width: 1
-                                                    implicitWidth: badgeRow.implicitWidth + Theme.AppTheme.spacingSm * 2
-                                                    implicitHeight: badgeRow.implicitHeight + Theme.AppTheme.spacingXs * 2
-
-                                                    Row {
-                                                        id: badgeRow
-                                                        anchors.centerIn: parent
-                                                        spacing: Theme.AppTheme.spacingXs
-
-                                                        AppControls.Label {
-                                                            text: String(modelData.label || "")
-                                                            color: Theme.AppTheme.textMuted
-                                                            font.pixelSize: Theme.AppTheme.captionSize
-                                                            font.bold: true
-                                                        }
-
-                                                        AppControls.Label {
-                                                            text: String(modelData.value || "-")
-                                                            color: Theme.AppTheme.textPrimary
-                                                            font.pixelSize: Theme.AppTheme.captionSize
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            text: root.document.supportingText || root.document.metaText || "This governed document is managed through the shared platform document catalog."
-                                            color: Theme.AppTheme.textSecondary
-                                            font.pixelSize: Theme.AppTheme.smallSize
-                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                    details: root.selectedDocument
+                                    previewState: root.documentPreviewState
+                                    actionsEnabled: root.workspaceController ? !root.workspaceController.isBusy : false
+                                    onOpenRequested: function(targetUrl) {
+                                        if (targetUrl && targetUrl.length > 0) {
+                                            Qt.openUrlExternally(targetUrl)
                                         }
                                     }
                                 }
@@ -284,18 +266,18 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root.activeSectionIndex === 1 ? linksLoader.implicitHeight : 0
+            implicitHeight: root.activeSectionIndex === 1 ? revisionsLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
             AppWidgets.LazySectionLoader {
-                id: linksLoader
+                id: revisionsLoader
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
                 active: root.activeSectionIndex === 1
                 keepLoaded: true
-                loadingMessage: "Loading document links..."
+                loadingMessage: "Loading revision context..."
                 sourceComponent: Component {
                     Column {
                         width: parent ? parent.width : 0
@@ -303,68 +285,15 @@ Item {
 
                         AppWidgets.SectionHeading {
                             width: parent.width
-                            label: "Links & Structures"
+                            label: "Revisions"
                         }
 
                         Item {
                             width: parent.width
-                            implicitHeight: documentSection.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                            AdminDocumentSection {
-                                id: documentSection
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.topMargin: Theme.AppTheme.spacingMd
-                                anchors.leftMargin: Theme.AppTheme.spacingMd
-                                anchors.rightMargin: Theme.AppTheme.spacingMd
-                                workspaceController: root.workspaceController
-                                selectedDocument: root.selectedDocument
-                                documentPreviewState: root.documentPreviewState
-                                documentLinkCatalog: root.documentLinkCatalog
-                                documentStructureCatalog: root.documentStructureCatalog
-                                onDocumentLinkCreateRequested: root.documentLinkCreateRequested()
-                                onDocumentStructureCreateRequested: root.documentStructureCreateRequested()
-                                onDocumentStructureEditRequested: function(itemId) {
-                                    root.documentStructureEditRequested(itemId)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root.activeSectionIndex === 2 ? auditLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: auditLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root.activeSectionIndex === 2
-                keepLoaded: true
-                loadingMessage: "Loading audit guidance..."
-                sourceComponent: Component {
-                    Column {
-                        width: parent ? parent.width : 0
-                        spacing: 0
-
-                        AppWidgets.SectionHeading {
-                            width: parent.width
-                            label: "Audit"
-                        }
-
-                        Item {
-                            width: parent.width
-                            implicitHeight: auditColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
+                            implicitHeight: revisionsColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
 
                             ColumnLayout {
-                                id: auditColumn
+                                id: revisionsColumn
                                 anchors.top: parent.top
                                 anchors.left: parent.left
                                 anchors.right: parent.right
@@ -376,34 +305,234 @@ Item {
                                 AppWidgets.InlineMessage {
                                     Layout.fillWidth: true
                                     tone: "info"
-                                    message: "Entity-level document audit trails are still delivered through the shared Platform audit workspace."
+                                    message: "Revision history remains governed by the shared document lifecycle rather than a separate Platform Admin ledger."
                                 }
 
                                 AppWidgets.SectionCard {
                                     Layout.fillWidth: true
-                                    implicitHeight: auditNotes.implicitHeight + Theme.AppTheme.spacingMd * 2
-                                    title: "Audit Follow-up"
+                                    implicitHeight: revisionRows.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                    title: "Current Revision Context"
                                     outlined: true
 
                                     ColumnLayout {
-                                        id: auditNotes
+                                        id: revisionRows
                                         anchors.left: parent.left
                                         anchors.right: parent.right
                                         anchors.top: parent.top
                                         anchors.margins: Theme.AppTheme.marginMd
                                         spacing: Theme.AppTheme.spacingSm
 
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            text: "Use the shared audit workspace to inspect approvals, revisions, and operational activity associated with this document."
-                                            color: Theme.AppTheme.textSecondary
-                                            font.pixelSize: Theme.AppTheme.smallSize
-                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                        Repeater {
+                                            model: root._revisionRows
+
+                                            delegate: RowLayout {
+                                                required property var modelData
+                                                Layout.fillWidth: true
+                                                spacing: Theme.AppTheme.spacingSm
+
+                                                AppControls.Label {
+                                                    Layout.preferredWidth: 170
+                                                    text: String(modelData.label || "")
+                                                    color: Theme.AppTheme.textMuted
+                                                    font.pixelSize: Theme.AppTheme.captionSize
+                                                    font.bold: true
+                                                }
+
+                                                AppControls.Label {
+                                                    Layout.fillWidth: true
+                                                    text: String(modelData.value || "-")
+                                                    color: Theme.AppTheme.textPrimary
+                                                    font.pixelSize: Theme.AppTheme.smallSize
+                                                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : root.width
+            implicitHeight: root.activeSectionIndex === 2 ? linksLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: linksLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: root.activeSectionIndex === 2
+                keepLoaded: true
+                loadingMessage: "Loading linked entities..."
+                sourceComponent: Component {
+                    AdminDetailTableSection {
+                        width: parent ? parent.width : 0
+                        sectionLabel: "Linked Entities"
+                        infoMessage: "Entity links remain document-scoped; structure governance has been split back to the dedicated Structures workspace."
+                        emptyTitle: "No linked records"
+                        emptyMessage: root.documentLinkCatalog.emptyState || "No linked records are available for this document."
+                        rows: root.documentLinkCatalog.items || []
+                        columns: [
+                            { "key": "title", "label": "Module / Entity", "flex": 3, "minWidth": 200, "sortable": true, "visible": true },
+                            { "key": "subtitle", "label": "Entity ID", "flex": 2, "minWidth": 140, "sortable": false, "visible": true },
+                            { "key": "statusLabel", "label": "Role", "flex": 0, "minWidth": 100, "sortable": false, "visible": true, "type": "status" },
+                            { "key": "metaText", "label": "Document Ref", "flex": 2, "minWidth": 160, "sortable": false, "visible": true }
+                        ]
+                        loading: root.busy
+                        tableHeight: root._tableHeightForCount((root.documentLinkCatalog.items || []).length)
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : root.width
+            implicitHeight: root.activeSectionIndex === 3 ? approvalsLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: approvalsLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: root.activeSectionIndex === 3
+                keepLoaded: true
+                loadingMessage: "Loading approval guidance..."
+                sourceComponent: Component {
+                    AdminInformationalDetailSection {
+                        sectionLabel: "Approvals"
+                        infoMessage: "Approval workflows and controlled decisions remain governed by the shared Platform Control workspace."
+                        cardTitle: "Approval Boundary"
+                        notes: [
+                            "Open Platform Control to inspect approval queues, decision history, and governed change requests tied to documents.",
+                            "The admin document detail page should not duplicate approval workflow storage or actions."
+                        ]
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : root.width
+            implicitHeight: root.activeSectionIndex === 4 ? accessLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: accessLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: root.activeSectionIndex === 4
+                keepLoaded: true
+                loadingMessage: "Loading access posture..."
+                sourceComponent: Component {
+                    Column {
+                        width: parent ? parent.width : 0
+                        spacing: 0
+
+                        AppWidgets.SectionHeading {
+                            width: parent.width
+                            label: "Access"
+                        }
+
+                        Item {
+                            width: parent.width
+                            implicitHeight: accessColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+                            ColumnLayout {
+                                id: accessColumn
+                                anchors.top: parent.top
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.topMargin: Theme.AppTheme.spacingMd
+                                anchors.leftMargin: Theme.AppTheme.spacingMd
+                                anchors.rightMargin: Theme.AppTheme.spacingMd
+                                spacing: Theme.AppTheme.spacingMd
+
+                                AppWidgets.InlineMessage {
+                                    Layout.fillWidth: true
+                                    tone: "info"
+                                    message: "Confidentiality and access posture are enforced through shared document controls and permission inheritance."
+                                }
+
+                                AppWidgets.SectionCard {
+                                    Layout.fillWidth: true
+                                    implicitHeight: accessRows.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                    title: "Access Posture"
+                                    outlined: true
+
+                                    ColumnLayout {
+                                        id: accessRows
+                                        anchors.left: parent.left
+                                        anchors.right: parent.right
+                                        anchors.top: parent.top
+                                        anchors.margins: Theme.AppTheme.marginMd
+                                        spacing: Theme.AppTheme.spacingSm
+
+                                        Repeater {
+                                            model: root._accessRows
+
+                                            delegate: RowLayout {
+                                                required property var modelData
+                                                Layout.fillWidth: true
+                                                spacing: Theme.AppTheme.spacingSm
+
+                                                AppControls.Label {
+                                                    Layout.preferredWidth: 170
+                                                    text: String(modelData.label || "")
+                                                    color: Theme.AppTheme.textMuted
+                                                    font.pixelSize: Theme.AppTheme.captionSize
+                                                    font.bold: true
+                                                }
+
+                                                AppControls.Label {
+                                                    Layout.fillWidth: true
+                                                    text: String(modelData.value || "-")
+                                                    color: Theme.AppTheme.textPrimary
+                                                    font.pixelSize: Theme.AppTheme.smallSize
+                                                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : root.width
+            implicitHeight: root.activeSectionIndex === 5 ? auditLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: auditLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: root.activeSectionIndex === 5
+                keepLoaded: true
+                loadingMessage: "Loading audit guidance..."
+                sourceComponent: Component {
+                    AdminInformationalDetailSection {
+                        sectionLabel: "Audit"
+                        infoMessage: "Entity-level document audit trails are still delivered through the shared Platform audit workspace."
+                        cardTitle: "Audit Follow-up"
+                        notes: [
+                            "Use the shared audit workspace to inspect approvals, revisions, and operational activity associated with this document."
+                        ]
                     }
                 }
             }
