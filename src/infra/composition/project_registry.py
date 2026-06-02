@@ -37,6 +37,9 @@ from src.core.modules.project_management.application.resources.assignment_valida
     AssignmentSkillValidator,
 )
 from src.core.platform.calendar import WorkCalendarEngine, WorkCalendarService
+from src.core.modules.project_management.application.scheduling.project_calendar_adapter import ProjectCalendarAdapter
+from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
+from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
 from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle
@@ -87,6 +90,9 @@ class ProjectManagementServiceBundle:
     data_import_service: DataImportService
     task_collaboration_store: TaskCollaborationStore
     assignment_skill_validator: AssignmentSkillValidator
+    project_calendar_adapter: ProjectCalendarAdapter
+    enterprise_resource_availability: EnterpriseResourceAvailabilityService
+    resource_capacity_calculator: ResourceCapacityCalculator
 
 
 def build_project_management_service_bundle(
@@ -305,6 +311,17 @@ def build_project_management_service_bundle(
         cert_repo=repositories.resource_cert_repo,
         requirement_repo=repositories.task_skill_req_repo,
     )
+    project_calendar_adapter = ProjectCalendarAdapter(
+        resolver=platform_services.enterprise_calendar_resolver,
+        assignment_service=platform_services.calendar_assignment_service,
+    )
+    enterprise_resource_availability = EnterpriseResourceAvailabilityService(
+        resolver=platform_services.enterprise_calendar_resolver,
+        resource_repo=repositories.resource_repo,
+    )
+    resource_capacity_calculator = ResourceCapacityCalculator(
+        availability_service=enterprise_resource_availability,
+    )
     _register_project_management_approval_handlers(
         approval_service=platform_services.approval_service,
         baseline_service=baseline_service,
@@ -333,6 +350,9 @@ def build_project_management_service_bundle(
         data_import_service=data_import_service,
         task_collaboration_store=task_collaboration_store,
         assignment_skill_validator=assignment_skill_validator,
+        project_calendar_adapter=project_calendar_adapter,
+        enterprise_resource_availability=enterprise_resource_availability,
+        resource_capacity_calculator=resource_capacity_calculator,
     )
 
 

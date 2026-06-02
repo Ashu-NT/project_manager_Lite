@@ -36,6 +36,14 @@ from src.core.platform.org.access_policy import (
 from src.core.platform.party import PartyService
 from src.core.platform.party.contracts import PartyRepository
 from src.core.platform.runtime_tracking import RuntimeExecutionService
+from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
+from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
+from src.core.platform.calendar.application.calendar_exception_service import CalendarExceptionService
+from src.core.platform.calendar.application.recurring_event_service import RecurringEventService
+from src.core.platform.calendar.application.shift_pattern_service import ShiftPatternService
+from src.core.platform.calendar.application.calendar_assignment_service import CalendarAssignmentService
+from src.core.platform.calendar.application.enterprise_calendar_resolver import EnterpriseCalendarResolver
+from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
 from src.core.platform.infrastructure.persistence.repositories.modules import SqlAlchemyModuleEntitlementRepository
 from src.core.platform.infrastructure.persistence.repositories.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
 from src.infra.composition.repositories import RepositoryBundle
@@ -64,6 +72,14 @@ class PlatformServiceBundle:
     access_service: AccessControlService
     audit_service: AuditService
     approval_service: ApprovalService
+    enterprise_calendar_service: EnterpriseCalendarService
+    working_rule_service: WorkingRuleService
+    calendar_exception_service: CalendarExceptionService
+    recurring_event_service: RecurringEventService
+    shift_pattern_service: ShiftPatternService
+    calendar_assignment_service: CalendarAssignmentService
+    enterprise_calendar_resolver: EnterpriseCalendarResolver
+    working_time_calculator: WorkingTimeCalculator
 
 
 def build_platform_service_bundle(
@@ -221,6 +237,72 @@ def build_platform_service_bundle(
         user_session=user_session,
     )
 
+    # --- Enterprise calendar services ---
+    working_time_calculator = WorkingTimeCalculator()
+    enterprise_calendar_service = EnterpriseCalendarService(
+        session=session,
+        calendar_repo=repositories.platform_calendar_repo,
+        assignment_repo=repositories.calendar_assignment_repo,
+        organization_repo=repositories.organization_repo,
+        user_session=user_session,
+        audit_service=audit_service,
+    )
+    working_rule_service = WorkingRuleService(
+        session=session,
+        calendar_repo=repositories.platform_calendar_repo,
+        rule_repo=repositories.calendar_working_rule_repo,
+        user_session=user_session,
+    )
+    calendar_exception_service = CalendarExceptionService(
+        session=session,
+        calendar_repo=repositories.platform_calendar_repo,
+        exception_repo=repositories.calendar_exception_repo,
+        user_session=user_session,
+    )
+    recurring_event_service = RecurringEventService(
+        session=session,
+        calendar_repo=repositories.platform_calendar_repo,
+        event_repo=repositories.calendar_recurring_event_repo,
+        user_session=user_session,
+    )
+    shift_pattern_service = ShiftPatternService(
+        session=session,
+        pattern_repo=repositories.shift_pattern_repo,
+        organization_repo=repositories.organization_repo,
+        user_session=user_session,
+    )
+    calendar_assignment_service = CalendarAssignmentService(
+        session=session,
+        calendar_repo=repositories.platform_calendar_repo,
+        assignment_repo=repositories.calendar_assignment_repo,
+        project_assignment_repo=repositories.project_calendar_assignment_repo,
+        resource_assignment_repo=repositories.resource_calendar_assignment_repo,
+        user_session=user_session,
+    )
+
+    def _get_active_org_id():
+        org = repositories.organization_repo.get_active()
+        return org.id if org else ""
+
+    enterprise_calendar_resolver = EnterpriseCalendarResolver(
+        organization_id=_get_active_org_id(),
+        calendar_repo=repositories.platform_calendar_repo,
+        rule_repo=repositories.calendar_working_rule_repo,
+        exception_repo=repositories.calendar_exception_repo,
+        recurring_repo=repositories.calendar_recurring_event_repo,
+        assignment_repo=repositories.calendar_assignment_repo,
+        project_assignment_repo=repositories.project_calendar_assignment_repo,
+        resource_assignment_repo=repositories.resource_calendar_assignment_repo,
+        calculator=working_time_calculator,
+    )
+    # Bootstrap global calendar for active org
+    try:
+        org = repositories.organization_repo.get_active()
+        if org:
+            enterprise_calendar_service.ensure_global_calendar(org.id)
+    except Exception:
+        pass
+
     return PlatformServiceBundle(
         session=session,
         user_session=user_session,
@@ -243,6 +325,14 @@ def build_platform_service_bundle(
         access_service=access_service,
         audit_service=audit_service,
         approval_service=approval_service,
+        enterprise_calendar_service=enterprise_calendar_service,
+        working_rule_service=working_rule_service,
+        calendar_exception_service=calendar_exception_service,
+        recurring_event_service=recurring_event_service,
+        shift_pattern_service=shift_pattern_service,
+        calendar_assignment_service=calendar_assignment_service,
+        enterprise_calendar_resolver=enterprise_calendar_resolver,
+        working_time_calculator=working_time_calculator,
     )
 
 

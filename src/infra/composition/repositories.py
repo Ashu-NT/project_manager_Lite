@@ -22,6 +22,18 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.platform.infrastructure.persistence.repositories.calendar import (
     SqlAlchemyWorkingCalendarRepository,
 )
+from src.core.platform.infrastructure.persistence.repositories.enterprise_calendar import (
+    SqlAlchemyCalendarAssignmentRepository,
+    SqlAlchemyCalendarExceptionRepository,
+    SqlAlchemyCalendarRecurringEventRepository,
+    SqlAlchemyCalendarWorkingRuleRepository,
+    SqlAlchemyPlatformCalendarRepository,
+    SqlAlchemyShiftPatternRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.calendar_assignment import (
+    SqlAlchemyProjectCalendarAssignmentRepository,
+    SqlAlchemyResourceCalendarAssignmentRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.project import (
     SqlAlchemyProjectRepository,
     SqlAlchemyProjectResourceRepository,
@@ -90,6 +102,14 @@ class RepositoryBundle:
     cost_repo: SqlAlchemyCostRepository
     calendar_repo: SqlAlchemyCalendarEventRepository
     work_calendar_repo: SqlAlchemyWorkingCalendarRepository
+    platform_calendar_repo: SqlAlchemyPlatformCalendarRepository
+    calendar_working_rule_repo: SqlAlchemyCalendarWorkingRuleRepository
+    calendar_exception_repo: SqlAlchemyCalendarExceptionRepository
+    calendar_recurring_event_repo: SqlAlchemyCalendarRecurringEventRepository
+    shift_pattern_repo: SqlAlchemyShiftPatternRepository
+    calendar_assignment_repo: SqlAlchemyCalendarAssignmentRepository
+    project_calendar_assignment_repo: SqlAlchemyProjectCalendarAssignmentRepository
+    resource_calendar_assignment_repo: SqlAlchemyResourceCalendarAssignmentRepository
     baseline_repo: SqlAlchemyBaselineRepository
     project_resource_repo: SqlAlchemyProjectResourceRepository
     user_repo: SqlAlchemyUserRepository
@@ -134,6 +154,14 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         cost_repo=SqlAlchemyCostRepository(session),
         calendar_repo=SqlAlchemyCalendarEventRepository(session),
         work_calendar_repo=SqlAlchemyWorkingCalendarRepository(session),
+        platform_calendar_repo=SqlAlchemyPlatformCalendarRepository(session),
+        calendar_working_rule_repo=SqlAlchemyCalendarWorkingRuleRepository(session),
+        calendar_exception_repo=SqlAlchemyCalendarExceptionRepository(session),
+        calendar_recurring_event_repo=SqlAlchemyCalendarRecurringEventRepository(session),
+        shift_pattern_repo=SqlAlchemyShiftPatternRepository(session),
+        calendar_assignment_repo=SqlAlchemyCalendarAssignmentRepository(session),
+        project_calendar_assignment_repo=SqlAlchemyProjectCalendarAssignmentRepository(session),
+        resource_calendar_assignment_repo=SqlAlchemyResourceCalendarAssignmentRepository(session),
         baseline_repo=SqlAlchemyBaselineRepository(session),
         project_resource_repo=SqlAlchemyProjectResourceRepository(session),
         user_repo=SqlAlchemyUserRepository(session),
