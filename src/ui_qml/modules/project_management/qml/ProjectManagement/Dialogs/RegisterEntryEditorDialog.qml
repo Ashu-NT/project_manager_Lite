@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -38,7 +37,7 @@ AppWidgets.EntityDialog {
     primaryText:  root.modeTitle.indexOf("Create") === 0 ? "Create Entry" : "Save Changes"
     primaryIcon:  root.modeTitle.indexOf("Create") === 0 ? "add" : "save"
     width: 680
-    height: Math.min(820, parent ? parent.height - (Theme.AppTheme.marginLg * 2) : 820)
+    // Height is content-driven via EntityDialog (caps to window, scrolls if tall).
 
     onOpened: root.populateFromEntry()
     onAccepted: root.submitDialog()
@@ -134,108 +133,118 @@ AppWidgets.EntityDialog {
             }
         }
 
-        AppControls.Label { text: "Project"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.ComboBox {
-            id: projectCombo
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            model: root.editableProjectOptions
-            textRole: "label"
+            label: "Project"
+            required: true
+            AppControls.ComboBox {
+                id: projectCombo
+                Layout.fillWidth: true
+                model: root.editableProjectOptions
+                textRole: "label"
+            }
         }
 
-        AppControls.Label {
+        AppWidgets.FormField {
+            Layout.fillWidth: true
             visible: root.typeFieldVisible
-            text: "Entry type"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-        AppControls.ComboBox {
-            id: typeCombo
-            visible: root.typeFieldVisible
-            Layout.fillWidth: true
-            model: root.editableTypeOptions
-            textRole: "label"
+            label: "Entry type"
+            AppControls.ComboBox {
+                id: typeCombo
+                visible: root.typeFieldVisible
+                Layout.fillWidth: true
+                model: root.editableTypeOptions
+                textRole: "label"
+            }
         }
 
-        AppControls.Label { text: "Title"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField {
-            id: titleField
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: root.typeFieldVisible ? "Critical supplier dependency" : "Late switchgear delivery"
+            label: "Title"
+            required: true
+            AppControls.TextField {
+                id: titleField
+                Layout.fillWidth: true
+                placeholderText: root.typeFieldVisible ? "Critical supplier dependency" : "Late switchgear delivery"
+            }
         }
 
-        AppControls.Label { text: "Severity"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.ComboBox {
-            id: severityCombo
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            model: root.editableSeverityOptions
-            textRole: "label"
+            label: "Severity"
+            AppControls.ComboBox {
+                id: severityCombo
+                Layout.fillWidth: true
+                model: root.editableSeverityOptions
+                textRole: "label"
+            }
         }
 
-        AppControls.Label { text: "Status"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.ComboBox {
-            id: statusCombo
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            model: root.editableStatusOptions
-            textRole: "label"
+            label: "Status"
+            AppControls.ComboBox {
+                id: statusCombo
+                Layout.fillWidth: true
+                model: root.editableStatusOptions
+                textRole: "label"
+            }
         }
 
-        AppControls.Label { text: "Owner"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField {
-            id: ownerField
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "PM Lead"
+            label: "Owner"
+            AppControls.TextField {
+                id: ownerField
+                Layout.fillWidth: true
+                placeholderText: "PM Lead"
+            }
         }
 
-        AppControls.Label { text: "Due date"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.DateField {
-            id: dueDateField
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "YYYY-MM-DD"
+            label: "Due date"
+            AppControls.DateField {
+                id: dueDateField
+                Layout.fillWidth: true
+                placeholderText: "YYYY-MM-DD"
+            }
         }
     }
 
-    AppControls.Label {
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        text: "Description"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 120
+            placeholderText: "Describe the trigger, scope, or context behind this entry."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
-    AppControls.TextArea {
-        id: descriptionField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 120
-        placeholderText: "Describe the trigger, scope, or context behind this entry."
-        wrapMode: TextEdit.WordWrap
+        label: "Impact summary"
+        AppControls.TextArea {
+            id: impactField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 110
+            placeholderText: "Summarize delivery, cost, or schedule impact."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
-    AppControls.Label {
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        text: "Impact summary"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: impactField
-        Layout.fillWidth: true
-        Layout.preferredHeight: 110
-        placeholderText: "Summarize delivery, cost, or schedule impact."
-        wrapMode: TextEdit.WordWrap
-    }
-
-    AppControls.Label {
-        Layout.fillWidth: true
-        text: "Response plan"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: responseField
-        Layout.fillWidth: true
-        Layout.preferredHeight: 130
-        placeholderText: "Capture mitigation, action owner, and next review step."
-        wrapMode: TextEdit.WordWrap
+        label: "Response plan"
+        AppControls.TextArea {
+            id: responseField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 130
+            placeholderText: "Capture mitigation, action owner, and next review step."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 }

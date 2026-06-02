@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -85,36 +84,54 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Site" }
-        AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Site"
+            required: true
+            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Supplier" }
-        AppControls.ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Supplier"
+            required: true
+            AppControls.ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Source requisition" }
-        AppControls.ComboBox { id: sourceRequisitionCombo; Layout.fillWidth: true; model: root.formRequisitionOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Source requisition"
+            AppControls.ComboBox { id: sourceRequisitionCombo; Layout.fillWidth: true; model: root.formRequisitionOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Currency" }
-        AppControls.TextField { id: currencyCodeField; Layout.fillWidth: true; placeholderText: "EUR" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Currency"
+            AppControls.TextField { id: currencyCodeField; Layout.fillWidth: true; placeholderText: "EUR" }
+        }
 
-        AppControls.Label { text: "Expected delivery (YYYY-MM-DD)" }
-        AppControls.DateField { id: expectedDeliveryDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Expected delivery (YYYY-MM-DD)"
+            AppControls.DateField { id: expectedDeliveryDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+        }
 
-        AppControls.Label { text: "Supplier reference" }
-        AppControls.TextField { id: supplierReferenceField; Layout.fillWidth: true; placeholderText: "Quote, reference, or contract number" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Supplier reference"
+            AppControls.TextField { id: supplierReferenceField; Layout.fillWidth: true; placeholderText: "Quote, reference, or contract number" }
+        }
     }
 
-    AppControls.Label {
-        text: "Notes"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: notesField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 100
-        wrapMode: TextEdit.WordWrap
-        placeholderText: "Buying context, freight notes, or special handling instructions."
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 100
+            wrapMode: TextEdit.WordWrap
+            placeholderText: "Buying context, freight notes, or special handling instructions."
+        }
     }
 }

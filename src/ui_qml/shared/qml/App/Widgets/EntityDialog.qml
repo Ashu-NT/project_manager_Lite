@@ -81,13 +81,29 @@ AppControls.CenteredDialog {
     signal destructiveRequested()
 
     // ── Sizing ────────────────────────────────────────────────────────────────
+    // Height is CONTENT-DRIVEN, never fixed:
+    //   • small/medium dialogs shrink to fit their content (implicitHeight)
+    //   • the dialog is capped to the available window height (availableHeight)
+    //   • when content exceeds the cap, the form body Flickable scrolls while
+    //     the header (title/subtitle) and footer (buttons) stay pinned.
+    // Dialogs should NOT override `height`; override `width` only if needed.
     modal: true
     focus: true
     closePolicy: Popup.CloseOnEscape
     width:  Theme.AppTheme.dialogFormWidth   // 640 — dialogs may override
+
+    // Largest height the dialog may occupy: window height minus top+bottom margin.
+    readonly property real maxDialogHeight:
+        (parent ? parent.height : 760) - Theme.AppTheme.dialogPadding * 2
+
+    // Natural height = content body + pinned header/footer + paddings. Capped to
+    // the window so the dialog is never cut off; when capped, the body scrolls.
     height: Math.min(
-        parent ? parent.height - Theme.AppTheme.dialogPadding * 2 : 760,
-        760
+        _shell.implicitHeight
+            + implicitHeaderHeight + implicitFooterHeight
+            + topPadding + bottomPadding
+            + spacing * 2,
+        maxDialogHeight
     )
 
     // ── Content item ──────────────────────────────────────────────────────────
@@ -142,13 +158,18 @@ AppControls.CenteredDialog {
             tone:    "info"
         }
 
-        // Scrollable form area
+        // Scrollable form area.
+        //   • Layout.preferredHeight = natural content height → feeds the dialog's
+        //     implicitHeight so it can shrink to content when there is room.
+        //   • Layout.fillHeight lets the body shrink below that when the dialog is
+        //     capped to maxDialogHeight, at which point the Flickable scrolls.
         Flickable {
             Layout.fillWidth:  true
             Layout.fillHeight: true
+            Layout.preferredHeight: _formArea.implicitHeight
             Layout.topMargin:  Theme.AppTheme.spacingSm
 
-            contentWidth:  availableWidth
+            contentWidth:  root.availableWidth
             contentHeight: _formArea.implicitHeight
             clip: true
 

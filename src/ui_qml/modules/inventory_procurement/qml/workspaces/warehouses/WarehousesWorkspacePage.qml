@@ -7,6 +7,7 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
+import "../inventory"
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -119,19 +120,7 @@ AppLayouts.WorkspaceFrame {
                 managerPartyOptions: root.workspaceController ? (root.workspaceController.managerPartyOptions || []) : []
                 itemOptions: root.workspaceController ? (root.workspaceController.itemOptions || []) : []
                 storeroomOptions: root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
-
-                onCreateStoreroomRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createStoreroom(payload)
-                }
-                onUpdateStoreroomRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateStoreroom(payload)
-                }
-                onCreateLocationRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createLocation(payload)
-                }
-                onUpdateLocationRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateLocation(payload)
-                }
+                workspaceController: root.workspaceController
             }
         }
     }

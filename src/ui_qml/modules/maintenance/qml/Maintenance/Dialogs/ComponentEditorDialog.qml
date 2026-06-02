@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -120,11 +119,18 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Asset" }
-        AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Asset"
+            required: true
+            AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Parent component" }
-        AppControls.ComboBox { id: parentComponentCombo; Layout.fillWidth: true; model: root.parentComponentOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Parent component"
+            AppControls.ComboBox { id: parentComponentCombo; Layout.fillWidth: true; model: root.parentComponentOptions; textRole: "label" }
+        }
 
         AppWidgets.CodeFieldRow {
             Layout.columnSpan: 2
@@ -146,46 +152,83 @@ AppWidgets.EntityDialog {
             }
         }
 
-        AppControls.Label { text: "Name" }
-        AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Drive Motor" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Name"
+            required: true
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Drive Motor" }
+        }
 
-        AppControls.Label { text: "Component type" }
-        AppControls.TextField { id: componentTypeField; Layout.fillWidth: true; placeholderText: "MOTOR" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Component type"
+            AppControls.TextField { id: componentTypeField; Layout.fillWidth: true; placeholderText: "MOTOR" }
+        }
 
-        AppControls.Label { text: "Lifecycle status" }
-        AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Lifecycle status"
+            AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Manufacturer" }
-        AppControls.ComboBox { id: manufacturerCombo; Layout.fillWidth: true; model: root.manufacturerOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Manufacturer"
+            AppControls.ComboBox { id: manufacturerCombo; Layout.fillWidth: true; model: root.manufacturerOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Supplier" }
-        AppControls.ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Supplier"
+            AppControls.ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Manufacturer part number" }
-        AppControls.TextField { id: manufacturerPartNumberField; Layout.fillWidth: true }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Manufacturer part number"
+            AppControls.TextField { id: manufacturerPartNumberField; Layout.fillWidth: true }
+        }
 
-        AppControls.Label { text: "Supplier part number" }
-        AppControls.TextField { id: supplierPartNumberField; Layout.fillWidth: true }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Supplier part number"
+            AppControls.TextField { id: supplierPartNumberField; Layout.fillWidth: true }
+        }
 
-        AppControls.Label { text: "Model number" }
-        AppControls.TextField { id: modelNumberField; Layout.fillWidth: true }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Model number"
+            AppControls.TextField { id: modelNumberField; Layout.fillWidth: true }
+        }
 
-        AppControls.Label { text: "Serial number" }
-        AppControls.TextField { id: serialNumberField; Layout.fillWidth: true }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Serial number"
+            AppControls.TextField { id: serialNumberField; Layout.fillWidth: true }
+        }
 
-        AppControls.Label { text: "Expected life hours" }
-        AppControls.TextField { id: expectedLifeHoursField; Layout.fillWidth: true; placeholderText: "12000" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Expected life hours"
+            AppControls.TextField { id: expectedLifeHoursField; Layout.fillWidth: true; placeholderText: "12000" }
+        }
 
-        AppControls.Label { text: "Expected life cycles" }
-        AppControls.TextField { id: expectedLifeCyclesField; Layout.fillWidth: true; placeholderText: "500000" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Expected life cycles"
+            AppControls.TextField { id: expectedLifeCyclesField; Layout.fillWidth: true; placeholderText: "500000" }
+        }
     }
 
-    AppControls.Label { text: "Description" }
-    AppControls.TextArea {
-        id: descriptionField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 90
-        wrapMode: TextEdit.WordWrap
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
     Flow {
@@ -195,11 +238,14 @@ AppWidgets.EntityDialog {
         AppControls.CheckBox { id: criticalCheck; text: "Critical component" }
     }
 
-    AppControls.Label { text: "Notes" }
-    AppControls.TextArea {
-        id: notesField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 90
-        wrapMode: TextEdit.WordWrap
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            wrapMode: TextEdit.WordWrap
+        }
     }
 }

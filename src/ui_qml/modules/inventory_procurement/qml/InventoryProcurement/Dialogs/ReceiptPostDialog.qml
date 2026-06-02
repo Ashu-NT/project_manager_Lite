@@ -101,16 +101,22 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Delivery reference" }
-        AppControls.TextField { id: supplierDeliveryReferenceField; Layout.fillWidth: true; placeholderText: "Carrier or supplier slip number" }
-
-        AppControls.Label { text: "Notes" }
-        AppControls.TextArea {
-            id: notesField
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            Layout.preferredHeight: 72
-            wrapMode: TextEdit.WordWrap
-            placeholderText: "Receipt header notes, carrier remarks, or inspection summary."
+            label: "Delivery reference"
+            AppControls.TextField { id: supplierDeliveryReferenceField; Layout.fillWidth: true; placeholderText: "Carrier or supplier slip number" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Notes"
+            AppControls.TextArea {
+                id: notesField
+                Layout.fillWidth: true
+                Layout.preferredHeight: 72
+                wrapMode: TextEdit.WordWrap
+                placeholderText: "Receipt header notes, carrier remarks, or inspection summary."
+            }
         }
     }
 

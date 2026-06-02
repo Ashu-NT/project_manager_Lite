@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -87,33 +86,48 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Site" }
-        AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Site"
+            required: true
+            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Storeroom" }
-        AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Storeroom"
+            required: true
+            AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Priority" }
-        AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Priority"
+            AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Purpose" }
-        AppControls.TextField { id: purposeField; Layout.fillWidth: true; placeholderText: "Why is the supply needed?" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Purpose"
+            AppControls.TextField { id: purposeField; Layout.fillWidth: true; placeholderText: "Why is the supply needed?" }
+        }
 
-        AppControls.Label { text: "Needed by (YYYY-MM-DD)" }
-        AppControls.DateField { id: neededByDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Needed by (YYYY-MM-DD)"
+            AppControls.DateField { id: neededByDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+        }
     }
 
-    AppControls.Label {
-        text: "Notes"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: notesField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 100
-        wrapMode: TextEdit.WordWrap
-        placeholderText: "Scope, urgency, or requester context."
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 100
+            wrapMode: TextEdit.WordWrap
+            placeholderText: "Scope, urgency, or requester context."
+        }
     }
 }

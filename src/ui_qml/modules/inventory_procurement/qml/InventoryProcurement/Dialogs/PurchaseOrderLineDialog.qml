@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -89,39 +88,61 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Item" }
-        AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Item"
+            required: true
+            AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Destination storeroom" }
-        AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Destination storeroom"
+            required: true
+            AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Quantity" }
-        AppControls.TextField { id: quantityField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Quantity"
+            required: true
+            AppControls.TextField { id: quantityField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-        AppControls.Label { text: "Unit price" }
-        AppControls.TextField { id: unitPriceField; Layout.fillWidth: true; placeholderText: "0.0000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Unit price"
+            AppControls.TextField { id: unitPriceField; Layout.fillWidth: true; placeholderText: "0.0000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-        AppControls.Label { text: "Source requisition line" }
-        AppControls.ComboBox { id: sourceRequisitionLineCombo; Layout.fillWidth: true; model: root.formRequisitionLineOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Source requisition line"
+            AppControls.ComboBox { id: sourceRequisitionLineCombo; Layout.fillWidth: true; model: root.formRequisitionLineOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Expected delivery (YYYY-MM-DD)" }
-        AppControls.DateField { id: expectedDeliveryDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Expected delivery (YYYY-MM-DD)"
+            AppControls.DateField { id: expectedDeliveryDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+        }
 
-        AppControls.Label { text: "Description" }
-        AppControls.TextField { id: descriptionField; Layout.fillWidth: true; placeholderText: "Line description or supplier note" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Description"
+            AppControls.TextField { id: descriptionField; Layout.fillWidth: true; placeholderText: "Line description or supplier note" }
+        }
     }
 
-    AppControls.Label {
-        text: "Notes"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: notesField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 100
-        wrapMode: TextEdit.WordWrap
-        placeholderText: "Receiving notes or line-level supplier remarks."
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 100
+            wrapMode: TextEdit.WordWrap
+            placeholderText: "Receiving notes or line-level supplier remarks."
+        }
     }
 }

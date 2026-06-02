@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -152,59 +151,116 @@ AppWidgets.EntityDialog {
             }
         }
 
-        AppControls.Label { text: "Name" }
-        AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Bearing 100" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Name"
+            required: true
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Bearing 100" }
+        }
 
-        AppControls.Label { text: "Status" }
-        AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.itemStatusOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Status"
+            required: true
+            AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.itemStatusOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Item type" }
-        AppControls.TextField { id: itemTypeField; Layout.fillWidth: true; placeholderText: "ROTATING" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Item type"
+            AppControls.TextField { id: itemTypeField; Layout.fillWidth: true; placeholderText: "ROTATING" }
+        }
 
-        AppControls.Label { text: "Category" }
-        AppControls.ComboBox { id: categoryCombo; Layout.fillWidth: true; model: root.formCategoryOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Category"
+            AppControls.ComboBox { id: categoryCombo; Layout.fillWidth: true; model: root.formCategoryOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Preferred party" }
-        AppControls.ComboBox { id: preferredPartyCombo; Layout.fillWidth: true; model: root.businessPartyOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Preferred party"
+            AppControls.ComboBox { id: preferredPartyCombo; Layout.fillWidth: true; model: root.businessPartyOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Stock UOM" }
-        AppControls.TextField { id: stockUomField; Layout.fillWidth: true; placeholderText: "EA" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Stock UOM"
+            required: true
+            AppControls.TextField { id: stockUomField; Layout.fillWidth: true; placeholderText: "EA" }
+        }
 
-        AppControls.Label { text: "Order UOM" }
-        AppControls.TextField { id: orderUomField; Layout.fillWidth: true; placeholderText: "BOX" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Order UOM"
+            AppControls.TextField { id: orderUomField; Layout.fillWidth: true; placeholderText: "BOX" }
+        }
 
-        AppControls.Label { text: "Issue UOM" }
-        AppControls.TextField { id: issueUomField; Layout.fillWidth: true; placeholderText: "EA" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Issue UOM"
+            AppControls.TextField { id: issueUomField; Layout.fillWidth: true; placeholderText: "EA" }
+        }
 
-        AppControls.Label { text: "Order ratio" }
-        AppControls.TextField { id: orderRatioField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Order ratio"
+            AppControls.TextField { id: orderRatioField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-        AppControls.Label { text: "Issue ratio" }
-        AppControls.TextField { id: issueRatioField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Issue ratio"
+            AppControls.TextField { id: issueRatioField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-        AppControls.Label { text: "Commodity code" }
-        AppControls.TextField { id: commodityCodeField; Layout.fillWidth: true; placeholderText: "MECH-SPARE" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Commodity code"
+            AppControls.TextField { id: commodityCodeField; Layout.fillWidth: true; placeholderText: "MECH-SPARE" }
+        }
 
-        AppControls.Label { text: "Reorder policy" }
-        AppControls.TextField { id: reorderPolicyField; Layout.fillWidth: true; placeholderText: "MIN_MAX" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Reorder policy"
+            AppControls.TextField { id: reorderPolicyField; Layout.fillWidth: true; placeholderText: "MIN_MAX" }
+        }
 
-        AppControls.Label { text: "Min qty" }
-        AppControls.TextField { id: minQtyField; Layout.fillWidth: true; placeholderText: "0.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Min qty"
+            AppControls.TextField { id: minQtyField; Layout.fillWidth: true; placeholderText: "0.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-        AppControls.Label { text: "Max qty" }
-        AppControls.TextField { id: maxQtyField; Layout.fillWidth: true; placeholderText: "0.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Max qty"
+            AppControls.TextField { id: maxQtyField; Layout.fillWidth: true; placeholderText: "0.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-        AppControls.Label { text: "Reorder point" }
-        AppControls.TextField { id: reorderPointField; Layout.fillWidth: true; placeholderText: "0.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Reorder point"
+            AppControls.TextField { id: reorderPointField; Layout.fillWidth: true; placeholderText: "0.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-        AppControls.Label { text: "Reorder qty" }
-        AppControls.TextField { id: reorderQtyField; Layout.fillWidth: true; placeholderText: "0.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Reorder qty"
+            AppControls.TextField { id: reorderQtyField; Layout.fillWidth: true; placeholderText: "0.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-        AppControls.Label { text: "Lead time (days)" }
-        AppControls.TextField { id: leadTimeDaysField; Layout.fillWidth: true; placeholderText: "14"; inputMethodHints: Qt.ImhDigitsOnly }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Lead time (days)"
+            AppControls.TextField { id: leadTimeDaysField; Layout.fillWidth: true; placeholderText: "14"; inputMethodHints: Qt.ImhDigitsOnly }
+        }
 
-        AppControls.Label { text: "Shelf life (days)" }
-        AppControls.TextField { id: shelfLifeDaysField; Layout.fillWidth: true; placeholderText: "0"; inputMethodHints: Qt.ImhDigitsOnly }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Shelf life (days)"
+            AppControls.TextField { id: shelfLifeDaysField; Layout.fillWidth: true; placeholderText: "0"; inputMethodHints: Qt.ImhDigitsOnly }
+        }
     }
 
     AppControls.CheckBox { id: stockedCheck; text: "Item is stocked" }
@@ -212,31 +268,27 @@ AppWidgets.EntityDialog {
     AppControls.CheckBox { id: lotTrackedCheck; text: "Lot tracking required" }
     AppControls.CheckBox { id: serialTrackedCheck; text: "Serial tracking required" }
 
-    AppControls.Label {
-        text: "Description"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: descriptionField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 88
-        wrapMode: TextEdit.WordWrap
-        placeholderText: "Optional item description"
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 88
+            wrapMode: TextEdit.WordWrap
+            placeholderText: "Optional item description"
+        }
     }
 
-    AppControls.Label {
-        text: "Notes"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: notesField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 88
-        wrapMode: TextEdit.WordWrap
-        placeholderText: "Planning or replenishment notes"
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 88
+            wrapMode: TextEdit.WordWrap
+            placeholderText: "Planning or replenishment notes"
+        }
     }
 }

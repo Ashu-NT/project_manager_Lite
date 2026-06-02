@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -36,10 +35,16 @@ AppWidgets.EntityDialog {
         root.errorMessage = ""
     }
 
-    AppControls.ComboBox {
-        id: documentCombo
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        model: root.documentOptions
-        textRole: "label"
+        label: "Document"
+        required: true
+
+        AppControls.ComboBox {
+            id: documentCombo
+            Layout.fillWidth: true
+            model: root.documentOptions
+            textRole: "label"
+        }
     }
 }

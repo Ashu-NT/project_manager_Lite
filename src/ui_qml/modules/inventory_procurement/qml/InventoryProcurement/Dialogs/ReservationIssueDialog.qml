@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -53,44 +52,52 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Reservation" }
-        AppControls.Label {
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            text: String(root.reservationData.title || "")
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-            wrapMode: Text.WordWrap
+            label: "Reservation"
+            AppControls.Label {
+                Layout.fillWidth: true
+                text: String(root.reservationData.title || "")
+                color: Theme.AppTheme.textPrimary
+                font.family: Theme.AppTheme.fontFamily
+                wrapMode: Text.WordWrap
+            }
         }
 
-        AppControls.Label { text: "Remaining qty" }
-        AppControls.Label {
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            text: String(root.reservationData.state && root.reservationData.state.remainingQtyLabel || "-")
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-            wrapMode: Text.WordWrap
+            label: "Remaining qty"
+            AppControls.Label {
+                Layout.fillWidth: true
+                text: String(root.reservationData.state && root.reservationData.state.remainingQtyLabel || "-")
+                color: Theme.AppTheme.textPrimary
+                font.family: Theme.AppTheme.fontFamily
+                wrapMode: Text.WordWrap
+            }
         }
 
-        AppControls.Label { text: "Issue qty" }
-        AppControls.TextField {
-            id: quantityField
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "1.000"
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
+            label: "Issue qty"
+            required: true
+            AppControls.TextField {
+                id: quantityField
+                Layout.fillWidth: true
+                placeholderText: "1.000"
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+            }
         }
     }
 
-    AppControls.Label {
-        text: "Notes"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: notesField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 96
-        wrapMode: TextEdit.WordWrap
-        placeholderText: "Issuing context or execution note."
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 96
+            wrapMode: TextEdit.WordWrap
+            placeholderText: "Issuing context or execution note."
+        }
     }
 }

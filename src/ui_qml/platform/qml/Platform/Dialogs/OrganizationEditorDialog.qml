@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -123,29 +122,42 @@ AppWidgets.EntityDialog {
         }
     }
 
-    AppControls.TextField {
-        id: displayNameField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Display name"
+        label: "Display Name"
+        required: true
+
+        AppControls.TextField {
+            id: displayNameField
+            Layout.fillWidth: true
+            placeholderText: "e.g. Acme Industrial Group"
+        }
     }
 
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.AppTheme.spacingMd
 
-        AppControls.TextField {
-            id: timezoneField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "Timezone"
+            label: "Timezone"
+
+            AppControls.TextField {
+                id: timezoneField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Europe/Amsterdam"
+            }
         }
 
-        AppControls.TextField {
-            id: currencyField
+        AppWidgets.FormField {
+            Layout.preferredWidth: 140
+            label: "Currency"
 
-            Layout.preferredWidth: 120
-            placeholderText: "Currency"
+            AppControls.TextField {
+                id: currencyField
+                Layout.fillWidth: true
+                placeholderText: "e.g. EUR"
+            }
         }
     }
 

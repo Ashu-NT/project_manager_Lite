@@ -133,70 +133,67 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label {
-            text: "Insert mention"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
-        RowLayout {
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingSm
+            label: "Insert mention"
 
-            AppControls.ComboBox {
-                id: mentionCombo
+            RowLayout {
                 Layout.fillWidth: true
-                model: root.mentionOptions || []
-                textRole: "label"
-            }
+                spacing: Theme.AppTheme.spacingSm
 
-            AppControls.PrimaryButton {
-                text: "Insert"
-                iconName: "collaboration"
-                enabled: (root.mentionOptions || []).length > 0
-                onClicked: root.insertSelectedMention()
+                AppControls.ComboBox {
+                    id: mentionCombo
+                    Layout.fillWidth: true
+                    model: root.mentionOptions || []
+                    textRole: "label"
+                }
+
+                AppControls.PrimaryButton {
+                    text: "Insert"
+                    iconName: "collaboration"
+                    enabled: (root.mentionOptions || []).length > 0
+                    onClicked: root.insertSelectedMention()
+                }
             }
         }
 
-        AppControls.Label {
-            text: "Link shared document"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
-        RowLayout {
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingSm
+            label: "Link shared document"
 
-            AppControls.ComboBox {
-                id: documentCombo
+            RowLayout {
                 Layout.fillWidth: true
-                model: root.documentOptions || []
-                textRole: "label"
-            }
+                spacing: Theme.AppTheme.spacingSm
 
-            AppControls.PrimaryButton {
-                text: "Queue"
-                iconName: "collaboration"
-                enabled: (root.documentOptions || []).length > 0
-                onClicked: root.queueSelectedDocument()
+                AppControls.ComboBox {
+                    id: documentCombo
+                    Layout.fillWidth: true
+                    model: root.documentOptions || []
+                    textRole: "label"
+                }
+
+                AppControls.PrimaryButton {
+                    text: "Queue"
+                    iconName: "collaboration"
+                    enabled: (root.documentOptions || []).length > 0
+                    onClicked: root.queueSelectedDocument()
+                }
             }
         }
     }
 
-    AppControls.Label {
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        text: "Comment"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
+        label: "Comment"
+        required: true
 
-    AppControls.TextArea {
-        id: commentArea
-        Layout.fillWidth: true
-        Layout.preferredHeight: 180
-        placeholderText: "Add an update, handoff note, or question for the task team."
-        wrapMode: TextEdit.WordWrap
+        AppControls.TextArea {
+            id: commentArea
+            Layout.fillWidth: true
+            Layout.preferredHeight: 180
+            placeholderText: "Add an update, handoff note, or question for the task team."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
     RowLayout {

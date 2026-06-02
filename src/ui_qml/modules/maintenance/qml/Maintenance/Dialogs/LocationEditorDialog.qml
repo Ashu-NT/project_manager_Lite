@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -102,8 +101,12 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Site" }
-        AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Site"
+            required: true
+            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+        }
 
         AppWidgets.CodeFieldRow {
             Layout.columnSpan: 2
@@ -125,37 +128,59 @@ AppWidgets.EntityDialog {
             }
         }
 
-        AppControls.Label { text: "Name" }
-        AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Production Area A" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Name"
+            required: true
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Production Area A" }
+        }
 
-        AppControls.Label { text: "Parent location" }
-        AppControls.ComboBox { id: parentLocationCombo; Layout.fillWidth: true; model: root.parentLocationOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Parent location"
+            AppControls.ComboBox { id: parentLocationCombo; Layout.fillWidth: true; model: root.parentLocationOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Location type" }
-        AppControls.TextField { id: locationTypeField; Layout.fillWidth: true; placeholderText: "PRODUCTION" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Location type"
+            AppControls.TextField { id: locationTypeField; Layout.fillWidth: true; placeholderText: "PRODUCTION" }
+        }
 
-        AppControls.Label { text: "Criticality" }
-        AppControls.ComboBox { id: criticalityCombo; Layout.fillWidth: true; model: root.criticalityOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Criticality"
+            AppControls.ComboBox { id: criticalityCombo; Layout.fillWidth: true; model: root.criticalityOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Lifecycle status" }
-        AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Lifecycle status"
+            AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+        }
     }
 
-    AppControls.Label { text: "Description" }
-    AppControls.TextArea {
-        id: descriptionField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 90
-        wrapMode: TextEdit.WordWrap
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
     AppControls.CheckBox { id: activeCheck; text: "Active location" }
 
-    AppControls.Label { text: "Notes" }
-    AppControls.TextArea {
-        id: notesField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 90
-        wrapMode: TextEdit.WordWrap
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            wrapMode: TextEdit.WordWrap
+        }
     }
 }

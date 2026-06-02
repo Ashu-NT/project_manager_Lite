@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -58,15 +57,27 @@ AppWidgets.EntityDialog {
 
     // ── Form content ──────────────────────────────────────────────────────────
 
-    AppControls.Label { text: "Progress (%)"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-    AppControls.TextField { id: percentField; Layout.fillWidth: true; placeholderText: "0-100" }
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Progress (%)"
+        AppControls.TextField { id: percentField; Layout.fillWidth: true; placeholderText: "0-100" }
+    }
 
-    AppControls.Label { text: "Status"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-    AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.workflowStatusOptions; textRole: "label" }
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Status"
+        AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.workflowStatusOptions; textRole: "label" }
+    }
 
-    AppControls.Label { text: "Actual start"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-    AppControls.DateField { id: actualStartField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Actual start"
+        AppControls.DateField { id: actualStartField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+    }
 
-    AppControls.Label { text: "Actual end"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-    AppControls.DateField { id: actualEndField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Actual end"
+        AppControls.DateField { id: actualEndField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+    }
 }

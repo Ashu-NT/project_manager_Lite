@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -136,17 +135,31 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Site" }
-        AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Site"
+            required: true
+            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Location" }
-        AppControls.ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Location"
+            required: true
+            AppControls.ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "System" }
-        AppControls.ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.systemOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "System"
+            AppControls.ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.systemOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Parent asset" }
-        AppControls.ComboBox { id: parentAssetCombo; Layout.fillWidth: true; model: root.parentAssetOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Parent asset"
+            AppControls.ComboBox { id: parentAssetCombo; Layout.fillWidth: true; model: root.parentAssetOptions; textRole: "label" }
+        }
 
         AppWidgets.CodeFieldRow {
             Layout.columnSpan: 2
@@ -168,49 +181,89 @@ AppWidgets.EntityDialog {
             }
         }
 
-        AppControls.Label { text: "Name" }
-        AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Conveyor 100" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Name"
+            required: true
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Conveyor 100" }
+        }
 
-        AppControls.Label { text: "Asset type" }
-        AppControls.TextField { id: assetTypeField; Layout.fillWidth: true; placeholderText: "CONVEYOR" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Asset type"
+            AppControls.TextField { id: assetTypeField; Layout.fillWidth: true; placeholderText: "CONVEYOR" }
+        }
 
-        AppControls.Label { text: "Category" }
-        AppControls.TextField { id: assetCategoryField; Layout.fillWidth: true; placeholderText: "ROTATING" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Category"
+            AppControls.TextField { id: assetCategoryField; Layout.fillWidth: true; placeholderText: "ROTATING" }
+        }
 
-        AppControls.Label { text: "Criticality" }
-        AppControls.ComboBox { id: criticalityCombo; Layout.fillWidth: true; model: root.criticalityOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Criticality"
+            AppControls.ComboBox { id: criticalityCombo; Layout.fillWidth: true; model: root.criticalityOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Lifecycle status" }
-        AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Lifecycle status"
+            AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Manufacturer" }
-        AppControls.ComboBox { id: manufacturerCombo; Layout.fillWidth: true; model: root.manufacturerOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Manufacturer"
+            AppControls.ComboBox { id: manufacturerCombo; Layout.fillWidth: true; model: root.manufacturerOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Supplier" }
-        AppControls.ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Supplier"
+            AppControls.ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Model number" }
-        AppControls.TextField { id: modelNumberField; Layout.fillWidth: true }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Model number"
+            AppControls.TextField { id: modelNumberField; Layout.fillWidth: true }
+        }
 
-        AppControls.Label { text: "Serial number" }
-        AppControls.TextField { id: serialNumberField; Layout.fillWidth: true }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Serial number"
+            AppControls.TextField { id: serialNumberField; Layout.fillWidth: true }
+        }
 
-        AppControls.Label { text: "Replacement cost" }
-        AppControls.TextField { id: replacementCostField; Layout.fillWidth: true; placeholderText: "2500.00" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Replacement cost"
+            AppControls.TextField { id: replacementCostField; Layout.fillWidth: true; placeholderText: "2500.00" }
+        }
 
-        AppControls.Label { text: "Maintenance strategy" }
-        AppControls.TextField { id: maintenanceStrategyField; Layout.fillWidth: true; placeholderText: "Condition-based" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Maintenance strategy"
+            AppControls.TextField { id: maintenanceStrategyField; Layout.fillWidth: true; placeholderText: "Condition-based" }
+        }
 
-        AppControls.Label { text: "Service level" }
-        AppControls.TextField { id: serviceLevelField; Layout.fillWidth: true; placeholderText: "Tier 1" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Service level"
+            AppControls.TextField { id: serviceLevelField; Layout.fillWidth: true; placeholderText: "Tier 1" }
+        }
     }
 
-    AppControls.Label { text: "Description" }
-    AppControls.TextArea {
-        id: descriptionField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 90
-        wrapMode: TextEdit.WordWrap
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
     Flow {
@@ -220,11 +273,14 @@ AppWidgets.EntityDialog {
         AppControls.CheckBox { id: shutdownCheck; text: "Requires shutdown for major work" }
     }
 
-    AppControls.Label { text: "Notes" }
-    AppControls.TextArea {
-        id: notesField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 90
-        wrapMode: TextEdit.WordWrap
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            wrapMode: TextEdit.WordWrap
+        }
     }
 }

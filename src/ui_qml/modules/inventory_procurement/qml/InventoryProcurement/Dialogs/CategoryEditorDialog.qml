@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -112,14 +111,25 @@ AppWidgets.EntityDialog {
             }
         }
 
-        AppControls.Label { text: "Name"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Spare Parts" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Name"
+            required: true
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Spare Parts" }
+        }
 
-        AppControls.Label { text: "Category type"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.ComboBox { id: categoryTypeCombo; Layout.fillWidth: true; model: root.formCategoryTypeOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Category type"
+            required: true
+            AppControls.ComboBox { id: categoryTypeCombo; Layout.fillWidth: true; model: root.formCategoryTypeOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Description"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextArea { id: descriptionField; Layout.fillWidth: true; Layout.preferredHeight: 96; wrapMode: TextEdit.WordWrap; placeholderText: "Optional category description" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Description"
+            AppControls.TextArea { id: descriptionField; Layout.fillWidth: true; Layout.preferredHeight: 96; wrapMode: TextEdit.WordWrap; placeholderText: "Optional category description" }
+        }
     }
 
     AppControls.CheckBox { id: equipmentCheck; text: "Category represents equipment or reusable asset types" }

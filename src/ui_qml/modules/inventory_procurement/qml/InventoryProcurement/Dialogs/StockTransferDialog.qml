@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -90,33 +89,50 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Item" }
-        AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Item"
+            required: true
+            AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Source storeroom" }
-        AppControls.ComboBox { id: sourceStoreroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Source storeroom"
+            required: true
+            AppControls.ComboBox { id: sourceStoreroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Destination storeroom" }
-        AppControls.ComboBox { id: destinationStoreroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Destination storeroom"
+            required: true
+            AppControls.ComboBox { id: destinationStoreroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Quantity" }
-        AppControls.TextField { id: quantityField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Quantity"
+            required: true
+            AppControls.TextField { id: quantityField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-        AppControls.Label { text: "UOM" }
-        AppControls.TextField { id: uomField; Layout.fillWidth: true; placeholderText: "EA" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "UOM"
+            AppControls.TextField { id: uomField; Layout.fillWidth: true; placeholderText: "EA" }
+        }
     }
 
-    AppControls.Label {
-        text: "Notes"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: notesField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 96
-        wrapMode: TextEdit.WordWrap
-        placeholderText: "Optional transfer notes"
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 96
+            wrapMode: TextEdit.WordWrap
+            placeholderText: "Optional transfer notes"
+        }
     }
 }

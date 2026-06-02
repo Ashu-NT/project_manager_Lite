@@ -119,114 +119,108 @@ AppWidgets.EntityDialog {
             }
         }
 
-        AppControls.Label {
-            text: "Description"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
-        AppControls.TextField {
-            id: descriptionField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "Electrical material package"
+            label: "Description"
+            required: true
+
+            AppControls.TextField {
+                id: descriptionField
+
+                Layout.fillWidth: true
+                placeholderText: "Electrical material package"
+            }
         }
 
-        AppControls.Label {
-            text: "Task"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
-        AppControls.ComboBox {
-            id: taskCombo
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            model: root.taskOptions
-            textRole: "label"
-            enabled: !root.editingExistingCost
+            label: "Task"
+
+            AppControls.ComboBox {
+                id: taskCombo
+
+                Layout.fillWidth: true
+                model: root.taskOptions
+                textRole: "label"
+                enabled: !root.editingExistingCost
+            }
         }
 
-        AppControls.Label {
-            text: "Cost type"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
-        AppControls.ComboBox {
-            id: costTypeCombo
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            model: root.costTypeOptions
-            textRole: "label"
+            label: "Cost type"
+
+            AppControls.ComboBox {
+                id: costTypeCombo
+
+                Layout.fillWidth: true
+                model: root.costTypeOptions
+                textRole: "label"
+            }
         }
 
-        AppControls.Label {
-            text: "Planned"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
-        AppControls.TextField {
-            id: plannedAmountField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-            placeholderText: "0.00"
+            label: "Planned"
+            required: true
+
+            AppControls.TextField {
+                id: plannedAmountField
+
+                Layout.fillWidth: true
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                placeholderText: "0.00"
+            }
         }
 
-        AppControls.Label {
-            text: "Committed"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
-        AppControls.TextField {
-            id: committedAmountField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-            placeholderText: "0.00"
+            label: "Committed"
+
+            AppControls.TextField {
+                id: committedAmountField
+
+                Layout.fillWidth: true
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                placeholderText: "0.00"
+            }
         }
 
-        AppControls.Label {
-            text: "Actual"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
-        AppControls.TextField {
-            id: actualAmountField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-            placeholderText: "0.00"
+            label: "Actual"
+
+            AppControls.TextField {
+                id: actualAmountField
+
+                Layout.fillWidth: true
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                placeholderText: "0.00"
+            }
         }
 
-        AppControls.Label {
-            text: "Currency"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
-        AppControls.TextField {
-            id: currencyField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "EUR"
+            label: "Currency"
+
+            AppControls.TextField {
+                id: currencyField
+
+                Layout.fillWidth: true
+                placeholderText: "EUR"
+            }
         }
 
-        AppControls.Label {
-            text: "Incurred date"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
-        AppControls.DateField {
-            id: incurredDateField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "YYYY-MM-DD"
+            label: "Incurred date"
+
+            AppControls.DateField {
+                id: incurredDateField
+
+                Layout.fillWidth: true
+                placeholderText: "YYYY-MM-DD"
+            }
         }
     }
 }

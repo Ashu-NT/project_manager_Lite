@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -57,31 +56,50 @@ AppWidgets.EntityDialog {
         open()
     }
 
-    AppControls.TextField {
-        id: moduleCodeField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Module code"
+        label: "Module Code"
+        required: true
+
+        AppControls.TextField {
+            id: moduleCodeField
+            Layout.fillWidth: true
+            placeholderText: "e.g. maintenance"
+        }
     }
 
-    AppControls.TextField {
-        id: entityTypeField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Entity type"
+        label: "Entity Type"
+        required: true
+
+        AppControls.TextField {
+            id: entityTypeField
+            Layout.fillWidth: true
+            placeholderText: "e.g. work_order"
+        }
     }
 
-    AppControls.TextField {
-        id: entityIdField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Entity id"
+        label: "Entity ID"
+        required: true
+
+        AppControls.TextField {
+            id: entityIdField
+            Layout.fillWidth: true
+            placeholderText: "Target record identifier"
+        }
     }
 
-    AppControls.TextField {
-        id: linkRoleField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Link role"
+        label: "Link Role"
+
+        AppControls.TextField {
+            id: linkRoleField
+            Layout.fillWidth: true
+            placeholderText: "e.g. specification (optional)"
+        }
     }
 }

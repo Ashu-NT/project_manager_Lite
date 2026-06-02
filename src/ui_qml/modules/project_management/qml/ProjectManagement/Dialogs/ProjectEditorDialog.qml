@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -108,43 +107,65 @@ AppWidgets.EntityDialog {
             }
         }
 
-        AppControls.Label { text: "Project name"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Plant Upgrade" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Project name"
+            required: true
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Plant Upgrade" }
+        }
 
-        AppControls.Label { text: "Status"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.workflowStatusOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Status"
+            AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.workflowStatusOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Client"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: clientNameField; Layout.fillWidth: true; placeholderText: "Contoso Manufacturing" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Client"
+            AppControls.TextField { id: clientNameField; Layout.fillWidth: true; placeholderText: "Contoso Manufacturing" }
+        }
 
-        AppControls.Label { text: "Client contact"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: clientContactField; Layout.fillWidth: true; placeholderText: "client@example.com" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Client contact"
+            AppControls.TextField { id: clientContactField; Layout.fillWidth: true; placeholderText: "client@example.com" }
+        }
 
-        AppControls.Label { text: "Planned budget"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: plannedBudgetField; Layout.fillWidth: true; inputMethodHints: Qt.ImhFormattedNumbersOnly; placeholderText: "250000.00" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Planned budget"
+            AppControls.TextField { id: plannedBudgetField; Layout.fillWidth: true; inputMethodHints: Qt.ImhFormattedNumbersOnly; placeholderText: "250000.00" }
+        }
 
-        AppControls.Label { text: "Currency"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: currencyField; Layout.fillWidth: true; placeholderText: "EUR" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Currency"
+            AppControls.TextField { id: currencyField; Layout.fillWidth: true; placeholderText: "EUR" }
+        }
 
-        AppControls.Label { text: "Start date"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.DateField { id: startDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Start date"
+            AppControls.DateField { id: startDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+        }
 
-        AppControls.Label { text: "Finish date"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.DateField { id: endDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Finish date"
+            AppControls.DateField { id: endDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+        }
     }
 
-    AppControls.Label {
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        text: "Description"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: descriptionField
-        Layout.fillWidth: true
-        Layout.preferredHeight: 140
-        placeholderText: "Scope, delivery context, and stakeholder notes."
-        wrapMode: TextEdit.WordWrap
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 140
+            placeholderText: "Scope, delivery context, and stakeholder notes."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 }

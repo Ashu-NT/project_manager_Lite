@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -156,66 +155,123 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Site" }
-        AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.optionsFor("siteOptions"); textRole: "label" }
-
-        AppControls.Label { text: "Plan Code" }
-        AppControls.TextField { id: planCodeField; Layout.fillWidth: true; placeholderText: "PM-100" }
-
-        AppControls.Label { text: "Name" }
-        AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Monthly inspection route" }
-
-        AppControls.Label { text: "Asset" }
-        AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.optionsFor("assetOptions"); textRole: "label" }
-
-        AppControls.Label { text: "Component" }
-        AppControls.ComboBox { id: componentCombo; Layout.fillWidth: true; model: root.optionsFor("componentOptions"); textRole: "label" }
-
-        AppControls.Label { text: "System" }
-        AppControls.ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.optionsFor("systemOptions"); textRole: "label" }
-
-        AppControls.Label { text: "Status" }
-        AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.optionsFor("statusOptions"); textRole: "label" }
-
-        AppControls.Label { text: "Plan Type" }
-        AppControls.ComboBox { id: planTypeCombo; Layout.fillWidth: true; model: root.optionsFor("planTypeOptions"); textRole: "label" }
-
-        AppControls.Label { text: "Priority" }
-        AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.optionsFor("priorityOptions"); textRole: "label" }
-
-        AppControls.Label { text: "Trigger Mode" }
-        AppControls.ComboBox { id: triggerModeCombo; Layout.fillWidth: true; model: root.optionsFor("triggerModeOptions"); textRole: "label" }
-
-        AppControls.Label { text: "Schedule Policy" }
-        AppControls.ComboBox { id: schedulePolicyCombo; Layout.fillWidth: true; model: root.optionsFor("schedulePolicyOptions"); textRole: "label" }
-
-        AppControls.Label { text: "Calendar Unit" }
-        AppControls.ComboBox { id: calendarUnitCombo; Layout.fillWidth: true; model: root.optionsFor("calendarFrequencyUnitOptions"); textRole: "label" }
-
-        AppControls.Label { text: "Calendar Value" }
-        AppControls.TextField { id: calendarValueField; Layout.fillWidth: true; placeholderText: "1" }
-
-        AppControls.Label { text: "Generation Horizon" }
-        AppControls.TextField { id: generationHorizonField; Layout.fillWidth: true; placeholderText: "3" }
-
-        AppControls.Label { text: "Generation Lead" }
-        RowLayout {
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            AppControls.TextField { id: generationLeadValueField; Layout.fillWidth: true; placeholderText: "0" }
-            AppControls.ComboBox { id: generationLeadUnitCombo; Layout.preferredWidth: 180; model: root.optionsFor("generationLeadUnitOptions"); textRole: "label" }
+            label: "Site"
+            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.optionsFor("siteOptions"); textRole: "label" }
         }
 
-        AppControls.Label { text: "Sensor" }
-        AppControls.ComboBox { id: sensorCombo; Layout.fillWidth: true; model: root.optionsFor("sensorOptions"); textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Plan Code"
+            AppControls.TextField { id: planCodeField; Layout.fillWidth: true; placeholderText: "PM-100" }
+        }
 
-        AppControls.Label { text: "Sensor Threshold" }
-        AppControls.TextField { id: sensorThresholdField; Layout.fillWidth: true; placeholderText: "1200" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Name"
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Monthly inspection route" }
+        }
 
-        AppControls.Label { text: "Sensor Direction" }
-        AppControls.ComboBox { id: sensorDirectionCombo; Layout.fillWidth: true; model: root.optionsFor("sensorDirectionOptions"); textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Asset"
+            AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.optionsFor("assetOptions"); textRole: "label" }
+        }
 
-        AppControls.Label { text: "Sensor Reset Rule" }
-        AppControls.TextField { id: sensorResetRuleField; Layout.fillWidth: true; placeholderText: "manual reset" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Component"
+            AppControls.ComboBox { id: componentCombo; Layout.fillWidth: true; model: root.optionsFor("componentOptions"); textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "System"
+            AppControls.ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.optionsFor("systemOptions"); textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Status"
+            AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.optionsFor("statusOptions"); textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Plan Type"
+            AppControls.ComboBox { id: planTypeCombo; Layout.fillWidth: true; model: root.optionsFor("planTypeOptions"); textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Priority"
+            AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.optionsFor("priorityOptions"); textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Trigger Mode"
+            AppControls.ComboBox { id: triggerModeCombo; Layout.fillWidth: true; model: root.optionsFor("triggerModeOptions"); textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Schedule Policy"
+            AppControls.ComboBox { id: schedulePolicyCombo; Layout.fillWidth: true; model: root.optionsFor("schedulePolicyOptions"); textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Calendar Unit"
+            AppControls.ComboBox { id: calendarUnitCombo; Layout.fillWidth: true; model: root.optionsFor("calendarFrequencyUnitOptions"); textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Calendar Value"
+            AppControls.TextField { id: calendarValueField; Layout.fillWidth: true; placeholderText: "1" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Generation Horizon"
+            AppControls.TextField { id: generationHorizonField; Layout.fillWidth: true; placeholderText: "3" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Generation Lead"
+            RowLayout {
+                Layout.fillWidth: true
+                AppControls.TextField { id: generationLeadValueField; Layout.fillWidth: true; placeholderText: "0" }
+                AppControls.ComboBox { id: generationLeadUnitCombo; Layout.preferredWidth: 180; model: root.optionsFor("generationLeadUnitOptions"); textRole: "label" }
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Sensor"
+            AppControls.ComboBox { id: sensorCombo; Layout.fillWidth: true; model: root.optionsFor("sensorOptions"); textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Sensor Threshold"
+            AppControls.TextField { id: sensorThresholdField; Layout.fillWidth: true; placeholderText: "1200" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Sensor Direction"
+            AppControls.ComboBox { id: sensorDirectionCombo; Layout.fillWidth: true; model: root.optionsFor("sensorDirectionOptions"); textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Sensor Reset Rule"
+            AppControls.TextField { id: sensorResetRuleField; Layout.fillWidth: true; placeholderText: "manual reset" }
+        }
     }
 
     AppControls.CheckBox { id: requiresShutdownCheck; text: "Requires shutdown" }
@@ -223,21 +279,27 @@ AppWidgets.EntityDialog {
     AppControls.CheckBox { id: autoGenerateCheck; text: "Auto-generate work order" }
     AppControls.CheckBox { id: activeCheck; text: "Active" }
 
-    AppControls.Label { text: "Description" }
-    AppControls.TextArea {
-        id: descriptionArea
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 90
-        placeholderText: "Plan context, trigger notes, and anchor scope."
-        wrapMode: TextEdit.WordWrap
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionArea
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            placeholderText: "Plan context, trigger notes, and anchor scope."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
-    AppControls.Label { text: "Notes" }
-    AppControls.TextArea {
-        id: notesArea
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 90
-        placeholderText: "Planner notes, constraints, or governance context."
-        wrapMode: TextEdit.WordWrap
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesArea
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            placeholderText: "Planner notes, constraints, or governance context."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 }

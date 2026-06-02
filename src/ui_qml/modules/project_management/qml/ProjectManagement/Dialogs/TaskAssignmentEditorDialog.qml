@@ -119,40 +119,37 @@ AppWidgets.EntityDialog {
 
     onOpened: root.populateForm()
 
-    AppControls.Label {
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        text: "Task"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
+        label: "Task"
+
+        AppControls.Label {
+            id: taskLabel
+
+            Layout.fillWidth: true
+            color: Theme.AppTheme.textPrimary
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.bodySize
+            font.bold: true
+            wrapMode: Text.WordWrap
+        }
     }
 
-    AppControls.Label {
-        id: taskLabel
-
-        Layout.fillWidth: true
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-        font.pixelSize: Theme.AppTheme.bodySize
-        font.bold: true
-        wrapMode: Text.WordWrap
-    }
-
-    AppControls.Label {
+    AppWidgets.FormField {
         Layout.fillWidth: true
         visible: root.mode === "create"
-        text: "Project resource"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
+        label: "Project resource"
+        required: true
 
-    AppControls.ComboBox {
-        id: resourceCombo
+        AppControls.ComboBox {
+            id: resourceCombo
 
-        Layout.fillWidth: true
-        visible: root.mode === "create"
-        model: root.resourceOptions
-        textRole: "label"
-        onCurrentIndexChanged: Qt.callLater(root.runSkillValidation)
+            Layout.fillWidth: true
+            visible: root.mode === "create"
+            model: root.resourceOptions
+            textRole: "label"
+            onCurrentIndexChanged: Qt.callLater(root.runSkillValidation)
+        }
     }
 
     AppControls.Label {
@@ -220,17 +217,17 @@ AppWidgets.EntityDialog {
         }
     }
 
-    AppControls.Label {
-        text: "Allocation (%)"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextField {
-        id: allocationField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "0.1 - 100.0"
+        label: "Allocation (%)"
+        required: true
+
+        AppControls.TextField {
+            id: allocationField
+
+            Layout.fillWidth: true
+            placeholderText: "0.1 - 100.0"
+        }
     }
 
     AppControls.Label {

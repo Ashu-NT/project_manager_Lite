@@ -14,7 +14,14 @@ AppWidgets.EntityDialog {
 
     modal: true
     width: 680
-    height: Math.min(720, parent ? parent.height - Theme.AppTheme.marginLg * 2 : 720)
+    // Content-driven height (this dialog overrides contentItem+footer, so it can't
+    // use the base binding): size to content, capped to the window via maxDialogHeight.
+    height: Math.min(
+        _importBody.implicitHeight
+            + implicitHeaderHeight + implicitFooterHeight
+            + topPadding + bottomPadding + spacing * 2,
+        maxDialogHeight
+    )
     title: "Import Project Plan"
     closePolicy: Popup.CloseOnEscape
     showPrimary: false
@@ -64,6 +71,7 @@ AppWidgets.EntityDialog {
     }
 
     contentItem: ColumnLayout {
+        id: _importBody
         spacing: Theme.AppTheme.spacingMd
 
         AppWidgets.InlineMessage {
@@ -216,6 +224,7 @@ AppWidgets.EntityDialog {
             ScrollView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.preferredHeight: 320
                 clip: true
 
                 Column {

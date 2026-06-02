@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -151,37 +150,27 @@ AppWidgets.EntityDialog {
         }
     }
 
-    AppControls.TextField {
-        id: partyNameField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Party name"
-    }
-
-    AppControls.ComboBox {
-        id: typeCombo
-
-        Layout.fillWidth: true
-        model: typeModel
-        textRole: "label"
-    }
-
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: Theme.AppTheme.spacingMd
+        label: "Party Name"
+        required: true
 
         AppControls.TextField {
-            id: legalNameField
-
+            id: partyNameField
             Layout.fillWidth: true
-            placeholderText: "Legal name"
+            placeholderText: "e.g. Acme Industrial Supplies"
         }
+    }
 
-        AppControls.TextField {
-            id: contactNameField
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Party Type"
 
+        AppControls.ComboBox {
+            id: typeCombo
             Layout.fillWidth: true
-            placeholderText: "Contact name"
+            model: typeModel
+            textRole: "label"
         }
     }
 
@@ -189,70 +178,26 @@ AppWidgets.EntityDialog {
         Layout.fillWidth: true
         spacing: Theme.AppTheme.spacingMd
 
-        AppControls.TextField {
-            id: emailField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "Email"
+            label: "Legal Name"
+
+            AppControls.TextField {
+                id: legalNameField
+                Layout.fillWidth: true
+                placeholderText: "Registered legal entity name"
+            }
         }
 
-        AppControls.TextField {
-            id: phoneField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "Phone"
-        }
-    }
+            label: "Contact Name"
 
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.TextField {
-            id: countryField
-
-            Layout.fillWidth: true
-            placeholderText: "Country"
-        }
-
-        AppControls.TextField {
-            id: cityField
-
-            Layout.fillWidth: true
-            placeholderText: "City"
-        }
-    }
-
-    AppControls.TextField {
-        id: addressLine1Field
-
-        Layout.fillWidth: true
-        placeholderText: "Address line 1"
-    }
-
-    AppControls.TextField {
-        id: addressLine2Field
-
-        Layout.fillWidth: true
-        placeholderText: "Address line 2"
-    }
-
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.TextField {
-            id: postalCodeField
-
-            Layout.fillWidth: true
-            placeholderText: "Postal code"
-        }
-
-        AppControls.TextField {
-            id: websiteField
-
-            Layout.fillWidth: true
-            placeholderText: "Website"
+            AppControls.TextField {
+                id: contactNameField
+                Layout.fillWidth: true
+                placeholderText: "Primary contact"
+            }
         }
     }
 
@@ -260,28 +205,143 @@ AppWidgets.EntityDialog {
         Layout.fillWidth: true
         spacing: Theme.AppTheme.spacingMd
 
-        AppControls.TextField {
-            id: taxRegistrationField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "Tax registration"
+            label: "Email"
+
+            AppControls.TextField {
+                id: emailField
+                Layout.fillWidth: true
+                placeholderText: "name@company.com"
+            }
         }
 
-        AppControls.TextField {
-            id: externalReferenceField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "External reference"
+            label: "Phone"
+
+            AppControls.TextField {
+                id: phoneField
+                Layout.fillWidth: true
+                placeholderText: "+1 555 0100"
+            }
         }
     }
 
-    AppControls.TextArea {
-        id: notesField
-
+    RowLayout {
         Layout.fillWidth: true
-        Layout.preferredHeight: 96
-        placeholderText: "Notes"
-        wrapMode: TextEdit.WordWrap
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Country"
+
+            AppControls.TextField {
+                id: countryField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Netherlands"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "City"
+
+            AppControls.TextField {
+                id: cityField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Rotterdam"
+            }
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Address Line 1"
+
+        AppControls.TextField {
+            id: addressLine1Field
+            Layout.fillWidth: true
+            placeholderText: "Street and number"
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Address Line 2"
+
+        AppControls.TextField {
+            id: addressLine2Field
+            Layout.fillWidth: true
+            placeholderText: "Suite, unit, or building (optional)"
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Postal Code"
+
+            AppControls.TextField {
+                id: postalCodeField
+                Layout.fillWidth: true
+                placeholderText: "e.g. 3011 AA"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Website"
+
+            AppControls.TextField {
+                id: websiteField
+                Layout.fillWidth: true
+                placeholderText: "https://example.com"
+            }
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Tax Registration"
+
+            AppControls.TextField {
+                id: taxRegistrationField
+                Layout.fillWidth: true
+                placeholderText: "VAT / tax number"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "External Reference"
+
+            AppControls.TextField {
+                id: externalReferenceField
+                Layout.fillWidth: true
+                placeholderText: "ERP or vendor reference"
+            }
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Notes"
+
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 96
+            placeholderText: "Relationship notes or context"
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
     AppControls.CheckBox {

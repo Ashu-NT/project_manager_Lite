@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -156,60 +155,89 @@ AppWidgets.EntityDialog {
         }
     }
 
-    AppControls.TextField {
-        id: titleField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Title"
+        label: "Title"
+        required: true
+
+        AppControls.TextField {
+            id: titleField
+            Layout.fillWidth: true
+            placeholderText: "e.g. Pump Maintenance Manual"
+        }
     }
 
-    AppControls.ComboBox {
-        id: typeCombo
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        model: typeModel
-        textRole: "label"
+        label: "Document Type"
+
+        AppControls.ComboBox {
+            id: typeCombo
+            Layout.fillWidth: true
+            model: typeModel
+            textRole: "label"
+        }
     }
 
-    AppControls.ComboBox {
-        id: structureCombo
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        model: structureModel
-        textRole: "label"
+        label: "Structure"
+
+        AppControls.ComboBox {
+            id: structureCombo
+            Layout.fillWidth: true
+            model: structureModel
+            textRole: "label"
+        }
     }
 
-    AppControls.ComboBox {
-        id: storageKindCombo
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        model: storageKindModel
-        textRole: "label"
+        label: "Storage Kind"
+
+        AppControls.ComboBox {
+            id: storageKindCombo
+            Layout.fillWidth: true
+            model: storageKindModel
+            textRole: "label"
+        }
     }
 
-    AppControls.TextField {
-        id: storageUriField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Storage URI"
+        label: "Storage URI"
+
+        AppControls.TextField {
+            id: storageUriField
+            Layout.fillWidth: true
+            placeholderText: "Path or URL to the document"
+        }
     }
 
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.AppTheme.spacingMd
 
-        AppControls.TextField {
-            id: fileNameField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "File name"
+            label: "File Name"
+
+            AppControls.TextField {
+                id: fileNameField
+                Layout.fillWidth: true
+                placeholderText: "e.g. manual.pdf"
+            }
         }
 
-        AppControls.TextField {
-            id: mimeTypeField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "MIME type"
+            label: "MIME Type"
+
+            AppControls.TextField {
+                id: mimeTypeField
+                Layout.fillWidth: true
+                placeholderText: "e.g. application/pdf"
+            }
         }
     }
 
@@ -217,35 +245,51 @@ AppWidgets.EntityDialog {
         Layout.fillWidth: true
         spacing: Theme.AppTheme.spacingMd
 
-        AppControls.TextField {
-            id: sourceSystemField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "Source system"
+            label: "Source System"
+
+            AppControls.TextField {
+                id: sourceSystemField
+                Layout.fillWidth: true
+                placeholderText: "e.g. SharePoint"
+            }
         }
 
-        AppControls.TextField {
-            id: confidentialityField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "Confidentiality"
+            label: "Confidentiality"
+
+            AppControls.TextField {
+                id: confidentialityField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Internal"
+            }
         }
     }
 
-    AppControls.TextField {
-        id: versionField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Business version"
+        label: "Business Version"
+
+        AppControls.TextField {
+            id: versionField
+            Layout.fillWidth: true
+            placeholderText: "e.g. Rev. C"
+        }
     }
 
-    AppControls.TextArea {
-        id: notesField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 110
-        placeholderText: "Notes"
-        wrapMode: TextEdit.WordWrap
+        label: "Notes"
+
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 110
+            placeholderText: "Context, scope, or handling notes"
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
     RowLayout {

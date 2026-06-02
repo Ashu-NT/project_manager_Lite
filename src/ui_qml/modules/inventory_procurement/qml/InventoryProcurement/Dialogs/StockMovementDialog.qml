@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -100,82 +99,98 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Item" }
-        AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Item"
+            required: true
+            AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Storeroom" }
-        AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Storeroom"
+            required: true
+            AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Quantity" }
-        AppControls.TextField { id: quantityField; objectName: "quantityField"; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Quantity"
+            required: true
+            AppControls.TextField { id: quantityField; objectName: "quantityField"; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-        AppControls.Label { text: "UOM" }
-        AppControls.TextField { id: uomField; Layout.fillWidth: true; placeholderText: "EA" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "UOM"
+            AppControls.TextField { id: uomField; Layout.fillWidth: true; placeholderText: "EA" }
+        }
 
-        AppControls.Label {
+        AppWidgets.FormField {
+            Layout.fillWidth: true
             visible: root.showDirection
-            text: "Direction"
+            label: "Direction"
+            AppControls.ComboBox {
+                id: directionCombo
+                Layout.fillWidth: true
+                model: [
+                    { "value": "INCREASE", "label": "Increase" },
+                    { "value": "DECREASE", "label": "Decrease" }
+                ]
+                textRole: "label"
+            }
         }
-        AppControls.ComboBox {
-            id: directionCombo
-            visible: root.showDirection
+
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            model: [
-                { "value": "INCREASE", "label": "Increase" },
-                { "value": "DECREASE", "label": "Decrease" }
-            ]
-            textRole: "label"
+            label: "Unit cost"
+            AppControls.TextField { id: unitCostField; Layout.fillWidth: true; placeholderText: "0.00"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
         }
 
-        AppControls.Label { text: "Unit cost" }
-        AppControls.TextField { id: unitCostField; Layout.fillWidth: true; placeholderText: "0.00"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
-
-        AppControls.Label {
+        AppWidgets.FormField {
+            Layout.fillWidth: true
             visible: root.showReleaseReservedField
-            text: "Release reserved qty"
-        }
-        AppControls.TextField {
-            id: releaseReservedField
-            visible: root.showReleaseReservedField
-            Layout.fillWidth: true
-            placeholderText: "0"
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-        }
-
-        AppControls.Label {
-            visible: root.showReferenceFields
-            text: "Reference type"
-        }
-        AppControls.TextField {
-            id: referenceTypeField
-            visible: root.showReferenceFields
-            Layout.fillWidth: true
-            placeholderText: "issue"
+            label: "Release reserved qty"
+            AppControls.TextField {
+                id: releaseReservedField
+                Layout.fillWidth: true
+                placeholderText: "0"
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+            }
         }
 
-        AppControls.Label {
-            visible: root.showReferenceFields
-            text: "Reference id"
-        }
-        AppControls.TextField {
-            id: referenceIdField
-            visible: root.showReferenceFields
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "WO-100"
+            visible: root.showReferenceFields
+            label: "Reference type"
+            AppControls.TextField {
+                id: referenceTypeField
+                Layout.fillWidth: true
+                placeholderText: "issue"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            visible: root.showReferenceFields
+            label: "Reference id"
+            AppControls.TextField {
+                id: referenceIdField
+                Layout.fillWidth: true
+                placeholderText: "WO-100"
+            }
         }
     }
 
-    AppControls.Label {
-        text: "Notes"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: notesField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 96
-        wrapMode: TextEdit.WordWrap
-        placeholderText: "Optional notes"
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 96
+            wrapMode: TextEdit.WordWrap
+            placeholderText: "Optional notes"
+        }
     }
 }

@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -101,36 +100,26 @@ AppWidgets.EntityDialog {
         }
     }
 
-    AppControls.TextField {
-        id: nameField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Site name"
-    }
-
-    AppControls.TextField {
-        id: descriptionField
-
-        Layout.fillWidth: true
-        placeholderText: "Description"
-    }
-
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: Theme.AppTheme.spacingMd
+        label: "Site Name"
+        required: true
 
         AppControls.TextField {
-            id: cityField
-
+            id: nameField
             Layout.fillWidth: true
-            placeholderText: "City"
+            placeholderText: "e.g. North Plant"
         }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Description"
 
         AppControls.TextField {
-            id: countryField
-
+            id: descriptionField
             Layout.fillWidth: true
-            placeholderText: "Country"
+            placeholderText: "Short description of the site"
         }
     }
 
@@ -138,18 +127,26 @@ AppWidgets.EntityDialog {
         Layout.fillWidth: true
         spacing: Theme.AppTheme.spacingMd
 
-        AppControls.TextField {
-            id: timezoneField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "Timezone"
+            label: "City"
+
+            AppControls.TextField {
+                id: cityField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Rotterdam"
+            }
         }
 
-        AppControls.TextField {
-            id: currencyField
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Country"
 
-            Layout.preferredWidth: 120
-            placeholderText: "Currency"
+            AppControls.TextField {
+                id: countryField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Netherlands"
+            }
         }
     }
 
@@ -157,28 +154,67 @@ AppWidgets.EntityDialog {
         Layout.fillWidth: true
         spacing: Theme.AppTheme.spacingMd
 
-        AppControls.TextField {
-            id: siteTypeField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "Site type"
+            label: "Timezone"
+
+            AppControls.TextField {
+                id: timezoneField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Europe/Amsterdam"
+            }
         }
 
-        AppControls.TextField {
-            id: statusField
+        AppWidgets.FormField {
+            Layout.preferredWidth: 140
+            label: "Currency"
 
-            Layout.fillWidth: true
-            placeholderText: "Status"
+            AppControls.TextField {
+                id: currencyField
+                Layout.fillWidth: true
+                placeholderText: "e.g. EUR"
+            }
         }
     }
 
-    AppControls.TextArea {
-        id: notesField
-
+    RowLayout {
         Layout.fillWidth: true
-        Layout.preferredHeight: 96
-        placeholderText: "Notes"
-        wrapMode: TextEdit.WordWrap
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Site Type"
+
+            AppControls.TextField {
+                id: siteTypeField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Refinery"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Status"
+
+            AppControls.TextField {
+                id: statusField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Operational"
+            }
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Notes"
+
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 96
+            placeholderText: "Operational notes or context"
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
     AppControls.CheckBox {

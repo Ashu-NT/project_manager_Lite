@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -114,47 +113,74 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Template Code" }
-        AppControls.TextField { id: taskTemplateCodeField; Layout.fillWidth: true; placeholderText: "PM-SEAL-CHECK" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Template Code"
+            AppControls.TextField { id: taskTemplateCodeField; Layout.fillWidth: true; placeholderText: "PM-SEAL-CHECK" }
+        }
 
-        AppControls.Label { text: "Name" }
-        AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Seal Inspection Route" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Name"
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Seal Inspection Route" }
+        }
 
-        AppControls.Label { text: "Maintenance Type" }
-        AppControls.ComboBox { id: maintenanceTypeCombo; Layout.fillWidth: true; model: root.optionsFor("maintenanceTypeOptions"); textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Maintenance Type"
+            AppControls.ComboBox { id: maintenanceTypeCombo; Layout.fillWidth: true; model: root.optionsFor("maintenanceTypeOptions"); textRole: "label" }
+        }
 
-        AppControls.Label { text: "Revision" }
-        AppControls.TextField { id: revisionNoField; Layout.fillWidth: true; placeholderText: "1" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Revision"
+            AppControls.TextField { id: revisionNoField; Layout.fillWidth: true; placeholderText: "1" }
+        }
 
-        AppControls.Label { text: "Template Status" }
-        AppControls.ComboBox { id: templateStatusCombo; Layout.fillWidth: true; model: root.optionsFor("statusOptions"); textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Template Status"
+            AppControls.ComboBox { id: templateStatusCombo; Layout.fillWidth: true; model: root.optionsFor("statusOptions"); textRole: "label" }
+        }
 
-        AppControls.Label { text: "Estimated Minutes" }
-        AppControls.TextField { id: estimatedMinutesField; Layout.fillWidth: true; placeholderText: "45" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Estimated Minutes"
+            AppControls.TextField { id: estimatedMinutesField; Layout.fillWidth: true; placeholderText: "45" }
+        }
 
-        AppControls.Label { text: "Required Skill" }
-        AppControls.TextField { id: requiredSkillField; Layout.fillWidth: true; placeholderText: "Mechanical" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Required Skill"
+            AppControls.TextField { id: requiredSkillField; Layout.fillWidth: true; placeholderText: "Mechanical" }
+        }
     }
 
     AppControls.CheckBox { id: requiresShutdownCheck; text: "Requires shutdown" }
     AppControls.CheckBox { id: requiresPermitCheck; text: "Requires permit" }
     AppControls.CheckBox { id: activeCheck; text: "Active" }
 
-    AppControls.Label { text: "Description" }
-    AppControls.TextArea {
-        id: descriptionArea
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 90
-        placeholderText: "Reusable template description, maintenance context, and route scope."
-        wrapMode: TextEdit.WordWrap
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionArea
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            placeholderText: "Reusable template description, maintenance context, and route scope."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
-    AppControls.Label { text: "Notes" }
-    AppControls.TextArea {
-        id: notesArea
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 90
-        placeholderText: "Revision notes or template-governance context."
-        wrapMode: TextEdit.WordWrap
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesArea
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            placeholderText: "Revision notes or template-governance context."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 }

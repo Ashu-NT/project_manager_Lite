@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -45,10 +44,15 @@ AppWidgets.EntityDialog {
 
     // ── Form content ──────────────────────────────────────────────────────────
 
-    AppControls.ComboBox {
-        id: statusCombo
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        model: root.workflowStatusOptions
-        textRole: "label"
+        label: "New Status"
+
+        AppControls.ComboBox {
+            id: statusCombo
+            Layout.fillWidth: true
+            model: root.workflowStatusOptions
+            textRole: "label"
+        }
     }
 }

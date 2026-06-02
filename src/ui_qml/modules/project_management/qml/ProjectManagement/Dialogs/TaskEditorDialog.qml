@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -140,40 +139,60 @@ AppWidgets.EntityDialog {
             }
         }
 
-        AppControls.Label { text: "Task name"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Cable Pull" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Task name"
+            required: true
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Cable Pull" }
+        }
 
-        AppControls.Label { text: "Project"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.ComboBox { id: projectCombo; Layout.fillWidth: true; model: root.editableProjectOptions; textRole: "label"; enabled: !root.editingExistingTask }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Project"
+            required: true
+            AppControls.ComboBox { id: projectCombo; Layout.fillWidth: true; model: root.editableProjectOptions; textRole: "label"; enabled: !root.editingExistingTask }
+        }
 
-        AppControls.Label { text: "Status"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.workflowStatusOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Status"
+            AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.workflowStatusOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Start date"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.DateField { id: startDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Start date"
+            AppControls.DateField { id: startDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+        }
 
-        AppControls.Label { text: "Duration"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: durationField; Layout.fillWidth: true; placeholderText: "Working days" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Duration"
+            AppControls.TextField { id: durationField; Layout.fillWidth: true; placeholderText: "Working days" }
+        }
 
-        AppControls.Label { text: "Deadline"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.DateField { id: deadlineField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Deadline"
+            AppControls.DateField { id: deadlineField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+        }
 
-        AppControls.Label { text: "Priority"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: priorityField; Layout.fillWidth: true; placeholderText: "0-100" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Priority"
+            AppControls.TextField { id: priorityField; Layout.fillWidth: true; placeholderText: "0-100" }
+        }
     }
 
-    AppControls.Label {
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        text: "Description"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: descriptionField
-        Layout.fillWidth: true
-        Layout.preferredHeight: 150
-        placeholderText: "Execution notes, scope, and completion criteria."
-        wrapMode: TextEdit.WordWrap
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 150
+            placeholderText: "Execution notes, scope, and completion criteria."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 }

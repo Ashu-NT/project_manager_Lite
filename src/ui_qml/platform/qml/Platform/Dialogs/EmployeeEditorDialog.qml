@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -157,45 +156,38 @@ AppWidgets.EntityDialog {
         }
     }
 
-    AppControls.TextField {
-        id: fullNameField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Full name"
-    }
-
-    AppControls.ComboBox {
-        id: departmentCombo
-
-        Layout.fillWidth: true
-        model: departmentModel
-        textRole: "label"
-    }
-
-    AppControls.ComboBox {
-        id: siteCombo
-
-        Layout.fillWidth: true
-        model: siteModel
-        textRole: "label"
-    }
-
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: Theme.AppTheme.spacingMd
+        label: "Full Name"
+        required: true
 
         AppControls.TextField {
-            id: titleField
-
+            id: fullNameField
             Layout.fillWidth: true
-            placeholderText: "Job title"
+            placeholderText: "e.g. Jane Smith"
         }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Department"
 
         AppControls.ComboBox {
-            id: employmentTypeCombo
-
+            id: departmentCombo
             Layout.fillWidth: true
-            model: employmentTypeModel
+            model: departmentModel
+            textRole: "label"
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Site"
+
+        AppControls.ComboBox {
+            id: siteCombo
+            Layout.fillWidth: true
+            model: siteModel
             textRole: "label"
         }
     }
@@ -204,18 +196,54 @@ AppWidgets.EntityDialog {
         Layout.fillWidth: true
         spacing: Theme.AppTheme.spacingMd
 
-        AppControls.TextField {
-            id: emailField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "Email"
+            label: "Job Title"
+
+            AppControls.TextField {
+                id: titleField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Maintenance Lead"
+            }
         }
 
-        AppControls.TextField {
-            id: phoneField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "Phone"
+            label: "Employment Type"
+
+            AppControls.ComboBox {
+                id: employmentTypeCombo
+                Layout.fillWidth: true
+                model: employmentTypeModel
+                textRole: "label"
+            }
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Email"
+
+            AppControls.TextField {
+                id: emailField
+                Layout.fillWidth: true
+                placeholderText: "name@company.com"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Phone"
+
+            AppControls.TextField {
+                id: phoneField
+                Layout.fillWidth: true
+                placeholderText: "+1 555 0100"
+            }
         }
     }
 

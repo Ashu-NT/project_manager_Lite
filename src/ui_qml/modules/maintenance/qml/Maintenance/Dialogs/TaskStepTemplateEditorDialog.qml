@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -118,17 +117,29 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Step Number" }
-        AppControls.TextField { id: stepNumberField; Layout.fillWidth: true; placeholderText: "1" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Step Number"
+            AppControls.TextField { id: stepNumberField; Layout.fillWidth: true; placeholderText: "1" }
+        }
 
-        AppControls.Label { text: "Sort Order" }
-        AppControls.TextField { id: sortOrderField; Layout.fillWidth: true; placeholderText: "1" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Sort Order"
+            AppControls.TextField { id: sortOrderField; Layout.fillWidth: true; placeholderText: "1" }
+        }
 
-        AppControls.Label { text: "Hint Level" }
-        AppControls.ComboBox { id: hintLevelCombo; Layout.fillWidth: true; model: root.optionsFor("hintLevelOptions"); textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Hint Level"
+            AppControls.ComboBox { id: hintLevelCombo; Layout.fillWidth: true; model: root.optionsFor("hintLevelOptions"); textRole: "label" }
+        }
 
-        AppControls.Label { text: "Measurement Unit" }
-        AppControls.TextField { id: measurementUnitField; Layout.fillWidth: true; placeholderText: "mm / H / PSI" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Measurement Unit"
+            AppControls.TextField { id: measurementUnitField; Layout.fillWidth: true; placeholderText: "mm / H / PSI" }
+        }
     }
 
     AppControls.CheckBox { id: requiresConfirmationCheck; text: "Requires confirmation" }
@@ -136,39 +147,51 @@ AppWidgets.EntityDialog {
     AppControls.CheckBox { id: requiresPhotoCheck; text: "Requires photo capture" }
     AppControls.CheckBox { id: activeCheck; text: "Active" }
 
-    AppControls.Label { text: "Instruction" }
-    AppControls.TextArea {
-        id: instructionArea
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 90
-        placeholderText: "Describe the step instruction."
-        wrapMode: TextEdit.WordWrap
+        label: "Instruction"
+        AppControls.TextArea {
+            id: instructionArea
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            placeholderText: "Describe the step instruction."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
-    AppControls.Label { text: "Expected Result" }
-    AppControls.TextArea {
-        id: expectedResultArea
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 90
-        placeholderText: "Describe the expected result."
-        wrapMode: TextEdit.WordWrap
+        label: "Expected Result"
+        AppControls.TextArea {
+            id: expectedResultArea
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            placeholderText: "Describe the expected result."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
-    AppControls.Label { text: "Hint Text" }
-    AppControls.TextArea {
-        id: hintTextArea
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 80
-        placeholderText: "Optional escalation or operator hint."
-        wrapMode: TextEdit.WordWrap
+        label: "Hint Text"
+        AppControls.TextArea {
+            id: hintTextArea
+            Layout.fillWidth: true
+            Layout.preferredHeight: 80
+            placeholderText: "Optional escalation or operator hint."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
-    AppControls.Label { text: "Notes" }
-    AppControls.TextArea {
-        id: notesArea
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 80
-        placeholderText: "Optional authoring notes."
-        wrapMode: TextEdit.WordWrap
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesArea
+            Layout.fillWidth: true
+            Layout.preferredHeight: 80
+            placeholderText: "Optional authoring notes."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 }

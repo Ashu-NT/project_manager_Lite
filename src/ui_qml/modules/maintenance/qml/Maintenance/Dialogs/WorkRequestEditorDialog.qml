@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -126,64 +125,117 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Site" }
-        AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Site"
+            required: true
+            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Work request code" }
-        AppControls.TextField { id: workRequestCodeField; Layout.fillWidth: true; placeholderText: "WR-100" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Work request code"
+            AppControls.TextField { id: workRequestCodeField; Layout.fillWidth: true; placeholderText: "WR-100" }
+        }
 
-        AppControls.Label { text: "Source type" }
-        AppControls.ComboBox { id: sourceTypeCombo; Layout.fillWidth: true; model: root.sourceTypeOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Source type"
+            required: true
+            AppControls.ComboBox { id: sourceTypeCombo; Layout.fillWidth: true; model: root.sourceTypeOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Source id" }
-        AppControls.TextField { id: sourceIdField; Layout.fillWidth: true; placeholderText: "Origin ticket or request id" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Source id"
+            AppControls.TextField { id: sourceIdField; Layout.fillWidth: true; placeholderText: "Origin ticket or request id" }
+        }
 
-        AppControls.Label { text: "Request type" }
-        AppControls.TextField { id: requestTypeField; Layout.fillWidth: true; placeholderText: "CORRECTIVE / BREAKDOWN / INSPECTION" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Request type"
+            required: true
+            AppControls.TextField { id: requestTypeField; Layout.fillWidth: true; placeholderText: "CORRECTIVE / BREAKDOWN / INSPECTION" }
+        }
 
-        AppControls.Label { text: "Priority" }
-        AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Priority"
+            required: true
+            AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Location" }
-        AppControls.ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Location"
+            AppControls.ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "System" }
-        AppControls.ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.systemOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "System"
+            AppControls.ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.systemOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Asset" }
-        AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Asset"
+            AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Component" }
-        AppControls.ComboBox { id: componentCombo; Layout.fillWidth: true; model: root.componentOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Component"
+            AppControls.ComboBox { id: componentCombo; Layout.fillWidth: true; model: root.componentOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Title" }
-        AppControls.TextField { id: titleField; Layout.fillWidth: true; placeholderText: "Seal leak observed on transfer pump" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Title"
+            required: true
+            AppControls.TextField { id: titleField; Layout.fillWidth: true; placeholderText: "Seal leak observed on transfer pump" }
+        }
 
-        AppControls.Label { text: "Failure symptom code" }
-        AppControls.TextField { id: failureSymptomField; Layout.fillWidth: true; placeholderText: "Optional symptom code" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Failure symptom code"
+            AppControls.TextField { id: failureSymptomField; Layout.fillWidth: true; placeholderText: "Optional symptom code" }
+        }
 
-        AppControls.Label { text: "Safety risk" }
-        AppControls.TextField { id: safetyRiskField; Layout.fillWidth: true; placeholderText: "LOW / MEDIUM / HIGH" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Safety risk"
+            AppControls.TextField { id: safetyRiskField; Layout.fillWidth: true; placeholderText: "LOW / MEDIUM / HIGH" }
+        }
 
-        AppControls.Label { text: "Production impact" }
-        AppControls.TextField { id: productionImpactField; Layout.fillWidth: true; placeholderText: "LOW / MEDIUM / HIGH" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Production impact"
+            AppControls.TextField { id: productionImpactField; Layout.fillWidth: true; placeholderText: "LOW / MEDIUM / HIGH" }
+        }
     }
 
-    AppControls.Label { text: "Description" }
-    AppControls.TextArea {
-        id: descriptionField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 120
-        placeholderText: "Problem details, symptoms, and request context."
-        wrapMode: TextEdit.WordWrap
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 120
+            placeholderText: "Problem details, symptoms, and request context."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
-    AppControls.Label { text: "Notes" }
-    AppControls.TextArea {
-        id: notesField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 100
-        placeholderText: "Triage notes or requester follow-up context."
-        wrapMode: TextEdit.WordWrap
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 100
+            placeholderText: "Triage notes or requester follow-up context."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 }

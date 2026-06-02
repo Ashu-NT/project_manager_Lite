@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -54,22 +53,41 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Cert Code *"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: certCodeField; Layout.fillWidth: true; placeholderText: "e.g. ISO-9001" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Cert Code"
+            required: true
+            AppControls.TextField { id: certCodeField; Layout.fillWidth: true; placeholderText: "e.g. ISO-9001" }
+        }
 
-        AppControls.Label { text: "Cert Name"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: certNameField; Layout.fillWidth: true; placeholderText: "e.g. ISO 9001 Quality Management" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Cert Name"
+            AppControls.TextField { id: certNameField; Layout.fillWidth: true; placeholderText: "e.g. ISO 9001 Quality Management" }
+        }
 
-        AppControls.Label { text: "Issuing Body"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: issuingBodyField; Layout.fillWidth: true; placeholderText: "e.g. ISO" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Issuing Body"
+            AppControls.TextField { id: issuingBodyField; Layout.fillWidth: true; placeholderText: "e.g. ISO" }
+        }
 
-        AppControls.Label { text: "Issued Date"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.DateField { id: issuedDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Issued Date"
+            AppControls.DateField { id: issuedDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+        }
 
-        AppControls.Label { text: "Expiry Date"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.DateField { id: expiryDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Expiry Date"
+            AppControls.DateField { id: expiryDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+        }
 
-        AppControls.Label { text: "Notes"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: notesField; Layout.fillWidth: true; placeholderText: "Optional notes" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Notes"
+            AppControls.TextField { id: notesField; Layout.fillWidth: true; placeholderText: "Optional notes" }
+        }
     }
 }

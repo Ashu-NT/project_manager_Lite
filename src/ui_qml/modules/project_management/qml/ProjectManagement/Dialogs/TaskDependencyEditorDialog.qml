@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -89,17 +88,30 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Relationship"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.ComboBox { id: relationshipCombo; Layout.fillWidth: true; model: root.relationshipOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Relationship"
+            AppControls.ComboBox { id: relationshipCombo; Layout.fillWidth: true; model: root.relationshipOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Linked task"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.ComboBox { id: linkedTaskCombo; Layout.fillWidth: true; model: root.taskOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Linked task"
+            required: true
+            AppControls.ComboBox { id: linkedTaskCombo; Layout.fillWidth: true; model: root.taskOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Dependency type"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.ComboBox { id: dependencyTypeCombo; Layout.fillWidth: true; model: root.dependencyTypeOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Dependency type"
+            AppControls.ComboBox { id: dependencyTypeCombo; Layout.fillWidth: true; model: root.dependencyTypeOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Lag (days)"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: lagField; Layout.fillWidth: true; placeholderText: "0" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Lag (days)"
+            AppControls.TextField { id: lagField; Layout.fillWidth: true; placeholderText: "0" }
+        }
     }
 
     AppControls.Label {

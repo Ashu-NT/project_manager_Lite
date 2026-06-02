@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -37,15 +36,20 @@ AppWidgets.EntityDialog {
         noteField.forceActiveFocus()
     }
 
-    AppControls.TextArea {
-        id: noteField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 140
-        placeholderText: root.mode === "reject"
-            ? "Optional rejection reason"
-            : "Optional approval note"
-        wrapMode: TextEdit.Wrap
-        selectByMouse: true
+        label: root.mode === "reject" ? "Rejection Reason" : "Approval Note"
+        helperText: "Optional — included in the decision record."
+
+        AppControls.TextArea {
+            id: noteField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 140
+            placeholderText: root.mode === "reject"
+                ? "Why is this request being rejected?"
+                : "Add any context for this approval"
+            wrapMode: TextEdit.Wrap
+            selectByMouse: true
+        }
     }
 }

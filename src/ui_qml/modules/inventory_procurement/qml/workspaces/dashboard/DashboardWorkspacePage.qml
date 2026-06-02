@@ -36,7 +36,7 @@ AppLayouts.WorkspaceFrame {
         : []
 
     property int _activePanelIndex: 0
-    onActivePanelIndexChanged: {
+    on_ActivePanelIndexChanged: {
         if (root.workspaceController) root.workspaceController.setActiveSectionIndex(root._activePanelIndex)
     }
 

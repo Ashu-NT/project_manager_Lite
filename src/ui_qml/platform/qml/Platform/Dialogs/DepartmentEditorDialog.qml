@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -149,70 +148,103 @@ AppWidgets.EntityDialog {
         }
     }
 
-    AppControls.TextField {
-        id: nameField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Department name"
+        label: "Department Name"
+        required: true
+
+        AppControls.TextField {
+            id: nameField
+            Layout.fillWidth: true
+            placeholderText: "e.g. Electrical Maintenance"
+        }
     }
 
-    AppControls.TextField {
-        id: descriptionField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Description"
+        label: "Description"
+
+        AppControls.TextField {
+            id: descriptionField
+            Layout.fillWidth: true
+            placeholderText: "Short description of the department"
+        }
     }
 
-    AppControls.ComboBox {
-        id: siteCombo
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        model: siteModel
-        textRole: "label"
+        label: "Site"
+
+        AppControls.ComboBox {
+            id: siteCombo
+            Layout.fillWidth: true
+            model: siteModel
+            textRole: "label"
+        }
     }
 
-    AppControls.ComboBox {
-        id: locationCombo
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        model: locationModel
-        textRole: "label"
+        label: "Default Location"
+
+        AppControls.ComboBox {
+            id: locationCombo
+            Layout.fillWidth: true
+            model: locationModel
+            textRole: "label"
+        }
     }
 
-    AppControls.ComboBox {
-        id: parentCombo
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        model: parentModel
-        textRole: "label"
+        label: "Parent Department"
+
+        AppControls.ComboBox {
+            id: parentCombo
+            Layout.fillWidth: true
+            model: parentModel
+            textRole: "label"
+        }
     }
 
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.AppTheme.spacingMd
 
-        AppControls.TextField {
-            id: departmentTypeField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "Department type"
+            label: "Department Type"
+
+            AppControls.TextField {
+                id: departmentTypeField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Operations"
+            }
         }
 
-        AppControls.TextField {
-            id: costCenterField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "Cost center"
+            label: "Cost Center"
+
+            AppControls.TextField {
+                id: costCenterField
+                Layout.fillWidth: true
+                placeholderText: "e.g. CC-1042"
+            }
         }
     }
 
-    AppControls.TextArea {
-        id: notesField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 96
-        placeholderText: "Notes"
-        wrapMode: TextEdit.WordWrap
+        label: "Notes"
+
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 96
+            placeholderText: "Operational notes or context"
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
     AppControls.CheckBox {

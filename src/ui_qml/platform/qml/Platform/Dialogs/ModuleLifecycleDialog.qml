@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -57,11 +56,15 @@ AppWidgets.EntityDialog {
         return String(root.statusOptions[statusCombo.currentIndex].value || "")
     }
 
-    AppControls.ComboBox {
-        id: statusCombo
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        model: root.statusOptions
-        textRole: "label"
+        label: "Lifecycle Status"
+
+        AppControls.ComboBox {
+            id: statusCombo
+            Layout.fillWidth: true
+            model: root.statusOptions
+            textRole: "label"
+        }
     }
 }

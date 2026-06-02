@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -88,36 +87,55 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Item" }
-        AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.formItemOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Item"
+            required: true
+            AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.formItemOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Storeroom" }
-        AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.formStoreroomOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Storeroom"
+            required: true
+            AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.formStoreroomOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Reserved qty" }
-        AppControls.TextField { id: quantityField; objectName: "quantityField"; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Reserved qty"
+            required: true
+            AppControls.TextField { id: quantityField; objectName: "quantityField"; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-        AppControls.Label { text: "Need by (YYYY-MM-DD)" }
-        AppControls.DateField { id: needByDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Need by (YYYY-MM-DD)"
+            AppControls.DateField { id: needByDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+        }
 
-        AppControls.Label { text: "Source type" }
-        AppControls.TextField { id: sourceTypeField; Layout.fillWidth: true; placeholderText: "task, work_order, project..." }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Source type"
+            AppControls.TextField { id: sourceTypeField; Layout.fillWidth: true; placeholderText: "task, work_order, project..." }
+        }
 
-        AppControls.Label { text: "Source id" }
-        AppControls.TextField { id: sourceIdField; Layout.fillWidth: true; placeholderText: "TASK-42" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Source id"
+            AppControls.TextField { id: sourceIdField; Layout.fillWidth: true; placeholderText: "TASK-42" }
+        }
     }
 
-    AppControls.Label {
-        text: "Notes"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: notesField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 96
-        wrapMode: TextEdit.WordWrap
-        placeholderText: "Reservation context, scope, or issuing notes."
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 96
+            wrapMode: TextEdit.WordWrap
+            placeholderText: "Reservation context, scope, or issuing notes."
+        }
     }
 }

@@ -11,6 +11,7 @@ DetailTabBar 1.0 DetailTabBar.qml
 EmptyState 1.0 EmptyState.qml
 EntityDialog 1.0 EntityDialog.qml
 FilterBar 1.0 FilterBar.qml
+FormField 1.0 FormField.qml
 InlineMessage 1.0 InlineMessage.qml
 KpiStrip 1.0 KpiStrip.qml
 LazySectionLoader 1.0 LazySectionLoader.qml

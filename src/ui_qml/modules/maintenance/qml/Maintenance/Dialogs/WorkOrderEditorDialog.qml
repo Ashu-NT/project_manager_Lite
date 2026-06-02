@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -158,79 +157,124 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Site" }
-        AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
-
-        AppControls.Label { text: "Work order code" }
-        AppControls.TextField { id: workOrderCodeField; Layout.fillWidth: true; placeholderText: "WO-100" }
-
-        AppControls.Label { text: "Source type" }
-        AppControls.ComboBox {
-            id: sourceTypeCombo
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            model: root.sourceTypeOptions
-            textRole: "label"
-            enabled: root.createMode
+            label: "Site"
+            required: true
+            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
         }
 
-        AppControls.Label { text: root.workRequestSourceSelected ? "Source work request" : "Source reference" }
-        StackLayout {
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            currentIndex: root.showWorkRequestSourceReadonly ? 2 : (root.showWorkRequestSourceCombo ? 1 : 0)
+            label: "Work order code"
+            required: true
+            AppControls.TextField { id: workOrderCodeField; Layout.fillWidth: true; placeholderText: "WO-100" }
+        }
 
-            AppControls.TextField {
-                id: manualSourceIdField
-                Layout.fillWidth: true
-                placeholderText: "Optional manual source id"
-            }
-
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Source type"
+            required: true
             AppControls.ComboBox {
-                id: sourceWorkRequestCombo
+                id: sourceTypeCombo
                 Layout.fillWidth: true
-                model: root.sourceWorkRequestOptions
+                model: root.sourceTypeOptions
                 textRole: "label"
                 enabled: root.createMode
             }
+        }
 
-            AppControls.TextField {
-                id: readOnlySourceField
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: root.workRequestSourceSelected ? "Source work request" : "Source reference"
+            StackLayout {
                 Layout.fillWidth: true
-                readOnly: true
+                currentIndex: root.showWorkRequestSourceReadonly ? 2 : (root.showWorkRequestSourceCombo ? 1 : 0)
+
+                AppControls.TextField {
+                    id: manualSourceIdField
+                    Layout.fillWidth: true
+                    placeholderText: "Optional manual source id"
+                }
+
+                AppControls.ComboBox {
+                    id: sourceWorkRequestCombo
+                    Layout.fillWidth: true
+                    model: root.sourceWorkRequestOptions
+                    textRole: "label"
+                    enabled: root.createMode
+                }
+
+                AppControls.TextField {
+                    id: readOnlySourceField
+                    Layout.fillWidth: true
+                    readOnly: true
+                }
             }
         }
 
-        AppControls.Label { text: "Work-order type" }
-        AppControls.ComboBox { id: workOrderTypeCombo; Layout.fillWidth: true; model: root.workOrderTypeOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Work-order type"
+            required: true
+            AppControls.ComboBox { id: workOrderTypeCombo; Layout.fillWidth: true; model: root.workOrderTypeOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Priority" }
-        AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Priority"
+            required: true
+            AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Location" }
-        AppControls.ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Location"
+            AppControls.ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "System" }
-        AppControls.ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.systemOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "System"
+            AppControls.ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.systemOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Asset" }
-        AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Asset"
+            AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Component" }
-        AppControls.ComboBox { id: componentCombo; Layout.fillWidth: true; model: root.componentOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Component"
+            AppControls.ComboBox { id: componentCombo; Layout.fillWidth: true; model: root.componentOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Vendor" }
-        AppControls.ComboBox { id: vendorCombo; Layout.fillWidth: true; model: root.vendorOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Vendor"
+            AppControls.ComboBox { id: vendorCombo; Layout.fillWidth: true; model: root.vendorOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Title" }
-        AppControls.TextField { id: titleField; Layout.fillWidth: true; placeholderText: "Repair coupling" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Title"
+            required: true
+            AppControls.TextField { id: titleField; Layout.fillWidth: true; placeholderText: "Repair coupling" }
+        }
     }
 
-    AppControls.Label { text: "Description" }
-    AppControls.TextArea {
-        id: descriptionField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 110
-        placeholderText: "Execution intent, fault context, and repair scope."
-        wrapMode: TextEdit.WordWrap
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 110
+            placeholderText: "Execution intent, fault context, and repair scope."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
     Flow {
@@ -244,12 +288,15 @@ AppWidgets.EntityDialog {
         AppControls.CheckBox { id: emergencyCheck; text: "Emergency" }
     }
 
-    AppControls.Label { text: "Notes" }
-    AppControls.TextArea {
-        id: notesField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 90
-        placeholderText: "Planning notes, contractor context, or execution warnings."
-        wrapMode: TextEdit.WordWrap
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            placeholderText: "Planning notes, contractor context, or execution warnings."
+            wrapMode: TextEdit.WordWrap
+        }
     }
 }

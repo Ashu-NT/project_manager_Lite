@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -140,38 +139,72 @@ AppWidgets.EntityDialog {
             }
         }
 
-        AppControls.Label { text: "Worker type"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.ComboBox { id: workerTypeCombo; Layout.fillWidth: true; model: root.workerTypeOptions; textRole: "label"; onCurrentIndexChanged: root.applyEmployeeDefaults() }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Worker type"
+            AppControls.ComboBox { id: workerTypeCombo; Layout.fillWidth: true; model: root.workerTypeOptions; textRole: "label"; onCurrentIndexChanged: root.applyEmployeeDefaults() }
+        }
 
-        AppControls.Label { text: "Employee"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.ComboBox { id: employeeCombo; Layout.fillWidth: true; model: root.employeeOptions; textRole: "label"; enabled: root.employeeWorkerSelected; onCurrentIndexChanged: root.applyEmployeeDefaults() }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Employee"
+            AppControls.ComboBox { id: employeeCombo; Layout.fillWidth: true; model: root.employeeOptions; textRole: "label"; enabled: root.employeeWorkerSelected; onCurrentIndexChanged: root.applyEmployeeDefaults() }
+        }
 
-        AppControls.Label { text: "Shared context"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.Label { id: employeeContextValue; Layout.fillWidth: true; text: "-"; color: Theme.AppTheme.textSecondary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize; wrapMode: Text.WordWrap }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Shared context"
+            AppControls.Label { id: employeeContextValue; Layout.fillWidth: true; text: "-"; color: Theme.AppTheme.textSecondary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize; wrapMode: Text.WordWrap }
+        }
 
-        AppControls.Label { text: "Resource name"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Electrical Crew"; readOnly: root.employeeWorkerSelected }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Resource name"
+            required: true
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Electrical Crew"; readOnly: root.employeeWorkerSelected }
+        }
 
-        AppControls.Label { text: "Role"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: roleField; Layout.fillWidth: true; placeholderText: "Lead Technician"; readOnly: root.employeeWorkerSelected }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Role"
+            AppControls.TextField { id: roleField; Layout.fillWidth: true; placeholderText: "Lead Technician"; readOnly: root.employeeWorkerSelected }
+        }
 
-        AppControls.Label { text: "Category"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.ComboBox { id: categoryCombo; Layout.fillWidth: true; model: root.categoryOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Category"
+            AppControls.ComboBox { id: categoryCombo; Layout.fillWidth: true; model: root.categoryOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Hourly rate"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: hourlyRateField; Layout.fillWidth: true; inputMethodHints: Qt.ImhFormattedNumbersOnly; placeholderText: "95.00" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Hourly rate"
+            AppControls.TextField { id: hourlyRateField; Layout.fillWidth: true; inputMethodHints: Qt.ImhFormattedNumbersOnly; placeholderText: "95.00" }
+        }
 
-        AppControls.Label { text: "Capacity (%)"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: capacityField; Layout.fillWidth: true; inputMethodHints: Qt.ImhFormattedNumbersOnly; placeholderText: "100.0" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Capacity (%)"
+            AppControls.TextField { id: capacityField; Layout.fillWidth: true; inputMethodHints: Qt.ImhFormattedNumbersOnly; placeholderText: "100.0" }
+        }
 
-        AppControls.Label { text: "Currency"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: currencyField; Layout.fillWidth: true; placeholderText: "EUR" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Currency"
+            AppControls.TextField { id: currencyField; Layout.fillWidth: true; placeholderText: "EUR" }
+        }
 
-        AppControls.Label { text: "Address"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: addressField; Layout.fillWidth: true; placeholderText: "Site office or vendor address" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Address"
+            AppControls.TextField { id: addressField; Layout.fillWidth: true; placeholderText: "Site office or vendor address" }
+        }
 
-        AppControls.Label { text: "Contact"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-        AppControls.TextField { id: contactField; Layout.fillWidth: true; placeholderText: "name@example.com"; readOnly: root.employeeWorkerSelected }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Contact"
+            AppControls.TextField { id: contactField; Layout.fillWidth: true; placeholderText: "name@example.com"; readOnly: root.employeeWorkerSelected }
+        }
     }
 
     AppControls.CheckBox {

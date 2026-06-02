@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -132,23 +131,44 @@ AppWidgets.EntityDialog {
             }
         }
 
-        AppControls.Label { text: "Name" }
-        AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Main Storeroom" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Name"
+            required: true
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Main Storeroom" }
+        }
 
-        AppControls.Label { text: "Site" }
-        AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.formSiteOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Site"
+            required: true
+            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.formSiteOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Status" }
-        AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Status"
+            required: true
+            AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Storeroom type" }
-        AppControls.TextField { id: storeroomTypeField; Layout.fillWidth: true; placeholderText: "MAIN" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Storeroom type"
+            AppControls.TextField { id: storeroomTypeField; Layout.fillWidth: true; placeholderText: "MAIN" }
+        }
 
-        AppControls.Label { text: "Default currency" }
-        AppControls.TextField { id: defaultCurrencyField; Layout.fillWidth: true; placeholderText: "EUR" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Default currency"
+            AppControls.TextField { id: defaultCurrencyField; Layout.fillWidth: true; placeholderText: "EUR" }
+        }
 
-        AppControls.Label { text: "Manager party" }
-        AppControls.ComboBox { id: managerPartyCombo; Layout.fillWidth: true; model: root.managerPartyOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Manager party"
+            AppControls.ComboBox { id: managerPartyCombo; Layout.fillWidth: true; model: root.managerPartyOptions; textRole: "label" }
+        }
     }
 
     AppControls.CheckBox { id: internalSupplierCheck; text: "Storeroom acts as an internal supplier" }
@@ -158,31 +178,27 @@ AppWidgets.EntityDialog {
     AppControls.CheckBox { id: requiresReservationCheck; text: "Require reservations before issue" }
     AppControls.CheckBox { id: requiresSupplierReferenceCheck; text: "Require supplier reference for receipts" }
 
-    AppControls.Label {
-        text: "Description"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: descriptionField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 88
-        wrapMode: TextEdit.WordWrap
-        placeholderText: "Optional storeroom description"
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 88
+            wrapMode: TextEdit.WordWrap
+            placeholderText: "Optional storeroom description"
+        }
     }
 
-    AppControls.Label {
-        text: "Notes"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: notesField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 88
-        wrapMode: TextEdit.WordWrap
-        placeholderText: "Receiving or routing notes"
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 88
+            wrapMode: TextEdit.WordWrap
+            placeholderText: "Receiving or routing notes"
+        }
     }
 }

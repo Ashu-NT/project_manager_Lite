@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -79,36 +78,54 @@ AppWidgets.EntityDialog {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label { text: "Item" }
-        AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Item"
+            required: true
+            AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Quantity" }
-        AppControls.TextField { id: quantityField; objectName: "quantityField"; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Quantity"
+            required: true
+            AppControls.TextField { id: quantityField; objectName: "quantityField"; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-        AppControls.Label { text: "Estimated unit cost" }
-        AppControls.TextField { id: estimatedCostField; Layout.fillWidth: true; placeholderText: "0.0000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Estimated unit cost"
+            AppControls.TextField { id: estimatedCostField; Layout.fillWidth: true; placeholderText: "0.0000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-        AppControls.Label { text: "Suggested supplier" }
-        AppControls.ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Suggested supplier"
+            AppControls.ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
+        }
 
-        AppControls.Label { text: "Description" }
-        AppControls.TextField { id: descriptionField; Layout.fillWidth: true; placeholderText: "Line scope or buying description" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Description"
+            AppControls.TextField { id: descriptionField; Layout.fillWidth: true; placeholderText: "Line scope or buying description" }
+        }
 
-        AppControls.Label { text: "Needed by (YYYY-MM-DD)" }
-        AppControls.DateField { id: neededByDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Needed by (YYYY-MM-DD)"
+            AppControls.DateField { id: neededByDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+        }
     }
 
-    AppControls.Label {
-        text: "Notes"
-        color: Theme.AppTheme.textPrimary
-        font.family: Theme.AppTheme.fontFamily
-    }
-
-    AppControls.TextArea {
-        id: notesField
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 100
-        wrapMode: TextEdit.WordWrap
-        placeholderText: "Line-specific buying notes or supplier context."
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 100
+            wrapMode: TextEdit.WordWrap
+            placeholderText: "Line-specific buying notes or supplier context."
+        }
     }
 }

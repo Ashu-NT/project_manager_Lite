@@ -147,59 +147,89 @@ AppWidgets.EntityDialog {
         }
     }
 
-    AppControls.TextField {
-        id: nameField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Structure name"
+        label: "Structure Name"
+        required: true
+
+        AppControls.TextField {
+            id: nameField
+            Layout.fillWidth: true
+            placeholderText: "e.g. Equipment Manuals"
+        }
     }
 
-    AppControls.TextField {
-        id: descriptionField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Description"
+        label: "Description"
+
+        AppControls.TextField {
+            id: descriptionField
+            Layout.fillWidth: true
+            placeholderText: "Short description of this structure"
+        }
     }
 
-    AppControls.ComboBox {
-        id: parentCombo
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        model: parentModel
-        textRole: "label"
+        label: "Parent Structure"
+
+        AppControls.ComboBox {
+            id: parentCombo
+            Layout.fillWidth: true
+            model: parentModel
+            textRole: "label"
+        }
     }
 
-    AppControls.ComboBox {
-        id: scopeCombo
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        model: scopeModel
-        textRole: "label"
+        label: "Object Scope"
+
+        AppControls.ComboBox {
+            id: scopeCombo
+            Layout.fillWidth: true
+            model: scopeModel
+            textRole: "label"
+        }
     }
 
-    AppControls.ComboBox {
-        id: typeCombo
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        model: typeModel
-        textRole: "label"
+        label: "Default Document Type"
+
+        AppControls.ComboBox {
+            id: typeCombo
+            Layout.fillWidth: true
+            model: typeModel
+            textRole: "label"
+        }
     }
 
-    SpinBox {
-        id: sortOrderSpin
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        from: 0
-        to: 9999
+        label: "Sort Order"
+        helperText: "Lower numbers appear first."
+
+        SpinBox {
+            id: sortOrderSpin
+            Layout.fillWidth: true
+            from: 0
+            to: 9999
+        }
     }
 
-    AppControls.TextArea {
-        id: notesField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        Layout.preferredHeight: 96
-        placeholderText: "Notes"
-        wrapMode: TextEdit.WordWrap
+        label: "Notes"
+
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 96
+            placeholderText: "Context or usage notes"
+            wrapMode: TextEdit.WordWrap
+        }
     }
 
     AppControls.CheckBox {

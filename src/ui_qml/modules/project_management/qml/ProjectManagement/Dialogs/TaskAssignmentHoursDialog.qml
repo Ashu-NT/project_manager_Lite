@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -38,6 +37,9 @@ AppWidgets.EntityDialog {
 
     // ── Form content ──────────────────────────────────────────────────────────
 
-    AppControls.Label { text: "Hours logged"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-    AppControls.TextField { id: hoursField; Layout.fillWidth: true; placeholderText: "0.00" }
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Hours logged"
+        AppControls.TextField { id: hoursField; Layout.fillWidth: true; placeholderText: "0.00" }
+    }
 }

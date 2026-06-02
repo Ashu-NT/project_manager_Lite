@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -111,40 +110,59 @@ AppWidgets.EntityDialog {
         id: roleModel
     }
 
-    AppControls.TextField {
-        id: usernameField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: "Username"
+        label: "Username"
+        required: true
+
+        AppControls.TextField {
+            id: usernameField
+            Layout.fillWidth: true
+            placeholderText: "e.g. jsmith"
+        }
     }
 
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.AppTheme.spacingMd
 
-        AppControls.TextField {
-            id: displayNameField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "Display name"
+            label: "Display Name"
+
+            AppControls.TextField {
+                id: displayNameField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Jane Smith"
+            }
         }
 
-        AppControls.TextField {
-            id: emailField
-
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            placeholderText: "Email"
+            label: "Email"
+
+            AppControls.TextField {
+                id: emailField
+                Layout.fillWidth: true
+                placeholderText: "name@company.com"
+            }
         }
     }
 
-    AppControls.TextField {
-        id: passwordField
-
+    AppWidgets.FormField {
         Layout.fillWidth: true
-        placeholderText: root.mode === "create"
-            ? "Password"
-            : "Reset password (optional)"
-        echoMode: TextInput.Password
+        label: "Password"
+        required: root.mode === "create"
+        helperText: root.mode === "create" ? "" : "Leave blank to keep the current password."
+
+        AppControls.TextField {
+            id: passwordField
+            Layout.fillWidth: true
+            placeholderText: root.mode === "create"
+                ? "Set an initial password"
+                : "Reset password (optional)"
+            echoMode: TextInput.Password
+        }
     }
 
     AppControls.CheckBox {
