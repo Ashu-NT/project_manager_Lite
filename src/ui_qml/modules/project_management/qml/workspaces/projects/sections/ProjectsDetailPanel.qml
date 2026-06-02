@@ -1,32 +1,27 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
-import App.Theme 1.0 as Theme
-import App.Controls 1.0 as AppControls
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 
 Item {
     id: root
 
     property var projectDetail: ({
-        "id": "",
-        "title": "",
-        "statusLabel": "",
-        "subtitle": "",
-        "description": "",
-        "emptyState": "",
-        "fields": [],
-        "state": {}
+        "id": "", "title": "", "statusLabel": "", "subtitle": "",
+        "description": "", "emptyState": "", "fields": [], "state": {}
     })
     property bool isBusy: false
     property var detailPage: null
     property var sectionErrors: ({})
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
-    property var projectTasksModel: ({ "title": "Tasks", "subtitle": "", "emptyState": "Open this section to load project tasks.", "items": [] })
+    property var projectTasksModel: ({
+        "title": "Tasks", "subtitle": "", "emptyState": "Open this section to load project tasks.", "items": []
+    })
     property var projectTasksTableModel: null
-    property var projectResourcesModel: ({ "title": "Resources", "subtitle": "", "emptyState": "Open this section to load project resources.", "items": [] })
+    property var projectResourcesModel: ({
+        "title": "Resources", "subtitle": "", "emptyState": "Open this section to load project resources.", "items": []
+    })
     property var projectResourcesTableModel: null
     property var assignableResourceOptions: []
     property string selectedProjectResourceId: ""
@@ -35,12 +30,6 @@ Item {
     signal statusRequested()
     signal deleteRequested()
 
-    function _sv(key) {
-        const s = root.projectDetail.state || {}
-        return String(s[key] || "")
-    }
-
-    readonly property bool _hasProject: String(root.projectDetail.id || "").length > 0
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
     readonly property var _sections: root.detailPage ? (root.detailPage.sections || []) : []
 
@@ -71,225 +60,9 @@ Item {
         active: root._idx === root._secIdx("Overview")
         loadingMessage: "Loading overview..."
         sourceComponent: Component {
-            Column {
+            ProjectsOverviewSection {
                 width: parent ? parent.width : 0
-                spacing: 0
-
-                AppWidgets.SectionHeading {
-                    width: parent.width
-                    label: "Overview"
-                }
-
-                Item {
-                    width: parent.width
-                    implicitHeight: _overviewCol.implicitHeight + Theme.AppTheme.spacingMd * 2
-                    height: implicitHeight
-
-                    ColumnLayout {
-                        id: _overviewCol
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.leftMargin: Theme.AppTheme.spacingMd
-                        anchors.rightMargin: Theme.AppTheme.spacingMd
-                        spacing: Theme.AppTheme.spacingMd
-
-                        AppWidgets.EmptyState {
-                            Layout.fillWidth: true
-                            visible: !root._hasProject
-                            title: "No project selected"
-                            message: root.projectDetail.emptyState
-                                || "Select a project from the catalog to review details or edit its setup."
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            visible: root._hasProject
-                            spacing: Theme.AppTheme.spacingMd
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                AppControls.Label {
-                                    text: "Client"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text: root._sv("clientName") || "-"
-                                    color: Theme.AppTheme.textPrimary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    elide: Text.ElideRight
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                AppControls.Label {
-                                    text: "Contact"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text: root._sv("clientContact") || "-"
-                                    color: Theme.AppTheme.textPrimary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    elide: Text.ElideRight
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                AppControls.Label {
-                                    text: "Start"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text: root._sv("startDateLabel") || "-"
-                                    color: Theme.AppTheme.textPrimary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                AppControls.Label {
-                                    text: "Finish"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text: root._sv("endDateLabel") || "-"
-                                    color: Theme.AppTheme.textPrimary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 1
-                            visible: root._hasProject
-                            color: Theme.AppTheme.divider
-                            opacity: 0.5
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            visible: root._hasProject
-                            spacing: Theme.AppTheme.spacingMd
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                AppControls.Label {
-                                    text: "Budget"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text: root._sv("plannedBudgetLabel") || "-"
-                                    color: Theme.AppTheme.textPrimary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    font.bold: true
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                AppControls.Label {
-                                    text: "Currency"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text: root._sv("currency") || "-"
-                                    color: Theme.AppTheme.textPrimary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                AppControls.Label {
-                                    text: "Status"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-                                AppWidgets.StatusChip {
-                                    status: root.projectDetail.statusLabel || ""
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                AppControls.Label {
-                                    text: "Version"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text: root._sv("version") ? "v" + root._sv("version") : "-"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                }
-                            }
-                        }
-
-                        AppControls.Label {
-                            Layout.fillWidth: true
-                            visible: root._hasProject
-                            text: root.projectDetail.description
-                                || "No project description has been added yet."
-                            color: String(root.projectDetail.description || "").length > 0
-                                ? Theme.AppTheme.textSecondary
-                                : Theme.AppTheme.textMuted
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.smallSize
-                            wrapMode: Text.WordWrap
-                            maximumLineCount: 4
-                            elide: Text.ElideRight
-                        }
-                    }
-                }
+                projectDetail: root.projectDetail
             }
         }
     }
@@ -301,89 +74,10 @@ Item {
         active: root._idx === root._secIdx("Schedule")
         loadingMessage: "Loading schedule..."
         sourceComponent: Component {
-            Column {
+            ProjectsScheduleSection {
                 width: parent ? parent.width : 0
-                spacing: 0
-
-                AppWidgets.SectionHeading {
-                    width: parent.width
-                    label: "Schedule"
-                }
-
-                AppWidgets.InlineMessage {
-                    width: parent.width
-                    visible: String(root.sectionErrors["schedule"] || "").length > 0
-                    tone: "danger"
-                    message: String(root.sectionErrors["schedule"] || "")
-                }
-
-                Item {
-                    width: parent.width
-                    implicitHeight: _scheduleContent.implicitHeight + Theme.AppTheme.spacingMd * 2
-                    height: implicitHeight
-
-                    ColumnLayout {
-                        id: _scheduleContent
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.leftMargin: Theme.AppTheme.spacingMd
-                        anchors.rightMargin: Theme.AppTheme.spacingMd
-                        spacing: Theme.AppTheme.spacingXs
-
-                        AppWidgets.EmptyState {
-                            Layout.fillWidth: true
-                            visible: !root._hasProject
-                            title: "No schedule data"
-                            message: "Select a project to review its schedule."
-                        }
-
-                        Item {
-                            Layout.fillWidth: true
-                            visible: root._hasProject
-                            implicitHeight: _scheduleGrid.implicitHeight
-
-                            GridLayout {
-                                id: _scheduleGrid
-                                width: parent.width
-                                columns: 2
-                                columnSpacing: Theme.AppTheme.spacingMd
-                                rowSpacing: Theme.AppTheme.spacingXs
-
-                                AppControls.Label {
-                                    text: "Start Date"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text: root._sv("startDateLabel") || "Not scheduled"
-                                    color: Theme.AppTheme.textPrimary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                }
-
-                                AppControls.Label {
-                                    text: "Finish Date"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text: root._sv("endDateLabel") || "Not scheduled"
-                                    color: Theme.AppTheme.textPrimary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                }
-                            }
-                        }
-                    }
-                }
+                projectDetail: root.projectDetail
+                sectionErrors: root.sectionErrors
             }
         }
     }
@@ -395,32 +89,12 @@ Item {
         active: root._idx === root._secIdx("Tasks")
         loadingMessage: "Loading tasks..."
         sourceComponent: Component {
-            Column {
+            ProjectsTasksSection {
                 width: parent ? parent.width : 0
-                spacing: 0
-
-                AppWidgets.SectionHeading { width: parent.width; label: "Tasks" }
-
-                AppWidgets.InlineMessage {
-                    width: parent.width
-                    visible: String(root.sectionErrors["tasks"] || "").length > 0
-                    tone: "danger"
-                    message: String(root.sectionErrors["tasks"] || "")
-                }
-
-                AppWidgets.DataTable {
-                    width: parent.width
-                    height: Math.min(400, Math.max(200, implicitHeight))
-                    columns: [
-                        { key: "title",          label: "Task",     flex: 2,   sortable: true  },
-                        { key: "statusLabel",    label: "Status",   flex: 0,   minWidth: 110, type: "status" },
-                        { key: "subtitle",       label: "Progress", flex: 0,   minWidth: 100  },
-                        { key: "supportingText", label: "Dates",    flex: 1.5, minWidth: 140  }
-                    ]
-                    sourceModel: root.projectTasksTableModel
-                    loading: root.isBusy
-                    emptyText: root.projectTasksModel.emptyState || "No tasks found for this project."
-                }
+                sectionErrors: root.sectionErrors
+                projectTasksModel: root.projectTasksModel
+                projectTasksTableModel: root.projectTasksTableModel
+                isBusy: root.isBusy
             }
         }
     }
@@ -432,371 +106,16 @@ Item {
         active: root._idx === root._secIdx("Resources")
         loadingMessage: "Loading resources..."
         sourceComponent: Component {
-            Column {
-                id: _resourcesCol
+            ProjectsResourcesSection {
                 width: parent ? parent.width : 0
-                spacing: 0
-
-                Component.onCompleted: {
-                    const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
-                    if (ctrl) ctrl.loadAssignableResources()
-                }
-
-                Item {
-                    width: parent.width
-                    implicitHeight: 44
-
-                    Rectangle {
-                        anchors.bottom: parent.bottom
-                        width: parent.width
-                        height: 1
-                        color: Theme.AppTheme.divider
-                    }
-
-                    AppControls.Label {
-                        anchors {
-                            verticalCenter: parent.verticalCenter
-                            left: parent.left
-                            leftMargin: Theme.AppTheme.spacingMd
-                        }
-                        text: "RESOURCES"
-                        color: Theme.AppTheme.textMuted
-                        font.pixelSize: Theme.AppTheme.sectionTitleSize
-                        font.bold: true
-                        font.family: Theme.AppTheme.fontFamily
-                        font.letterSpacing: 0.8
-                    }
-
-                    Row {
-                        anchors {
-                            verticalCenter: parent.verticalCenter
-                            right: parent.right
-                            rightMargin: Theme.AppTheme.spacingMd
-                        }
-                        spacing: Theme.AppTheme.spacingSm
-
-                        AppControls.SecondaryButton {
-                            visible: root.selectedProjectResourceId.length > 0
-                            text: "Edit"
-                            iconName: "edit"
-                            enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                            onClicked: _editPopup.openForSelected()
-                        }
-
-                        AppControls.SecondaryButton {
-                            visible: root.selectedProjectResourceId.length > 0
-                            text: "Remove"
-                            iconName: "delete"
-                            danger: true
-                            enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                            onClicked: _deleteConfirm.open()
-                        }
-
-                        AppControls.PrimaryButton {
-                            text: "Assign Resource"
-                            iconName: "add"
-                            enabled: root._hasProject
-                                && !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                            onClicked: _assignPopup.open()
-                        }
-                    }
-                }
-
-                AppWidgets.InlineMessage {
-                    width: parent.width
-                    visible: String(root.sectionErrors["resources"] || "").length > 0
-                    tone: "danger"
-                    message: String(root.sectionErrors["resources"] || "")
-                }
-
-                AppWidgets.DataTable {
-                    width: parent.width
-                    height: Math.min(360, Math.max(200, implicitHeight))
-                    columns: [
-                        { key: "title",          label: "Resource",      flex: 2,   sortable: true  },
-                        { key: "subtitle",       label: "Role",          flex: 1.5                   },
-                        { key: "supportingText", label: "Planned Hours", flex: 1,   minWidth: 100   },
-                        { key: "metaText",       label: "Hourly Rate",   flex: 1,   minWidth: 100   },
-                        { key: "statusLabel",    label: "Status",        flex: 0,   minWidth: 90,  type: "status" }
-                    ]
-                    sourceModel: root.projectResourcesTableModel
-                    selectedRowId: root.selectedProjectResourceId
-                    loading: root.isBusy
-                    emptyText: root.projectResourcesModel.emptyState || "No resources allocated to this project."
-                    onRowSelected: function(rowId) {
-                        const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
-                        if (ctrl) ctrl.selectProjectResource(rowId)
-                    }
-                }
-
-                // Edit dialog
-                AppWidgets.EntityDialog {
-                    id: _editPopup
-                    title: "Edit Resource Assignment"
-                    standardButtons: Dialog.NoButton
-
-                    property var _rowState: ({})
-
-                    function openForSelected() {
-                        const items = root.projectResourcesModel.items || []
-                        const selId = root.selectedProjectResourceId
-                        _rowState = {}
-                        for (let i = 0; i < items.length; i++) {
-                            if (String(items[i].id || "") === selId) {
-                                _rowState = items[i].state || {}
-                                break
-                            }
-                        }
-                        _editHoursField.text = String(_rowState.plannedHours || "0")
-                        _editRateField.text  = String(_rowState.hourlyRate  || "")
-                        _editActiveToggle.checked = Boolean(_rowState.isActive !== false)
-                        _editError.message = ""
-                        open()
-                    }
-
-                    contentItem: ColumnLayout {
-                        spacing: Theme.AppTheme.spacingSm
-                        implicitWidth: 320
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: Theme.AppTheme.spacingSm
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 4
-
-                                AppControls.Label {
-                                    text: "Planned Hours"
-                                    color: Theme.AppTheme.textSecondary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-
-                                AppControls.TextField {
-                                    id: _editHoursField
-                                    Layout.fillWidth: true
-                                    placeholderText: "0"
-                                    inputMethodHints: Qt.ImhFormattedNumbersOnly
-                                    enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 4
-
-                                AppControls.Label {
-                                    text: "Hourly Rate"
-                                    color: Theme.AppTheme.textSecondary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-
-                                AppControls.TextField {
-                                    id: _editRateField
-                                    Layout.fillWidth: true
-                                    placeholderText: "0.00"
-                                    inputMethodHints: Qt.ImhFormattedNumbersOnly
-                                    enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                                }
-                            }
-                        }
-
-                        AppControls.CheckBox {
-                            id: _editActiveToggle
-                            text: "Active"
-                            checked: true
-                            enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                        }
-
-                        AppWidgets.InlineMessage {
-                            id: _editError
-                            Layout.fillWidth: true
-                            tone: "danger"
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: Theme.AppTheme.spacingSm
-
-                            AppControls.SecondaryButton {
-                                Layout.fillWidth: true
-                                text: "Cancel"
-                                onClicked: _editPopup.close()
-                                enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                            }
-
-                            AppControls.PrimaryButton {
-                                Layout.fillWidth: true
-                                text: "Save"
-                                iconName: "approve"
-                                enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                                onClicked: {
-                                    const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
-                                    if (!ctrl) return
-                                    _editError.message = ""
-                                    const result = ctrl.updateProjectResource({
-                                        "projectResourceId": String(_editPopup._rowState.projectResourceId || ""),
-                                        "plannedHours": _editHoursField.text || "0",
-                                        "hourlyRate":   _editRateField.text  || "",
-                                        "isActive":     _editActiveToggle.checked
-                                    })
-                                    if (result && result.ok === false) {
-                                        _editError.message = String(result.error || "Update failed.")
-                                    } else {
-                                        _editPopup.close()
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Delete confirmation
-                AppControls.ConfirmationDialog {
-                    id: _deleteConfirm
-                    title: "Remove Resource"
-                    message: "Remove this resource from the project? This cannot be undone."
-                    confirmLabel: "Remove"
-                    confirmDanger: true
-                    onConfirmed: {
-                        const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
-                        if (ctrl) ctrl.removeProjectResource(root.selectedProjectResourceId)
-                    }
-                }
-
-                AppWidgets.EntityDialog {
-                    id: _assignPopup
-                    title: "Assign Resource"
-                    standardButtons: Dialog.NoButton
-
-                    onOpened: {
-                        _resourceCombo.currentIndex = -1
-                        _hoursField.text = ""
-                        _rateField.text = ""
-                        _assignError.message = ""
-                    }
-
-                    contentItem: ColumnLayout {
-                        spacing: Theme.AppTheme.spacingSm
-                        implicitWidth: 360
-
-                        AppControls.Label {
-                            Layout.fillWidth: true
-                            text: "Resource"
-                            color: Theme.AppTheme.textSecondary
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.captionSize
-                            font.bold: true
-                        }
-
-                        AppControls.ComboBox {
-                            id: _resourceCombo
-                            Layout.fillWidth: true
-                            model: root.assignableResourceOptions
-                            textRole: "label"
-                            placeholderText: (root.assignableResourceOptions || []).length === 0
-                                ? "No resources available to assign"
-                                : "Select a resource..."
-                            enabled: (root.assignableResourceOptions || []).length > 0
-                                && !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: Theme.AppTheme.spacingSm
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 4
-
-                                AppControls.Label {
-                                    text: "Planned Hours"
-                                    color: Theme.AppTheme.textSecondary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-
-                                AppControls.TextField {
-                                    id: _hoursField
-                                    Layout.fillWidth: true
-                                    placeholderText: "0"
-                                    inputMethodHints: Qt.ImhFormattedNumbersOnly
-                                    enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 4
-
-                                AppControls.Label {
-                                    text: "Hourly Rate (optional)"
-                                    color: Theme.AppTheme.textSecondary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-
-                                AppControls.TextField {
-                                    id: _rateField
-                                    Layout.fillWidth: true
-                                    placeholderText: "0.00"
-                                    inputMethodHints: Qt.ImhFormattedNumbersOnly
-                                    enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                                }
-                            }
-                        }
-
-                        AppWidgets.InlineMessage {
-                            id: _assignError
-                            Layout.fillWidth: true
-                            tone: "danger"
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: Theme.AppTheme.spacingSm
-
-                            AppControls.SecondaryButton {
-                                Layout.fillWidth: true
-                                text: "Cancel"
-                                onClicked: _assignPopup.close()
-                                enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                            }
-
-                            AppControls.PrimaryButton {
-                                Layout.fillWidth: true
-                                text: "Assign"
-                                iconName: "add"
-                                enabled: _resourceCombo.currentIndex >= 0
-                                    && !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                                onClicked: {
-                                    const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
-                                    if (!ctrl) return
-                                    const options = root.assignableResourceOptions || []
-                                    const selected = options[_resourceCombo.currentIndex]
-                                    if (!selected) return
-                                    _assignError.message = ""
-                                    const result = ctrl.assignProjectResource({
-                                        "resourceId": String(selected.value || ""),
-                                        "plannedHours": _hoursField.text || "0",
-                                        "hourlyRate": _rateField.text || ""
-                                    })
-                                    if (result && result.ok === false) {
-                                        _assignError.message = String(result.error || "Assignment failed.")
-                                    } else {
-                                        _assignPopup.close()
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                sectionErrors: root.sectionErrors
+                pmCatalog: root.pmCatalog
+                projectDetail: root.projectDetail
+                projectResourcesModel: root.projectResourcesModel
+                projectResourcesTableModel: root.projectResourcesTableModel
+                assignableResourceOptions: root.assignableResourceOptions
+                selectedProjectResourceId: root.selectedProjectResourceId
+                isBusy: root.isBusy
             }
         }
     }
@@ -808,100 +127,10 @@ Item {
         active: root._idx === root._secIdx("Financials")
         loadingMessage: "Loading financials..."
         sourceComponent: Component {
-            Column {
+            ProjectsFinancialsSection {
                 width: parent ? parent.width : 0
-                spacing: 0
-
-                AppWidgets.SectionHeading {
-                    width: parent.width
-                    label: "Financials"
-                }
-
-                AppWidgets.InlineMessage {
-                    width: parent.width
-                    visible: String(root.sectionErrors["financials"] || "").length > 0
-                    tone: "danger"
-                    message: String(root.sectionErrors["financials"] || "")
-                }
-
-                Item {
-                    width: parent.width
-                    implicitHeight: _financialsCol.implicitHeight + Theme.AppTheme.spacingMd * 2
-                    height: implicitHeight
-
-                    ColumnLayout {
-                        id: _financialsCol
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.leftMargin: Theme.AppTheme.spacingMd
-                        anchors.rightMargin: Theme.AppTheme.spacingMd
-                        spacing: Theme.AppTheme.spacingMd
-
-                        AppWidgets.EmptyState {
-                            Layout.fillWidth: true
-                            visible: !root._hasProject
-                            title: "No financial data"
-                            message: "Select a project to review its financial information."
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            visible: root._hasProject
-                            spacing: Theme.AppTheme.spacingMd
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                AppControls.Label {
-                                    text: "Planned Budget"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text: root._sv("plannedBudgetLabel") || "-"
-                                    color: Theme.AppTheme.textPrimary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    font.bold: true
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                AppControls.Label {
-                                    text: "Currency"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text: root._sv("currency") || "-"
-                                    color: Theme.AppTheme.textPrimary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                }
-                            }
-
-                            Item { Layout.fillWidth: true }
-                            Item { Layout.fillWidth: true }
-                        }
-
-                        AppWidgets.EmptyState {
-                            Layout.fillWidth: true
-                            visible: root._hasProject
-                            title: "Cost tracking data"
-                            message: "Open the Financials workspace to review actuals, commitments, and forecast against this project's budget."
-                        }
-                    }
-                }
+                projectDetail: root.projectDetail
+                sectionErrors: root.sectionErrors
             }
         }
     }
@@ -913,34 +142,9 @@ Item {
         active: root._idx === root._secIdx("Risks")
         loadingMessage: "Loading risks..."
         sourceComponent: Component {
-            Column {
+            ProjectsRisksSection {
                 width: parent ? parent.width : 0
-                spacing: 0
-
-                AppWidgets.SectionHeading { width: parent.width; label: "Risks" }
-
-                AppWidgets.InlineMessage {
-                    width: parent.width
-                    visible: String(root.sectionErrors["risks"] || "").length > 0
-                    tone: "danger"
-                    message: String(root.sectionErrors["risks"] || "")
-                }
-
-                Item {
-                    width: parent.width
-                    implicitHeight: _risksEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
-                    height: implicitHeight
-
-                    AppWidgets.EmptyState {
-                        id: _risksEmpty
-                        anchors.top: parent.top
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: Math.min(parent.width - Theme.AppTheme.marginMd * 2, 400)
-                        title: "Risk register"
-                        message: "Open the Register workspace to view risks, issues, and change requests tracked against this project."
-                    }
-                }
+                sectionErrors: root.sectionErrors
             }
         }
     }
@@ -952,34 +156,9 @@ Item {
         active: root._idx === root._secIdx("Documents")
         loadingMessage: "Loading documents..."
         sourceComponent: Component {
-            Column {
+            ProjectsDocumentsSection {
                 width: parent ? parent.width : 0
-                spacing: 0
-
-                AppWidgets.SectionHeading { width: parent.width; label: "Documents" }
-
-                AppWidgets.InlineMessage {
-                    width: parent.width
-                    visible: String(root.sectionErrors["documents"] || "").length > 0
-                    tone: "danger"
-                    message: String(root.sectionErrors["documents"] || "")
-                }
-
-                Item {
-                    width: parent.width
-                    implicitHeight: _documentsEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
-                    height: implicitHeight
-
-                    AppWidgets.EmptyState {
-                        id: _documentsEmpty
-                        anchors.top: parent.top
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: Math.min(parent.width - Theme.AppTheme.marginMd * 2, 400)
-                        title: "Project documents"
-                        message: "Document management is not yet configured for this project."
-                    }
-                }
+                sectionErrors: root.sectionErrors
             }
         }
     }
@@ -991,44 +170,14 @@ Item {
         active: root._idx === root._secIdx("Activity")
         loadingMessage: "Loading activity..."
         sourceComponent: Component {
-            Column {
+            ProjectsActivitySection {
                 width: parent ? parent.width : 0
-                spacing: 0
-
-                AppWidgets.SectionHeading { width: parent.width; label: "Activity" }
-
-                AppWidgets.InlineMessage {
-                    width: parent.width
-                    visible: String(root.sectionErrors["activity"] || "").length > 0
-                    tone: "danger"
-                    message: String(root.sectionErrors["activity"] || "")
-                }
-
-                Item {
-                    width: parent.width
-                    implicitHeight: Math.max(_activityFeed.implicitHeight, 80) + Theme.AppTheme.spacingMd * 2
-                    height: implicitHeight
-
-                    AppWidgets.ActivityFeed {
-                        id: _activityFeed
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.leftMargin: Theme.AppTheme.spacingMd
-                        anchors.rightMargin: Theme.AppTheme.spacingMd
-                        items: {
-                            const s = root.projectDetail.state || {}
-                            return s.activityItems || []
-                        }
-                        emptyText: "No project activity recorded"
-                    }
-                }
+                projectDetail: root.projectDetail
+                sectionErrors: root.sectionErrors
             }
         }
     }
 
-    // ── Material Demand (capability-gated: inventory.reservations.create) ──
     AppWidgets.LazySectionLoader {
         id: _sec8
         anchors.left: parent.left
@@ -1036,54 +185,14 @@ Item {
         active: root._idx === root._secIdx("Material Demand")
         loadingMessage: "Loading..."
         sourceComponent: Component {
-            Column {
+            ProjectsMaterialDemandSection {
                 width: parent ? parent.width : 0
-                spacing: 0
-
-                AppWidgets.SectionHeading { width: parent.width; label: "Material Demand" }
-
-                AppWidgets.InlineMessage {
-                    width: parent.width
-                    visible: String(root.sectionErrors["materialDemand"] || "").length > 0
-                    tone: "danger"
-                    message: String(root.sectionErrors["materialDemand"] || "")
-                }
-
-                Item {
-                    width: parent.width
-                    implicitHeight: _matDemandContent.implicitHeight + Theme.AppTheme.spacingMd * 2
-                    height: implicitHeight
-
-                    ColumnLayout {
-                        id: _matDemandContent
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.leftMargin: Theme.AppTheme.spacingMd
-                        anchors.rightMargin: Theme.AppTheme.spacingMd
-                        spacing: Theme.AppTheme.spacingMd
-
-                        AppWidgets.EmptyState {
-                            Layout.fillWidth: true
-                            visible: !root._hasProject
-                            title: "No project selected"
-                            message: "Select a project to view material demand and reservations."
-                        }
-
-                        AppWidgets.EmptyState {
-                            Layout.fillWidth: true
-                            visible: root._hasProject
-                            title: "Material demand tracking"
-                            message: "Open the Tasks workspace and select a task to create or manage inventory reservations for this project."
-                        }
-                    }
-                }
+                projectDetail: root.projectDetail
+                sectionErrors: root.sectionErrors
             }
         }
     }
 
-    // ── Procurement (capability-gated: procurement.purchase_orders.read) ──
     AppWidgets.LazySectionLoader {
         id: _sec9
         anchors.left: parent.left
@@ -1091,49 +200,10 @@ Item {
         active: root._idx === root._secIdx("Procurement")
         loadingMessage: "Loading..."
         sourceComponent: Component {
-            Column {
+            ProjectsProcurementSection {
                 width: parent ? parent.width : 0
-                spacing: 0
-
-                AppWidgets.SectionHeading { width: parent.width; label: "Procurement" }
-
-                AppWidgets.InlineMessage {
-                    width: parent.width
-                    visible: String(root.sectionErrors["procurement"] || "").length > 0
-                    tone: "danger"
-                    message: String(root.sectionErrors["procurement"] || "")
-                }
-
-                Item {
-                    width: parent.width
-                    implicitHeight: _procContent.implicitHeight + Theme.AppTheme.spacingMd * 2
-                    height: implicitHeight
-
-                    ColumnLayout {
-                        id: _procContent
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.leftMargin: Theme.AppTheme.spacingMd
-                        anchors.rightMargin: Theme.AppTheme.spacingMd
-                        spacing: Theme.AppTheme.spacingMd
-
-                        AppWidgets.EmptyState {
-                            Layout.fillWidth: true
-                            visible: !root._hasProject
-                            title: "No project selected"
-                            message: "Select a project to view procurement commitments."
-                        }
-
-                        AppWidgets.EmptyState {
-                            Layout.fillWidth: true
-                            visible: root._hasProject
-                            title: "Procurement commitments"
-                            message: "Open the Financials workspace to review purchase requisitions and committed procurement costs linked to this project."
-                        }
-                    }
-                }
+                projectDetail: root.projectDetail
+                sectionErrors: root.sectionErrors
             }
         }
     }

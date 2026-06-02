@@ -1,2 +1,12 @@
 module ProjectManagement.ProjectsSections
 ProjectsDetailPanel 1.0 ProjectsDetailPanel.qml
+ProjectsOverviewSection 1.0 ProjectsOverviewSection.qml
+ProjectsScheduleSection 1.0 ProjectsScheduleSection.qml
+ProjectsTasksSection 1.0 ProjectsTasksSection.qml
+ProjectsResourcesSection 1.0 ProjectsResourcesSection.qml
+ProjectsFinancialsSection 1.0 ProjectsFinancialsSection.qml
+ProjectsRisksSection 1.0 ProjectsRisksSection.qml
+ProjectsDocumentsSection 1.0 ProjectsDocumentsSection.qml
+ProjectsActivitySection 1.0 ProjectsActivitySection.qml
+ProjectsMaterialDemandSection 1.0 ProjectsMaterialDemandSection.qml
+ProjectsProcurementSection 1.0 ProjectsProcurementSection.qml
