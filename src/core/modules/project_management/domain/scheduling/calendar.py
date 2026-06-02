@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
-from typing import Optional, Set
+from typing import Optional
 
 from src.core.modules.project_management.domain.identifiers import generate_id
+from src.core.platform.calendar.domain import Holiday, WorkingCalendar
 
 
 @dataclass
@@ -40,30 +41,5 @@ class CalendarEvent:
             all_day=all_day,
             description=description,
         )
-
-
-@dataclass
-class WorkingCalendar:
-    id: str
-    name: str = "Default"
-    working_days: Set[int] = field(default_factory=lambda: {0, 1, 2, 3, 4})
-    hours_per_day: float = 8.0
-
-    @staticmethod
-    def create_default() -> "WorkingCalendar":
-        return WorkingCalendar(id="default", name="Default")
-
-
-@dataclass
-class Holiday:
-    id: str
-    calendar_id: str
-    date: date
-    name: str = ""
-
-    @staticmethod
-    def create(calendar_id: str, date: date, name: str = "") -> "Holiday":
-        return Holiday(id=generate_id(), calendar_id=calendar_id, date=date, name=name)
-
 
 __all__ = ["CalendarEvent", "WorkingCalendar", "Holiday"]

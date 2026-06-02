@@ -1,10 +1,10 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string modeTitle: "Create Work Order"
@@ -19,7 +19,6 @@ AppControls.CenteredDialog {
     property var workOrderTypeOptions: []
     property var priorityOptions: []
     property var vendorOptions: []
-    property string validationMessage: ""
     readonly property bool createMode: root.modeTitle === "Create Work Order"
     readonly property bool workRequestSourceSelected: String((root.sourceTypeOptions[sourceTypeCombo.currentIndex] || { "value": "" }).value || "") === "WORK_REQUEST"
     readonly property bool showWorkRequestSourceCombo: root.createMode && root.workRequestSourceSelected
@@ -27,11 +26,17 @@ AppControls.CenteredDialog {
 
     signal submitted(var payload)
 
-    modal: true
+    title:        root.modeTitle
+    subtitle:     root.createMode
+        ? "Capture execution-scope, source, and readiness details before the work order enters planning."
+        : "Update the work-order execution scope, sourcing, and readiness flags."
+    primaryText:  root.createMode ? "Create Work Order" : "Save Changes"
+    primaryIcon:  root.createMode ? "add" : "save"
     width: 760
-    height: Math.min(820, parent ? parent.height - (Theme.AppTheme.marginLg * 2) : 820)
-    title: root.modeTitle
-    closePolicy: Popup.CloseOnEscape
+
+    onOpened:   root.populateFromWorkOrder()
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (let index = 0; index < options.length; index += 1) {
@@ -65,7 +70,7 @@ AppControls.CenteredDialog {
         approvalRequiredCheck.checked = !!state.approvalRequired
         preventiveCheck.checked = !!state.isPreventive
         emergencyCheck.checked = !!state.isEmergency
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -113,199 +118,185 @@ AppControls.CenteredDialog {
 
     function submitDialog() {
         if (String((root.siteOptions[siteCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a site before saving."
+            root.errorMessage = "Choose a site before saving."
             return
         }
         if (workOrderCodeField.text.trim().length === 0) {
-            root.validationMessage = "Work order code is required."
+            root.errorMessage = "Work order code is required."
             return
         }
         if (String((root.workOrderTypeOptions[workOrderTypeCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a work-order type before saving."
+            root.errorMessage = "Choose a work-order type before saving."
             return
         }
         if (root.createMode && String((root.sourceTypeOptions[sourceTypeCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a source type before saving."
+            root.errorMessage = "Choose a source type before saving."
             return
         }
         if (root.createMode && root.workRequestSourceSelected && String((root.sourceWorkRequestOptions[sourceWorkRequestCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a source work request before saving."
+            root.errorMessage = "Choose a source work request before saving."
             return
         }
         if ((!root.createMode || !root.workRequestSourceSelected) && titleField.text.trim().length === 0) {
-            root.validationMessage = "Title is required."
+            root.errorMessage = "Title is required."
             return
         }
         if (String((root.priorityOptions[priorityCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a priority."
+            root.errorMessage = "Choose a priority."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 
-    onOpened: root.populateFromWorkOrder()
+    // ── Form content ──────────────────────────────────────────────────────────
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-    }
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 640 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
 
-    contentItem: Flickable {
-        id: dialogFlickable
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Site"
+            required: true
+            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+        }
 
-        contentWidth: width
-        contentHeight: formLayout.implicitHeight
-        clip: true
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Work order code"
+            required: true
+            AppControls.TextField { id: workOrderCodeField; Layout.fillWidth: true; placeholderText: "WO-100" }
+        }
 
-        ColumnLayout {
-            id: formLayout
-
-            width: dialogFlickable.width
-            spacing: Theme.AppTheme.spacingMd
-
-            AppControls.Label {
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Source type"
+            required: true
+            AppControls.ComboBox {
+                id: sourceTypeCombo
                 Layout.fillWidth: true
-                text: root.createMode
-                    ? "Capture execution-scope, source, and readiness details before the work order enters planning."
-                    : "Update the work-order execution scope, sourcing, and readiness flags."
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                wrapMode: Text.WordWrap
+                model: root.sourceTypeOptions
+                textRole: "label"
+                enabled: root.createMode
             }
+        }
 
-            AppControls.Label {
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: root.workRequestSourceSelected ? "Source work request" : "Source reference"
+            StackLayout {
                 Layout.fillWidth: true
-                visible: root.validationMessage.length > 0
-                text: root.validationMessage
-                color: "#8B1E1E"
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
+                currentIndex: root.showWorkRequestSourceReadonly ? 2 : (root.showWorkRequestSourceCombo ? 1 : 0)
 
-            GridLayout {
-                Layout.fillWidth: true
-                columns: root.width > 640 ? 2 : 1
-                columnSpacing: Theme.AppTheme.spacingMd
-                rowSpacing: Theme.AppTheme.spacingSm
-
-                AppControls.Label { text: "Site" }
-                AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
-
-                AppControls.Label { text: "Work order code" }
-                AppControls.TextField { id: workOrderCodeField; Layout.fillWidth: true; placeholderText: "WO-100" }
-
-                AppControls.Label { text: "Source type" }
-                AppControls.ComboBox {
-                    id: sourceTypeCombo
+                AppControls.TextField {
+                    id: manualSourceIdField
                     Layout.fillWidth: true
-                    model: root.sourceTypeOptions
+                    placeholderText: "Optional manual source id"
+                }
+
+                AppControls.ComboBox {
+                    id: sourceWorkRequestCombo
+                    Layout.fillWidth: true
+                    model: root.sourceWorkRequestOptions
                     textRole: "label"
                     enabled: root.createMode
                 }
 
-                AppControls.Label { text: root.workRequestSourceSelected ? "Source work request" : "Source reference" }
-                StackLayout {
+                AppControls.TextField {
+                    id: readOnlySourceField
                     Layout.fillWidth: true
-                    currentIndex: root.showWorkRequestSourceReadonly ? 2 : (root.showWorkRequestSourceCombo ? 1 : 0)
-
-                    AppControls.TextField {
-                        id: manualSourceIdField
-                        Layout.fillWidth: true
-                        placeholderText: "Optional manual source id"
-                    }
-
-                    AppControls.ComboBox {
-                        id: sourceWorkRequestCombo
-                        Layout.fillWidth: true
-                        model: root.sourceWorkRequestOptions
-                        textRole: "label"
-                        enabled: root.createMode
-                    }
-
-                    AppControls.TextField {
-                        id: readOnlySourceField
-                        Layout.fillWidth: true
-                        readOnly: true
-                    }
+                    readOnly: true
                 }
-
-                AppControls.Label { text: "Work-order type" }
-                AppControls.ComboBox { id: workOrderTypeCombo; Layout.fillWidth: true; model: root.workOrderTypeOptions; textRole: "label" }
-
-                AppControls.Label { text: "Priority" }
-                AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
-
-                AppControls.Label { text: "Location" }
-                AppControls.ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
-
-                AppControls.Label { text: "System" }
-                AppControls.ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.systemOptions; textRole: "label" }
-
-                AppControls.Label { text: "Asset" }
-                AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
-
-                AppControls.Label { text: "Component" }
-                AppControls.ComboBox { id: componentCombo; Layout.fillWidth: true; model: root.componentOptions; textRole: "label" }
-
-                AppControls.Label { text: "Vendor" }
-                AppControls.ComboBox { id: vendorCombo; Layout.fillWidth: true; model: root.vendorOptions; textRole: "label" }
-
-                AppControls.Label { text: "Title" }
-                AppControls.TextField { id: titleField; Layout.fillWidth: true; placeholderText: "Repair coupling" }
             }
+        }
 
-            AppControls.Label { text: "Description" }
-            AppControls.TextArea {
-                id: descriptionField
-                Layout.fillWidth: true
-                Layout.preferredHeight: 110
-                placeholderText: "Execution intent, fault context, and repair scope."
-                wrapMode: TextEdit.WordWrap
-            }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Work-order type"
+            required: true
+            AppControls.ComboBox { id: workOrderTypeCombo; Layout.fillWidth: true; model: root.workOrderTypeOptions; textRole: "label" }
+        }
 
-            Flow {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Priority"
+            required: true
+            AppControls.ComboBox { id: priorityCombo; Layout.fillWidth: true; model: root.priorityOptions; textRole: "label" }
+        }
 
-                AppControls.CheckBox { id: requiresShutdownCheck; text: "Requires shutdown" }
-                AppControls.CheckBox { id: permitRequiredCheck; text: "Permit required" }
-                AppControls.CheckBox { id: approvalRequiredCheck; text: "Approval required" }
-                AppControls.CheckBox { id: preventiveCheck; text: "Preventive" }
-                AppControls.CheckBox { id: emergencyCheck; text: "Emergency" }
-            }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Location"
+            AppControls.ComboBox { id: locationCombo; Layout.fillWidth: true; model: root.locationOptions; textRole: "label" }
+        }
 
-            AppControls.Label { text: "Notes" }
-            AppControls.TextArea {
-                id: notesField
-                Layout.fillWidth: true
-                Layout.preferredHeight: 90
-                placeholderText: "Planning notes, contractor context, or execution warnings."
-                wrapMode: TextEdit.WordWrap
-            }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "System"
+            AppControls.ComboBox { id: systemCombo; Layout.fillWidth: true; model: root.systemOptions; textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Asset"
+            AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Component"
+            AppControls.ComboBox { id: componentCombo; Layout.fillWidth: true; model: root.componentOptions; textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Vendor"
+            AppControls.ComboBox { id: vendorCombo; Layout.fillWidth: true; model: root.vendorOptions; textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Title"
+            required: true
+            AppControls.TextField { id: titleField; Layout.fillWidth: true; placeholderText: "Repair coupling" }
         }
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item { Layout.fillWidth: true }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 110
+            placeholderText: "Execution intent, fault context, and repair scope."
+            wrapMode: TextEdit.WordWrap
         }
+    }
 
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: root.createMode ? "Create Work Order" : "Save Changes"
-            iconName: root.createMode ? "add" : "save"
-            onClicked: root.submitDialog()
+    Flow {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppControls.CheckBox { id: requiresShutdownCheck; text: "Requires shutdown" }
+        AppControls.CheckBox { id: permitRequiredCheck; text: "Permit required" }
+        AppControls.CheckBox { id: approvalRequiredCheck; text: "Approval required" }
+        AppControls.CheckBox { id: preventiveCheck; text: "Preventive" }
+        AppControls.CheckBox { id: emergencyCheck; text: "Emergency" }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            placeholderText: "Planning notes, contractor context, or execution warnings."
+            wrapMode: TextEdit.WordWrap
         }
     }
 }
-

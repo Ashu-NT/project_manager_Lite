@@ -23,6 +23,7 @@ class CostItem:
     task_id: Optional[str]
     description: str
     planned_amount: float
+    code: str = ""
     cost_type: CostType = CostType.OVERHEAD
     committed_amount: float = 0.0
     actual_amount: float = 0.0
@@ -47,11 +48,13 @@ class CostItem:
         vendor_reference: Optional[str] = None,
         incurred_date: Optional[date] = None,
         currency_code: Optional[str] = None,
+        code: str = "",
     ) -> "CostItem":
         return CostItem(
             id=generate_id(),
             project_id=project_id,
             task_id=task_id,
+            code=code,
             description=description,
             planned_amount=planned_amount,
             cost_type=cost_type,

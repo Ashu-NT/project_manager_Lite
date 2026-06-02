@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Callable
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
+
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.notifications.domain_events import domain_events
@@ -51,6 +53,8 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
         self._role_options: list[dict[str, object]] = []
         self._selected_role = ""
         self._scope_hint = ""
+        self._scope_grants_table_model = DynamicTableModel(self)
+        self._security_users_table_model = DynamicTableModel(self)
         self._scope_grants: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._security_users: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._bind_domain_events()
@@ -99,6 +103,14 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
     @Property("QVariantMap", notify=securityUsersChanged)
     def securityUsers(self) -> dict[str, object]:
         return self._security_users
+
+    @Property(QObject, constant=True)
+    def scopeGrantsTableModel(self) -> DynamicTableModel:
+        return self._scope_grants_table_model
+
+    @Property(QObject, constant=True)
+    def securityUsersTableModel(self) -> DynamicTableModel:
+        return self._security_users_table_model
 
     @Slot()
     def refresh(self) -> None:
@@ -194,6 +206,18 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
         return run_mutation(
             operation=lambda: self._presenter.revoke_sessions(user_id),
             success_message="User sessions revoked.",
+            on_success=self._refresh_after_security_change,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def forcePasswordReset(self, user_id: str) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.force_password_reset(user_id),
+            success_message="User will be required to set a new password on next login.",
             on_success=self._refresh_after_security_change,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
@@ -337,12 +361,14 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
         if scope_grants == self._scope_grants:
             return
         self._scope_grants = scope_grants
+        self._scope_grants_table_model.set_rows(scope_grants.get("items", []))
         self.scopeGrantsChanged.emit()
 
     def _set_security_users(self, security_users: dict[str, object]) -> None:
         if security_users == self._security_users:
             return
         self._security_users = security_users
+        self._security_users_table_model.set_rows(security_users.get("items", []))
         self.securityUsersChanged.emit()
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.platform.presenters.site_catalog_presenter import PlatformSiteCatalogPresenter
 
 from ..common import run_mutation, serialize_action_list
@@ -17,6 +18,7 @@ class PlatformSiteController(QObject):
     def __init__(self, presenter: PlatformSiteCatalogPresenter, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._presenter = presenter
+        self._table_model = DynamicTableModel(self)
         self._sites: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._is_busy = False
         self._error_message = ""
@@ -31,6 +33,10 @@ class PlatformSiteController(QObject):
     @Property("QVariantMap", notify=sitesChanged)
     def sites(self) -> dict[str, object]:
         return self._sites
+
+    @Property(QObject, constant=True)
+    def tableModel(self) -> DynamicTableModel:
+        return self._table_model
 
     @Property(bool, notify=isBusyChanged)
     def isBusy(self) -> bool:
@@ -51,6 +57,7 @@ class PlatformSiteController(QObject):
     def _set_sites(self, value: dict[str, object]) -> None:
         if self._sites != value:
             self._sites = value
+            self._table_model.set_rows(value.get("items", []))
             self.sitesChanged.emit()
 
     def _set_is_busy(self, value: bool) -> None:
@@ -91,6 +98,16 @@ class PlatformSiteController(QObject):
     @Slot()
     def refresh(self) -> None:
         self._refresh_sites()
+
+    @Slot("QVariantMap", result=str)
+    def generateCode(self, payload: dict[str, object]) -> str:
+        try:
+            return self._presenter.suggest_code(dict(payload))
+        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
+            setter = getattr(self, "_set_error_message", None)
+            if setter is not None:
+                setter(str(exc))
+            return ""
 
     @Slot("QVariantMap", result="QVariantMap")
     def createSite(self, payload: dict[str, object]) -> dict[str, object]:

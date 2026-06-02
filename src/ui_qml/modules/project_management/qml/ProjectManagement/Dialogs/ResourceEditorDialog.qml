@@ -1,10 +1,10 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string modeTitle: "Create Resource"
@@ -12,16 +12,23 @@ AppControls.CenteredDialog {
     property var categoryOptions: []
     property var employeeOptions: []
     property var resourceData: ({})
-    property string validationMessage: ""
+    property var workspaceController: null
+    property string resourceCode: ""
     readonly property bool employeeWorkerSelected: String(root.currentWorkerTypeValue() || "") === "EMPLOYEE"
 
     signal submitted(var payload)
 
-    modal: true
+    title:        root.modeTitle
+    subtitle:     root.modeTitle === "Create Resource"
+        ? "Set up a PM resource record for internal staffing or external support."
+        : "Update capacity, category, worker linkage, or resource availability."
+    primaryText:  root.modeTitle === "Create Resource" ? "Create Resource" : "Save Changes"
+    primaryIcon:  root.modeTitle === "Create Resource" ? "add" : "save"
     width: 620
-    height: Math.min(760, parent ? parent.height - (Theme.AppTheme.marginLg * 2) : 760)
-    title: root.modeTitle
-    closePolicy: Popup.CloseOnEscape
+
+    onOpened:   root.populateFromResource()
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (var index = 0; index < options.length; index += 1) {
@@ -61,6 +68,7 @@ AppControls.CenteredDialog {
         workerTypeCombo.currentIndex = root.indexForValue(root.workerTypeOptions, state.workerType || "EXTERNAL")
         employeeCombo.currentIndex = root.indexForValue(root.employeeOptions, state.employeeId || "")
         categoryCombo.currentIndex = root.indexForValue(root.categoryOptions, state.costType || "LABOR")
+        root.resourceCode = String(state.resourceCode || "")
         nameField.text = String(state.name || "")
         roleField.text = String(state.role || "")
         hourlyRateField.text = String(state.hourlyRate || "0.00")
@@ -69,13 +77,14 @@ AppControls.CenteredDialog {
         addressField.text = String(state.address || "")
         contactField.text = String(state.contact || "")
         activeCheck.checked = state.isActive !== false
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.applyEmployeeDefaults()
     }
 
     function buildPayload() {
         return {
             "name": nameField.text,
+            "resourceCode": root.resourceCode,
             "role": roleField.text,
             "hourlyRate": hourlyRateField.text,
             "capacityPercent": capacityField.text,
@@ -91,250 +100,115 @@ AppControls.CenteredDialog {
 
     function submitDialog() {
         if (root.employeeWorkerSelected && String((root.employeeOptions[employeeCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Select an employee before saving an employee-linked resource."
+            root.errorMessage = "Select an employee before saving an employee-linked resource."
             return
         }
         if (!root.employeeWorkerSelected && nameField.text.trim().length === 0) {
-            root.validationMessage = "Resource name is required."
+            root.errorMessage = "Resource name is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 
-    onOpened: root.populateFromResource()
+    // ── Form content ──────────────────────────────────────────────────────────
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-    }
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 560 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
 
-    contentItem: Flickable {
-        id: dialogFlickable
-
-        contentWidth: width
-        contentHeight: formLayout.implicitHeight
-        clip: true
-
-        ColumnLayout {
-            id: formLayout
-
-            width: dialogFlickable.width
-            spacing: Theme.AppTheme.spacingMd
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: root.modeTitle === "Create Resource"
-                    ? "Set up a PM resource record for internal staffing or external support."
-                    : "Update capacity, category, worker linkage, or resource availability."
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                wrapMode: Text.WordWrap
-            }
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                visible: root.validationMessage.length > 0
-                text: root.validationMessage
-                color: "#8B1E1E"
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-
-            GridLayout {
-                Layout.fillWidth: true
-                columns: root.width > 560 ? 2 : 1
-                columnSpacing: Theme.AppTheme.spacingMd
-                rowSpacing: Theme.AppTheme.spacingSm
-
-                AppControls.Label {
-                    text: "Worker type"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.ComboBox {
-                    id: workerTypeCombo
-
-                    Layout.fillWidth: true
-                    model: root.workerTypeOptions
-                    textRole: "label"
-                    onCurrentIndexChanged: root.applyEmployeeDefaults()
-                }
-
-                AppControls.Label {
-                    text: "Employee"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.ComboBox {
-                    id: employeeCombo
-
-                    Layout.fillWidth: true
-                    model: root.employeeOptions
-                    textRole: "label"
-                    enabled: root.employeeWorkerSelected
-                    onCurrentIndexChanged: root.applyEmployeeDefaults()
-                }
-
-                AppControls.Label {
-                    text: "Shared context"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.Label {
-                    id: employeeContextValue
-
-                    Layout.fillWidth: true
-                    text: "-"
-                    color: Theme.AppTheme.textSecondary
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.smallSize
-                    wrapMode: Text.WordWrap
-                }
-
-                AppControls.Label {
-                    text: "Resource name"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.TextField {
-                    id: nameField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Electrical Crew"
-                    readOnly: root.employeeWorkerSelected
-                }
-
-                AppControls.Label {
-                    text: "Role"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.TextField {
-                    id: roleField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Lead Technician"
-                    readOnly: root.employeeWorkerSelected
-                }
-
-                AppControls.Label {
-                    text: "Category"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.ComboBox {
-                    id: categoryCombo
-
-                    Layout.fillWidth: true
-                    model: root.categoryOptions
-                    textRole: "label"
-                }
-
-                AppControls.Label {
-                    text: "Hourly rate"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.TextField {
-                    id: hourlyRateField
-
-                    Layout.fillWidth: true
-                    inputMethodHints: Qt.ImhFormattedNumbersOnly
-                    placeholderText: "95.00"
-                }
-
-                AppControls.Label {
-                    text: "Capacity (%)"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.TextField {
-                    id: capacityField
-
-                    Layout.fillWidth: true
-                    inputMethodHints: Qt.ImhFormattedNumbersOnly
-                    placeholderText: "100.0"
-                }
-
-                AppControls.Label {
-                    text: "Currency"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.TextField {
-                    id: currencyField
-
-                    Layout.fillWidth: true
-                    placeholderText: "EUR"
-                }
-
-                AppControls.Label {
-                    text: "Address"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.TextField {
-                    id: addressField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Site office or vendor address"
-                }
-
-                AppControls.Label {
-                    text: "Contact"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.TextField {
-                    id: contactField
-
-                    Layout.fillWidth: true
-                    placeholderText: "name@example.com"
-                    readOnly: root.employeeWorkerSelected
-                }
-            }
-
-            AppControls.CheckBox {
-                id: activeCheck
-
-                text: "Resource is active and available for planning"
-            }
-        }
-    }
-
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item {
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: parent.columns
             Layout.fillWidth: true
+            label: "Resource code"
+            value: root.resourceCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            onValueEdited: function(code) { root.resourceCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("resource", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.resourceCode = suggested
+                    }
+                }
+            }
         }
 
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Worker type"
+            AppControls.ComboBox { id: workerTypeCombo; Layout.fillWidth: true; model: root.workerTypeOptions; textRole: "label"; onCurrentIndexChanged: root.applyEmployeeDefaults() }
         }
 
-        AppControls.PrimaryButton {
-            text: root.modeTitle === "Create Resource" ? "Create Resource" : "Save Changes"
-            iconName: root.modeTitle === "Create Resource" ? "add" : "save"
-            onClicked: root.submitDialog()
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Employee"
+            AppControls.ComboBox { id: employeeCombo; Layout.fillWidth: true; model: root.employeeOptions; textRole: "label"; enabled: root.employeeWorkerSelected; onCurrentIndexChanged: root.applyEmployeeDefaults() }
         }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Shared context"
+            AppControls.Label { id: employeeContextValue; Layout.fillWidth: true; text: "-"; color: Theme.AppTheme.textSecondary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize; wrapMode: Text.WordWrap }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Resource name"
+            required: true
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Electrical Crew"; readOnly: root.employeeWorkerSelected }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Role"
+            AppControls.TextField { id: roleField; Layout.fillWidth: true; placeholderText: "Lead Technician"; readOnly: root.employeeWorkerSelected }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Category"
+            AppControls.ComboBox { id: categoryCombo; Layout.fillWidth: true; model: root.categoryOptions; textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Hourly rate"
+            AppControls.TextField { id: hourlyRateField; Layout.fillWidth: true; inputMethodHints: Qt.ImhFormattedNumbersOnly; placeholderText: "95.00" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Capacity (%)"
+            AppControls.TextField { id: capacityField; Layout.fillWidth: true; inputMethodHints: Qt.ImhFormattedNumbersOnly; placeholderText: "100.0" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Currency"
+            AppControls.TextField { id: currencyField; Layout.fillWidth: true; placeholderText: "EUR" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Address"
+            AppControls.TextField { id: addressField; Layout.fillWidth: true; placeholderText: "Site office or vendor address" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Contact"
+            AppControls.TextField { id: contactField; Layout.fillWidth: true; placeholderText: "name@example.com"; readOnly: root.employeeWorkerSelected }
+        }
+    }
+
+    AppControls.CheckBox {
+        id: activeCheck
+        text: "Resource is active and available for planning"
     }
 }
-

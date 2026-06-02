@@ -257,3 +257,29 @@ Files:
 **Remaining:**
 - Phase 8.4 (density mode) — future enhancement
 - Phase 9 (validation) — run when PySide6 environment is available
+
+---
+
+## PHASE 10 — Enterprise PM Table Features
+
+**Scope:** Project Management module only. Extends the existing reusable DataTable / TableToolbar without duplication.
+
+### 10.1 Column Customization (enterprise-grade)  [DONE]
+- `TableColumnCustomizer.qml` updated: filters out `configurable === false` columns; disables checkboxes for `required === true` columns; shows user-friendly labels only
+- Column flags added to PM workspace pages: `required`, `visibleByDefault`
+- `AppSettingsStore.load_table_column_state` / `save_table_column_state` added
+- `ProjectManagementWorkspaceControllerBase.loadTableColumnState` / `saveTableColumnState` slots added
+- State format: `{"columnOrder": [keys], "hiddenColumns": [keys]}` stored per `tableId` in QSettings
+
+### 10.2 Column Reordering  [DONE]
+- `TableColumnCustomizer.qml`: up/down arrow buttons in each row allow drag-free reordering
+- `DataTable._applyColumnVisibility` rewritten to use draft order (configurable columns) + non-configurable appended at end
+- `DataTable.columnsStateChanged(columns)` signal emitted after each apply
+- PM workspace pages: `_columns` mutable property initialized from saved state in `Component.onCompleted`; `onColumnsStateChanged` saves new state via controller slot
+
+### 10.3 Working Excel Export  [DONE]
+- `src/ui_qml/modules/project_management/utils/table_exporter.py`: openpyxl .xlsx writer with CSV fallback; exports all matching records (page_size=99999), not just current page
+- `ProjectsWorkspaceController.exportProjects(columns, filePath)` — real implementation
+- `TasksWorkspaceController.exportTasks(columns, filePath)` — real implementation
+- `ResourcesWorkspaceController.exportResources(columns, filePath)` — real implementation
+- PM workspace pages: `FileDialog` (SaveFile) opens on Export click; passes visible columns + selected path to controller; success/error shown via `feedbackMessage` / `errorMessage`

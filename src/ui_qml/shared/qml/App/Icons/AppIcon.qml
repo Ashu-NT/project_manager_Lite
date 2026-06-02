@@ -64,14 +64,20 @@ Item {
         "export":         "\uF150", // ic_fluent_arrow_download_20_regular
         "import":         "\uF159", // ic_fluent_arrow_import_20_regular
         "approve":        "\uF298", // ic_fluent_checkmark_circle_20_regular
+        "checkmark":      "\uF294", // ic_fluent_checkmark_20_regular
         "reject":         "\uF36D", // ic_fluent_dismiss_circle_20_regular
         "history":        "\uF47E", // ic_fluent_history_20_regular
         "reset":          "\uF19F", // ic_fluent_arrow_reset_20_regular
         "save":           "\uF67F", // ic_fluent_save_20_regular
         "view":           "\uE5F2", // ic_fluent_eye_20_regular
+        "view_off":       "\uE5F5", // ic_fluent_eye_off_20_regular
         "upload":         "\uF1A4", // ic_fluent_arrow_upload_20_regular
         "lock":           "\uE78F", // ic_fluent_lock_closed_20_regular
+        "lock_open":      "\uE791", // ic_fluent_lock_open_20_regular
         "time":           "\uF2DD", // ic_fluent_clock_20_regular
+
+        // Organisation
+        "building":       "\uE20B", // ic_fluent_building_20_regular
 
         // Project Management
         "project":        "\uE156", // ic_fluent_board_20_regular

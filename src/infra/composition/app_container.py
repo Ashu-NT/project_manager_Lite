@@ -86,12 +86,14 @@ from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
     CalendarService,
     SchedulingEngine,
-    WorkCalendarEngine,
-    WorkCalendarService,
 )
 from src.core.modules.project_management.infrastructure.importers import DataImportService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import CollaborationService, TaskService
+from src.core.modules.project_management.application.resources.assignment_validation import (
+    AssignmentSkillValidator,
+)
+from src.core.platform.calendar import WorkCalendarEngine, WorkCalendarService
 from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.infra.composition.inventory_registry import build_inventory_procurement_service_bundle
 from src.infra.composition.maintenance_registry import build_maintenance_service_bundle
@@ -179,6 +181,7 @@ class ServiceGraph:
     project_resource_service: ProjectResourceService
     data_import_service: DataImportService
     task_collaboration_store: TaskCollaborationStore
+    assignment_skill_validator: AssignmentSkillValidator
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -259,6 +262,7 @@ class ServiceGraph:
             "project_resource_service": self.project_resource_service,
             "data_import_service": self.data_import_service,
             "task_collaboration_store": self.task_collaboration_store,
+            "assignment_skill_validator": self.assignment_skill_validator,
         }
 
 
@@ -355,6 +359,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         project_resource_service=project_management_services.project_resource_service,
         data_import_service=project_management_services.data_import_service,
         task_collaboration_store=project_management_services.task_collaboration_store,
+        assignment_skill_validator=project_management_services.assignment_skill_validator,
     )
 
 

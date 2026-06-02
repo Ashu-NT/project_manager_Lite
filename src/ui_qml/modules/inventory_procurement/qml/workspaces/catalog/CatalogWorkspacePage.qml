@@ -1,18 +1,37 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import "dialogs" as Dialogs
+import "sections" as Sections
+import "panels" as Panels
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
+import QtQuick.Dialogs
 
 AppLayouts.WorkspaceFrame {
     id: root
 
     property var platformCatalog
     property var _caps: ({})
+
+    FileDialog {
+        id: _exportDialog
+        title: "Export Catalog"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Excel files (*.xlsx)", "CSV files (*.csv)"]
+        onAccepted: {
+            if (root.workspaceController !== null) {
+                const tbl = root._isItemsView ? _itemsTable : _categoriesTable
+                const cols = tbl.columns.filter(function(c) { return c.visible !== false })
+                    .map(function(c) { return { "key": c.key, "label": c.label } })
+                root.workspaceController.exportTable(cols, String(selectedFile || ""))
+            }
+        }
+    }
 
     Component.onCompleted: {
         if (root.platformCatalog) {
@@ -124,41 +143,26 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    // ── Dialog host (lazy) ─────────────────────────────────────────
+    // â”€â”€ Dialog host (lazy) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            CatalogDialogHost {
+            Dialogs.CatalogDialogHost \{
                 categoryTypeOptions: root.workspaceController ? (root.workspaceController.categoryTypeOptions || []) : []
                 categoryOptions: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
                 itemStatusOptions: root.workspaceController ? (root.workspaceController.itemStatusOptions || []) : []
                 businessPartyOptions: root.workspaceController ? (root.workspaceController.businessPartyOptions || []) : []
                 availableDocuments: root.workspaceController ? (root.workspaceController.availableDocuments || []) : []
-
-                onCreateCategoryRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createCategory(payload)
-                }
-                onUpdateCategoryRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateCategory(payload)
-                }
-                onCreateItemRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createItem(payload)
-                }
-                onUpdateItemRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateItem(payload)
-                }
-                onLinkDocumentRequested: function(itemId, documentId) {
-                    if (root.workspaceController !== null) root.workspaceController.linkDocument(itemId, documentId)
-                }
+                workspaceController: root.workspaceController
             }
         }
     }
 
-    // ── Stacked list / detail ──────────────────────────────────────
+    // â”€â”€ Stacked list / detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Item {
         anchors.fill: parent
 
-        // ── List page ──────────────────────────────────────────────
+        // â”€â”€ List page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Item {
             id: _listPage
             anchors.fill: parent
@@ -173,33 +177,37 @@ AppLayouts.WorkspaceFrame {
                     metrics: root.overviewModel.metrics || []
                 }
 
-                AppWidgets.InlineMessage {
+                AppWidgets.LoadingOverlay {
                     Layout.fillWidth: true
-                    visible: (root.workspaceController ? root.workspaceController.isLoading : false)
+                    loading: (root.workspaceController ? root.workspaceController.isLoading : false)
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-                    tone: "info"
                     message: "Loading catalog..."
+                    compact: true
+                    modal:   false
                 }
 
-                AppWidgets.InlineMessage {
+                AppWidgets.LoadingOverlay {
                     Layout.fillWidth: true
-                    visible: root.workspaceController
+                    loading: root.workspaceController
                         ? root.workspaceController.isBusy && String(root.workspaceController.errorMessage || "").length === 0
                         : false
-                    tone: "info"
                     message: "Saving changes..."
+                    compact: true
+                    modal:   false
                 }
 
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
-                    visible: String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    visible: !root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
                     tone: "danger"
                     message: root.workspaceController ? root.workspaceController.errorMessage : ""
                 }
 
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
-                    visible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                    visible: !root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
                     tone: "success"
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
@@ -232,7 +240,7 @@ AppLayouts.WorkspaceFrame {
                     onRefreshRequested: {
                         if (root.workspaceController !== null) root.workspaceController.refresh()
                     }
-                    onExportRequested: {}
+                                    onExportRequested: _exportDialog.open()
                     onCreateRequested: {
                         if (root._isItemsView) {
                             dialogHostLoader.invoke("openCreateItemDialog")
@@ -257,7 +265,7 @@ AppLayouts.WorkspaceFrame {
                         visible: root._isItemsView
                         multiSelect: true
                         columns: root._itemColumns
-                        rows: root.itemsModel.items || []
+                        sourceModel: root.workspaceController ? root.workspaceController.itemsTableModel : null
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.itemsModel.emptyState || "No catalog items."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedItemId : ""
@@ -280,9 +288,7 @@ AppLayouts.WorkspaceFrame {
                             } else {
                                 root.workspaceController.clearItemBulkSelection()
                             }
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     // Categories DataTable
                     AppWidgets.DataTable {
@@ -294,7 +300,7 @@ AppLayouts.WorkspaceFrame {
                         visible: !root._isItemsView
                         multiSelect: true
                         columns: root._categoryColumns
-                        rows: root.categoriesModel.items || []
+                        sourceModel: root.workspaceController ? root.workspaceController.categoriesTableModel : null
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.categoriesModel.emptyState || "No categories."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedCategoryId : ""
@@ -317,9 +323,7 @@ AppLayouts.WorkspaceFrame {
                             } else {
                                 root.workspaceController.clearCategoryBulkSelection()
                             }
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.TablePaginationBar {
                         id: _paginationBar
@@ -576,7 +580,7 @@ AppLayouts.WorkspaceFrame {
             }
         }
 
-        // ── Detail page (lazy loaded) ──────────────────────────────
+        // â”€â”€ Detail page (lazy loaded) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Loader {
             id: _detailPageLoader
             anchors.fill: parent
@@ -607,7 +611,7 @@ AppLayouts.WorkspaceFrame {
                     root._loadLazyDetailSection(index)
                 }
 
-                // ── Contextual toolbar ─────────────────────────────
+                // â”€â”€ Contextual toolbar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 AppWidgets.ContextualActionToolbar {
                     width: parent ? parent.width : 0
                     showBack: true
@@ -650,8 +654,25 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                // ── Detail content ─────────────────────────────────
-                CatalogDetailContent {
+                // â”€â”€ Detail-scoped messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                }
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                    tone: "success"
+                    message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+                }
+
+                // â”€â”€ Detail content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                Panels.CatalogDetailPanel {
                     width: parent ? parent.width : 0
                     isItemsView: root._isItemsView
                     itemDetail: root.selectedItemModel

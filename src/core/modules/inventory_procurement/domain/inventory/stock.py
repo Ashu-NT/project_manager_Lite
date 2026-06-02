@@ -156,6 +156,8 @@ class StockTransaction:
     resulting_on_hand_qty: float = 0.0
     resulting_available_qty: float = 0.0
     notes: str = ""
+    lot_number: str = ""
+    serial_number: str = ""
 
     @staticmethod
     def create(
@@ -176,6 +178,8 @@ class StockTransaction:
         resulting_on_hand_qty: float = 0.0,
         resulting_available_qty: float = 0.0,
         notes: str = "",
+        lot_number: str = "",
+        serial_number: str = "",
     ) -> "StockTransaction":
         return StockTransaction(
             id=generate_id(),
@@ -195,6 +199,8 @@ class StockTransaction:
             resulting_on_hand_qty=resulting_on_hand_qty,
             resulting_available_qty=resulting_available_qty,
             notes=notes,
+            lot_number=lot_number,
+            serial_number=serial_number,
         )
 
 

@@ -29,6 +29,7 @@ Item {
     property string selectedRowId:  ""
     property string sortKey:        ""
     property int    sortDirection:  Qt.AscendingOrder
+    property bool   clientSideSorting: true
     property bool   showFilter:     false
     property bool   loading:        false
     property string emptyText:      "No records"
@@ -37,6 +38,12 @@ Item {
     property var    _selectedLookup: ({})
     property Item   columnCustomizerAnchorItem: null
     property alias  filterButtonItem: _filterButton
+    property string tableId: ""
+    // Optional Python-owned DynamicTableModel.  When set the rows: path is
+    // bypassed entirely — the Python model is used directly as the TableView
+    // model and row-count comes from model.rowCountValue.  The rows: property
+    // continues to work unchanged when sourceModel is null.
+    property var sourceModel: null
 
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
@@ -45,10 +52,12 @@ Item {
     signal selectAllToggled(bool allSelected)
     signal filterClicked()
     signal viewDetailRequested(string rowId)
+    signal columnsStateChanged(var columns)
 
     // ── Private helpers ───────────────────────────────────────────────
-    property int _hoveredRow:  -1
-    property int _currentRow:  -1
+    property int  _hoveredRow:        -1
+    property int  _currentRow:        -1
+    property bool _layoutPending:     false   // debounce guard for forceLayout
 
     function _rebuildSelectedLookup() {
         const map = {}
@@ -72,18 +81,119 @@ Item {
     }
 
     function _scheduleMainViewLayout() {
+        if (root._layoutPending) return
+        root._layoutPending = true
         Qt.callLater(function() {
+            root._layoutPending = false
             if (_mainView.width > 0 && _mainView.height > 0) {
                 _mainView.forceLayout()
             }
         })
     }
 
+    function _toggleSort(key) {
+        const normalizedKey = String(key || "")
+        if (!normalizedKey.length) {
+            return
+        }
+        // Update visual indicator — applies whether sourceModel is set or not.
+        if (root.sortKey === normalizedKey) {
+            root.sortDirection = root.sortDirection === Qt.AscendingOrder
+                ? Qt.DescendingOrder
+                : Qt.AscendingOrder
+        } else {
+            root.sortKey = normalizedKey
+            root.sortDirection = Qt.AscendingOrder
+        }
+        // Delegate actual sort: Python model when sourceModel is set,
+        // otherwise _displayRows recomputes via clientSideSorting.
+        if (root.sourceModel) {
+            root.sourceModel.toggleSort(normalizedKey)
+        }
+    }
+
+    function _sortValue(rawValue) {
+        if (rawValue === undefined || rawValue === null || rawValue === "") {
+            return null
+        }
+        if (typeof rawValue === "object") {
+            if (rawValue.value !== undefined && rawValue.value !== null && rawValue.value !== "") {
+                return rawValue.value
+            }
+            if (rawValue.label !== undefined && rawValue.label !== null && rawValue.label !== "") {
+                return rawValue.label
+            }
+            if (rawValue.text !== undefined && rawValue.text !== null && rawValue.text !== "") {
+                return rawValue.text
+            }
+            return JSON.stringify(rawValue)
+        }
+        return rawValue
+    }
+
+    function _compareSortValues(leftValue, rightValue) {
+        if (leftValue === rightValue) {
+            return 0
+        }
+        if (leftValue === null) {
+            return 1
+        }
+        if (rightValue === null) {
+            return -1
+        }
+        if (typeof leftValue === "boolean" && typeof rightValue === "boolean") {
+            return leftValue === rightValue ? 0 : (leftValue ? 1 : -1)
+        }
+
+        const leftText = String(leftValue).trim()
+        const rightText = String(rightValue).trim()
+        const leftNumber = Number(leftValue)
+        const rightNumber = Number(rightValue)
+        if (leftText.length > 0
+                && rightText.length > 0
+                && !isNaN(leftNumber)
+                && !isNaN(rightNumber)) {
+            return leftNumber - rightNumber
+        }
+
+        const leftDate = Date.parse(leftText)
+        const rightDate = Date.parse(rightText)
+        if (!isNaN(leftDate) && !isNaN(rightDate)) {
+            return leftDate - rightDate
+        }
+
+        return leftText.localeCompare(rightText, undefined, {
+            numeric: true,
+            sensitivity: "base"
+        })
+    }
+
     onSelectedRowIdsChanged: root._rebuildSelectedLookup()
     Component.onCompleted: root._rebuildSelectedLookup()
 
-    readonly property bool _allChecked:  root.rows.length > 0
-        && (root.selectedRowIds || []).length >= root.rows.length
+    readonly property var _displayRows: {
+        const sourceRows = root.rows || []
+        const rowsCopy = sourceRows.slice()
+        if (!root.clientSideSorting || String(root.sortKey || "").length === 0) {
+            return rowsCopy
+        }
+        const key = String(root.sortKey || "")
+        const direction = root.sortDirection === Qt.DescendingOrder ? -1 : 1
+        rowsCopy.sort(function(leftRow, rightRow) {
+            const leftValue = root._sortValue(leftRow ? leftRow[key] : null)
+            const rightValue = root._sortValue(rightRow ? rightRow[key] : null)
+            return direction * root._compareSortValues(leftValue, rightValue)
+        })
+        return rowsCopy
+    }
+
+    // Total row count — reads from sourceModel when provided, else from _displayRows.
+    readonly property int _rowCount: root.sourceModel
+        ? root.sourceModel.rowCountValue
+        : root._displayRows.length
+
+    readonly property bool _allChecked:  root._rowCount > 0
+        && (root.selectedRowIds || []).length >= root._rowCount
     readonly property bool _someChecked: (root.selectedRowIds || []).length > 0 && !root._allChecked
 
     readonly property int _cbColW: 32
@@ -154,15 +264,36 @@ Item {
     }
 
     function _applyColumnVisibility(draft) {
-        const vm = {}
-        for (let j = 0; j < draft.length; j++) vm[draft[j].key] = draft[j].visible
-        const next = []
+        // draft = [{key, label, visible}] — configurable columns only, in user-chosen order.
+        // Non-configurable columns (configurable === false) retain their original position at the end.
+        const draftByKey = {}
+        const draftOrder = []
+        for (let j = 0; j < draft.length; j++) {
+            draftByKey[draft[j].key] = draft[j]
+            draftOrder.push(draft[j].key)
+        }
+        const originalByKey = {}
         for (let i = 0; i < root.columns.length; i++) {
-            const c = JSON.parse(JSON.stringify(root.columns[i]))
-            if (c.key in vm) c.visible = vm[c.key]
+            originalByKey[root.columns[i].key] = root.columns[i]
+        }
+        const next = []
+        // 1. Configurable columns in draft (user-controlled) order
+        for (let j = 0; j < draftOrder.length; j++) {
+            const orig = originalByKey[draftOrder[j]]
+            if (!orig) continue
+            const c = JSON.parse(JSON.stringify(orig))
+            c.visible = draftByKey[draftOrder[j]].visible
             next.push(c)
         }
+        // 2. Non-configurable columns appended at end in their original order
+        for (let i = 0; i < root.columns.length; i++) {
+            const c = root.columns[i]
+            if (c.configurable === false) {
+                next.push(JSON.parse(JSON.stringify(c)))
+            }
+        }
         root.columns = next
+        root.columnsStateChanged(next)
     }
 
     // ── Python-backed 2-D model ───────────────────────────────────────
@@ -170,8 +301,18 @@ Item {
     // internally and emits modelReset whenever either list changes.
     AppModels.DynamicTableModel {
         id: _tableModel
-        rows:    root.rows
+        rows:    root._displayRows
         columns: root.columns
+    }
+
+    // When a controller-owned sourceModel is provided, push the QML column
+    // definitions into it so the model's role lookups (ColumnTypeRole etc.)
+    // resolve correctly against the same column list used by the header.
+    Binding {
+        when:     root.sourceModel !== null
+        target:   root.sourceModel
+        property: "columns"
+        value:    root.columns
     }
 
     // Notify the header's columnWidthProvider when visible-column set changes.
@@ -306,7 +447,10 @@ Item {
                                 anchors.fill: parent
                                 enabled:      _hCell.modelData.sortable !== false
                                 cursorShape:  enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                onClicked:    root.sortRequested(_hCell.modelData.key)
+                                onClicked: {
+                                    root._toggleSort(_hCell.modelData.key)
+                                    root.sortRequested(_hCell.modelData.key)
+                                }
                             }
                         }
                     }
@@ -377,7 +521,7 @@ Item {
         visible: root.multiSelect
         clip:    true
 
-        model:          root.rows.length
+        model:          root._rowCount
         reuseItems:     true
         boundsBehavior: Flickable.StopAtBounds
         interactive:    false  // vertical scroll driven by _mainView via syncView
@@ -406,8 +550,9 @@ Item {
             id: _cbCell
             required property int row
 
-            readonly property var    _rowData: root.rows[row] || {}
+            readonly property var    _rowData: root.sourceModel ? ({}) : (root._displayRows[row] || {})
             readonly property string _rid: {
+                if (root.sourceModel) return root.sourceModel.rowId(row)
                 const rawId = _rowData.id
                 return String(rawId !== undefined && rawId !== null ? rawId : row)
             }
@@ -490,7 +635,7 @@ Item {
         clip:           true
         focus:          true
 
-        model:          _tableModel
+        model:          root.sourceModel || _tableModel
         reuseItems:     true
         boundsBehavior: Flickable.StopAtBounds
 
@@ -513,15 +658,19 @@ Item {
             }
         }
         Keys.onDownPressed: {
-            if (root._currentRow < root.rows.length - 1) {
+            if (root._currentRow < root._rowCount - 1) {
                 root._currentRow++
                 _mainView.positionViewAtRow(root._currentRow, TableView.Contain)
             }
         }
         Keys.onReturnPressed: {
-            if (root._currentRow >= 0 && root._currentRow < root.rows.length) {
-                const rd = root.rows[root._currentRow]
-                if (rd) root.rowActivated(String(rd.id !== undefined ? rd.id : ""))
+            if (root._currentRow >= 0 && root._currentRow < root._rowCount) {
+                if (root.sourceModel) {
+                    root.rowActivated(root.sourceModel.rowId(root._currentRow))
+                } else {
+                    const rd = root._displayRows[root._currentRow]
+                    if (rd) root.rowActivated(String(rd.id !== undefined ? rd.id : ""))
+                }
             }
         }
 
@@ -677,7 +826,7 @@ Item {
     EmptyState {
         anchors.centerIn: _mainView
         width:   Math.min(_mainView.width, 320)
-        visible: root.rows.length === 0 && !root.loading
+        visible: root._rowCount === 0 && !root.loading
         title:   root.emptyText
     }
 

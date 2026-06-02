@@ -16,6 +16,7 @@ class ProjectORM(Base):
     __tablename__ = "projects"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    project_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(String, default="")
     start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
@@ -50,6 +51,9 @@ class ProjectORM(Base):
         nullable=True,
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+Index("ux_projects_code", ProjectORM.project_code, unique=True)
 
 
 class ProjectResourceORM(Base):

@@ -71,6 +71,27 @@ class PlatformOrganizationCatalogPresenter:
             for module in result.data
         )
 
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique organization code (ORG-<NAME>-0001 / ORG-<YEAR>-0001).
+
+        Uniqueness is checked against existing organization codes; the backend
+        still re-validates on save (ORGANIZATION_CODE_EXISTS).
+        """
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        existing: set[str] = set()
+        if self._runtime_api is not None:
+            result = self._runtime_api.list_organizations(active_only=None)
+            if result.ok and result.data is not None:
+                existing = {str(row.organization_code or "").upper() for row in result.data}
+        name = string_value(payload, "displayName")
+        return CodeGenerator().generate(
+            "organization",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def create_organization(self, payload: dict[str, Any]) -> DesktopApiResult[OrganizationDto]:
         if self._runtime_api is None:
             return preview_error_result("Platform runtime API is not connected in this QML preview.")

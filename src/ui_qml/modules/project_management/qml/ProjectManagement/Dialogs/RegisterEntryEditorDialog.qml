@@ -1,10 +1,10 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string modeTitle: "Create Register Entry"
@@ -15,7 +15,8 @@ AppControls.CenteredDialog {
     property var entryData: ({})
     property bool typeFieldVisible: true
     property string fixedTypeValue: "RISK"
-    property string validationMessage: ""
+    property var workspaceController: null
+    property string entryCode: ""
     readonly property var editableProjectOptions: (root.projectOptions || []).filter(function(option) {
         return String(option.value || "").toLowerCase() !== "all"
     })
@@ -31,11 +32,16 @@ AppControls.CenteredDialog {
 
     signal submitted(var payload)
 
-    modal: true
+    title:        root.modeTitle
+    subtitle:     "Capture the project, entry type, severity, status, and response context for this governance item."
+    primaryText:  root.modeTitle.indexOf("Create") === 0 ? "Create Entry" : "Save Changes"
+    primaryIcon:  root.modeTitle.indexOf("Create") === 0 ? "add" : "save"
     width: 680
-    height: Math.min(820, parent ? parent.height - (Theme.AppTheme.marginLg * 2) : 820)
-    title: root.modeTitle
-    closePolicy: Popup.CloseOnEscape
+    // Height is content-driven via EntityDialog (caps to window, scrolls if tall).
+
+    onOpened: root.populateFromEntry()
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (let index = 0; index < options.length; index += 1) {
@@ -52,13 +58,14 @@ AppControls.CenteredDialog {
         typeCombo.currentIndex = root.indexForValue(root.editableTypeOptions, state.type || root.fixedTypeValue)
         statusCombo.currentIndex = root.indexForValue(root.editableStatusOptions, state.status || "OPEN")
         severityCombo.currentIndex = root.indexForValue(root.editableSeverityOptions, state.severity || "MEDIUM")
+        root.entryCode = String(state.entryCode || "")
         titleField.text = String(state.title || "")
         ownerField.text = String(state.ownerName || "")
         dueDateField.text = String(state.dueDate || "")
         descriptionField.text = String(state.description || "")
         impactField.text = String(state.impactSummary || "")
         responseField.text = String(state.responsePlan || "")
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -68,6 +75,7 @@ AppControls.CenteredDialog {
         var projectOption = root.editableProjectOptions[projectCombo.currentIndex] || { "value": "" }
         return {
             "projectId": String(projectOption.value || ""),
+            "entryCode": root.entryCode,
             "entryType": root.typeFieldVisible ? String(typeOption.value || root.fixedTypeValue) : root.fixedTypeValue,
             "title": titleField.text,
             "status": String(statusOption.value || "OPEN"),
@@ -82,192 +90,161 @@ AppControls.CenteredDialog {
 
     function submitDialog() {
         if (root.editableProjectOptions.length === 0) {
-            root.validationMessage = "Create a project before adding a register entry."
+            root.errorMessage = "Create a project before adding a register entry."
             return
         }
         if (String((root.editableProjectOptions[projectCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a project before saving."
+            root.errorMessage = "Choose a project before saving."
             return
         }
         if (titleField.text.trim().length === 0) {
-            root.validationMessage = "Register title is required."
+            root.errorMessage = "Register title is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 
-    onOpened: root.populateFromEntry()
+    // ── Form content ──────────────────────────────────────────────────────────
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-    }
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 600 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
 
-    contentItem: Flickable {
-        id: dialogFlickable
-
-        contentWidth: width
-        contentHeight: formLayout.implicitHeight
-        clip: true
-
-        ColumnLayout {
-            id: formLayout
-
-            width: dialogFlickable.width
-            spacing: Theme.AppTheme.spacingMd
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: root.typeFieldVisible
-                    ? "Capture the project, entry type, severity, status, and response context for this governance item."
-                    : "Capture the project, severity, owner, and response context for this risk item."
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                wrapMode: Text.WordWrap
-            }
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                visible: root.validationMessage.length > 0
-                text: root.validationMessage
-                color: "#8B1E1E"
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-
-            GridLayout {
-                Layout.fillWidth: true
-                columns: root.width > 600 ? 2 : 1
-                columnSpacing: Theme.AppTheme.spacingMd
-                rowSpacing: Theme.AppTheme.spacingSm
-
-                AppControls.Label { text: "Project"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                AppControls.ComboBox {
-                    id: projectCombo
-                    Layout.fillWidth: true
-                    model: root.editableProjectOptions
-                    textRole: "label"
-                }
-
-                AppControls.Label {
-                    visible: root.typeFieldVisible
-                    text: "Entry type"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-                AppControls.ComboBox {
-                    id: typeCombo
-                    visible: root.typeFieldVisible
-                    Layout.fillWidth: true
-                    model: root.editableTypeOptions
-                    textRole: "label"
-                }
-
-                AppControls.Label { text: "Title"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                AppControls.TextField {
-                    id: titleField
-                    Layout.fillWidth: true
-                    placeholderText: root.typeFieldVisible ? "Critical supplier dependency" : "Late switchgear delivery"
-                }
-
-                AppControls.Label { text: "Severity"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                AppControls.ComboBox {
-                    id: severityCombo
-                    Layout.fillWidth: true
-                    model: root.editableSeverityOptions
-                    textRole: "label"
-                }
-
-                AppControls.Label { text: "Status"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                AppControls.ComboBox {
-                    id: statusCombo
-                    Layout.fillWidth: true
-                    model: root.editableStatusOptions
-                    textRole: "label"
-                }
-
-                AppControls.Label { text: "Owner"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                AppControls.TextField {
-                    id: ownerField
-                    Layout.fillWidth: true
-                    placeholderText: "PM Lead"
-                }
-
-                AppControls.Label { text: "Due date"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily }
-                AppControls.DateField {
-                    id: dueDateField
-                    Layout.fillWidth: true
-                    placeholderText: "YYYY-MM-DD"
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: parent.columns
+            Layout.fillWidth: true
+            label: "Register code"
+            value: root.entryCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            onValueEdited: function(code) { root.entryCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("register", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.entryCode = suggested
+                    }
                 }
             }
+        }
 
-            AppControls.Label {
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Project"
+            required: true
+            AppControls.ComboBox {
+                id: projectCombo
                 Layout.fillWidth: true
-                text: "Description"
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
+                model: root.editableProjectOptions
+                textRole: "label"
             }
+        }
 
-            AppControls.TextArea {
-                id: descriptionField
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            visible: root.typeFieldVisible
+            label: "Entry type"
+            AppControls.ComboBox {
+                id: typeCombo
+                visible: root.typeFieldVisible
                 Layout.fillWidth: true
-                Layout.preferredHeight: 120
-                placeholderText: "Describe the trigger, scope, or context behind this entry."
-                wrapMode: TextEdit.WordWrap
+                model: root.editableTypeOptions
+                textRole: "label"
             }
+        }
 
-            AppControls.Label {
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Title"
+            required: true
+            AppControls.TextField {
+                id: titleField
                 Layout.fillWidth: true
-                text: "Impact summary"
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
+                placeholderText: root.typeFieldVisible ? "Critical supplier dependency" : "Late switchgear delivery"
             }
+        }
 
-            AppControls.TextArea {
-                id: impactField
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Severity"
+            AppControls.ComboBox {
+                id: severityCombo
                 Layout.fillWidth: true
-                Layout.preferredHeight: 110
-                placeholderText: "Summarize delivery, cost, or schedule impact."
-                wrapMode: TextEdit.WordWrap
+                model: root.editableSeverityOptions
+                textRole: "label"
             }
+        }
 
-            AppControls.Label {
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Status"
+            AppControls.ComboBox {
+                id: statusCombo
                 Layout.fillWidth: true
-                text: "Response plan"
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
+                model: root.editableStatusOptions
+                textRole: "label"
             }
+        }
 
-            AppControls.TextArea {
-                id: responseField
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Owner"
+            AppControls.TextField {
+                id: ownerField
                 Layout.fillWidth: true
-                Layout.preferredHeight: 130
-                placeholderText: "Capture mitigation, action owner, and next review step."
-                wrapMode: TextEdit.WordWrap
+                placeholderText: "PM Lead"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Due date"
+            AppControls.DateField {
+                id: dueDateField
+                Layout.fillWidth: true
+                placeholderText: "YYYY-MM-DD"
             }
         }
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item { Layout.fillWidth: true }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 120
+            placeholderText: "Describe the trigger, scope, or context behind this entry."
+            wrapMode: TextEdit.WordWrap
         }
+    }
 
-        AppControls.PrimaryButton {
-            text: root.modeTitle.indexOf("Create") === 0 ? "Create Entry" : "Save Changes"
-            iconName: root.modeTitle.indexOf("Create") === 0 ? "add" : "save"
-            onClicked: root.submitDialog()
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Impact summary"
+        AppControls.TextArea {
+            id: impactField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 110
+            placeholderText: "Summarize delivery, cost, or schedule impact."
+            wrapMode: TextEdit.WordWrap
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Response plan"
+        AppControls.TextArea {
+            id: responseField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 130
+            placeholderText: "Capture mitigation, action owner, and next review step."
+            wrapMode: TextEdit.WordWrap
         }
     }
 }
-

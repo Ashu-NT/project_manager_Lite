@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.platform.presenters.employee_catalog_presenter import PlatformEmployeeCatalogPresenter
 
 from ..common import run_mutation, serialize_action_list
@@ -18,6 +19,7 @@ class PlatformEmployeeController(QObject):
     def __init__(self, presenter: PlatformEmployeeCatalogPresenter, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._presenter = presenter
+        self._table_model = DynamicTableModel(self)
         self._employees: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._employee_editor_options: dict[str, object] = {
             "departmentOptions": [],
@@ -36,6 +38,10 @@ class PlatformEmployeeController(QObject):
     @Property("QVariantMap", notify=employeesChanged)
     def employees(self) -> dict[str, object]:
         return self._employees
+
+    @Property(QObject, constant=True)
+    def tableModel(self) -> DynamicTableModel:
+        return self._table_model
 
     @Property("QVariantMap", notify=employeeEditorOptionsChanged)
     def employeeEditorOptions(self) -> dict[str, object]:
@@ -60,6 +66,7 @@ class PlatformEmployeeController(QObject):
     def _set_employees(self, value: dict[str, object]) -> None:
         if self._employees != value:
             self._employees = value
+            self._table_model.set_rows(value.get("items", []))
             self.employeesChanged.emit()
 
     def _set_employee_editor_options(self, value: dict[str, object]) -> None:
@@ -105,6 +112,16 @@ class PlatformEmployeeController(QObject):
     @Slot()
     def refresh(self) -> None:
         self._refresh_employees()
+
+    @Slot("QVariantMap", result=str)
+    def generateCode(self, payload: dict[str, object]) -> str:
+        try:
+            return self._presenter.suggest_code(dict(payload))
+        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
+            setter = getattr(self, "_set_error_message", None)
+            if setter is not None:
+                setter(str(exc))
+            return ""
 
     @Slot("QVariantMap", result="QVariantMap")
     def createEmployee(self, payload: dict[str, object]) -> dict[str, object]:

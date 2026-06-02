@@ -10,8 +10,10 @@ Rectangle {
     property string searchText: ""
     property string searchPlaceholder: "Search..."
     property bool showRefresh: true
+    property bool showImport: false
     property bool showExport: false
     property bool showCreate: false
+    property bool createEnabled: true
     property bool showFilter: false
     property bool showCustomize: false
     property bool showViews: false
@@ -28,6 +30,7 @@ Rectangle {
     signal customizeClicked()
     signal viewsClicked()
     signal refreshRequested()
+    signal importRequested()
     signal exportRequested()
     signal createRequested()
 
@@ -194,9 +197,18 @@ Rectangle {
         }
 
         AppControls.SecondaryButton {
+            visible: root.showImport
+            text: "Import"
+            iconName: "export"
+            enabled: !root.isBusy
+            implicitWidth: 88
+            onClicked: root.importRequested()
+        }
+
+        AppControls.SecondaryButton {
             visible: root.showExport
             text: "Export"
-            iconName: "export"
+            iconName: "upload"
             enabled: !root.isBusy
             implicitWidth: 88
             onClicked: root.exportRequested()
@@ -206,7 +218,7 @@ Rectangle {
             visible: root.showCreate
             text: root.createLabel
             iconName: "add"
-            enabled: !root.isBusy
+            enabled: !root.isBusy && root.createEnabled
             onClicked: root.createRequested()
         }
     }

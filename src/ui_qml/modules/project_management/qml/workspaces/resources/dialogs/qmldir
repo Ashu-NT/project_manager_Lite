@@ -1,0 +1,2 @@
+module ProjectManagement.ResourcesDialogs
+ResourcesDialogHost 1.0 ResourcesDialogHost.qml

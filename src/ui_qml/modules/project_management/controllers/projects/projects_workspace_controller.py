@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
@@ -53,6 +54,13 @@ class ProjectManagementProjectsWorkspaceController(
     projectDocumentsLoadedChanged = Signal()
     projectActivityLoadedChanged = Signal()
 
+    importPreviewChanged = Signal()
+    importBusyChanged = Signal()
+    importErrorChanged = Signal()
+
+    assignableResourceOptionsChanged = Signal()
+    selectedProjectResourceIdChanged = Signal()
+
     def __init__(
         self,
         *,
@@ -71,6 +79,7 @@ class ProjectManagementProjectsWorkspaceController(
         self._status_options: list[dict[str, str]] = []
         self._selected_status_filter = "all"
         self._search_text = ""
+        self._projects_table_model = DynamicTableModel(self)
         self._projects: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -94,6 +103,8 @@ class ProjectManagementProjectsWorkspaceController(
         self._selected_project_ids: list[str] = []
         self._selected_project_count = 0
         
+        self._project_tasks_table_model = DynamicTableModel(self)
+        self._project_resources_table_model = DynamicTableModel(self)
         self._project_tasks = {"title": "Tasks", "subtitle": "", "emptyState": "Open this section to load project tasks.", "items": []}
         self._project_resources = {"title": "Resources", "subtitle": "", "emptyState": "Open this section to load project resources.", "items": []}
         self._project_financials = {"title": "Financials", "subtitle": "", "emptyState": "Open this section to load project financials.", "items": []}
@@ -107,7 +118,13 @@ class ProjectManagementProjectsWorkspaceController(
         self._project_risks_loaded_for_project_id = ""
         self._project_documents_loaded_for_project_id = ""
         self._project_activity_loaded_for_project_id = ""
-        
+
+        self._import_preview: dict[str, object] = {}
+        self._import_busy = False
+        self._import_error = ""
+        self._assignable_resource_options: list[dict[str, str]] = []
+        self._selected_project_resource_id = ""
+
         self._bind_domain_events()
         self.refresh()
 
@@ -134,6 +151,10 @@ class ProjectManagementProjectsWorkspaceController(
     @Property("QVariantMap", notify=projectsChanged)
     def projects(self) -> dict[str, object]:
         return self._projects
+
+    @Property(QObject, constant=True)
+    def projectsTableModel(self) -> DynamicTableModel:
+        return self._projects_table_model
 
     @Property("QVariantMap", notify=selectedProjectChanged)
     def selectedProject(self) -> dict[str, object]:
@@ -167,9 +188,17 @@ class ProjectManagementProjectsWorkspaceController(
     def projectTasks(self) -> dict[str, object]:
         return self._project_tasks
 
+    @Property(QObject, constant=True)
+    def projectTasksTableModel(self) -> DynamicTableModel:
+        return self._project_tasks_table_model
+
     @Property("QVariantMap", notify=projectResourcesChanged)
     def projectResources(self) -> dict[str, object]:
         return self._project_resources
+
+    @Property(QObject, constant=True)
+    def projectResourcesTableModel(self) -> DynamicTableModel:
+        return self._project_resources_table_model
 
     @Property("QVariantMap", notify=projectFinancialsChanged)
     def projectFinancials(self) -> dict[str, object]:
@@ -186,6 +215,26 @@ class ProjectManagementProjectsWorkspaceController(
     @Property("QVariantMap", notify=projectActivityChanged)
     def projectActivity(self) -> dict[str, object]:
         return self._project_activity
+
+    @Property("QVariantMap", notify=importPreviewChanged)
+    def importPreview(self) -> dict[str, object]:
+        return self._import_preview
+
+    @Property(bool, notify=importBusyChanged)
+    def isImportBusy(self) -> bool:
+        return self._import_busy
+
+    @Property(str, notify=importErrorChanged)
+    def importError(self) -> str:
+        return self._import_error
+
+    @Property("QVariantList", notify=assignableResourceOptionsChanged)
+    def assignableResourceOptions(self) -> list[dict[str, str]]:
+        return self._assignable_resource_options
+
+    @Property(str, notify=selectedProjectResourceIdChanged)
+    def selectedProjectResourceId(self) -> str:
+        return self._selected_project_resource_id
 
     @Slot()
     def refresh(self) -> None:
@@ -372,9 +421,78 @@ class ProjectManagementProjectsWorkspaceController(
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot("QVariantList", str, result="QVariantMap")
+    def exportProjects(self, columns: list, file_path: str) -> dict[str, object]:
+        from src.ui_qml.modules.project_management.utils.table_exporter import export_to_file
+        self._set_error_message("")
+        try:
+            all_ws = self._projects_workspace_presenter.build_workspace_state(
+                search_text=self._search_text,
+                status_filter=self._selected_status_filter,
+                selected_project_id=None,
+                page=1,
+                page_size=99999,
+            )
+            rows = serialize_project_record_view_models(all_ws.projects)
+            result = export_to_file(rows, list(columns), (file_path or "").strip())
+            if result.get("ok"):
+                self._set_feedback_message(result.get("message", "Export complete."))
+            else:
+                self._set_error_message(result.get("error", "Export failed."))
+            return result
+        except Exception as exc:
+            self._set_error_message(str(exc))
+            return {"ok": False, "error": str(exc)}
+
+    @Slot(str, str, result="QVariantMap")
+    def previewImport(self, file_path: str, source_format: str) -> dict[str, object]:
+        self._set_import_busy(True)
+        self._set_import_error("")
+        try:
+            preview = self._projects_workspace_presenter.preview_import(
+                file_path=file_path,
+                source_format=source_format,
+            )
+            self._set_import_preview(preview)
+            return {"ok": True}
+        except Exception as exc:
+            self._set_import_error(str(exc))
+            return {"ok": False, "error": str(exc)}
+        finally:
+            self._set_import_busy(False)
+
+    @Slot(str, result="QVariantMap")
+    def executeImport(self, session_id: str) -> dict[str, object]:
+        self._set_import_busy(True)
+        self._set_import_error("")
+        try:
+            result = self._projects_workspace_presenter.execute_import(
+                session_id=session_id,
+            )
+            self._set_feedback_message(result.get("message", "Import completed."))
+            self._set_import_preview({})
+            return result
+        except Exception as exc:
+            self._set_import_error(str(exc))
+            return {"ok": False, "error": str(exc)}
+        finally:
+            self._set_import_busy(False)
+
     @Slot()
-    def exportProjects(self) -> None:
-        pass
+    def cancelImport(self) -> None:
+        self._set_import_preview({})
+        self._set_import_error("")
+
+    @Slot(str, "QVariantMap", result=str)
+    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
+        """Suggest a unique project code for the editor dialog."""
+        if (entity_type or "").strip().lower() != "project":
+            return ""
+        try:
+            return self._projects_workspace_presenter.suggest_code(dict(payload))
+        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
+            self._set_error_message(str(exc))
+            return ""
 
     @Slot("QVariantMap", result="QVariantMap")
     def createProject(self, payload: dict[str, object]) -> dict[str, object]:
@@ -383,7 +501,7 @@ class ProjectManagementProjectsWorkspaceController(
                 dict(payload)
             ),
             success_message="Project created.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -396,7 +514,7 @@ class ProjectManagementProjectsWorkspaceController(
                 dict(payload)
             ),
             success_message="Project updated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -414,7 +532,7 @@ class ProjectManagementProjectsWorkspaceController(
                 status,
             ),
             success_message="Project status updated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -427,7 +545,7 @@ class ProjectManagementProjectsWorkspaceController(
                 project_id
             ),
             success_message="Project deleted.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -442,13 +560,14 @@ class ProjectManagementProjectsWorkspaceController(
 
         self._set_is_loading(True)
         try:
+            self._clear_section_error("tasks")
             ws = self._projects_workspace_presenter.build_project_tasks_state(
                 project_id=self._selected_project_id
             )
             self._set_project_tasks(self._serialize_project_section(ws.project_tasks))
             self._project_tasks_loaded_for_project_id = self._selected_project_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("tasks", str(exc))
         finally:
             self._set_is_loading(False)
 
@@ -461,15 +580,54 @@ class ProjectManagementProjectsWorkspaceController(
 
         self._set_is_loading(True)
         try:
+            self._clear_section_error("resources")
             ws = self._projects_workspace_presenter.build_project_resources_state(
                 project_id=self._selected_project_id
             )
             self._set_project_resources(self._serialize_project_section(ws.project_resources))
             self._project_resources_loaded_for_project_id = self._selected_project_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("resources", str(exc))
         finally:
             self._set_is_loading(False)
+
+    @Slot()
+    def loadAssignableResources(self) -> None:
+        if not self._selected_project_id:
+            self._set_assignable_resource_options([])
+            return
+        try:
+            options = self._projects_workspace_presenter.build_assignable_resource_options(
+                project_id=self._selected_project_id
+            )
+            self._set_assignable_resource_options(options)
+        except Exception:
+            self._set_assignable_resource_options([])
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def assignProjectResource(self, payload: dict[str, object]) -> dict[str, object]:
+        resource_id = str(payload.get("resourceId", "") or "").strip()
+        planned_hours = float(payload.get("plannedHours", 0) or 0)
+        hourly_rate_str = str(payload.get("hourlyRate", "") or "").strip()
+        hourly_rate: float | None = None
+        if hourly_rate_str:
+            try:
+                hourly_rate = float(hourly_rate_str)
+            except ValueError:
+                hourly_rate = None
+        return run_mutation(
+            operation=lambda: self._projects_workspace_presenter.assign_resource_to_project(
+                project_id=self._selected_project_id,
+                resource_id=resource_id,
+                planned_hours=planned_hours,
+                hourly_rate=hourly_rate,
+            ),
+            success_message="Resource assigned to project.",
+            on_success=self._on_resource_assigned,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
 
     @Slot()
     def loadProjectFinancials(self) -> None:
@@ -480,13 +638,14 @@ class ProjectManagementProjectsWorkspaceController(
 
         self._set_is_loading(True)
         try:
+            self._clear_section_error("financials")
             ws = self._projects_workspace_presenter.build_project_financials_state(
                 project_id=self._selected_project_id
             )
             self._set_project_financials(self._serialize_project_section(ws.project_financials))
             self._project_financials_loaded_for_project_id = self._selected_project_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("financials", str(exc))
         finally:
             self._set_is_loading(False)
 
@@ -499,13 +658,14 @@ class ProjectManagementProjectsWorkspaceController(
 
         self._set_is_loading(True)
         try:
+            self._clear_section_error("risks")
             ws = self._projects_workspace_presenter.build_project_risks_state(
                 project_id=self._selected_project_id
             )
             self._set_project_risks(self._serialize_project_section(ws.project_risks))
             self._project_risks_loaded_for_project_id = self._selected_project_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("risks", str(exc))
         finally:
             self._set_is_loading(False)
 
@@ -518,13 +678,14 @@ class ProjectManagementProjectsWorkspaceController(
 
         self._set_is_loading(True)
         try:
+            self._clear_section_error("documents")
             ws = self._projects_workspace_presenter.build_project_documents_state(
                 project_id=self._selected_project_id
             )
             self._set_project_documents(self._serialize_project_section(ws.project_documents))
             self._project_documents_loaded_for_project_id = self._selected_project_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("documents", str(exc))
         finally:
             self._set_is_loading(False)
 
@@ -537,15 +698,81 @@ class ProjectManagementProjectsWorkspaceController(
 
         self._set_is_loading(True)
         try:
+            self._clear_section_error("activity")
             ws = self._projects_workspace_presenter.build_project_activity_state(
                 project_id=self._selected_project_id
             )
             self._set_project_activity(self._serialize_project_section(ws.project_activity))
             self._project_activity_loaded_for_project_id = self._selected_project_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("activity", str(exc))
         finally:
             self._set_is_loading(False)
+
+    @Slot(str)
+    def selectProjectResource(self, project_resource_id: str) -> None:
+        v = (project_resource_id or "").strip()
+        if v == self._selected_project_resource_id:
+            return
+        self._selected_project_resource_id = v
+        self.selectedProjectResourceIdChanged.emit()
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateProjectResource(self, payload: dict[str, object]) -> dict[str, object]:
+        pr_id = str(payload.get("projectResourceId", "") or "").strip()
+        planned_hours = float(payload.get("plannedHours", 0) or 0)
+        hourly_rate_str = str(payload.get("hourlyRate", "") or "").strip()
+        hourly_rate: float | None = None
+        if hourly_rate_str:
+            try:
+                hourly_rate = float(hourly_rate_str)
+            except ValueError:
+                hourly_rate = None
+        is_active = bool(payload.get("isActive", True))
+        return run_mutation(
+            operation=lambda: self._projects_workspace_presenter.update_project_resource(
+                project_resource_id=pr_id,
+                planned_hours=planned_hours,
+                hourly_rate=hourly_rate,
+                is_active=is_active,
+            ),
+            success_message="Resource updated.",
+            on_success=self._on_resource_mutated,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def removeProjectResource(self, project_resource_id: str) -> dict[str, object]:
+        pr_id = (project_resource_id or "").strip()
+        return run_mutation(
+            operation=lambda: self._projects_workspace_presenter.remove_project_resource(
+                project_resource_id=pr_id,
+            ),
+            success_message="Resource removed from project.",
+            on_success=self._on_resource_mutated,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    def _on_resource_assigned(self) -> None:
+        self._project_resources_loaded_for_project_id = ""
+        self.loadProjectResources()
+        self.loadAssignableResources()
+
+    def _on_resource_mutated(self) -> None:
+        self._selected_project_resource_id = ""
+        self.selectedProjectResourceIdChanged.emit()
+        self._project_resources_loaded_for_project_id = ""
+        self.loadProjectResources()
+
+    def _set_assignable_resource_options(self, options: list[dict[str, str]]) -> None:
+        if options == self._assignable_resource_options:
+            return
+        self._assignable_resource_options = options
+        self.assignableResourceOptionsChanged.emit()
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(
@@ -564,7 +791,7 @@ class ProjectManagementProjectsWorkspaceController(
 
     def _on_bulk_mutation_success(self) -> None:
         self._set_selected_project_ids([])
-        self.refresh()
+        self._request_domain_refresh()
 
     def _do_bulk_delete(self, ids: list[str]) -> None:
         for project_id in ids:
@@ -611,6 +838,7 @@ class ProjectManagementProjectsWorkspaceController(
         if projects == self._projects:
             return
         self._projects = projects
+        self._projects_table_model.set_rows(projects.get("items", []))
         self.projectsChanged.emit()
 
     def _set_selected_project(self, selected_project: dict[str, object]) -> None:
@@ -657,12 +885,14 @@ class ProjectManagementProjectsWorkspaceController(
         if value == self._project_tasks:
             return
         self._project_tasks = value
+        self._project_tasks_table_model.set_rows(value.get("items", []))
         self.projectTasksChanged.emit()
 
     def _set_project_resources(self, value: dict[str, object]) -> None:
         if value == self._project_resources:
             return
         self._project_resources = value
+        self._project_resources_table_model.set_rows(value.get("items", []))
         self.projectResourcesChanged.emit()
 
     def _set_project_financials(self, value: dict[str, object]) -> None:
@@ -688,5 +918,23 @@ class ProjectManagementProjectsWorkspaceController(
             return
         self._project_activity = value
         self.projectActivityChanged.emit()
+
+    def _set_import_preview(self, v: dict[str, object]) -> None:
+        if v == self._import_preview:
+            return
+        self._import_preview = v
+        self.importPreviewChanged.emit()
+
+    def _set_import_busy(self, v: bool) -> None:
+        if v == self._import_busy:
+            return
+        self._import_busy = v
+        self.importBusyChanged.emit()
+
+    def _set_import_error(self, v: str) -> None:
+        if v == self._import_error:
+            return
+        self._import_error = v
+        self.importErrorChanged.emit()
 
 __all__ = ["ProjectManagementProjectsWorkspaceController"]

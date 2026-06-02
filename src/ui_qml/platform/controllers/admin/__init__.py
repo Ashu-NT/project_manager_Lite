@@ -1,5 +1,6 @@
 from .access_workspace_controller import PlatformAdminAccessWorkspaceController
 from .admin_console_controller import PlatformAdminWorkspaceController
+from .calendar_controller import PlatformCalendarController
 from .department_controller import PlatformDepartmentController
 from .document_controller import PlatformDocumentController
 from .document_structure_controller import PlatformDocumentStructureController
@@ -13,6 +14,7 @@ from .user_controller import PlatformUserController
 __all__ = [
     "PlatformAdminAccessWorkspaceController",
     "PlatformAdminWorkspaceController",
+    "PlatformCalendarController",
     "PlatformDepartmentController",
     "PlatformDocumentController",
     "PlatformDocumentStructureController",

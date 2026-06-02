@@ -24,13 +24,18 @@ def test_resource_assignment_and_overload(services):
     a2 = ts.assign_resource(t2.id, r.id, allocation_percent=40.0)
     assert a2.allocation_percent == 40.0
 
-    # Warn-only policy: allow the assignment but record an over-allocation warning.
-    ts.assign_resource(t2.id, r.id, allocation_percent=20.0)
+    # A third overlapping task pushes the resource over 100% across distinct
+    # tasks. Warn-only policy: allow the assignment but record an
+    # over-allocation warning. (Re-assigning the same resource to the same task
+    # is now rejected as ASSIGNMENT_DUPLICATE, so overallocation is exercised
+    # via a separate overlapping task.)
+    t3 = ts.create_task(pid, "Task 3", start_date=date(2023, 11, 7), duration_days=3)
+    ts.assign_resource(t3.id, r.id, allocation_percent=20.0)
     warning_text = ts.consume_last_overallocation_warning()
     assert warning_text is not None
     assert "over-allocated on" in warning_text
 
     # Check tasks for resource in project
     tasks_for_res = ts.query_tasks(project_id=pid, resource_id=r.id)
-    assert len(tasks_for_res) == 2
+    assert len(tasks_for_res) == 3
 

@@ -1,0 +1,3 @@
+module ProjectManagement.SchedulingComponents
+SchedulingActionBar 1.0 SchedulingActionBar.qml
+SchedulingPanelFrame 1.0 SchedulingPanelFrame.qml

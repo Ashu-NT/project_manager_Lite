@@ -352,6 +352,18 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         domain_events.auth_changed.emit(user.id)
         self._refresh_current_session_if_user(user.id)
 
+    def force_user_password_reset(self, user_id: str) -> None:
+        """Admin operation: flag the user's account so they must set a new password on next login."""
+        require_permission(self._user_session, "auth.manage", operation_label="force password reset")
+        user = self._require_user(user_id)
+        user.must_change_password = True
+        user.updated_at = datetime.now(timezone.utc)
+        self._rotate_session_revision(user)
+        self._revoke_all_persisted_sessions(user, revoked_at=user.updated_at)
+        self._user_repo.update(user)
+        self._session.commit()
+        domain_events.auth_changed.emit(user.id)
+
     def reset_user_password(self, user_id: str, new_password: str) -> None:
         require_permission(self._user_session, "auth.manage", operation_label="reset user password")
         user = self._require_user(user_id)
@@ -756,14 +768,19 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
     def _resolve_bootstrap_admin_password(self) -> str:
         configured = os.getenv("PM_ADMIN_PASSWORD")
         if configured is not None and configured.strip():
-            return configured
-        if self._truthy_env(os.getenv("PM_ALLOW_DEFAULT_ADMIN_PASSWORD")):
-            logger.warning("Bootstrapping admin user with insecure default password because PM_ALLOW_DEFAULT_ADMIN_PASSWORD is enabled.")
-            return "ChangeMe123!"
-        raise ValidationError(
-            "PM_ADMIN_PASSWORD must be set before the first administrator account can be bootstrapped.",
-            code="AUTH_BOOTSTRAP_PASSWORD_REQUIRED",
+            return configured.strip()
+        default_password = "ChangeMe123!"  # Intentionally not a strong password since it's meant to be changed immediately
+        logger.warning(
+            "=================================================================\n"
+            "  FIRST-RUN SETUP: Admin account created with default credentials\n"
+            "  Username : admin\n"
+            "  Password : %s\n"
+            "  You will be prompted to change this password after signing in.\n"
+            "  Set PM_ADMIN_PASSWORD in your environment to use a custom value.\n"
+            "=================================================================",
+            default_password,
         )
+        return default_password
 
     @staticmethod
     def _normalize_identity_provider(identity_provider: str | None) -> str | None:

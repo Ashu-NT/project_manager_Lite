@@ -23,6 +23,7 @@ from src.core.modules.maintenance.domain import (
     MaintenanceTriggerMode,
 )
 from src.core.modules.maintenance.contracts.repositories import (
+    MaintenanceBlackoutWindowRepository,
     MaintenancePreventivePlanInstanceRepository,
     MaintenancePreventivePlanRepository,
     MaintenancePreventivePlanTaskRepository,
@@ -116,6 +117,7 @@ class MaintenancePreventiveGenerationService:
         work_order_service: MaintenanceWorkOrderService,
         work_order_task_service: MaintenanceWorkOrderTaskService,
         work_order_task_step_service: MaintenanceWorkOrderTaskStepService,
+        blackout_window_repo: MaintenanceBlackoutWindowRepository | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
@@ -128,6 +130,7 @@ class MaintenancePreventiveGenerationService:
         self._task_template_repo = task_template_repo
         self._task_step_template_repo = task_step_template_repo
         self._sensor_repo = sensor_repo
+        self._blackout_window_repo = blackout_window_repo
         self._work_request_service = work_request_service
         self._work_order_service = work_order_service
         self._work_order_task_service = work_order_task_service
@@ -512,16 +515,33 @@ class MaintenancePreventiveGenerationService:
                 plan.calendar_frequency_unit,
                 plan.calendar_frequency_value,
             )
+        # Load blackout windows for this plan (skip generation for dates within them)
+        blackout_windows = (
+            self._blackout_window_repo.list_for_plan(
+                plan.organization_id, plan.id, active_only=True
+            )
+            if self._blackout_window_repo is not None
+            else []
+        )
+
         planned_due_dates: list[datetime] = []
         current_due = start_due
-        for _ in range(max(plan.generation_horizon_count, 1)):
-            planned_due_dates.append(current_due)
+        generated = 0
+        max_iterations = max(plan.generation_horizon_count, 1) * 4  # guard against infinite loop
+        iterations = 0
+        while generated < max(plan.generation_horizon_count, 1) and iterations < max_iterations:
+            iterations += 1
+            due_date = current_due.date() if hasattr(current_due, "date") else current_due
+            in_blackout = any(w.covers(due_date) for w in blackout_windows)
+            if not in_blackout:
+                planned_due_dates.append(current_due)
+                generated += 1
             current_due = self._advance_calendar_due(
                 current_due,
                 plan.calendar_frequency_unit,
                 plan.calendar_frequency_value,
             )
-        return planned_due_dates
+        return planned_due_dates  # noqa: RET504 — clarity over implicit return
 
     def _select_due_instance(
         self,

@@ -5,11 +5,13 @@ from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementSchedulingDesktopApi,
+    SchedulingBaselineApproveCommand,
     SchedulingBaselineCreateCommand,
-    SchedulingCalendarUpdateCommand,
+    SchedulingBaselineRejectCommand,
+    SchedulingBaselineSubmitCommand,
+    SchedulingConstraintViolationDto,
     SchedulingDependencyCreateCommand,
     SchedulingDependencyUpdateCommand,
-    SchedulingHolidayCreateCommand,
     SchedulingWorkingDayCalculationCommand,
     build_project_management_scheduling_desktop_api,
 )
@@ -205,6 +207,11 @@ class ProjectSchedulingWorkspacePresenter:
             if resolved_project_id
             else ()
         )
+        constraint_violations = (
+            self._desktop_api.list_constraint_violations(resolved_project_id)
+            if resolved_project_id
+            else ()
+        )
 
         critical_items = tuple(item for item in filtered_schedule if item.is_critical)
         delayed_items = tuple(item for item in filtered_schedule if (item.late_by_days or 0) > 0)
@@ -354,6 +361,19 @@ class ProjectSchedulingWorkspacePresenter:
                 ),
             ),
             constraints=self._build_constraints_collection(selected_activity),
+            constraint_violations=SchedulingCollectionViewModel(
+                title="Constraint Violations",
+                subtitle="Hard and soft date-constraint violations detected by the schedule validator.",
+                items=tuple(
+                    self._to_constraint_violation_record_view_model(v)
+                    for v in constraint_violations
+                ),
+                empty_state=(
+                    "No constraint violations are detected for the current schedule."
+                    if resolved_project_id
+                    else "Select a project to run constraint validation."
+                ),
+            ),
             activity_feed=self._build_activity_feed_collection(
                 schedule_items=schedule_items,
                 delayed_items=delayed_items,
@@ -368,42 +388,6 @@ class ProjectSchedulingWorkspacePresenter:
                 baseline_rows=baseline_rows,
             ),
         )
-
-    def save_calendar(self, payload: dict[str, Any]) -> None:
-        working_days = tuple(
-            int(value)
-            for value in payload.get("workingDays", [])
-            if str(value).strip() != ""
-        )
-        hours_per_day = self._require_float(
-            payload,
-            "hoursPerDay",
-            "Hours per day must be a positive number.",
-        )
-        self._desktop_api.update_calendar(
-            SchedulingCalendarUpdateCommand(
-                working_days=working_days,
-                hours_per_day=hours_per_day,
-            )
-        )
-
-    def add_holiday(self, payload: dict[str, Any]) -> None:
-        self._desktop_api.add_holiday(
-            SchedulingHolidayCreateCommand(
-                holiday_date=self._require_date(
-                    payload,
-                    "holidayDate",
-                    "Holiday date must use YYYY-MM-DD.",
-                ),
-                name=self._optional_text(payload, "name") or "",
-            )
-        )
-
-    def delete_holiday(self, holiday_id: str) -> None:
-        normalized_id = (holiday_id or "").strip()
-        if not normalized_id:
-            raise ValueError("Select a holiday before deleting it.")
-        self._desktop_api.delete_holiday(normalized_id)
 
     def create_baseline(self, payload: dict[str, Any]) -> None:
         self._desktop_api.create_baseline(
@@ -422,6 +406,96 @@ class ProjectSchedulingWorkspacePresenter:
         if not normalized_id:
             raise ValueError("Select a baseline before deleting it.")
         self._desktop_api.delete_baseline(normalized_id)
+
+    def submit_baseline(self, baseline_id: str) -> None:
+        normalized_id = (baseline_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Select a baseline before submitting it.")
+        self._desktop_api.submit_baseline(
+            SchedulingBaselineSubmitCommand(baseline_id=normalized_id)
+        )
+
+    def approve_baseline(self, baseline_id: str) -> None:
+        normalized_id = (baseline_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Select a baseline before approving it.")
+        self._desktop_api.approve_baseline(
+            SchedulingBaselineApproveCommand(baseline_id=normalized_id)
+        )
+
+    def reject_baseline(self, baseline_id: str) -> None:
+        normalized_id = (baseline_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Select a baseline before rejecting it.")
+        self._desktop_api.reject_baseline(
+            SchedulingBaselineRejectCommand(baseline_id=normalized_id)
+        )
+
+    def build_baseline_variance_collection(
+        self,
+        baseline_id: str,
+    ) -> SchedulingCollectionViewModel:
+        normalized_id = (baseline_id or "").strip()
+        if not normalized_id:
+            return SchedulingCollectionViewModel(
+                title="Baseline Variance",
+                subtitle="Per-task variance recorded when this baseline was approved.",
+                empty_state="Select a baseline to review its approval-time variance records.",
+            )
+        try:
+            records = self._desktop_api.list_baseline_variance_records(normalized_id)
+        except Exception:
+            records = ()
+        if not records:
+            return SchedulingCollectionViewModel(
+                title="Baseline Variance",
+                subtitle="Per-task variance recorded when this baseline was approved.",
+                empty_state=(
+                    "No variance records are stored for this baseline. "
+                    "Variance is recorded when a new baseline supersedes the previously approved one."
+                ),
+            )
+        return SchedulingCollectionViewModel(
+            title="Baseline Variance",
+            subtitle=f"Approval-time variance: {len(records)} task(s) changed from the previous baseline.",
+            items=tuple(
+                self._to_baseline_variance_record_view_model(rec)
+                for rec in records
+            ),
+        )
+
+    @staticmethod
+    def _to_baseline_variance_record_view_model(rec) -> SchedulingRecordViewModel:
+        task_name = str(getattr(rec, "task_name", "") or getattr(rec, "task_id", "") or "Unknown")
+        start_var = int(getattr(rec, "start_variance_days", 0) or 0)
+        finish_var = int(getattr(rec, "finish_variance_days", 0) or 0)
+        cost_var = float(getattr(rec, "cost_variance", 0.0) or 0.0)
+        created = getattr(rec, "created_at", None)
+        if start_var > 0 or finish_var > 0:
+            status_label = "Delayed"
+        elif start_var < 0 or finish_var < 0:
+            status_label = "Ahead"
+        else:
+            status_label = "Shifted"
+        return SchedulingRecordViewModel(
+            id=str(getattr(rec, "id", "") or ""),
+            title=task_name,
+            status_label=status_label,
+            subtitle=f"Start {ProjectSchedulingWorkspacePresenter._shift_label(start_var)} | Finish {ProjectSchedulingWorkspacePresenter._shift_label(finish_var)}",
+            supporting_text=f"Cost delta {cost_var:+,.2f}",
+            meta_text=_format_date(created) if created else "-",
+            state={
+                "taskId": str(getattr(rec, "task_id", "") or ""),
+                "taskName": task_name,
+                "startVarianceDays": start_var,
+                "startVarianceDaysLabel": ProjectSchedulingWorkspacePresenter._shift_label(start_var),
+                "finishVarianceDays": finish_var,
+                "finishVarianceDaysLabel": ProjectSchedulingWorkspacePresenter._shift_label(finish_var),
+                "costVariance": cost_var,
+                "costVarianceLabel": f"{cost_var:+,.2f}",
+                "createdLabel": _format_date(created) if created else "-",
+            },
+        )
 
     def recalculate_schedule(self, project_id: str) -> None:
         normalized_id = (project_id or "").strip()
@@ -495,7 +569,7 @@ class ProjectSchedulingWorkspacePresenter:
     def export_schedule(project_id: str) -> str:
         if not str(project_id or "").strip():
             raise ValueError("Select a project before exporting the schedule.")
-        return "Schedule export is not connected yet. Timeline and activity data are ready for a future export adapter."
+        return "Export is not available here. Open the Reports section to generate schedule reports, Gantt exports, and baseline comparisons."
 
     @staticmethod
     def _resolve_project_id(
@@ -876,16 +950,24 @@ class ProjectSchedulingWorkspacePresenter:
         return SchedulingRecordViewModel(
             id=item.id,
             title=item.name,
-            status_label=item.variance_state_label,
+            status_label=item.status_label,
             subtitle=item.created_at_label,
             supporting_text=f"Approved by {item.approved_by_label}",
-            meta_text=f"State {item.variance_state_label}",
+            meta_text=f"Snapshot {item.variance_state_label}",
+            can_primary_action=item.can_submit,
+            can_secondary_action=item.can_approve,
+            can_tertiary_action=item.can_reject,
             state={
                 "baselineId": item.id,
                 "baselineName": item.name,
                 "createdLabel": item.created_at_label,
                 "approvedByLabel": item.approved_by_label,
                 "varianceState": item.variance_state_label,
+                "status": item.status,
+                "statusLabel": item.status_label,
+                "canSubmit": item.can_submit,
+                "canApprove": item.can_approve,
+                "canReject": item.can_reject,
             },
         )
 
@@ -1000,6 +1082,30 @@ class ProjectSchedulingWorkspacePresenter:
                 "utilizationLabel": item.utilization_label,
                 "tasksCount": item.tasks_count,
                 "statusLabel": item.status_label,
+            },
+        )
+
+    @staticmethod
+    def _to_constraint_violation_record_view_model(
+        item: SchedulingConstraintViolationDto,
+    ) -> SchedulingRecordViewModel:
+        return SchedulingRecordViewModel(
+            id=f"{item.task_id}:{item.constraint_type}",
+            title=item.task_name,
+            status_label=item.severity_label,
+            subtitle=f"{item.constraint_type_label} | Required {item.constraint_date_label}",
+            supporting_text=f"Computed {item.computed_date_label} | Overrun {item.overrun_working_days}d",
+            meta_text=item.message,
+            state={
+                "taskId": item.task_id,
+                "constraintType": item.constraint_type,
+                "constraintTypeLabel": item.constraint_type_label,
+                "constraintDateLabel": item.constraint_date_label,
+                "computedDateLabel": item.computed_date_label,
+                "overrunDays": item.overrun_working_days,
+                "severity": item.severity,
+                "severityLabel": item.severity_label,
+                "message": item.message,
             },
         )
 

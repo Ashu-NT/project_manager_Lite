@@ -1,23 +1,25 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property var itemOptions: []
     property var supplierOptions: []
     property var requisitionData: ({})
-    property string validationMessage: ""
 
     signal submitted(var payload)
 
-    modal: true
     width: 720
     title: "Add Requisition Line"
-    closePolicy: Popup.CloseOnEscape
+    subtitle: "Add a line item to the requisition."
+    primaryText: "Add Line"
+    primaryIcon: "add"
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (var index = 0; index < options.length; index += 1) {
@@ -36,7 +38,7 @@ AppControls.CenteredDialog {
         descriptionField.text = ""
         neededByDateField.text = ""
         notesField.text = ""
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -57,77 +59,67 @@ AppControls.CenteredDialog {
 
     function submitDialog() {
         if (String((root.itemOptions[itemCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose an item before adding a requisition line."
+            root.errorMessage = "Choose an item before adding a requisition line."
             return
         }
         if (quantityField.text.trim().length === 0 || Number(quantityField.text) <= 0) {
-            root.validationMessage = "Requested quantity must be greater than zero."
+            root.errorMessage = "Requested quantity must be greater than zero."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 
     onOpened: root.populateFromTarget()
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-    }
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 620 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
 
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.Label {
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            text: "Capture the specific item demand that sourcing will later convert into supplier-facing procurement activity."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            wrapMode: Text.WordWrap
-        }
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            visible: root.validationMessage.length > 0
-            text: root.validationMessage
-            color: "#8B1E1E"
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
-
-        GridLayout {
-            Layout.fillWidth: true
-            columns: root.width > 620 ? 2 : 1
-            columnSpacing: Theme.AppTheme.spacingMd
-            rowSpacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label { text: "Item" }
+            label: "Item"
+            required: true
             AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+        }
 
-            AppControls.Label { text: "Quantity" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Quantity"
+            required: true
             AppControls.TextField { id: quantityField; objectName: "quantityField"; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-            AppControls.Label { text: "Estimated unit cost" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Estimated unit cost"
             AppControls.TextField { id: estimatedCostField; Layout.fillWidth: true; placeholderText: "0.0000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-            AppControls.Label { text: "Suggested supplier" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Suggested supplier"
             AppControls.ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
+        }
 
-            AppControls.Label { text: "Description" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Description"
             AppControls.TextField { id: descriptionField; Layout.fillWidth: true; placeholderText: "Line scope or buying description" }
+        }
 
-            AppControls.Label { text: "Needed by (YYYY-MM-DD)" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Needed by (YYYY-MM-DD)"
             AppControls.DateField { id: neededByDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
         }
+    }
 
-        AppControls.Label {
-            text: "Notes"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Notes"
         AppControls.TextArea {
             id: notesField
             Layout.fillWidth: true
@@ -136,25 +128,4 @@ AppControls.CenteredDialog {
             placeholderText: "Line-specific buying notes or supplier context."
         }
     }
-
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item { Layout.fillWidth: true }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
-        }
-
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: "Add Line"
-            iconName: "add"
-            onClicked: root.submitDialog()
-        }
-    }
 }
-

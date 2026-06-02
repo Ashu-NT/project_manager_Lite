@@ -32,6 +32,7 @@ Component {
     Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "assignments"; type: "QVariantMap"; isReadonly: true }
     Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "timeAssignmentOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "timePeriodOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedTimePeriodStart"; type: "QString"; isReadonly: true }
     Property { name: "timeAssignmentSummary"; type: "QVariantMap"; isReadonly: true }
@@ -85,6 +86,7 @@ Component {
     Method { name: "unlockTaskPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "deleteAssignment"; type: "QVariantMap"; Parameter { name: "assignmentId"; type: "QString" } }
     Method { name: "createDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "deleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
     Method { name: "postTaskComment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "activateTask"; Parameter { name: "task_id"; type: "QString" } }

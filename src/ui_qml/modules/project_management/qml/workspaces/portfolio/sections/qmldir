@@ -1,0 +1,9 @@
+﻿module ProjectManagement.PortfolioSections
+PortfolioGovernanceToolbar 1.0 PortfolioGovernanceToolbar.qml
+PortfolioDependenciesSection 1.0 PortfolioDependenciesSection.qml
+PortfolioExecutiveSection 1.0 PortfolioExecutiveSection.qml
+PortfolioIntakeSection 1.0 PortfolioIntakeSection.qml
+PortfolioScenariosSection 1.0 PortfolioScenariosSection.qml
+PortfolioSummaryCard 1.0 PortfolioSummaryCard.qml
+PortfolioTemplatesSection 1.0 PortfolioTemplatesSection.qml
+PortfolioToolbarSection 1.0 PortfolioToolbarSection.qml

@@ -14,7 +14,6 @@ _QML_FILE_BY_WORKSPACE_KEY: dict[str, str] = {
     "scheduling": "SchedulingWorkspace.qml",
     "resources": "ResourcesWorkspace.qml",
     "financials": "FinancialsWorkspace.qml",
-    "risk": "RiskWorkspace.qml",
     "portfolio": "PortfolioWorkspace.qml",
     "register": "RegisterWorkspace.qml",
     "collaboration": "CollaborationWorkspace.qml",

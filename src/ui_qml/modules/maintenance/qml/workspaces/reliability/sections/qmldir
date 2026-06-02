@@ -1,0 +1,6 @@
+﻿module Maintenance.ReliabilitySections
+ReliabilityFiltersSection 1.0 ReliabilityFiltersSection.qml
+ReliabilityMetricsSection 1.0 ReliabilityMetricsSection.qml
+ReliabilityRecurringSection 1.0 ReliabilityRecurringSection.qml
+ReliabilityRootCausesSection 1.0 ReliabilityRootCausesSection.qml
+ReliabilitySuggestionsSection 1.0 ReliabilitySuggestionsSection.qml

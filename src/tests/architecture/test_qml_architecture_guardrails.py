@@ -157,6 +157,84 @@ def test_project_management_qml_does_not_use_generic_pm_catalog_var_binding() ->
     assert not violations, f"Project management QML still uses generic pmCatalog bindings: {violations}"
 
 
+def test_project_management_qml_uses_shared_buttons_for_workspace_actions() -> None:
+    pm_qml_root = UI_QML_ROOT / "modules" / "project_management" / "qml"
+    violations: list[str] = []
+
+    for path in pm_qml_root.rglob("*.qml"):
+        for lineno, line in enumerate(
+            path.read_text(encoding="utf-8", errors="ignore").splitlines(),
+            start=1,
+        ):
+            stripped = line.strip()
+            if stripped.startswith("Button {"):
+                violations.append(f"{path.relative_to(ROOT)}:{lineno}:{stripped}")
+
+    assert not violations, f"Project management QML still uses raw Button controls: {violations}"
+
+
+def test_project_management_qml_has_no_noop_sort_handlers() -> None:
+    pm_qml_root = UI_QML_ROOT / "modules" / "project_management" / "qml"
+    violations: list[str] = []
+
+    forbidden_snippets = (
+        "onSortRequested: function(key) {}",
+        "onSortRequested: function(key) { /* client-side sort future */ }",
+    )
+
+    for path in pm_qml_root.rglob("*.qml"):
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for snippet in forbidden_snippets:
+            if snippet in text:
+                violations.append(f"{path.relative_to(ROOT)}:{snippet}")
+
+    assert not violations, f"Project management QML still has dead sort handlers: {violations}"
+
+
+def test_project_management_qml_has_no_noop_export_handlers() -> None:
+    pm_qml_root = UI_QML_ROOT / "modules" / "project_management" / "qml"
+    violations: list[str] = []
+
+    forbidden_snippets = (
+        "onExportRequested: {}",
+        "onExportRequested: { /* future */ }",
+    )
+
+    for path in pm_qml_root.rglob("*.qml"):
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for snippet in forbidden_snippets:
+            if snippet in text:
+                violations.append(f"{path.relative_to(ROOT)}:{snippet}")
+
+    assert not violations, f"Project management QML still has dead export handlers: {violations}"
+
+
+def test_project_management_controllers_have_no_pass_export_methods() -> None:
+    controller_root = UI_QML_ROOT / "modules" / "project_management" / "controllers"
+    violations: list[str] = []
+
+    for path in controller_root.rglob("*.py"):
+        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+        for index, line in enumerate(lines[:-1]):
+            stripped = line.strip()
+            if stripped.startswith("def export") and lines[index + 1].strip() == "pass":
+                violations.append(f"{path.relative_to(ROOT)}:{index + 1}")
+
+    assert not violations, f"Project management controllers still have dead export methods: {violations}"
+
+
+def test_project_management_qml_has_no_raw_standard_button_dialogs() -> None:
+    pm_qml_root = UI_QML_ROOT / "modules" / "project_management" / "qml"
+    violations: list[str] = []
+
+    for path in pm_qml_root.rglob("*.qml"):
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        if "standardButtons:" in text:
+            violations.append(str(path.relative_to(ROOT)))
+
+    assert not violations, f"Project management QML still uses raw standardButtons dialogs: {violations}"
+
+
 def test_platform_admin_workspace_controller_uses_split_entrypoint() -> None:
     assert PLATFORM_ADMIN_CONSOLE_CONTROLLER.exists()
     assert not STALE_PLATFORM_ADMIN_WORKSPACE_CONTROLLER.exists()

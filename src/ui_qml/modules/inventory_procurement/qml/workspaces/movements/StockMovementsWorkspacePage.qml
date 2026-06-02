@@ -42,18 +42,26 @@ AppLayouts.WorkspaceFrame {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingSm
 
-        AppWidgets.InlineMessage {
+        AppWidgets.LoadingOverlay {
             Layout.fillWidth: true
-            visible: (root.workspaceController ? root.workspaceController.isLoading : false)
+            loading: (root.workspaceController ? root.workspaceController.isLoading : false)
                 && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-            tone: "info"
             message: "Loading movements..."
+            compact: true
+            modal:   false
         }
         AppWidgets.InlineMessage {
             Layout.fillWidth: true
             visible: String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
             tone: "danger"
             message: root.workspaceController ? root.workspaceController.errorMessage : ""
+        }
+        AppWidgets.InlineMessage {
+            Layout.fillWidth: true
+            visible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+            tone: "success"
+            message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
         }
 
         AppWidgets.TableToolbar {
@@ -90,12 +98,9 @@ AppLayouts.WorkspaceFrame {
                 anchors.bottom: _paginationBar.top
                 multiSelect: false
                 columns: root._columns
-                rows: root.transactionsModel.items || []
+                sourceModel: root.workspaceController ? root.workspaceController.transactionsTableModel : null
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
-                emptyText: root.transactionsModel.emptyState || "No stock movements."
-
-                onSortRequested: function(key) {}
-            }
+                emptyText: root.transactionsModel.emptyState || "No stock movements."            }
 
             AppWidgets.TablePaginationBar {
                 id: _paginationBar

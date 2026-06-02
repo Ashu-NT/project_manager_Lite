@@ -1,28 +1,47 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string mode: "create"
     property var draft: ({})
     property var typeOptions: []
+    property var workspaceController: null
+    property string partyCode: ""
 
     signal saveRequested(string mode, var payload)
 
     modal: true
     focus: true
     width: 620
-    closePolicy: Popup.NoAutoClose
     title: root.mode === "create" ? "New Party" : "Edit Party"
+    primaryText: root.mode === "create" ? "Create" : "Save"
+    primaryIcon: root.mode === "create" ? "add" : "save"
+    onOpened: root.errorMessage = ""
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
+
+    function submitDialog() {
+        if (root.partyCode.trim().length === 0) {
+            root.errorMessage = "Party code is required."
+            return
+        }
+        if (partyNameField.text.trim().length === 0) {
+            root.errorMessage = "Party name is required."
+            return
+        }
+        root.errorMessage = ""
+        root.saveRequested(root.mode, root.formData)
+    }
 
     readonly property var formData: ({
         partyId: root.draft.partyId || root.draft.id || "",
         expectedVersion: root.draft.version || 0,
-        partyCode: partyCodeField.text.trim(),
+        partyCode: root.partyCode.trim(),
         partyName: partyNameField.text.trim(),
         partyType: _currentValue(typeModel, typeCombo) || "GENERAL",
         legalName: legalNameField.text.trim(),
@@ -74,7 +93,7 @@ AppControls.CenteredDialog {
     }
 
     function _loadDraft() {
-        partyCodeField.text = root.draft.partyCode || ""
+        root.partyCode = root.draft.partyCode || ""
         partyNameField.text = root.draft.partyName || ""
         legalNameField.text = root.draft.legalName || ""
         contactNameField.text = root.draft.contactName || ""
@@ -112,193 +131,222 @@ AppControls.CenteredDialog {
 
     ListModel { id: typeModel }
 
-    contentItem: ScrollView {
-        implicitWidth: 580
-        implicitHeight: 520
-        clip: true
-
-        ColumnLayout {
-            width: parent.availableWidth
-            spacing: Theme.AppTheme.spacingMd
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: partyCodeField
-
-                    Layout.preferredWidth: 180
-                    placeholderText: "Party code"
+    AppWidgets.CodeFieldRow {
+        Layout.fillWidth: true
+        label: "Party Code"
+        value: root.partyCode
+        placeholderText: "Auto-generated if empty"
+        required: true
+        generateVisible: true
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onValueEdited: function(code) { root.partyCode = code }
+        onGenerateRequested: {
+            if (root.workspaceController) {
+                const suggested = root.workspaceController.generateEntityCode("party", root.formData)
+                if (suggested && suggested.length > 0) {
+                    root.partyCode = suggested
                 }
-
-                AppControls.TextField {
-                    id: partyNameField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Party name"
-                }
-            }
-
-            AppControls.ComboBox {
-                id: typeCombo
-
-                Layout.fillWidth: true
-                model: typeModel
-                textRole: "label"
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: legalNameField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Legal name"
-                }
-
-                AppControls.TextField {
-                    id: contactNameField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Contact name"
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: emailField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Email"
-                }
-
-                AppControls.TextField {
-                    id: phoneField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Phone"
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: countryField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Country"
-                }
-
-                AppControls.TextField {
-                    id: cityField
-
-                    Layout.fillWidth: true
-                    placeholderText: "City"
-                }
-            }
-
-            AppControls.TextField {
-                id: addressLine1Field
-
-                Layout.fillWidth: true
-                placeholderText: "Address line 1"
-            }
-
-            AppControls.TextField {
-                id: addressLine2Field
-
-                Layout.fillWidth: true
-                placeholderText: "Address line 2"
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: postalCodeField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Postal code"
-                }
-
-                AppControls.TextField {
-                    id: websiteField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Website"
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: taxRegistrationField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Tax registration"
-                }
-
-                AppControls.TextField {
-                    id: externalReferenceField
-
-                    Layout.fillWidth: true
-                    placeholderText: "External reference"
-                }
-            }
-
-            AppControls.TextArea {
-                id: notesField
-
-                Layout.fillWidth: true
-                Layout.preferredHeight: 96
-                placeholderText: "Notes"
-                wrapMode: TextEdit.WordWrap
-            }
-
-            AppControls.CheckBox {
-                id: activeCheck
-
-                text: "Active party"
             }
         }
     }
 
-    footer: Frame {
-        padding: Theme.AppTheme.marginMd
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Party Name"
+        required: true
 
-        RowLayout {
-            anchors.fill: parent
-            spacing: Theme.AppTheme.spacingSm
+        AppControls.TextField {
+            id: partyNameField
+            Layout.fillWidth: true
+            placeholderText: "e.g. Acme Industrial Supplies"
+        }
+    }
 
-            Item {
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Party Type"
+
+        AppControls.ComboBox {
+            id: typeCombo
+            Layout.fillWidth: true
+            model: typeModel
+            textRole: "label"
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Legal Name"
+
+            AppControls.TextField {
+                id: legalNameField
                 Layout.fillWidth: true
-            }
-
-            AppControls.SecondaryButton {
-                text: "Cancel"
-                iconName: "close"
-                onClicked: root.close()
-            }
-
-            AppControls.PrimaryButton {
-                enabled: partyCodeField.text.trim().length > 0
-                    && partyNameField.text.trim().length > 0
-                text: root.mode === "create" ? "Create" : "Save"
-                iconName: root.mode === "create" ? "add" : "save"
-                onClicked: root.saveRequested(root.mode, root.formData)
+                placeholderText: "Registered legal entity name"
             }
         }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Contact Name"
+
+            AppControls.TextField {
+                id: contactNameField
+                Layout.fillWidth: true
+                placeholderText: "Primary contact"
+            }
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Email"
+
+            AppControls.TextField {
+                id: emailField
+                Layout.fillWidth: true
+                placeholderText: "name@company.com"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Phone"
+
+            AppControls.TextField {
+                id: phoneField
+                Layout.fillWidth: true
+                placeholderText: "+1 555 0100"
+            }
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Country"
+
+            AppControls.TextField {
+                id: countryField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Netherlands"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "City"
+
+            AppControls.TextField {
+                id: cityField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Rotterdam"
+            }
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Address Line 1"
+
+        AppControls.TextField {
+            id: addressLine1Field
+            Layout.fillWidth: true
+            placeholderText: "Street and number"
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Address Line 2"
+
+        AppControls.TextField {
+            id: addressLine2Field
+            Layout.fillWidth: true
+            placeholderText: "Suite, unit, or building (optional)"
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Postal Code"
+
+            AppControls.TextField {
+                id: postalCodeField
+                Layout.fillWidth: true
+                placeholderText: "e.g. 3011 AA"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Website"
+
+            AppControls.TextField {
+                id: websiteField
+                Layout.fillWidth: true
+                placeholderText: "https://example.com"
+            }
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Tax Registration"
+
+            AppControls.TextField {
+                id: taxRegistrationField
+                Layout.fillWidth: true
+                placeholderText: "VAT / tax number"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "External Reference"
+
+            AppControls.TextField {
+                id: externalReferenceField
+                Layout.fillWidth: true
+                placeholderText: "ERP or vendor reference"
+            }
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Notes"
+
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 96
+            placeholderText: "Relationship notes or context"
+            wrapMode: TextEdit.WordWrap
+        }
+    }
+
+    AppControls.CheckBox {
+        id: activeCheck
+
+        text: "Active party"
     }
 }
-

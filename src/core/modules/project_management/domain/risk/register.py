@@ -53,6 +53,7 @@ class RegisterEntry:
     project_id: str
     entry_type: RegisterEntryType
     title: str
+    code: str = ""
     description: str = ""
     severity: RegisterEntrySeverity = RegisterEntrySeverity.MEDIUM
     status: RegisterEntryStatus = RegisterEntryStatus.OPEN
@@ -70,6 +71,7 @@ class RegisterEntry:
         *,
         entry_type: RegisterEntryType,
         title: str,
+        code: str = "",
         description: str = "",
         severity: RegisterEntrySeverity = RegisterEntrySeverity.MEDIUM,
         status: RegisterEntryStatus = RegisterEntryStatus.OPEN,
@@ -84,6 +86,7 @@ class RegisterEntry:
             project_id=project_id,
             entry_type=entry_type,
             title=title,
+            code=code,
             description=description,
             severity=severity,
             status=status,

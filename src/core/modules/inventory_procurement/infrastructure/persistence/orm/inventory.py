@@ -148,6 +148,8 @@ class StockTransactionORM(Base):
     resulting_on_hand_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
     resulting_available_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    lot_number: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    serial_number: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
 
 
 class StockReservationORM(Base):

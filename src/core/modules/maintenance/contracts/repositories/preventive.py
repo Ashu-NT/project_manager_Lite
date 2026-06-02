@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from src.core.modules.maintenance.domain.preventive.schedule import (
+    MaintenanceBlackoutWindow,
     MaintenancePreventivePlan,
     MaintenancePreventivePlanInstance,
     MaintenancePreventivePlanTask,
@@ -135,3 +136,22 @@ class MaintenancePreventivePlanInstanceRepository(ABC):
         generated_work_request_id: str | None = None,
         generated_work_order_id: str | None = None,
     ) -> list[MaintenancePreventivePlanInstance]: ...
+
+
+class MaintenanceBlackoutWindowRepository(ABC):
+    @abstractmethod
+    def add(self, window: MaintenanceBlackoutWindow) -> None: ...
+
+    @abstractmethod
+    def update(self, window: MaintenanceBlackoutWindow) -> None: ...
+
+    @abstractmethod
+    def delete(self, window_id: str) -> None: ...
+
+    @abstractmethod
+    def get(self, window_id: str) -> MaintenanceBlackoutWindow | None: ...
+
+    @abstractmethod
+    def list_for_plan(
+        self, organization_id: str, plan_id: str, *, active_only: bool = True
+    ) -> list[MaintenanceBlackoutWindow]: ...

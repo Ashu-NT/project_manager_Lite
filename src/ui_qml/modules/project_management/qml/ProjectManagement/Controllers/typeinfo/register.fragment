@@ -18,6 +18,7 @@ Component {
     Property { name: "selectedEntryId"; type: "QString"; isReadonly: true }
     Property { name: "urgentEntries"; type: "QVariantMap"; isReadonly: true }
     Method { name: "refresh" }
+    Method { name: "exportRegister" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "setTypeFilter"; Parameter { name: "typeFilter"; type: "QString" } }
     Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }

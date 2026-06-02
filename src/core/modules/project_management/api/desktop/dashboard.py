@@ -442,6 +442,7 @@ class ProjectManagementDashboardDesktopApi:
                     dashboard_data=dashboard_data,
                     pending_approvals=pending_approvals,
                     portfolio_mode=True,
+                    project_id=None,
                 ),
                 operational_tabs=self._build_operational_tabs(operational_tables),
                 operational_tables=operational_tables,
@@ -449,6 +450,7 @@ class ProjectManagementDashboardDesktopApi:
                 panels=self._build_panels_from_dashboard_data(
                     dashboard_data=dashboard_data,
                     baseline_label="Portfolio view",
+                    selected_baseline_id="",
                     portfolio_mode=True,
                 ),
                 charts=self._build_charts_from_dashboard_data(
@@ -509,6 +511,7 @@ class ProjectManagementDashboardDesktopApi:
                 dashboard_data=dashboard_data,
                 pending_approvals=pending_approvals,
                 portfolio_mode=False,
+                project_id=selected_project_id,
             ),
             operational_tabs=self._build_operational_tabs(operational_tables),
             operational_tables=operational_tables,
@@ -516,6 +519,7 @@ class ProjectManagementDashboardDesktopApi:
             panels=self._build_panels_from_dashboard_data(
                 dashboard_data=dashboard_data,
                 baseline_label=baseline_label,
+                selected_baseline_id=selected_baseline_id,
                 portfolio_mode=False,
             ),
             charts=self._build_charts_from_dashboard_data(
@@ -1097,21 +1101,37 @@ class ProjectManagementDashboardDesktopApi:
         )
 
     def _build_preview_panels(self) -> tuple[ProjectDashboardPanelDescriptor, ...]:
+        _preview_msg = "Project-management dashboard desktop API is not connected in this QML preview."
         return (
             ProjectDashboardPanelDescriptor(
                 title="Earned Value (EVM)",
                 subtitle="Schedule and cost performance against the selected baseline.",
-                empty_state="Project-management dashboard desktop API is not connected in this QML preview.",
+                empty_state=_preview_msg,
             ),
             ProjectDashboardPanelDescriptor(
                 title="Register Summary",
                 subtitle="Risk, issue, and change pressure for the selected project.",
-                empty_state="Project-management dashboard desktop API is not connected in this QML preview.",
+                empty_state=_preview_msg,
             ),
             ProjectDashboardPanelDescriptor(
                 title="Cost Sources",
                 subtitle="Planned, committed, and actual cost-source visibility.",
-                empty_state="Project-management dashboard desktop API is not connected in this QML preview.",
+                empty_state=_preview_msg,
+            ),
+            ProjectDashboardPanelDescriptor(
+                title="Baseline Variance",
+                subtitle="Task schedule and cost drift between baselines.",
+                empty_state=_preview_msg,
+            ),
+            ProjectDashboardPanelDescriptor(
+                title="Resource Overloads",
+                subtitle="Resources that exceed capacity across assigned activities.",
+                empty_state=_preview_msg,
+            ),
+            ProjectDashboardPanelDescriptor(
+                title="Available Reports",
+                subtitle="Report formats available for this project.",
+                empty_state=_preview_msg,
             ),
         )
 
@@ -1131,12 +1151,66 @@ class ProjectManagementDashboardDesktopApi:
             ),
         )
 
+    def _build_baseline_variance_card(
+        self,
+        project_id: str | None,
+    ) -> ProjectDashboardHealthCardDescriptor:
+        if not project_id or self._baseline_service is None:
+            return ProjectDashboardHealthCardDescriptor(
+                id="baseline_variance",
+                title="Baseline Variance",
+                status_label="No Baseline",
+                metric_value="—",
+                metric_label="Tasks behind plan",
+                supporting_text="Approve a baseline in the Scheduling workspace to track drift.",
+                meta_text="Baseline variance tracking inactive.",
+                tone="default",
+                route_id="project_management.scheduling",
+            )
+        try:
+            approved = self._baseline_service.get_approved_baseline(project_id)
+        except Exception:
+            approved = None
+        if approved is None:
+            return ProjectDashboardHealthCardDescriptor(
+                id="baseline_variance",
+                title="Baseline Variance",
+                status_label="No Baseline",
+                metric_value="—",
+                metric_label="Tasks behind plan",
+                supporting_text="No approved baseline for this project yet.",
+                meta_text="Approve a baseline to enable variance tracking.",
+                tone="default",
+                route_id="project_management.scheduling",
+            )
+        try:
+            records = tuple(self._baseline_service.list_variance_records(approved.id) or [])
+        except Exception:
+            records = ()
+        behind = sum(1 for r in records if getattr(r, "finish_variance_days", 0) > 0)
+        ahead = sum(1 for r in records if getattr(r, "finish_variance_days", 0) < 0)
+        on_track = len(records) - behind - ahead
+        tone = "danger" if behind > 0 else "success"
+        status = "Behind" if behind > 0 else "On Track"
+        return ProjectDashboardHealthCardDescriptor(
+            id="baseline_variance",
+            title="Baseline Variance",
+            status_label=status,
+            metric_value=_fmt_int(behind),
+            metric_label="Tasks behind plan",
+            supporting_text=f"Ahead: {_fmt_int(ahead)} | On track: {_fmt_int(on_track)} | Behind: {_fmt_int(behind)}",
+            meta_text=f"vs. {getattr(approved, 'name', 'approved baseline')}",
+            tone=tone,
+            route_id="project_management.scheduling",
+        )
+
     def _build_health_cards(
         self,
         *,
         dashboard_data: Any,
         pending_approvals: tuple[Any, ...],
         portfolio_mode: bool,
+        project_id: str | None = None,
     ) -> tuple[ProjectDashboardHealthCardDescriptor, ...]:
         kpi = getattr(dashboard_data, "kpi", None)
         evm = getattr(dashboard_data, "evm", None)
@@ -1197,6 +1271,7 @@ class ProjectManagementDashboardDesktopApi:
                     tone="danger" if overloads > 0 else "success",
                     route_id="project_management.resources",
                 ),
+                self._build_baseline_variance_card(project_id),
             )
 
         late_tasks = int(getattr(kpi, "late_tasks", 0) or 0)
@@ -1274,6 +1349,7 @@ class ProjectManagementDashboardDesktopApi:
                 tone=resource_tone,
                 route_id="project_management.resources",
             ),
+            self._build_baseline_variance_card(project_id),
         )
 
     def _build_operational_tabs(
@@ -1840,6 +1916,7 @@ class ProjectManagementDashboardDesktopApi:
         *,
         dashboard_data: Any,
         baseline_label: str,
+        selected_baseline_id: str,
         portfolio_mode: bool,
     ) -> tuple[ProjectDashboardPanelDescriptor, ...]:
         return (
@@ -1856,6 +1933,15 @@ class ProjectManagementDashboardDesktopApi:
                 dashboard_data=dashboard_data,
                 portfolio_mode=portfolio_mode,
             ),
+            self._build_baseline_variance_panel(
+                selected_baseline_id=selected_baseline_id,
+                portfolio_mode=portfolio_mode,
+            ),
+            self._build_resource_overload_panel(
+                dashboard_data=dashboard_data,
+                portfolio_mode=portfolio_mode,
+            ),
+            self._build_reports_panel(portfolio_mode=portfolio_mode),
         )
 
     def _build_charts_from_dashboard_data(
@@ -1905,7 +1991,33 @@ class ProjectManagementDashboardDesktopApi:
             sections.append(self._build_register_urgent_section(dashboard_data))
         if portfolio_mode:
             sections.append(self._build_portfolio_ranking_section(dashboard_data))
+        sections.append(self._build_reports_section())
         return tuple(sections)
+
+    def _build_reports_section(self) -> ProjectDashboardSectionDescriptor:
+        common_reports = (
+            ("kpi_summary", "Project KPIs", "project_management.dashboard", "Key metrics: task completion, SPI, CPI, and late count."),
+            ("evm_summary", "Earned Value Summary", "project_management.financials", "BCWS, BCWP, ACWP, SPI, CPI, and VAC per period."),
+            ("resource_utilization", "Resource Utilization", "project_management.resources", "Allocation %, peak load, and overload indicators per resource."),
+            ("baseline_variance", "Baseline Variance", "project_management.scheduling", "Start and finish drift vs. the approved baseline per task."),
+            ("risk_register", "Risk Register Summary", "project_management.risk", "Open risks, issues, and change requests by severity and status."),
+        )
+        return ProjectDashboardSectionDescriptor(
+            title="Reports",
+            subtitle="Quick links to common project reports. Open the workspace to run or export each report.",
+            empty_state="No reports are configured for this project.",
+            items=tuple(
+                ProjectDashboardSectionItemDescriptor(
+                    id=report_id,
+                    title=title,
+                    status_label="Available",
+                    subtitle=description,
+                    meta_text="Open workspace →",
+                    state={"routeId": route_id},
+                )
+                for report_id, title, route_id, description in common_reports
+            ),
+        )
 
     def _build_alert_section(self, dashboard_data: Any) -> ProjectDashboardSectionDescriptor:
         alerts = tuple(getattr(dashboard_data, "alerts", []) or [])
@@ -2204,6 +2316,189 @@ class ProjectManagementDashboardDesktopApi:
                     tone="warning" if float(row.actual or 0.0) > float(row.planned or 0.0) else "default",
                 )
                 for row in rows
+            ),
+        )
+
+    def _build_baseline_variance_panel(
+        self,
+        *,
+        selected_baseline_id: str,
+        portfolio_mode: bool,
+    ) -> ProjectDashboardPanelDescriptor:
+        if portfolio_mode:
+            return ProjectDashboardPanelDescriptor(
+                title="Baseline Variance",
+                subtitle="Task schedule and cost drift between baselines.",
+                empty_state="Baseline variance records are project-scoped and not rolled up in portfolio mode.",
+            )
+        if not selected_baseline_id or self._baseline_service is None:
+            return ProjectDashboardPanelDescriptor(
+                title="Baseline Variance",
+                subtitle="Task schedule and cost drift between baselines.",
+                empty_state="Select a baseline to view schedule and cost variance records.",
+            )
+        try:
+            records = self._baseline_service.list_variance_records(selected_baseline_id)
+        except Exception:
+            records = []
+        if not records:
+            return ProjectDashboardPanelDescriptor(
+                title="Baseline Variance",
+                subtitle="Task schedule and cost drift between baselines.",
+                empty_state="No variance records found for the selected baseline.",
+            )
+        sorted_records = sorted(
+            records,
+            key=lambda r: abs(r.start_variance_days or 0) + abs(r.finish_variance_days or 0),
+            reverse=True,
+        )[:8]
+        return ProjectDashboardPanelDescriptor(
+            title="Baseline Variance",
+            subtitle=f"Top {len(sorted_records)} task(s) with schedule or cost drift.",
+            rows=tuple(
+                ProjectDashboardPanelRowDescriptor(
+                    label=str(r.task_name or r.task_id or "Task"),
+                    value=f"{r.start_variance_days:+d}d / {r.finish_variance_days:+d}d",
+                    supporting_text=(
+                        f"Cost delta: {_fmt_float(r.cost_variance, 0)}"
+                        if r.cost_variance != 0.0
+                        else "No cost drift"
+                    ),
+                    tone=(
+                        "danger"
+                        if abs(r.finish_variance_days or 0) > 5
+                        else "warning"
+                        if abs(r.finish_variance_days or 0) > 0
+                        else "default"
+                    ),
+                )
+                for r in sorted_records
+            ),
+        )
+
+    def _build_resource_overload_panel(
+        self,
+        *,
+        dashboard_data: Any,
+        portfolio_mode: bool,
+    ) -> ProjectDashboardPanelDescriptor:
+        rows = tuple(getattr(dashboard_data, "resource_load", []) or [])
+        overloaded = [
+            r for r in rows
+            if float(
+                getattr(r, "utilization_percent", getattr(r, "total_allocation_percent", 0.0)) or 0.0
+            ) > 100.0
+        ]
+        at_risk = [
+            r for r in rows
+            if 90.0 <= float(
+                getattr(r, "utilization_percent", getattr(r, "total_allocation_percent", 0.0)) or 0.0
+            ) <= 100.0
+        ]
+        if not rows:
+            return ProjectDashboardPanelDescriptor(
+                title="Resource Overloads",
+                subtitle="Resources that exceed capacity across assigned activities.",
+                empty_state="No resource loading data is available yet.",
+            )
+        if not overloaded and not at_risk:
+            return ProjectDashboardPanelDescriptor(
+                title="Resource Overloads",
+                subtitle="All resources are within capacity.",
+                metrics=(
+                    ProjectDashboardMetricDescriptor(
+                        "Resources", _fmt_int(len(rows)), "In scope"
+                    ),
+                    ProjectDashboardMetricDescriptor(
+                        "Overloaded", "0", "Above 100% capacity"
+                    ),
+                    ProjectDashboardMetricDescriptor(
+                        "At Risk", "0", "90–100% utilization"
+                    ),
+                ),
+            )
+        display = (overloaded + at_risk)[:8]
+        return ProjectDashboardPanelDescriptor(
+            title="Resource Overloads",
+            subtitle=(
+                f"{_fmt_int(len(overloaded))} overloaded, {_fmt_int(len(at_risk))} near-capacity."
+            ),
+            metrics=(
+                ProjectDashboardMetricDescriptor(
+                    "Resources", _fmt_int(len(rows)), "In scope"
+                ),
+                ProjectDashboardMetricDescriptor(
+                    "Overloaded", _fmt_int(len(overloaded)), "Above 100% capacity"
+                ),
+                ProjectDashboardMetricDescriptor(
+                    "At Risk", _fmt_int(len(at_risk)), "90–100% utilization"
+                ),
+            ),
+            rows=tuple(
+                ProjectDashboardPanelRowDescriptor(
+                    label=str(getattr(r, "resource_name", "") or "Resource"),
+                    value=_fmt_percent(
+                        getattr(r, "utilization_percent", getattr(r, "total_allocation_percent", 0.0)), 0
+                    ),
+                    supporting_text=f"Capacity: {_fmt_percent(getattr(r, 'capacity_percent', 100.0), 0)}",
+                    tone=(
+                        "danger"
+                        if float(
+                            getattr(r, "utilization_percent", getattr(r, "total_allocation_percent", 0.0)) or 0.0
+                        ) > 100.0
+                        else "warning"
+                    ),
+                )
+                for r in display
+            ),
+        )
+
+    @staticmethod
+    def _build_reports_panel(
+        *,
+        portfolio_mode: bool,
+    ) -> ProjectDashboardPanelDescriptor:
+        if portfolio_mode:
+            return ProjectDashboardPanelDescriptor(
+                title="Available Reports",
+                subtitle="Report formats available for portfolio export.",
+                rows=(
+                    ProjectDashboardPanelRowDescriptor(
+                        "Portfolio Summary PDF",
+                        "Export",
+                        "Cross-project delivery summary report.",
+                    ),
+                    ProjectDashboardPanelRowDescriptor(
+                        "Resource Utilization Excel",
+                        "Export",
+                        "Portfolio resource loading and capacity data.",
+                    ),
+                ),
+            )
+        return ProjectDashboardPanelDescriptor(
+            title="Available Reports",
+            subtitle="Report formats available for this project.",
+            rows=(
+                ProjectDashboardPanelRowDescriptor(
+                    "Gantt Chart (PNG)",
+                    "Export",
+                    "Schedule bar chart with critical path.",
+                ),
+                ProjectDashboardPanelRowDescriptor(
+                    "EVM Curve (PNG)",
+                    "Export",
+                    "Planned value vs earned value vs actual cost trend.",
+                ),
+                ProjectDashboardPanelRowDescriptor(
+                    "Full Project Report (Excel)",
+                    "Export",
+                    "Tasks, assignments, costs, and baseline in one workbook.",
+                ),
+                ProjectDashboardPanelRowDescriptor(
+                    "Project Status Report (PDF)",
+                    "Export",
+                    "Formatted delivery status report for stakeholders.",
+                ),
             ),
         )
 

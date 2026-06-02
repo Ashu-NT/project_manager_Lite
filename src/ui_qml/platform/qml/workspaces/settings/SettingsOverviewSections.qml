@@ -17,7 +17,6 @@ Flow {
 
             width: 320
             title: modelData.title
-            rows: modelData.rows
             emptyState: modelData.emptyState
         }
     }

@@ -1,10 +1,10 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string documentId: ""
@@ -14,8 +14,30 @@ AppControls.CenteredDialog {
     modal: true
     focus: true
     width: 520
-    closePolicy: Popup.NoAutoClose
     title: "Add Document Link"
+    subtitle: "Connect the selected shared document to a business record in another module."
+    primaryText: "Add Link"
+    primaryIcon: "add"
+    onOpened: root.errorMessage = ""
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
+
+    function submitDialog() {
+        if (moduleCodeField.text.trim().length === 0) {
+            root.errorMessage = "Module code is required."
+            return
+        }
+        if (entityTypeField.text.trim().length === 0) {
+            root.errorMessage = "Entity type is required."
+            return
+        }
+        if (entityIdField.text.trim().length === 0) {
+            root.errorMessage = "Entity id is required."
+            return
+        }
+        root.errorMessage = ""
+        root.saveRequested(root.formData)
+    }
 
     readonly property var formData: ({
         documentId: root.documentId,
@@ -34,74 +56,50 @@ AppControls.CenteredDialog {
         open()
     }
 
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            text: "Connect the selected shared document to a business record in another module."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Module Code"
+        required: true
 
         AppControls.TextField {
             id: moduleCodeField
-
             Layout.fillWidth: true
-            placeholderText: "Module code"
+            placeholderText: "e.g. maintenance"
         }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Entity Type"
+        required: true
 
         AppControls.TextField {
             id: entityTypeField
-
             Layout.fillWidth: true
-            placeholderText: "Entity type"
+            placeholderText: "e.g. work_order"
         }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Entity ID"
+        required: true
 
         AppControls.TextField {
             id: entityIdField
-
             Layout.fillWidth: true
-            placeholderText: "Entity id"
+            placeholderText: "Target record identifier"
         }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Link Role"
 
         AppControls.TextField {
             id: linkRoleField
-
             Layout.fillWidth: true
-            placeholderText: "Link role"
-        }
-    }
-
-    footer: Frame {
-        padding: Theme.AppTheme.marginMd
-
-        RowLayout {
-            anchors.fill: parent
-            spacing: Theme.AppTheme.spacingSm
-
-            Item {
-                Layout.fillWidth: true
-            }
-
-            AppControls.SecondaryButton {
-                text: "Cancel"
-                iconName: "close"
-                onClicked: root.close()
-            }
-
-            AppControls.PrimaryButton {
-                enabled: root.documentId.length > 0
-                    && moduleCodeField.text.trim().length > 0
-                    && entityTypeField.text.trim().length > 0
-                    && entityIdField.text.trim().length > 0
-                text: "Add Link"
-                iconName: "add"
-                onClicked: root.saveRequested(root.formData)
-            }
+            placeholderText: "e.g. specification (optional)"
         }
     }
 }
-

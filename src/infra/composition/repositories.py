@@ -18,6 +18,8 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.repositories.cost_calendar import (
     SqlAlchemyCalendarEventRepository,
     SqlAlchemyCostRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.calendar import (
     SqlAlchemyWorkingCalendarRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.project import (
@@ -26,6 +28,11 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.register import SqlAlchemyRegisterEntryRepository
 from src.core.modules.project_management.infrastructure.persistence.repositories.resource import SqlAlchemyResourceRepository
+from src.core.modules.project_management.infrastructure.persistence.repositories.skills import (
+    SqlAlchemyResourceCertificationRepository,
+    SqlAlchemyResourceSkillRepository,
+    SqlAlchemyTaskSkillRequirementRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.task import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyDependencyRepository,
@@ -102,6 +109,9 @@ class RepositoryBundle:
     portfolio_project_dependency_repo: SqlAlchemyPortfolioProjectDependencyRepository
     portfolio_scoring_template_repo: SqlAlchemyPortfolioScoringTemplateRepository
     portfolio_scenario_repo: SqlAlchemyPortfolioScenarioRepository
+    resource_skill_repo: SqlAlchemyResourceSkillRepository
+    resource_cert_repo: SqlAlchemyResourceCertificationRepository
+    task_skill_req_repo: SqlAlchemyTaskSkillRequirementRepository
 
 
 def build_repository_bundle(session: Session) -> RepositoryBundle:
@@ -143,6 +153,9 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         portfolio_project_dependency_repo=SqlAlchemyPortfolioProjectDependencyRepository(session),
         portfolio_scoring_template_repo=SqlAlchemyPortfolioScoringTemplateRepository(session),
         portfolio_scenario_repo=SqlAlchemyPortfolioScenarioRepository(session),
+        resource_skill_repo=SqlAlchemyResourceSkillRepository(session),
+        resource_cert_repo=SqlAlchemyResourceCertificationRepository(session),
+        task_skill_req_repo=SqlAlchemyTaskSkillRequirementRepository(session),
     )
 
 

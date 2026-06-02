@@ -13,6 +13,7 @@ class Task:
     id: str
     project_id: str
     name: str
+    code: str = ""
     description: str = ""
     start_date: Optional[date] = None
     end_date: Optional[date] = None

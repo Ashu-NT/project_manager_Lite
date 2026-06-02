@@ -13,6 +13,10 @@ ColumnLayout {
 
     property PlatformControllers.PlatformAdminAccessWorkspaceController controller: null
 
+    // Emitted when a grant row is activated (double-click / Enter) so a host can open a
+    // full SectionDetailPage detail; single-click still drives the inline inspector.
+    signal grantActivated(string grantId)
+
     property string _selectedGrantId:   ""
     property string _selectedSessionId: ""
 
@@ -41,9 +45,10 @@ ColumnLayout {
         if (!item) return []
         const acts = []
         if (item.canPrimaryAction)
-            acts.push({ id: "unlock", label: "Unlock Account",  icon: "approve", enabled: true, danger: false })
+            acts.push({ id: "unlock",          label: "Unlock Account",       icon: "approve", enabled: true, danger: false })
         if (item.canSecondaryAction)
-            acts.push({ id: "revoke", label: "Revoke Sessions", icon: "delete",  enabled: true, danger: true  })
+            acts.push({ id: "revoke",          label: "Revoke Sessions",      icon: "delete",  enabled: true, danger: true  })
+        acts.push(     { id: "force_reset",    label: "Force Password Reset", icon: "edit",    enabled: true, danger: false })
         return acts
     }
 
@@ -314,12 +319,12 @@ ColumnLayout {
             id: _grantsTable
             Layout.fillWidth:  true
             Layout.fillHeight: true
-            rows:          root.controller ? (root.controller.scopeGrants.items || []) : []
+            sourceModel:   root.controller ? root.controller.scopeGrantsTableModel : null
             columns:       root._grantsColumns
             emptyText:     root.controller ? (root.controller.scopeGrants.emptyState || "No access grants") : "No access grants"
             selectedRowId: root._selectedGrantId
             onRowSelected:  function(rowId) { root._selectedGrantId = rowId }
-            onRowActivated: function(rowId) { root._selectedGrantId = rowId }
+            onRowActivated: function(rowId) { root._selectedGrantId = rowId; root.grantActivated(rowId) }
         }
 
         // Grant inspector
@@ -532,8 +537,9 @@ ColumnLayout {
         onActionTriggered: function(actionId) {
             if (!root.controller || !root._selectedSessionItem) return
             const userId = root._selectedSessionItem.id || ""
-            if      (actionId === "unlock") root.controller.unlockUser(userId)
-            else if (actionId === "revoke") root.controller.revokeSessions(userId)
+            if      (actionId === "unlock")       root.controller.unlockUser(userId)
+            else if (actionId === "revoke")       root.controller.revokeSessions(userId)
+            else if (actionId === "force_reset")  root.controller.forcePasswordReset(userId)
         }
     }
 
@@ -541,7 +547,7 @@ ColumnLayout {
         id: _sessionsTable
         Layout.fillWidth:      true
         Layout.preferredHeight: 200
-        rows:          root.controller ? (root.controller.securityUsers.items || []) : []
+        sourceModel:   root.controller ? root.controller.securityUsersTableModel : null
         columns:       root._sessionsColumns
         emptyText:     root.controller ? (root.controller.securityUsers.emptyState || "No security records") : "No security records"
         selectedRowId: root._selectedSessionId

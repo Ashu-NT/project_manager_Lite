@@ -5,6 +5,7 @@ from datetime import date
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
+    AssignmentValidationDesktopDto,
     ProjectManagementCollaborationDesktopApi,
     ProjectManagementTasksDesktopApi,
     ProjectManagementTimesheetsDesktopApi,
@@ -15,6 +16,7 @@ from src.core.modules.project_management.api.desktop import (
     TaskBulkStatusCommand,
     TaskCreateCommand,
     TaskDependencyCreateCommand,
+    TaskDependencyUpdateCommand,
     TaskProgressCommand,
     TaskUpdateCommand,
     TimesheetEntryCreateCommand,
@@ -386,11 +388,12 @@ class ProjectTasksWorkspacePresenter:
     ) -> TaskCatalogWorkspaceViewModel:
         normalized_task_id = (task_id or "").strip()
 
-        assignments = (
+        assignments = tuple(
             self._desktop_api.list_assignments(normalized_task_id)
             if normalized_task_id
             else ()
         )
+        assignment_options = self._build_time_assignment_options(assignments)
 
         resolved_assignment_id = self._resolve_assignment_id(
             selected_assignment_id,
@@ -442,6 +445,7 @@ class ProjectTasksWorkspacePresenter:
         return TaskCatalogWorkspaceViewModel(
             overview=self._build_empty_overview(),
             selected_task_id=normalized_task_id,
+            assignment_options=assignment_options,
             selected_assignment_id=resolved_assignment_id,
             time_period_options=time_period_options,
             selected_time_period_start=resolved_time_period_start,
@@ -465,6 +469,47 @@ class ProjectTasksWorkspacePresenter:
             time_assignment_summary=self._build_time_assignment_summary(None),
             time_entries=self._build_time_entries_collection(None),
             selected_time_entry_detail=self._build_selected_time_entry_detail(None),
+        )
+
+    def build_task_time_entries_refresh(
+        self,
+        *,
+        assignment_id: str | None,
+        period_start: str = "",
+        selected_time_entry_id: str | None = None,
+    ) -> TaskCatalogWorkspaceViewModel | None:
+        """Fast post-mutation refresh — skips list_assignments(), rebuilds only entries.
+
+        Used after add/update/delete time entry to avoid the full build_task_time_state
+        round-trip which re-fetches all assignments before doing the snapshot.
+        """
+        if not assignment_id:
+            return None
+        try:
+            timesheet_snapshot = self._timesheets_desktop_api.build_assignment_snapshot(
+                assignment_id,
+                period_start=self._optional_iso_date(period_start),
+            )
+        except Exception:
+            return None
+
+        resolved_time_entry_id = self._resolve_time_entry_id(
+            selected_time_entry_id,
+            timesheet_snapshot.entries,
+        )
+        selected_time_entry = next(
+            (e for e in timesheet_snapshot.entries if e.entry_id == resolved_time_entry_id),
+            None,
+        )
+        return TaskCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_assignment_id=assignment_id,
+            selected_time_period_start=timesheet_snapshot.selected_period_start or period_start,
+            selected_time_entry_id=resolved_time_entry_id or "",
+            time_period_options=(),
+            time_assignment_summary=self._build_time_assignment_summary(timesheet_snapshot),
+            time_entries=self._build_time_entries_collection(timesheet_snapshot),
+            selected_time_entry_detail=self._build_selected_time_entry_detail(selected_time_entry),
         )
 
     def build_task_collaboration_state(
@@ -512,6 +557,195 @@ class ProjectTasksWorkspacePresenter:
                 selected_task=selected_task,
                 snapshot=collaboration_snapshot,
             ),
+        )
+
+    def build_task_schedule_impact_state(
+        self,
+        *,
+        task_id: str,
+        project_id: str | None = None,
+    ) -> dict[str, object]:
+        normalized_task_id = (task_id or "").strip()
+        normalized_project_id = (project_id or "").strip()
+        if not normalized_task_id or not normalized_project_id:
+            return {
+                "available": False,
+                "taskId": normalized_task_id,
+                "summary": "Select a task with a project to view schedule impact.",
+                "rows": [],
+                "affectedCount": 0,
+                "maxProjectFinishShiftDays": 0,
+                "requiresApproval": False,
+                "approvalLabel": "",
+                "newlyCriticalCount": 0,
+                "noLongerCriticalCount": 0,
+            }
+        try:
+            report = self._desktop_api.get_schedule_impact(
+                normalized_task_id, normalized_project_id
+            )
+        except Exception:
+            return {
+                "available": False,
+                "taskId": normalized_task_id,
+                "summary": "Schedule impact analysis is unavailable.",
+                "rows": [],
+                "affectedCount": 0,
+                "maxProjectFinishShiftDays": 0,
+                "requiresApproval": False,
+                "approvalLabel": "",
+                "newlyCriticalCount": 0,
+                "noLongerCriticalCount": 0,
+            }
+        if not report.is_available:
+            return {
+                "available": False,
+                "taskId": normalized_task_id,
+                "summary": (
+                    "Schedule impact analysis requires the task to have a start date "
+                    "and a connected scheduling service."
+                ),
+                "rows": [],
+                "affectedCount": 0,
+                "maxProjectFinishShiftDays": 0,
+                "requiresApproval": False,
+                "approvalLabel": "",
+                "newlyCriticalCount": 0,
+                "noLongerCriticalCount": 0,
+            }
+        project_shift = int(report.max_project_finish_shift_days or 0)
+        if project_shift > 0:
+            shift_label = f"Project finish would slip by {project_shift} working day(s)."
+        elif project_shift < 0:
+            shift_label = f"Project finish would improve by {abs(project_shift)} working day(s)."
+        else:
+            shift_label = "Project finish would not change."
+        summary = (
+            f"Simulating 1-day start slip: {report.affected_count} task(s) affected. "
+            + shift_label
+        )
+        newly_critical = int(len(report.newly_critical_task_ids))
+        no_longer_critical = int(len(report.no_longer_critical_task_ids))
+        rows = [
+            {
+                "taskId": task.task_id,
+                "taskName": task.task_name,
+                "startShift": self._shift_days_label(task.start_shift_days),
+                "finishShift": self._shift_days_label(task.finish_shift_days),
+                "startShiftDays": task.start_shift_days,
+                "finishShiftDays": task.finish_shift_days,
+                "isCritical": task.is_critical,
+                "criticalLabel": "Critical" if task.is_critical else "Non-critical",
+                "isChanged": task.task_id == normalized_task_id,
+            }
+            for task in report.affected_tasks
+        ]
+        return {
+            "available": True,
+            "taskId": normalized_task_id,
+            "summary": summary,
+            "rows": rows,
+            "affectedCount": report.affected_count,
+            "maxProjectFinishShiftDays": project_shift,
+            "requiresApproval": report.requires_approval,
+            "approvalLabel": "Approval required" if report.requires_approval else "",
+            "newlyCriticalCount": newly_critical,
+            "noLongerCriticalCount": no_longer_critical,
+        }
+
+    @staticmethod
+    def _shift_days_label(days: int) -> str:
+        if days == 0:
+            return "No change"
+        if days > 0:
+            return f"+{days}d"
+        return f"{days}d"
+
+    def build_task_skill_requirements_state(
+        self,
+        *,
+        task_id: str,
+    ) -> TaskCatalogWorkspaceViewModel:
+        normalized_task_id = (task_id or "").strip()
+        if not normalized_task_id:
+            return TaskCatalogWorkspaceViewModel(
+                overview=self._build_empty_overview(),
+                task_skill_requirements=self._build_skill_requirements_collection(
+                    None, ()
+                ),
+            )
+        reqs = self._desktop_api.list_task_skill_requirements(normalized_task_id)
+        return TaskCatalogWorkspaceViewModel(
+            overview=self._build_empty_overview(),
+            selected_task_id=normalized_task_id,
+            task_skill_requirements=self._build_skill_requirements_collection(
+                normalized_task_id, reqs
+            ),
+        )
+
+    @staticmethod
+    def _build_skill_requirements_collection(
+        task_id: str | None,
+        requirements,
+    ) -> TaskExecutionCollectionViewModel:
+        if task_id is None:
+            return TaskExecutionCollectionViewModel(
+                title="Skill Requirements",
+                subtitle=(
+                    "Skills and certifications required to assign resources to this task."
+                ),
+                empty_state=(
+                    "Select a task to review skill and certification requirements."
+                ),
+            )
+        if requirements:
+            return TaskExecutionCollectionViewModel(
+                title="Skill Requirements",
+                subtitle="Skills and certifications required for resource assignment.",
+                items=tuple(
+                    ProjectTasksWorkspacePresenter._to_skill_requirement_record_view_model(req)
+                    for req in requirements
+                ),
+            )
+        return TaskExecutionCollectionViewModel(
+            title="Skill Requirements",
+            subtitle="Skills and certifications required for resource assignment.",
+            empty_state="No skill or certification requirements are linked to this task.",
+        )
+
+    @staticmethod
+    def _to_skill_requirement_record_view_model(req) -> TaskRecordViewModel:
+        skill_code = str(getattr(req, "skill_code", "") or "")
+        cert_code = str(getattr(req, "certification_code", "") or "")
+        code = skill_code or cert_code
+        req_type = str(getattr(req, "requirement_type", "") or "")
+        req_type_label = "Certification" if req_type == "certification" else "Skill"
+        proficiency_label = str(getattr(req, "required_proficiency_label", "") or "")
+        mode_label = str(getattr(req, "validation_mode_label", "") or "")
+        notes = str(getattr(req, "notes", "") or "")
+        state = {
+            "requirementId": str(getattr(req, "id", "") or ""),
+            "taskId": str(getattr(req, "task_id", "") or ""),
+            "skillCode": skill_code,
+            "certificationCode": cert_code,
+            "requirementType": req_type,
+            "requiredProficiency": str(getattr(req, "required_proficiency", "") or ""),
+            "requiredProficiencyLabel": proficiency_label,
+            "validationMode": str(getattr(req, "validation_mode", "") or ""),
+            "validationModeLabel": mode_label,
+            "notes": notes,
+        }
+        return TaskRecordViewModel(
+            id=str(getattr(req, "id", "") or ""),
+            title=code or "Unknown",
+            status_label=proficiency_label,
+            subtitle=f"{req_type_label} | Mode: {mode_label}",
+            supporting_text=notes if notes else "No notes recorded.",
+            meta_text=f"Validation: {mode_label}",
+            can_primary_action=False,
+            can_secondary_action=False,
+            can_tertiary_action=False,
+            state=state,
         )
 
     def _build_task_filter_options(self) -> _TaskFilterOptions:
@@ -673,6 +907,27 @@ class ProjectTasksWorkspacePresenter:
         )
 
     @staticmethod
+    def _build_time_assignment_options(
+        assignments,
+    ) -> tuple[TaskSelectorOptionViewModel, ...]:
+        options: list[TaskSelectorOptionViewModel] = []
+        for assignment in assignments:
+            resource_name = str(getattr(assignment, "resource_name", "") or getattr(assignment, "resource_id", "") or "Assignment")
+            allocation_percent = float(getattr(assignment, "allocation_percent", 0.0) or 0.0)
+            label = (
+                f"{resource_name} | {allocation_percent:g}% allocation"
+                if allocation_percent > 0
+                else resource_name
+            )
+            options.append(
+                TaskSelectorOptionViewModel(
+                    value=str(getattr(assignment, "id", "") or ""),
+                    label=label,
+                )
+            )
+        return tuple(options)
+
+    @staticmethod
     def _build_dependency_task_options(
         all_tasks,
         *,
@@ -719,6 +974,7 @@ class ProjectTasksWorkspacePresenter:
                 "Select a project before creating a task.",
             ),
             name=self._require_text(payload, "name", "Task name is required."),
+            code=self._optional_text(payload, "taskCode"),
             description=self._optional_text(payload, "description") or "",
             start_date=self._optional_date(payload, "startDate"),
             duration_days=self._optional_int(payload, "durationDays"),
@@ -728,6 +984,23 @@ class ProjectTasksWorkspacePresenter:
         )
         self._desktop_api.create_task(command)
 
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique task code (per-project, TSK-<NAME>-NNNN)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        project_id = self._optional_text(payload, "projectId")
+        existing = {
+            str(getattr(row, "code", "") or "").upper()
+            for row in (self._desktop_api.list_tasks(project_id) if project_id else [])
+        }
+        name = self._optional_text(payload, "name")
+        return CodeGenerator().generate(
+            "task",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def update_task(self, payload: dict[str, Any]) -> None:
         command = TaskUpdateCommand(
             task_id=self._require_text(
@@ -736,6 +1009,7 @@ class ProjectTasksWorkspacePresenter:
                 "Task ID is required for updates.",
             ),
             name=self._require_text(payload, "name", "Task name is required."),
+            code=self._optional_text(payload, "taskCode"),
             description=self._optional_text(payload, "description") or "",
             start_date=self._optional_date(payload, "startDate"),
             duration_days=self._optional_int(payload, "durationDays"),
@@ -959,6 +1233,20 @@ class ProjectTasksWorkspacePresenter:
             lag_days=self._optional_int(payload, "lagDays") or 0,
         )
         self._desktop_api.create_dependency(command)
+
+    def update_dependency(self, payload: dict[str, Any]) -> None:
+        dependency_id = (payload.get("dependencyId") or "").strip()
+        if not dependency_id:
+            raise ValueError("Dependency ID is required.")
+        dependency_type = (payload.get("dependencyType") or "FS").strip().upper()
+        lag_days = int(payload.get("lagDays") or 0)
+        self._desktop_api.update_dependency(
+            TaskDependencyUpdateCommand(
+                dependency_id=dependency_id,
+                dependency_type=dependency_type,
+                lag_days=lag_days,
+            )
+        )
 
     def delete_dependency(self, dependency_id: str) -> None:
         normalized_dependency_id = (dependency_id or "").strip()
@@ -1576,6 +1864,7 @@ class ProjectTasksWorkspacePresenter:
             "projectId": task.project_id,
             "projectName": task.project_name or "",
             "name": task.name,
+            "taskCode": getattr(task, "code", "") or "",
             "description": task.description or "",
             "status": task.status,
             "statusLabel": task.status_label,
@@ -1781,6 +2070,69 @@ class ProjectTasksWorkspacePresenter:
             return date.fromisoformat(normalized_value)
         except ValueError as exc:
             raise ValueError("Dates must use YYYY-MM-DD.") from exc
+
+    def preview_assignment(self, payload: dict[str, Any]) -> dict[str, object]:
+        task_id = str(payload.get("taskId") or "").strip()
+        project_resource_id = str(payload.get("projectResourceId") or "").strip()
+        if not task_id or not project_resource_id:
+            return {
+                "ok": True,
+                "overallocationPct": 0.0,
+                "conflictProjects": [],
+                "skillsMatched": True,
+                "certsValid": True,
+                "hasWarnings": False,
+                "warningMessages": [],
+                "isBlocked": False,
+                "blockMessages": [],
+            }
+        from src.core.modules.project_management.api.desktop.tasks import (
+            AssignmentPreviewDesktopDto,
+        )
+        dto: AssignmentPreviewDesktopDto = self._desktop_api.preview_assignment(
+            task_id, project_resource_id
+        )
+        return {
+            "ok": True,
+            "overallocationPct": dto.overallocation_pct,
+            "conflictProjects": list(dto.conflict_projects),
+            "skillsMatched": dto.skills_matched,
+            "certsValid": dto.certs_valid,
+            "hasWarnings": dto.has_warnings,
+            "warningMessages": list(dto.warning_messages),
+            "isBlocked": dto.is_blocked,
+            "blockMessages": list(dto.block_messages),
+        }
+
+    def validate_assignment(self, payload: dict[str, Any]) -> dict[str, object]:
+        task_id = str(payload.get("taskId") or "").strip()
+        project_resource_id = str(payload.get("projectResourceId") or "").strip()
+        if not task_id or not project_resource_id:
+            return {
+                "ok": True,
+                "isValid": True,
+                "canAssign": True,
+                "requiresApproval": False,
+                "isBlocked": False,
+                "hasWarnings": False,
+                "violationMessages": [],
+                "warningMessages": [],
+                "summary": "valid",
+            }
+        dto: AssignmentValidationDesktopDto = self._desktop_api.validate_assignment(
+            task_id, project_resource_id
+        )
+        return {
+            "ok": True,
+            "isValid": dto.is_valid,
+            "canAssign": dto.can_assign,
+            "requiresApproval": dto.requires_approval,
+            "isBlocked": dto.is_blocked,
+            "hasWarnings": dto.has_warnings,
+            "violationMessages": list(dto.violation_messages),
+            "warningMessages": list(dto.warning_messages),
+            "summary": dto.summary,
+        }
 
 
 __all__ = ["ProjectTasksWorkspacePresenter"]

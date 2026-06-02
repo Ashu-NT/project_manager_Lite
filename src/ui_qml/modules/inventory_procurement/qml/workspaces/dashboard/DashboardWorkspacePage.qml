@@ -36,6 +36,9 @@ AppLayouts.WorkspaceFrame {
         : []
 
     property int _activePanelIndex: 0
+    on_ActivePanelIndexChanged: {
+        if (root.workspaceController) root.workspaceController.setActiveSectionIndex(root._activePanelIndex)
+    }
 
     readonly property var _panelColumns: [
         { "key": "title",        "label": "Item",     "flex": 2, "sortable": false },
@@ -55,12 +58,13 @@ AppLayouts.WorkspaceFrame {
         }
 
         // ── Inline messages ────────────────────────────────────────────────
-        AppWidgets.InlineMessage {
+        AppWidgets.LoadingOverlay {
             Layout.fillWidth: true
-            visible: (root.workspaceController ? root.workspaceController.isLoading : false)
+            loading: (root.workspaceController ? root.workspaceController.isLoading : false)
                 && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-            tone: "info"
             message: "Loading inventory dashboard..."
+            compact: true
+            modal:   false
         }
 
         AppWidgets.InlineMessage {
@@ -181,7 +185,7 @@ AppLayouts.WorkspaceFrame {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 columns: root._panelColumns
-                rows: parent._activeSection.rows || []
+                sourceModel: root.workspaceController ? root.workspaceController.activeSectionTableModel : null
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText: parent._activeSection.emptyState || "No records in this panel."
                 multiSelect: false

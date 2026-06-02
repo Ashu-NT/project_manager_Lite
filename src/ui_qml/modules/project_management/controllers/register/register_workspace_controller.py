@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
@@ -70,6 +71,7 @@ class ProjectManagementRegisterWorkspaceController(
         self._selected_status_filter = "all"
         self._selected_severity_filter = "all"
         self._search_text = ""
+        self._entries_table_model = DynamicTableModel(self)
         self._entries: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -143,6 +145,10 @@ class ProjectManagementRegisterWorkspaceController(
     @Property("QVariantMap", notify=entriesChanged)
     def entries(self) -> dict[str, object]:
         return self._entries
+
+    @Property(QObject, constant=True)
+    def entriesTableModel(self) -> DynamicTableModel:
+        return self._entries_table_model
 
     @Property("QVariantMap", notify=selectedEntryChanged)
     def selectedEntry(self) -> dict[str, object]:
@@ -328,6 +334,13 @@ class ProjectManagementRegisterWorkspaceController(
     def clearEntryBulkSelection(self) -> None:
         self._set_selected_entry_ids([])
 
+    @Slot()
+    def exportRegister(self) -> None:
+        self._set_error_message("")
+        self._set_feedback_message(
+            "Export is not available here. Open the Reports section to generate register entries, risk summaries, and issue logs."
+        )
+
     @Slot("QVariantList", result="QVariantMap")
     def bulkDeleteEntries(self, entry_ids: list) -> dict[str, object]:
         ids = [str(i) for i in (entry_ids or [])]
@@ -338,7 +351,7 @@ class ProjectManagementRegisterWorkspaceController(
                 self._register_workspace_presenter.delete_entry(i) for i in ids
             ],
             success_message=f"{len(ids)} register entry/entries deleted.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -356,11 +369,21 @@ class ProjectManagementRegisterWorkspaceController(
                 for i in ids
             ],
             success_message=f"Status updated for {len(ids)} entry/entries.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
         )
+
+    @Slot(str, "QVariantMap", result=str)
+    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
+        if (entity_type or "").strip().lower() != "register":
+            return ""
+        try:
+            return self._register_workspace_presenter.suggest_code(dict(payload))
+        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
+            self._set_error_message(str(exc))
+            return ""
 
     @Slot("QVariantMap", result="QVariantMap")
     def createEntry(self, payload: dict[str, object]) -> dict[str, object]:
@@ -369,7 +392,7 @@ class ProjectManagementRegisterWorkspaceController(
                 dict(payload)
             ),
             success_message="Register entry created.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -382,7 +405,7 @@ class ProjectManagementRegisterWorkspaceController(
                 dict(payload)
             ),
             success_message="Register entry updated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -395,7 +418,7 @@ class ProjectManagementRegisterWorkspaceController(
                 entry_id
             ),
             success_message="Register entry deleted.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -472,6 +495,7 @@ class ProjectManagementRegisterWorkspaceController(
         if entries == self._entries:
             return
         self._entries = entries
+        self._entries_table_model.set_rows(entries.get("items", []))
         self.entriesChanged.emit()
 
     def _set_selected_entry(self, selected_entry: dict[str, object]) -> None:

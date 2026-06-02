@@ -67,6 +67,23 @@ class PlatformPartyCatalogPresenter:
             for party_type in PartyType
         )
 
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique party code (PTY-<NAME>-0001 / PTY-<YEAR>-0001)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        existing: set[str] = set()
+        if self._party_api is not None:
+            result = self._party_api.list_parties(active_only=None)
+            if result.ok and result.data is not None:
+                existing = {str(getattr(row, "party_code", "") or "").upper() for row in result.data}
+        name = string_value(payload, "partyName")
+        return CodeGenerator().generate(
+            "party",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def create_party(self, payload: dict[str, Any]) -> DesktopApiResult[PartyDto]:
         if self._party_api is None:
             return preview_error_result("Platform party API is not connected in this QML preview.")

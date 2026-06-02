@@ -90,6 +90,11 @@ class PlatformUserDesktopApi:
             )
         )
 
+    def force_user_password_reset(self, user_id: str) -> DesktopApiResult[None]:
+        return execute_desktop_operation(
+            lambda: self._auth_service.force_user_password_reset(user_id)
+        )
+
     def revoke_user_sessions(
         self,
         user_id: str,

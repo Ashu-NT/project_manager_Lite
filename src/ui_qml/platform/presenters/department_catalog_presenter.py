@@ -123,6 +123,23 @@ class PlatformDepartmentCatalogPresenter:
             for row in result.data
         )
 
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique department code (DEPT-<NAME>-0001 / DEPT-<YEAR>-0001)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        existing: set[str] = set()
+        if self._department_api is not None:
+            result = self._department_api.list_departments(active_only=None)
+            if result.ok and result.data is not None:
+                existing = {str(getattr(row, "department_code", "") or "").upper() for row in result.data}
+        name = string_value(payload, "name")
+        return CodeGenerator().generate(
+            "department",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def create_department(self, payload: dict[str, Any]) -> DesktopApiResult[DepartmentDto]:
         if self._department_api is None:
             return preview_error_result("Platform department API is not connected in this QML preview.")

@@ -1,8 +1,10 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import "dialogs" as Dialogs
+import "sections" as Sections
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
@@ -212,7 +214,7 @@ AppLayouts.WorkspaceFrame {
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            AssetsDialogHost {
+            Dialogs.AssetsDialogHost {
                 siteOptions: root.workspaceController ? (root.workspaceController.formSiteOptions || []) : []
                 locationOptions: root.workspaceController ? (root.workspaceController.formLocationOptions || []) : []
                 parentLocationOptions: root.workspaceController ? (root.workspaceController.formParentLocationOptions || []) : []
@@ -227,30 +229,7 @@ AppLayouts.WorkspaceFrame {
                 manufacturerOptions: root.workspaceController ? (root.workspaceController.formManufacturerOptions || []) : []
                 supplierOptions: root.workspaceController ? (root.workspaceController.formSupplierOptions || []) : []
 
-                onCreateLocationRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createLocation(payload)
-                }
-                onUpdateLocationRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateLocation(payload)
-                }
-                onCreateSystemRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createSystem(payload)
-                }
-                onUpdateSystemRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateSystem(payload)
-                }
-                onCreateAssetRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createAsset(payload)
-                }
-                onUpdateAssetRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateAsset(payload)
-                }
-                onCreateComponentRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createComponent(payload)
-                }
-                onUpdateComponentRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateComponent(payload)
-                }
+                workspaceController: root.workspaceController
             }
         }
     }
@@ -297,7 +276,7 @@ AppLayouts.WorkspaceFrame {
         AppWidgets.TableToolbar {
             id: tableToolbar
             Layout.fillWidth: true
-            searchPlaceholder: "Search assets…"
+            searchPlaceholder: "Search assetsâ€¦"
             showCreate: true
             createLabel: root.currentCreateLabel
             showFilter: true
@@ -314,7 +293,7 @@ AppLayouts.WorkspaceFrame {
             onCreateRequested: root.openCreateDialogForCurrentTab()
         }
 
-        // ── Full-width table with full-page detail view ───────────────
+        // â”€â”€ Full-width table with full-page detail view â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -325,7 +304,7 @@ AppLayouts.WorkspaceFrame {
                 anchors.fill: parent
                 visible: libraryTabs.currentIndex === 0
                 columns: root._locationColumns
-                rows: root.locationModel.items || []
+                sourceModel: root.workspaceController ? root.workspaceController.locationsTableModel : null
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedLocationId : ""
 
                 onRowSelected: function(rowId) {
@@ -337,16 +316,14 @@ AppLayouts.WorkspaceFrame {
                 onViewDetailRequested: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectLocation(rowId)
                     detailPage.open = true
-                }
-                onSortRequested: function(key) {}
-            }
+                }            }
 
             AppWidgets.DataTable {
                 id: systemsTable
                 anchors.fill: parent
                 visible: libraryTabs.currentIndex === 1
                 columns: root._systemColumns
-                rows: root.systemModel.items || []
+                sourceModel: root.workspaceController ? root.workspaceController.systemsTableModel : null
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedSystemId : ""
 
                 onRowSelected: function(rowId) {
@@ -358,16 +335,14 @@ AppLayouts.WorkspaceFrame {
                 onViewDetailRequested: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectSystem(rowId)
                     detailPage.open = true
-                }
-                onSortRequested: function(key) {}
-            }
+                }            }
 
             AppWidgets.DataTable {
                 id: assetsTable
                 anchors.fill: parent
                 visible: libraryTabs.currentIndex === 2
                 columns: root._assetColumns
-                rows: root.assetModel.items || []
+                sourceModel: root.workspaceController ? root.workspaceController.assetsTableModel : null
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedAssetId : ""
 
                 onRowSelected: function(rowId) {
@@ -379,16 +354,14 @@ AppLayouts.WorkspaceFrame {
                 onViewDetailRequested: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectAsset(rowId)
                     detailPage.open = true
-                }
-                onSortRequested: function(key) {}
-            }
+                }            }
 
             AppWidgets.DataTable {
                 id: componentsTable
                 anchors.fill: parent
                 visible: libraryTabs.currentIndex === 3
                 columns: root._componentColumns
-                rows: root.componentModel.items || []
+                sourceModel: root.workspaceController ? root.workspaceController.componentsTableModel : null
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedComponentId : ""
 
                 onRowSelected: function(rowId) {
@@ -400,9 +373,7 @@ AppLayouts.WorkspaceFrame {
                 onViewDetailRequested: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectComponent(rowId)
                     detailPage.open = true
-                }
-                onSortRequested: function(key) {}
-            }
+                }            }
 
             AppWidgets.AnchoredPopup {
                 id: filterPopup
@@ -500,6 +471,23 @@ AppLayouts.WorkspaceFrame {
                 onBackRequested: detailPage.open = false
                 onEditRequested: root._openEditDialogForCurrentTab()
                 onDeleteRequested: detailPage.open = false
+
+                // â”€â”€ Detail-scoped messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: detailPage.open
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                }
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: detailPage.open
+                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                    tone: "success"
+                    message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+                }
 
                 AssetLibraryDetailSection {
                     width: parent.width

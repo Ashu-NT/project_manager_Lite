@@ -1,18 +1,35 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import "dialogs" as Dialogs
+import "sections" as Sections
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
+import QtQuick.Dialogs
 
 AppLayouts.WorkspaceFrame {
     id: root
 
     property var platformCatalog
     property var _caps: ({})
+
+    FileDialog {
+        id: _exportDialog
+        title: "Export Reservations"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Excel files (*.xlsx)", "CSV files (*.csv)"]
+        onAccepted: {
+            if (root.workspaceController !== null) {
+                const cols = _reservationsTable.columns.filter(function(c) { return c.visible !== false })
+                    .map(function(c) { return { "key": c.key, "label": c.label } })
+                root.workspaceController.exportTable(cols, String(selectedFile || ""))
+            }
+        }
+    }
 
     Component.onCompleted: {
         if (root.platformCatalog) {
@@ -88,35 +105,23 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    // ── Dialog host ────────────────────────────────────────────────
+    // â”€â”€ Dialog host â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            ReservationsDialogHost {
+            Dialogs.ReservationsDialogHost \{
                 itemOptions: root.workspaceController ? (root.workspaceController.itemOptions || []) : []
                 storeroomOptions: root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
-
-                onCreateReservationRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createReservation(payload)
-                }
-                onIssueReservationRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.issueReservation(payload)
-                }
-                onReleaseReservationRequested: function(reservationId) {
-                    if (root.workspaceController !== null) root.workspaceController.releaseReservation(reservationId)
-                }
-                onCancelReservationRequested: function(reservationId) {
-                    if (root.workspaceController !== null) root.workspaceController.cancelReservation(reservationId)
-                }
+                workspaceController: root.workspaceController
             }
         }
     }
 
-    // ── Stacked list / detail ──────────────────────────────────────
+    // â”€â”€ Stacked list / detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Item {
         anchors.fill: parent
 
-        // ── List page ──────────────────────────────────────────────
+        // â”€â”€ List page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Item {
             anchors.fill: parent
             visible: !root._detailOpen || _detailPageLoader.status !== Loader.Ready
@@ -130,30 +135,34 @@ AppLayouts.WorkspaceFrame {
                     metrics: root.overviewModel.metrics || []
                 }
 
-                AppWidgets.InlineMessage {
+                AppWidgets.LoadingOverlay {
                     Layout.fillWidth: true
-                    visible: (root.workspaceController ? root.workspaceController.isLoading : false)
+                    loading: (root.workspaceController ? root.workspaceController.isLoading : false)
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-                    tone: "info"
                     message: "Loading reservations..."
+                    compact: true
+                    modal:   false
                 }
-                AppWidgets.InlineMessage {
+                AppWidgets.LoadingOverlay {
                     Layout.fillWidth: true
-                    visible: root.workspaceController
+                    loading: root.workspaceController
                         ? root.workspaceController.isBusy && String(root.workspaceController.errorMessage || "").length === 0
                         : false
-                    tone: "info"
                     message: "Saving changes..."
+                    compact: true
+                    modal:   false
                 }
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
-                    visible: String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    visible: !root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
                     tone: "danger"
                     message: root.workspaceController ? root.workspaceController.errorMessage : ""
                 }
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
-                    visible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                    visible: !root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
                     tone: "success"
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
@@ -178,7 +187,7 @@ AppLayouts.WorkspaceFrame {
                     onRefreshRequested: {
                         if (root.workspaceController !== null) root.workspaceController.refresh()
                     }
-                    onExportRequested: {}
+                    onExportRequested: _exportDialog.open()
                     onCreateRequested: dialogHostLoader.invoke(
                         "openCreateReservationDialog",
                         root.workspaceController ? root.workspaceController.selectedItemFilter : "all",
@@ -199,7 +208,7 @@ AppLayouts.WorkspaceFrame {
                         anchors.bottom: _paginationBar.top
                         multiSelect: true
                         columns: root._reservationColumns
-                        rows: root.reservationsModel.items || []
+                        sourceModel: root.workspaceController ? root.workspaceController.reservationsTableModel : null
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.reservationsModel.emptyState || "No reservations found."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedReservationId : ""
@@ -219,9 +228,7 @@ AppLayouts.WorkspaceFrame {
                             if (root.workspaceController === null) return
                             if (allSelected) root.workspaceController.selectVisibleReservations()
                             else root.workspaceController.clearReservationBulkSelection()
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.TablePaginationBar {
                         id: _paginationBar
@@ -241,7 +248,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    // ── Filter popup ───────────────────────────────
+                    // â”€â”€ Filter popup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     AppWidgets.AnchoredPopup {
                         id: filterPopup
                         anchorItem: tableToolbar.filterButtonItem
@@ -355,7 +362,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    // ── Bulk action bar ────────────────────────────
+                    // â”€â”€ Bulk action bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     AppWidgets.BulkActionBar {
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.bottom: _paginationBar.top
@@ -376,7 +383,7 @@ AppLayouts.WorkspaceFrame {
             }
         }
 
-        // ── Detail page (lazy loaded) ──────────────────────────────
+        // â”€â”€ Detail page (lazy loaded) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Loader {
             id: _detailPageLoader
             anchors.fill: parent
@@ -423,6 +430,23 @@ AppLayouts.WorkspaceFrame {
                             dialogHostLoader.invoke("openCancelConfirmation", root.selectedReservationModel)
                         }
                     }
+                }
+
+                // â”€â”€ Detail-scoped messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                }
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                    tone: "success"
+                    message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
                 Item {
@@ -478,7 +502,7 @@ AppLayouts.WorkspaceFrame {
                                         }
                                         AppControls.Label {
                                             Layout.fillWidth: true
-                                            text: _rfd.modelData.value || "—"
+                                            text: _rfd.modelData.value || "â€”"
                                             color: Theme.AppTheme.textPrimary
                                             font.pixelSize: Theme.AppTheme.bodySize
                                             font.family: Theme.AppTheme.fontFamily

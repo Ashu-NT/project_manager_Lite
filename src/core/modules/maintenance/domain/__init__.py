@@ -36,6 +36,7 @@ from src.core.modules.maintenance.domain.locations.location import (
     MaintenanceSystem,
 )
 from src.core.modules.maintenance.domain.preventive.schedule import (
+    MaintenanceBlackoutWindow,
     MaintenancePreventivePlan,
     MaintenancePreventivePlanInstance,
     MaintenancePreventivePlanTask,
@@ -78,6 +79,7 @@ __all__ = [
     "MaintenancePlanTaskTriggerScope",
     "MaintenancePlanType",
     "MaintenancePreventiveInstanceStatus",
+    "MaintenanceBlackoutWindow",
     "MaintenancePreventivePlan",
     "MaintenancePreventivePlanInstance",
     "MaintenancePreventivePlanTask",

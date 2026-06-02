@@ -10,6 +10,36 @@ from src.core.platform.audit.helpers import record_audit
 
 
 class CostLifecycleMixin:
+    def _resolve_cost_code(
+        self, code: str, project_id: str, description: str, *, exclude_id: str | None = None
+    ) -> str:
+        """Normalize a manual code or auto-generate a unique one (per-project scope)."""
+        from src.core.platform.common.code_generation import (
+            CodeGenerator,
+            assert_code_unique,
+            normalize_manual_code,
+        )
+
+        existing = {
+            str(getattr(item, "code", "") or "").upper()
+            for item in self._cost_repo.list_by_project(project_id)
+            if exclude_id is None or item.id != exclude_id
+        }
+        manual = normalize_manual_code(code)
+        if manual:
+            assert_code_unique(
+                manual,
+                exists=lambda candidate: candidate.upper() in existing,
+                label="Cost code",
+            )
+            return manual
+        return CodeGenerator().generate(
+            "cost",
+            exists=lambda candidate: candidate.upper() in existing,
+            name=(description or "").strip() or None,
+            use_year=not bool((description or "").strip()),
+        )
+
     def add_cost_item(
         self,
         project_id: str,
@@ -22,6 +52,7 @@ class CostLifecycleMixin:
         incurred_date: date | None = None,
         currency_code: str | None = None,
         bypass_approval: bool = False,
+        code: str = "",
     ) -> CostItem:
         governed = self._is_governed(operation_code="cost.add", bypass_approval=bypass_approval)
         self._require_operation_permission(
@@ -68,6 +99,7 @@ class CostLifecycleMixin:
         cost_item = CostItem.create(
             project_id=project_id,
             task_id=task_id,
+            code=self._resolve_cost_code(code, project_id, description),
             description=description.strip(),
             planned_amount=planned_amount,
             committed_amount=committed_amount,
@@ -111,6 +143,7 @@ class CostLifecycleMixin:
         currency_code: str | None = None,
         expected_version: int | None = None,
         bypass_approval: bool = False,
+        code: str | None = None,
     ) -> CostItem:
         governed = self._is_governed(operation_code="cost.update", bypass_approval=bypass_approval)
         item = self._require_cost_item(cost_id)
@@ -165,6 +198,10 @@ class CostLifecycleMixin:
             item.incurred_date = self._validate_incurred_date(incurred_date)
         if currency_code is not None:
             item.currency_code = self._normalize_currency(currency_code)
+        if code is not None and code.strip():
+            item.code = self._resolve_cost_code(
+                code, item.project_id, item.description, exclude_id=item.id
+            )
 
         try:
             self._cost_repo.update(item)

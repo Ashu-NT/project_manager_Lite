@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
     InventoryProcurementWorkspaceControllerBase,
     run_mutation,
@@ -93,6 +94,8 @@ class InventoryProcurementProcurementWorkspaceController(
         self._selected_requisition_status_filter = "all"
         self._selected_purchase_order_status_filter = "all"
         self._search_text = ""
+        self._requisitions_table_model = DynamicTableModel(self)
+        self._purchase_orders_table_model = DynamicTableModel(self)
         self._requisitions: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -111,6 +114,9 @@ class InventoryProcurementProcurementWorkspaceController(
             "state": {},
         }
         self._selected_requisition_id = ""
+        self._requisition_lines_table_model = DynamicTableModel(self)
+        self._purchase_order_lines_table_model = DynamicTableModel(self)
+        self._receipts_table_model = DynamicTableModel(self)
         self._requisition_lines: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -224,6 +230,20 @@ class InventoryProcurementProcurementWorkspaceController(
     def requisitions(self) -> dict[str, object]:
         return self._requisitions
 
+    @Property(QObject, constant=True)
+    def requisitionsTableModel(self) -> DynamicTableModel:
+        return self._requisitions_table_model
+
+    @Slot("QVariantList", str, result="QVariantMap")
+    def exportTable(self, columns: list, file_path: str) -> dict[str, object]:
+        from src.ui_qml.modules.project_management.utils.table_exporter import export_to_file
+        model = self._requisitions_table_model if self._is_requisitions_view else self._purchase_orders_table_model
+        return export_to_file(list(model._rows), list(columns), (file_path or "").strip())
+
+    @property
+    def _is_requisitions_view(self) -> bool:
+        return getattr(self, "_active_view", "requisitions") != "purchase_orders"
+
     @Property("QVariantMap", notify=selectedRequisitionChanged)
     def selectedRequisition(self) -> dict[str, object]:
         return self._selected_requisition
@@ -236,9 +256,25 @@ class InventoryProcurementProcurementWorkspaceController(
     def requisitionLines(self) -> dict[str, object]:
         return self._requisition_lines
 
+    @Property(QObject, constant=True)
+    def requisitionLinesTableModel(self) -> DynamicTableModel:
+        return self._requisition_lines_table_model
+
+    @Property(QObject, constant=True)
+    def purchaseOrderLinesTableModel(self) -> DynamicTableModel:
+        return self._purchase_order_lines_table_model
+
+    @Property(QObject, constant=True)
+    def receiptsTableModel(self) -> DynamicTableModel:
+        return self._receipts_table_model
+
     @Property("QVariantMap", notify=purchaseOrdersChanged)
     def purchaseOrders(self) -> dict[str, object]:
         return self._purchase_orders
+
+    @Property(QObject, constant=True)
+    def purchaseOrdersTableModel(self) -> DynamicTableModel:
+        return self._purchase_orders_table_model
 
     @Property("QVariantMap", notify=selectedPurchaseOrderChanged)
     def selectedPurchaseOrder(self) -> dict[str, object]:
@@ -941,6 +977,7 @@ class InventoryProcurementProcurementWorkspaceController(
         if requisitions == self._requisitions:
             return
         self._requisitions = requisitions
+        self._requisitions_table_model.set_rows(requisitions.get("items", []))
         self.requisitionsChanged.emit()
 
     def _set_selected_requisition(
@@ -962,12 +999,14 @@ class InventoryProcurementProcurementWorkspaceController(
         if requisition_lines == self._requisition_lines:
             return
         self._requisition_lines = requisition_lines
+        self._requisition_lines_table_model.set_rows(requisition_lines.get("items", []))
         self.requisitionLinesChanged.emit()
 
     def _set_purchase_orders(self, purchase_orders: dict[str, object]) -> None:
         if purchase_orders == self._purchase_orders:
             return
         self._purchase_orders = purchase_orders
+        self._purchase_orders_table_model.set_rows(purchase_orders.get("items", []))
         self.purchaseOrdersChanged.emit()
 
     def _set_selected_purchase_order(
@@ -995,12 +1034,14 @@ class InventoryProcurementProcurementWorkspaceController(
         if purchase_order_lines == self._purchase_order_lines:
             return
         self._purchase_order_lines = purchase_order_lines
+        self._purchase_order_lines_table_model.set_rows(purchase_order_lines.get("items", []))
         self.purchaseOrderLinesChanged.emit()
 
     def _set_receipts(self, receipts: dict[str, object]) -> None:
         if receipts == self._receipts:
             return
         self._receipts = receipts
+        self._receipts_table_model.set_rows(receipts.get("items", []))
         self.receiptsChanged.emit()
 
 

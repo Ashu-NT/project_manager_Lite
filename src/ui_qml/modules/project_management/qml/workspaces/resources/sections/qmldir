@@ -1,0 +1,10 @@
+﻿module ProjectManagement.ResourcesSections
+ResourcesOverviewSection 1.0 ResourcesOverviewSection.qml
+ResourcesAssignmentsSection 1.0 ResourcesAssignmentsSection.qml
+ResourcesCapacitySection 1.0 ResourcesCapacitySection.qml
+ResourcesCalendarSection 1.0 ResourcesCalendarSection.qml
+ResourcesSkillsSection 1.0 ResourcesSkillsSection.qml
+ResourcesCertificationsSection 1.0 ResourcesCertificationsSection.qml
+ResourcesCostRatesSection 1.0 ResourcesCostRatesSection.qml
+ResourcesAvailabilitySection 1.0 ResourcesAvailabilitySection.qml
+ResourcesActivitySection 1.0 ResourcesActivitySection.qml

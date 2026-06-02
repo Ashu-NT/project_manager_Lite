@@ -94,6 +94,23 @@ class PlatformDocumentCatalogPresenter:
             return ()
         return tuple(self._serialize_structure_option(row) for row in result.data)
 
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique document code (DOC-<TITLE>-0001 / DOC-<YEAR>-0001)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        existing: set[str] = set()
+        if self._document_api is not None:
+            result = self._document_api.list_documents(active_only=None)
+            if result.ok and result.data is not None:
+                existing = {str(getattr(row, "document_code", "") or "").upper() for row in result.data}
+        name = string_value(payload, "title")
+        return CodeGenerator().generate(
+            "document",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def create_document(self, payload: dict[str, Any]) -> DesktopApiResult[DocumentDto]:
         if self._document_api is None:
             return preview_error_result("Platform document API is not connected in this QML preview.")

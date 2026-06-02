@@ -35,6 +35,36 @@ class TaskLifecycleMixin:
     _cost_repo: CostRepository
     _work_calendar_engine: WorkCalendarEngine
 
+    def _resolve_task_code(
+        self, code: str, project_id: str, name: str, *, exclude_id: str | None = None
+    ) -> str:
+        """Normalize a manual code or auto-generate a unique one (per-project scope)."""
+        from src.core.platform.common.code_generation import (
+            CodeGenerator,
+            assert_code_unique,
+            normalize_manual_code,
+        )
+
+        existing = {
+            str(getattr(task, "code", "") or "").upper()
+            for task in self._task_repo.list_by_project(project_id)
+            if exclude_id is None or task.id != exclude_id
+        }
+        manual = normalize_manual_code(code)
+        if manual:
+            assert_code_unique(
+                manual,
+                exists=lambda candidate: candidate.upper() in existing,
+                label="Task code",
+            )
+            return manual
+        return CodeGenerator().generate(
+            "task",
+            exists=lambda candidate: candidate.upper() in existing,
+            name=(name or "").strip() or None,
+            use_year=not bool((name or "").strip()),
+        )
+
     def create_task(
         self,
         project_id: str,
@@ -45,6 +75,7 @@ class TaskLifecycleMixin:
         status: TaskStatus = TaskStatus.TODO,
         priority: int = 0,
         deadline: date | None = None,
+        code: str = "",
     ) -> Task:
         require_permission(self._user_session, "task.manage", operation_label="create task")
         require_project_permission(
@@ -55,10 +86,12 @@ class TaskLifecycleMixin:
         )
         self._validate_dates(start_date, deadline, duration_days)
         self._validate_task_name(name)
+        resolved_code = self._resolve_task_code(code, project_id, name)
 
         task = Task.create(
             project_id=project_id,
             name=name,
+            code=resolved_code,
             description=description,
             start_date=start_date,
             duration_days=duration_days,
@@ -178,11 +211,14 @@ class TaskLifecycleMixin:
         priority: int | None = None,
         deadline: date | None = None,
         expected_version: int | None = None,
+        code: str | None = None,
     ) -> Task:
         require_permission(self._user_session, "task.manage", operation_label="update task")
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        if code is not None and code.strip():
+            task.code = self._resolve_task_code(code, task.project_id, task.name, exclude_id=task.id)
         require_project_permission(
             self._user_session,
             task.project_id,

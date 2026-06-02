@@ -4,6 +4,7 @@ from typing import Callable
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementUndoCommand,
     ProjectManagementUndoStack,
@@ -28,6 +29,7 @@ class PMTaskListController(QObject):
     priorityOptionsChanged = Signal()
     scheduleOptionsChanged = Signal()
     tasksChanged = Signal()
+    tasksTableModelChanged = Signal()
     selectedTaskChanged = Signal()
     selectedTaskIdsChanged = Signal()
     selectedTaskCountChanged = Signal()
@@ -51,6 +53,7 @@ class PMTaskListController(QObject):
         self._set_error_message = set_error_message
         self._set_feedback_message = set_feedback_message
         self._task_action_history = ProjectManagementUndoStack(max_depth=25)
+        self._tasks_table_model = DynamicTableModel(self)
         self._overview: dict[str, object] = {"title": "", "subtitle": "", "metrics": []}
         self._project_options: list[dict[str, str]] = []
         self._status_options: list[dict[str, str]] = []
@@ -91,6 +94,7 @@ class PMTaskListController(QObject):
         )
         items = serialize_task_record_view_models(workspace_state.tasks)
         self._reconcile_task_bulk_selection(items)
+        self._tasks_table_model.set_rows(items)
         self._set_tasks({
             "title": "Task Catalog",
             "subtitle": (
@@ -145,6 +149,10 @@ class PMTaskListController(QObject):
     @Property("QVariantMap", notify=tasksChanged)
     def tasks(self) -> dict[str, object]:
         return self._tasks
+
+    @Property(QObject, constant=True)
+    def tasksTableModel(self) -> DynamicTableModel:
+        return self._tasks_table_model
 
     @Property("QVariantMap", notify=selectedTaskChanged)
     def selectedTask(self) -> dict[str, object]:
@@ -212,6 +220,18 @@ class PMTaskListController(QObject):
         self._sync_selected_task_stats(self._tasks.get("items", []))
 
     # ── Mutation slots ────────────────────────────────────────────────
+
+    @Slot(str, "QVariantMap", result=str)
+    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
+        if (entity_type or "").strip().lower() != "task":
+            return ""
+        try:
+            return self._presenter.suggest_code(dict(payload))
+        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
+            setter = getattr(self, "_set_error_message", None)
+            if setter is not None:
+                setter(str(exc))
+            return ""
 
     @Slot("QVariantMap", result="QVariantMap")
     def createTask(self, payload: dict[str, object]) -> dict[str, object]:

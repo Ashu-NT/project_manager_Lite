@@ -1,0 +1,2 @@
+module ProjectManagement.TasksDialogs
+TasksDialogHost 1.0 TasksDialogHost.qml

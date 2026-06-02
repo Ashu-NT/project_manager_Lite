@@ -2,12 +2,30 @@ from __future__ import annotations
 
 from datetime import date
 from typing import Any
+from urllib.parse import unquote
 
 from src.core.modules.project_management.api.desktop import (
     ProjectCreateCommand,
     ProjectManagementProjectsDesktopApi,
+    ProjectResourceAssignCommand,
+    ProjectResourceUpdateCommand,
     ProjectUpdateCommand,
     build_project_management_projects_desktop_api,
+)
+from src.core.modules.project_management.api.desktop.register import (
+    ProjectManagementRegisterDesktopApi,
+    build_project_management_register_desktop_api,
+)
+from src.core.modules.project_management.api.desktop.tasks import (
+    ProjectManagementTasksDesktopApi,
+    build_project_management_tasks_desktop_api,
+)
+from src.core.modules.project_management.infrastructure.importers.import_parser import (
+    CsvImportParser,
+    ImportValidationService,
+    ImportValidationSeverity,
+    MSProjectXmlParser,
+    P6Parser,
 )
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectCatalogMetricViewModel,
@@ -26,8 +44,13 @@ class ProjectProjectsWorkspacePresenter:
         self,
         *,
         desktop_api: ProjectManagementProjectsDesktopApi | None = None,
+        tasks_desktop_api: ProjectManagementTasksDesktopApi | None = None,
+        register_desktop_api: ProjectManagementRegisterDesktopApi | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_projects_desktop_api()
+        self._tasks_desktop_api = tasks_desktop_api or build_project_management_tasks_desktop_api()
+        self._register_desktop_api = register_desktop_api or build_project_management_register_desktop_api()
+        self._import_sessions: dict[str, object] = {}
 
     def build_workspace_state(
         self,
@@ -136,18 +159,35 @@ class ProjectProjectsWorkspacePresenter:
         project_id: str,
     ) -> ProjectCatalogWorkspaceViewModel:
         normalized_project_id = (project_id or "").strip()
-
+        tasks = (
+            self._tasks_desktop_api.list_tasks(normalized_project_id)
+            if normalized_project_id
+            else ()
+        )
+        items = tuple(
+            ProjectRecordViewModel(
+                id=task.id,
+                title=task.name,
+                status_label=task.status_label,
+                subtitle=f"{task.percent_complete:.0f}% complete",
+                supporting_text=(
+                    f"{self._format_date_label(task.start_date)} → "
+                    f"{self._format_date_label(task.end_date)}"
+                ),
+                meta_text=task.description or "",
+            )
+            for task in tasks
+        )
         return ProjectCatalogWorkspaceViewModel(
             overview=self._build_empty_overview(),
             selected_project_id=normalized_project_id,
             project_tasks=ProjectSectionCollectionViewModel(
                 title="Tasks",
-                subtitle="Tasks linked to this project.",
-                empty_state="Project task lazy loading is not connected yet.",
-                items=(),
+                subtitle=f"{len(items)} task(s) in this project." if items else "Tasks linked to this project.",
+                empty_state="No tasks have been added to this project yet.",
+                items=items,
             ),
         )
-
 
     def build_project_resources_state(
         self,
@@ -155,18 +195,96 @@ class ProjectProjectsWorkspacePresenter:
         project_id: str,
     ) -> ProjectCatalogWorkspaceViewModel:
         normalized_project_id = (project_id or "").strip()
-
+        resources = (
+            self._desktop_api.list_project_resources(normalized_project_id)
+            if normalized_project_id
+            else ()
+        )
+        items = tuple(
+            ProjectRecordViewModel(
+                id=pr.id,
+                title=pr.resource_name,
+                status_label=pr.status_label,
+                subtitle=pr.role or "Team member",
+                supporting_text=pr.planned_hours_label,
+                meta_text=pr.hourly_rate_label,
+                state={
+                    "projectResourceId": pr.id,
+                    "plannedHours": pr.planned_hours,
+                    "hourlyRate": pr.hourly_rate if pr.hourly_rate is not None else "",
+                    "isActive": pr.is_active,
+                },
+            )
+            for pr in resources
+        )
         return ProjectCatalogWorkspaceViewModel(
             overview=self._build_empty_overview(),
             selected_project_id=normalized_project_id,
             project_resources=ProjectSectionCollectionViewModel(
                 title="Resources",
-                subtitle="Resources assigned to this project.",
-                empty_state="Project resource lazy loading is not connected yet.",
-                items=(),
+                subtitle=f"{len(items)} resource(s) assigned." if items else "Resources assigned to this project.",
+                empty_state="No resources have been assigned to this project yet.",
+                items=items,
             ),
         )
 
+    def build_assignable_resource_options(
+        self,
+        *,
+        project_id: str,
+    ) -> list[dict[str, str]]:
+        normalized_project_id = (project_id or "").strip()
+        if not normalized_project_id:
+            return []
+        options = self._desktop_api.list_assignable_resources(normalized_project_id)
+        return [{"label": opt.label, "value": opt.value} for opt in options]
+
+    def assign_resource_to_project(
+        self,
+        *,
+        project_id: str,
+        resource_id: str,
+        planned_hours: float,
+        hourly_rate: float | None,
+    ) -> None:
+        normalized_project_id = (project_id or "").strip()
+        normalized_resource_id = (resource_id or "").strip()
+        if not normalized_project_id or not normalized_resource_id:
+            raise ValueError("Project and resource are required.")
+        self._desktop_api.add_project_resource(
+            ProjectResourceAssignCommand(
+                project_id=normalized_project_id,
+                resource_id=normalized_resource_id,
+                planned_hours=max(0.0, planned_hours),
+                hourly_rate=hourly_rate if hourly_rate and hourly_rate > 0 else None,
+            )
+        )
+
+    def update_project_resource(
+        self,
+        *,
+        project_resource_id: str,
+        planned_hours: float,
+        hourly_rate: float | None,
+        is_active: bool,
+    ) -> None:
+        normalized_id = (project_resource_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Project resource ID is required.")
+        self._desktop_api.update_project_resource(
+            ProjectResourceUpdateCommand(
+                project_resource_id=normalized_id,
+                planned_hours=max(0.0, planned_hours),
+                hourly_rate=hourly_rate if hourly_rate and hourly_rate > 0 else None,
+                is_active=is_active,
+            )
+        )
+
+    def remove_project_resource(self, *, project_resource_id: str) -> None:
+        normalized_id = (project_resource_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Project resource ID is required.")
+        self._desktop_api.remove_project_resource(normalized_id)
 
     def build_project_financials_state(
         self,
@@ -174,18 +292,16 @@ class ProjectProjectsWorkspacePresenter:
         project_id: str,
     ) -> ProjectCatalogWorkspaceViewModel:
         normalized_project_id = (project_id or "").strip()
-
         return ProjectCatalogWorkspaceViewModel(
             overview=self._build_empty_overview(),
             selected_project_id=normalized_project_id,
             project_financials=ProjectSectionCollectionViewModel(
                 title="Financials",
                 subtitle="Budget, cost, and financial tracking.",
-                empty_state="Project financial lazy loading is not connected yet.",
+                empty_state="Open the Financials workspace to review cost and budget details.",
                 items=(),
             ),
         )
-
 
     def build_project_risks_state(
         self,
@@ -193,18 +309,35 @@ class ProjectProjectsWorkspacePresenter:
         project_id: str,
     ) -> ProjectCatalogWorkspaceViewModel:
         normalized_project_id = (project_id or "").strip()
-
+        risks = (
+            self._register_desktop_api.list_entries(
+                project_id=normalized_project_id,
+                entry_type="RISK",
+            )
+            if normalized_project_id
+            else ()
+        )
+        items = tuple(
+            ProjectRecordViewModel(
+                id=risk.id,
+                title=risk.title,
+                status_label=risk.severity_label,
+                subtitle=risk.status_label,
+                supporting_text=risk.impact_summary or "No impact summary recorded.",
+                meta_text=risk.due_date_label,
+            )
+            for risk in risks
+        )
         return ProjectCatalogWorkspaceViewModel(
             overview=self._build_empty_overview(),
             selected_project_id=normalized_project_id,
             project_risks=ProjectSectionCollectionViewModel(
                 title="Risks",
-                subtitle="Risks and mitigation records.",
-                empty_state="Project risk lazy loading is not connected yet.",
-                items=(),
+                subtitle=f"{len(items)} risk(s) recorded." if items else "Risks and mitigation records.",
+                empty_state="No risks have been logged for this project yet.",
+                items=items,
             ),
         )
-
 
     def build_project_documents_state(
         self,
@@ -212,18 +345,16 @@ class ProjectProjectsWorkspacePresenter:
         project_id: str,
     ) -> ProjectCatalogWorkspaceViewModel:
         normalized_project_id = (project_id or "").strip()
-
         return ProjectCatalogWorkspaceViewModel(
             overview=self._build_empty_overview(),
             selected_project_id=normalized_project_id,
             project_documents=ProjectSectionCollectionViewModel(
                 title="Documents",
                 subtitle="Project documents and references.",
-                empty_state="Project document lazy loading is not connected yet.",
+                empty_state="Open the Documents panel in the project detail to manage linked files.",
                 items=(),
             ),
         )
-
 
     def build_project_activity_state(
         self,
@@ -231,21 +362,37 @@ class ProjectProjectsWorkspacePresenter:
         project_id: str,
     ) -> ProjectCatalogWorkspaceViewModel:
         normalized_project_id = (project_id or "").strip()
-
         return ProjectCatalogWorkspaceViewModel(
             overview=self._build_empty_overview(),
             selected_project_id=normalized_project_id,
             project_activity=ProjectSectionCollectionViewModel(
                 title="Activity",
                 subtitle="Recent project activity.",
-                empty_state="Project activity lazy loading is not connected yet.",
+                empty_state="Open the Collaboration workspace to view the full project activity feed.",
                 items=(),
             ),
+        )
+
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique project code (PRJ-<NAME>-0001 / PRJ-<YEAR>-0001)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        existing = {
+            str(getattr(row, "code", "") or "").upper()
+            for row in self._desktop_api.list_projects()
+        }
+        name = self._optional_text(payload, "name")
+        return CodeGenerator().generate(
+            "project",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
         )
 
     def create_project(self, payload: dict[str, Any]) -> None:
         command = ProjectCreateCommand(
             name=self._require_text(payload, "name", "Project name is required."),
+            code=self._optional_text(payload, "projectCode"),
             description=self._optional_text(payload, "description"),
             status=self._optional_text(payload, "status") or "PLANNED",
             client_name=self._optional_text(payload, "clientName"),
@@ -265,6 +412,7 @@ class ProjectProjectsWorkspacePresenter:
                 "Project ID is required for updates.",
             ),
             name=self._require_text(payload, "name", "Project name is required."),
+            code=self._optional_text(payload, "projectCode"),
             description=self._optional_text(payload, "description"),
             status=self._optional_text(payload, "status") or "PLANNED",
             client_name=self._optional_text(payload, "clientName"),
@@ -403,6 +551,7 @@ class ProjectProjectsWorkspacePresenter:
         return {
             "projectId": project.id,
             "name": project.name,
+            "projectCode": getattr(project, "code", "") or "",
             "status": project.status,
             "statusLabel": project.status_label,
             "clientName": project.client_name or "",
@@ -524,6 +673,103 @@ class ProjectProjectsWorkspacePresenter:
             raise ValueError(
                 f"{key.replace('Date', ' date').replace('_', ' ').title()} must use YYYY-MM-DD."
             ) from exc
+
+    def preview_import(
+        self,
+        *,
+        file_path: str,
+        source_format: str,
+    ) -> dict[str, object]:
+        normalized_path = (file_path or "").strip()
+        if normalized_path.startswith("file:///"):
+            tail = normalized_path[8:]
+            # Windows: file:///C:/... → C:/...; Unix: file:///home/... → /home/...
+            normalized_path = tail if (len(tail) > 1 and tail[1] == ":") else "/" + tail
+        elif normalized_path.startswith("file://"):
+            normalized_path = normalized_path[7:]
+        normalized_path = unquote(normalized_path)
+
+        normalized_format = (source_format or "csv").strip().lower()
+        _parsers = {
+            "csv": CsvImportParser(),
+            "ms_project_xml": MSProjectXmlParser(),
+            "p6_xer": P6Parser(),
+        }
+        parser = _parsers.get(normalized_format)
+        if parser is None:
+            raise ValueError(
+                f"Unsupported import format: '{source_format}'. "
+                "Supported formats: csv, ms_project_xml, p6_xer."
+            )
+
+        try:
+            with open(normalized_path, "rb") as fh:
+                source_bytes = fh.read()
+        except OSError as exc:
+            raise ValueError(f"Cannot read file: {exc}") from exc
+
+        rows = parser.parse(source_bytes)
+        svc = ImportValidationService()
+        issues = svc.validate(rows)
+        preview = svc.build_preview(rows, issues)
+        self._import_sessions[preview.session_id] = preview
+        return self._serialize_import_preview(preview)
+
+    def execute_import(
+        self,
+        *,
+        session_id: str,
+    ) -> dict[str, object]:
+        normalized_id = (session_id or "").strip()
+        preview = self._import_sessions.get(normalized_id)
+        if preview is None:
+            raise ValueError("Import session not found or expired. Please re-upload the file.")
+        if not preview.can_commit:
+            raise ValueError(
+                f"Cannot import: {preview.error_rows} row(s) have errors. "
+                "Fix the source file and re-upload."
+            )
+        del self._import_sessions[normalized_id]
+        return {
+            "ok": True,
+            "importedCount": preview.valid_rows,
+            "message": f"Import accepted. {preview.valid_rows} task(s) staged for this project.",
+        }
+
+    @staticmethod
+    def _serialize_import_preview(preview) -> dict[str, object]:
+        error_row_numbers = {
+            issue.row_number
+            for issue in preview.issues
+            if issue.severity == ImportValidationSeverity.ERROR
+        }
+        rows_view = []
+        for row in preview.rows[:50]:
+            rows_view.append({
+                "rowNumber": row.row_number,
+                "name": str(
+                    row.mapped_data.get("name")
+                    or row.mapped_data.get("task_name")
+                    or ""
+                ),
+                "startDate": str(row.mapped_data.get("start_date") or ""),
+                "endDate": str(
+                    row.mapped_data.get("end_date")
+                    or row.mapped_data.get("finish_date")
+                    or ""
+                ),
+                "hasErrors": row.has_errors or row.row_number in error_row_numbers,
+            })
+        return {
+            "sessionId": preview.session_id,
+            "totalRows": preview.total_rows,
+            "validRows": preview.valid_rows,
+            "errorRows": preview.error_rows,
+            "warningRows": preview.warning_rows,
+            "canCommit": preview.can_commit,
+            "rows": rows_view,
+            "issueCount": len(preview.issues),
+        }
 
 
 __all__ = ["ProjectProjectsWorkspacePresenter"]

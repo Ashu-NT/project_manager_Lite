@@ -12,6 +12,7 @@ from src.core.modules.project_management.domain.identifiers import generate_id
 class Project:
     id: str
     name: str
+    code: str = ""
     description: str = ""
     start_date: Optional[date] = None
     end_date: Optional[date] = None

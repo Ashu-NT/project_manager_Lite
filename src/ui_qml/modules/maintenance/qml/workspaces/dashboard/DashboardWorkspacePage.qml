@@ -1,10 +1,11 @@
-import QtQuick
+﻿import QtQuick
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
+import "sections" as Sections
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -53,7 +54,7 @@ AppLayouts.WorkspaceFrame {
                 feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
             }
 
-            DashboardFiltersSection {
+            Sections.DashboardFiltersSection {
                 Layout.fillWidth: true
                 siteOptions: root.workspaceController ? root.workspaceController.siteOptions : []
                 assetOptions: root.workspaceController ? root.workspaceController.assetOptions : []
@@ -112,23 +113,32 @@ AppLayouts.WorkspaceFrame {
                 architectureSummary: "Maintenance backlog, root-cause, and recurring-failure analytics now render through the typed maintenance QML catalog."
             }
 
-            DashboardBacklogSection {
+            Sections.DashboardBacklogSection {
                 Layout.fillWidth: true
                 items: root.workspaceController ? root.workspaceController.backlogRows : []
                 emptyState: root.workspaceController ? root.workspaceController.emptyState : ""
             }
 
-            DashboardRootCausesSection {
+            Sections.DashboardRootCausesSection {
                 Layout.fillWidth: true
                 items: root.workspaceController ? root.workspaceController.rootCauseRows : []
                 emptyState: root.workspaceController ? root.workspaceController.emptyState : ""
             }
 
-            DashboardRecurringSection {
+            Sections.DashboardRecurringSection {
                 Layout.fillWidth: true
                 items: root.workspaceController ? root.workspaceController.recurringRows : []
                 emptyState: root.workspaceController ? root.workspaceController.emptyState : ""
             }
         }
+    }
+
+    // Full loading overlay while data loads
+    AppWidgets.LoadingOverlay {
+        anchors.fill: parent
+        z: 10
+        loading: (root.workspaceController ? root.workspaceController.isLoading : false)
+            && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+        message: "Loading maintenance dashboard..."
     }
 }

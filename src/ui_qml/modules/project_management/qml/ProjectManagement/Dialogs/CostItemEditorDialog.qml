@@ -2,16 +2,23 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string modeTitle: "Create Cost Item"
     property var taskOptions: []
     property var costTypeOptions: []
     property var costData: ({})
-    property string validationMessage: ""
+    property var workspaceController: null
+    property string selectedProjectId: ""
+    property string costCode: ""
+    readonly property string resolvedProjectId: {
+        var state = root.costData && root.costData.state ? root.costData.state : (root.costData || {})
+        return String(state.projectId || root.selectedProjectId || "")
+    }
     readonly property bool editingExistingCost: {
         var state = root.costData && root.costData.state ? root.costData.state : (root.costData || {})
         return String(state.costId || "").length > 0
@@ -21,9 +28,17 @@ AppControls.CenteredDialog {
 
     modal: true
     width: 620
-    height: Math.min(760, parent ? parent.height - (Theme.AppTheme.marginLg * 2) : 760)
-    title: root.modeTitle
     closePolicy: Popup.CloseOnEscape
+
+    title: root.modeTitle
+    subtitle: root.editingExistingCost
+        ? "Adjust the commercial line, amounts, or finance coding for this cost item."
+        : "Add a financial control line for the selected project and optionally link it to a task."
+    primaryText: root.editingExistingCost ? "Save Changes" : "Create Cost Item"
+    primaryIcon: root.editingExistingCost ? "save" : "add"
+
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (var index = 0; index < options.length; index += 1) {
@@ -36,6 +51,7 @@ AppControls.CenteredDialog {
 
     function populateFromCost() {
         var state = root.costData && root.costData.state ? root.costData.state : (root.costData || {})
+        root.costCode = String(state.costCode || "")
         descriptionField.text = String(state.description || "")
         plannedAmountField.text = String(state.plannedAmount || "0.00")
         committedAmountField.text = String(state.committedAmount || "0.00")
@@ -44,11 +60,13 @@ AppControls.CenteredDialog {
         incurredDateField.text = String(state.incurredDate || "")
         costTypeCombo.currentIndex = root.indexForValue(root.costTypeOptions, state.costType || "OVERHEAD")
         taskCombo.currentIndex = root.indexForValue(root.taskOptions, state.taskId || "")
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
         return {
+            "projectId": root.resolvedProjectId,
+            "costCode": root.costCode,
             "description": descriptionField.text,
             "plannedAmount": plannedAmountField.text,
             "committedAmount": committedAmountField.text,
@@ -62,196 +80,147 @@ AppControls.CenteredDialog {
 
     function submitDialog() {
         if (descriptionField.text.trim().length === 0) {
-            root.validationMessage = "Description is required."
+            root.errorMessage = "Description is required."
             return
         }
         if (plannedAmountField.text.trim().length === 0) {
-            root.validationMessage = "Planned amount is required."
+            root.errorMessage = "Planned amount is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 
     onOpened: root.populateFromCost()
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-    }
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 560 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
 
-    contentItem: Flickable {
-        id: dialogFlickable
-
-        contentWidth: width
-        contentHeight: formLayout.implicitHeight
-        clip: true
-
-        ColumnLayout {
-            id: formLayout
-
-            width: dialogFlickable.width
-            spacing: Theme.AppTheme.spacingMd
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: root.editingExistingCost
-                    ? "Adjust the commercial line, amounts, or finance coding for this cost item."
-                    : "Add a financial control line for the selected project and optionally link it to a task."
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                wrapMode: Text.WordWrap
-            }
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                visible: root.validationMessage.length > 0
-                text: root.validationMessage
-                color: "#8B1E1E"
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-
-            GridLayout {
-                Layout.fillWidth: true
-                columns: root.width > 560 ? 2 : 1
-                columnSpacing: Theme.AppTheme.spacingMd
-                rowSpacing: Theme.AppTheme.spacingSm
-
-                AppControls.Label {
-                    text: "Description"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.TextField {
-                    id: descriptionField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Electrical material package"
-                }
-
-                AppControls.Label {
-                    text: "Task"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.ComboBox {
-                    id: taskCombo
-
-                    Layout.fillWidth: true
-                    model: root.taskOptions
-                    textRole: "label"
-                    enabled: !root.editingExistingCost
-                }
-
-                AppControls.Label {
-                    text: "Cost type"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.ComboBox {
-                    id: costTypeCombo
-
-                    Layout.fillWidth: true
-                    model: root.costTypeOptions
-                    textRole: "label"
-                }
-
-                AppControls.Label {
-                    text: "Planned"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.TextField {
-                    id: plannedAmountField
-
-                    Layout.fillWidth: true
-                    inputMethodHints: Qt.ImhFormattedNumbersOnly
-                    placeholderText: "0.00"
-                }
-
-                AppControls.Label {
-                    text: "Committed"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.TextField {
-                    id: committedAmountField
-
-                    Layout.fillWidth: true
-                    inputMethodHints: Qt.ImhFormattedNumbersOnly
-                    placeholderText: "0.00"
-                }
-
-                AppControls.Label {
-                    text: "Actual"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.TextField {
-                    id: actualAmountField
-
-                    Layout.fillWidth: true
-                    inputMethodHints: Qt.ImhFormattedNumbersOnly
-                    placeholderText: "0.00"
-                }
-
-                AppControls.Label {
-                    text: "Currency"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.TextField {
-                    id: currencyField
-
-                    Layout.fillWidth: true
-                    placeholderText: "EUR"
-                }
-
-                AppControls.Label {
-                    text: "Incurred date"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                }
-
-                AppControls.DateField {
-                    id: incurredDateField
-
-                    Layout.fillWidth: true
-                    placeholderText: "YYYY-MM-DD"
-                }
-            }
-        }
-    }
-
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item {
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: parent.columns
             Layout.fillWidth: true
+            label: "Cost code"
+            value: root.costCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            onValueEdited: function(code) { root.costCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("cost", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.costCode = suggested
+                    }
+                }
+            }
         }
 
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Description"
+            required: true
+
+            AppControls.TextField {
+                id: descriptionField
+
+                Layout.fillWidth: true
+                placeholderText: "Electrical material package"
+            }
         }
 
-        AppControls.PrimaryButton {
-            text: root.editingExistingCost ? "Save Changes" : "Create Cost Item"
-            iconName: root.editingExistingCost ? "save" : "add"
-            onClicked: root.submitDialog()
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Task"
+
+            AppControls.ComboBox {
+                id: taskCombo
+
+                Layout.fillWidth: true
+                model: root.taskOptions
+                textRole: "label"
+                enabled: !root.editingExistingCost
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Cost type"
+
+            AppControls.ComboBox {
+                id: costTypeCombo
+
+                Layout.fillWidth: true
+                model: root.costTypeOptions
+                textRole: "label"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Planned"
+            required: true
+
+            AppControls.TextField {
+                id: plannedAmountField
+
+                Layout.fillWidth: true
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                placeholderText: "0.00"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Committed"
+
+            AppControls.TextField {
+                id: committedAmountField
+
+                Layout.fillWidth: true
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                placeholderText: "0.00"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Actual"
+
+            AppControls.TextField {
+                id: actualAmountField
+
+                Layout.fillWidth: true
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                placeholderText: "0.00"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Currency"
+
+            AppControls.TextField {
+                id: currencyField
+
+                Layout.fillWidth: true
+                placeholderText: "EUR"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Incurred date"
+
+            AppControls.DateField {
+                id: incurredDateField
+
+                Layout.fillWidth: true
+                placeholderText: "YYYY-MM-DD"
+            }
         }
     }
 }
-

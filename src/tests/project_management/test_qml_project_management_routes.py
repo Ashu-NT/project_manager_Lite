@@ -8,7 +8,6 @@ EXPECTED_PM_ROUTE_IDS = [
     "project_management.scheduling",
     "project_management.resources",
     "project_management.financials",
-    "project_management.risk",
     "project_management.portfolio",
     "project_management.register",
     "project_management.collaboration",

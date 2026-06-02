@@ -1,0 +1,3 @@
+module ProjectManagement.ResourcesComponents
+ResourcesListPage 1.0 ResourcesListPage.qml
+ResourcesFilterPopup 1.0 ResourcesFilterPopup.qml

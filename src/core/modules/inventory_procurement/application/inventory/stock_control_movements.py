@@ -43,6 +43,8 @@ class StockControlMovementMixin:
         reference_type: str = "issue",
         reference_id: str = "",
         notes: str = "",
+        lot_number: str = "",
+        serial_number: str = "",
         commit: bool = True,
     ) -> StockTransaction:
         self._require_manage("issue stock")
@@ -70,6 +72,8 @@ class StockControlMovementMixin:
             reference_type=reference_type,
             reference_id=reference_id,
             notes=notes,
+            lot_number=lot_number,
+            serial_number=serial_number,
             commit=commit,
         )
 
@@ -85,6 +89,8 @@ class StockControlMovementMixin:
         reference_type: str = "return",
         reference_id: str = "",
         notes: str = "",
+        lot_number: str = "",
+        serial_number: str = "",
         commit: bool = True,
     ) -> StockTransaction:
         self._require_manage("return stock")
@@ -105,6 +111,8 @@ class StockControlMovementMixin:
             reference_type=reference_type,
             reference_id=reference_id,
             notes=notes,
+            lot_number=lot_number,
+            serial_number=serial_number,
             commit=commit,
         )
 
@@ -192,6 +200,8 @@ class StockControlMovementMixin:
         reference_type: str = "",
         reference_id: str = "",
         notes: str = "",
+        lot_number: str = "",
+        serial_number: str = "",
         commit: bool = True,
     ) -> StockTransaction:
         normalized_quantity = normalize_positive_quantity(quantity, label="Movement quantity")
@@ -303,6 +313,8 @@ class StockControlMovementMixin:
             resulting_on_hand_qty=balance.on_hand_qty,
             resulting_available_qty=balance.available_qty,
             notes=normalize_optional_text(notes),
+            lot_number=str(lot_number or ""),
+            serial_number=str(serial_number or ""),
         )
         try:
             if is_new_balance:

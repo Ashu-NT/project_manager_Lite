@@ -3,6 +3,8 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
@@ -44,6 +46,7 @@ class ProjectManagementPortfolioWorkspaceController(
     heatmapChanged = Signal()
     dependenciesChanged = Signal()
     recentActionsChanged = Signal()
+    capacityPoolChanged = Signal()
     activeTemplateSummaryChanged = Signal()
 
     def __init__(
@@ -70,6 +73,9 @@ class ProjectManagementPortfolioWorkspaceController(
         self._selected_scenario_id = ""
         self._selected_base_scenario_id = ""
         self._selected_compare_scenario_id = ""
+        self._heatmap_table_model = DynamicTableModel(self)
+        self._intake_items_table_model = DynamicTableModel(self)
+        self._dependencies_table_model = DynamicTableModel(self)
         self._intake_items: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._templates: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._scenarios: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
@@ -78,6 +84,7 @@ class ProjectManagementPortfolioWorkspaceController(
         self._heatmap: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._dependencies: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._recent_actions: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
+        self._capacity_pool: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._active_template_summary = ""
         self._bind_domain_events()
         self.refresh()
@@ -126,6 +133,18 @@ class ProjectManagementPortfolioWorkspaceController(
     def intakeItems(self) -> dict[str, object]:
         return self._intake_items
 
+    @Property(QObject, constant=True)
+    def heatmapTableModel(self) -> DynamicTableModel:
+        return self._heatmap_table_model
+
+    @Property(QObject, constant=True)
+    def intakeItemsTableModel(self) -> DynamicTableModel:
+        return self._intake_items_table_model
+
+    @Property(QObject, constant=True)
+    def portfolioDependenciesTableModel(self) -> DynamicTableModel:
+        return self._dependencies_table_model
+
     @Property("QVariantMap", notify=templatesChanged)
     def templates(self) -> dict[str, object]:
         return self._templates
@@ -153,6 +172,10 @@ class ProjectManagementPortfolioWorkspaceController(
     @Property("QVariantMap", notify=recentActionsChanged)
     def recentActions(self) -> dict[str, object]:
         return self._recent_actions
+
+    @Property("QVariantMap", notify=capacityPoolChanged)
+    def capacityPool(self) -> dict[str, object]:
+        return self._capacity_pool
 
     @Property(str, notify=activeTemplateSummaryChanged)
     def activeTemplateSummary(self) -> str:
@@ -225,6 +248,9 @@ class ProjectManagementPortfolioWorkspaceController(
             self._set_recent_actions(
                 serialize_portfolio_collection_view_model(workspace_state.recent_actions)
             )
+            self._set_capacity_pool(
+                serialize_portfolio_collection_view_model(workspace_state.capacity_pool)
+            )
             self._set_active_template_summary(workspace_state.active_template_summary)
             self._set_empty_state(workspace_state.empty_state)
         except Exception as exc:  # pragma: no cover - defensive fallback
@@ -264,12 +290,19 @@ class ProjectManagementPortfolioWorkspaceController(
         self._set_selected_compare_scenario_id(normalized_value)
         self.refresh()
 
+    @Slot()
+    def exportPortfolio(self) -> None:
+        self._set_error_message("")
+        self._set_feedback_message(
+            "Export is not available here. Open the Reports section to generate portfolio summaries and scenario exports."
+        )
+
     @Slot("QVariantMap", result="QVariantMap")
     def createTemplate(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(
             operation=lambda: self._portfolio_workspace_presenter.create_template(dict(payload)),
             success_message="Scoring template created.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -280,7 +313,7 @@ class ProjectManagementPortfolioWorkspaceController(
         return run_mutation(
             operation=lambda: self._portfolio_workspace_presenter.activate_template(template_id),
             success_message="Scoring template activated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -291,7 +324,7 @@ class ProjectManagementPortfolioWorkspaceController(
         return run_mutation(
             operation=lambda: self._portfolio_workspace_presenter.create_intake_item(dict(payload)),
             success_message="Intake item created.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -302,7 +335,7 @@ class ProjectManagementPortfolioWorkspaceController(
         return run_mutation(
             operation=lambda: self._portfolio_workspace_presenter.create_scenario(dict(payload)),
             success_message="Scenario saved.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -313,7 +346,7 @@ class ProjectManagementPortfolioWorkspaceController(
         return run_mutation(
             operation=lambda: self._portfolio_workspace_presenter.create_dependency(dict(payload)),
             success_message="Dependency created.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -324,7 +357,7 @@ class ProjectManagementPortfolioWorkspaceController(
         return run_mutation(
             operation=lambda: self._portfolio_workspace_presenter.remove_dependency(dependency_id),
             success_message="Dependency removed.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -341,7 +374,7 @@ class ProjectManagementPortfolioWorkspaceController(
                 item_id, status
             ),
             success_message="Intake item status updated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -421,6 +454,7 @@ class ProjectManagementPortfolioWorkspaceController(
         if intake_items == self._intake_items:
             return
         self._intake_items = intake_items
+        self._intake_items_table_model.set_rows(intake_items.get("items", []))
         self.intakeItemsChanged.emit()
 
     def _set_templates(self, templates: dict[str, object]) -> None:
@@ -451,12 +485,14 @@ class ProjectManagementPortfolioWorkspaceController(
         if heatmap == self._heatmap:
             return
         self._heatmap = heatmap
+        self._heatmap_table_model.set_rows(heatmap.get("items", []))
         self.heatmapChanged.emit()
 
     def _set_dependencies(self, dependencies: dict[str, object]) -> None:
         if dependencies == self._dependencies:
             return
         self._dependencies = dependencies
+        self._dependencies_table_model.set_rows(dependencies.get("items", []))
         self.dependenciesChanged.emit()
 
     def _set_recent_actions(self, recent_actions: dict[str, object]) -> None:
@@ -464,6 +500,12 @@ class ProjectManagementPortfolioWorkspaceController(
             return
         self._recent_actions = recent_actions
         self.recentActionsChanged.emit()
+
+    def _set_capacity_pool(self, capacity_pool: dict[str, object]) -> None:
+        if capacity_pool == self._capacity_pool:
+            return
+        self._capacity_pool = capacity_pool
+        self.capacityPoolChanged.emit()
 
     def _set_active_template_summary(self, active_template_summary: str) -> None:
         if active_template_summary == self._active_template_summary:

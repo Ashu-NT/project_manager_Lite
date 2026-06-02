@@ -1,0 +1,4 @@
+﻿module Maintenance.WorkRequestsSections
+WorkRequestsCatalogSection 1.0 WorkRequestsCatalogSection.qml
+WorkRequestsFiltersSection 1.0 WorkRequestsFiltersSection.qml
+WorkRequestsMetricsSection 1.0 WorkRequestsMetricsSection.qml

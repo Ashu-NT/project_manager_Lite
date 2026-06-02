@@ -25,6 +25,7 @@ class RegisterEntryORM(Base):
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
     )
+    entry_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     entry_type: Mapped[RegisterEntryType] = mapped_column(
         SAEnum(RegisterEntryType),
         nullable=False,
@@ -53,6 +54,7 @@ class RegisterEntryORM(Base):
 
 
 Index("idx_register_entries_project", RegisterEntryORM.project_id)
+Index("ux_register_entries_project_code", RegisterEntryORM.project_id, RegisterEntryORM.entry_code, unique=True)
 Index("idx_register_entries_type", RegisterEntryORM.entry_type)
 Index("idx_register_entries_status", RegisterEntryORM.status)
 Index("idx_register_entries_due", RegisterEntryORM.due_date)

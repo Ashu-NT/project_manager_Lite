@@ -248,6 +248,22 @@ class InventoryInventoryWorkspacePresenter:
             ),
         )
 
+    def suggest_storeroom_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique storeroom code (STR-<NAME>-0001 / STR-<YEAR>-0001)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        existing = {
+            str(getattr(row, "storeroom_code", "") or "").upper()
+            for row in self._desktop_api.list_storerooms(active_only=None)
+        }
+        name = str(payload.get("name") or "").strip()
+        return CodeGenerator().generate(
+            "storeroom",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def create_storeroom(self, payload: dict[str, Any]) -> None:
         command = InventoryStoreroomCreateCommand(
             storeroom_code=self._require_text(

@@ -362,6 +362,38 @@ class MaintenanceAssetsWorkspacePresenter:
             ),
         )
 
+    def _suggest_code(self, entity_type: str, code_attr: str, rows: Any, payload: dict[str, Any]) -> str:
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        existing = {str(getattr(row, code_attr, "") or "").upper() for row in rows}
+        name = str(payload.get("name") or "").strip()
+        return CodeGenerator().generate(
+            entity_type,
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
+    def suggest_location_code(self, payload: dict[str, Any]) -> str:
+        return self._suggest_code(
+            "location", "location_code", self._desktop_api.list_locations(active_only=None), dict(payload)
+        )
+
+    def suggest_system_code(self, payload: dict[str, Any]) -> str:
+        return self._suggest_code(
+            "system", "system_code", self._desktop_api.list_systems(active_only=None), dict(payload)
+        )
+
+    def suggest_asset_code(self, payload: dict[str, Any]) -> str:
+        return self._suggest_code(
+            "asset", "asset_code", self._desktop_api.list_assets(active_only=None), dict(payload)
+        )
+
+    def suggest_component_code(self, payload: dict[str, Any]) -> str:
+        return self._suggest_code(
+            "component", "component_code", self._desktop_api.list_components(active_only=None), dict(payload)
+        )
+
     def create_location(self, payload: dict[str, Any]) -> None:
         command = MaintenanceLocationCreateCommand(
             site_id=self._require_text(payload, "siteId", "Choose a site before saving."),

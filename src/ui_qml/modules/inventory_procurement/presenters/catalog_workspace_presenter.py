@@ -194,6 +194,38 @@ class InventoryCatalogWorkspacePresenter:
             ),
         )
 
+    def suggest_category_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique category code (CAT-<NAME>-0001 / CAT-<YEAR>-0001)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        existing = {
+            str(getattr(row, "category_code", "") or "").upper()
+            for row in self._desktop_api.list_categories(active_only=None)
+        }
+        name = str(payload.get("name") or "").strip()
+        return CodeGenerator().generate(
+            "category",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
+    def suggest_item_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique item code (ITM-<NAME>-0001 / ITM-<YEAR>-0001)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        existing = {
+            str(getattr(row, "item_code", "") or "").upper()
+            for row in self._desktop_api.list_items(active_only=None)
+        }
+        name = str(payload.get("name") or "").strip()
+        return CodeGenerator().generate(
+            "item",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def create_category(self, payload: dict[str, Any]) -> None:
         command = InventoryCategoryCreateCommand(
             category_code=self._require_text(

@@ -1,10 +1,10 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string modeTitle: "Create Purchase Order"
@@ -12,14 +12,18 @@ AppControls.CenteredDialog {
     property var supplierOptions: []
     property var requisitionOptions: []
     property var purchaseOrderData: ({})
-    property string validationMessage: ""
 
     signal submitted(var payload)
 
-    modal: true
     width: 760
     title: root.modeTitle
-    closePolicy: Popup.CloseOnEscape
+    subtitle: root.modeTitle === "Create Purchase Order"
+        ? "Commit approved demand to a supplier with a clear site scope, expected delivery date, and shared source-requisition context."
+        : "Update the purchase order scope, supplier details, and expected delivery before lines are committed."
+    primaryText: root.modeTitle === "Create Purchase Order" ? "Create Order" : "Save Changes"
+    primaryIcon: root.modeTitle === "Create Purchase Order" ? "add" : "save"
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (var index = 0; index < options.length; index += 1) {
@@ -39,7 +43,7 @@ AppControls.CenteredDialog {
         expectedDeliveryDateField.text = String(state.expectedDeliveryDateIso || "")
         supplierReferenceField.text = String(state.supplierReference || "")
         notesField.text = String(state.notes || "")
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -59,14 +63,14 @@ AppControls.CenteredDialog {
 
     function submitDialog() {
         if (String((root.siteOptions[siteCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a site before saving the purchase order."
+            root.errorMessage = "Choose a site before saving the purchase order."
             return
         }
         if (String((root.supplierOptions[supplierCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a supplier before saving the purchase order."
+            root.errorMessage = "Choose a supplier before saving the purchase order."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 
@@ -74,64 +78,54 @@ AppControls.CenteredDialog {
 
     onOpened: root.populateFromPurchaseOrder()
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-    }
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 640 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
 
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.Label {
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            text: "Commit approved demand to a supplier with a clear site scope, expected delivery date, and shared source-requisition context."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            wrapMode: Text.WordWrap
-        }
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            visible: root.validationMessage.length > 0
-            text: root.validationMessage
-            color: "#8B1E1E"
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
-
-        GridLayout {
-            Layout.fillWidth: true
-            columns: root.width > 640 ? 2 : 1
-            columnSpacing: Theme.AppTheme.spacingMd
-            rowSpacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label { text: "Site" }
+            label: "Site"
+            required: true
             AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+        }
 
-            AppControls.Label { text: "Supplier" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Supplier"
+            required: true
             AppControls.ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
+        }
 
-            AppControls.Label { text: "Source requisition" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Source requisition"
             AppControls.ComboBox { id: sourceRequisitionCombo; Layout.fillWidth: true; model: root.formRequisitionOptions; textRole: "label" }
+        }
 
-            AppControls.Label { text: "Currency" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Currency"
             AppControls.TextField { id: currencyCodeField; Layout.fillWidth: true; placeholderText: "EUR" }
+        }
 
-            AppControls.Label { text: "Expected delivery (YYYY-MM-DD)" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Expected delivery (YYYY-MM-DD)"
             AppControls.DateField { id: expectedDeliveryDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+        }
 
-            AppControls.Label { text: "Supplier reference" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Supplier reference"
             AppControls.TextField { id: supplierReferenceField; Layout.fillWidth: true; placeholderText: "Quote, reference, or contract number" }
         }
+    }
 
-        AppControls.Label {
-            text: "Notes"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Notes"
         AppControls.TextArea {
             id: notesField
             Layout.fillWidth: true
@@ -140,25 +134,4 @@ AppControls.CenteredDialog {
             placeholderText: "Buying context, freight notes, or special handling instructions."
         }
     }
-
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item { Layout.fillWidth: true }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
-        }
-
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: "Save"
-            iconName: "save"
-            onClicked: root.submitDialog()
-        }
-    }
 }
-

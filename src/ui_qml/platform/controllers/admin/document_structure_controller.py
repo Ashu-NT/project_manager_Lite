@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.platform.presenters.document_management_presenter import PlatformDocumentManagementPresenter
 
 from ..common import run_mutation, serialize_action_list
@@ -18,6 +19,7 @@ class PlatformDocumentStructureController(QObject):
     def __init__(self, presenter: PlatformDocumentManagementPresenter, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._presenter = presenter
+        self._table_model = DynamicTableModel(self)
         self._document_structures: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._document_structure_editor_options: dict[str, object] = {
             "parentOptions": [],
@@ -37,6 +39,10 @@ class PlatformDocumentStructureController(QObject):
     @Property("QVariantMap", notify=documentStructuresChanged)
     def documentStructures(self) -> dict[str, object]:
         return self._document_structures
+
+    @Property(QObject, constant=True)
+    def tableModel(self) -> DynamicTableModel:
+        return self._table_model
 
     @Property("QVariantMap", notify=documentStructureEditorOptionsChanged)
     def documentStructureEditorOptions(self) -> dict[str, object]:
@@ -63,6 +69,16 @@ class PlatformDocumentStructureController(QObject):
         catalog, editor_options = self._presenter.build_structure_management()
         self._set_document_structures(serialize_action_list(catalog))
         self._set_document_structure_editor_options(dict(editor_options))
+
+    @Slot("QVariantMap", result=str)
+    def generateCode(self, payload: dict[str, object]) -> str:
+        try:
+            return self._presenter.suggest_code(dict(payload))
+        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
+            setter = getattr(self, "_set_error_message", None)
+            if setter is not None:
+                setter(str(exc))
+            return ""
 
     @Slot("QVariantMap", result="QVariantMap")
     def createDocumentStructure(self, payload: dict[str, object]) -> dict[str, object]:
@@ -110,6 +126,7 @@ class PlatformDocumentStructureController(QObject):
     def _set_document_structures(self, value: dict[str, object]) -> None:
         if self._document_structures != value:
             self._document_structures = value
+            self._table_model.set_rows(value.get("items", []))
             self.documentStructuresChanged.emit()
 
     def _set_document_structure_editor_options(self, value: dict[str, object]) -> None:

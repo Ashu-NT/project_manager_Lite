@@ -3,11 +3,15 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
+    serialize_financials_baseline_variance_view_models,
     serialize_financials_collection_view_model,
+    serialize_financials_commitment_summary_view_model,
     serialize_financials_detail_view_model,
+    serialize_financials_forecast_view_model,
     serialize_financials_overview_view_model,
     serialize_financials_record_view_models,
     serialize_selector_options,
@@ -47,6 +51,9 @@ class ProjectManagementFinancialsWorkspaceController(
     costTotalCountChanged = Signal()
     selectedCostIdsChanged = Signal()
     selectedCostCountChanged = Signal()
+    forecastChanged = Signal()
+    commitmentSummaryChanged = Signal()
+    baselineVarianceChanged = Signal()
 
     def __init__(
         self,
@@ -69,6 +76,8 @@ class ProjectManagementFinancialsWorkspaceController(
         self._selected_project_id = ""
         self._selected_cost_type = "all"
         self._search_text = ""
+        self._costs_table_model = DynamicTableModel(self)
+        self._ledger_table_model = DynamicTableModel(self)
         self._costs: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -95,6 +104,17 @@ class ProjectManagementFinancialsWorkspaceController(
         self._cost_page_size = 25
         self._cost_total_count = 0
         self._selected_cost_ids: list[str] = []
+        self._forecast: dict[str, object] = {
+            "method": "", "methodLabel": "", "bacLabel": "", "acLabel": "", "evLabel": "",
+            "etcLabel": "", "eacLabel": "", "vacLabel": "", "cpiLabel": "",
+            "isOverBudget": False, "exceedsThreshold": False, "thresholdPercent": 10.0,
+            "alertMessage": "", "metrics": [],
+        }
+        self._commitment_summary: dict[str, object] = {
+            "plannedLabel": "", "uncommittedLabel": "", "committedLabel": "",
+            "invoicedLabel": "", "paidLabel": "", "exposureLabel": "", "commitmentRatePct": 0.0,
+        }
+        self._baseline_variance: list[dict[str, object]] = []
         self._bind_domain_events()
         self.refresh()
 
@@ -146,6 +166,14 @@ class ProjectManagementFinancialsWorkspaceController(
     def ledger(self) -> dict[str, object]:
         return self._ledger
 
+    @Property(QObject, constant=True)
+    def costsTableModel(self) -> DynamicTableModel:
+        return self._costs_table_model
+
+    @Property(QObject, constant=True)
+    def ledgerTableModel(self) -> DynamicTableModel:
+        return self._ledger_table_model
+
     @Property("QVariantMap", notify=sourceAnalyticsChanged)
     def sourceAnalytics(self) -> dict[str, object]:
         return self._source_analytics
@@ -157,6 +185,18 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantList", notify=notesChanged)
     def notes(self) -> list[str]:
         return self._notes
+
+    @Property("QVariantMap", notify=forecastChanged)
+    def forecast(self) -> dict[str, object]:
+        return self._forecast
+
+    @Property("QVariantMap", notify=commitmentSummaryChanged)
+    def commitmentSummary(self) -> dict[str, object]:
+        return self._commitment_summary
+
+    @Property("QVariantList", notify=baselineVarianceChanged)
+    def baselineVariance(self) -> list[dict[str, object]]:
+        return self._baseline_variance
 
     @Property("QVariantList", notify=costTypeOptionsChanged)
     def bulkCostTypeOptions(self) -> list[dict[str, object]]:
@@ -242,6 +282,15 @@ class ProjectManagementFinancialsWorkspaceController(
             )
             self._set_notes(list(workspace_state.notes))
             self._set_empty_state(workspace_state.empty_state)
+            self._set_forecast(
+                serialize_financials_forecast_view_model(workspace_state.forecast)
+            )
+            self._set_commitment_summary(
+                serialize_financials_commitment_summary_view_model(workspace_state.commitment_summary)
+            )
+            self._set_baseline_variance(
+                serialize_financials_baseline_variance_view_models(workspace_state.baseline_variance)
+            )
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:
@@ -280,9 +329,32 @@ class ProjectManagementFinancialsWorkspaceController(
         self._set_selected_cost_id(normalized_value)
         self.refresh()
 
+    @Slot(str, result="QVariantMap")
+    def computeForecast(self, method: str) -> dict[str, object]:
+        normalized = (method or "bac_over_cpi").strip().lower()
+        return run_mutation(
+            operation=lambda: self._apply_forecast(normalized),
+            success_message="Forecast recalculated.",
+            on_success=lambda: None,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    def _apply_forecast(self, method: str) -> None:
+        forecast_dto = self._financials_workspace_presenter._desktop_api.get_cost_forecast(
+            self._selected_project_id, method=method
+        )
+        from src.ui_qml.modules.project_management.view_models.financials import FinancialsForecastViewModel
+        vm = self._financials_workspace_presenter._build_forecast_view_model(forecast_dto)
+        self._set_forecast(serialize_financials_forecast_view_model(vm))
+
     @Slot()
     def exportFinancials(self) -> None:
-        pass  # TODO: implement financials export when backend export service is available
+        self._set_error_message("")
+        self._set_feedback_message(
+            "Export is not available here. Open the Reports section to generate financial summaries, cost breakdowns, and variance exports."
+        )
 
     @Slot(int)
     def setCostPage(self, page: int) -> None:
@@ -334,7 +406,7 @@ class ProjectManagementFinancialsWorkspaceController(
                 self._financials_workspace_presenter.delete_cost_item(i) for i in ids
             ],
             success_message=f"{len(ids)} cost item(s) deleted.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -354,11 +426,21 @@ class ProjectManagementFinancialsWorkspaceController(
                 for i in ids
             ],
             success_message=f"Cost type updated for {len(ids)} item(s).",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
         )
+
+    @Slot(str, "QVariantMap", result=str)
+    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
+        if (entity_type or "").strip().lower() != "cost":
+            return ""
+        try:
+            return self._financials_workspace_presenter.suggest_code(dict(payload))
+        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
+            self._set_error_message(str(exc))
+            return ""
 
     @Slot("QVariantMap", result="QVariantMap")
     def createCostItem(self, payload: dict[str, object]) -> dict[str, object]:
@@ -367,7 +449,7 @@ class ProjectManagementFinancialsWorkspaceController(
                 dict(payload)
             ),
             success_message="Cost item created.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -380,7 +462,7 @@ class ProjectManagementFinancialsWorkspaceController(
                 dict(payload)
             ),
             success_message="Cost item updated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -393,7 +475,7 @@ class ProjectManagementFinancialsWorkspaceController(
                 cost_id
             ),
             success_message="Cost item deleted.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -453,6 +535,7 @@ class ProjectManagementFinancialsWorkspaceController(
         if costs == self._costs:
             return
         self._costs = costs
+        self._costs_table_model.set_rows(costs.get("items", []))
         self.costsChanged.emit()
 
     def _set_selected_cost(self, selected_cost: dict[str, object]) -> None:
@@ -477,6 +560,7 @@ class ProjectManagementFinancialsWorkspaceController(
         if ledger == self._ledger:
             return
         self._ledger = ledger
+        self._ledger_table_model.set_rows(ledger.get("items", []))
         self.ledgerChanged.emit()
 
     def _set_source_analytics(self, source_analytics: dict[str, object]) -> None:
@@ -515,6 +599,24 @@ class ProjectManagementFinancialsWorkspaceController(
         self._selected_cost_ids = ids
         self.selectedCostIdsChanged.emit()
         self.selectedCostCountChanged.emit()
+
+    def _set_forecast(self, forecast: dict[str, object]) -> None:
+        if forecast == self._forecast:
+            return
+        self._forecast = forecast
+        self.forecastChanged.emit()
+
+    def _set_commitment_summary(self, summary: dict[str, object]) -> None:
+        if summary == self._commitment_summary:
+            return
+        self._commitment_summary = summary
+        self.commitmentSummaryChanged.emit()
+
+    def _set_baseline_variance(self, rows: list[dict[str, object]]) -> None:
+        if rows == self._baseline_variance:
+            return
+        self._baseline_variance = rows
+        self.baselineVarianceChanged.emit()
 
 
 __all__ = ["ProjectManagementFinancialsWorkspaceController"]

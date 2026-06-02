@@ -2,7 +2,9 @@ module App.Controls
 CenteredDialog 1.0 CenteredDialog.qml
 CheckBox 1.0 CheckBox.qml
 ComboBox 1.0 ComboBox.qml
+ConfirmationDialog 1.0 ConfirmationDialog.qml
 DateField 1.0 DateField.qml
+DialogActionFooter 1.0 DialogActionFooter.qml
 Label 1.0 Label.qml
 PrimaryButton 1.0 PrimaryButton.qml
 RadioButton 1.0 RadioButton.qml

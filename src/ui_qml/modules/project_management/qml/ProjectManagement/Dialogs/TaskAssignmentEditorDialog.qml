@@ -2,9 +2,10 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string mode: "create"
@@ -12,14 +13,25 @@ AppControls.CenteredDialog {
     property var resourceOptions: []
     property var taskData: ({})
     property var assignmentData: ({})
+    property var workspaceController: null
+    property var _skillValidation: ({})
 
     signal submitted(var payload)
 
     modal: true
     width: 520
-    title: root.modeTitle
     closePolicy: Popup.CloseOnEscape
-    padding: Theme.AppTheme.marginMd
+
+    title: root.modeTitle
+    subtitle: root.mode === "create"
+        ? "Link a project resource to the selected task and set the starting allocation."
+        : "Adjust the active allocation commitment for this task assignment."
+    primaryText: root.mode === "create" ? "Assign Resource" : "Save Allocation"
+    primaryIcon: root.mode === "create" ? "resources" : "save"
+    primaryEnabled: root.mode !== "create" || (root.resourceOptions || []).length > 0
+
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (let index = 0; index < options.length; index += 1) {
@@ -53,6 +65,27 @@ AppControls.CenteredDialog {
                 ? assignmentState.allocationPercent
                 : "100.0"
         )
+        root.errorMessage = ""
+        root._skillValidation = {}
+    }
+
+    function runSkillValidation() {
+        if (root.mode !== "create" || root.workspaceController === null) {
+            root._skillValidation = {}
+            return
+        }
+        const taskState = root.selectedTaskState()
+        const option = (root.resourceOptions || [])[resourceCombo.currentIndex] || {}
+        const projectResourceId = String(option.value || "")
+        const taskId = String(taskState.taskId || "")
+        if (!taskId || !projectResourceId) {
+            root._skillValidation = {}
+            return
+        }
+        root._skillValidation = root.workspaceController.validateAssignment({
+            "taskId": taskId,
+            "projectResourceId": projectResourceId
+        }) || {}
     }
 
     function buildPayload() {
@@ -66,35 +99,29 @@ AppControls.CenteredDialog {
         }
     }
 
-    onOpened: root.populateForm()
-
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surfaceRaised
-        border.color: Theme.AppTheme.divider
-        border.width: 1
+    function submitDialog() {
+        if (root.mode === "create"
+                && String((root.resourceOptions[resourceCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
+            root.errorMessage = "Select a project resource before creating the assignment."
+            return
+        }
+        if (allocationField.text.trim().length === 0) {
+            root.errorMessage = "Allocation percentage is required."
+            return
+        }
+        if (root.mode === "create" && root._skillValidation.isBlocked === true) {
+            root.errorMessage = "Assignment is blocked due to unmet skill/certification requirements."
+            return
+        }
+        root.errorMessage = ""
+        root.submitted(root.buildPayload())
     }
 
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
+    onOpened: root.populateForm()
 
-        AppControls.Label {
-            Layout.fillWidth: true
-            text: root.mode === "create"
-                ? "Link a project resource to the selected task and set the starting allocation."
-                : "Adjust the active allocation commitment for this task assignment."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            wrapMode: Text.WordWrap
-        }
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            text: "Task"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Task"
 
         AppControls.Label {
             id: taskLabel
@@ -106,14 +133,13 @@ AppControls.CenteredDialog {
             font.bold: true
             wrapMode: Text.WordWrap
         }
+    }
 
-        AppControls.Label {
-            Layout.fillWidth: true
-            visible: root.mode === "create"
-            text: "Project resource"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        visible: root.mode === "create"
+        label: "Project resource"
+        required: true
 
         AppControls.ComboBox {
             id: resourceCombo
@@ -122,23 +148,79 @@ AppControls.CenteredDialog {
             visible: root.mode === "create"
             model: root.resourceOptions
             textRole: "label"
+            onCurrentIndexChanged: Qt.callLater(root.runSkillValidation)
         }
+    }
 
-        AppControls.Label {
-            Layout.fillWidth: true
-            visible: root.mode !== "create"
-            text: String(root.selectedAssignmentState().resourceName || "")
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
+    AppControls.Label {
+        Layout.fillWidth: true
+        visible: root.mode !== "create"
+        text: String(root.selectedAssignmentState().resourceName || "")
+        color: Theme.AppTheme.textSecondary
+        font.family: Theme.AppTheme.fontFamily
+        font.pixelSize: Theme.AppTheme.smallSize
+        wrapMode: Text.WordWrap
+    }
 
-        AppControls.Label {
-            text: "Allocation (%)"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
+    // Skill/cert validation panel — only shown in create mode when a resource is selected
+    Rectangle {
+        id: validationPanel
+
+        readonly property bool _hasResult: Object.keys(root._skillValidation).length > 0
+        readonly property bool _isBlocked: root._skillValidation.isBlocked === true
+        readonly property bool _requiresApproval: root._skillValidation.requiresApproval === true
+        readonly property bool _hasWarnings: root._skillValidation.hasWarnings === true
+        readonly property bool _isValid: root._skillValidation.isValid !== false
+
+        Layout.fillWidth: true
+        visible: root.mode === "create" && _hasResult && (!_isValid || _hasWarnings)
+        implicitHeight: visible ? _panelCol.implicitHeight + 16 : 0
+        radius: Theme.AppTheme.radiusSm
+        color: _isBlocked
+            ? Theme.AppTheme.dangerSoft
+            : Theme.AppTheme.warningSoft
+        border.color: _isBlocked
+            ? Theme.AppTheme.dangerSoftBorder
+            : Theme.AppTheme.warningSoftBorder
+        border.width: 1
+
+        ColumnLayout {
+            id: _panelCol
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 8 }
+            spacing: 4
+
+            AppControls.Label {
+                Layout.fillWidth: true
+                text: validationPanel._isBlocked
+                    ? "Assignment blocked — skill requirements not met"
+                    : validationPanel._requiresApproval
+                        ? "Approval required — override violations present"
+                        : "Skill warnings — resource may not meet all requirements"
+                color: validationPanel._isBlocked ? Theme.AppTheme.danger : Theme.AppTheme.warning
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                font.bold: true
+                wrapMode: Text.WordWrap
+            }
+
+            Repeater {
+                model: (root._skillValidation.violationMessages || []).concat(root._skillValidation.warningMessages || [])
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: "• " + modelData
+                    color: validationPanel._isBlocked ? Theme.AppTheme.danger : Theme.AppTheme.warning
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    wrapMode: Text.WordWrap
+                }
+            }
         }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Allocation (%)"
+        required: true
 
         AppControls.TextField {
             id: allocationField
@@ -146,39 +228,15 @@ AppControls.CenteredDialog {
             Layout.fillWidth: true
             placeholderText: "0.1 - 100.0"
         }
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            visible: root.mode === "create" && (root.resourceOptions || []).length === 0
-            text: "No active project resources are available for this project yet."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item {
-            Layout.fillWidth: true
-        }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
-        }
-
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: root.mode === "create" ? "Assign Resource" : "Save Allocation"
-            iconName: root.mode === "create" ? "resources" : "save"
-            enabled: root.mode !== "create" || (root.resourceOptions || []).length > 0
-            onClicked: root.submitted(root.buildPayload())
-        }
+    AppControls.Label {
+        Layout.fillWidth: true
+        visible: root.mode === "create" && (root.resourceOptions || []).length === 0
+        text: "No active project resources are available for this project yet."
+        color: Theme.AppTheme.textSecondary
+        font.family: Theme.AppTheme.fontFamily
+        font.pixelSize: Theme.AppTheme.smallSize
+        wrapMode: Text.WordWrap
     }
 }
-

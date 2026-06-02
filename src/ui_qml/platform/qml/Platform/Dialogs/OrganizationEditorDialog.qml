@@ -1,29 +1,48 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string mode: "create"
     property var draft: ({})
     property var moduleOptions: []
+    property var workspaceController: null
+    property string organizationCode: ""
 
     signal saveRequested(string mode, var payload)
 
     modal: true
     focus: true
     width: 560
-    closePolicy: Popup.NoAutoClose
     title: root.mode === "create" ? "New Organization" : "Edit Organization"
+    primaryText: root.mode === "create" ? "Create" : "Save"
+    primaryIcon: root.mode === "create" ? "add" : "save"
+    onOpened: root.errorMessage = ""
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
+
+    function submitDialog() {
+        if (root.organizationCode.trim().length === 0) {
+            root.errorMessage = "Organization code is required."
+            return
+        }
+        if (displayNameField.text.trim().length === 0) {
+            root.errorMessage = "Display name is required."
+            return
+        }
+        root.errorMessage = ""
+        root.saveRequested(root.mode, root.formData)
+    }
 
     readonly property var formData: ({
         organizationId: root.draft.organizationId || root.draft.id || "",
         expectedVersion: root.draft.version || 0,
-        organizationCode: organizationCodeField.text.trim(),
+        organizationCode: root.organizationCode.trim(),
         displayName: displayNameField.text.trim(),
         timezoneName: timezoneField.text.trim(),
         baseCurrency: currencyField.text.trim().toUpperCase(),
@@ -47,7 +66,7 @@ AppControls.CenteredDialog {
     }
 
     function _loadDraft() {
-        organizationCodeField.text = root.draft.organizationCode || ""
+        root.organizationCode = root.draft.organizationCode || ""
         displayNameField.text = root.draft.displayName || ""
         timezoneField.text = root.draft.timezoneName || "UTC"
         currencyField.text = root.draft.baseCurrency || "USD"
@@ -84,123 +103,105 @@ AppControls.CenteredDialog {
         id: moduleModel
     }
 
-    contentItem: ScrollView {
-        implicitWidth: 520
-        implicitHeight: 420
-        clip: true
-
-        ColumnLayout {
-            width: parent.availableWidth
-            spacing: Theme.AppTheme.spacingMd
-
-            AppControls.TextField {
-                id: organizationCodeField
-
-                Layout.fillWidth: true
-                placeholderText: "Organization code"
-            }
-
-            AppControls.TextField {
-                id: displayNameField
-
-                Layout.fillWidth: true
-                placeholderText: "Display name"
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: timezoneField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Timezone"
-                }
-
-                AppControls.TextField {
-                    id: currencyField
-
-                    Layout.preferredWidth: 120
-                    placeholderText: "Currency"
-                }
-            }
-
-            AppControls.CheckBox {
-                id: activeCheck
-
-                text: "Active organization"
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                visible: root.mode === "create"
-                spacing: Theme.AppTheme.spacingSm
-
-                AppControls.Label {
-                    Layout.fillWidth: true
-                    text: "Initial modules"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
-                    font.bold: true
-                }
-
-                AppControls.Label {
-                    Layout.fillWidth: true
-                    text: "Choose the modules available immediately after organization provisioning."
-                    color: Theme.AppTheme.textSecondary
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.smallSize
-                    wrapMode: Text.WordWrap
-                }
-
-                Repeater {
-                    model: moduleModel
-
-                    delegate: AppControls.CheckBox {
-                        required property int index
-                        required property string label
-                        required property bool selected
-
-                        text: label
-                        checked: selected
-                        onToggled: moduleModel.setProperty(index, "selected", checked)
-                    }
+    AppWidgets.CodeFieldRow {
+        Layout.fillWidth: true
+        label: "Organization Code"
+        value: root.organizationCode
+        placeholderText: "Auto-generated if empty"
+        required: true
+        generateVisible: true
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onValueEdited: function(code) { root.organizationCode = code }
+        onGenerateRequested: {
+            if (root.workspaceController) {
+                const suggested = root.workspaceController.generateEntityCode("organization", root.formData)
+                if (suggested && suggested.length > 0) {
+                    root.organizationCode = suggested
                 }
             }
         }
     }
 
-    footer: Frame {
-        padding: Theme.AppTheme.marginMd
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Display Name"
+        required: true
 
-        RowLayout {
-            anchors.fill: parent
-            spacing: Theme.AppTheme.spacingSm
+        AppControls.TextField {
+            id: displayNameField
+            Layout.fillWidth: true
+            placeholderText: "e.g. Acme Industrial Group"
+        }
+    }
 
-            Item {
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Timezone"
+
+            AppControls.TextField {
+                id: timezoneField
                 Layout.fillWidth: true
+                placeholderText: "e.g. Europe/Amsterdam"
             }
+        }
 
-            AppControls.SecondaryButton {
-                objectName: "dialogCancelButton"
-                text: "Cancel"
-                iconName: "close"
-                onClicked: root.close()
+        AppWidgets.FormField {
+            Layout.preferredWidth: 140
+            label: "Currency"
+
+            AppControls.TextField {
+                id: currencyField
+                Layout.fillWidth: true
+                placeholderText: "e.g. EUR"
             }
+        }
+    }
 
-            AppControls.PrimaryButton {
-                objectName: "dialogSubmitButton"
-                enabled: organizationCodeField.text.trim().length > 0
-                    && displayNameField.text.trim().length > 0
-                    && timezoneField.text.trim().length > 0
-                    && currencyField.text.trim().length > 0
-                text: root.mode === "create" ? "Create" : "Save"
-                iconName: root.mode === "create" ? "add" : "save"
-                onClicked: root.saveRequested(root.mode, root.formData)
+    AppControls.CheckBox {
+        id: activeCheck
+
+        text: "Active organization"
+    }
+
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: root.mode === "create"
+        spacing: Theme.AppTheme.spacingSm
+
+        AppControls.Label {
+            Layout.fillWidth: true
+            text: "Initial modules"
+            color: Theme.AppTheme.textPrimary
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.bodySize
+            font.bold: true
+        }
+
+        AppControls.Label {
+            Layout.fillWidth: true
+            text: "Choose the modules available immediately after organization provisioning."
+            color: Theme.AppTheme.textSecondary
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.smallSize
+            wrapMode: Text.WordWrap
+        }
+
+        Repeater {
+            model: moduleModel
+
+            delegate: AppControls.CheckBox {
+                required property int index
+                required property string label
+                required property bool selected
+
+                text: label
+                checked: selected
+                onToggled: moduleModel.setProperty(index, "selected", checked)
             }
         }
     }
 }
-

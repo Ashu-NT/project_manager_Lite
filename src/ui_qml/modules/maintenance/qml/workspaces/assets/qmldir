@@ -1,0 +1,5 @@
+﻿module Maintenance.Assets
+AssetsWorkspace 1.0 AssetsWorkspace.qml
+AssetsWorkspacePage 1.0 AssetsWorkspacePage.qml
+AssetsWorkspaceState 1.0 AssetsWorkspaceState.qml
+AssetsColumnConfig 1.0 AssetsColumnConfig.js

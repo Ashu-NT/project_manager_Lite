@@ -176,38 +176,21 @@ ColumnLayout {
         }
     }
 
-    AppControls.CenteredDialog {
+    AppWidgets.EntityDialog {
         id: installDialog
-        modal: true; focus: true; implicitWidth: 460
-        title: "Install Update"
-        contentItem: AppControls.Label {
-            text: "The app will download the installer, prepare the Windows update handoff, then close and relaunch automatically. Continue?"
-            wrapMode: Text.WordWrap
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
+        title:          "Install Update"
+        subtitle:       "The app will download the installer, prepare the Windows update handoff, then close and relaunch automatically. Continue?"
+        primaryText:    "Install Now"
+        primaryIcon:    "approve"
+        primaryEnabled: !root._busy
+        width: 460
+
+        onAccepted: {
+            installDialog.close()
+            if (root.supportController)
+                root.supportController.installAvailableUpdate(root.settingsPayload())
         }
-        footer: Frame {
-            padding: Theme.AppTheme.marginMd
-            RowLayout {
-                anchors.fill: parent
-                spacing: Theme.AppTheme.spacingSm
-                Item { Layout.fillWidth: true }
-                AppControls.SecondaryButton {
-                    text: "Cancel"; iconName: "close"
-                    onClicked: installDialog.close()
-                }
-                AppControls.PrimaryButton {
-                    text: "Install Now"; iconName: "approve"
-                    enabled: !root._busy
-                    onClicked: {
-                        installDialog.close()
-                        if (root.supportController)
-                            root.supportController.installAvailableUpdate(root.settingsPayload())
-                    }
-                }
-            }
-        }
+        onRejected: installDialog.close()
     }
 
     // ── Section title bar ─────────────────────────────────────────
@@ -253,8 +236,24 @@ ColumnLayout {
     AppWidgets.InlineMessage {
         Layout.fillWidth: true
         visible: root._busy
+            && String(root.supportController ? root.supportController.errorMessage : "").length === 0
         tone:    "info"
         message: "Processing..."
+    }
+
+    AppWidgets.InlineMessage {
+        Layout.fillWidth: true
+        visible: String(root.supportController ? root.supportController.errorMessage : "").length > 0
+        tone:    "danger"
+        message: root.supportController ? root.supportController.errorMessage : ""
+    }
+
+    AppWidgets.InlineMessage {
+        Layout.fillWidth: true
+        visible: String(root.supportController ? root.supportController.feedbackMessage : "").length > 0
+            && String(root.supportController ? root.supportController.errorMessage : "").length === 0
+        tone:    "success"
+        message: root.supportController ? root.supportController.feedbackMessage : ""
     }
 
     // ── Top panels: Release Management | Runtime Status ───────────

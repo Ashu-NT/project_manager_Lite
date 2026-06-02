@@ -1,63 +1,44 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property var documentOptions: []
-    property string validationMessage: ""
 
     signal submitted(string documentId)
 
-    modal: true
     width: 500
     title: "Link Document"
-    closePolicy: Popup.CloseOnEscape
+    subtitle: "Link a shared document to this inventory item."
+    primaryText: "Link Document"
+    primaryIcon: "add"
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     readonly property string currentDocumentId: String((documentOptions[documentCombo.currentIndex] || { "value": "" }).value || "")
 
     function submitDialog() {
         if (root.currentDocumentId.length === 0) {
-            root.validationMessage = "Choose a document before saving."
+            root.errorMessage = "Choose a document before saving."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.currentDocumentId)
     }
 
     onOpened: {
         documentCombo.currentIndex = 0
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-    }
-
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            text: "Select a shared document to attach to the selected inventory item."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            wrapMode: Text.WordWrap
-        }
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            visible: root.validationMessage.length > 0
-            text: root.validationMessage
-            color: "#8B1E1E"
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Document"
+        required: true
 
         AppControls.ComboBox {
             id: documentCombo
@@ -66,28 +47,4 @@ AppControls.CenteredDialog {
             textRole: "label"
         }
     }
-
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item {
-            Layout.fillWidth: true
-        }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
-        }
-
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: "Link"
-            iconName: "import"
-            enabled: root.documentOptions.length > 0
-            onClicked: root.submitDialog()
-        }
-    }
 }
-

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.maintenance.controllers.common import (
     MaintenanceWorkspaceControllerBase,
     run_mutation,
@@ -76,6 +77,7 @@ class MaintenanceWorkOrdersWorkspaceController(MaintenanceWorkspaceControllerBas
         self._selected_work_order_type_filter = "all"
         self._selected_asset_filter = "all"
         self._search_text = ""
+        self._work_orders_table_model = DynamicTableModel(self)
         self._work_orders: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -159,6 +161,10 @@ class MaintenanceWorkOrdersWorkspaceController(MaintenanceWorkspaceControllerBas
     @Property("QVariantMap", notify=workOrdersChanged)
     def workOrders(self) -> dict[str, object]:
         return self._work_orders
+
+    @Property(QObject, constant=True)
+    def workOrdersTableModel(self) -> DynamicTableModel:
+        return self._work_orders_table_model
 
     @Property("QVariantMap", notify=selectedWorkOrderChanged)
     def selectedWorkOrder(self) -> dict[str, object]:
@@ -457,6 +463,7 @@ class MaintenanceWorkOrdersWorkspaceController(MaintenanceWorkspaceControllerBas
         if value == self._work_orders:
             return
         self._work_orders = value
+        self._work_orders_table_model.set_rows(value.get("items", []))
         self.workOrdersChanged.emit()
 
     def _set_selected_work_order(self, value: dict[str, object]) -> None:

@@ -21,6 +21,7 @@ from src.ui_qml.modules.project_management.controllers.tasks.pm_time_controller 
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementTaskViewStore,
     ProjectManagementWorkspaceControllerBase,
+    serialize_task_record_view_models,
     serialize_workspace_view_model,
 )
 from src.ui_qml.modules.project_management.presenters import (
@@ -80,6 +81,7 @@ class ProjectManagementTasksWorkspaceController(
     taskPageChanged = Signal()
     taskPageSizeChanged = Signal()
     taskTotalCountChanged = Signal()
+    tasksTableModelChanged = Signal()
     overviewChanged = Signal()
     projectOptionsChanged = Signal()
     selectedProjectIdChanged = Signal()
@@ -105,7 +107,9 @@ class ProjectManagementTasksWorkspaceController(
     dependencyTaskOptionsChanged = Signal()
     dependencyTypeOptionsChanged = Signal()
     assignmentsChanged = Signal()
+    assignmentPreviewChanged = Signal()
     dependenciesChanged = Signal()
+    timeAssignmentOptionsChanged = Signal()
     timePeriodOptionsChanged = Signal()
     selectedTimePeriodStartChanged = Signal()
     timeAssignmentSummaryChanged = Signal()
@@ -118,6 +122,10 @@ class ProjectManagementTasksWorkspaceController(
     collaborationCommentsChanged = Signal()
     collaborationPresenceChanged = Signal()
     collaborationSectionLoadedChanged = Signal()
+    taskSkillRequirementsChanged = Signal()
+    skillRequirementsSectionLoadedChanged = Signal()
+    scheduleImpactChanged = Signal()
+    scheduleImpactSectionLoadedChanged = Signal()
 
     def __init__(
         self,
@@ -155,6 +163,9 @@ class ProjectManagementTasksWorkspaceController(
         self._collaboration_section_loaded_for_task_id = ""
         self._assignments_section_loaded_for_task_id = ""
         self._dependencies_section_loaded_for_task_id = ""
+        self._skill_requirements_section_loaded_for_task_id = ""
+        self._schedule_impact_section_loaded_for_task_id = ""
+        self._schedule_impact: dict[str, object] = {}
         # ── Saved views ────────────────────────────────────────────────
         self._task_view_store = task_view_store or ProjectManagementTaskViewStore()
         self._saved_task_views: dict[str, dict[str, object]] = (
@@ -165,7 +176,7 @@ class ProjectManagementTasksWorkspaceController(
         # ── Sub-controllers ────────────────────────────────────────────
         _cb = dict(
             presenter=self._tasks_workspace_presenter,
-            facade_refresh=self.refresh,
+            facade_refresh=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -174,9 +185,13 @@ class ProjectManagementTasksWorkspaceController(
         self._task_list = PMTaskListController(**_cb)
         self._assignments_ctrl = PMAssignmentController(**_cb)
         self._dependencies_ctrl = PMDependencyController(**_cb)
-        self._time_ctrl = PMTimeController(**_cb)
+        self._time_ctrl = PMTimeController(
+            **_cb,
+            refresh_time_entries=self._refresh_time_entries_only,
+        )
         self._collab_ctrl = PMCollaborationController(**_cb)
         # Connect sub-controller signals → facade signals (backward compat)
+        self._task_list.tasksTableModelChanged.connect(self.tasksTableModelChanged)
         self._task_list.overviewChanged.connect(self.overviewChanged)
         self._task_list.projectOptionsChanged.connect(self.projectOptionsChanged)
         self._task_list.statusOptionsChanged.connect(self.statusOptionsChanged)
@@ -195,6 +210,7 @@ class ProjectManagementTasksWorkspaceController(
             self.assignmentOptionsChanged
         )
         self._assignments_ctrl.assignmentsChanged.connect(self.assignmentsChanged)
+        self._assignments_ctrl.assignmentPreviewChanged.connect(self.assignmentPreviewChanged)
         self._dependencies_ctrl.dependencyTaskOptionsChanged.connect(
             self.dependencyTaskOptionsChanged
         )
@@ -202,6 +218,9 @@ class ProjectManagementTasksWorkspaceController(
             self.dependencyTypeOptionsChanged
         )
         self._dependencies_ctrl.dependenciesChanged.connect(self.dependenciesChanged)
+        self._time_ctrl.timeAssignmentOptionsChanged.connect(
+            self.timeAssignmentOptionsChanged
+        )
         self._time_ctrl.timePeriodOptionsChanged.connect(self.timePeriodOptionsChanged)
         self._time_ctrl.timeAssignmentSummaryChanged.connect(
             self.timeAssignmentSummaryChanged
@@ -219,6 +238,9 @@ class ProjectManagementTasksWorkspaceController(
         )
         self._collab_ctrl.collaborationPresenceChanged.connect(
             self.collaborationPresenceChanged
+        )
+        self._assignments_ctrl.taskSkillRequirementsChanged.connect(
+            self.taskSkillRequirementsChanged
         )
         self.destroyed.connect(self._collab_ctrl.on_destroyed_cleanup)
         self._bind_domain_events()
@@ -304,6 +326,10 @@ class ProjectManagementTasksWorkspaceController(
     def tasks(self) -> dict[str, object]:
         return self._task_list.tasks
 
+    @Property(QObject, constant=True)
+    def tasksTableModel(self) -> QObject:
+        return self._task_list.tasksTableModel
+
     @Property("QVariantMap", notify=selectedTaskChanged)
     def selectedTask(self) -> dict[str, object]:
         return self._task_list.selectedTask
@@ -360,9 +386,25 @@ class ProjectManagementTasksWorkspaceController(
     def assignments(self) -> dict[str, object]:
         return self._assignments_ctrl.assignments
 
+    @Property("QVariantMap", notify=assignmentPreviewChanged)
+    def assignmentPreview(self) -> dict[str, object]:
+        return self._assignments_ctrl.assignmentPreview
+
+    @Property(QObject, constant=True)
+    def assignmentsTableModel(self) -> QObject:
+        return self._assignments_ctrl.assignmentsTableModel
+
     @Property("QVariantMap", notify=dependenciesChanged)
     def dependencies(self) -> dict[str, object]:
         return self._dependencies_ctrl.dependencies
+
+    @Property(QObject, constant=True)
+    def dependenciesTableModel(self) -> QObject:
+        return self._dependencies_ctrl.dependenciesTableModel
+
+    @Property("QVariantList", notify=timeAssignmentOptionsChanged)
+    def timeAssignmentOptions(self) -> list[dict[str, str]]:
+        return self._time_ctrl.timeAssignmentOptions
 
     @Property("QVariantList", notify=timePeriodOptionsChanged)
     def timePeriodOptions(self) -> list[dict[str, str]]:
@@ -379,6 +421,10 @@ class ProjectManagementTasksWorkspaceController(
     @Property("QVariantMap", notify=timeEntriesChanged)
     def timeEntries(self) -> dict[str, object]:
         return self._time_ctrl.timeEntries
+
+    @Property(QObject, constant=True)
+    def timeEntriesTableModel(self) -> QObject:
+        return self._time_ctrl.timeEntriesTableModel
 
     @Property(str, notify=selectedTimeEntryIdChanged)
     def selectedTimeEntryId(self) -> str:
@@ -416,6 +462,28 @@ class ProjectManagementTasksWorkspaceController(
         return (
             bool(self._selected_task_id)
             and self._collaboration_section_loaded_for_task_id == self._selected_task_id
+        )
+
+    @Property("QVariantMap", notify=taskSkillRequirementsChanged)
+    def taskSkillRequirements(self) -> dict[str, object]:
+        return self._assignments_ctrl.taskSkillRequirements
+
+    @Property(bool, notify=skillRequirementsSectionLoadedChanged)
+    def isSkillRequirementsSectionLoaded(self) -> bool:
+        return (
+            bool(self._selected_task_id)
+            and self._skill_requirements_section_loaded_for_task_id == self._selected_task_id
+        )
+
+    @Property("QVariantMap", notify=scheduleImpactChanged)
+    def scheduleImpact(self) -> dict[str, object]:
+        return self._schedule_impact
+
+    @Property(bool, notify=scheduleImpactSectionLoadedChanged)
+    def isScheduleImpactSectionLoaded(self) -> bool:
+        return (
+            bool(self._selected_task_id)
+            and self._schedule_impact_section_loaded_for_task_id == self._selected_task_id
         )
 
     # ── Pagination properties ─────────────────────────────────────────
@@ -652,7 +720,7 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._set_is_loading(True)
         try:
-            self._set_error_message("")
+            self._clear_section_error("assignments")
             ws = self._tasks_workspace_presenter.build_task_assignments_state(
                 task_id=self._selected_task_id,
                 project_id=self._selected_project_id or None,
@@ -665,7 +733,7 @@ class ProjectManagementTasksWorkspaceController(
                     first = assignment_items[0]
                     self._set_selected_assignment_id(str(getattr(first, "id", "") or ""))
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("assignments", str(exc))
         finally:
             self._set_is_loading(False)
 
@@ -677,7 +745,7 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._set_is_loading(True)
         try:
-            self._set_error_message("")
+            self._clear_section_error("dependencies")
             ws = self._tasks_workspace_presenter.build_task_dependencies_state(
                 task_id=self._selected_task_id,
                 project_id=self._selected_project_id or None,
@@ -685,7 +753,7 @@ class ProjectManagementTasksWorkspaceController(
             self._dependencies_ctrl._update(ws)
             self._dependencies_section_loaded_for_task_id = self._selected_task_id
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("dependencies", str(exc))
         finally:
             self._set_is_loading(False)
 
@@ -697,7 +765,7 @@ class ProjectManagementTasksWorkspaceController(
         self._set_is_loading(True)
 
         try:
-            self._set_error_message("")
+            self._clear_section_error("time")
 
             ws = self._tasks_workspace_presenter.build_task_time_state(
                 task_id=self._selected_task_id,
@@ -715,7 +783,7 @@ class ProjectManagementTasksWorkspaceController(
             self._set_time_section_loaded_for_task_id(self._selected_task_id)
 
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("time", str(exc))
 
         finally:
             self._set_is_loading(False)
@@ -731,7 +799,7 @@ class ProjectManagementTasksWorkspaceController(
         self._set_is_loading(True)
 
         try:
-            self._set_error_message("")
+            self._clear_section_error("activity")
 
             ws = self._tasks_workspace_presenter.build_task_collaboration_state(
                 task_id=self._selected_task_id,
@@ -744,8 +812,47 @@ class ProjectManagementTasksWorkspaceController(
             )
 
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_section_error("activity", str(exc))
 
+        finally:
+            self._set_is_loading(False)
+
+    @Slot()
+    def loadSelectedTaskSkillRequirements(self) -> None:
+        if not self._selected_task_id:
+            return
+        if self._skill_requirements_section_loaded_for_task_id == self._selected_task_id:
+            return
+        self._set_is_loading(True)
+        try:
+            self._clear_section_error("skills")
+            ws = self._tasks_workspace_presenter.build_task_skill_requirements_state(
+                task_id=self._selected_task_id,
+            )
+            self._assignments_ctrl._update_skill_requirements(ws)
+            self._skill_requirements_section_loaded_for_task_id = self._selected_task_id
+        except Exception as exc:
+            self._set_section_error("skills", str(exc))
+        finally:
+            self._set_is_loading(False)
+
+    @Slot()
+    def loadSelectedTaskScheduleImpact(self) -> None:
+        if not self._selected_task_id:
+            return
+        if self._schedule_impact_section_loaded_for_task_id == self._selected_task_id:
+            return
+        self._set_is_loading(True)
+        try:
+            self._clear_section_error("scheduleImpact")
+            impact = self._tasks_workspace_presenter.build_task_schedule_impact_state(
+                task_id=self._selected_task_id,
+                project_id=self._selected_project_id or None,
+            )
+            self._set_schedule_impact(impact)
+            self._schedule_impact_section_loaded_for_task_id = self._selected_task_id
+        except Exception as exc:
+            self._set_section_error("scheduleImpact", str(exc))
         finally:
             self._set_is_loading(False)
 
@@ -858,12 +965,38 @@ class ProjectManagementTasksWorkspaceController(
 
     # ── Backward-compat mutation delegates ───────────────────────────
 
-    @Slot(result="QVariantMap")
-    def exportTasks(self) -> dict[str, object]:
-        message = "Task export is not implemented yet in the QML workspace."
+    @Slot("QVariantList", str, result="QVariantMap")
+    def exportTasks(self, columns: list, file_path: str) -> dict[str, object]:
+        from src.ui_qml.modules.project_management.utils.table_exporter import export_to_file
         self._set_error_message("")
-        self._set_feedback_message(message)
-        return {"ok": True, "message": message}
+        try:
+            all_ws = self._tasks_workspace_presenter.build_workspace_state(
+                project_id=self._selected_project_id or None,
+                search_text=self._search_text,
+                status_filter=self._selected_status_filter,
+                priority_filter=self._selected_priority_filter,
+                schedule_filter=self._selected_schedule_filter,
+                selected_task_id=None,
+                selected_assignment_id=None,
+                selected_time_period_start=self._selected_time_period_start,
+                selected_time_entry_id=None,
+                page=1,
+                page_size=99999,
+            )
+            rows = serialize_task_record_view_models(all_ws.tasks)
+            result = export_to_file(rows, list(columns), (file_path or "").strip())
+            if result.get("ok"):
+                self._set_feedback_message(result.get("message", "Export complete."))
+            else:
+                self._set_error_message(result.get("error", "Export failed."))
+            return result
+        except Exception as exc:
+            self._set_error_message(str(exc))
+            return {"ok": False, "error": str(exc)}
+
+    @Slot(str, "QVariantMap", result=str)
+    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
+        return self._task_list.generateEntityCode(entity_type, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createTask(self, payload: dict[str, object]) -> dict[str, object]:
@@ -916,8 +1049,17 @@ class ProjectManagementTasksWorkspaceController(
         return self._assignments_ctrl.deleteAssignment(assignment_id)
 
     @Slot("QVariantMap", result="QVariantMap")
+    @Slot("QVariantMap", result="QVariantMap")
+    def validateAssignment(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._assignments_ctrl.validateAssignment(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
     def createDependency(self, payload: dict[str, object]) -> dict[str, object]:
         return self._dependencies_ctrl.createDependency(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateDependency(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._dependencies_ctrl.updateDependency(payload)
 
     @Slot(str, result="QVariantMap")
     def deleteDependency(self, dependency_id: str) -> dict[str, object]:
@@ -962,6 +1104,26 @@ class ProjectManagementTasksWorkspaceController(
     @Slot(str, result="QVariantMap")
     def endTaskPresence(self, task_id: str) -> dict[str, object]:
         return self._collab_ctrl.endTaskPresence(task_id)
+
+    # ── Time-entries scoped refresh ───────────────────────────────────
+
+    def _refresh_time_entries_only(self) -> None:
+        """Rebuild only the time-entries section after an entry-level mutation.
+
+        Uses the fast path (build_task_time_entries_refresh) which skips
+        list_assignments() and directly rebuilds from the known assignment snapshot.
+        Period-level mutations (submit/lock/unlock) still call _request_domain_refresh.
+        """
+        try:
+            ws = self._tasks_workspace_presenter.build_task_time_entries_refresh(
+                assignment_id=self._selected_assignment_id or None,
+                period_start=self._selected_time_period_start,
+                selected_time_entry_id=self._selected_time_entry_id or None,
+            )
+            if ws is not None:
+                self._time_ctrl._update_entries_only(ws)
+        except Exception:  # noqa: BLE001 — scoped refresh failure must not mask user success
+            pass
 
     # ── Domain event binding ──────────────────────────────────────────
 
@@ -1029,6 +1191,16 @@ class ProjectManagementTasksWorkspaceController(
         self._set_collaboration_section_loaded_for_task_id("")
         self._assignments_section_loaded_for_task_id = ""
         self._dependencies_section_loaded_for_task_id = ""
+        self._skill_requirements_section_loaded_for_task_id = ""
+        self._schedule_impact_section_loaded_for_task_id = ""
+        self._set_schedule_impact({})
+
+    def _set_schedule_impact(self, v: dict[str, object]) -> None:
+        if v == self._schedule_impact:
+            return
+        self._schedule_impact = v
+        self.scheduleImpactChanged.emit()
+        self.scheduleImpactSectionLoadedChanged.emit()
 
     def _set_selected_assignment_id(self, v: str) -> None:
         if v == self._selected_assignment_id:

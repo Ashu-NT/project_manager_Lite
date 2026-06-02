@@ -1,0 +1,3 @@
+﻿module ProjectManagement.DashboardComponents
+DashboardPanelFrame 1.0 DashboardPanelFrame.qml
+DashboardHealthCard 1.0 DashboardHealthCard.qml

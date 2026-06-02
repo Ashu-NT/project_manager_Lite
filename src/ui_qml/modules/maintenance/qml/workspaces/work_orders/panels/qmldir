@@ -1,0 +1,2 @@
+module Maintenance.WorkOrdersPanels
+WorkOrderDetailPanel 1.0 WorkOrderDetailPanel.qml

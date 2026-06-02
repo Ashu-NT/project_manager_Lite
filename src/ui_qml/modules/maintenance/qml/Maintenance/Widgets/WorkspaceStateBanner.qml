@@ -14,11 +14,12 @@ ColumnLayout {
     spacing: Theme.AppTheme.spacingXs
     visible: root.isLoading || root.isBusy || root.errorMessage.length > 0 || root.feedbackMessage.length > 0
 
-    AppWidgets.InlineMessage {
+    AppWidgets.LoadingOverlay {
         Layout.fillWidth: true
-        visible: (root.isLoading || root.isBusy) && root.errorMessage.length === 0
-        tone: "info"
+        loading: (root.isLoading || root.isBusy) && root.errorMessage.length === 0
         message: root.isBusy ? "Saving maintenance changes..." : "Loading maintenance workspace..."
+        compact: true
+        modal:   false
     }
 
     AppWidgets.InlineMessage {

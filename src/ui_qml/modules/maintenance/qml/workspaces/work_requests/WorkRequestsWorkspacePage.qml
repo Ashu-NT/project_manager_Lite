@@ -1,4 +1,4 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -8,6 +8,9 @@ import App.Theme 1.0 as Theme
 import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
 import App.Controls 1.0 as AppControls
+import "dialogs" as Dialogs
+import "sections" as Sections
+import "panels" as Panels
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -68,7 +71,7 @@ AppLayouts.WorkspaceFrame {
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            WorkRequestsDialogHost {
+            Dialogs.WorkRequestsDialogHost {
 
         siteOptions: root.workspaceController ? (root.workspaceController.formSiteOptions || []) : []
         locationOptions: root.workspaceController ? (root.workspaceController.formLocationOptions || []) : []
@@ -79,12 +82,8 @@ AppLayouts.WorkspaceFrame {
         priorityOptions: root.workspaceController ? (root.workspaceController.formPriorityOptions || []) : []
         statusOptions: root.workspaceController ? (root.workspaceController.formStatusOptions || []) : []
 
-                onCreateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createWorkRequest(payload)
-                }
-                onUpdateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateWorkRequest(payload)
-                }
+                workspaceController: root.workspaceController
+
                 onStatusChangeRequested: function(workRequestId, statusValue, expectedVersion) {
                     if (root.workspaceController !== null)
                         root.workspaceController.setWorkRequestStatus(workRequestId, statusValue, expectedVersion)
@@ -124,7 +123,7 @@ AppLayouts.WorkspaceFrame {
         AppWidgets.TableToolbar {
             id: tableToolbar
             Layout.fillWidth: true
-            searchPlaceholder: "Search work requests…"
+            searchPlaceholder: "Search work requestsâ€¦"
             showCreate: true
             createLabel: "New Request"
             showRefresh: true
@@ -139,7 +138,7 @@ AppLayouts.WorkspaceFrame {
             onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
         }
 
-        // ── Full-width table with full-page detail view ───────────────
+        // â”€â”€ Full-width table with full-page detail view â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -149,7 +148,7 @@ AppLayouts.WorkspaceFrame {
                 id: workRequestsTable
                 anchors.fill: parent
                 columns: root._tableColumns
-                rows: root.workRequestsModel.items || []
+                sourceModel: root.workspaceController ? root.workspaceController.workRequestsTableModel : null
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedWorkRequestId : ""
                 showFilter: true
 
@@ -163,9 +162,7 @@ AppLayouts.WorkspaceFrame {
                 onViewDetailRequested: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectWorkRequest(rowId)
                     detailPage.open = true
-                }
-                onSortRequested: function(key) {}
-            }
+                }            }
 
             AppWidgets.AnchoredPopup {
                 id: filterPopup
@@ -268,7 +265,24 @@ AppLayouts.WorkspaceFrame {
                 onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedWorkRequestModel)
                 onDeleteRequested: detailPage.open = false
 
-                WorkRequestDetailSection {
+                // â”€â”€ Detail-scoped messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: detailPage.open
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                }
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: detailPage.open
+                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                    tone: "success"
+                    message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+                }
+
+                Panels.WorkRequestDetailPanel {
                     width: parent.width
                     detailPage: detailPage
                     workRequestDetail: root.selectedWorkRequestModel

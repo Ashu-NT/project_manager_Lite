@@ -1,27 +1,46 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string mode: "create"
     property var draft: ({})
+    property var workspaceController: null
+    property string siteCode: ""
 
     signal saveRequested(string mode, var payload)
 
     modal: true
     focus: true
     width: 620
-    closePolicy: Popup.NoAutoClose
     title: root.mode === "create" ? "New Site" : "Edit Site"
+    primaryText: root.mode === "create" ? "Create" : "Save"
+    primaryIcon: root.mode === "create" ? "add" : "save"
+    onOpened: root.errorMessage = ""
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
+
+    function submitDialog() {
+        if (root.siteCode.trim().length === 0) {
+            root.errorMessage = "Site code is required."
+            return
+        }
+        if (nameField.text.trim().length === 0) {
+            root.errorMessage = "Site name is required."
+            return
+        }
+        root.errorMessage = ""
+        root.saveRequested(root.mode, root.formData)
+    }
 
     readonly property var formData: ({
         siteId: root.draft.siteId || root.draft.id || "",
         expectedVersion: root.draft.version || 0,
-        siteCode: siteCodeField.text.trim(),
+        siteCode: root.siteCode.trim(),
         name: nameField.text.trim(),
         description: descriptionField.text.trim(),
         city: cityField.text.trim(),
@@ -49,7 +68,7 @@ AppControls.CenteredDialog {
     }
 
     function _loadDraft() {
-        siteCodeField.text = root.draft.siteCode || ""
+        root.siteCode = root.draft.siteCode || ""
         nameField.text = root.draft.name || ""
         descriptionField.text = root.draft.description || ""
         cityField.text = root.draft.city || ""
@@ -62,140 +81,145 @@ AppControls.CenteredDialog {
         activeCheck.checked = root.draft.isActive !== undefined ? root.draft.isActive : true
     }
 
-    contentItem: ScrollView {
-        implicitWidth: 580
-        implicitHeight: 460
-        clip: true
-
-        ColumnLayout {
-            width: parent.availableWidth
-            spacing: Theme.AppTheme.spacingMd
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: siteCodeField
-
-                    Layout.preferredWidth: 180
-                    placeholderText: "Site code"
-                }
-
-                AppControls.TextField {
-                    id: nameField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Site name"
+    AppWidgets.CodeFieldRow {
+        Layout.fillWidth: true
+        label: "Site Code"
+        value: root.siteCode
+        placeholderText: "Auto-generated if empty"
+        required: true
+        generateVisible: true
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onValueEdited: function(code) { root.siteCode = code }
+        onGenerateRequested: {
+            if (root.workspaceController) {
+                const suggested = root.workspaceController.generateEntityCode("site", root.formData)
+                if (suggested && suggested.length > 0) {
+                    root.siteCode = suggested
                 }
             }
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Site Name"
+        required: true
+
+        AppControls.TextField {
+            id: nameField
+            Layout.fillWidth: true
+            placeholderText: "e.g. North Plant"
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Description"
+
+        AppControls.TextField {
+            id: descriptionField
+            Layout.fillWidth: true
+            placeholderText: "Short description of the site"
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "City"
 
             AppControls.TextField {
-                id: descriptionField
-
+                id: cityField
                 Layout.fillWidth: true
-                placeholderText: "Description"
+                placeholderText: "e.g. Rotterdam"
             }
+        }
 
-            RowLayout {
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Country"
+
+            AppControls.TextField {
+                id: countryField
                 Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: cityField
-
-                    Layout.fillWidth: true
-                    placeholderText: "City"
-                }
-
-                AppControls.TextField {
-                    id: countryField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Country"
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: timezoneField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Timezone"
-                }
-
-                AppControls.TextField {
-                    id: currencyField
-
-                    Layout.preferredWidth: 120
-                    placeholderText: "Currency"
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: siteTypeField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Site type"
-                }
-
-                AppControls.TextField {
-                    id: statusField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Status"
-                }
-            }
-
-            AppControls.TextArea {
-                id: notesField
-
-                Layout.fillWidth: true
-                Layout.preferredHeight: 96
-                placeholderText: "Notes"
-                wrapMode: TextEdit.WordWrap
-            }
-
-            AppControls.CheckBox {
-                id: activeCheck
-
-                text: "Active site"
+                placeholderText: "e.g. Netherlands"
             }
         }
     }
 
-    footer: Frame {
-        padding: Theme.AppTheme.marginMd
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
 
-        RowLayout {
-            anchors.fill: parent
-            spacing: Theme.AppTheme.spacingSm
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Timezone"
 
-            Item {
+            AppControls.TextField {
+                id: timezoneField
                 Layout.fillWidth: true
-            }
-
-            AppControls.SecondaryButton {
-                text: "Cancel"
-                iconName: "close"
-                onClicked: root.close()
-            }
-
-            AppControls.PrimaryButton {
-                enabled: siteCodeField.text.trim().length > 0
-                    && nameField.text.trim().length > 0
-                text: root.mode === "create" ? "Create" : "Save"
-                iconName: root.mode === "create" ? "add" : "save"
-                onClicked: root.saveRequested(root.mode, root.formData)
+                placeholderText: "e.g. Europe/Amsterdam"
             }
         }
+
+        AppWidgets.FormField {
+            Layout.preferredWidth: 140
+            label: "Currency"
+
+            AppControls.TextField {
+                id: currencyField
+                Layout.fillWidth: true
+                placeholderText: "e.g. EUR"
+            }
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Site Type"
+
+            AppControls.TextField {
+                id: siteTypeField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Refinery"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Status"
+
+            AppControls.TextField {
+                id: statusField
+                Layout.fillWidth: true
+                placeholderText: "e.g. Operational"
+            }
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Notes"
+
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 96
+            placeholderText: "Operational notes or context"
+            wrapMode: TextEdit.WordWrap
+        }
+    }
+
+    AppControls.CheckBox {
+        id: activeCheck
+
+        text: "Active site"
     }
 }
-

@@ -1,29 +1,48 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string mode: "create"
     property var draft: ({})
     property var siteOptions: []
     property var departmentOptions: []
+    property var workspaceController: null
+    property string employeeCode: ""
 
     signal saveRequested(string mode, var payload)
 
     modal: true
     focus: true
     width: 620
-    closePolicy: Popup.NoAutoClose
     title: root.mode === "create" ? "New Employee" : "Edit Employee"
+    primaryText: root.mode === "create" ? "Create" : "Save"
+    primaryIcon: root.mode === "create" ? "add" : "save"
+    onOpened: root.errorMessage = ""
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
+
+    function submitDialog() {
+        if (root.employeeCode.trim().length === 0) {
+            root.errorMessage = "Employee code is required."
+            return
+        }
+        if (fullNameField.text.trim().length === 0) {
+            root.errorMessage = "Full name is required."
+            return
+        }
+        root.errorMessage = ""
+        root.saveRequested(root.mode, root.formData)
+    }
 
     readonly property var formData: ({
         employeeId: root.draft.employeeId || root.draft.id || "",
         expectedVersion: root.draft.version || 0,
-        employeeCode: employeeCodeField.text.trim(),
+        employeeCode: root.employeeCode.trim(),
         fullName: fullNameField.text.trim(),
         departmentId: _currentValue(departmentModel, departmentCombo),
         departmentName: _currentLabel(departmentModel, departmentCombo),
@@ -72,7 +91,7 @@ AppControls.CenteredDialog {
     }
 
     function _loadDraft() {
-        employeeCodeField.text = root.draft.employeeCode || ""
+        root.employeeCode = root.draft.employeeCode || ""
         fullNameField.text = root.draft.fullName || ""
         titleField.text = root.draft.title || ""
         emailField.text = root.draft.email || ""
@@ -118,122 +137,119 @@ AppControls.CenteredDialog {
         ListElement { label: "Temporary"; value: "TEMPORARY" }
     }
 
-    contentItem: ScrollView {
-        implicitWidth: 580
-        implicitHeight: 470
-        clip: true
-
-        ColumnLayout {
-            width: parent.availableWidth
-            spacing: Theme.AppTheme.spacingMd
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: employeeCodeField
-
-                    Layout.preferredWidth: 180
-                    placeholderText: "Employee code"
+    AppWidgets.CodeFieldRow {
+        Layout.fillWidth: true
+        label: "Employee Code"
+        value: root.employeeCode
+        placeholderText: "Auto-generated if empty"
+        required: true
+        generateVisible: true
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onValueEdited: function(code) { root.employeeCode = code }
+        onGenerateRequested: {
+            if (root.workspaceController) {
+                const suggested = root.workspaceController.generateEntityCode("employee", root.formData)
+                if (suggested && suggested.length > 0) {
+                    root.employeeCode = suggested
                 }
-
-                AppControls.TextField {
-                    id: fullNameField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Full name"
-                }
-            }
-
-            AppControls.ComboBox {
-                id: departmentCombo
-
-                Layout.fillWidth: true
-                model: departmentModel
-                textRole: "label"
-            }
-
-            AppControls.ComboBox {
-                id: siteCombo
-
-                Layout.fillWidth: true
-                model: siteModel
-                textRole: "label"
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: titleField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Job title"
-                }
-
-                AppControls.ComboBox {
-                    id: employmentTypeCombo
-
-                    Layout.fillWidth: true
-                    model: employmentTypeModel
-                    textRole: "label"
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: emailField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Email"
-                }
-
-                AppControls.TextField {
-                    id: phoneField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Phone"
-                }
-            }
-
-            AppControls.CheckBox {
-                id: activeCheck
-
-                text: "Active employee"
             }
         }
     }
 
-    footer: Frame {
-        padding: Theme.AppTheme.marginMd
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Full Name"
+        required: true
 
-        RowLayout {
-            anchors.fill: parent
-            spacing: Theme.AppTheme.spacingSm
+        AppControls.TextField {
+            id: fullNameField
+            Layout.fillWidth: true
+            placeholderText: "e.g. Jane Smith"
+        }
+    }
 
-            Item {
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Department"
+
+        AppControls.ComboBox {
+            id: departmentCombo
+            Layout.fillWidth: true
+            model: departmentModel
+            textRole: "label"
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Site"
+
+        AppControls.ComboBox {
+            id: siteCombo
+            Layout.fillWidth: true
+            model: siteModel
+            textRole: "label"
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Job Title"
+
+            AppControls.TextField {
+                id: titleField
                 Layout.fillWidth: true
-            }
-
-            AppControls.SecondaryButton {
-                text: "Cancel"
-                iconName: "close"
-                onClicked: root.close()
-            }
-
-            AppControls.PrimaryButton {
-                enabled: employeeCodeField.text.trim().length > 0
-                    && fullNameField.text.trim().length > 0
-                text: root.mode === "create" ? "Create" : "Save"
-                iconName: root.mode === "create" ? "add" : "save"
-                onClicked: root.saveRequested(root.mode, root.formData)
+                placeholderText: "e.g. Maintenance Lead"
             }
         }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Employment Type"
+
+            AppControls.ComboBox {
+                id: employmentTypeCombo
+                Layout.fillWidth: true
+                model: employmentTypeModel
+                textRole: "label"
+            }
+        }
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Email"
+
+            AppControls.TextField {
+                id: emailField
+                Layout.fillWidth: true
+                placeholderText: "name@company.com"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Phone"
+
+            AppControls.TextField {
+                id: phoneField
+                Layout.fillWidth: true
+                placeholderText: "+1 555 0100"
+            }
+        }
+    }
+
+    AppControls.CheckBox {
+        id: activeCheck
+
+        text: "Active employee"
     }
 }
-

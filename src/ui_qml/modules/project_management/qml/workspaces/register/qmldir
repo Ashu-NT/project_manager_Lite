@@ -1,0 +1,5 @@
+module ProjectManagement.Register
+RegisterWorkspace 1.0 RegisterWorkspace.qml
+RegisterWorkspacePage 1.0 RegisterWorkspacePage.qml
+RegisterWorkspaceState 1.0 RegisterWorkspaceState.qml
+RegisterColumnConfig 1.0 RegisterColumnConfig.js

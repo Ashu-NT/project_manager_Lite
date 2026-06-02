@@ -1,16 +1,15 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property var itemOptions: []
     property var storeroomOptions: []
     property var reservationData: ({})
-    property string validationMessage: ""
     readonly property var formItemOptions: itemOptions.filter(function(option) {
         return String(option.value || "") !== "all"
     })
@@ -20,10 +19,13 @@ AppControls.CenteredDialog {
 
     signal submitted(var payload)
 
-    modal: true
     width: 720
     title: "Create Reservation"
-    closePolicy: Popup.CloseOnEscape
+    subtitle: "Reserve inventory against an open work order or project."
+    primaryText: "Create Reservation"
+    primaryIcon: "add"
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (var index = 0; index < options.length; index += 1) {
@@ -43,7 +45,7 @@ AppControls.CenteredDialog {
         sourceTypeField.text = String(state.sourceReferenceType || "")
         sourceIdField.text = String(state.sourceReferenceId || "")
         notesField.text = ""
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -62,81 +64,72 @@ AppControls.CenteredDialog {
 
     function submitDialog() {
         if (String((root.formItemOptions[itemCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose an item before saving."
+            root.errorMessage = "Choose an item before saving."
             return
         }
         if (String((root.formStoreroomOptions[storeroomCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a storeroom before saving."
+            root.errorMessage = "Choose a storeroom before saving."
             return
         }
         if (quantityField.text.trim().length === 0 || Number(quantityField.text) <= 0) {
-            root.validationMessage = "Reserved quantity must be greater than zero."
+            root.errorMessage = "Reserved quantity must be greater than zero."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 
     onOpened: root.populateFromReservation()
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-    }
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 620 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
 
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.Label {
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            text: "Reserve available stock against a real upstream demand reference. The reservation reduces availability without reducing on-hand stock."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            wrapMode: Text.WordWrap
-        }
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            visible: root.validationMessage.length > 0
-            text: root.validationMessage
-            color: "#8B1E1E"
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
-
-        GridLayout {
-            Layout.fillWidth: true
-            columns: root.width > 620 ? 2 : 1
-            columnSpacing: Theme.AppTheme.spacingMd
-            rowSpacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label { text: "Item" }
+            label: "Item"
+            required: true
             AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.formItemOptions; textRole: "label" }
+        }
 
-            AppControls.Label { text: "Storeroom" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Storeroom"
+            required: true
             AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.formStoreroomOptions; textRole: "label" }
+        }
 
-            AppControls.Label { text: "Reserved qty" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Reserved qty"
+            required: true
             AppControls.TextField { id: quantityField; objectName: "quantityField"; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-            AppControls.Label { text: "Need by (YYYY-MM-DD)" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Need by (YYYY-MM-DD)"
             AppControls.DateField { id: needByDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+        }
 
-            AppControls.Label { text: "Source type" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Source type"
             AppControls.TextField { id: sourceTypeField; Layout.fillWidth: true; placeholderText: "task, work_order, project..." }
+        }
 
-            AppControls.Label { text: "Source id" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Source id"
             AppControls.TextField { id: sourceIdField; Layout.fillWidth: true; placeholderText: "TASK-42" }
         }
+    }
 
-        AppControls.Label {
-            text: "Notes"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Notes"
         AppControls.TextArea {
             id: notesField
             Layout.fillWidth: true
@@ -145,25 +138,4 @@ AppControls.CenteredDialog {
             placeholderText: "Reservation context, scope, or issuing notes."
         }
     }
-
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item { Layout.fillWidth: true }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
-        }
-
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: "Save"
-            iconName: "save"
-            onClicked: root.submitDialog()
-        }
-    }
 }
-

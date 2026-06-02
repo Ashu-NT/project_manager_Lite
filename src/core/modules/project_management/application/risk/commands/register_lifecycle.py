@@ -26,6 +26,36 @@ class RegisterLifecycleMixin:
     _register_repo: RegisterEntryRepository
     _UNSET = object()
 
+    def _resolve_entry_code(
+        self, code: str, project_id: str, title: str, *, exclude_id: str | None = None
+    ) -> str:
+        """Normalize a manual code or auto-generate a unique one (per-project, REG prefix)."""
+        from src.core.platform.common.code_generation import (
+            CodeGenerator,
+            assert_code_unique,
+            normalize_manual_code,
+        )
+
+        existing = {
+            str(getattr(entry, "code", "") or "").upper()
+            for entry in self._register_repo.list_entries(project_id=project_id)
+            if exclude_id is None or entry.id != exclude_id
+        }
+        manual = normalize_manual_code(code)
+        if manual:
+            assert_code_unique(
+                manual,
+                exists=lambda candidate: candidate.upper() in existing,
+                label="Register code",
+            )
+            return manual
+        return CodeGenerator().generate(
+            "register",
+            exists=lambda candidate: candidate.upper() in existing,
+            name=(title or "").strip() or None,
+            use_year=not bool((title or "").strip()),
+        )
+
     def create_entry(
         self,
         project_id: str,
@@ -39,6 +69,7 @@ class RegisterLifecycleMixin:
         due_date=None,
         impact_summary: str = "",
         response_plan: str = "",
+        code: str = "",
     ) -> RegisterEntry:
         require_permission(self._user_session, "register.manage", operation_label="create register entry")
         require_project_permission(
@@ -54,6 +85,7 @@ class RegisterLifecycleMixin:
             project_id,
             entry_type=as_register_entry_type(entry_type),
             title=self._normalize_title(title),
+            code=self._resolve_entry_code(code, project_id, title),
             description=(description or "").strip(),
             severity=as_register_entry_severity(severity),
             status=as_register_entry_status(status),
@@ -93,6 +125,7 @@ class RegisterLifecycleMixin:
         due_date: Any = _UNSET,
         impact_summary: str | None = None,
         response_plan: str | None = None,
+        code: str | None = None,
     ) -> RegisterEntry:
         require_permission(self._user_session, "register.manage", operation_label="update register entry")
         entry = self._register_repo.get(entry_id)
@@ -127,6 +160,10 @@ class RegisterLifecycleMixin:
             entry.impact_summary = impact_summary.strip()
         if response_plan is not None:
             entry.response_plan = response_plan.strip()
+        if code is not None and code.strip():
+            entry.code = self._resolve_entry_code(
+                code, entry.project_id, entry.title, exclude_id=entry.id
+            )
         entry.updated_at = datetime.now(timezone.utc)
         try:
             self._register_repo.update(entry)

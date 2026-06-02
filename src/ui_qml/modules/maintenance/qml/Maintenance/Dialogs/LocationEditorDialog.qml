@@ -1,10 +1,10 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string modeTitle: "Create Location"
@@ -13,15 +13,22 @@ AppControls.CenteredDialog {
     property var parentLocationOptions: []
     property var statusOptions: []
     property var criticalityOptions: []
-    property string validationMessage: ""
+    property var workspaceController: null
+    property string locationCode: ""
 
     signal submitted(var payload)
 
-    modal: true
+    title:        root.modeTitle
+    subtitle:     root.modeTitle === "Create Location"
+        ? "Capture site location hierarchy, lifecycle state, and scope notes for maintenance anchors."
+        : "Update the location record, hierarchy context, and lifecycle state."
+    primaryText:  root.modeTitle === "Create Location" ? "Create Location" : "Save Changes"
+    primaryIcon:  root.modeTitle === "Create Location" ? "add" : "save"
     width: 720
-    height: Math.min(760, parent ? parent.height - (Theme.AppTheme.marginLg * 2) : 760)
-    title: root.modeTitle
-    closePolicy: Popup.CloseOnEscape
+
+    onOpened:   root.populateFromRecord()
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (let index = 0; index < options.length; index += 1) {
@@ -38,13 +45,13 @@ AppControls.CenteredDialog {
         parentLocationCombo.currentIndex = root.indexForValue(root.parentLocationOptions, state.parentLocationId || "")
         statusCombo.currentIndex = root.indexForValue(root.statusOptions, state.status || "ACTIVE")
         criticalityCombo.currentIndex = root.indexForValue(root.criticalityOptions, state.criticality || "MEDIUM")
-        locationCodeField.text = String(state.locationCode || "")
+        root.locationCode = String(state.locationCode || "")
         nameField.text = String(state.name || "")
         descriptionField.text = String(state.description || "")
         locationTypeField.text = String(state.locationType || "")
         notesField.text = String(state.notes || "")
         activeCheck.checked = state.isActive === undefined ? true : !!state.isActive
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -56,7 +63,7 @@ AppControls.CenteredDialog {
         return {
             "locationId": String(state.locationId || ""),
             "siteId": String(selectedSite.value || ""),
-            "locationCode": locationCodeField.text,
+            "locationCode": root.locationCode,
             "name": nameField.text,
             "description": descriptionField.text,
             "parentLocationId": String(selectedParent.value || ""),
@@ -71,122 +78,109 @@ AppControls.CenteredDialog {
 
     function submitDialog() {
         if (String((root.siteOptions[siteCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a site before saving."
+            root.errorMessage = "Choose a site before saving."
             return
         }
-        if (locationCodeField.text.trim().length === 0) {
-            root.validationMessage = "Location code is required."
+        if (root.locationCode.trim().length === 0) {
+            root.errorMessage = "Location code is required."
             return
         }
         if (nameField.text.trim().length === 0) {
-            root.validationMessage = "Location name is required."
+            root.errorMessage = "Location name is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 
-    onOpened: root.populateFromRecord()
+    // ── Form content ──────────────────────────────────────────────────────────
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-    }
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 640 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
 
-    contentItem: Flickable {
-        id: dialogFlickable
-        contentWidth: width
-        contentHeight: formLayout.implicitHeight
-        clip: true
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Site"
+            required: true
+            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+        }
 
-        ColumnLayout {
-            id: formLayout
-
-            width: dialogFlickable.width
-            spacing: Theme.AppTheme.spacingMd
-
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: "Capture site location hierarchy, lifecycle state, and scope notes for maintenance anchors."
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                wrapMode: Text.WordWrap
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            label: "Location code"
+            value: root.locationCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            onValueEdited: function(code) { root.locationCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("location", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.locationCode = suggested
+                    }
+                }
             }
+        }
 
-            AppControls.Label {
-                Layout.fillWidth: true
-                visible: root.validationMessage.length > 0
-                text: root.validationMessage
-                color: "#8B1E1E"
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Name"
+            required: true
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Production Area A" }
+        }
 
-            GridLayout {
-                Layout.fillWidth: true
-                columns: root.width > 640 ? 2 : 1
-                columnSpacing: Theme.AppTheme.spacingMd
-                rowSpacing: Theme.AppTheme.spacingSm
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Parent location"
+            AppControls.ComboBox { id: parentLocationCombo; Layout.fillWidth: true; model: root.parentLocationOptions; textRole: "label" }
+        }
 
-                AppControls.Label { text: "Site" }
-                AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Location type"
+            AppControls.TextField { id: locationTypeField; Layout.fillWidth: true; placeholderText: "PRODUCTION" }
+        }
 
-                AppControls.Label { text: "Location code" }
-                AppControls.TextField { id: locationCodeField; Layout.fillWidth: true; placeholderText: "LOC-100" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Criticality"
+            AppControls.ComboBox { id: criticalityCombo; Layout.fillWidth: true; model: root.criticalityOptions; textRole: "label" }
+        }
 
-                AppControls.Label { text: "Name" }
-                AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Production Area A" }
-
-                AppControls.Label { text: "Parent location" }
-                AppControls.ComboBox { id: parentLocationCombo; Layout.fillWidth: true; model: root.parentLocationOptions; textRole: "label" }
-
-                AppControls.Label { text: "Location type" }
-                AppControls.TextField { id: locationTypeField; Layout.fillWidth: true; placeholderText: "PRODUCTION" }
-
-                AppControls.Label { text: "Criticality" }
-                AppControls.ComboBox { id: criticalityCombo; Layout.fillWidth: true; model: root.criticalityOptions; textRole: "label" }
-
-                AppControls.Label { text: "Lifecycle status" }
-                AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
-            }
-
-            AppControls.Label { text: "Description" }
-            AppControls.TextArea {
-                id: descriptionField
-                Layout.fillWidth: true
-                Layout.preferredHeight: 90
-                wrapMode: TextEdit.WordWrap
-            }
-
-            AppControls.CheckBox { id: activeCheck; text: "Active location" }
-
-            AppControls.Label { text: "Notes" }
-            AppControls.TextArea {
-                id: notesField
-                Layout.fillWidth: true
-                Layout.preferredHeight: 90
-                wrapMode: TextEdit.WordWrap
-            }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Lifecycle status"
+            AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
         }
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-        Item { Layout.fillWidth: true }
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            wrapMode: TextEdit.WordWrap
         }
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: root.modeTitle === "Create Location" ? "Create Location" : "Save Changes"
-            iconName: root.modeTitle === "Create Location" ? "add" : "save"
-            onClicked: root.submitDialog()
+    }
+
+    AppControls.CheckBox { id: activeCheck; text: "Active location" }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            wrapMode: TextEdit.WordWrap
         }
     }
 }
-

@@ -3,8 +3,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string mode: "create"
@@ -12,19 +13,38 @@ AppControls.CenteredDialog {
     property var parentOptions: []
     property var objectScopeOptions: []
     property var defaultTypeOptions: []
+    property var workspaceController: null
+    property string structureCode: ""
 
     signal saveRequested(string mode, var payload)
 
     modal: true
     focus: true
     width: 620
-    closePolicy: Popup.NoAutoClose
     title: root.mode === "create" ? "New Document Structure" : "Edit Document Structure"
+    primaryText: root.mode === "create" ? "Create" : "Save"
+    primaryIcon: root.mode === "create" ? "add" : "save"
+    onOpened: root.errorMessage = ""
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
+
+    function submitDialog() {
+        if (root.structureCode.trim().length === 0) {
+            root.errorMessage = "Structure code is required."
+            return
+        }
+        if (nameField.text.trim().length === 0) {
+            root.errorMessage = "Structure name is required."
+            return
+        }
+        root.errorMessage = ""
+        root.saveRequested(root.mode, root.formData)
+    }
 
     readonly property var formData: ({
         structureId: root.draft.structureId || root.draft.id || "",
         expectedVersion: root.draft.version || 0,
-        structureCode: structureCodeField.text.trim(),
+        structureCode: root.structureCode.trim(),
         name: nameField.text.trim(),
         description: descriptionField.text.trim(),
         parentStructureId: _currentValue(parentModel, parentCombo),
@@ -76,7 +96,7 @@ AppControls.CenteredDialog {
     }
 
     function _loadDraft() {
-        structureCodeField.text = root.draft.structureCode || ""
+        root.structureCode = root.draft.structureCode || ""
         nameField.text = root.draft.name || ""
         descriptionField.text = root.draft.description || ""
         notesField.text = root.draft.notes || ""
@@ -108,115 +128,113 @@ AppControls.CenteredDialog {
     ListModel { id: scopeModel }
     ListModel { id: typeModel }
 
-    contentItem: ScrollView {
-        implicitWidth: 580
-        implicitHeight: 500
-        clip: true
-
-        ColumnLayout {
-            width: parent.availableWidth
-            spacing: Theme.AppTheme.spacingMd
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                AppControls.TextField {
-                    id: structureCodeField
-
-                    Layout.preferredWidth: 180
-                    placeholderText: "Structure code"
+    AppWidgets.CodeFieldRow {
+        Layout.fillWidth: true
+        label: "Structure Code"
+        value: root.structureCode
+        placeholderText: "Auto-generated if empty"
+        required: true
+        generateVisible: true
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onValueEdited: function(code) { root.structureCode = code }
+        onGenerateRequested: {
+            if (root.workspaceController) {
+                const suggested = root.workspaceController.generateEntityCode("document_structure", root.formData)
+                if (suggested && suggested.length > 0) {
+                    root.structureCode = suggested
                 }
-
-                AppControls.TextField {
-                    id: nameField
-
-                    Layout.fillWidth: true
-                    placeholderText: "Structure name"
-                }
-            }
-
-            AppControls.TextField {
-                id: descriptionField
-
-                Layout.fillWidth: true
-                placeholderText: "Description"
-            }
-
-            AppControls.ComboBox {
-                id: parentCombo
-
-                Layout.fillWidth: true
-                model: parentModel
-                textRole: "label"
-            }
-
-            AppControls.ComboBox {
-                id: scopeCombo
-
-                Layout.fillWidth: true
-                model: scopeModel
-                textRole: "label"
-            }
-
-            AppControls.ComboBox {
-                id: typeCombo
-
-                Layout.fillWidth: true
-                model: typeModel
-                textRole: "label"
-            }
-
-            SpinBox {
-                id: sortOrderSpin
-
-                Layout.fillWidth: true
-                from: 0
-                to: 9999
-            }
-
-            AppControls.TextArea {
-                id: notesField
-
-                Layout.fillWidth: true
-                Layout.preferredHeight: 96
-                placeholderText: "Notes"
-                wrapMode: TextEdit.WordWrap
-            }
-
-            AppControls.CheckBox {
-                id: activeCheck
-
-                text: "Active structure"
             }
         }
     }
 
-    footer: Frame {
-        padding: Theme.AppTheme.marginMd
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Structure Name"
+        required: true
 
-        RowLayout {
-            anchors.fill: parent
-            spacing: Theme.AppTheme.spacingSm
-
-            Item {
-                Layout.fillWidth: true
-            }
-
-            AppControls.SecondaryButton {
-                text: "Cancel"
-                iconName: "close"
-                onClicked: root.close()
-            }
-
-            AppControls.PrimaryButton {
-                enabled: structureCodeField.text.trim().length > 0
-                    && nameField.text.trim().length > 0
-                text: root.mode === "create" ? "Create" : "Save"
-                iconName: root.mode === "create" ? "add" : "save"
-                onClicked: root.saveRequested(root.mode, root.formData)
-            }
+        AppControls.TextField {
+            id: nameField
+            Layout.fillWidth: true
+            placeholderText: "e.g. Equipment Manuals"
         }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Description"
+
+        AppControls.TextField {
+            id: descriptionField
+            Layout.fillWidth: true
+            placeholderText: "Short description of this structure"
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Parent Structure"
+
+        AppControls.ComboBox {
+            id: parentCombo
+            Layout.fillWidth: true
+            model: parentModel
+            textRole: "label"
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Object Scope"
+
+        AppControls.ComboBox {
+            id: scopeCombo
+            Layout.fillWidth: true
+            model: scopeModel
+            textRole: "label"
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Default Document Type"
+
+        AppControls.ComboBox {
+            id: typeCombo
+            Layout.fillWidth: true
+            model: typeModel
+            textRole: "label"
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Sort Order"
+        helperText: "Lower numbers appear first."
+
+        SpinBox {
+            id: sortOrderSpin
+            Layout.fillWidth: true
+            from: 0
+            to: 9999
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Notes"
+
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 96
+            placeholderText: "Context or usage notes"
+            wrapMode: TextEdit.WordWrap
+        }
+    }
+
+    AppControls.CheckBox {
+        id: activeCheck
+
+        text: "Active structure"
     }
 }
-

@@ -4,6 +4,8 @@ from typing import Callable
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
 from src.ui_qml.modules.project_management.controllers.common import (
     run_mutation,
     serialize_selector_options,
@@ -39,6 +41,7 @@ class PMDependencyController(QObject):
         self._set_feedback_message = set_feedback_message
         self._dependency_task_options: list[dict[str, str]] = []
         self._dependency_type_options: list[dict[str, str]] = []
+        self._dependencies_table_model = DynamicTableModel(self)
         self._dependencies: dict[str, object] = {
             "title": "", "subtitle": "", "emptyState": "", "items": []
         }
@@ -70,6 +73,10 @@ class PMDependencyController(QObject):
     def dependencies(self) -> dict[str, object]:
         return self._dependencies
 
+    @Property(QObject, constant=True)
+    def dependenciesTableModel(self) -> DynamicTableModel:
+        return self._dependencies_table_model
+
     # ── Mutation slots ────────────────────────────────────────────────
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -77,6 +84,17 @@ class PMDependencyController(QObject):
         return run_mutation(
             operation=lambda: self._presenter.create_dependency(dict(payload)),
             success_message="Dependency created.",
+            on_success=self._facade_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateDependency(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.update_dependency(dict(payload)),
+            success_message="Dependency updated.",
             on_success=self._facade_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
@@ -112,6 +130,7 @@ class PMDependencyController(QObject):
         if v == self._dependencies:
             return
         self._dependencies = v
+        self._dependencies_table_model.set_rows(v.get("items", []))
         self.dependenciesChanged.emit()
 
 

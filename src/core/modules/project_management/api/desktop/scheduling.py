@@ -2,20 +2,25 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-
+from types import SimpleNamespace
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
-    WorkCalendarEngine,
-    WorkCalendarService,
+)
+from src.core.modules.project_management.application.scheduling.constraint_validator import (
+    ConstraintValidator,
 )
 from src.core.modules.project_management.application.scheduling.baseline_service import (
     BaselineService,
 )
+from src.core.modules.project_management.application.scheduling.schedule_change_impact_service import (
+    ScheduleChangeImpactService,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.modules.project_management.domain.scheduling.calendar import Holiday, WorkingCalendar
+from src.core.platform.calendar import WorkCalendarEngine, WorkCalendarService
+from src.core.platform.calendar.domain import Holiday, WorkingCalendar
 
 
 _DAY_LABELS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -134,6 +139,47 @@ class SchedulingBaselineRowDto:
     created_at_label: str
     approved_by_label: str
     variance_state_label: str
+    status: str
+    status_label: str
+    can_submit: bool
+    can_approve: bool
+    can_reject: bool
+
+
+@dataclass(frozen=True)
+class SchedulingConstraintViolationDto:
+    task_id: str
+    task_name: str
+    constraint_type: str
+    constraint_type_label: str
+    constraint_date: date | None
+    constraint_date_label: str
+    computed_date: date | None
+    computed_date_label: str
+    overrun_working_days: int
+    message: str
+    severity: str
+    severity_label: str
+
+
+@dataclass(frozen=True)
+class SchedulingBaselineSubmitCommand:
+    baseline_id: str
+    submitted_by: str = "system"
+    notes: str = ""
+
+
+@dataclass(frozen=True)
+class SchedulingBaselineApproveCommand:
+    baseline_id: str
+    approved_by: str = "system"
+    notes: str = ""
+
+
+@dataclass(frozen=True)
+class SchedulingBaselineRejectCommand:
+    baseline_id: str
+    notes: str = ""
 
 
 @dataclass(frozen=True)
@@ -149,6 +195,20 @@ class SchedulingBaselineComparisonRowDto:
     finish_shift_days: int | None
     duration_delta_days: int | None
     planned_cost_delta: float
+
+
+@dataclass(frozen=True)
+class SchedulingBaselineVarianceRowDto:
+    id: str
+    project_id: str
+    new_baseline_id: str
+    superseded_baseline_id: str
+    task_id: str
+    task_name: str
+    start_variance_days: int
+    finish_variance_days: int
+    cost_variance: float
+    created_at: date | None
 
 
 @dataclass(frozen=True)
@@ -204,6 +264,26 @@ class SchedulingResourceLoadDto:
     status_label: str
 
 
+@dataclass(frozen=True)
+class SchedulingChangeImpactAffectedTaskDto:
+    task_id: str
+    task_name: str
+    start_shift_days: int
+    finish_shift_days: int
+    is_critical: bool
+
+
+@dataclass(frozen=True)
+class SchedulingChangeImpactDto:
+    task_id: str
+    affected_count: int
+    max_project_finish_shift_days: int
+    requires_approval: bool
+    newly_critical_count: int
+    no_longer_critical_count: int
+    affected_tasks: tuple[SchedulingChangeImpactAffectedTaskDto, ...]
+
+
 class ProjectManagementSchedulingDesktopApi:
     def __init__(
         self,
@@ -211,18 +291,22 @@ class ProjectManagementSchedulingDesktopApi:
         project_service: ProjectService | None = None,
         task_service: TaskService | None = None,
         scheduling_engine: SchedulingEngine | None = None,
+        platform_calendar_api: object | None = None,
         work_calendar_service: WorkCalendarService | None = None,
         work_calendar_engine: WorkCalendarEngine | None = None,
         baseline_service: BaselineService | None = None,
         reporting_service: ReportingService | None = None,
+        change_impact_service: ScheduleChangeImpactService | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
         self._scheduling_engine = scheduling_engine
+        self._platform_calendar_api = platform_calendar_api
         self._work_calendar_service = work_calendar_service
         self._work_calendar_engine = work_calendar_engine
         self._baseline_service = baseline_service
         self._reporting_service = reporting_service
+        self._change_impact_service = change_impact_service
 
     def list_projects(self) -> tuple[SchedulingProjectOptionDescriptor, ...]:
         if self._project_service is None:
@@ -237,6 +321,18 @@ class ProjectManagementSchedulingDesktopApi:
         )
 
     def list_calendars(self) -> tuple[SchedulingCalendarOptionDescriptor, ...]:
+        if self._platform_calendar_api is not None:
+            options = self._unwrap_platform_calendar_result(
+                self._platform_calendar_api.list_calendars()
+            ) or ()
+            return tuple(
+                SchedulingCalendarOptionDescriptor(
+                    value=option.value,
+                    label=option.label,
+                    summary_label=option.summary_label,
+                )
+                for option in options
+            )
         calendar = self._get_calendar()
         working_days = set(calendar.working_days or {0, 1, 2, 3, 4})
         active_labels = [
@@ -256,6 +352,29 @@ class ProjectManagementSchedulingDesktopApi:
         )
 
     def get_calendar_snapshot(self) -> SchedulingCalendarSnapshotDto:
+        if self._platform_calendar_api is not None:
+            snapshot = self._unwrap_platform_calendar_result(
+                self._platform_calendar_api.get_calendar_snapshot()
+            )
+            return SchedulingCalendarSnapshotDto(
+                working_days=tuple(
+                    SchedulingDayDescriptor(
+                        index=day.index,
+                        label=day.label,
+                        checked=day.checked,
+                    )
+                    for day in snapshot.working_days
+                ),
+                hours_per_day=float(snapshot.hours_per_day or 8.0),
+                holidays=tuple(
+                    SchedulingHolidayDto(
+                        id=holiday.id,
+                        date=holiday.date,
+                        name=holiday.name or "",
+                    )
+                    for holiday in snapshot.holidays
+                ),
+            )
         calendar = self._get_calendar()
         holidays = self._list_holidays()
         working_days = set(calendar.working_days or {0, 1, 2, 3, 4})
@@ -283,6 +402,34 @@ class ProjectManagementSchedulingDesktopApi:
         self,
         command: SchedulingCalendarUpdateCommand,
     ) -> SchedulingCalendarSnapshotDto:
+        if self._platform_calendar_api is not None:
+            snapshot = self._unwrap_platform_calendar_result(
+                self._platform_calendar_api.update_calendar(
+                    SimpleNamespace(
+                        working_days=command.working_days,
+                        hours_per_day=command.hours_per_day,
+                    )
+                )
+            )
+            return SchedulingCalendarSnapshotDto(
+                working_days=tuple(
+                    SchedulingDayDescriptor(
+                        index=day.index,
+                        label=day.label,
+                        checked=day.checked,
+                    )
+                    for day in snapshot.working_days
+                ),
+                hours_per_day=float(snapshot.hours_per_day or 8.0),
+                holidays=tuple(
+                    SchedulingHolidayDto(
+                        id=holiday.id,
+                        date=holiday.date,
+                        name=holiday.name or "",
+                    )
+                    for holiday in snapshot.holidays
+                ),
+            )
         service = self._require_work_calendar_service()
         service.set_working_days(
             set(command.working_days),
@@ -294,6 +441,20 @@ class ProjectManagementSchedulingDesktopApi:
         self,
         command: SchedulingHolidayCreateCommand,
     ) -> SchedulingHolidayDto:
+        if self._platform_calendar_api is not None:
+            holiday = self._unwrap_platform_calendar_result(
+                self._platform_calendar_api.add_holiday(
+                    SimpleNamespace(
+                        holiday_date=command.holiday_date,
+                        name=command.name,
+                    )
+                )
+            )
+            return SchedulingHolidayDto(
+                id=holiday.id,
+                date=holiday.date,
+                name=holiday.name or "",
+            )
         holiday = self._require_work_calendar_service().add_holiday(
             command.holiday_date,
             command.name,
@@ -305,12 +466,32 @@ class ProjectManagementSchedulingDesktopApi:
         )
 
     def delete_holiday(self, holiday_id: str) -> None:
+        if self._platform_calendar_api is not None:
+            self._unwrap_platform_calendar_result(
+                self._platform_calendar_api.delete_holiday(holiday_id)
+            )
+            return
         self._require_work_calendar_service().delete_holiday(holiday_id)
 
     def calculate_working_days(
         self,
         command: SchedulingWorkingDayCalculationCommand,
     ) -> SchedulingWorkingDayCalculationDto:
+        if self._platform_calendar_api is not None:
+            result = self._unwrap_platform_calendar_result(
+                self._platform_calendar_api.calculate_working_day(
+                    SimpleNamespace(
+                        start_date=command.start_date,
+                        working_days=command.working_days,
+                    )
+                )
+            )
+            return SchedulingWorkingDayCalculationDto(
+                start_date=result.start_date,
+                working_days=result.working_days,
+                result_date=result.result_date,
+                skipped_non_working_days=result.skipped_non_working_days,
+            )
         engine = self._require_work_calendar_engine()
         result_date = engine.add_working_days(command.start_date, command.working_days)
         skipped_non_working = 0
@@ -566,15 +747,28 @@ class ProjectManagementSchedulingDesktopApi:
         baselines = list(self._baseline_service.list_baselines(normalized_project_id))
         baselines.sort(key=lambda baseline: baseline.created_at, reverse=True)
         return tuple(
-            SchedulingBaselineRowDto(
-                id=baseline.id,
-                name=baseline.name,
-                created_at=baseline.created_at.date() if hasattr(baseline.created_at, "date") else baseline.created_at,
-                created_at_label=baseline.created_at.strftime("%Y-%m-%d %H:%M"),
-                approved_by_label="System snapshot",
-                variance_state_label="Latest" if index == 0 else "Stored",
-            )
+            _serialize_baseline_row(baseline, index)
             for index, baseline in enumerate(baselines)
+        )
+
+    def submit_baseline(self, command: SchedulingBaselineSubmitCommand) -> None:
+        self._require_baseline_service().submit_baseline(
+            command.baseline_id,
+            command.submitted_by,
+            command.notes,
+        )
+
+    def approve_baseline(self, command: SchedulingBaselineApproveCommand) -> None:
+        self._require_baseline_service().approve_baseline(
+            command.baseline_id,
+            command.approved_by,
+            command.notes,
+        )
+
+    def reject_baseline(self, command: SchedulingBaselineRejectCommand) -> None:
+        self._require_baseline_service().reject_baseline(
+            command.baseline_id,
+            command.notes,
         )
 
     def create_baseline(
@@ -588,6 +782,37 @@ class ProjectManagementSchedulingDesktopApi:
         return SchedulingBaselineOptionDescriptor(
             value=baseline.id,
             label=f"{baseline.name} ({baseline.created_at.isoformat()})",
+        )
+
+    def list_baseline_variance_records(
+        self,
+        baseline_id: str,
+    ) -> tuple[SchedulingBaselineVarianceRowDto, ...]:
+        normalized_id = (baseline_id or "").strip()
+        if not normalized_id or self._baseline_service is None:
+            return ()
+        try:
+            records = self._baseline_service.list_variance_records(normalized_id)
+        except Exception:
+            return ()
+        return tuple(
+            SchedulingBaselineVarianceRowDto(
+                id=str(getattr(rec, "id", "") or ""),
+                project_id=str(getattr(rec, "project_id", "") or ""),
+                new_baseline_id=str(getattr(rec, "new_baseline_id", "") or ""),
+                superseded_baseline_id=str(getattr(rec, "superseded_baseline_id", "") or ""),
+                task_id=str(getattr(rec, "task_id", "") or ""),
+                task_name=str(getattr(rec, "task_name", "") or getattr(rec, "task_id", "")),
+                start_variance_days=int(getattr(rec, "start_variance_days", 0) or 0),
+                finish_variance_days=int(getattr(rec, "finish_variance_days", 0) or 0),
+                cost_variance=float(getattr(rec, "cost_variance", 0.0) or 0.0),
+                created_at=(
+                    rec.created_at.date()
+                    if hasattr(rec.created_at, "date")
+                    else getattr(rec, "created_at", None)
+                ),
+            )
+            for rec in records
         )
 
     def delete_baseline(self, baseline_id: str) -> None:
@@ -656,6 +881,59 @@ class ProjectManagementSchedulingDesktopApi:
             )
             for row in rows
         )
+
+    def list_constraint_violations(
+        self,
+        project_id: str,
+    ) -> tuple[SchedulingConstraintViolationDto, ...]:
+        normalized_project_id = (project_id or "").strip()
+        if (
+            not normalized_project_id
+            or self._scheduling_engine is None
+            or self._task_service is None
+            or self._work_calendar_engine is None
+        ):
+            return ()
+        try:
+            schedule = self._scheduling_engine.recalculate_project_schedule(
+                normalized_project_id, persist=False
+            )
+            tasks = self._task_service.list_tasks_for_project(normalized_project_id)
+            tasks_by_id = {task.id: task for task in tasks}
+            validator = ConstraintValidator(calendar=self._work_calendar_engine)
+            result = validator.validate(tasks_by_id, schedule)
+            hard_pairs = {
+                (v.task_id, v.constraint_type) for v in result.hard_violations
+            }
+            return tuple(
+                SchedulingConstraintViolationDto(
+                    task_id=v.task_id,
+                    task_name=v.task_name,
+                    constraint_type=str(getattr(v.constraint_type, "value", v.constraint_type)),
+                    constraint_type_label=str(
+                        getattr(v.constraint_type, "value", v.constraint_type)
+                    ).replace("_", " ").title(),
+                    constraint_date=v.constraint_date,
+                    constraint_date_label=(
+                        v.constraint_date.isoformat() if v.constraint_date else "-"
+                    ),
+                    computed_date=v.computed_date,
+                    computed_date_label=(
+                        v.computed_date.isoformat() if v.computed_date else "-"
+                    ),
+                    overrun_working_days=int(v.overrun_working_days or 0),
+                    message=v.message,
+                    severity="hard" if (v.task_id, v.constraint_type) in hard_pairs else "soft",
+                    severity_label=(
+                        "Hard Constraint"
+                        if (v.task_id, v.constraint_type) in hard_pairs
+                        else "Soft Constraint"
+                    ),
+                )
+                for v in result.violations
+            )
+        except Exception:
+            return ()
 
     def _list_schedule_from_tasks(
         self,
@@ -748,6 +1026,21 @@ class ProjectManagementSchedulingDesktopApi:
             raise RuntimeError("Project management scheduling desktop API is not connected.")
         return self._work_calendar_engine
 
+    @staticmethod
+    def _unwrap_platform_calendar_result(result):
+        if bool(getattr(result, "ok", False)):
+            return getattr(result, "data", None)
+        error = getattr(result, "error", None)
+        category = str(getattr(error, "category", "") or "").strip().lower()
+        message = str(getattr(error, "message", "") or "Platform calendar operation failed.")
+        if category == "validation":
+            raise ValueError(message)
+        if category == "permission":
+            raise PermissionError(message)
+        if message:
+            raise RuntimeError(message)
+        raise RuntimeError("Platform calendar operation failed.")
+
     def _require_scheduling_engine(self) -> SchedulingEngine:
         if self._scheduling_engine is None:
             raise RuntimeError("Project management scheduling desktop API is not connected.")
@@ -818,24 +1111,93 @@ class ProjectManagementSchedulingDesktopApi:
         )
 
 
+    def analyse_change_impact(
+        self,
+        project_id: str,
+        task_id: str,
+        proposed_start: "date | None" = None,
+        proposed_finish: "date | None" = None,
+        proposed_duration_days: "int | None" = None,
+    ) -> SchedulingChangeImpactDto | None:
+        if not task_id or not project_id or self._change_impact_service is None:
+            return None
+        try:
+            has_baseline = False
+            if self._baseline_service is not None:
+                try:
+                    has_baseline = self._baseline_service.get_approved_baseline(project_id) is not None
+                except Exception:
+                    pass
+            report = self._change_impact_service.analyse(
+                project_id=project_id,
+                changed_task_id=task_id,
+                proposed_start=proposed_start,
+                proposed_finish=proposed_finish,
+                proposed_duration_days=proposed_duration_days,
+                has_approved_baseline=has_baseline,
+            )
+        except Exception:
+            return None
+        return SchedulingChangeImpactDto(
+            task_id=task_id,
+            affected_count=int(report.max_project_finish_shift_days != 0) + len(report.affected_tasks),
+            max_project_finish_shift_days=int(report.max_project_finish_shift_days or 0),
+            requires_approval=bool(report.requires_approval),
+            newly_critical_count=len(report.newly_critical_task_ids or []),
+            no_longer_critical_count=len(report.no_longer_critical_task_ids or []),
+            affected_tasks=tuple(
+                SchedulingChangeImpactAffectedTaskDto(
+                    task_id=str(t.task_id or ""),
+                    task_name=str(getattr(t, "task_name", t.task_id) or t.task_id or "Task"),
+                    start_shift_days=int(getattr(t, "start_shift_days", 0) or 0),
+                    finish_shift_days=int(getattr(t, "finish_shift_days", 0) or 0),
+                    is_critical=bool(getattr(t, "is_critical", False)),
+                )
+                for t in (report.affected_tasks or [])[:20]
+            ),
+        )
+
+
 def build_project_management_scheduling_desktop_api(
     *,
     project_service: ProjectService | None = None,
     task_service: TaskService | None = None,
     scheduling_engine: SchedulingEngine | None = None,
+    platform_calendar_api: object | None = None,
     work_calendar_service: WorkCalendarService | None = None,
     work_calendar_engine: WorkCalendarEngine | None = None,
     baseline_service: BaselineService | None = None,
     reporting_service: ReportingService | None = None,
+    change_impact_service: ScheduleChangeImpactService | None = None,
 ) -> ProjectManagementSchedulingDesktopApi:
     return ProjectManagementSchedulingDesktopApi(
         project_service=project_service,
         task_service=task_service,
         scheduling_engine=scheduling_engine,
+        platform_calendar_api=platform_calendar_api,
         work_calendar_service=work_calendar_service,
         work_calendar_engine=work_calendar_engine,
         baseline_service=baseline_service,
         reporting_service=reporting_service,
+        change_impact_service=change_impact_service,
+    )
+
+
+def _serialize_baseline_row(baseline, index: int) -> SchedulingBaselineRowDto:
+    status_val = str(getattr(baseline.status, "value", baseline.status) or "draft")
+    status_label = status_val.replace("_", " ").title()
+    return SchedulingBaselineRowDto(
+        id=baseline.id,
+        name=baseline.name,
+        created_at=baseline.created_at.date() if hasattr(baseline.created_at, "date") else baseline.created_at,
+        created_at_label=baseline.created_at.strftime("%Y-%m-%d %H:%M"),
+        approved_by_label=str(getattr(baseline, "approved_by", "") or "System snapshot"),
+        variance_state_label="Latest" if index == 0 else "Stored",
+        status=status_val,
+        status_label=status_label,
+        can_submit=status_val == "draft",
+        can_approve=status_val == "submitted",
+        can_reject=status_val == "submitted",
     )
 
 
@@ -894,10 +1256,15 @@ def _resource_load_status_label(utilization_percent: float) -> str:
 
 __all__ = [
     "ProjectManagementSchedulingDesktopApi",
+    "SchedulingBaselineApproveCommand",
     "SchedulingBaselineComparisonRowDto",
+    "SchedulingBaselineVarianceRowDto",
     "SchedulingBaselineCreateCommand",
     "SchedulingBaselineOptionDescriptor",
+    "SchedulingBaselineRejectCommand",
     "SchedulingBaselineRowDto",
+    "SchedulingBaselineSubmitCommand",
+    "SchedulingConstraintViolationDto",
     "SchedulingCalendarOptionDescriptor",
     "SchedulingCalendarSnapshotDto",
     "SchedulingCalendarUpdateCommand",

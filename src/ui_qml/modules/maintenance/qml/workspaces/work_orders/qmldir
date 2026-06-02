@@ -1,0 +1,5 @@
+module Maintenance.WorkOrders
+WorkOrdersWorkspace 1.0 WorkOrdersWorkspace.qml
+WorkOrdersWorkspacePage 1.0 WorkOrdersWorkspacePage.qml
+WorkOrdersWorkspaceState 1.0 WorkOrdersWorkspaceState.qml
+WorkOrdersColumnConfig 1.0 WorkOrdersColumnConfig.js

@@ -8,6 +8,18 @@ Item {
 
     property PlatformControllers.PlatformAdminWorkspaceController workspaceController
 
+    // Keeps the dialog open and shows the backend error inside it on failure;
+    // clears and closes only on success. Mirrors the dialog-result handling in
+    // the other modules' dialog hosts.
+    function _handleResult(dialog, result) {
+        if (!result || result.ok === false) {
+            dialog.errorMessage = String((result && result.message) || "Operation failed. Please try again.")
+        } else {
+            dialog.errorMessage = ""
+            dialog.close()
+        }
+    }
+
     function openOrganizationCreate() {
         if (root.workspaceController === null) {
             return
@@ -25,6 +37,14 @@ Item {
 
     function openSiteEdit(state) {
         siteDialog.openForEdit(state || {})
+    }
+
+    function openWorkingCalendarEdit(state) {
+        workingCalendarDialog.openForEdit(state || {})
+    }
+
+    function openWorkingCalendarHolidayCreate() {
+        workingCalendarHolidayDialog.openForCreate()
     }
 
     function openDepartmentCreate() {
@@ -139,6 +159,7 @@ Item {
         id: organizationDialog
 
         parent: Overlay.overlay
+        workspaceController: root.workspaceController
 
         onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
@@ -147,9 +168,7 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createOrganization(payload)
                 : root.workspaceController.updateOrganization(payload)
-            if (result.ok) {
-                organizationDialog.close()
-            }
+            root._handleResult(organizationDialog, result)
         }
     }
 
@@ -157,6 +176,7 @@ Item {
         id: siteDialog
 
         parent: Overlay.overlay
+        workspaceController: root.workspaceController
 
         onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
@@ -165,9 +185,35 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createSite(payload)
                 : root.workspaceController.updateSite(payload)
-            if (result.ok) {
-                siteDialog.close()
+            root._handleResult(siteDialog, result)
+        }
+    }
+
+    PlatformDialogs.WorkingCalendarEditorDialog {
+        id: workingCalendarDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(payload) {
+            if (root.workspaceController === null) {
+                return
             }
+            const result = root.workspaceController.updateCalendar(payload)
+            root._handleResult(workingCalendarDialog, result)
+        }
+    }
+
+    PlatformDialogs.WorkingCalendarHolidayDialog {
+        id: workingCalendarHolidayDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.addCalendarHoliday(payload)
+            root._handleResult(workingCalendarHolidayDialog, result)
         }
     }
 
@@ -175,6 +221,7 @@ Item {
         id: departmentDialog
 
         parent: Overlay.overlay
+        workspaceController: root.workspaceController
 
         onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
@@ -183,9 +230,7 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createDepartment(payload)
                 : root.workspaceController.updateDepartment(payload)
-            if (result.ok) {
-                departmentDialog.close()
-            }
+            root._handleResult(departmentDialog, result)
         }
     }
 
@@ -193,6 +238,7 @@ Item {
         id: employeeDialog
 
         parent: Overlay.overlay
+        workspaceController: root.workspaceController
 
         onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
@@ -201,9 +247,7 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createEmployee(payload)
                 : root.workspaceController.updateEmployee(payload)
-            if (result.ok) {
-                employeeDialog.close()
-            }
+            root._handleResult(employeeDialog, result)
         }
     }
 
@@ -219,9 +263,7 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createUser(payload)
                 : root.workspaceController.updateUser(payload)
-            if (result.ok) {
-                userDialog.close()
-            }
+            root._handleResult(userDialog, result)
         }
     }
 
@@ -229,6 +271,7 @@ Item {
         id: partyDialog
 
         parent: Overlay.overlay
+        workspaceController: root.workspaceController
 
         onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
@@ -237,9 +280,7 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createParty(payload)
                 : root.workspaceController.updateParty(payload)
-            if (result.ok) {
-                partyDialog.close()
-            }
+            root._handleResult(partyDialog, result)
         }
     }
 
@@ -247,6 +288,7 @@ Item {
         id: documentDialog
 
         parent: Overlay.overlay
+        workspaceController: root.workspaceController
 
         onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
@@ -255,9 +297,7 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createDocument(payload)
                 : root.workspaceController.updateDocument(payload)
-            if (result.ok) {
-                documentDialog.close()
-            }
+            root._handleResult(documentDialog, result)
         }
     }
 
@@ -271,9 +311,7 @@ Item {
                 return
             }
             const result = root.workspaceController.addDocumentLink(payload)
-            if (result.ok) {
-                documentLinkDialog.close()
-            }
+            root._handleResult(documentLinkDialog, result)
         }
     }
 
@@ -281,6 +319,7 @@ Item {
         id: documentStructureDialog
 
         parent: Overlay.overlay
+        workspaceController: root.workspaceController
 
         onSaveRequested: function(mode, payload) {
             if (root.workspaceController === null) {
@@ -289,9 +328,7 @@ Item {
             const result = mode === "create"
                 ? root.workspaceController.createDocumentStructure(payload)
                 : root.workspaceController.updateDocumentStructure(payload)
-            if (result.ok) {
-                documentStructureDialog.close()
-            }
+            root._handleResult(documentStructureDialog, result)
         }
     }
 }

@@ -187,6 +187,12 @@ class SchedulingWorkspaceViewModel:
             subtitle="",
         )
     )
+    constraint_violations: SchedulingCollectionViewModel = field(
+        default_factory=lambda: SchedulingCollectionViewModel(
+            title="Constraint Violations",
+            subtitle="",
+        )
+    )
     activity_feed: SchedulingCollectionViewModel = field(
         default_factory=lambda: SchedulingCollectionViewModel(
             title="Planning Activity",

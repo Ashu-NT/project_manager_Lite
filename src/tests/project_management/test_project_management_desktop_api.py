@@ -61,7 +61,6 @@ EXPECTED_PM_WORKSPACE_KEYS = [
     "scheduling",
     "resources",
     "financials",
-    "risk",
     "portfolio",
     "register",
     "collaboration",
@@ -385,6 +384,9 @@ def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> N
         "Earned Value (EVM)",
         "Register Summary",
         "Cost Sources",
+        "Baseline Variance",
+        "Resource Overloads",
+        "Available Reports",
     ]
     assert snapshot.panels[0].hint == "As of 2026-04-30 (baseline: Weekly Freeze (2026-04-27 10:30))"
     assert snapshot.panels[0].metrics[0].label == "CPI"
@@ -408,6 +410,7 @@ def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> N
         "Critical Path",
         "Upcoming Work",
         "Urgent Register Items",
+        "Reports",
     ]
     assert snapshot.sections[0].items[0].title == "Owner assignment missing on punchlist"
     assert snapshot.sections[2].items[0].meta_text == "Late by 2 day(s)"
@@ -1647,6 +1650,7 @@ class _FakeProjectService:
         *,
         name: str,
         description: str = "",
+        status: "ProjectStatus | None" = None,
         client_name: str | None = None,
         client_contact: str | None = None,
         planned_budget: float | None = None,
@@ -1660,7 +1664,7 @@ class _FakeProjectService:
             description=description,
             start_date=start_date,
             end_date=end_date,
-            status=ProjectStatus.PLANNED,
+            status=status if status is not None else ProjectStatus.PLANNED,
             client_name=client_name,
             client_contact=client_contact,
             planned_budget=planned_budget,
@@ -1982,12 +1986,14 @@ class _FakeResourceService:
         contact: str = "",
         worker_type: WorkerType = WorkerType.EXTERNAL,
         employee_id: str | None = None,
+        code: str = "",
     ) -> SimpleNamespace:
         employee = self._employee_service.get_employee(employee_id) if employee_id else None
         resource = SimpleNamespace(
             id=f"res-{self._next_id}",
             name=employee.full_name if employee is not None else name,
             role=employee.title if employee is not None else role,
+            code=code or f"RES-{self._next_id:04d}",
             hourly_rate=hourly_rate,
             is_active=is_active,
             cost_type=cost_type,
@@ -2019,8 +2025,11 @@ class _FakeResourceService:
         worker_type: WorkerType | None = None,
         employee_id: str | None = None,
         expected_version: int | None = None,
+        code: str | None = None,
     ) -> SimpleNamespace:
         resource = self._resources[resource_id]
+        if code is not None and code.strip():
+            resource.code = code
         if name is not None:
             resource.name = name
         if role is not None:
@@ -2134,12 +2143,14 @@ class _FakeRegisterService:
         due_date: date | None = None,
         impact_summary: str = "",
         response_plan: str = "",
+        code: str = "",
     ) -> SimpleNamespace:
         entry = SimpleNamespace(
             id=f"reg-{self._next_id}",
             project_id=project_id,
             entry_type=entry_type,
             title=title,
+            code=code or f"REG-{self._next_id:04d}",
             description=description,
             severity=severity,
             status=status,
@@ -2167,8 +2178,11 @@ class _FakeRegisterService:
         due_date: date | None = None,
         impact_summary: str | None = None,
         response_plan: str | None = None,
+        code: str | None = None,
     ) -> SimpleNamespace:
         entry = self._entries[entry_id]
+        if code is not None and code.strip():
+            entry.code = code
         if entry_type is not None:
             entry.entry_type = entry_type
         if title is not None:
@@ -2215,6 +2229,7 @@ class _FakeTaskService:
         *,
         project_id: str,
         name: str,
+        code: str = "",
         description: str = "",
         start_date: date | None = None,
         duration_days: int | None = None,
@@ -2225,6 +2240,7 @@ class _FakeTaskService:
             id=f"task-{self._next_id}",
             project_id=project_id,
             name=name,
+            code=code,
             description=description,
             start_date=start_date,
             end_date=_derive_end_date(start_date, duration_days),
@@ -2349,6 +2365,7 @@ class _FakeTaskService:
         *,
         expected_version: int | None = None,
         name: str | None = None,
+        code: str | None = None,
         description: str | None = None,
         status: TaskStatus | None = None,
         start_date: date | None = None,
@@ -2359,6 +2376,8 @@ class _FakeTaskService:
         task = self._tasks[task_id]
         if name is not None:
             task.name = name
+        if code is not None and code:
+            task.code = code
         if description is not None:
             task.description = description
         if status is not None:
@@ -3022,12 +3041,14 @@ class _FakeCostService:
         actual_amount: float = 0.0,
         incurred_date: date | None = None,
         currency_code: str | None = None,
+        code: str = "",
     ) -> SimpleNamespace:
         item = SimpleNamespace(
             id=f"cost-{self._next_id}",
             project_id=project_id,
             task_id=task_id,
             description=description,
+            code=code or f"CST-{self._next_id:04d}",
             planned_amount=planned_amount,
             committed_amount=committed_amount,
             actual_amount=actual_amount,
@@ -3052,8 +3073,11 @@ class _FakeCostService:
         incurred_date: date | None = None,
         currency_code: str | None = None,
         expected_version: int | None = None,
+        code: str | None = None,
     ) -> SimpleNamespace:
         item = self._items[cost_id]
+        if code is not None and code.strip():
+            item.code = code
         if description is not None:
             item.description = description
         if planned_amount is not None:

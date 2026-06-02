@@ -4,20 +4,26 @@ from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementResourcesDesktopApi,
+    ResourceAddCertificationCommand,
+    ResourceAddSkillCommand,
     ResourceCreateCommand,
     ResourceUpdateCommand,
     build_project_management_resources_desktop_api,
 )
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.ui_qml.modules.project_management.view_models.resources import (
+    ResourceAvailabilityDayViewModel,
+    ResourceAvailabilityViewModel,
     ResourceCatalogMetricViewModel,
     ResourceCatalogOverviewViewModel,
     ResourceCatalogWorkspaceViewModel,
+    ResourceCertificationViewModel,
     ResourceDetailFieldViewModel,
     ResourceDetailViewModel,
     ResourceEmployeeOptionViewModel,
     ResourceRecordViewModel,
     ResourceSelectorOptionViewModel,
+    ResourceSkillViewModel,
 )
 
 
@@ -110,6 +116,7 @@ class ProjectResourcesWorkspacePresenter:
             ),
             selected_resource_id=resolved_selected_resource_id,
             selected_resource_detail=self._build_detail_view_model(selected_resource),
+            resource_availability=self._build_availability_view_model(resolved_selected_resource_id),
             empty_state=self._build_empty_state(
                 all_resources=all_resources,
                 filtered_resources=filtered_resources,
@@ -122,9 +129,26 @@ class ProjectResourcesWorkspacePresenter:
             page_size=_page_size,
         )
 
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique resource code (global, RES-<NAME>-NNNN)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        existing = {
+            str(getattr(row, "code", "") or "").upper()
+            for row in self._desktop_api.list_resources()
+        }
+        name = self._optional_text(payload, "name")
+        return CodeGenerator().generate(
+            "resource",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def create_resource(self, payload: dict[str, Any]) -> None:
         command = ResourceCreateCommand(
             name=self._optional_text(payload, "name") or "",
+            code=self._optional_text(payload, "resourceCode"),
             role=self._optional_text(payload, "role") or "",
             hourly_rate=self._optional_float(payload, "hourlyRate", "Hourly rate must be a valid number.", default=0.0),
             is_active=self._optional_bool(payload, "isActive", default=True),
@@ -146,6 +170,7 @@ class ProjectResourcesWorkspacePresenter:
                 "Resource ID is required for updates.",
             ),
             name=self._optional_text(payload, "name") or "",
+            code=self._optional_text(payload, "resourceCode"),
             role=self._optional_text(payload, "role") or "",
             hourly_rate=self._optional_float(payload, "hourlyRate", "Hourly rate must be a valid number.", default=0.0),
             is_active=self._optional_bool(payload, "isActive", default=True),
@@ -229,6 +254,20 @@ class ProjectResourcesWorkspacePresenter:
                 empty_state="Select a resource from the catalog to review details or edit its setup.",
             )
         state = self._build_resource_state(resource)
+        # Enrich state with activity feed built from assignments
+        try:
+            assignments = self._desktop_api.list_resource_assignments(resource.id)
+            activity_items = [
+                {
+                    "title": f"Assigned to {a.task_name}",
+                    "metaText": a.project_name or "",
+                    "statusLabel": a.allocation_label,
+                }
+                for a in assignments
+            ]
+        except Exception:
+            activity_items = []
+        state = {**state, "activityItems": activity_items}
         subtitle_parts = [state["role"], state["employeeContext"]]
         subtitle_values = [part for part in subtitle_parts if part and part != "-"]
         if not subtitle_values:
@@ -279,6 +318,55 @@ class ProjectResourcesWorkspacePresenter:
             state=state,
         )
 
+    def build_resource_assignments(self, resource_id: str) -> list[dict[str, object]]:
+        normalized_id = (resource_id or "").strip()
+        if not normalized_id:
+            return []
+        assignments = self._desktop_api.list_resource_assignments(normalized_id)
+        return [
+            {
+                "id": a.id,
+                "title": a.task_name,
+                "subtitle": a.project_name or "—",
+                "statusLabel": a.allocation_label,
+                "metaText": a.hours_label,
+                "supportingText": a.project_name,
+                "state": {
+                    "taskId": a.task_id,
+                    "projectId": a.project_id,
+                    "allocationPercent": a.allocation_percent,
+                    "hoursLogged": a.hours_logged,
+                },
+            }
+            for a in assignments
+        ]
+
+    def _build_availability_view_model(self, resource_id: str) -> ResourceAvailabilityViewModel:
+        if not resource_id:
+            return ResourceAvailabilityViewModel()
+        dto = self._desktop_api.build_resource_availability(resource_id)
+        if dto is None:
+            return ResourceAvailabilityViewModel(resource_id=resource_id)
+        return ResourceAvailabilityViewModel(
+            resource_id=dto.resource_id,
+            peak_load_percent=dto.peak_load_percent,
+            average_load_percent=dto.average_load_percent,
+            overloaded_days=dto.overloaded_days,
+            available_days=dto.available_days,
+            is_available=dto.is_available,
+            from_date_label=dto.from_date_label,
+            to_date_label=dto.to_date_label,
+            days=tuple(
+                ResourceAvailabilityDayViewModel(
+                    date_label=d.date_label,
+                    allocation_percent=d.allocation_percent,
+                    allocation_label=d.allocation_label,
+                    overloaded=d.overloaded,
+                )
+                for d in dto.days
+            ),
+        )
+
     def _to_resource_record_view_model(self, resource) -> ResourceRecordViewModel:
         state = self._build_resource_state(resource)
         subtitle_parts = [state["role"], state["workerTypeLabel"]]
@@ -305,6 +393,7 @@ class ProjectResourcesWorkspacePresenter:
         return {
             "resourceId": resource.id,
             "name": resource.name,
+            "resourceCode": getattr(resource, "code", "") or "",
             "role": resource.role or "",
             "workerType": resource.worker_type,
             "workerTypeLabel": resource.worker_type_label,
@@ -439,6 +528,81 @@ class ProjectResourcesWorkspacePresenter:
         if isinstance(value, bool):
             return value
         return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+    def build_skills_state(self, resource_id: str) -> tuple[ResourceSkillViewModel, ...]:
+        if not resource_id:
+            return ()
+        try:
+            skills = self._desktop_api.list_resource_skills(resource_id)
+        except Exception:
+            return ()
+        return tuple(
+            ResourceSkillViewModel(
+                id=s.id,
+                skill_code=s.skill_code,
+                skill_name=s.skill_name,
+                proficiency=s.proficiency,
+                proficiency_label=s.proficiency_label,
+                notes=s.notes,
+            )
+            for s in skills
+        )
+
+    def build_certifications_state(self, resource_id: str) -> tuple[ResourceCertificationViewModel, ...]:
+        if not resource_id:
+            return ()
+        try:
+            certs = self._desktop_api.list_resource_certifications(resource_id)
+        except Exception:
+            return ()
+        return tuple(
+            ResourceCertificationViewModel(
+                id=c.id,
+                certification_code=c.certification_code,
+                certification_name=c.certification_name,
+                issued_date=c.issued_date or "",
+                expiry_date=c.expiry_date or "",
+                issuing_body=c.issuing_body,
+                notes=c.notes,
+                cert_status=c.cert_status,
+                cert_status_label=c.cert_status.replace("-", " ").title(),
+            )
+            for c in certs
+        )
+
+    def add_skill(self, resource_id: str, payload: dict[str, Any]) -> None:
+        command = ResourceAddSkillCommand(
+            resource_id=resource_id,
+            skill_code=self._require_text(payload, "skillCode", "Skill code is required."),
+            skill_name=self._optional_text(payload, "skillName") or payload.get("skillCode", ""),
+            proficiency=self._optional_text(payload, "proficiency") or "intermediate",
+            notes=self._optional_text(payload, "notes") or "",
+        )
+        self._desktop_api.add_resource_skill(command)
+
+    def remove_skill(self, skill_id: str) -> None:
+        normalized = (skill_id or "").strip()
+        if not normalized:
+            raise ValueError("Skill ID is required.")
+        self._desktop_api.remove_resource_skill(normalized)
+
+    def add_certification(self, resource_id: str, payload: dict[str, Any]) -> None:
+        command = ResourceAddCertificationCommand(
+            resource_id=resource_id,
+            certification_code=self._require_text(payload, "certCode", "Certification code is required."),
+            certification_name=self._optional_text(payload, "certName") or payload.get("certCode", ""),
+            issued_date=self._optional_text(payload, "issuedDate"),
+            expiry_date=self._optional_text(payload, "expiryDate"),
+            issuing_body=self._optional_text(payload, "issuingBody") or "",
+            notes=self._optional_text(payload, "notes") or "",
+        )
+        self._desktop_api.add_resource_certification(command)
+
+    def remove_certification(self, cert_id: str) -> None:
+        normalized = (cert_id or "").strip()
+        if not normalized:
+            raise ValueError("Certification ID is required.")
+        self._desktop_api.remove_resource_certification(normalized)
 
 
 __all__ = ["ProjectResourcesWorkspacePresenter"]

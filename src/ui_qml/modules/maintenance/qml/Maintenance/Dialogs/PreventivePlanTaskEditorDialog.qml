@@ -1,8 +1,10 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
-AppControls.CenteredDialog {
+import App.Widgets 1.0 as AppWidgets
+import App.Theme 1.0 as Theme
+
+AppWidgets.EntityDialog {
     id: root
 
     property var formOptions: ({})
@@ -12,11 +14,14 @@ AppControls.CenteredDialog {
 
     signal saveRequested(var payload)
 
-    modal: true
-    focus: true
+    title:       root.editing ? "Edit Plan Task" : "New Plan Task"
+    subtitle:    "Configure task parameters within the preventive maintenance plan."
+    primaryText: root.editing ? "Save Changes" : "Add Task"
+    primaryIcon: root.editing ? "save" : "add"
     width: 680
-    height: 620
-    title: root.editing ? "Edit Plan Task" : "New Plan Task"
+
+    onAccepted: root.saveRequested(buildPayload())
+    onRejected: root.close()
 
     function optionsFor(key) {
         return root.formOptions && root.formOptions[key] ? root.formOptions[key] : []
@@ -107,67 +112,92 @@ AppControls.CenteredDialog {
         }
     }
 
-    standardButtons: Dialog.Ok | Dialog.Cancel
-    onAccepted: root.saveRequested(buildPayload())
+    // ── Form content ──────────────────────────────────────────────────────────
 
-    contentItem: ScrollView {
-        clip: true
+    GridLayout {
+        Layout.fillWidth: true
+        columns: 2
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
 
-        ColumnLayout {
-            width: parent.width
-            spacing: 12
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Task Template"
+            AppControls.ComboBox { id: taskTemplateCombo; Layout.fillWidth: true; model: root.optionsFor("taskTemplateOptions"); textRole: "label" }
+        }
 
-            GridLayout {
-                Layout.fillWidth: true
-                columns: 2
-                columnSpacing: 12
-                rowSpacing: 12
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Sequence"
+            AppControls.TextField { id: sequenceNoField; Layout.fillWidth: true; placeholderText: "1" }
+        }
 
-                AppControls.Label { text: "Task Template" }
-                AppControls.ComboBox { id: taskTemplateCombo; Layout.fillWidth: true; model: root.optionsFor("taskTemplateOptions"); textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Trigger Scope"
+            AppControls.ComboBox { id: triggerScopeCombo; Layout.fillWidth: true; model: root.optionsFor("triggerScopeOptions"); textRole: "label" }
+        }
 
-                AppControls.Label { text: "Sequence" }
-                AppControls.TextField { id: sequenceNoField; Layout.fillWidth: true; placeholderText: "1" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Trigger Mode Override"
+            AppControls.ComboBox { id: triggerModeOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("triggerModeOptions"); textRole: "label" }
+        }
 
-                AppControls.Label { text: "Trigger Scope" }
-                AppControls.ComboBox { id: triggerScopeCombo; Layout.fillWidth: true; model: root.optionsFor("triggerScopeOptions"); textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Calendar Unit Override"
+            AppControls.ComboBox { id: calendarUnitOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("calendarFrequencyUnitOptions"); textRole: "label" }
+        }
 
-                AppControls.Label { text: "Trigger Mode Override" }
-                AppControls.ComboBox { id: triggerModeOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("triggerModeOptions"); textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Calendar Value Override"
+            AppControls.TextField { id: calendarValueOverrideField; Layout.fillWidth: true; placeholderText: "Optional" }
+        }
 
-                AppControls.Label { text: "Calendar Unit Override" }
-                AppControls.ComboBox { id: calendarUnitOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("calendarFrequencyUnitOptions"); textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Sensor Override"
+            AppControls.ComboBox { id: sensorOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("sensorOptions"); textRole: "label" }
+        }
 
-                AppControls.Label { text: "Calendar Value Override" }
-                AppControls.TextField { id: calendarValueOverrideField; Layout.fillWidth: true; placeholderText: "Optional" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Sensor Threshold Override"
+            AppControls.TextField { id: sensorThresholdOverrideField; Layout.fillWidth: true; placeholderText: "Optional" }
+        }
 
-                AppControls.Label { text: "Sensor Override" }
-                AppControls.ComboBox { id: sensorOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("sensorOptions"); textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Sensor Direction Override"
+            AppControls.ComboBox { id: sensorDirectionOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("sensorDirectionOptions"); textRole: "label" }
+        }
 
-                AppControls.Label { text: "Sensor Threshold Override" }
-                AppControls.TextField { id: sensorThresholdOverrideField; Layout.fillWidth: true; placeholderText: "Optional" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Assigned Team"
+            AppControls.TextField { id: assignedTeamField; Layout.fillWidth: true; placeholderText: "MECH-A" }
+        }
 
-                AppControls.Label { text: "Sensor Direction Override" }
-                AppControls.ComboBox { id: sensorDirectionOverrideCombo; Layout.fillWidth: true; model: root.optionsFor("sensorDirectionOptions"); textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Estimated Minutes Override"
+            AppControls.TextField { id: estimateField; Layout.fillWidth: true; placeholderText: "45" }
+        }
+    }
 
-                AppControls.Label { text: "Assigned Team" }
-                AppControls.TextField { id: assignedTeamField; Layout.fillWidth: true; placeholderText: "MECH-A" }
+    AppControls.CheckBox { id: mandatoryCheck; text: "Mandatory" }
 
-                AppControls.Label { text: "Estimated Minutes Override" }
-                AppControls.TextField { id: estimateField; Layout.fillWidth: true; placeholderText: "45" }
-            }
-
-            AppControls.CheckBox { id: mandatoryCheck; text: "Mandatory" }
-
-            AppControls.Label { text: "Notes" }
-            AppControls.TextArea {
-                id: notesArea
-                Layout.fillWidth: true
-                Layout.preferredHeight: 100
-                placeholderText: "Override notes, trigger comments, or crew instructions."
-                wrapMode: TextEdit.WordWrap
-            }
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesArea
+            Layout.fillWidth: true
+            Layout.preferredHeight: 100
+            placeholderText: "Override notes, trigger comments, or crew instructions."
+            wrapMode: TextEdit.WordWrap
         }
     }
 }
-

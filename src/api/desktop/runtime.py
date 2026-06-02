@@ -9,6 +9,7 @@ from src.api.desktop.platform import (
     PlatformAccessDesktopApi,
     PlatformApprovalDesktopApi,
     PlatformAuditDesktopApi,
+    PlatformCalendarDesktopApi,
     PlatformSupportDesktopApi,
 )
 from src.api.desktop.platform import (
@@ -113,6 +114,9 @@ from src.application.runtime.platform_runtime import (
 from src.core.modules.project_management.application.scheduling.baseline_service import (
     BaselineService,
 )
+from src.core.modules.project_management.application.scheduling.schedule_change_impact_service import (
+    ScheduleChangeImpactService,
+)
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import FinanceService
 from src.core.modules.project_management.application.projects import (
@@ -121,20 +125,24 @@ from src.core.modules.project_management.application.projects import (
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.resources import (
+    PortfolioResourcePoolService,
     ProjectResourceService,
+    ResourceAvailabilityService,
     ResourceService,
     TimesheetService,
 )
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
-    WorkCalendarEngine,
-    WorkCalendarService,
 )
 from src.core.modules.project_management.application.tasks import (
     CollaborationService,
     TaskService,
 )
+from src.core.modules.project_management.application.resources.assignment_validation import (
+    AssignmentSkillValidator,
+)
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
+from src.core.platform.calendar import WorkCalendarEngine, WorkCalendarService
 from src.core.platform.access import AccessControlService
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.approval import ApprovalService
@@ -149,6 +157,7 @@ from src.core.platform.party import PartyService
 class DesktopApiRegistry:
     integration_capability: IntegrationCapabilityDesktopApi
     platform_runtime: PlatformRuntimeDesktopApi
+    platform_calendar: PlatformCalendarDesktopApi
     platform_site: PlatformSiteDesktopApi
     platform_department: PlatformDepartmentDesktopApi
     platform_employee: PlatformEmployeeDesktopApi
@@ -185,6 +194,23 @@ class DesktopApiRegistry:
     maintenance_reliability: MaintenanceReliabilityDesktopApi
     maintenance_work_requests: MaintenanceWorkRequestsDesktopApi
     maintenance_work_orders: MaintenanceWorkOrdersDesktopApi
+
+
+def _build_schedule_change_impact_service(
+    task_service: TaskService | None,
+    calendar: WorkCalendarEngine | None,
+) -> ScheduleChangeImpactService | None:
+    if task_service is None or calendar is None:
+        return None
+    task_repo = getattr(task_service, "_task_repo", None)
+    dependency_repo = getattr(task_service, "_dependency_repo", None)
+    if task_repo is None or dependency_repo is None:
+        return None
+    return ScheduleChangeImpactService(
+        task_repo=task_repo,
+        dependency_repo=dependency_repo,
+        calendar=calendar,
+    )
 
 
 def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegistry:
@@ -353,6 +379,18 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     pm_resource_service = (
         resource_service if isinstance(resource_service, ResourceService) else None
     )
+    _raw_availability_service = services.get("resource_availability_service")
+    pm_availability_service = (
+        _raw_availability_service
+        if isinstance(_raw_availability_service, ResourceAvailabilityService)
+        else None
+    )
+    _raw_pool_service = services.get("portfolio_resource_pool_service")
+    pm_pool_service = (
+        _raw_pool_service
+        if isinstance(_raw_pool_service, PortfolioResourcePoolService)
+        else None
+    )
     project_resource_service = services.get("project_resource_service")
     pm_project_resource_service = (
         project_resource_service
@@ -364,6 +402,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         timesheet_service if isinstance(timesheet_service, TimesheetService) else None
     )
     pm_task_service = task_service if isinstance(task_service, TaskService) else None
+    pm_assignment_skill_validator = services.get("assignment_skill_validator")
+    if not isinstance(pm_assignment_skill_validator, AssignmentSkillValidator):
+        pm_assignment_skill_validator = None
     pm_scheduling_engine = services.get("scheduling_engine")
     if not isinstance(pm_scheduling_engine, SchedulingEngine):
         pm_scheduling_engine = None
@@ -434,6 +475,12 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         else None
     )
     platform_site_api = PlatformSiteDesktopApi(site_service=site_service)
+    if pm_work_calendar_service is None or pm_work_calendar_engine is None:
+        raise RuntimeError("Platform calendar services are not configured.")
+    platform_calendar_api = PlatformCalendarDesktopApi(
+        work_calendar_service=pm_work_calendar_service,
+        work_calendar_engine=pm_work_calendar_engine,
+    )
     access_scope_type_choices: list[tuple[str, str]] = []
     access_scope_option_loaders: dict[str, object] = {}
     access_scope_disabled_hints: dict[str, str] = {}
@@ -450,6 +497,21 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         access_scope_option_loaders["storeroom"] = lambda: [
             (f"{storeroom.storeroom_code} - {storeroom.name}", storeroom.id)
             for storeroom in inventory_service.list_storerooms()
+        ]
+    # Maintenance scopes — asset-level and location-level access grants
+    _maint_asset_service = services.get("maintenance_asset_service")
+    _maint_location_service = services.get("maintenance_location_service")
+    if _maint_asset_service is not None and hasattr(_maint_asset_service, "list_assets"):
+        access_scope_type_choices.append(("Asset", "maintenance"))
+        access_scope_option_loaders["maintenance"] = lambda: [
+            (f"{a.name} ({a.asset_code})", a.id)
+            for a in _maint_asset_service.list_assets()
+        ]
+    elif _maint_location_service is not None and hasattr(_maint_location_service, "list_locations"):
+        access_scope_type_choices.append(("Maintenance Location", "maintenance"))
+        access_scope_option_loaders["maintenance"] = lambda: [
+            (loc.name, loc.id)
+            for loc in _maint_location_service.list_locations()
         ]
     register_desktop_api = build_project_management_register_desktop_api(
         project_service=pm_project_service,
@@ -477,6 +539,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         platform_runtime=PlatformRuntimeDesktopApi(
             platform_runtime_application_service=platform_runtime_application_service,
         ),
+        platform_calendar=platform_calendar_api,
         platform_site=platform_site_api,
         platform_department=PlatformDepartmentDesktopApi(
             department_service=department_service,
@@ -536,28 +599,41 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             ),
             finance_service=pm_finance_service,
             procurement_service=inventory_procurement_desktop_service,
+            baseline_service=pm_baseline_service,
         ),
         project_management_portfolio=build_project_management_portfolio_desktop_api(
             project_service=pm_project_service,
             portfolio_service=pm_portfolio_service,
+            pool_service=pm_pool_service,
         ),
         project_management_projects=build_project_management_projects_desktop_api(
             project_service=pm_project_service,
+            project_resource_service=pm_project_resource_service,
+            resource_service=pm_resource_service,
         ),
         project_management_register=register_desktop_api,
         project_management_risk=register_desktop_api,
         project_management_resources=build_project_management_resources_desktop_api(
             resource_service=pm_resource_service,
             employee_service=employee_service,
+            availability_service=pm_availability_service,
+            task_service=pm_task_service,
+            assignment_repo=getattr(pm_task_service, "_assignment_repo", None),
+            project_service=pm_project_service,
+            work_calendar_engine=pm_work_calendar_engine,
         ),
         project_management_scheduling=build_project_management_scheduling_desktop_api(
             project_service=pm_project_service,
             task_service=pm_task_service,
             scheduling_engine=pm_scheduling_engine,
+            platform_calendar_api=platform_calendar_api,
             work_calendar_service=pm_work_calendar_service,
             work_calendar_engine=pm_work_calendar_engine,
             baseline_service=pm_baseline_service,
             reporting_service=pm_reporting_service,
+            change_impact_service=_build_schedule_change_impact_service(
+                pm_task_service, pm_work_calendar_engine
+            ),
         ),
         project_management_tasks=build_project_management_tasks_desktop_api(
             project_service=pm_project_service,
@@ -565,6 +641,10 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             project_resource_service=pm_project_resource_service,
             resource_service=pm_resource_service,
             reservation_service=inventory_reservation_desktop_service,
+            assignment_skill_validator=pm_assignment_skill_validator,
+            schedule_change_impact_service=_build_schedule_change_impact_service(
+                pm_task_service, pm_work_calendar_engine
+            ),
         ),
         project_management_timesheets=build_project_management_timesheets_desktop_api(
             project_service=pm_project_service,

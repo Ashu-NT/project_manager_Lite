@@ -1,0 +1,7 @@
+module Platform.SettingsSections
+SettingsRuntimeSection 1.0 SettingsRuntimeSection.qml
+SettingsModulesSection 1.0 SettingsModulesSection.qml
+SettingsDefaultsSection 1.0 SettingsDefaultsSection.qml
+SettingsIntegrationsSection 1.0 SettingsIntegrationsSection.qml
+SettingsSecuritySection 1.0 SettingsSecuritySection.qml
+SettingsSysInfoSection 1.0 SettingsSysInfoSection.qml

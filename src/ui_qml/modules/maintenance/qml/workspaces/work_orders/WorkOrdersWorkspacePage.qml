@@ -8,6 +8,9 @@ import App.Theme 1.0 as Theme
 import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
 import App.Controls 1.0 as AppControls
+import "dialogs" as Dialogs
+import "sections" as Sections
+import "panels" as Panels
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -78,7 +81,7 @@ AppLayouts.WorkspaceFrame {
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            WorkOrdersDialogHost {
+            Dialogs.WorkOrdersDialogHost {
 
         siteOptions: root.workspaceController ? (root.workspaceController.formSiteOptions || []) : []
         locationOptions: root.workspaceController ? (root.workspaceController.formLocationOptions || []) : []
@@ -92,12 +95,8 @@ AppLayouts.WorkspaceFrame {
         statusOptions: root.workspaceController ? (root.workspaceController.formStatusOptions || []) : []
         vendorOptions: root.workspaceController ? (root.workspaceController.formVendorOptions || []) : []
 
-                onCreateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createWorkOrder(payload)
-                }
-                onUpdateRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateWorkOrder(payload)
-                }
+                workspaceController: root.workspaceController
+
                 onStatusChangeRequested: function(workOrderId, statusValue, expectedVersion) {
                     if (root.workspaceController !== null)
                         root.workspaceController.setWorkOrderStatus(workOrderId, statusValue, expectedVersion)
@@ -162,7 +161,7 @@ AppLayouts.WorkspaceFrame {
                 id: workOrdersTable
                 anchors.fill: parent
                 columns: root._tableColumns
-                rows: root.workOrdersModel.items || []
+                sourceModel: root.workspaceController ? root.workspaceController.workOrdersTableModel : null
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedWorkOrderId : ""
                 showFilter: true
 
@@ -176,9 +175,7 @@ AppLayouts.WorkspaceFrame {
                 onViewDetailRequested: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectWorkOrder(rowId)
                     detailPage.open = true
-                }
-                onSortRequested: function(key) {}
-            }
+                }            }
 
             AppWidgets.AnchoredPopup {
                 id: filterPopup
@@ -300,7 +297,24 @@ AppLayouts.WorkspaceFrame {
                 onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedWorkOrderModel)
                 onDeleteRequested: detailPage.open = false
 
-                WorkOrderDetailSection {
+                // ── Detail-scoped messages ─────────────────────────
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: detailPage.open
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                }
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: detailPage.open
+                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                    tone: "success"
+                    message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+                }
+
+                Panels.WorkOrderDetailPanel {
                     width: parent.width
                     detailPage: detailPage
                     workOrderDetail: root.selectedWorkOrderModel

@@ -1,24 +1,26 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property var itemOptions: []
     property var storeroomOptions: []
     property var requisitionLineOptions: []
     property var purchaseOrderData: ({})
-    property string validationMessage: ""
 
     signal submitted(var payload)
 
-    modal: true
     width: 760
     title: "Add Purchase-Order Line"
-    closePolicy: Popup.CloseOnEscape
+    subtitle: "Add a purchase line to the order."
+    primaryText: "Add Line"
+    primaryIcon: "add"
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (var index = 0; index < options.length; index += 1) {
@@ -38,7 +40,7 @@ AppControls.CenteredDialog {
         expectedDeliveryDateField.text = ""
         descriptionField.text = ""
         notesField.text = ""
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -61,18 +63,18 @@ AppControls.CenteredDialog {
 
     function submitDialog() {
         if (String((root.itemOptions[itemCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose an item before adding a purchase-order line."
+            root.errorMessage = "Choose an item before adding a purchase-order line."
             return
         }
         if (String((root.storeroomOptions[storeroomCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose a destination storeroom before adding a purchase-order line."
+            root.errorMessage = "Choose a destination storeroom before adding a purchase-order line."
             return
         }
         if (quantityField.text.trim().length === 0 || Number(quantityField.text) <= 0) {
-            root.validationMessage = "Ordered quantity must be greater than zero."
+            root.errorMessage = "Ordered quantity must be greater than zero."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 
@@ -80,67 +82,61 @@ AppControls.CenteredDialog {
 
     onOpened: root.populateFromTarget()
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-    }
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 640 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
 
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.Label {
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            text: "Create a supplier commitment line with the final receiving destination and, when useful, the originating requisition line."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            wrapMode: Text.WordWrap
-        }
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            visible: root.validationMessage.length > 0
-            text: root.validationMessage
-            color: "#8B1E1E"
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
-
-        GridLayout {
-            Layout.fillWidth: true
-            columns: root.width > 640 ? 2 : 1
-            columnSpacing: Theme.AppTheme.spacingMd
-            rowSpacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label { text: "Item" }
+            label: "Item"
+            required: true
             AppControls.ComboBox { id: itemCombo; Layout.fillWidth: true; model: root.itemOptions; textRole: "label" }
+        }
 
-            AppControls.Label { text: "Destination storeroom" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Destination storeroom"
+            required: true
             AppControls.ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
+        }
 
-            AppControls.Label { text: "Quantity" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Quantity"
+            required: true
             AppControls.TextField { id: quantityField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-            AppControls.Label { text: "Unit price" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Unit price"
             AppControls.TextField { id: unitPriceField; Layout.fillWidth: true; placeholderText: "0.0000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+        }
 
-            AppControls.Label { text: "Source requisition line" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Source requisition line"
             AppControls.ComboBox { id: sourceRequisitionLineCombo; Layout.fillWidth: true; model: root.formRequisitionLineOptions; textRole: "label" }
+        }
 
-            AppControls.Label { text: "Expected delivery (YYYY-MM-DD)" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Expected delivery (YYYY-MM-DD)"
             AppControls.DateField { id: expectedDeliveryDateField; Layout.fillWidth: true; placeholderText: "2026-05-30" }
+        }
 
-            AppControls.Label { text: "Description" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Description"
             AppControls.TextField { id: descriptionField; Layout.fillWidth: true; placeholderText: "Line description or supplier note" }
         }
+    }
 
-        AppControls.Label {
-            text: "Notes"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Notes"
         AppControls.TextArea {
             id: notesField
             Layout.fillWidth: true
@@ -149,25 +145,4 @@ AppControls.CenteredDialog {
             placeholderText: "Receiving notes or line-level supplier remarks."
         }
     }
-
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item { Layout.fillWidth: true }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
-        }
-
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: "Add Line"
-            iconName: "add"
-            onClicked: root.submitDialog()
-        }
-    }
 }
-

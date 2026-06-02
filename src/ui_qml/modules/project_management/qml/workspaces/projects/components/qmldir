@@ -1,0 +1,3 @@
+module ProjectManagement.ProjectsComponents
+ProjectsListPage 1.0 ProjectsListPage.qml
+ProjectsFilterPopup 1.0 ProjectsFilterPopup.qml

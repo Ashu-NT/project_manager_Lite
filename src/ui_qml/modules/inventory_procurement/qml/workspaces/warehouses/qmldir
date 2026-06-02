@@ -1,0 +1,5 @@
+﻿module InventoryProcurement.Warehouses
+WarehousesWorkspace 1.0 WarehousesWorkspace.qml
+WarehousesWorkspacePage 1.0 WarehousesWorkspacePage.qml
+WarehousesWorkspaceState 1.0 WarehousesWorkspaceState.qml
+WarehousesColumnConfig 1.0 WarehousesColumnConfig.js

@@ -30,6 +30,7 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "payroll.approve": "Approve or release payroll runs",
     "payroll.export": "Export payroll reports and payment files",
     "baseline.manage": "Create baselines",
+    "baseline.approve": "Approve or reject baselines",
     "register.read": "View risk, issue, and change register data",
     "register.manage": "Create and edit register entries",
     "report.view": "View reports",
@@ -82,6 +83,7 @@ _PLANNER = _TEAM_MEMBER | {
 }
 
 _PROJECT_MANAGER = _PLANNER | {
+    "baseline.approve",
     "cost.manage",
     "finance.read",
     "finance.export",
@@ -183,6 +185,7 @@ _PORTFOLIO_MANAGER = {
 }
 
 _APPROVER = {
+    "baseline.approve",
     "project.read",
     "resource.read",
     "task.read",

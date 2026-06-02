@@ -1,0 +1,5 @@
+module ProjectManagement.Projects
+ProjectsWorkspace 1.0 ProjectsWorkspace.qml
+ProjectsWorkspacePage 1.0 ProjectsWorkspacePage.qml
+ProjectsWorkspaceState 1.0 ProjectsWorkspaceState.qml
+ProjectsColumnConfig 1.0 ProjectsColumnConfig.js

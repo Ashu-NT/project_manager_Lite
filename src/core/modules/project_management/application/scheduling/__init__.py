@@ -42,10 +42,10 @@ from src.core.modules.project_management.application.scheduling.schedule_change_
     ScheduleChangeImpactService,
     TaskImpact,
 )
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
+from src.core.platform.calendar.application.work_calendar_engine import (
     WorkCalendarEngine,
 )
-from src.core.modules.project_management.application.scheduling.work_calendar_service import (
+from src.core.platform.calendar.application.work_calendar_service import (
     WorkCalendarService,
 )
 

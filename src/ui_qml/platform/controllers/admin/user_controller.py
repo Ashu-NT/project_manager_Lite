@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.platform.presenters.user_catalog_presenter import PlatformUserCatalogPresenter
 
 from ..common import run_mutation, serialize_action_list
@@ -18,6 +19,7 @@ class PlatformUserController(QObject):
     def __init__(self, presenter: PlatformUserCatalogPresenter, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._presenter = presenter
+        self._table_model = DynamicTableModel(self)
         self._users: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._user_editor_options: dict[str, object] = {"roleOptions": []}
         self._is_busy = False
@@ -33,6 +35,10 @@ class PlatformUserController(QObject):
     @Property("QVariantMap", notify=usersChanged)
     def users(self) -> dict[str, object]:
         return self._users
+
+    @Property(QObject, constant=True)
+    def tableModel(self) -> DynamicTableModel:
+        return self._table_model
 
     @Property("QVariantMap", notify=userEditorOptionsChanged)
     def userEditorOptions(self) -> dict[str, object]:
@@ -57,6 +63,7 @@ class PlatformUserController(QObject):
     def _set_users(self, value: dict[str, object]) -> None:
         if self._users != value:
             self._users = value
+            self._table_model.set_rows(value.get("items", []))
             self.usersChanged.emit()
 
     def _set_user_editor_options(self, value: dict[str, object]) -> None:

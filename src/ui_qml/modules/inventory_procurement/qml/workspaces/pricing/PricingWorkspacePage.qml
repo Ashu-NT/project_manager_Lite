@@ -187,30 +187,34 @@ AppLayouts.WorkspaceFrame {
                     metrics: root.overviewModel.metrics || []
                 }
 
-                AppWidgets.InlineMessage {
+                AppWidgets.LoadingOverlay {
                     Layout.fillWidth: true
-                    visible: (root.workspaceController ? root.workspaceController.isLoading : false)
+                    loading: (root.workspaceController ? root.workspaceController.isLoading : false)
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-                    tone: "info"
                     message: "Loading pricing data..."
+                    compact: true
+                    modal:   false
                 }
-                AppWidgets.InlineMessage {
+                AppWidgets.LoadingOverlay {
                     Layout.fillWidth: true
-                    visible: root.workspaceController
+                    loading: root.workspaceController
                         ? root.workspaceController.isBusy && String(root.workspaceController.errorMessage || "").length === 0
                         : false
-                    tone: "info"
                     message: "Processing..."
+                    compact: true
+                    modal:   false
                 }
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
-                    visible: String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    visible: !root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
                     tone: "danger"
                     message: root.workspaceController ? root.workspaceController.errorMessage : ""
                 }
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
-                    visible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                    visible: !root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
                     tone: "success"
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
@@ -249,7 +253,7 @@ AppLayouts.WorkspaceFrame {
                         visible: root._isStockView
                         multiSelect: false
                         columns: root._stockColumns
-                        rows: root.stockSignalsModel.items || []
+                        sourceModel: root.workspaceController ? root.workspaceController.stockSignalsTableModel : null
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.stockSignalsModel.emptyState || "No stock signals."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedStockSignalId : ""
@@ -260,9 +264,7 @@ AppLayouts.WorkspaceFrame {
                         onRowActivated: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.selectStockSignal(rowId)
                             root._openDetail(0)
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.DataTable {
                         id: _supplierTable
@@ -273,7 +275,7 @@ AppLayouts.WorkspaceFrame {
                         visible: !root._isStockView
                         multiSelect: false
                         columns: root._supplierColumns
-                        rows: root.supplierPricingModel.items || []
+                        sourceModel: root.workspaceController ? root.workspaceController.supplierPricingTableModel : null
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.supplierPricingModel.emptyState || "No supplier pricing records."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedSupplierPricingId : ""
@@ -284,9 +286,7 @@ AppLayouts.WorkspaceFrame {
                         onRowActivated: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.selectSupplierPricing(rowId)
                             root._openDetail(0)
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.TablePaginationBar {
                         id: _paginationBar
@@ -627,6 +627,23 @@ AppLayouts.WorkspaceFrame {
                     actions: []
 
                     onBackRequested: { root._detailOpen = false }
+                }
+
+                // ── Detail-scoped messages ─────────────────────────
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                }
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                    tone: "success"
+                    message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
                 Item {

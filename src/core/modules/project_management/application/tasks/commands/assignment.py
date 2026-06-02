@@ -207,6 +207,13 @@ class TaskAssignmentMixin:
         if not getattr(project_resource, "is_active", True):
             raise BusinessRuleError("This project resource is inactive.", code="PROJECT_RESOURCE_INACTIVE")
 
+        existing = self._assignment_repo.list_by_task(task_id)
+        if any(a.resource_id == project_resource.resource_id for a in existing):
+            raise ValidationError(
+                "Resource is already assigned to this task.",
+                code="ASSIGNMENT_DUPLICATE",
+            )
+
         self._check_resource_overallocation(
             project_id=task.project_id,
             resource_id=project_resource.resource_id,

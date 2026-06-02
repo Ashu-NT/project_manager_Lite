@@ -14,6 +14,7 @@ Component {
     Property { name: "selectedResource"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedResourceId"; type: "QString"; isReadonly: true }
     Method { name: "refresh" }
+    Method { name: "exportResources" }
     Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
     Method { name: "setActiveFilter"; Parameter { name: "activeFilter"; type: "QString" } }
     Method { name: "setCategoryFilter"; Parameter { name: "categoryFilter"; type: "QString" } }

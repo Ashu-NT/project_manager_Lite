@@ -1,27 +1,29 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property var reservationData: ({})
-    property string validationMessage: ""
 
     signal submitted(var payload)
 
-    modal: true
     width: 560
     title: "Issue Reservation"
-    closePolicy: Popup.CloseOnEscape
+    subtitle: "Issue reserved stock to the requesting work order or project."
+    primaryText: "Issue Stock"
+    primaryIcon: "approve"
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function populateFromReservation() {
         var state = root.reservationData && root.reservationData.state ? root.reservationData.state : (root.reservationData || {})
         quantityField.text = String(state.remainingQty || "")
         notesField.text = ""
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -35,49 +37,24 @@ AppControls.CenteredDialog {
 
     function submitDialog() {
         if (quantityField.text.trim().length === 0 || Number(quantityField.text) <= 0) {
-            root.validationMessage = "Issue quantity must be greater than zero."
+            root.errorMessage = "Issue quantity must be greater than zero."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 
     onOpened: root.populateFromReservation()
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-    }
+    GridLayout {
+        Layout.fillWidth: true
+        columns: 2
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
 
-    contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingMd
-
-        AppControls.Label {
+        AppWidgets.FormField {
             Layout.fillWidth: true
-            text: "Issue reserved stock against the held quantity. This reduces on-hand stock and consumes the reservation at the same time."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            wrapMode: Text.WordWrap
-        }
-
-        AppControls.Label {
-            Layout.fillWidth: true
-            visible: root.validationMessage.length > 0
-            text: root.validationMessage
-            color: "#8B1E1E"
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
-
-        GridLayout {
-            Layout.fillWidth: true
-            columns: 2
-            columnSpacing: Theme.AppTheme.spacingMd
-            rowSpacing: Theme.AppTheme.spacingSm
-
-            AppControls.Label { text: "Reservation" }
+            label: "Reservation"
             AppControls.Label {
                 Layout.fillWidth: true
                 text: String(root.reservationData.title || "")
@@ -85,8 +62,11 @@ AppControls.CenteredDialog {
                 font.family: Theme.AppTheme.fontFamily
                 wrapMode: Text.WordWrap
             }
+        }
 
-            AppControls.Label { text: "Remaining qty" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Remaining qty"
             AppControls.Label {
                 Layout.fillWidth: true
                 text: String(root.reservationData.state && root.reservationData.state.remainingQtyLabel || "-")
@@ -94,8 +74,12 @@ AppControls.CenteredDialog {
                 font.family: Theme.AppTheme.fontFamily
                 wrapMode: Text.WordWrap
             }
+        }
 
-            AppControls.Label { text: "Issue qty" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Issue qty"
+            required: true
             AppControls.TextField {
                 id: quantityField
                 Layout.fillWidth: true
@@ -103,13 +87,11 @@ AppControls.CenteredDialog {
                 inputMethodHints: Qt.ImhFormattedNumbersOnly
             }
         }
+    }
 
-        AppControls.Label {
-            text: "Notes"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-        }
-
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Notes"
         AppControls.TextArea {
             id: notesField
             Layout.fillWidth: true
@@ -118,25 +100,4 @@ AppControls.CenteredDialog {
             placeholderText: "Issuing context or execution note."
         }
     }
-
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-
-        Item { Layout.fillWidth: true }
-
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
-        }
-
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: "Issue"
-            iconName: "approve"
-            onClicked: root.submitDialog()
-        }
-    }
 }
-

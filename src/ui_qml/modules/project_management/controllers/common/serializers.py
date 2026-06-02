@@ -18,8 +18,11 @@ from src.ui_qml.modules.project_management.view_models.dashboard import (
     ProjectDashboardSectionViewModel,
 )
 from src.ui_qml.modules.project_management.view_models.financials import (
+    BaselineVarianceRowViewModel,
     FinancialsCollectionViewModel,
+    FinancialsCommitmentSummaryViewModel,
     FinancialsDetailViewModel,
+    FinancialsForecastViewModel,
     FinancialsOverviewViewModel,
     FinancialsRecordViewModel,
 )
@@ -35,10 +38,13 @@ from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectRecordViewModel,
 )
 from src.ui_qml.modules.project_management.view_models.resources import (
+    ResourceAvailabilityViewModel,
     ResourceCatalogOverviewViewModel,
+    ResourceCertificationViewModel,
     ResourceDetailViewModel,
     ResourceEmployeeOptionViewModel,
     ResourceRecordViewModel,
+    ResourceSkillViewModel,
 )
 from src.ui_qml.modules.project_management.view_models.register import (
     RegisterCollectionViewModel,
@@ -434,14 +440,17 @@ def serialize_financials_record_view_models(
         {
             "id": view_model.id,
             "title": view_model.title,
+            "costCode": str(view_model.state.get("costCode", "") or ""),
             "statusLabel": view_model.status_label,
             "subtitle": view_model.subtitle,
             "supportingText": view_model.supporting_text,
             "metaText": view_model.meta_text,
             "taskName": str(view_model.state.get("taskName", "") or ""),
             "plannedAmountLabel": str(view_model.state.get("plannedAmountLabel", "") or ""),
+            "forecastAmountLabel": str(view_model.state.get("forecastAmountLabel", "") or ""),
             "committedAmountLabel": str(view_model.state.get("committedAmountLabel", "") or ""),
             "actualAmountLabel": str(view_model.state.get("actualAmountLabel", "") or ""),
+            "commitmentStatusLabel": str(view_model.state.get("commitmentStatusLabel", "") or ""),
             "incurredDateLabel": str(view_model.state.get("incurredDateLabel", "") or ""),
             "canPrimaryAction": view_model.can_primary_action,
             "canSecondaryAction": view_model.can_secondary_action,
@@ -449,6 +458,61 @@ def serialize_financials_record_view_models(
             "state": dict(view_model.state),
         }
         for view_model in view_models
+    ]
+
+
+def serialize_financials_forecast_view_model(
+    vm: FinancialsForecastViewModel,
+) -> dict[str, object]:
+    return {
+        "method": vm.method,
+        "methodLabel": vm.method_label,
+        "bacLabel": vm.bac_label,
+        "acLabel": vm.ac_label,
+        "evLabel": vm.ev_label,
+        "etcLabel": vm.etc_label,
+        "eacLabel": vm.eac_label,
+        "vacLabel": vm.vac_label,
+        "cpiLabel": vm.cpi_label,
+        "isOverBudget": vm.is_over_budget,
+        "exceedsThreshold": vm.exceeds_threshold,
+        "thresholdPercent": vm.threshold_percent,
+        "alertMessage": vm.alert_message,
+        "metrics": [
+            {"label": m.label, "value": m.value, "colorHint": m.color_hint}
+            for m in vm.metrics
+        ],
+    }
+
+
+def serialize_financials_commitment_summary_view_model(
+    vm: FinancialsCommitmentSummaryViewModel,
+) -> dict[str, object]:
+    return {
+        "plannedLabel": vm.planned_label,
+        "uncommittedLabel": vm.uncommitted_label,
+        "committedLabel": vm.committed_label,
+        "invoicedLabel": vm.invoiced_label,
+        "paidLabel": vm.paid_label,
+        "exposureLabel": vm.exposure_label,
+        "commitmentRatePct": vm.commitment_rate_pct,
+    }
+
+
+def serialize_financials_baseline_variance_view_models(
+    rows: tuple,
+) -> list[dict[str, object]]:
+    return [
+        {
+            "taskId": row.task_id,
+            "taskName": row.task_name,
+            "startVarianceDays": row.start_variance_days,
+            "finishVarianceDays": row.finish_variance_days,
+            "costVariance": row.cost_variance,
+            "costVarianceLabel": row.cost_variance_label,
+            "tone": row.tone,
+        }
+        for row in rows
     ]
 
 
@@ -558,6 +622,7 @@ def serialize_project_record_view_models(
         {
             "id": view_model.id,
             "title": view_model.title,
+            "projectCode": str(view_model.state.get("projectCode", "") or ""),
             "statusLabel": view_model.status_label,
             "subtitle": view_model.subtitle,
             "supportingText": view_model.supporting_text,
@@ -639,6 +704,7 @@ def serialize_resource_record_view_models(
         {
             "id": view_model.id,
             "title": view_model.title,
+            "resourceCode": str(view_model.state.get("resourceCode", "") or ""),
             "statusLabel": view_model.status_label,
             "subtitle": view_model.subtitle,
             "supportingText": view_model.supporting_text,
@@ -658,6 +724,73 @@ def serialize_resource_record_view_models(
         }
         for view_model in view_models
     ]
+
+
+def serialize_resource_skill_view_models(
+    view_models: tuple[ResourceSkillViewModel, ...],
+) -> list[dict[str, object]]:
+    return [
+        {
+            "id": vm.id,
+            "title": vm.skill_name or vm.skill_code,
+            "subtitle": vm.skill_code,
+            "statusLabel": vm.proficiency_label,
+            "metaText": vm.notes or "",
+            "skillCode": vm.skill_code,
+            "skillName": vm.skill_name,
+            "proficiency": vm.proficiency,
+            "proficiencyLabel": vm.proficiency_label,
+            "notes": vm.notes,
+        }
+        for vm in view_models
+    ]
+
+
+def serialize_resource_certification_view_models(
+    view_models: tuple[ResourceCertificationViewModel, ...],
+) -> list[dict[str, object]]:
+    return [
+        {
+            "id": vm.id,
+            "title": vm.certification_name or vm.certification_code,
+            "subtitle": vm.certification_code,
+            "statusLabel": vm.cert_status,
+            "metaText": vm.expiry_date or "",
+            "certificationCode": vm.certification_code,
+            "certificationName": vm.certification_name,
+            "issuedDate": vm.issued_date or "",
+            "expiryDate": vm.expiry_date or "",
+            "issuingBody": vm.issuing_body,
+            "notes": vm.notes,
+            "certStatus": vm.cert_status,
+            "certStatusLabel": vm.cert_status_label,
+        }
+        for vm in view_models
+    ]
+
+
+def serialize_resource_availability_view_model(
+    vm: ResourceAvailabilityViewModel,
+) -> dict[str, object]:
+    return {
+        "resourceId": vm.resource_id,
+        "peakLoadPercent": vm.peak_load_percent,
+        "averageLoadPercent": vm.average_load_percent,
+        "overloadedDays": vm.overloaded_days,
+        "availableDays": vm.available_days,
+        "isAvailable": vm.is_available,
+        "fromDateLabel": vm.from_date_label,
+        "toDateLabel": vm.to_date_label,
+        "days": [
+            {
+                "dateLabel": d.date_label,
+                "allocationPercent": d.allocation_percent,
+                "allocationLabel": d.allocation_label,
+                "overloaded": d.overloaded,
+            }
+            for d in vm.days
+        ],
+    }
 
 
 def serialize_resource_detail_view_model(
@@ -706,6 +839,7 @@ def serialize_register_record_view_models(
         {
             "id": view_model.id,
             "title": view_model.title,
+            "entryCode": str(view_model.state.get("entryCode", "") or ""),
             "statusLabel": view_model.status_label,
             "subtitle": view_model.subtitle,
             "supportingText": view_model.supporting_text,
@@ -1029,8 +1163,11 @@ __all__ = [
     "serialize_dashboard_operational_table_view_models",
     "serialize_dashboard_panel_view_models",
     "serialize_dashboard_section_view_models",
+    "serialize_financials_baseline_variance_view_models",
     "serialize_financials_collection_view_model",
+    "serialize_financials_commitment_summary_view_model",
     "serialize_financials_detail_view_model",
+    "serialize_financials_forecast_view_model",
     "serialize_financials_overview_view_model",
     "serialize_financials_record_view_models",
     "serialize_portfolio_collection_view_model",
@@ -1045,9 +1182,12 @@ __all__ = [
     "serialize_register_overview_view_model",
     "serialize_register_record_view_models",
     "serialize_resource_catalog_overview_view_model",
+    "serialize_resource_certification_view_models",
+    "serialize_resource_availability_view_model",
     "serialize_resource_detail_view_model",
     "serialize_resource_employee_option_view_models",
     "serialize_resource_record_view_models",
+    "serialize_resource_skill_view_models",
     "serialize_scheduling_baselines_view_model",
     "serialize_scheduling_calendar_view_model",
     "serialize_scheduling_collection_view_model",

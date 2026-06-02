@@ -21,6 +21,7 @@ class TaskORM(Base):
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
     )
+    task_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(String, default="")
     start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
@@ -40,6 +41,7 @@ class TaskORM(Base):
 
 
 Index("idx_tasks_project_id", TaskORM.project_id)
+Index("ux_tasks_project_code", TaskORM.project_id, TaskORM.task_code, unique=True)
 
 
 class TaskAssignmentORM(Base):
@@ -66,6 +68,12 @@ class TaskAssignmentORM(Base):
 
 
 Index("idx_task_assignments_project_resource", TaskAssignmentORM.project_resource_id)
+Index(
+    "ux_task_assignments_task_resource",
+    TaskAssignmentORM.task_id,
+    TaskAssignmentORM.resource_id,
+    unique=True,
+)
 
 
 class TaskDependencyORM(Base):
@@ -92,3 +100,9 @@ class TaskDependencyORM(Base):
 
 Index("idx_dep_predecessor", TaskDependencyORM.predecessor_task_id)
 Index("idx_dep_successor", TaskDependencyORM.successor_task_id)
+Index(
+    "ux_task_dependencies_pair",
+    TaskDependencyORM.predecessor_task_id,
+    TaskDependencyORM.successor_task_id,
+    unique=True,
+)

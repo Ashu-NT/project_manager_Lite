@@ -5,17 +5,60 @@ Component {
     exports: ["ProjectManagement.Controllers/ProjectManagementProjectsWorkspaceController 1.0"]
     Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
     Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "bulkStatusOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
     Property { name: "searchText"; type: "QString"; isReadonly: true }
     Property { name: "projects"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectsTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "selectedProject"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+    Property { name: "projectPage"; type: "int"; isReadonly: true }
+    Property { name: "projectPageSize"; type: "int"; isReadonly: true }
+    Property { name: "projectTotalCount"; type: "int"; isReadonly: true }
+    Property { name: "selectedProjectIds"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedProjectCount"; type: "int"; isReadonly: true }
+    Property { name: "projectTasks"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectTasksTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "projectResources"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectResourcesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "projectFinancials"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectRisks"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectDocuments"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectActivity"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "importPreview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "isImportBusy"; type: "bool"; isReadonly: true }
+    Property { name: "importError"; type: "QString"; isReadonly: true }
+    Property { name: "assignableResourceOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedProjectResourceId"; type: "QString"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
     Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "activateProject"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "setProjectPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setProjectPageSize"; Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "setProjectBulkSelection"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "selected"; type: "bool" } }
+    Method { name: "clearProjectBulkSelection" }
+    Method { name: "selectVisibleProjects" }
+    Method { name: "bulkDeleteProjects"; type: "QVariantMap"; Parameter { name: "projectIds"; type: "QVariantList" } }
+    Method { name: "applyBulkStatus"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "exportProjects"; type: "QVariantMap"; Parameter { name: "columns"; type: "QVariantList" } Parameter { name: "filePath"; type: "QString" } }
+    Method { name: "previewImport"; type: "QVariantMap"; Parameter { name: "filePath"; type: "QString" } Parameter { name: "sourceFormat"; type: "QString" } }
+    Method { name: "executeImport"; type: "QVariantMap"; Parameter { name: "sessionId"; type: "QString" } }
+    Method { name: "cancelImport" }
     Method { name: "createProject"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "updateProject"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "setProjectStatus"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "status"; type: "QString" } }
     Method { name: "deleteProject"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "loadProjectTasks" }
+    Method { name: "loadProjectResources" }
+    Method { name: "loadAssignableResources" }
+    Method { name: "assignProjectResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "selectProjectResource"; Parameter { name: "projectResourceId"; type: "QString" } }
+    Method { name: "updateProjectResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "removeProjectResource"; type: "QVariantMap"; Parameter { name: "projectResourceId"; type: "QString" } }
+    Method { name: "loadProjectFinancials" }
+    Method { name: "loadProjectRisks" }
+    Method { name: "loadProjectDocuments" }
+    Method { name: "loadProjectActivity" }
 }

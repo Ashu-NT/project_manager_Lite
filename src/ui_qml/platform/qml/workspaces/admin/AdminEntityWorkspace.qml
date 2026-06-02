@@ -20,6 +20,9 @@ ColumnLayout {
     property string errorMessage:    ""
     property string feedbackMessage: ""
     property string selectedRowId:   ""
+    // Optional Python-owned DynamicTableModel.  When set the DataTable uses
+    // sourceModel directly; the QML-side _pageRows slice is not used.
+    property var    catalogModel:    null
 
     signal createRequested()
     signal rowSelected(string rowId)
@@ -29,7 +32,9 @@ ColumnLayout {
     property int _pageSize:    50
     property int _currentPage: 0
 
-    readonly property int _totalCount: (root.catalog.items || []).length
+    readonly property int _totalCount: root.catalogModel
+        ? root.catalogModel.rowCountValue
+        : (root.catalog.items || []).length
     readonly property int _pageCount:  Math.max(1, Math.ceil(root._totalCount / root._pageSize))
     readonly property var _pageRows:   (root.catalog.items || []).slice(
         root._currentPage * root._pageSize,
@@ -67,8 +72,8 @@ ColumnLayout {
             }
 
             AppControls.Label {
-                visible: (root.catalog.items || []).length > 0
-                text: String((root.catalog.items || []).length)
+                visible: root._totalCount > 0
+                text: String(root._totalCount)
                 color: Theme.AppTheme.textMuted
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.captionSize
@@ -118,7 +123,7 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
 
-        rows: root._pageRows
+        sourceModel: root.catalogModel
         columns: root.columns
         emptyText: root.catalog.emptyState || "No records"
         loading: root.isLoading
@@ -128,8 +133,10 @@ ColumnLayout {
         onRowActivated: function(rowId) { root.rowActivated(rowId) }
     }
 
+    // Pagination bar hidden when Python model serves all rows (server-side pagination pending).
     AppWidgets.TablePaginationBar {
         Layout.fillWidth: true
+        visible: root.catalogModel === null
         currentPage: root._currentPage + 1
         pageSize: root._pageSize
         totalItems: root._totalCount

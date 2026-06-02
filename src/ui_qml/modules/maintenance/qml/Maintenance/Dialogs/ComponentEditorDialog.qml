@@ -1,10 +1,10 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-AppControls.CenteredDialog {
+AppWidgets.EntityDialog {
     id: root
 
     property string modeTitle: "Create Component"
@@ -14,15 +14,22 @@ AppControls.CenteredDialog {
     property var statusOptions: []
     property var manufacturerOptions: []
     property var supplierOptions: []
-    property string validationMessage: ""
+    property var workspaceController: null
+    property string componentCode: ""
 
     signal submitted(var payload)
 
-    modal: true
+    title:        root.modeTitle
+    subtitle:     root.modeTitle === "Create Component"
+        ? "Capture component identity, supplier context, and lifecycle state under the selected asset."
+        : "Update the component record, supplier context, and lifecycle state."
+    primaryText:  root.modeTitle === "Create Component" ? "Create Component" : "Save Changes"
+    primaryIcon:  root.modeTitle === "Create Component" ? "add" : "save"
     width: 760
-    height: Math.min(860, parent ? parent.height - (Theme.AppTheme.marginLg * 2) : 860)
-    title: root.modeTitle
-    closePolicy: Popup.CloseOnEscape
+
+    onOpened:   root.populateFromRecord()
+    onAccepted: root.submitDialog()
+    onRejected: root.close()
 
     function indexForValue(options, targetValue) {
         for (let index = 0; index < options.length; index += 1) {
@@ -40,7 +47,7 @@ AppControls.CenteredDialog {
         statusCombo.currentIndex = root.indexForValue(root.statusOptions, state.status || "ACTIVE")
         manufacturerCombo.currentIndex = root.indexForValue(root.manufacturerOptions, state.manufacturerPartyId || "")
         supplierCombo.currentIndex = root.indexForValue(root.supplierOptions, state.supplierPartyId || "")
-        componentCodeField.text = String(state.componentCode || "")
+        root.componentCode = String(state.componentCode || "")
         nameField.text = String(state.name || "")
         descriptionField.text = String(state.description || "")
         componentTypeField.text = String(state.componentType || "")
@@ -53,7 +60,7 @@ AppControls.CenteredDialog {
         notesField.text = String(state.notes || "")
         activeCheck.checked = state.isActive === undefined ? true : !!state.isActive
         criticalCheck.checked = !!state.isCriticalComponent
-        root.validationMessage = ""
+        root.errorMessage = ""
     }
 
     function buildPayload() {
@@ -66,7 +73,7 @@ AppControls.CenteredDialog {
         return {
             "componentId": String(state.componentId || ""),
             "assetId": String(selectedAsset.value || ""),
-            "componentCode": componentCodeField.text,
+            "componentCode": root.componentCode,
             "name": nameField.text,
             "description": descriptionField.text,
             "parentComponentId": String(selectedParent.value || ""),
@@ -89,147 +96,156 @@ AppControls.CenteredDialog {
 
     function submitDialog() {
         if (String((root.assetOptions[assetCombo.currentIndex] || { "value": "" }).value || "").length === 0) {
-            root.validationMessage = "Choose an asset before saving."
+            root.errorMessage = "Choose an asset before saving."
             return
         }
-        if (componentCodeField.text.trim().length === 0) {
-            root.validationMessage = "Component code is required."
+        if (root.componentCode.trim().length === 0) {
+            root.errorMessage = "Component code is required."
             return
         }
         if (nameField.text.trim().length === 0) {
-            root.validationMessage = "Component name is required."
+            root.errorMessage = "Component name is required."
             return
         }
-        root.validationMessage = ""
+        root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
 
-    onOpened: root.populateFromRecord()
+    // ── Form content ──────────────────────────────────────────────────────────
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-    }
+    GridLayout {
+        Layout.fillWidth: true
+        columns: root.width > 680 ? 2 : 1
+        columnSpacing: Theme.AppTheme.spacingMd
+        rowSpacing: Theme.AppTheme.spacingSm
 
-    contentItem: Flickable {
-        id: dialogFlickable
-        contentWidth: width
-        contentHeight: formLayout.implicitHeight
-        clip: true
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Asset"
+            required: true
+            AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
+        }
 
-        ColumnLayout {
-            id: formLayout
-            width: dialogFlickable.width
-            spacing: Theme.AppTheme.spacingMd
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Parent component"
+            AppControls.ComboBox { id: parentComponentCombo; Layout.fillWidth: true; model: root.parentComponentOptions; textRole: "label" }
+        }
 
-            AppControls.Label {
-                Layout.fillWidth: true
-                text: "Capture component identity, supplier context, and lifecycle state under the selected asset."
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                wrapMode: Text.WordWrap
+        AppWidgets.CodeFieldRow {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            label: "Component code"
+            value: root.componentCode
+            placeholderText: "Auto-generated if empty"
+            required: true
+            generateVisible: true
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            onValueEdited: function(code) { root.componentCode = code }
+            onGenerateRequested: {
+                if (root.workspaceController) {
+                    const suggested = root.workspaceController.generateEntityCode("component", root.buildPayload())
+                    if (suggested && suggested.length > 0) {
+                        root.componentCode = suggested
+                    }
+                }
             }
+        }
 
-            AppControls.Label {
-                Layout.fillWidth: true
-                visible: root.validationMessage.length > 0
-                text: root.validationMessage
-                color: "#8B1E1E"
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Name"
+            required: true
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Drive Motor" }
+        }
 
-            GridLayout {
-                Layout.fillWidth: true
-                columns: root.width > 680 ? 2 : 1
-                columnSpacing: Theme.AppTheme.spacingMd
-                rowSpacing: Theme.AppTheme.spacingSm
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Component type"
+            AppControls.TextField { id: componentTypeField; Layout.fillWidth: true; placeholderText: "MOTOR" }
+        }
 
-                AppControls.Label { text: "Asset" }
-                AppControls.ComboBox { id: assetCombo; Layout.fillWidth: true; model: root.assetOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Lifecycle status"
+            AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+        }
 
-                AppControls.Label { text: "Parent component" }
-                AppControls.ComboBox { id: parentComponentCombo; Layout.fillWidth: true; model: root.parentComponentOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Manufacturer"
+            AppControls.ComboBox { id: manufacturerCombo; Layout.fillWidth: true; model: root.manufacturerOptions; textRole: "label" }
+        }
 
-                AppControls.Label { text: "Component code" }
-                AppControls.TextField { id: componentCodeField; Layout.fillWidth: true; placeholderText: "CMP-100" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Supplier"
+            AppControls.ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
+        }
 
-                AppControls.Label { text: "Name" }
-                AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Drive Motor" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Manufacturer part number"
+            AppControls.TextField { id: manufacturerPartNumberField; Layout.fillWidth: true }
+        }
 
-                AppControls.Label { text: "Component type" }
-                AppControls.TextField { id: componentTypeField; Layout.fillWidth: true; placeholderText: "MOTOR" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Supplier part number"
+            AppControls.TextField { id: supplierPartNumberField; Layout.fillWidth: true }
+        }
 
-                AppControls.Label { text: "Lifecycle status" }
-                AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.statusOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Model number"
+            AppControls.TextField { id: modelNumberField; Layout.fillWidth: true }
+        }
 
-                AppControls.Label { text: "Manufacturer" }
-                AppControls.ComboBox { id: manufacturerCombo; Layout.fillWidth: true; model: root.manufacturerOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Serial number"
+            AppControls.TextField { id: serialNumberField; Layout.fillWidth: true }
+        }
 
-                AppControls.Label { text: "Supplier" }
-                AppControls.ComboBox { id: supplierCombo; Layout.fillWidth: true; model: root.supplierOptions; textRole: "label" }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Expected life hours"
+            AppControls.TextField { id: expectedLifeHoursField; Layout.fillWidth: true; placeholderText: "12000" }
+        }
 
-                AppControls.Label { text: "Manufacturer part number" }
-                AppControls.TextField { id: manufacturerPartNumberField; Layout.fillWidth: true }
-
-                AppControls.Label { text: "Supplier part number" }
-                AppControls.TextField { id: supplierPartNumberField; Layout.fillWidth: true }
-
-                AppControls.Label { text: "Model number" }
-                AppControls.TextField { id: modelNumberField; Layout.fillWidth: true }
-
-                AppControls.Label { text: "Serial number" }
-                AppControls.TextField { id: serialNumberField; Layout.fillWidth: true }
-
-                AppControls.Label { text: "Expected life hours" }
-                AppControls.TextField { id: expectedLifeHoursField; Layout.fillWidth: true; placeholderText: "12000" }
-
-                AppControls.Label { text: "Expected life cycles" }
-                AppControls.TextField { id: expectedLifeCyclesField; Layout.fillWidth: true; placeholderText: "500000" }
-            }
-
-            AppControls.Label { text: "Description" }
-            AppControls.TextArea {
-                id: descriptionField
-                Layout.fillWidth: true
-                Layout.preferredHeight: 90
-                wrapMode: TextEdit.WordWrap
-            }
-
-            Flow {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-                AppControls.CheckBox { id: activeCheck; text: "Active component" }
-                AppControls.CheckBox { id: criticalCheck; text: "Critical component" }
-            }
-
-            AppControls.Label { text: "Notes" }
-            AppControls.TextArea {
-                id: notesField
-                Layout.fillWidth: true
-                Layout.preferredHeight: 90
-                wrapMode: TextEdit.WordWrap
-            }
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Expected life cycles"
+            AppControls.TextField { id: expectedLifeCyclesField; Layout.fillWidth: true; placeholderText: "500000" }
         }
     }
 
-    footer: RowLayout {
-        spacing: Theme.AppTheme.spacingSm
-        Item { Layout.fillWidth: true }
-        AppControls.SecondaryButton {
-            objectName: "dialogCancelButton"
-            text: "Cancel"
-            iconName: "close"
-            onClicked: root.close()
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Description"
+        AppControls.TextArea {
+            id: descriptionField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            wrapMode: TextEdit.WordWrap
         }
-        AppControls.PrimaryButton {
-            objectName: "dialogSubmitButton"
-            text: root.modeTitle === "Create Component" ? "Create Component" : "Save Changes"
-            iconName: root.modeTitle === "Create Component" ? "add" : "save"
-            onClicked: root.submitDialog()
+    }
+
+    Flow {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingMd
+        AppControls.CheckBox { id: activeCheck; text: "Active component" }
+        AppControls.CheckBox { id: criticalCheck; text: "Critical component" }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Notes"
+        AppControls.TextArea {
+            id: notesField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 90
+            wrapMode: TextEdit.WordWrap
         }
     }
 }
-

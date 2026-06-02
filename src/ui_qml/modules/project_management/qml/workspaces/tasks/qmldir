@@ -1,0 +1,5 @@
+module ProjectManagement.Tasks
+TasksWorkspace 1.0 TasksWorkspace.qml
+TasksWorkspacePage 1.0 TasksWorkspacePage.qml
+TasksWorkspaceState 1.0 TasksWorkspaceState.qml
+TasksColumnConfig 1.0 TasksColumnConfig.js

@@ -1,0 +1,2 @@
+module ProjectManagement.ProjectsDialogs
+ProjectsDialogHost 1.0 ProjectsDialogHost.qml

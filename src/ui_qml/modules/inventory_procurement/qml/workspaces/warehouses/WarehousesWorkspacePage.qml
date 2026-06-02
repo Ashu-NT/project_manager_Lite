@@ -7,6 +7,7 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
+import "../inventory/dialogs" as InventoryDlgs
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -113,25 +114,13 @@ AppLayouts.WorkspaceFrame {
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            InventoryDialogHost {
+            InventoryDlgs.InventoryDialogHost {
                 siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
                 storeroomStatusOptions: root.workspaceController ? (root.workspaceController.storeroomStatusOptions || []) : []
                 managerPartyOptions: root.workspaceController ? (root.workspaceController.managerPartyOptions || []) : []
                 itemOptions: root.workspaceController ? (root.workspaceController.itemOptions || []) : []
                 storeroomOptions: root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
-
-                onCreateStoreroomRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createStoreroom(payload)
-                }
-                onUpdateStoreroomRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateStoreroom(payload)
-                }
-                onCreateLocationRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.createLocation(payload)
-                }
-                onUpdateLocationRequested: function(payload) {
-                    if (root.workspaceController !== null) root.workspaceController.updateLocation(payload)
-                }
+                workspaceController: root.workspaceController
             }
         }
     }
@@ -148,30 +137,34 @@ AppLayouts.WorkspaceFrame {
                 anchors.fill: parent
                 spacing: Theme.AppTheme.spacingSm
 
-                AppWidgets.InlineMessage {
+                AppWidgets.LoadingOverlay {
                     Layout.fillWidth: true
-                    visible: (root.workspaceController ? root.workspaceController.isLoading : false)
+                    loading: (root.workspaceController ? root.workspaceController.isLoading : false)
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-                    tone: "info"
                     message: "Loading warehouses..."
+                    compact: true
+                    modal:   false
                 }
-                AppWidgets.InlineMessage {
+                AppWidgets.LoadingOverlay {
                     Layout.fillWidth: true
-                    visible: root.workspaceController
+                    loading: root.workspaceController
                         ? root.workspaceController.isBusy && String(root.workspaceController.errorMessage || "").length === 0
                         : false
-                    tone: "info"
                     message: "Saving changes..."
+                    compact: true
+                    modal:   false
                 }
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
-                    visible: String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    visible: !root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
                     tone: "danger"
                     message: root.workspaceController ? root.workspaceController.errorMessage : ""
                 }
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
-                    visible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                    visible: !root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
                     tone: "success"
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
@@ -222,7 +215,7 @@ AppLayouts.WorkspaceFrame {
                         visible: root._isStoreroomsView
                         multiSelect: false
                         columns: root._storeroomColumns
-                        rows: root.storeroomsModel.items || []
+                        sourceModel: root.workspaceController ? root.workspaceController.storeroomsTableModel : null
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.storeroomsModel.emptyState || "No storerooms configured."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedStoreroomId : ""
@@ -233,9 +226,7 @@ AppLayouts.WorkspaceFrame {
                         onRowActivated: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.activateStoreroom(rowId)
                             root._openDetail(0)
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.DataTable {
                         id: _locationsTable
@@ -246,7 +237,7 @@ AppLayouts.WorkspaceFrame {
                         visible: !root._isStoreroomsView
                         multiSelect: false
                         columns: root._locationColumns
-                        rows: root.foundationModel.locations || []
+                        sourceModel: root.workspaceController ? root.workspaceController.foundationTableModel : null
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: "No storage locations found."
                         selectedRowId: root._selectedLocationId
@@ -257,9 +248,7 @@ AppLayouts.WorkspaceFrame {
                         onRowActivated: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.activateLocation(rowId)
                             root._openDetail(0)
-                        }
-                        onSortRequested: function(key) {}
-                    }
+                        }                    }
 
                     AppWidgets.TablePaginationBar {
                         id: _paginationBar
@@ -531,6 +520,23 @@ AppLayouts.WorkspaceFrame {
                             }
                         }
                     }
+                }
+
+                // ── Detail-scoped messages ─────────────────────────
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                }
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                    tone: "success"
+                    message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
                 Item {

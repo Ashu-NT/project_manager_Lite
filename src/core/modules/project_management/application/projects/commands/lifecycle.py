@@ -41,6 +41,34 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
     _calendar_repo: CalendarEventRepository
     _cost_repo: CostRepository
 
+    def _resolve_project_code(self, code: str, name: str, *, exclude_id: str | None = None) -> str:
+        """Normalize a manual code or auto-generate a unique one (global scope)."""
+        from src.core.platform.common.code_generation import (
+            CodeGenerator,
+            assert_code_unique,
+            normalize_manual_code,
+        )
+
+        existing = {
+            str(getattr(project, "code", "") or "").upper()
+            for project in self._project_repo.list_all()
+            if exclude_id is None or project.id != exclude_id
+        }
+        manual = normalize_manual_code(code)
+        if manual:
+            assert_code_unique(
+                manual,
+                exists=lambda candidate: candidate.upper() in existing,
+                label="Project code",
+            )
+            return manual
+        return CodeGenerator().generate(
+            "project",
+            exists=lambda candidate: candidate.upper() in existing,
+            name=(name or "").strip() or None,
+            use_year=not bool((name or "").strip()),
+        )
+
     def create_project(
         self,
         name: str,
@@ -55,12 +83,15 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         site_id: str | None = None,
         client_party_id: str | None = None,
         manager_user_id: str | None = None,
+        code: str = "",
     ) -> Project:
         require_permission(self._user_session, "project.manage", operation_label="create project")
         self._validate_project_name(name)
         resolved_currency = (currency or "").strip().upper() or DEFAULT_CURRENCY_CODE
+        resolved_code = self._resolve_project_code(code, name)
         project = Project.create(
             name=name.strip(),
+            code=resolved_code,
             description=description.strip(),
             client_name=(client_name or "").strip() or None,
             client_contact=(client_contact or "").strip() or None,
@@ -157,6 +188,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         site_id: str | None = None,
         client_party_id: str | None = None,
         manager_user_id: str | None = None,
+        code: str | None = None,
     ) -> Project:
         require_permission(self._user_session, "project.manage", operation_label="update project")
         project = self._project_repo.get(project_id)
@@ -178,6 +210,8 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             if not name.strip():
                 raise ValidationError("Project name cannot be empty.", code="PROJECT_NAME_EMPTY")
             project.name = name.strip()
+        if code is not None and code.strip():
+            project.code = self._resolve_project_code(code, project.name, exclude_id=project.id)
         if description is not None:
             project.description = description.strip()
         if status is not None:

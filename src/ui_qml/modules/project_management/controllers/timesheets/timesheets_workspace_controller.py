@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
@@ -74,6 +75,8 @@ class ProjectManagementTimesheetsWorkspaceController(
         self._selected_entry_id = ""
         self._selected_queue_period_id = ""
         self._assignment_summary: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "fields": [], "state": {}}
+        self._entries_table_model = DynamicTableModel(self)
+        self._review_queue_table_model = DynamicTableModel(self)
         self._entries: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._selected_entry: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "fields": [], "state": {}}
         self._review_queue: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
@@ -144,6 +147,14 @@ class ProjectManagementTimesheetsWorkspaceController(
     @Property("QVariantMap", notify=reviewQueueChanged)
     def reviewQueue(self) -> dict[str, object]:
         return self._review_queue
+
+    @Property(QObject, constant=True)
+    def entriesTableModel(self) -> DynamicTableModel:
+        return self._entries_table_model
+
+    @Property(QObject, constant=True)
+    def reviewQueueTableModel(self) -> DynamicTableModel:
+        return self._review_queue_table_model
 
     @Property("QVariantMap", notify=reviewDetailChanged)
     def reviewDetail(self) -> dict[str, object]:
@@ -360,6 +371,13 @@ class ProjectManagementTimesheetsWorkspaceController(
     def clearQueueBulkSelection(self) -> None:
         self._set_selected_queue_period_ids([])
 
+    @Slot()
+    def exportTimesheets(self) -> None:
+        self._set_error_message("")
+        self._set_feedback_message(
+            "Export is not available here. Open the Reports section to generate timesheet summaries and period exports."
+        )
+
     @Slot("QVariantList", result="QVariantMap")
     def bulkApprovePeriods(self, period_ids: list) -> dict[str, object]:
         ids = [str(i) for i in (period_ids or [])]
@@ -371,7 +389,7 @@ class ProjectManagementTimesheetsWorkspaceController(
                 for i in ids
             ],
             success_message=f"{len(ids)} period(s) approved.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -388,7 +406,7 @@ class ProjectManagementTimesheetsWorkspaceController(
                 for i in ids
             ],
             success_message=f"{len(ids)} period(s) rejected.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -399,7 +417,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.add_time_entry(dict(payload)),
             success_message="Time entry added.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -410,7 +428,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.update_time_entry(dict(payload)),
             success_message="Time entry updated.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -421,7 +439,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.delete_time_entry(entry_id),
             success_message="Time entry deleted.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -432,7 +450,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.submit_period(dict(payload)),
             success_message="Timesheet period submitted.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -443,7 +461,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.approve_period(dict(payload)),
             success_message="Timesheet period approved.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -454,7 +472,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.reject_period(dict(payload)),
             success_message="Timesheet period rejected.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -465,7 +483,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.lock_period(dict(payload)),
             success_message="Timesheet period locked.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -476,7 +494,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         return run_mutation(
             operation=lambda: self._timesheets_workspace_presenter.unlock_period(dict(payload)),
             success_message="Timesheet period unlocked.",
-            on_success=self.refresh,
+            on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -566,6 +584,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         if entries == self._entries:
             return
         self._entries = entries
+        self._entries_table_model.set_rows(entries.get("items", []))
         self.entriesChanged.emit()
 
     def _set_selected_entry(self, selected_entry: dict[str, object]) -> None:
@@ -578,6 +597,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         if review_queue == self._review_queue:
             return
         self._review_queue = review_queue
+        self._review_queue_table_model.set_rows(review_queue.get("items", []))
         self.reviewQueueChanged.emit()
 
     def _set_review_detail(self, review_detail: dict[str, object]) -> None:

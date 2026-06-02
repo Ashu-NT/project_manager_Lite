@@ -42,6 +42,34 @@ def _normalize_capacity_percent(value: float | None) -> float:
 
 
 class ResourceCommandMixin:
+    def _resolve_resource_code(self, code: str, name: str, *, exclude_id: str | None = None) -> str:
+        """Normalize a manual code or auto-generate a unique one (global scope)."""
+        from src.core.platform.common.code_generation import (
+            CodeGenerator,
+            assert_code_unique,
+            normalize_manual_code,
+        )
+
+        existing = {
+            str(getattr(resource, "code", "") or "").upper()
+            for resource in self._resource_repo.list_all()
+            if exclude_id is None or resource.id != exclude_id
+        }
+        manual = normalize_manual_code(code)
+        if manual:
+            assert_code_unique(
+                manual,
+                exists=lambda candidate: candidate.upper() in existing,
+                label="Resource code",
+            )
+            return manual
+        return CodeGenerator().generate(
+            "resource",
+            exists=lambda candidate: candidate.upper() in existing,
+            name=(name or "").strip() or None,
+            use_year=not bool((name or "").strip()),
+        )
+
     def create_resource(
         self,
         name: str,
@@ -55,6 +83,7 @@ class ResourceCommandMixin:
         contact: str = "",
         worker_type: WorkerType | str = WorkerType.EXTERNAL,
         employee_id: str | None = None,
+        code: str = "",
     ) -> Resource:
         require_permission(self._user_session, "resource.manage", operation_label="create resource")
         resolved_worker_type = _normalize_worker_type(worker_type)
@@ -84,8 +113,10 @@ class ResourceCommandMixin:
             raise ValidationError("Hourly rate cannot be negative.")
         resolved_currency = (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
         resolved_capacity = _normalize_capacity_percent(capacity_percent)
+        resolved_code = self._resolve_resource_code(code, resolved_name)
         resource = Resource.create(
             name=resolved_name,
+            code=resolved_code,
             role=resolved_role,
             hourly_rate=hourly_rate,
             is_active=is_active,
@@ -136,11 +167,14 @@ class ResourceCommandMixin:
         worker_type: WorkerType | str | None = None,
         employee_id: str | None = None,
         expected_version: int | None = None,
+        code: str | None = None,
     ) -> Resource:
         require_permission(self._user_session, "resource.manage", operation_label="update resource")
         resource = self._resource_repo.get(resource_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+        if code is not None and code.strip():
+            resource.code = self._resolve_resource_code(code, resource.name, exclude_id=resource.id)
         if expected_version is not None and resource.version != expected_version:
             raise ConcurrencyError(
                 "Resource changed since you opened it. Refresh and try again.",

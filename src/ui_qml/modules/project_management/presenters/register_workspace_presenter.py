@@ -176,6 +176,25 @@ class ProjectRegisterWorkspacePresenter:
             ),
         )
 
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique register code (per-project, REG-<NAME>-NNNN)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        project_id = self._optional_text(payload, "projectId")
+        existing = {
+            str(getattr(row, "code", "") or "").upper()
+            for row in (
+                self._desktop_api.list_entries(project_id=project_id) if project_id else ()
+            )
+        }
+        name = self._optional_text(payload, "title")
+        return CodeGenerator().generate(
+            "register",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
+        )
+
     def create_entry(self, payload: dict[str, Any]) -> None:
         command = RegisterEntryCreateCommand(
             project_id=self._require_text(
@@ -192,6 +211,7 @@ class ProjectRegisterWorkspacePresenter:
             due_date=self._optional_date(payload, "dueDate"),
             impact_summary=self._optional_text(payload, "impactSummary") or "",
             response_plan=self._optional_text(payload, "responsePlan") or "",
+            code=self._optional_text(payload, "entryCode") or "",
         )
         self._desktop_api.create_entry(command)
 
@@ -217,6 +237,7 @@ class ProjectRegisterWorkspacePresenter:
             impact_summary=self._optional_text(payload, "impactSummary") or "",
             response_plan=self._optional_text(payload, "responsePlan") or "",
             expected_version=self._optional_int(payload, "expectedVersion"),
+            code=self._optional_text(payload, "entryCode") or "",
         )
         self._desktop_api.update_entry(command)
 
@@ -471,6 +492,7 @@ class ProjectRegisterWorkspacePresenter:
             "entryId": entry.id,
             "projectId": entry.project_id,
             "projectName": entry.project_name,
+            "entryCode": getattr(entry, "code", "") or "",
             "type": entry.entry_type,
             "typeLabel": entry.entry_type_label,
             "title": entry.title,

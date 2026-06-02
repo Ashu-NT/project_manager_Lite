@@ -10,9 +10,13 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_financials_desktop_api,
 )
 from src.ui_qml.modules.project_management.view_models.financials import (
+    BaselineVarianceRowViewModel,
     FinancialsCollectionViewModel,
+    FinancialsCommitmentSummaryViewModel,
     FinancialsDetailFieldViewModel,
     FinancialsDetailViewModel,
+    FinancialsForecastMetricViewModel,
+    FinancialsForecastViewModel,
     FinancialsMetricViewModel,
     FinancialsOverviewViewModel,
     FinancialsRecordViewModel,
@@ -122,8 +126,43 @@ class ProjectFinancialsWorkspacePresenter:
                 subtitle="Expense exposure grouped by category.",
                 rows=snapshot.by_cost_type,
             ),
+            forecast=self._build_forecast_view_model(
+                self._desktop_api.get_cost_forecast(resolved_project_id)
+            ),
+            commitment_summary=self._build_commitment_summary_view_model(
+                self._desktop_api.get_commitment_summary(resolved_project_id)
+            ),
+            baseline_variance=tuple(
+                BaselineVarianceRowViewModel(
+                    task_id=rec.task_id,
+                    task_name=rec.task_name,
+                    start_variance_days=rec.start_variance_days,
+                    finish_variance_days=rec.finish_variance_days,
+                    cost_variance=rec.cost_variance,
+                    cost_variance_label=rec.cost_variance_label,
+                    tone=rec.tone,
+                )
+                for rec in self._desktop_api.build_baseline_variance(resolved_project_id)
+            ),
             notes=tuple(snapshot.notes),
             empty_state=empty_state,
+        )
+
+    def suggest_code(self, payload: dict[str, Any]) -> str:
+        """Suggest a unique cost code (per-project, CST-<NAME>-NNNN)."""
+        from src.core.platform.common.code_generation import CodeGenerator
+
+        project_id = self._optional_text(payload, "projectId")
+        existing = {
+            str(getattr(row, "code", "") or "").upper()
+            for row in (self._desktop_api.list_cost_items(project_id) if project_id else [])
+        }
+        name = self._optional_text(payload, "description")
+        return CodeGenerator().generate(
+            "cost",
+            exists=lambda code: code.upper() in existing,
+            name=name or None,
+            use_year=not bool(name),
         )
 
     def create_cost_item(self, payload: dict[str, Any]) -> None:
@@ -157,6 +196,7 @@ class ProjectFinancialsWorkspacePresenter:
             ),
             incurred_date=self._optional_date(payload, "incurredDate"),
             currency_code=self._optional_text(payload, "currency"),
+            code=self._optional_text(payload, "costCode"),
         )
         self._desktop_api.create_cost_item(command)
 
@@ -192,6 +232,7 @@ class ProjectFinancialsWorkspacePresenter:
             incurred_date=self._optional_date(payload, "incurredDate"),
             currency_code=self._optional_text(payload, "currency"),
             expected_version=self._optional_int(payload, "expectedVersion"),
+            code=self._optional_text(payload, "costCode"),
         )
         self._desktop_api.update_cost_item(command)
 
@@ -326,6 +367,11 @@ class ProjectFinancialsWorkspacePresenter:
                     supporting_text="Baseline expected amount.",
                 ),
                 FinancialsDetailFieldViewModel(
+                    label="Forecast",
+                    value=cost.forecast_amount_label,
+                    supporting_text="Effective forecast (manual override or planned fallback).",
+                ),
+                FinancialsDetailFieldViewModel(
                     label="Committed",
                     value=cost.committed_amount_label,
                     supporting_text="Committed commercial exposure.",
@@ -336,8 +382,17 @@ class ProjectFinancialsWorkspacePresenter:
                     supporting_text="Actual recognized spend.",
                 ),
                 FinancialsDetailFieldViewModel(
+                    label="Commitment",
+                    value=cost.commitment_status_label,
+                    supporting_text="Purchase order lifecycle status.",
+                ),
+                FinancialsDetailFieldViewModel(
                     label="Task",
                     value=cost.task_name,
+                ),
+                FinancialsDetailFieldViewModel(
+                    label="Vendor ref",
+                    value=cost.vendor_reference or "Not set",
                 ),
                 FinancialsDetailFieldViewModel(
                     label="Incurred date",
@@ -349,6 +404,77 @@ class ProjectFinancialsWorkspacePresenter:
                 ),
             ),
             state=state,
+        )
+
+    @staticmethod
+    def _build_forecast_view_model(forecast_dto) -> FinancialsForecastViewModel:
+        _METHOD_LABELS = {
+            "bac_over_cpi": "BAC / CPI",
+            "ac_etc_plan": "AC + ETC at plan rate",
+            "ac_etc_cpi": "AC + ETC at CPI rate",
+            "manual": "Manual (sum of forecast amounts)",
+        }
+        method_label = _METHOD_LABELS.get(forecast_dto.method, forecast_dto.method)
+        alert = ""
+        if forecast_dto.exceeds_threshold:
+            pct = forecast_dto.threshold_percent
+            alert = (
+                f"EAC exceeds planned budget by more than {pct:.0f}%. "
+                "Cost approval may be required."
+            )
+        elif forecast_dto.is_over_budget:
+            alert = "EAC exceeds the planned budget (BAC). Review cost exposure."
+        cpi_hint = ""
+        if forecast_dto.cpi > 0:
+            cpi_hint = "success" if forecast_dto.cpi >= 1.0 else "warning" if forecast_dto.cpi >= 0.9 else "danger"
+        metrics = (
+            FinancialsForecastMetricViewModel(label="BAC", value=forecast_dto.bac_label),
+            FinancialsForecastMetricViewModel(label="AC", value=forecast_dto.ac_label),
+            FinancialsForecastMetricViewModel(label="EV", value=forecast_dto.ev_label),
+            FinancialsForecastMetricViewModel(label="ETC", value=forecast_dto.etc_label),
+            FinancialsForecastMetricViewModel(
+                label="EAC",
+                value=forecast_dto.eac_label,
+                color_hint="danger" if forecast_dto.is_over_budget else "success",
+            ),
+            FinancialsForecastMetricViewModel(
+                label="VAC",
+                value=forecast_dto.vac_label,
+                color_hint="danger" if forecast_dto.vac < 0 else "success",
+            ),
+            FinancialsForecastMetricViewModel(
+                label="CPI",
+                value=forecast_dto.cpi_label,
+                color_hint=cpi_hint,
+            ),
+        )
+        return FinancialsForecastViewModel(
+            method=forecast_dto.method,
+            method_label=method_label,
+            bac_label=forecast_dto.bac_label,
+            ac_label=forecast_dto.ac_label,
+            ev_label=forecast_dto.ev_label,
+            etc_label=forecast_dto.etc_label,
+            eac_label=forecast_dto.eac_label,
+            vac_label=forecast_dto.vac_label,
+            cpi_label=forecast_dto.cpi_label,
+            is_over_budget=forecast_dto.is_over_budget,
+            exceeds_threshold=forecast_dto.exceeds_threshold,
+            threshold_percent=forecast_dto.threshold_percent,
+            alert_message=alert,
+            metrics=metrics,
+        )
+
+    @staticmethod
+    def _build_commitment_summary_view_model(summary_dto) -> FinancialsCommitmentSummaryViewModel:
+        return FinancialsCommitmentSummaryViewModel(
+            planned_label=summary_dto.planned_label,
+            uncommitted_label=summary_dto.uncommitted_label,
+            committed_label=summary_dto.committed_label,
+            invoiced_label=summary_dto.invoiced_label,
+            paid_label=summary_dto.paid_label,
+            exposure_label=summary_dto.exposure_label,
+            commitment_rate_pct=summary_dto.commitment_rate_pct,
         )
 
     def _build_cashflow_collection(self, snapshot) -> FinancialsCollectionViewModel:
@@ -430,13 +556,19 @@ class ProjectFinancialsWorkspacePresenter:
             "projectId": cost.project_id,
             "taskId": cost.task_id or "",
             "taskName": cost.task_name or "",
+            "costCode": getattr(cost, "code", "") or "",
             "description": cost.description,
             "plannedAmount": f"{cost.planned_amount:.2f}",
             "plannedAmountLabel": cost.planned_amount_label,
+            "forecastAmount": f"{cost.forecast_amount:.2f}",
+            "forecastAmountLabel": cost.forecast_amount_label,
             "committedAmount": f"{cost.committed_amount:.2f}",
             "committedAmountLabel": cost.committed_amount_label,
             "actualAmount": f"{cost.actual_amount:.2f}",
             "actualAmountLabel": cost.actual_amount_label,
+            "commitmentStatus": cost.commitment_status,
+            "commitmentStatusLabel": cost.commitment_status_label,
+            "vendorReference": cost.vendor_reference or "",
             "costType": cost.cost_type,
             "currency": cost.currency_code or "",
             "incurredDate": cost.incurred_date.isoformat() if cost.incurred_date else "",

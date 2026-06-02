@@ -1,4 +1,4 @@
-"""Cost and calendar ORM rows."""
+"""Cost and PM calendar-event ORM rows."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from typing import Optional
 from sqlalchemy import Boolean, Date, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
+from src.core.platform.infrastructure.persistence.orm.calendar import HolidayORM, WorkingCalendarORM
 from src.infra.persistence.orm.base import Base
 
 
@@ -25,6 +26,7 @@ class CostItemORM(Base):
         ForeignKey("tasks.id", ondelete="SET NULL"),
         nullable=True,
     )
+    cost_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     description: Mapped[str] = mapped_column(String, nullable=False)
     cost_type: Mapped[str] = mapped_column(String, nullable=False, default="OVERHEAD")
     currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
@@ -36,6 +38,7 @@ class CostItemORM(Base):
 
 
 Index("idx_costs_project", CostItemORM.project_id)
+Index("ux_costs_project_code", CostItemORM.project_id, CostItemORM.cost_code, unique=True)
 Index("idx_costs_task", CostItemORM.task_id)
 Index("idx_costs_type", CostItemORM.cost_type)
 
@@ -64,27 +67,4 @@ class CalendarEventORM(Base):
 Index("idx_clandar_project", CalendarEventORM.project_id)
 Index("idx_calendar_start_end", CalendarEventORM.start_date, CalendarEventORM.end_date)
 
-
-class WorkingCalendarORM(Base):
-    __tablename__ = "working_calendars"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    working_days: Mapped[str] = mapped_column(String, nullable=False, default="0,1,2,3,4")
-    hours_per_day: Mapped[float] = mapped_column(Float, default=8.0)
-
-
-class HolidayORM(Base):
-    __tablename__ = "holidays"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    calendar_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("working_calendars.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    date: Mapped[date] = mapped_column(Date, nullable=False)
-    name: Mapped[str] = mapped_column(String, default="")
-
-
-Index("idx_holiday_calendar_date", HolidayORM.calendar_id, HolidayORM.date)
+__all__ = ["CalendarEventORM", "CostItemORM", "HolidayORM", "WorkingCalendarORM"]

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.platform.presenters.department_catalog_presenter import PlatformDepartmentCatalogPresenter
 
 from ..common import run_mutation, serialize_action_list
@@ -18,6 +19,7 @@ class PlatformDepartmentController(QObject):
     def __init__(self, presenter: PlatformDepartmentCatalogPresenter, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._presenter = presenter
+        self._table_model = DynamicTableModel(self)
         self._departments: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._department_editor_options: dict[str, object] = {
             "siteOptions": [],
@@ -37,6 +39,10 @@ class PlatformDepartmentController(QObject):
     @Property("QVariantMap", notify=departmentsChanged)
     def departments(self) -> dict[str, object]:
         return self._departments
+
+    @Property(QObject, constant=True)
+    def tableModel(self) -> DynamicTableModel:
+        return self._table_model
 
     @Property("QVariantMap", notify=departmentEditorOptionsChanged)
     def departmentEditorOptions(self) -> dict[str, object]:
@@ -61,6 +67,7 @@ class PlatformDepartmentController(QObject):
     def _set_departments(self, value: dict[str, object]) -> None:
         if self._departments != value:
             self._departments = value
+            self._table_model.set_rows(value.get("items", []))
             self.departmentsChanged.emit()
 
     def _set_department_editor_options(self, value: dict[str, object]) -> None:
@@ -106,6 +113,16 @@ class PlatformDepartmentController(QObject):
     @Slot()
     def refresh(self) -> None:
         self._refresh_departments()
+
+    @Slot("QVariantMap", result=str)
+    def generateCode(self, payload: dict[str, object]) -> str:
+        try:
+            return self._presenter.suggest_code(dict(payload))
+        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
+            setter = getattr(self, "_set_error_message", None)
+            if setter is not None:
+                setter(str(exc))
+            return ""
 
     @Slot("QVariantMap", result="QVariantMap")
     def createDepartment(self, payload: dict[str, object]) -> dict[str, object]:

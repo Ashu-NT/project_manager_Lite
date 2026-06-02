@@ -8,6 +8,8 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
+import "panels" as Panels
+import "sections" as Sections
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -53,6 +55,10 @@ AppLayouts.WorkspaceFrame {
         ? root.workspaceController.recentActions
         : ({ "title": "", "subtitle": "", "emptyState": "No recent activity.", "items": [] })
 
+    readonly property var _capacityPoolModel: root.workspaceController
+        ? root.workspaceController.capacityPool
+        : ({ "title": "Capacity Pool", "subtitle": "", "emptyState": "No capacity data available.", "items": [] })
+
     // ── Workspace metadata ─────────────────────────────────────────────
     title:    root.overviewModel.title    || "Portfolio"
     subtitle: root.overviewModel.subtitle || ""
@@ -84,11 +90,11 @@ AppLayouts.WorkspaceFrame {
 
     // ── Main table column definitions ─────────────────────────────────
     readonly property var _heatmapColumns: [
-        { "key": "name",     "label": "Project",       "flex": 3, "minWidth": 180, "sortable": true  },
-        { "key": "status",   "label": "Status",        "flex": 1, "minWidth": 90,  "type": "status"  },
-        { "key": "pressure", "label": "Pressure",      "flex": 1, "minWidth": 80,  "type": "status"  },
-        { "key": "details",  "label": "Delivery",      "flex": 2, "minWidth": 160                    },
-        { "key": "variance", "label": "Cost Variance", "flex": 1, "minWidth": 100                    }
+        { "key": "title",          "label": "Project",       "flex": 3, "minWidth": 180, "sortable": true  },
+        { "key": "subtitle",       "label": "Status",        "flex": 1, "minWidth": 90                     },
+        { "key": "statusLabel",    "label": "Pressure",      "flex": 1, "minWidth": 80,  "type": "status"  },
+        { "key": "supportingText", "label": "Delivery",      "flex": 2, "minWidth": 160                    },
+        { "key": "metaText",       "label": "Cost Variance", "flex": 1, "minWidth": 100                    }
     ]
 
     // ── All filtered heatmap rows (client-side search) ─────────────────
@@ -121,11 +127,11 @@ AppLayouts.WorkspaceFrame {
 
     // ── Funding tab DataTable rows ─────────────────────────────────────
     readonly property var _fundingColumns: [
-        { "key": "title",   "label": "Intake Item",       "flex": 3, "minWidth": 160, "sortable": true },
-        { "key": "status",  "label": "Status",            "flex": 1, "minWidth": 90,  "type": "status" },
-        { "key": "sponsor", "label": "Sponsor",           "flex": 2, "minWidth": 120                   },
-        { "key": "details", "label": "Budget / Capacity", "flex": 2, "minWidth": 160                   },
-        { "key": "score",   "label": "Score",             "flex": 1, "minWidth": 60                    }
+        { "key": "title",          "label": "Intake Item",       "flex": 3, "minWidth": 160, "sortable": true },
+        { "key": "statusLabel",    "label": "Status",            "flex": 1, "minWidth": 90,  "type": "status" },
+        { "key": "subtitle",       "label": "Sponsor",           "flex": 2, "minWidth": 120                   },
+        { "key": "supportingText", "label": "Budget / Capacity", "flex": 2, "minWidth": 160                   },
+        { "key": "metaText",       "label": "Score",             "flex": 1, "minWidth": 60                    }
     ]
 
     readonly property var _fundingRows: {
@@ -143,10 +149,10 @@ AppLayouts.WorkspaceFrame {
 
     // ── Risks tab DataTable rows ───────────────────────────────────────
     readonly property var _riskColumns: [
-        { "key": "link",    "label": "Dependency", "flex": 3, "minWidth": 200                   },
-        { "key": "type",    "label": "Type",        "flex": 1, "minWidth": 100                   },
-        { "key": "status",  "label": "Pressure",    "flex": 1, "minWidth": 80, "type": "status"  },
-        { "key": "details", "label": "Status",      "flex": 2, "minWidth": 160                   }
+        { "key": "title",          "label": "Dependency", "flex": 3, "minWidth": 200                   },
+        { "key": "subtitle",       "label": "Type",        "flex": 1, "minWidth": 100                   },
+        { "key": "statusLabel",    "label": "Pressure",    "flex": 1, "minWidth": 80, "type": "status"  },
+        { "key": "supportingText", "label": "Status",      "flex": 2, "minWidth": 160                   }
     ]
 
     readonly property var _riskRows: {
@@ -212,28 +218,21 @@ AppLayouts.WorkspaceFrame {
                 spacing: Theme.AppTheme.spacingSm
 
                 // State banners
-                AppWidgets.InlineMessage {
+                AppWidgets.LoadingOverlay {
                     Layout.fillWidth: true
-                    visible: (root.workspaceController ? root.workspaceController.isLoading : false)
-                        && !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-                    tone: "info"
-                    message: "Loading portfolio data..."
-                }
-
-                AppWidgets.InlineMessage {
-                    Layout.fillWidth: true
-                    visible: root.workspaceController
+                    loading: root.workspaceController
                         ? root.workspaceController.isBusy
                             && String(root.workspaceController.errorMessage || "").length === 0
                         : false
-                    tone: "info"
                     message: "Saving changes..."
+                    compact: true
+                    modal:   false
                 }
 
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
-                    visible: String(root.workspaceController
+                    visible: !root._detailOpen
+                        && String(root.workspaceController
                         ? root.workspaceController.errorMessage : "").length > 0
                     tone: "danger"
                     message: root.workspaceController ? root.workspaceController.errorMessage : ""
@@ -241,7 +240,8 @@ AppLayouts.WorkspaceFrame {
 
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
-                    visible: String(root.workspaceController
+                    visible: !root._detailOpen
+                        && String(root.workspaceController
                         ? root.workspaceController.feedbackMessage : "").length > 0
                         && String(root.workspaceController
                         ? root.workspaceController.errorMessage : "").length === 0
@@ -250,7 +250,7 @@ AppLayouts.WorkspaceFrame {
                 }
 
                 // Governance toolbar
-                PortfolioGovernanceToolbar {
+                Sections.PortfolioGovernanceToolbar {
                     Layout.fillWidth: true
                     scenarioOptions: root.workspaceController
                         ? (root.workspaceController.scenarioOptions || []) : []
@@ -288,7 +288,11 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.refresh()
                         }
                     }
-                    onExportRequested: { /* future */ }
+                    onExportRequested: {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.exportPortfolio()
+                        }
+                    }
                 }
 
                 // Executive KPI strip
@@ -320,7 +324,11 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.refresh()
                         }
                     }
-                    onExportRequested: { /* future */ }
+                    onExportRequested: {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.exportPortfolio()
+                        }
+                    }
                 }
 
                 // ── Content area ───────────────────────────────────────
@@ -338,7 +346,7 @@ AppLayouts.WorkspaceFrame {
                         anchors.bottom: _paginationBar.top
                         multiSelect: true
                         columns: root._heatmapColumns
-                        rows:    root._pagedHeatmapRows
+                        sourceModel: root.workspaceController ? root.workspaceController.heatmapTableModel : null
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root._heatmapModel.emptyState
                             || "No portfolio projects available."
@@ -372,7 +380,6 @@ AppLayouts.WorkspaceFrame {
                                 root._selectedRowIds = []
                             }
                         }
-                        onSortRequested: function(key) { /* client-side sort future */ }
                     }
 
                     // Pagination bar (sits on top of bottom panel)
@@ -482,382 +489,36 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     // ── Bottom tabbed panel ────────────────────────────
-                    Rectangle {
+                    Panels.PortfolioBottomPanel {
                         id: _bottomPanel
                         anchors.left:   parent.left
                         anchors.right:  parent.right
                         anchors.bottom: parent.bottom
                         height: 268
-                        color: Theme.AppTheme.surfaceRaised
-                        radius: Theme.AppTheme.radiusMd
-                        border.color: Theme.AppTheme.subtleBorder
-                        border.width: 1
-                        clip: true
-
-                        ColumnLayout {
-                            anchors.fill: parent
-                            spacing: 0
-
-                            // Tab strip
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 36
-                                color: Theme.AppTheme.surfaceAlt
-                                radius: Theme.AppTheme.radiusMd
-
-                                RowLayout {
-                                    anchors.fill: parent
-                                    anchors.leftMargin:  Theme.AppTheme.marginMd
-                                    anchors.rightMargin: Theme.AppTheme.marginMd
-                                    spacing: Theme.AppTheme.spacingXs
-
-                                    Repeater {
-                                        model: ["Funding", "Risks", "Capacity", "Governance", "Activity"]
-
-                                        delegate: Rectangle {
-                                            id: _tabBtn
-                                            required property var modelData
-                                            required property int index
-
-                                            implicitWidth:  _tabLabel.implicitWidth + 20
-                                            implicitHeight: 26
-                                            radius: Theme.AppTheme.radiusSm
-                                            color: root._bottomTab === _tabBtn.index
-                                                ? Theme.AppTheme.accent
-                                                : (_tabHover.containsMouse
-                                                    ? Theme.AppTheme.hoverSurface
-                                                    : Qt.rgba(0, 0, 0, 0))
-
-                                            AppControls.Label {
-                                                id: _tabLabel
-                                                anchors.centerIn: parent
-                                                text: String(_tabBtn.modelData || "")
-                                                color: root._bottomTab === _tabBtn.index
-                                                    ? "white"
-                                                    : Theme.AppTheme.textSecondary
-                                                font.family: Theme.AppTheme.fontFamily
-                                                font.pixelSize: Theme.AppTheme.smallSize
-                                                font.bold: root._bottomTab === _tabBtn.index
-                                            }
-
-                                            MouseArea {
-                                                id: _tabHover
-                                                anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: root._bottomTab = _tabBtn.index
-                                            }
-                                        }
-                                    }
-
-                                    Item { Layout.fillWidth: true }
-                                }
-                            }
-
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 1
-                                color: Theme.AppTheme.divider
-                            }
-
-                            // Tab content
-                            StackLayout {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                currentIndex: root._bottomTab
-
-                                // ── Tab 0: Funding ─────────────────────
-                                Item {
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        spacing: 0
-
-                                        AppWidgets.DataTable {
-                                            Layout.fillWidth: true
-                                            Layout.fillHeight: true
-                                            columns:  root._fundingColumns
-                                            rows:     root._fundingRows
-                                            emptyText: root._intakeModel.emptyState
-                                                || "No intake items available."
-                                            multiSelect: false
-                                            selectedRowId: root._selectedFundingId
-
-                                            onRowSelected: function(rowId) {
-                                                root._selectedFundingId = rowId
-                                            }
-                                            onRowActivated: function(rowId) {
-                                                root._selectedFundingId = rowId
-                                            }
-                                            onSortRequested: function(key) {}
-                                        }
-
-                                        // Inline action bar for selected intake item
-                                        Rectangle {
-                                            Layout.fillWidth: true
-                                            Layout.preferredHeight: 40
-                                            visible: root._selectedFundingId.length > 0
-                                            color: Theme.AppTheme.surfaceAlt
-
-                                            Rectangle {
-                                                anchors.top:   parent.top
-                                                anchors.left:  parent.left
-                                                anchors.right: parent.right
-                                                height: 1
-                                                color: Theme.AppTheme.divider
-                                            }
-
-                                            RowLayout {
-                                                anchors.fill: parent
-                                                anchors.leftMargin:  Theme.AppTheme.marginMd
-                                                anchors.rightMargin: Theme.AppTheme.marginMd
-                                                spacing: Theme.AppTheme.spacingSm
-
-                                                AppControls.Label {
-                                                    text: "Status:"
-                                                    color: Theme.AppTheme.textMuted
-                                                    font.family: Theme.AppTheme.fontFamily
-                                                    font.pixelSize: Theme.AppTheme.captionSize
-                                                }
-
-                                                AppControls.SecondaryButton {
-                                                    text: "Approve"
-                                                    iconName: "approve"
-                                                    enabled: !(root.workspaceController
-                                                        ? root.workspaceController.isBusy : false)
-                                                    onClicked: {
-                                                        if (root.workspaceController !== null) {
-                                                            root.workspaceController.updateIntakeItemStatus(
-                                                                root._selectedFundingId, "APPROVED"
-                                                            )
-                                                            root._selectedFundingId = ""
-                                                        }
-                                                    }
-                                                }
-
-                                                AppControls.SecondaryButton {
-                                                    text: "Review"
-                                                    iconName: "edit"
-                                                    enabled: !(root.workspaceController
-                                                        ? root.workspaceController.isBusy : false)
-                                                    onClicked: {
-                                                        if (root.workspaceController !== null) {
-                                                            root.workspaceController.updateIntakeItemStatus(
-                                                                root._selectedFundingId, "REVIEW"
-                                                            )
-                                                            root._selectedFundingId = ""
-                                                        }
-                                                    }
-                                                }
-
-                                                AppControls.SecondaryButton {
-                                                    text: "Reject"
-                                                    iconName: "delete"
-                                                    enabled: !(root.workspaceController
-                                                        ? root.workspaceController.isBusy : false)
-                                                    onClicked: {
-                                                        if (root.workspaceController !== null) {
-                                                            root.workspaceController.updateIntakeItemStatus(
-                                                                root._selectedFundingId, "REJECTED"
-                                                            )
-                                                            root._selectedFundingId = ""
-                                                        }
-                                                    }
-                                                }
-
-                                                Item { Layout.fillWidth: true }
-
-                                                AppControls.SecondaryButton {
-                                                    text: "Clear"
-                                                    onClicked: { root._selectedFundingId = "" }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // ── Tab 1: Risks ───────────────────────
-                                Item {
-                                    AppWidgets.DataTable {
-                                        anchors.fill: parent
-                                        columns:  root._riskColumns
-                                        rows:     root._riskRows
-                                        emptyText: root._dependenciesModel.emptyState
-                                            || "No cross-project dependencies recorded."
-                                        onRowSelected: function(rowId) {}
-                                        onSortRequested: function(key) {}
-                                    }
-                                }
-
-                                // ── Tab 2: Capacity ────────────────────
-                                Item {
-                                    Flickable {
-                                        anchors.fill: parent
-                                        contentWidth: width
-                                        contentHeight: _capCol.implicitHeight
-                                            + Theme.AppTheme.marginMd * 2
-                                        clip: true
-
-                                        ColumnLayout {
-                                            id: _capCol
-                                            anchors.left:        parent.left
-                                            anchors.right:       parent.right
-                                            anchors.top:         parent.top
-                                            anchors.leftMargin:  Theme.AppTheme.marginMd
-                                            anchors.rightMargin: Theme.AppTheme.marginMd
-                                            anchors.topMargin:   Theme.AppTheme.marginMd
-                                            spacing: Theme.AppTheme.spacingMd
-
-                                            PortfolioSummaryCard {
-                                                Layout.fillWidth: true
-                                                summaryModel: root._evaluationModel
-                                            }
-
-                                            PortfolioSummaryCard {
-                                                Layout.fillWidth: true
-                                                summaryModel: root._comparisonModel
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // ── Tab 3: Governance ──────────────────
-                                Item {
-                                    Flickable {
-                                        anchors.fill: parent
-                                        contentWidth: width
-                                        contentHeight: _govCol.implicitHeight
-                                            + Theme.AppTheme.marginMd * 2
-                                        clip: true
-
-                                        ColumnLayout {
-                                            id: _govCol
-                                            anchors.left:        parent.left
-                                            anchors.right:       parent.right
-                                            anchors.top:         parent.top
-                                            anchors.leftMargin:  Theme.AppTheme.marginMd
-                                            anchors.rightMargin: Theme.AppTheme.marginMd
-                                            anchors.topMargin:   Theme.AppTheme.spacingSm
-                                            spacing: Theme.AppTheme.spacingSm
-
-                                            AppControls.Label {
-                                                Layout.fillWidth: true
-                                                text: root._templatesModel.title || "Scoring Templates"
-                                                color: Theme.AppTheme.textSecondary
-                                                font.family: Theme.AppTheme.fontFamily
-                                                font.pixelSize: Theme.AppTheme.captionSize
-                                                font.bold: true
-                                            }
-
-                                            AppControls.Label {
-                                                Layout.fillWidth: true
-                                                text: root._templatesModel.subtitle || ""
-                                                visible: text.length > 0
-                                                color: Theme.AppTheme.textMuted
-                                                font.family: Theme.AppTheme.fontFamily
-                                                font.pixelSize: Theme.AppTheme.smallSize
-                                                wrapMode: Text.WordWrap
-                                            }
-
-                                            Repeater {
-                                                model: root._templatesModel.items || []
-
-                                                delegate: Rectangle {
-                                                    id: _tplRow
-                                                    required property var modelData
-
-                                                    Layout.fillWidth: true
-                                                    height: _tplRowLayout.implicitHeight + 16
-                                                    radius: Theme.AppTheme.radiusSm
-                                                    color: Theme.AppTheme.surfaceAlt
-                                                    border.color: Theme.AppTheme.subtleBorder
-                                                    border.width: 1
-
-                                                    RowLayout {
-                                                        id: _tplRowLayout
-                                                        anchors.left:    parent.left
-                                                        anchors.right:   parent.right
-                                                        anchors.top:     parent.top
-                                                        anchors.margins: 8
-                                                        spacing: Theme.AppTheme.spacingSm
-
-                                                        ColumnLayout {
-                                                            Layout.fillWidth: true
-                                                            spacing: 2
-
-                                                            AppControls.Label {
-                                                                Layout.fillWidth: true
-                                                                text: String(_tplRow.modelData.title || "")
-                                                                color: Theme.AppTheme.textPrimary
-                                                                font.family: Theme.AppTheme.fontFamily
-                                                                font.pixelSize: Theme.AppTheme.smallSize
-                                                                font.bold: true
-                                                                elide: Text.ElideRight
-                                                            }
-
-                                                            AppControls.Label {
-                                                                Layout.fillWidth: true
-                                                                text: String(_tplRow.modelData.subtitle || "")
-                                                                color: Theme.AppTheme.textSecondary
-                                                                font.family: Theme.AppTheme.fontFamily
-                                                                font.pixelSize: Theme.AppTheme.captionSize
-                                                                elide: Text.ElideRight
-                                                            }
-                                                        }
-
-                                                        AppWidgets.StatusChip {
-                                                            status: String(_tplRow.modelData.statusLabel || "")
-                                                        }
-
-                                                        AppControls.SecondaryButton {
-                                                            visible: Boolean(_tplRow.modelData.canPrimaryAction)
-                                                            text: "Activate"
-                                                            iconName: "approve"
-                                                            enabled: !(root.workspaceController
-                                                                ? root.workspaceController.isBusy : false)
-                                                            onClicked: {
-                                                                if (root.workspaceController !== null) {
-                                                                    root.workspaceController.activateTemplate(
-                                                                        String(
-                                                                            (_tplRow.modelData.state || {})
-                                                                            .templateId || ""
-                                                                        )
-                                                                    )
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-
-                                            AppControls.Label {
-                                                Layout.fillWidth: true
-                                                visible: (root._templatesModel.items || []).length === 0
-                                                text: root._templatesModel.emptyState
-                                                    || "No scoring templates available."
-                                                color: Theme.AppTheme.textMuted
-                                                font.family: Theme.AppTheme.fontFamily
-                                                font.pixelSize: Theme.AppTheme.smallSize
-                                                wrapMode: Text.WordWrap
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // ── Tab 4: Activity ────────────────────
-                                Item {
-                                    AppWidgets.ActivityFeed {
-                                        anchors.fill: parent
-                                        anchors.margins: Theme.AppTheme.marginMd
-                                        items: root._activityItems
-                                        emptyText: root._recentActionsModel.emptyState
-                                            || "No recent portfolio activity."
-                                    }
-                                }
-                            }
-                        }
+                        workspaceController: root.workspaceController
+                        bottomTab: root._bottomTab
+                        selectedFundingId: root._selectedFundingId
+                        intakeModel: root._intakeModel
+                        dependenciesModel: root._dependenciesModel
+                        capacityPoolModel: root._capacityPoolModel
+                        templatesModel: root._templatesModel
+                        activityItems: root._activityItems
+                        recentActionsModel: root._recentActionsModel
+                        onBottomTabRequested: function(tab) { root._bottomTab = tab }
+                        onSelectedFundingIdRequested: function(id) { root._selectedFundingId = id }
                     }
                 }
             }
+        }
+
+        // ── Full loading overlay over list page ───────────────────────
+        AppWidgets.LoadingOverlay {
+            anchors.fill: _listPage
+            z: 15
+            loading: _listPage.visible
+                && (root.workspaceController ? root.workspaceController.isLoading : false)
+                && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+            message: "Loading portfolio data..."
         }
 
         // ── Detail page (covers full area, z:20) ──────────────────────
@@ -911,7 +572,23 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                PortfolioDetailPanel {
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                }
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: root._detailOpen
+                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                    tone: "success"
+                    message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+                }
+
+                Panels.PortfolioDetailPanel {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     heatmapItem: root._selectedHeatmapItem

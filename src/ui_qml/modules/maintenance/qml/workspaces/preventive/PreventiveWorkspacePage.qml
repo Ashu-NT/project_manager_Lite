@@ -1,4 +1,4 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -6,6 +6,7 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
+import "sections" as Sections
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -41,60 +42,14 @@ AppLayouts.WorkspaceFrame {
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            PreventiveDialogHost {
+            Dialogs.PreventiveDialogHost {
 
         planFormOptions: root.workspaceController ? (root.workspaceController.planFormOptions || {}) : ({})
         planTaskFormOptions: root.workspaceController ? (root.workspaceController.planTaskFormOptions || {}) : ({})
         templateFormOptions: root.workspaceController ? (root.workspaceController.templateFormOptions || {}) : ({})
         stepFormOptions: root.workspaceController ? (root.workspaceController.stepFormOptions || {}) : ({})
 
-                onCreatePlanRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.createPlan(payload)
-                    }
-                }
-
-                onUpdatePlanRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.updatePlan(payload)
-                    }
-                }
-
-                onCreatePlanTaskRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.createPlanTask(payload)
-                    }
-                }
-
-                onUpdatePlanTaskRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.updatePlanTask(payload)
-                    }
-                }
-
-                onCreateTaskTemplateRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.createTaskTemplate(payload)
-                    }
-                }
-
-                onUpdateTaskTemplateRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.updateTaskTemplate(payload)
-                    }
-                }
-
-                onCreateTaskStepRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.createTaskStep(payload)
-                    }
-                }
-
-                onUpdateTaskStepRequested: function(payload) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.updateTaskStep(payload)
-                    }
-                }
+                workspaceController: root.workspaceController
             }
         }
     }
@@ -148,7 +103,7 @@ AppLayouts.WorkspaceFrame {
                 Layout.fillWidth: true
                 currentIndex: preventiveTabs.currentIndex
 
-                PreventiveQueueSection {
+                Sections.PreventiveQueueSection {
                     queueState: root.workspaceController ? (root.workspaceController.queueState || {}) : ({})
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
@@ -195,7 +150,7 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                PreventivePlansSection {
+                Sections.PreventivePlansSection {
                     planLibraryState: root.workspaceController ? (root.workspaceController.planLibraryState || {}) : ({})
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
@@ -291,7 +246,7 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                PreventiveTemplatesSection {
+                Sections.PreventiveTemplatesSection {
                     templateLibraryState: root.workspaceController ? (root.workspaceController.templateLibraryState || {}) : ({})
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
