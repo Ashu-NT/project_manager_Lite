@@ -801,81 +801,58 @@ Implementation note:
   - [ ] Users
   - [ ] Sessions
   - [ ] Audit
-- [ ] implement section-aware actions
-- [ ] add lazy loading
+- [x] implement section-aware actions (Overview: Revoke + Refresh; Audit: Open Audit; others: Refresh)
+- [x] add lazy loading (LazySectionLoader per section, keepLoaded)
+
+Implementation note:
+- `Roles & Access` now uses `AdminAccessDetailPage.qml` (Overview/Permissions/Scope/Audit).
+  Opened additively on grant row-activation from `AccessSecurityPanel`; single-click keeps
+  the inline inspector. `AccessSecurityPanel` emits `grantActivated(grantId)`.
 
 ### Control Center
 
-Status: `[ ] not started`
+Status: `[~] approvals list/detail complete; Audit/Escalations/System Events deferred`
 
-- [ ] map current panel and detail architecture
-- [ ] align top-level navigation:
-  - [ ] Approvals
-  - [ ] Audit
-  - [ ] Escalations
-  - [ ] System Events
+- [x] map current panel and detail architecture
+- [x] align top-level navigation (tab bar already existed)
+- [x] fix cosmetic pagination / `_approvalDetailOpen` reset on panel switch
 
 #### Approvals
 
-- [ ] align list page with PM table shell
-- [ ] add row activation -> detail page
-- [ ] add sections:
-  - [ ] Overview
-  - [ ] Request Payload
-  - [ ] Source Reference
-  - [ ] Decision History
-  - [ ] Audit
-- [ ] limit overview actions to `Approve`, `Reject`, `Delegate`
+- [x] align list page with PM table shell (was already sourceModel + TableToolbar)
+- [x] add row activation -> `ControlApprovalDetailPage` (SectionDetailPage)
+- [x] add sections: Overview, Request Payload, Decision History, Audit
+- [x] Approve/Reject in section-aware Overview ContextualActionToolbar (hardcoded footer removed)
+- [~] Delegate: intentionally absent — requires new controller slot / presenter / desktop-API
 
 #### Audit
 
-- [ ] align list page with PM table/feed shell
-- [ ] add row activation -> detail page when supported
-- [ ] add sections:
-  - [ ] Overview
-  - [ ] Actor
-  - [ ] Entity
-  - [ ] Payload
-  - [ ] Related Events
-- [ ] implement section-aware actions such as `Export Event` and `Open Source`
+- [~] list uses `ActivityFeed` (not DataTable); `auditFeedTableModel` exists but unused
+- [ ] add row activation -> detail page — deferred (no per-event field model in controller)
 
 #### Escalations / System Events
 
-- [ ] map current runtime sources
-- [ ] decide `DataTable` vs `ActivityFeed`
-- [ ] add detail handling if entity identity exists
-- [ ] add lazy loading and message states
+- [!] blocked — `rows: []` placeholders; no controller/presenter/desktop-API backing
 
 ### Settings
 
-Status: `[ ] not started`
+Status: `[~] Module Entitlements list/detail complete; sourceModel defects fixed`
 
-- [ ] map current section architecture
-- [ ] align settings pages to list/detail or panel/detail where appropriate
-
-#### Runtime
-
-- [ ] align shell, detail flow, and lazy loading
+- [x] map current section architecture
+- [x] fix latent `sourceModel` ternary defects for module entitlements + integration tables
+- [x] `_moduleDetailOpen` reset on section switch
 
 #### Module Entitlements
 
-- [ ] align list/detail flow
-- [ ] add sections:
-  - [ ] Overview
-  - [ ] Capabilities
-  - [ ] Consumers
-  - [ ] Audit
-- [ ] implement overview-only actions
+- [x] list/detail flow → `SettingsModuleDetailPage` (SectionDetailPage)
+- [x] sections: Overview, Capabilities, Consumers, Audit
+- [x] Overview-only actions (Lifecycle/Licensed/Enabled via ModuleLifecycleDialog)
+- [x] duplicate inline ContextualActionToolbar above list removed
 
 #### Integration Capabilities
 
-- [ ] align list/detail flow
-- [ ] add sections:
-  - [ ] Overview
-  - [ ] Provider Module
-  - [ ] Consumer Modules
-  - [ ] Usage
-  - [ ] Audit
+- [~] list uses sourceModel DataTable (table defect fixed); no detail page — read-only acceptable
+- [ ] list/detail with detail sections — deferred (no per-capability field model in controller)
 
 #### Security
 
@@ -913,32 +890,34 @@ Required behavior:
 
 ## RBAC and Entitlement Rules
 
-Status: `[ ] not started`
+Status: `[~] module-gated sections wired; audit-perm gating deferred`
 
-- [ ] hide sections when the user lacks permission
-- [ ] hide module-linked sections when the module is disabled
-- [ ] avoid permission-denied placeholders for sections that should be absent
-- [ ] verify action visibility follows RBAC as well as section context
-
-Examples:
-
-- [ ] hide `Warehouses` when Inventory is disabled
-- [ ] hide `Projects` when PM is disabled
-- [ ] hide `Assets` when Maintenance is disabled
-- [ ] hide `Audit` when audit-read permission is absent
+- [x] hide module-linked sections when the module is disabled:
+  - Sites: `isModuleEnabled("inventory_procurement/project_management/maintenance_management")` ✅
+  - Departments: `isModuleEnabled("project_management/inventory_procurement")` ✅
+  - Employees: `pmEnabled` prop wired from `platformCatalog.isModuleEnabled("project_management")` ✅ (was unwired before)
+  - Parties: `inventoryEnabled/pmEnabled` wired from `platformCatalog` ✅ (was unwired before)
+- [x] avoid permission-denied placeholders — hidden sections show nothing, not a denied error
+- [~] hide `Warehouses`/`Projects`/`Assets` in Sites/Departments/Employees when modules disabled ✅
+- [ ] hide `Audit` section when audit-read permission absent — blocked on backend `canViewAudit` flag
+- [ ] verify action `enabled` flags follow RBAC — blocked on per-action permission flags from controller
 
 ## Data Table Architecture Follow-Up
 
-Status: `[ ] not started`
+Status: `[~] main lists all sourceModel; embedded detail tables deferred`
 
-- [ ] inventory all Platform tables still bound through raw `rows: ...items`
-- [ ] identify which Platform tables should migrate to `sourceModel`
-- [ ] avoid large QML-side row mapping, filtering, or sorting
-- [ ] align Platform tables with the shared `DynamicTableModel` direction
+- [x] main entity list tables: all use `DynamicTableModel sourceModel` ✅
+- [x] module entitlements + integration capabilities tables: sourceModel defects fixed ✅
+- [x] approval queue table: already sourceModel ✅
+- [~] embedded detail tables (`AdminDetailTableSection rows: ...`): JS filter on in-memory catalog;
+  acceptable for small admin catalogs — migration to scoped `sourceModel` requires new controller
+  methods (backend-deferred): Site→Departments, Department→Employees, User→ModuleAccess, Document→LinkedEntities
+- [ ] column-state persistence (`loadTableColumnState`/`saveTableColumnState`): admin controller
+  does not expose this method — backend-deferred
 
 ## Validation Checklist
 
-Status: `[ ] not started`
+Status: `[~] compile + route tests green; full runtime validation pending`
 
 Run:
 
