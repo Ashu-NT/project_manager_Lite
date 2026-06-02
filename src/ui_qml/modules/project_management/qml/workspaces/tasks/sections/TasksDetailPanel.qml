@@ -106,8 +106,7 @@ Item {
         for (let i = 0; i < secs.length; i++) {
             const s = secs[i]
             const sLabel = (typeof s === "string") ? s : (s.label || "")
-            if (sLabel === name)
-                return i
+            if (sLabel === name) return i
         }
         return -1
     }
@@ -121,16 +120,16 @@ Item {
         const secs = root._sections
         const entry = (secs.length > root._idx) ? secs[root._idx] : null
         const name = entry ? ((typeof entry === "string") ? entry : (entry.label || "")) : ""
-        if (name === "Details")          return _sec0.implicitHeight
-        if (name === "Assignments")      return _sec1.implicitHeight
-        if (name === "Dependencies")     return _sec2.implicitHeight
-        if (name === "Time")             return _sec3.implicitHeight
-        if (name === "Activity")         return _sec4.implicitHeight
-        if (name === "Material Demand")  return _sec5.implicitHeight
-        if (name === "Reservations")     return _sec6.implicitHeight
-        if (name === "Procurement")      return _sec7.implicitHeight
-        if (name === "Skills")           return _sec8.implicitHeight
-        if (name === "Schedule Impact")  return _sec9.implicitHeight
+        if (name === "Details")         return _sec0.implicitHeight
+        if (name === "Assignments")     return _sec1.implicitHeight
+        if (name === "Dependencies")    return _sec2.implicitHeight
+        if (name === "Time")            return _sec3.implicitHeight
+        if (name === "Activity")        return _sec4.implicitHeight
+        if (name === "Material Demand") return _sec5.implicitHeight
+        if (name === "Reservations")    return _sec6.implicitHeight
+        if (name === "Procurement")     return _sec7.implicitHeight
+        if (name === "Skills")          return _sec8.implicitHeight
+        if (name === "Schedule Impact") return _sec9.implicitHeight
         return 0
     }
 
@@ -141,7 +140,7 @@ Item {
         anchors.right: parent.right
         height: 40
         color: Theme.AppTheme.surfaceAlt
-        visible: false     //root._hasTask
+        visible: false
 
         Rectangle {
             anchors.left: parent.left
@@ -180,8 +179,7 @@ Item {
             }
 
             Rectangle {
-                width: 1
-                height: 14
+                width: 1; height: 14
                 color: Theme.AppTheme.divider
                 visible: String(root.taskDetail.subtitle || "").length > 0
             }
@@ -210,92 +208,9 @@ Item {
             active: root._idx === root._secIdx("Details")
             loadingMessage: "Loading task details..."
             sourceComponent: Component {
-                Item {
+                TasksDetailsSection {
                     width: parent ? parent.width : 0
-                    implicitHeight: _detailsCol.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                    ColumnLayout {
-                        id: _detailsCol
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.leftMargin: Theme.AppTheme.marginMd
-                        anchors.rightMargin: Theme.AppTheme.marginMd
-                        spacing: Theme.AppTheme.spacingMd
-
-                        AppWidgets.EmptyState {
-                            Layout.fillWidth: true
-                            visible: !root._hasTask
-                                && String(root.taskDetail.emptyState || "").length > 0
-                            title: root.taskDetail.emptyState || ""
-                        }
-
-                        AppControls.Label {
-                            Layout.fillWidth: true
-                            visible: root._hasTask
-                                && String(root.taskDetail.description || "").length > 0
-                            text: root.taskDetail.description || ""
-                            color: Theme.AppTheme.textPrimary
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.bodySize
-                            wrapMode: Text.WordWrap
-                        }
-
-                        GridLayout {
-                            Layout.fillWidth: true
-                            visible: root._hasTask && (root.taskDetail.fields || []).length > 0
-                            columns: 2
-                            columnSpacing: Theme.AppTheme.spacingLg
-                            rowSpacing: Theme.AppTheme.spacingMd
-
-                            Repeater {
-                                model: root.taskDetail.fields || []
-
-                                delegate: ColumnLayout {
-                                    id: _field
-                                    required property var modelData
-
-                                    Layout.fillWidth: true
-                                    spacing: 2
-
-                                    AppControls.Label {
-                                        text: String(_field.modelData.label || "")
-                                        color: Theme.AppTheme.textMuted
-                                        font.family: Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.captionSize
-                                        font.bold: true
-                                    }
-
-                                    AppControls.Label {
-                                        Layout.fillWidth: true
-                                        text: String(_field.modelData.value || "-")
-                                        color: Theme.AppTheme.textPrimary
-                                        font.family: Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.smallSize
-                                        elide: Text.ElideRight
-                                    }
-
-                                    AppControls.Label {
-                                        Layout.fillWidth: true
-                                        visible: String(_field.modelData.supportingText || "").length > 0
-                                        text: String(_field.modelData.supportingText || "")
-                                        color: Theme.AppTheme.textMuted
-                                        font.family: Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.captionSize
-                                        elide: Text.ElideRight
-                                    }
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            height: 1
-                            color: Theme.AppTheme.divider
-                            visible: root._hasTask && (root.taskDetail.fields || []).length > 0
-                        }
-                    }
+                    taskDetail: root.taskDetail
                 }
             }
         }
@@ -406,53 +321,14 @@ Item {
             active: root._idx === root._secIdx("Material Demand")
             loadingMessage: "Loading..."
             sourceComponent: Component {
-                Item {
+                TasksMaterialDemandSection {
                     width: parent ? parent.width : 0
-                    implicitHeight: _materialCol.implicitHeight
-
-                    ColumnLayout {
-                        id: _materialCol
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        spacing: 0
-
-                        AppWidgets.ContextualActionToolbar {
-                            Layout.fillWidth: true
-                            title: "Material Demand"
-                            subtitle: String(root.taskDetail.state.materialDemandLabel || "").length > 0
-                                ? String(root.taskDetail.state.materialDemandLabel || "")
-                                : (root.canOpenReservations
-                                    ? "Open Inventory reservations for linked stock demand."
-                                    : "Task-linked material demand follows Inventory module availability.")
-                            busy: root.isBusy
-                            actions: [
-                                { "id": "reservations", "label": "Open Reservations", "icon": "storage", "enabled": root.canOpenReservations, "danger": false },
-                                { "id": "procurement", "label": "Open Procurement", "icon": "document", "enabled": root.canOpenProcurement, "danger": false }
-                            ]
-                            onActionTriggered: function(actionId) {
-                                if (actionId === "reservations") {
-                                    root.openReservationsRequested()
-                                } else if (actionId === "procurement") {
-                                    root.openProcurementRequested()
-                                }
-                            }
-                        }
-
-                        AppWidgets.EmptyState {
-                            Layout.fillWidth: true
-                            title: "Task material demand is managed through Inventory."
-                            message: root.canOpenReservations
-                                ? "Use Inventory > Reservations to review and manage stock demand linked to this task. Active: "
-                                    + String(root.taskDetail.state.materialDemandActive || "0")
-                                    + ", fulfilled: "
-                                    + String(root.taskDetail.state.materialDemandFulfilled || "0")
-                                    + ", closed: "
-                                    + String(root.taskDetail.state.materialDemandCancelled || "0")
-                                    + "."
-                                : "Inventory reservation capabilities are not enabled for this workspace."
-                        }
-                    }
+                    taskDetail: root.taskDetail
+                    canOpenReservations: root.canOpenReservations
+                    canOpenProcurement: root.canOpenProcurement
+                    isBusy: root.isBusy
+                    onOpenReservationsRequested: root.openReservationsRequested()
+                    onOpenProcurementRequested: root.openProcurementRequested()
                 }
             }
         }
@@ -462,46 +338,12 @@ Item {
             active: root._idx === root._secIdx("Reservations")
             loadingMessage: "Loading..."
             sourceComponent: Component {
-                Item {
+                TasksReservationsSection {
                     width: parent ? parent.width : 0
-                    implicitHeight: _reservationsCol.implicitHeight
-
-                    ColumnLayout {
-                        id: _reservationsCol
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        spacing: 0
-
-                        AppWidgets.ContextualActionToolbar {
-                            Layout.fillWidth: true
-                            title: "Reservations"
-                            subtitle: String(root.taskDetail.state.materialDemandLabel || "").length > 0
-                                ? String(root.taskDetail.state.materialDemandLabel || "")
-                                : (root.canOpenReservations
-                                    ? "Review linked stock reservations in Inventory."
-                                    : "Inventory reservation capabilities are not enabled.")
-                            busy: root.isBusy
-                            actions: [
-                                { "id": "open", "label": "Open Reservations", "icon": "storage", "enabled": root.canOpenReservations, "danger": false }
-                            ]
-                            onActionTriggered: function(actionId) {
-                                if (actionId === "open") {
-                                    root.openReservationsRequested()
-                                }
-                            }
-                        }
-
-                        AppWidgets.EmptyState {
-                            Layout.fillWidth: true
-                            title: "Stock reservations linked to this task."
-                            message: root.canOpenReservations
-                                ? "Open Inventory > Reservations and filter by this task to review or create reservations. Total linked reservations: "
-                                    + String(root.taskDetail.state.materialDemandTotal || "0")
-                                    + "."
-                                : "Inventory reservations are unavailable because the linked module or capability is disabled."
-                        }
-                    }
+                    taskDetail: root.taskDetail
+                    canOpenReservations: root.canOpenReservations
+                    isBusy: root.isBusy
+                    onOpenReservationsRequested: root.openReservationsRequested()
                 }
             }
         }
@@ -511,42 +353,11 @@ Item {
             active: root._idx === root._secIdx("Procurement")
             loadingMessage: "Loading..."
             sourceComponent: Component {
-                Item {
+                TasksProcurementSection {
                     width: parent ? parent.width : 0
-                    implicitHeight: _procurementCol.implicitHeight
-
-                    ColumnLayout {
-                        id: _procurementCol
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        spacing: 0
-
-                        AppWidgets.ContextualActionToolbar {
-                            Layout.fillWidth: true
-                            title: "Procurement"
-                            subtitle: root.canOpenProcurement
-                                ? "Review task-linked requisitions and purchasing commitments."
-                                : "Procurement requisition capabilities are not enabled."
-                            busy: root.isBusy
-                            actions: [
-                                { "id": "open", "label": "Open Procurement", "icon": "document", "enabled": root.canOpenProcurement, "danger": false }
-                            ]
-                            onActionTriggered: function(actionId) {
-                                if (actionId === "open") {
-                                    root.openProcurementRequested()
-                                }
-                            }
-                        }
-
-                        AppWidgets.EmptyState {
-                            Layout.fillWidth: true
-                            title: "Procurement commitments for this task."
-                            message: root.canOpenProcurement
-                                ? "Open Procurement > Requisitions and filter by this task to review linked purchase requests."
-                                : "Procurement workflows are unavailable because the linked module or capability is disabled."
-                        }
-                    }
+                    canOpenProcurement: root.canOpenProcurement
+                    isBusy: root.isBusy
+                    onOpenProcurementRequested: root.openProcurementRequested()
                 }
             }
         }
@@ -556,104 +367,11 @@ Item {
             active: root._idx === root._secIdx("Skills")
             loadingMessage: "Loading..."
             sourceComponent: Component {
-                Item {
+                TasksSkillsSection {
                     width: parent ? parent.width : 0
-                    implicitHeight: _skillsBodyCol.implicitHeight
-
-                    ColumnLayout {
-                        id: _skillsBodyCol
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        spacing: 0
-
-                        AppWidgets.ContextualActionToolbar {
-                            Layout.fillWidth: true
-                            title: "Skills & Certifications"
-                            subtitle: "Skill and certification requirements for resource assignment."
-                            busy: root.isBusy
-                            actions: []
-                        }
-
-                        AppWidgets.InlineMessage {
-                            Layout.fillWidth: true
-                            visible: String(root.sectionErrors["skills"] || "").length > 0
-                            tone: "danger"
-                            message: String(root.sectionErrors["skills"] || "")
-                        }
-
-                        Repeater {
-                            model: root.skillRequirementsModel.items || []
-
-                            delegate: ColumnLayout {
-                                id: _reqItem
-                                required property var modelData
-                                Layout.fillWidth: true
-                                spacing: 0
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Layout.leftMargin: Theme.AppTheme.marginMd
-                                    Layout.rightMargin: Theme.AppTheme.marginMd
-                                    Layout.topMargin: Theme.AppTheme.spacingSm
-                                    Layout.bottomMargin: Theme.AppTheme.spacingSm
-                                    spacing: Theme.AppTheme.spacingMd
-
-                                    ColumnLayout {
-                                        Layout.fillWidth: true
-                                        spacing: 2
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            text: String(_reqItem.modelData.title || "")
-                                            font.family: Theme.AppTheme.fontFamily
-                                            font.pixelSize: Theme.AppTheme.smallSize
-                                            font.bold: true
-                                            color: Theme.AppTheme.textPrimary
-                                        }
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            text: String(_reqItem.modelData.subtitle || "")
-                                            font.family: Theme.AppTheme.fontFamily
-                                            font.pixelSize: Theme.AppTheme.captionSize
-                                            color: Theme.AppTheme.textSecondary
-                                            elide: Text.ElideRight
-                                        }
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            visible: String(_reqItem.modelData.supportingText || "").length > 0
-                                                && String(_reqItem.modelData.supportingText || "") !== "No notes recorded."
-                                            text: String(_reqItem.modelData.supportingText || "")
-                                            font.family: Theme.AppTheme.fontFamily
-                                            font.pixelSize: Theme.AppTheme.captionSize
-                                            color: Theme.AppTheme.textMuted
-                                            elide: Text.ElideRight
-                                        }
-                                    }
-
-                                    AppWidgets.StatusChip {
-                                        visible: String(_reqItem.modelData.statusLabel || "").length > 0
-                                        status: String(_reqItem.modelData.statusLabel || "")
-                                    }
-                                }
-
-                                Rectangle {
-                                    Layout.fillWidth: true
-                                    height: 1
-                                    color: Theme.AppTheme.divider
-                                }
-                            }
-                        }
-
-                        AppWidgets.EmptyState {
-                            Layout.fillWidth: true
-                            visible: (root.skillRequirementsModel.items || []).length === 0
-                            title: String(root.skillRequirementsModel.emptyState
-                                || "No skill requirements are linked to this task.")
-                        }
-                    }
+                    skillRequirementsModel: root.skillRequirementsModel
+                    sectionErrors: root.sectionErrors
+                    isBusy: root.isBusy
                 }
             }
         }
@@ -663,116 +381,11 @@ Item {
             active: root._idx === root._secIdx("Schedule Impact")
             loadingMessage: "Loading..."
             sourceComponent: Component {
-                Item {
+                TasksScheduleImpactSection {
                     width: parent ? parent.width : 0
-                    implicitHeight: _impactCol.implicitHeight
-
-                    ColumnLayout {
-                        id: _impactCol
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        spacing: 0
-
-                        AppWidgets.ContextualActionToolbar {
-                            Layout.fillWidth: true
-                            title: "Schedule Impact"
-                            subtitle: String(root.scheduleImpactModel.summary || "Simulating a 1-day start slip to show downstream ripple.")
-                            busy: root.isBusy
-                            actions: []
-                        }
-
-                        AppWidgets.InlineMessage {
-                            Layout.fillWidth: true
-                            visible: String(root.sectionErrors["scheduleImpact"] || "").length > 0
-                            tone: "danger"
-                            message: String(root.sectionErrors["scheduleImpact"] || "")
-                        }
-
-                        AppWidgets.InlineMessage {
-                            Layout.fillWidth: true
-                            Layout.leftMargin: Theme.AppTheme.marginMd
-                            Layout.rightMargin: Theme.AppTheme.marginMd
-                            Layout.topMargin: Theme.AppTheme.spacingSm
-                            visible: root.scheduleImpactModel.requiresApproval === true
-                            tone: "warning"
-                            message: "A change of this magnitude would require baseline approval."
-                        }
-
-                        AppWidgets.EmptyState {
-                            Layout.fillWidth: true
-                            visible: root.scheduleImpactModel.available !== true
-                            title: "Schedule impact analysis not available."
-                            message: String(root.scheduleImpactModel.summary
-                                || "This task needs a start date and a connected scheduling service.")
-                        }
-
-                        Repeater {
-                            model: root.scheduleImpactModel.available === true
-                                ? (root.scheduleImpactModel.rows || [])
-                                : []
-
-                            delegate: ColumnLayout {
-                                id: _impactRow
-                                required property var modelData
-                                Layout.fillWidth: true
-                                spacing: 0
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Layout.leftMargin: Theme.AppTheme.marginMd
-                                    Layout.rightMargin: Theme.AppTheme.marginMd
-                                    Layout.topMargin: Theme.AppTheme.spacingSm
-                                    Layout.bottomMargin: Theme.AppTheme.spacingSm
-                                    spacing: Theme.AppTheme.spacingMd
-
-                                    ColumnLayout {
-                                        Layout.fillWidth: true
-                                        spacing: 2
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            text: String(_impactRow.modelData.taskName || "")
-                                            font.family: Theme.AppTheme.fontFamily
-                                            font.pixelSize: Theme.AppTheme.smallSize
-                                            font.bold: _impactRow.modelData.isChanged === true
-                                            color: _impactRow.modelData.isChanged === true
-                                                ? Theme.AppTheme.textAccent
-                                                : Theme.AppTheme.textPrimary
-                                        }
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            text: "Start " + String(_impactRow.modelData.startShift || "No change")
-                                                + "  |  Finish " + String(_impactRow.modelData.finishShift || "No change")
-                                            font.family: Theme.AppTheme.fontFamily
-                                            font.pixelSize: Theme.AppTheme.captionSize
-                                            color: Theme.AppTheme.textSecondary
-                                        }
-                                    }
-
-                                    AppWidgets.StatusChip {
-                                        visible: String(_impactRow.modelData.criticalLabel || "").length > 0
-                                        status: String(_impactRow.modelData.criticalLabel || "")
-                                    }
-                                }
-
-                                Rectangle {
-                                    Layout.fillWidth: true
-                                    height: 1
-                                    color: Theme.AppTheme.divider
-                                }
-                            }
-                        }
-
-                        AppWidgets.EmptyState {
-                            Layout.fillWidth: true
-                            visible: root.scheduleImpactModel.available === true
-                                && (root.scheduleImpactModel.rows || []).length === 0
-                            title: "No downstream tasks would be affected."
-                            message: "A 1-day start slip on this task would not shift any other scheduled tasks."
-                        }
-                    }
+                    scheduleImpactModel: root.scheduleImpactModel
+                    sectionErrors: root.sectionErrors
+                    isBusy: root.isBusy
                 }
             }
         }
