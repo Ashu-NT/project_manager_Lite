@@ -58,7 +58,8 @@ AppLayouts.WorkspaceFrame {
           )
         : []
 
-    readonly property bool _detailOpen: root._selectedRowId.length > 0
+    property bool _approvalDetailOpen: false
+    readonly property bool _detailOpen: root._approvalDetailOpen
         && root._activePanel === "approvals"
 
     readonly property var _queueItem: {
@@ -216,7 +217,7 @@ AppLayouts.WorkspaceFrame {
                 ColumnLayout {
                     Layout.fillWidth:  true
                     Layout.fillHeight: true
-                    visible: root._activePanel === "approvals"
+                    visible: root._activePanel === "approvals" && !root._detailOpen
                     spacing: 0
 
                     AppWidgets.TableToolbar {
@@ -246,8 +247,7 @@ AppLayouts.WorkspaceFrame {
                         onRowSelected:  function(id) { root._selectedRowId = id }
                         onRowActivated: function(id) {
                             root._selectedRowId = id
-                            const item = root.approvalItemById(id)
-                            if (item !== null) decisionDialog.openForDecision("approve", item)
+                            root._approvalDetailOpen = true
                         }
                     }
 
@@ -463,282 +463,51 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
-            // ── Right detail inspector ────────────────────────────
-            Rectangle {
-                id: _detailPanel
-                Layout.fillHeight:     true
-                Layout.preferredWidth: 300
-                visible:               root._detailOpen
-                color:                 Theme.AppTheme.surfaceRaised
-                z:                     1
+            // ── Approval detail page — full-area overlay (stacked list/detail) ──
+            // NOTE: this Loader is in a ColumnLayout (fills width, no explicit height).
+            // We use a sibling Item to capture the fill height correctly.
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                visible: root._detailOpen
 
-                // Left border
-                Rectangle {
-                    anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
-                    width: 1; color: Theme.AppTheme.divider
-                }
-
-                ColumnLayout {
+                Loader {
+                    id: _approvalDetailLoader
                     anchors.fill: parent
-                    spacing: 0
-
-                    // ── Inspector header ──────────────────────────
-                    AppWidgets.ContextualActionToolbar {
-                        Layout.fillWidth: true
-                        showBack: true
-                        title:    "Request Detail"
-                        subtitle: root._queueItem ? (root._queueItem.statusLabel || "") : ""
-                        busy:     root._busy
-                        actions:  []
-                        onBackRequested: root._selectedRowId = ""
-                    }
-
-                    // ── Scrollable inspector body ─────────────────
-                    Flickable {
-                        Layout.fillWidth:  true
-                        Layout.fillHeight: true
-                        contentWidth:      width
-                        contentHeight:     _panelContent.implicitHeight
-                        clip:              true
-                        boundsBehavior:    Flickable.StopAtBounds
-
-                        ColumnLayout {
-                            id: _panelContent
-                            width:   parent.width
-                            spacing: 0
-
-                            // Request identity
-                            ColumnLayout {
-                                Layout.fillWidth:    true
-                                Layout.leftMargin:   Theme.AppTheme.marginMd
-                                Layout.rightMargin:  Theme.AppTheme.marginMd
-                                Layout.topMargin:    Theme.AppTheme.marginMd
-                                Layout.bottomMargin: Theme.AppTheme.spacingSm
-                                spacing:             Theme.AppTheme.spacingSm
-
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text:           root._queueItem ? (root._queueItem.title || "") : ""
-                                    color:          Theme.AppTheme.textPrimary
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.sectionSize
-                                    font.bold:      true
-                                    wrapMode:       Text.WrapAtWordBoundaryOrAnywhere
-                                }
-
-                                AppWidgets.StatusChip {
-                                    visible: root._queueItem
-                                        ? (root._queueItem.statusLabel || "").length > 0 : false
-                                    status: root._queueItem ? (root._queueItem.statusLabel || "") : ""
-                                }
+                    z: 10
+                    active:       root._detailOpen
+                    visible:      root._detailOpen && status === Loader.Ready
+                    asynchronous: true
+                    sourceComponent: Component {
+                        ControlApprovalDetailPage {
+                            approval:        root._queueItem || ({})
+                            busy:            root._busy
+                            errorMessage:    root._err
+                            feedbackMessage: root._ok
+                            onBackRequested: {
+                                root._approvalDetailOpen = false
+                                root._selectedRowId = ""
                             }
-
-                            Rectangle {
-                                Layout.fillWidth: true
-                                height: 1; color: Theme.AppTheme.divider
+                            onApproveRequested: function(item) {
+                                decisionDialog.openForDecision("approve", item)
                             }
-
-                            // ── Request Details section ───────────
-                            AppWidgets.SectionHeading {
-                                Layout.fillWidth: true
-                                label: "Request Details"
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth:    true
-                                Layout.leftMargin:   Theme.AppTheme.marginMd
-                                Layout.rightMargin:  Theme.AppTheme.marginMd
-                                Layout.bottomMargin: Theme.AppTheme.spacingMd
-                                spacing:             Theme.AppTheme.spacingSm
-
-                                // Submitted by
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 2
-                                    visible: root._queueItem
-                                        ? (root._queueItem.subtitle || "").length > 0 : false
-
-                                    AppControls.Label {
-                                        text:           "Submitted by"
-                                        color:          Theme.AppTheme.textMuted
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.captionSize
-                                        font.bold:      true
-                                    }
-                                    AppControls.Label {
-                                        Layout.fillWidth: true
-                                        text:    root._queueItem ? (root._queueItem.subtitle || "") : ""
-                                        color:   Theme.AppTheme.textSecondary
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.smallSize
-                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                    }
-                                }
-
-                                // Module / source
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 2
-                                    visible: root._queueItem
-                                        ? (root._queueItem.metaText || "").length > 0 : false
-
-                                    AppControls.Label {
-                                        text:           "Module / Source"
-                                        color:          Theme.AppTheme.textMuted
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.captionSize
-                                        font.bold:      true
-                                    }
-                                    AppControls.Label {
-                                        Layout.fillWidth: true
-                                        text:    root._queueItem ? (root._queueItem.metaText || "") : ""
-                                        color:   Theme.AppTheme.textSecondary
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.smallSize
-                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                    }
-                                }
-
-                                // Context / supporting text
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 2
-                                    visible: root._queueItem
-                                        ? (root._queueItem.supportingText || "").length > 0 : false
-
-                                    AppControls.Label {
-                                        text:           "Context"
-                                        color:          Theme.AppTheme.textMuted
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.captionSize
-                                        font.bold:      true
-                                    }
-                                    AppControls.Label {
-                                        Layout.fillWidth: true
-                                        text:    root._queueItem ? (root._queueItem.supportingText || "") : ""
-                                        color:   Theme.AppTheme.textSecondary
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.smallSize
-                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                    }
-                                }
-                            }
-
-                            Rectangle {
-                                Layout.fillWidth: true
-                                height: 1; color: Theme.AppTheme.divider
-                                visible: root._queueItem !== null
-                            }
-
-                            // ── Governance section ────────────────
-                            AppWidgets.SectionHeading {
-                                Layout.fillWidth: true
-                                label: "Governance"
-                                visible: root._queueItem !== null
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth:    true
-                                Layout.leftMargin:   Theme.AppTheme.marginMd
-                                Layout.rightMargin:  Theme.AppTheme.marginMd
-                                Layout.bottomMargin: Theme.AppTheme.spacingMd
-                                spacing:             Theme.AppTheme.spacingSm
-                                visible: root._queueItem !== null
-
-                                // Required action
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 2
-
-                                    AppControls.Label {
-                                        text:           "Required action"
-                                        color:          Theme.AppTheme.textMuted
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.captionSize
-                                        font.bold:      true
-                                    }
-                                    AppControls.Label {
-                                        Layout.fillWidth: true
-                                        text: {
-                                            if (!root._queueItem) return ""
-                                            const s = (root._queueItem.statusLabel || "").toLowerCase()
-                                            return s.includes("pending") ? "Awaiting your decision"
-                                                                         : "Decision already recorded"
-                                        }
-                                        color:   Theme.AppTheme.textSecondary
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.smallSize
-                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                    }
-                                }
-
-                                // Request ID
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 2
-
-                                    AppControls.Label {
-                                        text:           "Request ID"
-                                        color:          Theme.AppTheme.textMuted
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.captionSize
-                                        font.bold:      true
-                                    }
-                                    AppControls.Label {
-                                        Layout.fillWidth: true
-                                        text:  root._queueItem ? String(root._queueItem.id || "") : ""
-                                        color: Theme.AppTheme.textSecondary
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.captionSize
-                                        elide: Text.ElideRight
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // ── Bottom action footer ──────────────────────
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: Theme.AppTheme.toolbarHeight
-                        color:  Theme.AppTheme.surfaceRaised
-
-                        Rectangle {
-                            anchors { top: parent.top; left: parent.left; right: parent.right }
-                            height: 1; color: Theme.AppTheme.divider
-                        }
-
-                        RowLayout {
-                            anchors.fill:        parent
-                            anchors.leftMargin:  Theme.AppTheme.marginMd
-                            anchors.rightMargin: Theme.AppTheme.marginMd
-                            spacing:             Theme.AppTheme.spacingSm
-
-                            AppControls.PrimaryButton {
-                                Layout.fillWidth: true
-                                text:     "Approve"
-                                iconName: "approve"
-                                enabled:  !root._busy && root._queueItem !== null
-                                onClicked: {
-                                    const item = root._queueItem
-                                    if (item !== null) decisionDialog.openForDecision("approve", item)
-                                }
-                            }
-
-                            AppControls.SecondaryButton {
-                                Layout.fillWidth: true
-                                text:     "Reject"
-                                iconName: "reject"
-                                danger:   true
-                                enabled:  !root._busy && root._queueItem !== null
-                                onClicked: {
-                                    const item = root._queueItem
-                                    if (item !== null) decisionDialog.openForDecision("reject", item)
-                                }
+                            onRejectRequested: function(item) {
+                                decisionDialog.openForDecision("reject", item)
                             }
                         }
                     }
                 }
+            }
+
+            // ── REMOVED: Right detail inspector (replaced by ControlApprovalDetailPage above) ──
+            // Keeping this block stub to avoid compile errors from removed ColumnLayout children below.
+            // -- dead code removed --
+            Item {
+                id: _detailPanel
+                Layout.fillHeight: true
+                Layout.preferredWidth: 0
+                visible: false
+                // ── Inspector header (REMOVED, kept as stubs to satisfy QML ID references) ──
             }
         }
     }

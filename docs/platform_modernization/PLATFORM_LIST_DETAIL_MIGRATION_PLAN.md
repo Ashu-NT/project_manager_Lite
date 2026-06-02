@@ -325,17 +325,17 @@ Remaining gap-closing:
   `accessController.removeMembership`) + Refresh; other sections = Refresh / Open Audit only.
   Detail busy/error/feedback bind to `accessController`.
 
-### Files changed (this session)
-- `src/ui_qml/platform/qml/workspaces/admin/AdminConsolePage.qml` (restored + reconciled + access list/detail wrap)
-- `src/ui_qml/platform/qml/workspaces/admin/AdminAccessDetailPage.qml` (new)
-- `src/ui_qml/platform/qml/Platform/Widgets/AccessSecurityPanel.qml` (added `grantActivated` signal)
-- `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspacePage.qml` (2 sourceModel fixes)
+### Files changed
+**Restored/fixed:** `AdminConsolePage.qml`, `SettingsWorkspacePage.qml` (2 sourceModel fixes + duplicate toolbar removed + module list/detail wiring)
+**New detail pages:** `AdminAccessDetailPage.qml`, `SettingsModuleDetailPage.qml`, `ControlApprovalDetailPage.qml`
+**Signal added:** `AccessSecurityPanel.qml` (`grantActivated`)
+**Retired dead-code:** `AdminCatalogGrid.qml`, `ApprovalQueueSection.qml`, `AuditFeedSection.qml`, `ModuleEntitlementsSection.qml`, `OrganizationProfilesSection.qml`
 
 ### Remaining (per §4 / §7)
-- [~] Phase 1 — Roles&Access detail page **DONE** (Overview/Permissions/Scope/Audit, additive grant-activation detail). Still: Documents/Structures section completeness; embedded-table `sourceModel`; KPI/column-state/pagination polish; retire legacy grid; (optional) move "Assign Access" to a create dialog + add real per-grant Users/Sessions data if backend grows
-- [ ] Phase 2 — Control Center approvals/audit list→detail; add **Delegate** (needs controller/presenter/desktop-API); escalations/system-events data sources
-- [ ] Phase 3 — Settings module-entitlements/integration list→detail; lazy sections; wire Security panel
-- [ ] Phase 4 — cross-cutting section-aware actions / lazy / RBAC + entitlement gating
+- [~] Phase 1 — Roles&Access detail page **DONE**. Legacy grid + dead-code files **RETIRED** (`AdminCatalogGrid`, `ApprovalQueueSection`, `AuditFeedSection`, `ModuleEntitlementsSection`, `OrganizationProfilesSection`). Still pending: Documents/Structures spec completeness; embedded detail tables `rows:`→`sourceModel`; KPI/column-state/pagination polish.
+- [x] Phase 2 — Control Center approvals list→detail **DONE** (`ControlApprovalDetailPage`: Overview/Request Payload/Decision History/Audit; Approve/Reject in Overview-only ContextualActionToolbar; hardcoded footer + inspector replaced; section-aware, lazy-loaded). Delegate intentionally absent — needs backend API. Audit/Escalations/SystemEvents unchanged (Audit uses ActivityFeed, others are placeholders).
+- [x] Phase 3 — Settings Module Entitlements list→detail **DONE** (`SettingsModuleDetailPage`: Overview/Capabilities/Consumers/Audit; Lifecycle/Licensed/Enabled in Overview-only toolbar; duplicate inline toolbar removed; right-inspector replaced by full-area Loader). Integration Capabilities table unchanged (no detail; read-only list). Lazy sections, sourceModel ternary defects fixed.
+- [ ] Phase 4 — cross-cutting RBAC + entitlement gating of sections/actions (hide disabled-module sections); column-state persistence for admin tables; embedded detail table `rows:`→`sourceModel` migration
 - [ ] Phase 5 — full `python main_qt.py` validation + tracker status sync
 
 > Note: several remaining items (Delegate, Escalations/System-Events data, real related-record
