@@ -3,3 +3,10 @@ AdminEntityWorkspace 1.0 AdminEntityWorkspace.qml
 AdminNavSidebar 1.0 AdminNavSidebar.qml
 AdminDetailTableSection 1.0 AdminDetailTableSection.qml
 AdminInformationalDetailSection 1.0 AdminInformationalDetailSection.qml
+SupportMetaRow 1.0 SupportMetaRow.qml
+SupportPathRow 1.0 SupportPathRow.qml
+AdminSupportReleasePanel 1.0 AdminSupportReleasePanel.qml
+AdminSupportRuntimePanel 1.0 AdminSupportRuntimePanel.qml
+AdminSupportDiagnosticsPanel 1.0 AdminSupportDiagnosticsPanel.qml
+AdminSupportPathsPanel 1.0 AdminSupportPathsPanel.qml
+AdminSupportActivityPanel 1.0 AdminSupportActivityPanel.qml
