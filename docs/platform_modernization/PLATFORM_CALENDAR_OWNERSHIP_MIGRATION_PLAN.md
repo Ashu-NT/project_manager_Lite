@@ -174,7 +174,7 @@ though the actual working-calendar implementation still lives in PM.
 ### Phase 5 - PM rewiring
 
 - [x] PM Scheduling consumes Platform calendar options and summary
-- [ ] PM Resources consumes Platform calendar data where needed
+- [x] PM Resources consumes shared calendar-derived availability context in read-only UI
 - [x] PM scheduling controller/presenter/QML no longer own calendar CRUD methods
 
 ### Phase 6 - Cleanup and validation

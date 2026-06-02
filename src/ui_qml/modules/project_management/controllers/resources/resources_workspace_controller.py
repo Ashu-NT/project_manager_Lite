@@ -533,6 +533,11 @@ class ProjectManagementResourcesWorkspaceController(
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change("resource", scope_code="project_management")
+        self._subscribe_domain_change(
+            "working_calendar",
+            scope_code="platform",
+            category="shared_master",
+        )
         self._subscribe_domain_signal(
             domain_events.employees_changed,
             self._on_domain_event,

@@ -102,6 +102,7 @@ Item {
             ResourcesCalendarSection {
                 width: parent ? parent.width : 0
                 resourceDetail: root.resourceDetail
+                resourceAvailabilityModel: root.resourceAvailabilityModel
                 isBusy: root.isBusy
             }
         }
