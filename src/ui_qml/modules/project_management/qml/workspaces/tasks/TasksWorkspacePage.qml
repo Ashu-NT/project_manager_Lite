@@ -1,4 +1,4 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
@@ -13,6 +13,7 @@ import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "components" as Components
 import "dialogs" as Dialogs
 import "sections" as Sections
+import "panels" as Panels
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -163,7 +164,7 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    Dialogs.TasksExportDialog {
+    Components.TasksExportDialog {
         id: exportDialog
         workspaceController: root.workspaceController
         columns: root._columns
@@ -340,7 +341,7 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                Sections.TasksDetailPanel {
+                Panels.TasksDetailPanel {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     pmCatalog: root.pmCatalog

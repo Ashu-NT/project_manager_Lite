@@ -1,5 +1,4 @@
-module ProjectManagement.FinancialsSections
-FinancialsDetailPanel 1.0 FinancialsDetailPanel.qml
+﻿module ProjectManagement.FinancialsSections
 FinancialsMetricsSection 1.0 FinancialsMetricsSection.qml
 FinancialsBudgetSection 1.0 FinancialsBudgetSection.qml
 FinancialsActualsSection 1.0 FinancialsActualsSection.qml
@@ -10,3 +9,4 @@ FinancialsPurchaseOrdersSection 1.0 FinancialsPurchaseOrdersSection.qml
 FinancialsEarnedValueSection 1.0 FinancialsEarnedValueSection.qml
 FinancialsActivitySection 1.0 FinancialsActivitySection.qml
 FinancialsVarianceSection 1.0 FinancialsVarianceSection.qml
+FinancialsInsightsSection 1.0 FinancialsInsightsSection.qml

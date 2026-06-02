@@ -10,6 +10,7 @@ import Maintenance.Widgets 1.0 as MaintenanceWidgets
 import App.Controls 1.0 as AppControls
 import "dialogs" as Dialogs
 import "sections" as Sections
+import "panels" as Panels
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -313,7 +314,7 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                Sections.WorkOrderDetailPanel {
+                Panels.WorkOrderDetailPanel {
                     width: parent.width
                     detailPage: detailPage
                     workOrderDetail: root.selectedWorkOrderModel

@@ -1,1 +1,6 @@
 ﻿module Maintenance.DashboardSections
+DashboardBacklogSection 1.0 DashboardBacklogSection.qml
+DashboardFiltersSection 1.0 DashboardFiltersSection.qml
+DashboardMetricsSection 1.0 DashboardMetricsSection.qml
+DashboardRecurringSection 1.0 DashboardRecurringSection.qml
+DashboardRootCausesSection 1.0 DashboardRootCausesSection.qml

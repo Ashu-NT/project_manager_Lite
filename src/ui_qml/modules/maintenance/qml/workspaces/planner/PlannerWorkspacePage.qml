@@ -1,10 +1,11 @@
-import QtQuick
+﻿import QtQuick
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
+import "sections" as Sections
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -53,7 +54,7 @@ AppLayouts.WorkspaceFrame {
                 feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
             }
 
-            PlannerFiltersSection {
+            Sections.PlannerFiltersSection {
                 Layout.fillWidth: true
                 siteOptions: root.workspaceController ? root.workspaceController.siteOptions : []
                 assetOptions: root.workspaceController ? root.workspaceController.assetOptions : []
@@ -118,31 +119,31 @@ AppLayouts.WorkspaceFrame {
                 architectureSummary: "Planner intake, backlog, material risk, preventive readiness, and recurring review now render through the typed maintenance QML catalog."
             }
 
-            PlannerRequestsSection {
+            Sections.PlannerRequestsSection {
                 Layout.fillWidth: true
                 items: root.workspaceController ? root.workspaceController.requestRows : []
                 emptyState: root.workspaceController ? root.workspaceController.emptyState : ""
             }
 
-            PlannerBacklogSection {
+            Sections.PlannerBacklogSection {
                 Layout.fillWidth: true
                 items: root.workspaceController ? root.workspaceController.workOrderRows : []
                 emptyState: root.workspaceController ? root.workspaceController.emptyState : ""
             }
 
-            PlannerMaterialRisksSection {
+            Sections.PlannerMaterialRisksSection {
                 Layout.fillWidth: true
                 items: root.workspaceController ? root.workspaceController.materialRows : []
                 emptyState: root.workspaceController ? root.workspaceController.emptyState : ""
             }
 
-            PlannerPreventiveSection {
+            Sections.PlannerPreventiveSection {
                 Layout.fillWidth: true
                 items: root.workspaceController ? root.workspaceController.preventiveRows : []
                 emptyState: root.workspaceController ? root.workspaceController.emptyState : ""
             }
 
-            PlannerRecurringSection {
+            Sections.PlannerRecurringSection {
                 Layout.fillWidth: true
                 items: root.workspaceController ? root.workspaceController.recurringRows : []
                 emptyState: root.workspaceController ? root.workspaceController.emptyState : ""

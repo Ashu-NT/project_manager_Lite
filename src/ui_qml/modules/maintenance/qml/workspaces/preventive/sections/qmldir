@@ -1,1 +1,6 @@
 ﻿module Maintenance.PreventiveSections
+PreventiveDetailSection 1.0 PreventiveDetailSection.qml
+PreventiveMetricsSection 1.0 PreventiveMetricsSection.qml
+PreventivePlansSection 1.0 PreventivePlansSection.qml
+PreventiveQueueSection 1.0 PreventiveQueueSection.qml
+PreventiveTemplatesSection 1.0 PreventiveTemplatesSection.qml

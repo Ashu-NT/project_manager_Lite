@@ -1,1 +1,8 @@
 ﻿module Maintenance.PlannerSections
+PlannerBacklogSection 1.0 PlannerBacklogSection.qml
+PlannerFiltersSection 1.0 PlannerFiltersSection.qml
+PlannerMaterialRisksSection 1.0 PlannerMaterialRisksSection.qml
+PlannerMetricsSection 1.0 PlannerMetricsSection.qml
+PlannerPreventiveSection 1.0 PlannerPreventiveSection.qml
+PlannerRecurringSection 1.0 PlannerRecurringSection.qml
+PlannerRequestsSection 1.0 PlannerRequestsSection.qml

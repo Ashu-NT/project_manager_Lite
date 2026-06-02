@@ -1,4 +1,4 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
@@ -10,6 +10,7 @@ import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "components" as Components
 import "sections" as Sections
+import "panels" as Panels
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -204,7 +205,7 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                Sections.TimesheetsDetailPanel {
+                Panels.TimesheetsDetailPanel {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     reviewDetail: root.selectedPeriodModel

@@ -1,4 +1,4 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -11,6 +11,7 @@ import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "components" as Components
 import "dialogs" as Dialogs
 import "sections" as Sections
+import "panels" as Panels
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -253,7 +254,7 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                Sections.ResourcesDetailPanel {
+                Panels.ResourcesDetailPanel {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     resourceDetail: root.selectedResourceModel

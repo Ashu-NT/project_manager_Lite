@@ -1,4 +1,4 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
@@ -10,6 +10,7 @@ import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "dialogs" as Dialogs
 import "sections" as Sections
+import "panels" as Panels
 import "components" as Components
 
 AppLayouts.WorkspaceFrame {
@@ -231,7 +232,7 @@ AppLayouts.WorkspaceFrame {
                     tone: "success"; message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                Sections.FinancialsDetailPanel {
+                Panels.FinancialsDetailPanel {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     costDetail: root.selectedCostModel

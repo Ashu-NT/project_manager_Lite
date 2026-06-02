@@ -1,3 +1,2 @@
 module Maintenance.WorkOrdersSections
-WorkOrderDetailPanel 1.0 WorkOrderDetailPanel.qml
 WorkOrdersFiltersSection 1.0 WorkOrdersFiltersSection.qml

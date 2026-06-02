@@ -6,6 +6,7 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
+import "sections" as Sections
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -102,7 +103,7 @@ AppLayouts.WorkspaceFrame {
                 Layout.fillWidth: true
                 currentIndex: preventiveTabs.currentIndex
 
-                PreventiveQueueSection {
+                Sections.PreventiveQueueSection {
                     queueState: root.workspaceController ? (root.workspaceController.queueState || {}) : ({})
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
@@ -149,7 +150,7 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                PreventivePlansSection {
+                Sections.PreventivePlansSection {
                     planLibraryState: root.workspaceController ? (root.workspaceController.planLibraryState || {}) : ({})
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
@@ -245,7 +246,7 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                PreventiveTemplatesSection {
+                Sections.PreventiveTemplatesSection {
                     templateLibraryState: root.workspaceController ? (root.workspaceController.templateLibraryState || {}) : ({})
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 

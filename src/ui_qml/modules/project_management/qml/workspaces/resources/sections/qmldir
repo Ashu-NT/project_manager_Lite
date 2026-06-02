@@ -1,5 +1,4 @@
-module ProjectManagement.ResourcesSections
-ResourcesDetailPanel 1.0 ResourcesDetailPanel.qml
+﻿module ProjectManagement.ResourcesSections
 ResourcesOverviewSection 1.0 ResourcesOverviewSection.qml
 ResourcesAssignmentsSection 1.0 ResourcesAssignmentsSection.qml
 ResourcesCapacitySection 1.0 ResourcesCapacitySection.qml

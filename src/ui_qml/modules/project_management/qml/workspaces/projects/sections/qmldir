@@ -1,5 +1,4 @@
-module ProjectManagement.ProjectsSections
-ProjectsDetailPanel 1.0 ProjectsDetailPanel.qml
+﻿module ProjectManagement.ProjectsSections
 ProjectsOverviewSection 1.0 ProjectsOverviewSection.qml
 ProjectsScheduleSection 1.0 ProjectsScheduleSection.qml
 ProjectsTasksSection 1.0 ProjectsTasksSection.qml
