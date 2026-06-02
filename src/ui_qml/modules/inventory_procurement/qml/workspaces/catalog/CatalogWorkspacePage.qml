@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import "dialogs" as Dialogs
 import "sections" as Sections
+import "panels" as Panels
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
@@ -671,7 +672,7 @@ AppLayouts.WorkspaceFrame {
                 }
 
                 // â”€â”€ Detail content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                Sections.CatalogDetailPanel {
+                Panels.CatalogDetailPanel {
                     width: parent ? parent.width : 0
                     isItemsView: root._isItemsView
                     itemDetail: root.selectedItemModel
