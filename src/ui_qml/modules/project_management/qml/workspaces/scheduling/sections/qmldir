@@ -1,1 +1,7 @@
 ﻿module ProjectManagement.SchedulingSections
+SchedulingBaselineSection 1.0 SchedulingBaselineSection.qml
+SchedulingCalendarSection 1.0 SchedulingCalendarSection.qml
+SchedulingMetricsSection 1.0 SchedulingMetricsSection.qml
+SchedulingPlanningToolbar 1.0 SchedulingPlanningToolbar.qml
+SchedulingScheduleSection 1.0 SchedulingScheduleSection.qml
+SchedulingToolbarSection 1.0 SchedulingToolbarSection.qml

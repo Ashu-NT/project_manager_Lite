@@ -9,7 +9,9 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import "dialogs" as Dialogs
+import "panels" as Panels
+import "sections" as Sections
+import "components" as Components
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -49,7 +51,7 @@ AppLayouts.WorkspaceFrame {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingSm
 
-        CollaborationToolbarSection {
+        Sections.CollaborationToolbarSection {
             id: contextToolbar
             Layout.fillWidth: true
             contextModel: root.contextModel
@@ -356,7 +358,7 @@ AppLayouts.WorkspaceFrame {
                                 message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                             }
 
-                            CollaborationDetailPanel {
+                            Panels.CollaborationDetailPanel {
                                 Layout.fillWidth: true
                                 detailModel: state.selectedDetailModel
                                 relatedItemsTableModel: root.workspaceController ? root.workspaceController.relatedItemsTableModel : null
@@ -383,12 +385,12 @@ AppLayouts.WorkspaceFrame {
     }
 
     // ── Popups ────────────────────────────────────────────────────────────
-    Dialogs.CollaborationFilterPopup {
+    Components.CollaborationFilterPopup {
         id: panelFilterPopup
         onClearFiltersRequested: state._clearFilters()
     }
 
-    Dialogs.CollaborationViewsPopup {
+    Components.CollaborationViewsPopup {
         id: panelViewsPopup
         onViewSelected: function(panelId, unreadKey) {
             state.activePanelId = panelId
@@ -396,7 +398,7 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    Dialogs.CollaborationSettingsPopup {
+    Components.CollaborationSettingsPopup {
         id: settingsPopup
         anchorItem: contextToolbar.settingsButtonItem
     }

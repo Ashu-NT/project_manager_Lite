@@ -6,3 +6,5 @@ SchedulingBaselinesPanel 1.0 SchedulingBaselinesPanel.qml
 SchedulingDelaysPanel 1.0 SchedulingDelaysPanel.qml
 SchedulingCalendarsPanel 1.0 SchedulingCalendarsPanel.qml
 SchedulingActivityFeedPanel 1.0 SchedulingActivityFeedPanel.qml
+SchedulingDetailPanel 1.0 SchedulingDetailPanel.qml
+SchedulingTimelinePanel 1.0 SchedulingTimelinePanel.qml

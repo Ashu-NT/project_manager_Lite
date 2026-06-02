@@ -9,6 +9,8 @@ import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "panels" as Panels
+import "dialogs" as Dialogs
+import "components" as Components
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -196,7 +198,7 @@ AppLayouts.WorkspaceFrame {
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            SchedulingDialogHost {
+            Dialogs.SchedulingDialogHost {
                 selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
                 selectedActivityData: root.selectedActivityModel
                 onCreateBaselineRequested: function(payload) {
@@ -260,7 +262,7 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                SchedulingActionBar {
+                Components.SchedulingActionBar {
                     Layout.fillWidth: true
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     actions: [
@@ -531,7 +533,7 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                SchedulingDetailPanel {
+                Panels.SchedulingDetailPanel {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     activityDetail: root.selectedActivityModel

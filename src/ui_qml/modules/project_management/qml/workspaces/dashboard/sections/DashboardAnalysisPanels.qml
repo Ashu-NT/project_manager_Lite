@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
+import "../components"
 
 Item {
     id: root

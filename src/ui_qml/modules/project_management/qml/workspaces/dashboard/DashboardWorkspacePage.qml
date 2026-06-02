@@ -5,6 +5,7 @@ import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
+import "sections" as Sections
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -36,7 +37,7 @@ AppLayouts.WorkspaceFrame {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingSm
 
-        DashboardSelectionBar {
+        Sections.DashboardSelectionBar {
             Layout.fillWidth: true
             projectOptions: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
             selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
@@ -130,23 +131,23 @@ AppLayouts.WorkspaceFrame {
                     width: dashboardScrollArea.availableWidth
                     spacing: Theme.AppTheme.spacingSm
 
-                    DashboardAnalysisPanels {
+                    Sections.DashboardAnalysisPanels {
                         Layout.fillWidth: true
                         workspaceController: root.workspaceController
                         shellModel: root.shellModel
                     }
 
-                    DashboardChartsSection {
+                    Sections.DashboardChartsSection {
                         Layout.fillWidth: true
                         workspaceController: root.workspaceController
                     }
 
-                    DashboardPanelsSection {
+                    Sections.DashboardPanelsSection {
                         Layout.fillWidth: true
                         workspaceController: root.workspaceController
                     }
 
-                    DashboardOverviewSections {
+                    Sections.DashboardOverviewSections {
                         Layout.fillWidth: true
                         Layout.preferredHeight: width >= 1360 ? 520 : 760
                         workspaceController: root.workspaceController

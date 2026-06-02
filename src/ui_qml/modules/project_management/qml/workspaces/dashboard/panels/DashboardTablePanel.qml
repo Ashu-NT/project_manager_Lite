@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
+import "../components"
 
 Item {
     id: root

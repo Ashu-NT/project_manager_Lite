@@ -8,7 +8,8 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import "components" as Components
+import "panels" as Panels
+import "sections" as Sections
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -249,7 +250,7 @@ AppLayouts.WorkspaceFrame {
                 }
 
                 // Governance toolbar
-                PortfolioGovernanceToolbar {
+                Sections.PortfolioGovernanceToolbar {
                     Layout.fillWidth: true
                     scenarioOptions: root.workspaceController
                         ? (root.workspaceController.scenarioOptions || []) : []
@@ -488,7 +489,7 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     // ── Bottom tabbed panel ────────────────────────────
-                    Components.PortfolioBottomPanel {
+                    Panels.PortfolioBottomPanel {
                         id: _bottomPanel
                         anchors.left:   parent.left
                         anchors.right:  parent.right
@@ -587,7 +588,7 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                PortfolioDetailPanel {
+                Panels.PortfolioDetailPanel {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     heatmapItem: root._selectedHeatmapItem
