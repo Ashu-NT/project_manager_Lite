@@ -1,0 +1,5 @@
+module ProjectManagement.TasksComponents
+TasksListPage 1.0 TasksListPage.qml
+TasksFilterPopup 1.0 TasksFilterPopup.qml
+TasksSavedViewsPopup 1.0 TasksSavedViewsPopup.qml
+TasksBulkActions 1.0 TasksBulkActions.qml

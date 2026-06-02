@@ -1,0 +1,6 @@
+module ProjectManagement.TasksSections
+TasksDetailPanel 1.0 TasksDetailPanel.qml
+TasksAssignmentsSection 1.0 TasksAssignmentsSection.qml
+TasksDependenciesSection 1.0 TasksDependenciesSection.qml
+TasksTimeEntriesSection 1.0 TasksTimeEntriesSection.qml
+TasksCollaborationSection 1.0 TasksCollaborationSection.qml

@@ -300,6 +300,7 @@ AppLayouts.WorkspaceFrame {
                                 if (s.length > 0) {
                                     root._activeSection = s
                                     root._selectedRowId = ""
+                                    root._moduleDetailOpen = false
                                 }
                             }
                         }

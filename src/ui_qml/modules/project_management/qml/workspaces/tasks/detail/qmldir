@@ -1,0 +1,3 @@
+module ProjectManagement.TasksDetail
+TasksDetailPage 1.0 TasksDetailPage.qml
+TasksDetailMessages 1.0 TasksDetailMessages.qml

@@ -2,4 +2,3 @@ import QtQuick
 
 TasksWorkspacePage {
 }
-

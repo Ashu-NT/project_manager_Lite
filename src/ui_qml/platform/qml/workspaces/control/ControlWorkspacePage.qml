@@ -202,8 +202,9 @@ AppLayouts.WorkspaceFrame {
                                     anchors.fill: parent
                                     cursorShape:  Qt.PointingHandCursor
                                     onClicked: {
-                                        root._activePanel   = _tab.modelData.id
-                                        root._selectedRowId = ""
+                                        root._activePanel          = _tab.modelData.id
+                                        root._selectedRowId        = ""
+                                        root._approvalDetailOpen   = false
                                     }
                                 }
                             }

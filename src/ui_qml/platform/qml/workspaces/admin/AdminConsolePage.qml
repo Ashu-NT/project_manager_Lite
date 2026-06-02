@@ -620,6 +620,7 @@ AppLayouts.WorkspaceFrame {
                 sourceComponent: Component {
                     AdminEmployeeDetailPage {
                         employee: root._detailItem || ({})
+                        pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
                         busy: root._busy
                         errorMessage: root._err
                         feedbackMessage: root._ok
@@ -664,6 +665,8 @@ AppLayouts.WorkspaceFrame {
                 sourceComponent: Component {
                     AdminPartyDetailPage {
                         party: root._detailItem || ({})
+                        inventoryEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("inventory_procurement") : false
+                        pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
                         busy: root._busy
                         errorMessage: root._err
                         feedbackMessage: root._ok
