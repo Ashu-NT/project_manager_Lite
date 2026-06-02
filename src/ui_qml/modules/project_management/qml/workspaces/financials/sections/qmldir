@@ -1,0 +1,3 @@
+module ProjectManagement.FinancialsSections
+FinancialsDetailPanel 1.0 FinancialsDetailPanel.qml
+FinancialsMetricsSection 1.0 FinancialsMetricsSection.qml

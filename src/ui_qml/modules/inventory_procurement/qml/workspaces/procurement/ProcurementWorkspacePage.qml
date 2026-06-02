@@ -1,8 +1,10 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import "dialogs" as Dialogs
+import "sections" as Sections
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
@@ -136,11 +138,11 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    // ── Dialog host ────────────────────────────────────────────────
+    // â”€â”€ Dialog host â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            ProcurementDialogHost {
+            Dialogs.ProcurementDialogHost \{
                 siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
                 storeroomOptions: root.workspaceController ? (root.workspaceController.storeroomOptions || []) : []
                 supplierOptions: root.workspaceController ? (root.workspaceController.supplierOptions || []) : []
@@ -152,11 +154,11 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    // ── Stacked list / detail ──────────────────────────────────────
+    // â”€â”€ Stacked list / detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Item {
         anchors.fill: parent
 
-        // ── List page ──────────────────────────────────────────────
+        // â”€â”€ List page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Item {
             anchors.fill: parent
             visible: !root._detailOpen || _detailPageLoader.status !== Loader.Ready
@@ -333,7 +335,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    // ── Filter popup ───────────────────────────────
+                    // â”€â”€ Filter popup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     AppWidgets.AnchoredPopup {
                         id: filterPopup
                         anchorItem: tableToolbar.filterButtonItem
@@ -461,7 +463,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    // ── Views popup ────────────────────────────────
+                    // â”€â”€ Views popup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     AppWidgets.AnchoredPopup {
                         id: viewsPopup
                         anchorItem: tableToolbar.viewsButtonItem
@@ -510,7 +512,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    // ── Bulk action bar ────────────────────────────
+                    // â”€â”€ Bulk action bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     AppWidgets.BulkActionBar {
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.bottom: _paginationBar.top
@@ -550,7 +552,7 @@ AppLayouts.WorkspaceFrame {
             }
         }
 
-        // ── Detail page (lazy loaded) ──────────────────────────────
+        // â”€â”€ Detail page (lazy loaded) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Loader {
             id: _detailPageLoader
             anchors.fill: parent
@@ -622,7 +624,7 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                // ── Detail-scoped messages ─────────────────────────
+                // â”€â”€ Detail-scoped messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 AppWidgets.InlineMessage {
                     width: parent ? parent.width : 0
                     visible: root._detailOpen
@@ -639,7 +641,7 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                // ── Detail content ─────────────────────────────────
+                // â”€â”€ Detail content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Item {
                     id: _procDetailContent
                     width: parent ? parent.width : 0
@@ -709,7 +711,7 @@ AppLayouts.WorkspaceFrame {
                                         }
                                         AppControls.Label {
                                             Layout.fillWidth: true
-                                            text: _pfd.modelData.value || "—"
+                                            text: _pfd.modelData.value || "â€”"
                                             color: Theme.AppTheme.textPrimary
                                             font.pixelSize: Theme.AppTheme.bodySize
                                             font.family: Theme.AppTheme.fontFamily

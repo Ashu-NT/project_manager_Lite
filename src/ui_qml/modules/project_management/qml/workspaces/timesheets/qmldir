@@ -1,0 +1,5 @@
+module ProjectManagement.Timesheets
+TimesheetsWorkspace 1.0 TimesheetsWorkspace.qml
+TimesheetsWorkspacePage 1.0 TimesheetsWorkspacePage.qml
+TimesheetsWorkspaceState 1.0 TimesheetsWorkspaceState.qml
+TimesheetsColumnConfig 1.0 TimesheetsColumnConfig.js

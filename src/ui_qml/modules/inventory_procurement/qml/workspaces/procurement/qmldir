@@ -1,0 +1,5 @@
+﻿module InventoryProcurement.Procurement
+ProcurementWorkspace 1.0 ProcurementWorkspace.qml
+ProcurementWorkspacePage 1.0 ProcurementWorkspacePage.qml
+ProcurementWorkspaceState 1.0 ProcurementWorkspaceState.qml
+ProcurementColumnConfig 1.0 ProcurementColumnConfig.js

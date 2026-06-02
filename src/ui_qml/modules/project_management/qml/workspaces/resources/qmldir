@@ -1,0 +1,5 @@
+module ProjectManagement.Resources
+ResourcesWorkspace 1.0 ResourcesWorkspace.qml
+ResourcesWorkspacePage 1.0 ResourcesWorkspacePage.qml
+ResourcesWorkspaceState 1.0 ResourcesWorkspaceState.qml
+ResourcesColumnConfig 1.0 ResourcesColumnConfig.js

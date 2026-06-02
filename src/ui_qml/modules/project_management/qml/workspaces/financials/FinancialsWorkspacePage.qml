@@ -8,6 +8,8 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
+import "dialogs" as Dialogs
+import "sections" as Sections
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -174,7 +176,7 @@ AppLayouts.WorkspaceFrame {
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            FinancialsDialogHost {
+            Dialogs.FinancialsDialogHost {
                 selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
                 taskOptions: root.workspaceController ? (root.workspaceController.taskOptions || []) : []
                 costTypeOptions: root.workspaceController ? (root.workspaceController.costTypeOptions || []) : []
@@ -583,7 +585,7 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                FinancialsDetailSection {
+                Sections.FinancialsDetailPanel {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     costDetail: root.selectedCostModel

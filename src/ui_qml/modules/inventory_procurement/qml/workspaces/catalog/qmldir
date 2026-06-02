@@ -1,0 +1,5 @@
+﻿module InventoryProcurement.Catalog
+CatalogWorkspace 1.0 CatalogWorkspace.qml
+CatalogWorkspacePage 1.0 CatalogWorkspacePage.qml
+CatalogWorkspaceState 1.0 CatalogWorkspaceState.qml
+CatalogColumnConfig 1.0 CatalogColumnConfig.js

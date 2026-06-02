@@ -1,8 +1,9 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import "dialogs" as Dialogs
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
@@ -212,7 +213,7 @@ AppLayouts.WorkspaceFrame {
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            AssetsDialogHost {
+            Dialogs.AssetsDialogHost {
                 siteOptions: root.workspaceController ? (root.workspaceController.formSiteOptions || []) : []
                 locationOptions: root.workspaceController ? (root.workspaceController.formLocationOptions || []) : []
                 parentLocationOptions: root.workspaceController ? (root.workspaceController.formParentLocationOptions || []) : []
@@ -274,7 +275,7 @@ AppLayouts.WorkspaceFrame {
         AppWidgets.TableToolbar {
             id: tableToolbar
             Layout.fillWidth: true
-            searchPlaceholder: "Search assets…"
+            searchPlaceholder: "Search assetsâ€¦"
             showCreate: true
             createLabel: root.currentCreateLabel
             showFilter: true
@@ -291,7 +292,7 @@ AppLayouts.WorkspaceFrame {
             onCreateRequested: root.openCreateDialogForCurrentTab()
         }
 
-        // ── Full-width table with full-page detail view ───────────────
+        // â”€â”€ Full-width table with full-page detail view â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -470,7 +471,7 @@ AppLayouts.WorkspaceFrame {
                 onEditRequested: root._openEditDialogForCurrentTab()
                 onDeleteRequested: detailPage.open = false
 
-                // ── Detail-scoped messages ─────────────────────────
+                // â”€â”€ Detail-scoped messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 AppWidgets.InlineMessage {
                     width: parent ? parent.width : 0
                     visible: detailPage.open

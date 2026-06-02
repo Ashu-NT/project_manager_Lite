@@ -7,7 +7,7 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
-import "../inventory"
+import "../inventory/dialogs" as InventoryDlgs
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -114,7 +114,7 @@ AppLayouts.WorkspaceFrame {
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            InventoryDialogHost {
+            InventoryDlgs.InventoryDialogHost {
                 siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
                 storeroomStatusOptions: root.workspaceController ? (root.workspaceController.storeroomStatusOptions || []) : []
                 managerPartyOptions: root.workspaceController ? (root.workspaceController.managerPartyOptions || []) : []

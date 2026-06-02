@@ -1,0 +1,5 @@
+﻿module Maintenance.WorkRequests
+WorkRequestsWorkspace 1.0 WorkRequestsWorkspace.qml
+WorkRequestsWorkspacePage 1.0 WorkRequestsWorkspacePage.qml
+WorkRequestsWorkspaceState 1.0 WorkRequestsWorkspaceState.qml
+WorkRequestsColumnConfig 1.0 WorkRequestsColumnConfig.js

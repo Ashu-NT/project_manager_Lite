@@ -8,6 +8,9 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
+import "components" as Components
+import "dialogs" as Dialogs
+import "sections" as Sections
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -16,137 +19,45 @@ AppLayouts.WorkspaceFrame {
     property ProjectManagementControllers.ProjectManagementResourcesWorkspaceController workspaceController: root.pmCatalog
         ? root.pmCatalog.resourcesWorkspace
         : null
-    readonly property var workspaceModel: root.workspaceController
-        ? root.workspaceController.workspace
-        : ({
-            "routeId": "project_management.resources",
-            "title": "Resources",
-            "summary": "Resource capacity, allocation, project assignments, and utilization views."
-        })
-    readonly property var overviewModel: root.workspaceController
-        ? root.workspaceController.overview
-        : ({
-            "title": root.workspaceModel.title,
-            "subtitle": root.workspaceModel.summary,
-            "metrics": []
-        })
-    readonly property var resourcesModel: root.workspaceController
-        ? root.workspaceController.resources
-        : ({
-            "title": "Resource Pool",
-            "subtitle": "Manage capacity, worker types, and resource availability.",
-            "emptyState": "Project-management resources desktop API is not connected in this QML preview.",
-            "items": []
-        })
-    readonly property var selectedResourceModel: root.workspaceController
-        ? root.workspaceController.selectedResource
-        : ({
-            "id": "",
-            "title": "",
-            "statusLabel": "",
-            "subtitle": "",
-            "description": "",
-            "emptyState": "Select a resource from the pool to review details or edit its setup.",
-            "fields": [],
-            "state": {}
-        })
 
+    // ── State management ──────────────────────────────────────────────────
+    ResourcesWorkspaceState {
+        id: state
+        pmCatalog: root.pmCatalog
+        workspaceController: root.workspaceController
+    }
+
+    // ── Convenience aliases ────────────────────────────────────────────────
+    readonly property var workspaceModel: state.workspaceModel
+    readonly property var overviewModel: state.overviewModel
+    readonly property var resourcesModel: state.resourcesModel
+    readonly property var selectedResourceModel: state.selectedResourceModel
+
+    // ── Column management ─────────────────────────────────────────────────
+    property var _columns: state.columns
+
+    function _saveColumnState(columns) {
+        state.saveColumnState(columns)
+        root._columns = state.columns
+    }
+
+    // ── Detail page state ─────────────────────────────────────────────────
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
     property bool _detailOpen: false
     property int _pendingDetailSection: 0
     readonly property var detailPage: detailPageLoader.item
 
-    property string _tableId: "pm.resources.table"
-    property var _columns: []
-
-    function _baseColumns() {
-        return [
-            { "key": "title",              "label": "Employee",     "flex": 2,   "sortable": true, "required": true, "visibleByDefault": true },
-            { "key": "resourceCode",       "label": "Code",         "flex": 0,   "minWidth": 120, "sortable": true,  "visibleByDefault": true },
-            { "key": "statusLabel",        "label": "Load",         "flex": 0,   "minWidth": 110, "type": "status", "required": true, "visibleByDefault": true },
-            { "key": "department",         "label": "Department",   "flex": 1.2, "sortable": true,                   "visibleByDefault": true },
-            { "key": "site",               "label": "Site",         "flex": 1,   "sortable": true,                   "visibleByDefault": true },
-            { "key": "role",               "label": "Role",         "flex": 1.2, "sortable": true,                   "visibleByDefault": true },
-            { "key": "assignedHoursLabel", "label": "Assigned Hrs", "flex": 0,   "minWidth": 100,                    "visibleByDefault": true },
-            { "key": "availabilityLabel",  "label": "Availability", "flex": 0,   "minWidth": 100,                    "visibleByDefault": false },
-            { "key": "utilizationValue",   "label": "Utilization",  "flex": 1,   "minWidth": 110, "type": "progress", "visibleByDefault": true }
-        ]
-    }
-
-    function _applyColumnState(base, saved) {
-        const order = saved ? (saved.columnOrder || []) : []
-        const hidden = saved ? (saved.hiddenColumns || []) : []
-        if (order.length === 0) return base.slice()
-        const hiddenSet = {}
-        for (let i = 0; i < hidden.length; i++) hiddenSet[hidden[i]] = true
-        const byKey = {}
-        for (let i = 0; i < base.length; i++) byKey[base[i].key] = base[i]
-        const result = []
-        for (let j = 0; j < order.length; j++) {
-            const col = byKey[order[j]]
-            if (!col) continue
-            const c = Object.assign({}, col)
-            if (c.required !== true) c.visible = !hiddenSet[order[j]]
-            result.push(c)
-        }
-        for (let i = 0; i < base.length; i++) {
-            if (order.indexOf(base[i].key) < 0) result.push(Object.assign({}, base[i]))
-        }
-        return result
-    }
-
-    function _buildColumnState(columns) {
-        const order = []
-        const hidden = []
-        for (let i = 0; i < columns.length; i++) {
-            order.push(columns[i].key)
-            if (columns[i].visible === false) hidden.push(columns[i].key)
-        }
-        return { "columnOrder": order, "hiddenColumns": hidden }
-    }
-
-    Component.onCompleted: {
-        const base = root._baseColumns()
-        if (root.workspaceController !== null) {
-            const saved = root.workspaceController.loadTableColumnState(root._tableId)
-            root._columns = root._applyColumnState(base, saved)
-        } else {
-            root._columns = base
-        }
-    }
-
-    readonly property var _detailActions: {
-        const state = root.selectedResourceModel
-            ? (root.selectedResourceModel.state || {}) : {}
-        const isActive = state.isActive !== false
-        return [
-            { "id": "edit",   "label": "Edit",                              "icon": "edit",    "enabled": true, "danger": false },
-            { "id": "toggle", "label": isActive ? "Deactivate" : "Activate","icon": isActive ? "close" : "approve", "enabled": true, "danger": false },
-            { "id": "delete", "label": "Delete",                            "icon": "delete",  "enabled": true, "danger": true  }
-        ]
-    }
-
-    function _categoryIndexForValue(v) {
-        const opts = root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
-        for (let i = 0; i < opts.length; i++) {
-            if (String(opts[i].value || "") === String(v || "")) return i
-        }
-        return 0
-    }
-
     function _openDetail(sectionIndex) {
         root._pendingDetailSection = sectionIndex
         root._detailOpen = true
-        if (detailPage) {
-            detailPage.scrollToSection(sectionIndex)
-        }
+        if (detailPage) detailPage.scrollToSection(sectionIndex)
     }
 
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            ResourcesDialogHost {
+            Dialogs.ResourcesDialogHost {
                 workerTypeOptions: root.workspaceController ? (root.workspaceController.workerTypeOptions || []) : []
                 categoryOptions: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
                 employeeOptions: root.workspaceController ? (root.workspaceController.employeeOptions || []) : []
@@ -155,12 +66,6 @@ AppLayouts.WorkspaceFrame {
                 onDeleteRequested: function(resourceId) {
                     if (root.workspaceController !== null) root.workspaceController.deleteResource(resourceId)
                 }
-                //onAddSkillRequested: function(payload) {
-                //    if (root.workspaceController !== null) root.workspaceController.addSkill(payload)
-                //}
-                //onAddCertificationRequested: function(payload) {
-                //    if (root.workspaceController !== null) root.workspaceController.addCertification(payload)
-                //}
             }
         }
     }
@@ -172,308 +77,110 @@ AppLayouts.WorkspaceFrame {
         nameFilters: ["Excel files (*.xlsx)", "CSV files (*.csv)"]
         onAccepted: {
             if (root.workspaceController !== null) {
-                const cols = resourcesTable.columns.filter(function(c) { return c.visible !== false })
+                const cols = state.columns.filter(function(c) { return c.visible !== false })
                     .map(function(c) { return { "key": c.key, "label": c.label } })
                 root.workspaceController.exportResources(cols, String(selectedFile || ""))
             }
         }
     }
 
-    // ── Stacked layout: list page / detail page ───────────────────────
+    // ── Stacked layout: list page / detail page ───────────────────
     Item {
         anchors.fill: parent
 
-        // ── List page (hidden when detail is open) ────────────────────
+        // ── List page ─────────────────────────────────────────────────────
         Item {
             id: _listPage
             anchors.fill: parent
             visible: !root._detailOpen
 
-            ColumnLayout {
+            Components.ResourcesListPage {
+                id: listPage
                 anchors.fill: parent
-                spacing: Theme.AppTheme.spacingSm
+                workspaceController: root.workspaceController
+                state: state
+                overviewModel: root.overviewModel
+                resourcesModel: root.resourcesModel
 
-                AppWidgets.KpiStrip {
-                    Layout.fillWidth: true
-                    metrics: root.overviewModel.metrics || []
+                onRowSelected: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectResource(rowId)
                 }
-
-                AppWidgets.LoadingOverlay {
-                    Layout.fillWidth: true
-                    loading: (root.workspaceController ? root.workspaceController.isLoading : false)
-                        && !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-                    message: "Loading resources..."
-                    compact: true
-                    modal:   false
+                onRowActivated: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.activateResource(rowId)
+                    root._openDetail(0)
                 }
-
-                AppWidgets.LoadingOverlay {
-                    Layout.fillWidth: true
-                    loading: root.workspaceController
-                        ? root.workspaceController.isBusy && String(root.workspaceController.errorMessage || "").length === 0
-                        : false
-                    message: "Saving changes..."
-                    compact: true
-                    modal:   false
+                onRowSelectionToggled: function(rowId, selected) {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.setResourceBulkSelection(rowId, selected)
                 }
-
-                AppWidgets.InlineMessage {
-                    Layout.fillWidth: true
-                    visible: !root._detailOpen
-                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
-                    tone: "danger"
-                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                onSelectAllToggled: function(allSelected) {
+                    if (root.workspaceController === null) return
+                    if (allSelected) root.workspaceController.selectVisibleResources()
+                    else root.workspaceController.clearResourceBulkSelection()
                 }
-
-                AppWidgets.InlineMessage {
-                    Layout.fillWidth: true
-                    visible: !root._detailOpen
-                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
-                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-                    tone: "success"
-                    message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+                onColumnsStateChanged: function(columns) {
+                    if (root.workspaceController !== null) root._saveColumnState(columns)
                 }
-
-                AppWidgets.TableToolbar {
-                    id: tableToolbar
-                    Layout.fillWidth: true
-                    searchText: root.workspaceController ? root.workspaceController.searchText : ""
-                    searchPlaceholder: "Search resources..."
-                    showCreate: true
-                    createLabel: "New Resource"
-                    showFilter: true
-                    showCustomize: true
-                    showRefresh: true
-                    showExport: true
-                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                    onSearchChanged: function(text) {
-                        if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
-                    }
-                    onFilterClicked: filterPopup.open()
-                    onCustomizeClicked: resourcesTable.openColumnCustomizer(tableToolbar.customizeButtonItem)
-                    onRefreshRequested: {
-                        if (root.workspaceController !== null) root.workspaceController.refresh()
-                    }
-                    onExportRequested: _exportDialog.open()
-                    onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
+                onSearchChanged: function(text) {
+                    if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
                 }
+                onFilterClicked: filterPopup.open()
+                onRefreshRequested: {
+                    if (root.workspaceController !== null) root.workspaceController.refresh()
+                }
+                onExportRequested: _exportDialog.open()
+                onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
+            }
 
-                Item {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
+            Components.ResourcesFilterPopup {
+                id: filterPopup
+                workspaceController: root.workspaceController
+                state: state
+                anchorItem: listPage.filterButtonItem
+            }
 
-                    AppWidgets.DataTable {
-                        id: resourcesTable
-                        anchors.top:    parent.top
-                        anchors.left:   parent.left
-                        anchors.right:  parent.right
-                        anchors.bottom: _paginationBar.top
-                        multiSelect: true
-                        tableId: root._tableId
-                        columns: root._columns
-                        sourceModel: root.workspaceController ? root.workspaceController.resourcesTableModel : null
-                        loading: root.workspaceController ? root.workspaceController.isLoading : false
-                        emptyText: root.resourcesModel.emptyState || "No resources available."
-                        selectedRowId: root.workspaceController ? root.workspaceController.selectedResourceId : ""
-                        selectedRowIds: root.workspaceController ? (root.workspaceController.selectedResourceIds || []) : []
+            // ── Bulk action bar ───────────────────────────────────────────
+            AppWidgets.BulkActionBar {
+                id: _bulkActionBar
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: Theme.AppTheme.spacingMd + 40
+                z: 10
+                selectedCount: root.workspaceController ? root.workspaceController.selectedResourceCount : 0
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                actions: [
+                    { "id": "delete", "label": "Delete", "icon": "delete", "danger": true, "enabled": true }
+                ]
 
-                        onRowSelected: function(rowId) {
-                            if (root.workspaceController !== null) root.workspaceController.selectResource(rowId)
-                        }
-                        onRowActivated: function(rowId) {
-                            if (root.workspaceController !== null) root.workspaceController.activateResource(rowId)
-                            root._openDetail(0)
-                        }
-                        onViewDetailRequested: function(rowId) {
-                            if (root.workspaceController !== null) root.workspaceController.activateResource(rowId)
-                            root._openDetail(0)
-                        }
-                        onRowSelectionToggled: function(rowId, selected) {
-                            if (root.workspaceController !== null)
-                                root.workspaceController.setResourceBulkSelection(rowId, selected)
-                        }
-                        onSelectAllToggled: function(allSelected) {
-                            if (root.workspaceController === null) return
-                            if (allSelected) {
-                                root.workspaceController.selectVisibleResources()
-                            } else {
-                                root.workspaceController.clearResourceBulkSelection()
-                            }
-                        }
-                        onColumnsStateChanged: function(columns) {
-                            if (root.workspaceController !== null) {
-                                root.workspaceController.saveTableColumnState(
-                                    root._tableId, root._buildColumnState(columns))
-                            }
-                        }
-                    }
+                onCancelRequested: {
+                    if (root.workspaceController !== null) root.workspaceController.clearResourceBulkSelection()
+                }
+                onActionTriggered: function(actionId) {
+                    if (actionId === "delete") _bulkDeleteDialog.open()
+                }
+            }
 
-                    AppWidgets.TablePaginationBar {
-                        id: _paginationBar
-                        anchors.left:   parent.left
-                        anchors.right:  parent.right
-                        anchors.bottom: parent.bottom
-                        currentPage:  root.workspaceController ? root.workspaceController.resourcePage : 1
-                        pageSize:     root.workspaceController ? root.workspaceController.resourcePageSize : 25
-                        totalItems:   root.workspaceController ? root.workspaceController.resourceTotalCount : 0
-                        busy:         root.workspaceController ? root.workspaceController.isBusy : false
-                        onPageRequested: function(page) {
-                            if (root.workspaceController !== null) root.workspaceController.setResourcePage(page)
-                        }
-                        onPageSizeRequested: function(pageSize) {
-                            if (root.workspaceController !== null) root.workspaceController.setResourcePageSize(pageSize)
-                        }
-                    }
+            AppControls.ConfirmationDialog {
+                id: _bulkDeleteDialog
+                title: "Delete Selected Resources"
+                closePolicy: Popup.CloseOnEscape
+                confirmLabel: "Delete Resources"
+                confirmIcon: "delete"
+                confirmDanger: true
+                message: {
+                    const count = root.workspaceController ? root.workspaceController.selectedResourceCount : 0
+                    return "Delete " + count + " selected resource(s) and all related planning data?"
+                }
+                supportingText: "This removes the resource records and any project assignments. It cannot be undone."
 
-                    // ── Filter popup ──────────────────────────────────
-                    AppWidgets.AnchoredPopup {
-                        id: filterPopup
-                        anchorItem: tableToolbar.filterButtonItem
-                        width: 280
-                        padding: Theme.AppTheme.marginMd
-                        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-                        background: Rectangle {
-                            radius: Theme.AppTheme.radiusLg
-                            color: Theme.AppTheme.surfaceRaised
-                            border.color: Theme.AppTheme.divider
-                            border.width: 1
-                        }
-
-                        contentItem: ColumnLayout {
-                            spacing: Theme.AppTheme.spacingSm
-
-                            AppControls.Label {
-                                text: "Active Status"
-                                font.bold: true
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.family: Theme.AppTheme.fontFamily
-                                color: Theme.AppTheme.textMuted
-                            }
-                            AppControls.ComboBox {
-                                Layout.fillWidth: true
-                                model: [
-                                    { "label": "All",      "value": "all"      },
-                                    { "label": "Active",   "value": "active"   },
-                                    { "label": "Inactive", "value": "inactive" }
-                                ]
-                                textRole: "label"
-                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                currentIndex: {
-                                    const v = root.workspaceController
-                                        ? root.workspaceController.selectedActiveFilter : "all"
-                                    return v === "active" ? 1 : v === "inactive" ? 2 : 0
-                                }
-                                onActivated: function(index) {
-                                    const vals = ["all", "active", "inactive"]
-                                    if (root.workspaceController !== null)
-                                        root.workspaceController.setActiveFilter(vals[index] || "all")
-                                }
-                            }
-
-                            AppControls.Label {
-                                text: "Category"
-                                font.bold: true
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.family: Theme.AppTheme.fontFamily
-                                color: Theme.AppTheme.textMuted
-                            }
-                            AppControls.ComboBox {
-                                Layout.fillWidth: true
-                                model: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
-                                textRole: "label"
-                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                currentIndex: root._categoryIndexForValue(
-                                    root.workspaceController ? root.workspaceController.selectedCategoryFilter : "all"
-                                )
-                                onActivated: function(index) {
-                                    const opt = root.workspaceController
-                                        ? (root.workspaceController.categoryOptions || [])[index]
-                                        : null
-                                    if (opt && root.workspaceController)
-                                        root.workspaceController.setCategoryFilter(String(opt.value || "all"))
-                                }
-                            }
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: Theme.AppTheme.spacingSm
-
-                                AppControls.SecondaryButton {
-                                    Layout.fillWidth: true
-                                    text: "Clear"
-                                    iconName: "close"
-                                    onClicked: {
-                                        if (root.workspaceController !== null) {
-                                            root.workspaceController.setActiveFilter("all")
-                                            root.workspaceController.setCategoryFilter("all")
-                                        }
-                                        filterPopup.close()
-                                    }
-                                }
-                                AppControls.SecondaryButton {
-                                    Layout.fillWidth: true
-                                    text: "Close"
-                                    iconName: "close"
-                                    onClicked: filterPopup.close()
-                                }
-                            }
-                        }
-                    }
-
-                    // ── Bulk action bar ───────────────────────────────
-                    AppWidgets.BulkActionBar {
-                        id: bulkActionBar
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.bottom: _paginationBar.top
-                        anchors.bottomMargin: Theme.AppTheme.spacingMd
-                        z: 10
-                        selectedCount: root.workspaceController ? root.workspaceController.selectedResourceCount : 0
-                        busy: root.workspaceController ? root.workspaceController.isBusy : false
-                        actions: [
-                            { "id": "delete", "label": "Delete", "icon": "delete", "danger": true, "enabled": true }
-                        ]
-
-                        onCancelRequested: {
-                            if (root.workspaceController !== null)
-                                root.workspaceController.clearResourceBulkSelection()
-                        }
-                        onActionTriggered: function(actionId) {
-                            if (actionId === "delete") bulkDeleteDialog.open()
-                        }
-                    }
-
-                    // ── Bulk delete confirmation ───────────────────────
-                    AppControls.ConfirmationDialog {
-                        id: bulkDeleteDialog
-                        title: "Delete Selected Resources"
-                        closePolicy: Popup.CloseOnEscape
-                        confirmLabel: "Delete Resources"
-                        confirmIcon: "delete"
-                        confirmDanger: true
-                        message: {
-                            const count = root.workspaceController
-                                ? root.workspaceController.selectedResourceCount : 0
-                            return "Delete " + count + " selected resource(s) and all related planning data?"
-                        }
-                        supportingText: "This removes the resource records and any project assignments. It cannot be undone."
-
-                        onConfirmed: {
-                            if (root.workspaceController !== null) {
-                                root.workspaceController.bulkDeleteResources(
-                                    root.workspaceController.selectedResourceIds
-                                )
-                            }
-                        }
-                    }
+                onConfirmed: {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.bulkDeleteResources(root.workspaceController.selectedResourceIds)
                 }
             }
         }
 
-        // ── Detail page (covers full area, z:20) ─────────────────────
+        // ── Detail page (covers full area, z:20) ──────────────────────────
         Loader {
             id: detailPageLoader
             anchors.fill: parent
@@ -493,7 +200,7 @@ AppLayouts.WorkspaceFrame {
                 showEdit: false
                 showDelete: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                sections: ["Overview", "Assignments", "Capacity", "Calendar", "Skills", "Certifications", "Cost Rates", "Availability", "Activity"]
+                sections: state.detailSections
                 z: 20
                 Component.onCompleted: scrollToSection(root._pendingDetailSection)
 
@@ -509,19 +216,19 @@ AppLayouts.WorkspaceFrame {
                     title: root.selectedResourceModel.title || "Resource Details"
                     subtitle: root.selectedResourceModel.statusLabel || ""
                     busy: root.workspaceController ? root.workspaceController.isBusy : false
-                    actions: root._detailActions
+                    actions: state.detailActions
 
                     onBackRequested: root._detailOpen = false
                     onActionTriggered: function(actionId) {
                         if (actionId === "edit") {
                             dialogHostLoader.invoke("openEditDialog", root.selectedResourceModel)
                         } else if (actionId === "toggle") {
-                            const state = root.selectedResourceModel
+                            const st = root.selectedResourceModel
                                 ? (root.selectedResourceModel.state || {}) : {}
-                            if (root.workspaceController !== null && state.resourceId) {
+                            if (root.workspaceController !== null && st.resourceId) {
                                 root.workspaceController.toggleResourceActive(
-                                    String(state.resourceId || ""),
-                                    parseInt(String(state.version || "0"), 10)
+                                    String(st.resourceId || ""),
+                                    parseInt(String(st.version || "0"), 10)
                                 )
                             }
                         } else if (actionId === "delete") {
@@ -546,7 +253,7 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                ResourcesDetailSection {
+                Sections.ResourcesDetailPanel {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     resourceDetail: root.selectedResourceModel
@@ -562,16 +269,13 @@ AppLayouts.WorkspaceFrame {
                     onAddSkillRequested: dialogHostLoader.invoke("openAddSkillDialog")
                     onAddCertificationRequested: dialogHostLoader.invoke("openAddCertificationDialog")
                     onRemoveSkillRequested: function(skillId) {
-                        if (root.workspaceController !== null)
-                            root.workspaceController.removeSkill(skillId)
+                        if (root.workspaceController !== null) root.workspaceController.removeSkill(skillId)
                     }
                     onRemoveCertificationRequested: function(certId) {
-                        if (root.workspaceController !== null)
-                            root.workspaceController.removeCertification(certId)
+                        if (root.workspaceController !== null) root.workspaceController.removeCertification(certId)
                     }
                 }
             }
         }
     }
 }
-

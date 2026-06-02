@@ -8,6 +8,8 @@ import App.Theme 1.0 as Theme
 import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
 import App.Controls 1.0 as AppControls
+import "dialogs" as Dialogs
+import "sections" as Sections
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -78,7 +80,7 @@ AppLayouts.WorkspaceFrame {
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            WorkOrdersDialogHost {
+            Dialogs.WorkOrdersDialogHost {
 
         siteOptions: root.workspaceController ? (root.workspaceController.formSiteOptions || []) : []
         locationOptions: root.workspaceController ? (root.workspaceController.formLocationOptions || []) : []
@@ -311,7 +313,7 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                WorkOrderDetailSection {
+                Sections.WorkOrderDetailPanel {
                     width: parent.width
                     detailPage: detailPage
                     workOrderDetail: root.selectedWorkOrderModel

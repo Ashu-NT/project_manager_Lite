@@ -1,4 +1,4 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -8,6 +8,8 @@ import App.Theme 1.0 as Theme
 import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
 import App.Controls 1.0 as AppControls
+import "dialogs" as Dialogs
+import "sections" as Sections
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -68,7 +70,7 @@ AppLayouts.WorkspaceFrame {
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            WorkRequestsDialogHost {
+            Dialogs.WorkRequestsDialogHost {
 
         siteOptions: root.workspaceController ? (root.workspaceController.formSiteOptions || []) : []
         locationOptions: root.workspaceController ? (root.workspaceController.formLocationOptions || []) : []
@@ -120,7 +122,7 @@ AppLayouts.WorkspaceFrame {
         AppWidgets.TableToolbar {
             id: tableToolbar
             Layout.fillWidth: true
-            searchPlaceholder: "Search work requests…"
+            searchPlaceholder: "Search work requestsâ€¦"
             showCreate: true
             createLabel: "New Request"
             showRefresh: true
@@ -135,7 +137,7 @@ AppLayouts.WorkspaceFrame {
             onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
         }
 
-        // ── Full-width table with full-page detail view ───────────────
+        // â”€â”€ Full-width table with full-page detail view â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -262,7 +264,7 @@ AppLayouts.WorkspaceFrame {
                 onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedWorkRequestModel)
                 onDeleteRequested: detailPage.open = false
 
-                // ── Detail-scoped messages ─────────────────────────
+                // â”€â”€ Detail-scoped messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 AppWidgets.InlineMessage {
                     width: parent ? parent.width : 0
                     visible: detailPage.open
@@ -279,7 +281,7 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                WorkRequestDetailSection {
+                Sections.WorkRequestDetailPanel {
                     width: parent.width
                     detailPage: detailPage
                     workRequestDetail: root.selectedWorkRequestModel

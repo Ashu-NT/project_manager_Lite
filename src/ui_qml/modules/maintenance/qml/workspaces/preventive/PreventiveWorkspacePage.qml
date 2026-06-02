@@ -1,4 +1,4 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -41,7 +41,7 @@ AppLayouts.WorkspaceFrame {
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            PreventiveDialogHost {
+            Dialogs.PreventiveDialogHost {
 
         planFormOptions: root.workspaceController ? (root.workspaceController.planFormOptions || {}) : ({})
         planTaskFormOptions: root.workspaceController ? (root.workspaceController.planTaskFormOptions || {}) : ({})

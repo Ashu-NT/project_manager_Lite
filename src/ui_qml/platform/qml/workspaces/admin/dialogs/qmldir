@@ -1,0 +1,2 @@
+module Platform.AdminDialogs
+AdminDialogHost 1.0 AdminDialogHost.qml

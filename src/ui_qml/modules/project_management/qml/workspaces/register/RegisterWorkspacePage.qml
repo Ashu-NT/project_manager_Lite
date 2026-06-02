@@ -9,6 +9,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
+import "sections" as Sections
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -632,7 +633,7 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                RegisterDetailPanel {
+                Sections.RegisterDetailPanel {
                     width: parent ? parent.width : 0
                     detailPage:      detailPageLoader.item
                     entryDetail:     root.selectedEntryModel

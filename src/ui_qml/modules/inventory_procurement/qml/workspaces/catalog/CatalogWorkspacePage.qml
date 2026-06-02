@@ -1,8 +1,10 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import "dialogs" as Dialogs
+import "sections" as Sections
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
@@ -140,11 +142,11 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    // ── Dialog host (lazy) ─────────────────────────────────────────
+    // â”€â”€ Dialog host (lazy) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            CatalogDialogHost {
+            Dialogs.CatalogDialogHost \{
                 categoryTypeOptions: root.workspaceController ? (root.workspaceController.categoryTypeOptions || []) : []
                 categoryOptions: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
                 itemStatusOptions: root.workspaceController ? (root.workspaceController.itemStatusOptions || []) : []
@@ -155,11 +157,11 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    // ── Stacked list / detail ──────────────────────────────────────
+    // â”€â”€ Stacked list / detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Item {
         anchors.fill: parent
 
-        // ── List page ──────────────────────────────────────────────
+        // â”€â”€ List page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Item {
             id: _listPage
             anchors.fill: parent
@@ -577,7 +579,7 @@ AppLayouts.WorkspaceFrame {
             }
         }
 
-        // ── Detail page (lazy loaded) ──────────────────────────────
+        // â”€â”€ Detail page (lazy loaded) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Loader {
             id: _detailPageLoader
             anchors.fill: parent
@@ -608,7 +610,7 @@ AppLayouts.WorkspaceFrame {
                     root._loadLazyDetailSection(index)
                 }
 
-                // ── Contextual toolbar ─────────────────────────────
+                // â”€â”€ Contextual toolbar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 AppWidgets.ContextualActionToolbar {
                     width: parent ? parent.width : 0
                     showBack: true
@@ -651,7 +653,7 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                // ── Detail-scoped messages ─────────────────────────
+                // â”€â”€ Detail-scoped messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 AppWidgets.InlineMessage {
                     width: parent ? parent.width : 0
                     visible: root._detailOpen
@@ -668,8 +670,8 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                // ── Detail content ─────────────────────────────────
-                CatalogDetailContent {
+                // â”€â”€ Detail content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                Sections.CatalogDetailPanel {
                     width: parent ? parent.width : 0
                     isItemsView: root._isItemsView
                     itemDetail: root.selectedItemModel
