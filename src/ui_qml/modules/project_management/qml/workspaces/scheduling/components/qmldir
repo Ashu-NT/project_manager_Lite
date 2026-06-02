@@ -1,1 +1,8 @@
 ﻿module ProjectManagement.SchedulingComponents
+SchedulingActivityTimelinePanel 1.0 SchedulingActivityTimelinePanel.qml
+SchedulingDiagnosticsPanel 1.0 SchedulingDiagnosticsPanel.qml
+SchedulingResourcesPanel 1.0 SchedulingResourcesPanel.qml
+SchedulingBaselinesPanel 1.0 SchedulingBaselinesPanel.qml
+SchedulingDelaysPanel 1.0 SchedulingDelaysPanel.qml
+SchedulingCalendarsPanel 1.0 SchedulingCalendarsPanel.qml
+SchedulingActivityFeedPanel 1.0 SchedulingActivityFeedPanel.qml
