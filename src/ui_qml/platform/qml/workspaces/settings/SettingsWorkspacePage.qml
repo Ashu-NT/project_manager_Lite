@@ -48,7 +48,10 @@ AppLayouts.WorkspaceFrame {
     property string _activeSection: "modules"
     property string _selectedRowId: ""
 
-    readonly property bool _detailOpen: root._selectedRowId.length > 0
+    // Module detail: opens as a full-area SectionDetailPage (list hides, detail fills).
+    property bool _moduleDetailOpen: false
+
+    readonly property bool _detailOpen: root._moduleDetailOpen
         && root._activeSection === "modules"
 
     readonly property var _selectedItem: {
@@ -530,7 +533,7 @@ AppLayouts.WorkspaceFrame {
                     // ── Module Entitlements ───────────────────────
                     Item {
                         anchors.fill: parent
-                        visible:      root._activeSection === "modules"
+                        visible:      root._activeSection === "modules" && !root._detailOpen
 
                         ColumnLayout {
                             anchors.fill: parent
@@ -616,12 +619,7 @@ AppLayouts.WorkspaceFrame {
                                 }
                                 onRowActivated: function(id) {
                                     root._selectedRowId = id
-                                    const item = root.moduleItemById(id)
-                                    if (item !== null && root.workspaceController !== null)
-                                        lifecycleDialog.openForItem(
-                                            item,
-                                            root.workspaceController.lifecycleOptions || []
-                                        )
+                                    root._moduleDetailOpen = true
                                 }
                             }
                         }
@@ -1252,168 +1250,42 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                // ── Right contextual detail panel ─────────────────
-                Rectangle {
-                    id: _detailPanel
-                    Layout.fillHeight:     true
-                    Layout.preferredWidth: 288
-                    visible:               root._detailOpen
-                    color:                 Theme.AppTheme.surface
-                    z:                     1
+            }
+        }
 
-                    Rectangle {
-                        anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
-                        width: 1; color: Theme.AppTheme.divider
+        // ── Module detail page — full-area overlay (stacked list/detail) ──
+        Loader {
+            id: _moduleDetailLoader
+            anchors.fill: parent
+            z: 10
+            active:       root._detailOpen
+            visible:      root._detailOpen && status === Loader.Ready
+            asynchronous: true
+            sourceComponent: Component {
+                SettingsModuleDetailPage {
+                    module:           root._selectedItem || ({})
+                    lifecycleOptions: root.workspaceController ? (root.workspaceController.lifecycleOptions || []) : []
+                    busy:             root._busy
+                    errorMessage:     root._err
+                    feedbackMessage:  root._ok
+                    onBackRequested: {
+                        root._moduleDetailOpen = false
+                        root._selectedRowId = ""
                     }
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        spacing: 0
-
-                        // Panel header — ContextualActionToolbar for module actions
-                        AppWidgets.ContextualActionToolbar {
-                            Layout.fillWidth: true
-                            showBack: true
-                            title:    root._selectedItem ? (root._selectedItem.title || "Module Detail") : "Module Detail"
-                            subtitle: root._selectedItem ? (root._selectedItem.statusLabel || "") : ""
-                            busy:     root._busy
-                            actions:  root._moduleContextActions
-                            onBackRequested: root._selectedRowId = ""
-                            onActionTriggered: function(id) {
-                                if (id === "lifecycle") {
-                                    if (root._selectedItem && root.workspaceController)
-                                        lifecycleDialog.openForItem(
-                                            root._selectedItem,
-                                            root.workspaceController.lifecycleOptions || []
-                                        )
-                                } else if (id === "licensed") {
-                                    if (root.workspaceController)
-                                        root.workspaceController.toggleModuleLicensed(root._selectedRowId)
-                                } else if (id === "enabled") {
-                                    if (root.workspaceController)
-                                        root.workspaceController.toggleModuleEnabled(root._selectedRowId)
-                                }
-                            }
-                        }
-
-                        // Panel content
-                        Flickable {
-                            Layout.fillWidth:  true
-                            Layout.fillHeight: true
-                            contentWidth:      width
-                            contentHeight:     _detailContent.implicitHeight
-                            clip:              true
-                            boundsBehavior:    Flickable.StopAtBounds
-
-                            ColumnLayout {
-                                id: _detailContent
-                                width:   parent.width
-                                spacing: Theme.AppTheme.spacingSm
-
-                                // Item title
-                                AppControls.Label {
-                                    Layout.fillWidth:   true
-                                    Layout.leftMargin:  Theme.AppTheme.marginMd
-                                    Layout.rightMargin: Theme.AppTheme.marginMd
-                                    Layout.topMargin:   Theme.AppTheme.marginMd
-                                    text:           root._selectedItem
-                                        ? (root._selectedItem.title || "") : ""
-                                    color:          Theme.AppTheme.textPrimary
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.sectionSize
-                                    font.bold:      true
-                                    wrapMode:       Text.WrapAtWordBoundaryOrAnywhere
-                                }
-
-                                // Status chip
-                                AppWidgets.StatusChip {
-                                    Layout.leftMargin: Theme.AppTheme.marginMd
-                                    visible: root._selectedItem
-                                        ? (root._selectedItem.statusLabel || "").length > 0 : false
-                                    status: root._selectedItem
-                                        ? (root._selectedItem.statusLabel || "") : ""
-                                }
-
-                                Rectangle {
-                                    Layout.fillWidth:   true
-                                    Layout.leftMargin:  Theme.AppTheme.marginMd
-                                    Layout.rightMargin: Theme.AppTheme.marginMd
-                                    Layout.preferredHeight: 1
-                                    color: Theme.AppTheme.divider
-                                }
-
-                                // Stage / license subtitle
-                                ColumnLayout {
-                                    Layout.fillWidth:   true
-                                    Layout.leftMargin:  Theme.AppTheme.marginMd
-                                    Layout.rightMargin: Theme.AppTheme.marginMd
-                                    spacing: 2
-                                    visible: root._selectedItem
-                                        ? (root._selectedItem.subtitle || "").length > 0 : false
-
-                                    AppControls.Label {
-                                        text:           root._activeSection === "modules"
-                                            ? "Stage / License" : "Details"
-                                        color:          Theme.AppTheme.textMuted
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.captionSize
-                                        font.bold:      true
-                                    }
-                                    AppControls.Label {
-                                        Layout.fillWidth: true
-                                        text:           root._selectedItem
-                                            ? (root._selectedItem.subtitle || "") : ""
-                                        color:          Theme.AppTheme.textSecondary
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.smallSize
-                                        wrapMode:       Text.WrapAtWordBoundaryOrAnywhere
-                                    }
-                                }
-
-                                // Runtime / capabilities metaText
-                                ColumnLayout {
-                                    Layout.fillWidth:   true
-                                    Layout.leftMargin:  Theme.AppTheme.marginMd
-                                    Layout.rightMargin: Theme.AppTheme.marginMd
-                                    spacing: 2
-                                    visible: root._selectedItem
-                                        ? (root._selectedItem.metaText || "").length > 0 : false
-
-                                    AppControls.Label {
-                                        text:           root._activeSection === "modules"
-                                            ? "Runtime" : "Info"
-                                        color:          Theme.AppTheme.textMuted
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.captionSize
-                                        font.bold:      true
-                                    }
-                                    AppControls.Label {
-                                        Layout.fillWidth: true
-                                        text:           root._selectedItem
-                                            ? (root._selectedItem.metaText || "") : ""
-                                        color:          Theme.AppTheme.textSecondary
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.smallSize
-                                        wrapMode:       Text.WrapAtWordBoundaryOrAnywhere
-                                    }
-                                }
-
-                            }
-                        }
+                    onLifecycleChangeRequested: function(moduleCode, lifecycleStatus) {
+                        if (root.workspaceController)
+                            root.workspaceController.changeModuleLifecycleStatus(moduleCode, lifecycleStatus)
+                    }
+                    onToggleLicensedRequested: function(moduleCode) {
+                        if (root.workspaceController)
+                            root.workspaceController.toggleModuleLicensed(moduleCode)
+                    }
+                    onToggleEnabledRequested: function(moduleCode) {
+                        if (root.workspaceController)
+                            root.workspaceController.toggleModuleEnabled(moduleCode)
                     }
                 }
             }
-        }
-    }
-
-    // ── Module lifecycle dialog (wiring unchanged) ────────────────
-    PlatformDialogs.ModuleLifecycleDialog {
-        id: lifecycleDialog
-
-        onStatusConfirmed: function(moduleCode, lifecycleStatus) {
-            if (root.workspaceController !== null)
-                root.workspaceController.changeModuleLifecycleStatus(moduleCode, lifecycleStatus)
-            lifecycleDialog.close()
         }
     }
 }
