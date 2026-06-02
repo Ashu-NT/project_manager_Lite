@@ -1,1 +1,4 @@
 ﻿module ProjectManagement.CollaborationDialogs
+CollaborationFilterPopup 1.0 CollaborationFilterPopup.qml
+CollaborationViewsPopup 1.0 CollaborationViewsPopup.qml
+CollaborationSettingsPopup 1.0 CollaborationSettingsPopup.qml

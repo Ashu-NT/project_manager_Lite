@@ -773,416 +773,47 @@ AppLayouts.WorkspaceFrame {
             }
         }
 
+
         // ── Right detail panel ────────────────────────────────────
-        Rectangle {
+        AdminEntityDetailPanel {
             id: _detailPanel
             Layout.fillHeight:     true
             Layout.preferredWidth: 288
             visible:               false
-            color:                 Theme.AppTheme.surface
-            z:                     1
-
-            Rectangle {
-                anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
-                width: 1; color: Theme.AppTheme.divider
+            activeSection:   root._activeSection
+            detailItem:      root._detailItem
+            selectedRowId:   root._selectedRowId
+            selectedDocument:      root.selectedDocument
+            documentPreviewState:  root.documentPreviewState
+            documentLinkCatalog:   root.documentLinkCatalog
+            workspaceController:   root.workspaceController
+            busy:            root._busy
+            onCloseRequested:                root._selectedRowId = ""
+            onEditRequested: function(sectionId, itemId) {
+                if      (sectionId === "organizations") root.openOrganizationEdit(itemId)
+                else if (sectionId === "sites")         root.openSiteEdit(itemId)
+                else if (sectionId === "departments")   root.openDepartmentEdit(itemId)
+                else if (sectionId === "employees")     root.openEmployeeEdit(itemId)
+                else if (sectionId === "users")         root.openUserEdit(itemId)
+                else if (sectionId === "parties")       root.openPartyEdit(itemId)
+                else if (sectionId === "structures")    root.openDocumentStructureEdit(itemId)
             }
-
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 0
-
-                // Panel header
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight : Theme.AppTheme.toolbarHeight - 6
-                    color:  Theme.AppTheme.surfaceRaised
-
-                    Rectangle {
-                        anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-                        height: 1; color: Theme.AppTheme.divider
-                    }
-
-                    AppControls.Label {
-                        anchors.left:           parent.left
-                        anchors.leftMargin:     Theme.AppTheme.marginMd
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.right:          _closeBtn.left
-                        anchors.rightMargin:    4
-                        text:           root._detailItem ? (root._detailItem.title || "Details") : "Details"
-                        color:          Theme.AppTheme.textPrimary
-                        font.family:    Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.captionSize
-                        font.bold:      true
-                        elide:          Text.ElideRight
-                    }
-
-                    Rectangle {
-                        id: _closeBtn
-                        anchors.right:          parent.right
-                        anchors.rightMargin:    6
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 26; height: 26; radius: 4
-                        color: _closeMA.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
-
-                        AppIcons.AppIcon {
-                            anchors.centerIn: parent
-                            name: "close"; size: 10
-                            iconColor: Theme.AppTheme.textMuted
-                        }
-
-                        MouseArea {
-                            id: _closeMA
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape:  Qt.PointingHandCursor
-                            onClicked:    root._selectedRowId = ""
-                        }
-                    }
-                }
-
-                // Panel body (scrollable)
-                Flickable {
-                    Layout.fillWidth:  true
-                    Layout.fillHeight: true
-                    contentWidth:      width
-                    contentHeight:     _panelContent.implicitHeight
-                    clip:              true
-                    boundsBehavior:    Flickable.StopAtBounds
-
-                    ColumnLayout {
-                        id: _panelContent
-                        width: parent.width
-                        spacing: 0
-
-                        // ── Document inspector ────────────────────────────
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            visible: root._activeSection === "documents"
-                            spacing: 0
-
-                            PlatformWidgets.DocumentDetailPanel {
-                                Layout.fillWidth: true
-                                details:         root.selectedDocument
-                                previewState:    root.documentPreviewState
-                                actionsEnabled:  root.workspaceController
-                                    ? !root.workspaceController.isBusy : false
-                                onOpenRequested: function(url) {
-                                    if (url && url.length > 0) Qt.openUrlExternally(url)
-                                }
-                            }
-
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 1; color: Theme.AppTheme.divider
-                            }
-
-                            // Document actions
-                            RowLayout {
-                                Layout.fillWidth:    true
-                                Layout.leftMargin:   Theme.AppTheme.marginMd
-                                Layout.rightMargin:  Theme.AppTheme.marginMd
-                                Layout.topMargin:    Theme.AppTheme.spacingSm
-                                Layout.bottomMargin: Theme.AppTheme.spacingXs
-                                spacing: Theme.AppTheme.spacingXs
-
-                                AppControls.PrimaryButton {
-                                    Layout.fillWidth: true
-                                    text:     "Edit"
-                                    iconName: "edit"
-                                    enabled:  root.workspaceController ? !root.workspaceController.isBusy : false
-                                    onClicked: root.openDocumentEdit(root._selectedRowId)
-                                }
-
-                                AppControls.SecondaryButton {
-                                    text:     "Toggle"
-                                    iconName: "approve"
-                                    enabled:  root.workspaceController ? !root.workspaceController.isBusy : false
-                                    onClicked: {
-                                        if (root.workspaceController)
-                                            root.workspaceController.toggleDocumentActive(root._selectedRowId)
-                                    }
-                                }
-                            }
-
-                            AppControls.SecondaryButton {
-                                Layout.fillWidth:    true
-                                Layout.leftMargin:   Theme.AppTheme.marginMd
-                                Layout.rightMargin:  Theme.AppTheme.marginMd
-                                Layout.bottomMargin: Theme.AppTheme.spacingSm
-                                text:     "Delete"
-                                iconName: "delete"
-                                danger:   true
-                                enabled:  root.workspaceController ? !root.workspaceController.isBusy : false
-                                onClicked: { /* root.workspaceController.deleteDocument(root._selectedRowId) */ }
-                            }
-
-                            Rectangle {
-                                Layout.fillWidth: true
-                                implicitHeight : 1; color: Theme.AppTheme.divider
-                            }
-
-                            // Linked records header
-                            RowLayout {
-                                Layout.fillWidth:    true
-                                Layout.leftMargin:   Theme.AppTheme.marginMd
-                                Layout.rightMargin:  Theme.AppTheme.marginMd
-                                Layout.topMargin:    Theme.AppTheme.spacingSm
-                                Layout.bottomMargin: Theme.AppTheme.spacingSm
-                                spacing: Theme.AppTheme.spacingSm
-
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text:           "Linked Records"
-                                    color:          Theme.AppTheme.textMuted
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold:      true
-                                }
-
-                                AppControls.Label {
-                                    visible: (root.documentLinkCatalog.items || []).length > 0
-                                    text:    String((root.documentLinkCatalog.items || []).length)
-                                    color:          Theme.AppTheme.textMuted
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                }
-
-                                AppControls.SecondaryButton {
-                                    text:     "Add Link"
-                                    iconName: "add"
-                                    enabled:  root.selectedDocument.hasSelection
-                                        && (root.workspaceController ? !root.workspaceController.isBusy : false)
-                                    onClicked: root.openDocumentLinkCreate()
-                                }
-                            }
-
-                            Repeater {
-                                model: root.documentLinkCatalog.items || []
-
-                                delegate: Rectangle {
-                                    id : delegateRoot
-                                    required property var modelData
-                                    required property int index
-
-                                    width:  _panelContent.width
-                                    height: 34
-                                    color:  _linkRowMA.containsMouse
-                                        ? Theme.AppTheme.hoverSurface : "transparent"
-
-                                    Rectangle {
-                                        anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-                                        height: 1; color: Theme.AppTheme.divider
-                                    }
-
-                                    RowLayout {
-                                        anchors.fill:        parent
-                                        anchors.leftMargin:  Theme.AppTheme.marginMd
-                                        anchors.rightMargin: Theme.AppTheme.marginSm
-                                        spacing: Theme.AppTheme.spacingXs
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            text:           delegateRoot.modelData.title || ""
-                                            color:          Theme.AppTheme.textPrimary
-                                            font.family:    Theme.AppTheme.fontFamily
-                                            font.pixelSize: Theme.AppTheme.smallSize
-                                            elide:          Text.ElideRight
-                                        }
-
-                                        Rectangle {
-                                            Layout.preferredWidth: 22; Layout.preferredHeight: 22; radius: 4
-                                            color: _removeLinkMA.containsMouse
-                                                ? Theme.AppTheme.dangerSoft : "transparent"
-
-                                            AppIcons.AppIcon {
-                                                anchors.centerIn: parent
-                                                name: "close"; size: 9
-                                                iconColor: _removeLinkMA.containsMouse
-                                                    ? Theme.AppTheme.danger
-                                                    : Theme.AppTheme.textMuted
-                                            }
-
-                                            MouseArea {
-                                                id: _removeLinkMA
-                                                anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape:  Qt.PointingHandCursor
-                                                enabled:      root.workspaceController
-                                                    ? !root.workspaceController.isBusy : false
-                                                onClicked: {
-                                                    if (root.workspaceController)
-                                                        root.workspaceController.removeDocumentLink(modelData.id)
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    MouseArea {
-                                        id: _linkRowMA
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                    }
-                                }
-                            }
-                        }
-
-                        // ── Generic entity inspector ──────────────────────
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.margins:   Theme.AppTheme.marginMd
-                            visible:          root._activeSection !== "documents"
-                            spacing:          Theme.AppTheme.spacingSm
-
-                            // Entity name
-                            AppControls.Label {
-                                Layout.fillWidth: true
-                                text:           root._detailItem ? (root._detailItem.title || "") : ""
-                                color:          Theme.AppTheme.textPrimary
-                                font.family:    Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.sectionSize
-                                font.bold:      true
-                                wrapMode:       Text.WrapAtWordBoundaryOrAnywhere
-                            }
-
-                            // Status chip
-                            AppWidgets.StatusChip {
-                                visible: root._detailItem
-                                    ? (root._detailItem.statusLabel || "").length > 0 : false
-                                status: root._detailItem ? (root._detailItem.statusLabel || "") : ""
-                            }
-
-                            // Divider
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.topMargin: 2; Layout.bottomMargin: 2
-                                height: 1; color: Theme.AppTheme.divider
-                            }
-
-                            // Details field
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                visible: root._detailItem
-                                    ? (root._detailItem.subtitle || "").length > 0 : false
-
-                                AppControls.Label {
-                                    text:           "Details"
-                                    color:          Theme.AppTheme.textMuted
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold:      true
-                                }
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text:           root._detailItem ? (root._detailItem.subtitle || "") : ""
-                                    color:          Theme.AppTheme.textSecondary
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    wrapMode:       Text.WrapAtWordBoundaryOrAnywhere
-                                }
-                            }
-
-                            // Info field
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                visible: root._detailItem
-                                    ? (root._detailItem.metaText || "").length > 0 : false
-
-                                AppControls.Label {
-                                    text:           "Info"
-                                    color:          Theme.AppTheme.textMuted
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold:      true
-                                }
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text:           root._detailItem ? (root._detailItem.metaText || "") : ""
-                                    color:          Theme.AppTheme.textSecondary
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    wrapMode:       Text.WrapAtWordBoundaryOrAnywhere
-                                }
-                            }
-
-                            // Action divider
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.topMargin: 2
-                                height: 1; color: Theme.AppTheme.divider
-                                visible: root._detailItem !== null
-                            }
-
-                            // Primary actions: Edit + Set Active / Toggle
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: Theme.AppTheme.spacingXs
-                                visible: root._detailItem !== null
-
-                                AppControls.PrimaryButton {
-                                    Layout.fillWidth: true
-                                    text:     "Edit"
-                                    iconName: "edit"
-                                    enabled:  !root._busy
-                                    onClicked: {
-                                        const id = root._selectedRowId
-                                        const s  = root._activeSection
-                                        if      (s === "organizations") root.openOrganizationEdit(id)
-                                        else if (s === "sites")         root.openSiteEdit(id)
-                                        else if (s === "departments")   root.openDepartmentEdit(id)
-                                        else if (s === "employees")     root.openEmployeeEdit(id)
-                                        else if (s === "users")         root.openUserEdit(id)
-                                        else if (s === "parties")       root.openPartyEdit(id)
-                                        else if (s === "structures")    root.openDocumentStructureEdit(id)
-                                    }
-                                }
-
-                                AppControls.SecondaryButton {
-                                    visible:  root._activeSection === "organizations"
-                                    text:     "Set Active"
-                                    iconName: "approve"
-                                    enabled:  !root._busy
-                                    onClicked: {
-                                        if (root.workspaceController)
-                                            root.workspaceController.setActiveOrganization(root._selectedRowId)
-                                    }
-                                }
-
-                                AppControls.SecondaryButton {
-                                    visible:  root._activeSection !== "organizations"
-                                    text:     "Toggle"
-                                    iconName: "approve"
-                                    enabled:  !root._busy
-                                    onClicked: {
-                                        const id = root._selectedRowId
-                                        const s  = root._activeSection
-                                        if (!root.workspaceController) return
-                                        if      (s === "sites")       root.workspaceController.toggleSiteActive(id)
-                                        else if (s === "departments") root.workspaceController.toggleDepartmentActive(id)
-                                        else if (s === "employees")   root.workspaceController.toggleEmployeeActive(id)
-                                        else if (s === "users")       root.workspaceController.toggleUserActive(id)
-                                        else if (s === "parties")     root.workspaceController.togglePartyActive(id)
-                                        else if (s === "structures")  root.workspaceController.toggleDocumentStructureActive(id)
-                                    }
-                                }
-                            }
-
-                            // Delete action
-                            AppControls.SecondaryButton {
-                                Layout.fillWidth: true
-                                visible:  root._detailItem !== null
-                                text:     "Delete"
-                                iconName: "delete"
-                                danger:   true
-                                enabled:  !root._busy
-                                onClicked: { /* root.workspaceController.deleteEntity(root._selectedRowId) */ }
-                            }
-                        }
-                    }
-                }
+            onSetActiveOrganizationRequested: function(itemId) {
+                if (root.workspaceController) root.workspaceController.setActiveOrganization(itemId)
             }
+            onToggleEntityRequested: function(sectionId, itemId) {
+                if (!root.workspaceController) return
+                if      (sectionId === "sites")       root.workspaceController.toggleSiteActive(itemId)
+                else if (sectionId === "departments") root.workspaceController.toggleDepartmentActive(itemId)
+                else if (sectionId === "employees")   root.workspaceController.toggleEmployeeActive(itemId)
+                else if (sectionId === "users")       root.workspaceController.toggleUserActive(itemId)
+                else if (sectionId === "parties")     root.workspaceController.togglePartyActive(itemId)
+                else if (sectionId === "structures")  root.workspaceController.toggleDocumentStructureActive(itemId)
+            }
+            onDocumentLinkCreateRequested: root.openDocumentLinkCreate()
+            onDocumentEditRequested: function(itemId) { root.openDocumentEdit(itemId) }
         }
+
     }
 
     // ── Dialog host ───────────────────────────────────────────────

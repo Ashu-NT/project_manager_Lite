@@ -8,7 +8,7 @@ import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import "components" as Components
+import "panels" as Panels
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -413,7 +413,7 @@ AppLayouts.WorkspaceFrame {
                         anchors.fill: parent
                         currentIndex: root._panelIndex(root.activePanelId)
 
-                        Components.SchedulingActivityTimelinePanel {
+                        Panels.SchedulingActivityTimelinePanel {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             workspaceController: root.workspaceController
@@ -424,19 +424,19 @@ AppLayouts.WorkspaceFrame {
                             onActivityDetailRequested: function(activityId) { root._openActivityDetail(activityId) }
                         }
 
-                        Components.SchedulingDiagnosticsPanel {
+                        Panels.SchedulingDiagnosticsPanel {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             workspaceController: root.workspaceController
                         }
 
-                        Components.SchedulingResourcesPanel {
+                        Panels.SchedulingResourcesPanel {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             workspaceController: root.workspaceController
                         }
 
-                        Components.SchedulingBaselinesPanel {
+                        Panels.SchedulingBaselinesPanel {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             workspaceController: root.workspaceController
@@ -448,7 +448,7 @@ AppLayouts.WorkspaceFrame {
                             onCreateBaselineRequested: dialogHostLoader.invoke("openCreateBaselineDialog")
                         }
 
-                        Components.SchedulingDelaysPanel {
+                        Panels.SchedulingDelaysPanel {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             workspaceController: root.workspaceController
@@ -456,7 +456,7 @@ AppLayouts.WorkspaceFrame {
                             onActivityDetailRequested: function(activityId) { root._openActivityDetail(activityId) }
                         }
 
-                        Components.SchedulingCalendarsPanel {
+                        Panels.SchedulingCalendarsPanel {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             workspaceController: root.workspaceController
@@ -469,7 +469,7 @@ AppLayouts.WorkspaceFrame {
                             onSelectedHolidayIdChanged: function(id) { root.selectedHolidayId = id }
                         }
 
-                        Components.SchedulingActivityFeedPanel {
+                        Panels.SchedulingActivityFeedPanel {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             workspaceController: root.workspaceController

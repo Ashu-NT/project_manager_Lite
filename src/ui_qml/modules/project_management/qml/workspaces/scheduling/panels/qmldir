@@ -1,4 +1,4 @@
-﻿module ProjectManagement.SchedulingComponents
+﻿module ProjectManagement.SchedulingPanels
 SchedulingActivityTimelinePanel 1.0 SchedulingActivityTimelinePanel.qml
 SchedulingDiagnosticsPanel 1.0 SchedulingDiagnosticsPanel.qml
 SchedulingResourcesPanel 1.0 SchedulingResourcesPanel.qml
