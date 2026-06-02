@@ -37,6 +37,9 @@ AppLayouts.WorkspaceFrame {
     property var organizationCatalog: root.workspaceController
         ? root.workspaceController.organizations
         : ({ "title": "Organizations", "subtitle": "", "emptyState": "", "items": [] })
+    property var calendarCatalog: root.workspaceController
+        ? root.workspaceController.calendars
+        : ({ "title": "Calendars", "subtitle": "", "emptyState": "", "items": [] })
     property var siteCatalog: root.workspaceController
         ? root.workspaceController.sites
         : ({ "title": "Sites", "subtitle": "", "emptyState": "", "items": [] })
@@ -75,6 +78,7 @@ AppLayouts.WorkspaceFrame {
 
     // ── Python-owned table models ─────────────────────────────────
     property var organizationsTableModel:     root.workspaceController ? root.workspaceController.organizationsTableModel     : null
+    property var calendarsTableModel:         root.workspaceController ? root.workspaceController.calendarsTableModel         : null
     property var sitesTableModel:             root.workspaceController ? root.workspaceController.sitesTableModel             : null
     property var departmentsTableModel:       root.workspaceController ? root.workspaceController.departmentsTableModel       : null
     property var employeesTableModel:         root.workspaceController ? root.workspaceController.employeesTableModel         : null
@@ -105,6 +109,7 @@ AppLayouts.WorkspaceFrame {
         if (!rowId) return null
         let cat = null
         if      (section === "organizations") cat = root.organizationCatalog
+        else if (section === "calendars")     cat = root.calendarCatalog
         else if (section === "sites")         cat = root.siteCatalog
         else if (section === "departments")   cat = root.departmentCatalog
         else if (section === "employees")     cat = root.employeeCatalog
@@ -125,6 +130,12 @@ AppLayouts.WorkspaceFrame {
         { key: "subtitle",    label: "Code / Timezone",  flex: 3, minWidth: 160, sortable: false, visible: true },
         { key: "statusLabel", label: "Status",           flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
         { key: "metaText",    label: "Version",          flex: 1, minWidth: 80,  sortable: false, visible: true }
+    ]
+    readonly property var _calendarColumns: [
+        { key: "title",       label: "Calendar",      flex: 2.2, minWidth: 180, sortable: true,  visible: true },
+        { key: "subtitle",    label: "Working Days",  flex: 3.0, minWidth: 220, sortable: false, visible: true },
+        { key: "statusLabel", label: "Status",        flex: 0,   minWidth: 90,  sortable: false, visible: true, type: "status" },
+        { key: "metaText",    label: "Ownership",     flex: 2.4, minWidth: 180, sortable: false, visible: true }
     ]
     readonly property var _siteColumns: [
         { key: "title",       label: "Name",              flex: 3, minWidth: 160, sortable: true,  visible: true },
@@ -192,6 +203,11 @@ AppLayouts.WorkspaceFrame {
     function openOrganizationEdit(itemId) {
         const item = root.catalogItemById(root.organizationCatalog, itemId)
         if (item !== null) dialogHostLoader.invoke("openOrganizationEdit", item.state || {})
+    }
+
+    function openCalendarEdit(itemId) {
+        const item = root.catalogItemById(root.calendarCatalog, itemId)
+        if (item !== null) dialogHostLoader.invoke("openWorkingCalendarEdit", item.state || {})
     }
 
     function openEntityDetail(sectionId, itemId) {
@@ -407,6 +423,47 @@ AppLayouts.WorkspaceFrame {
             }
 
             // ── Sites ─────────────────────────────────────────────
+            AdminEntityWorkspace {
+                anchors.fill:    parent
+                visible:         root._activeSection === "calendars" && !root._detailOpen
+                sectionTitle:    "Calendars"
+                entityLabel:     ""
+                catalog:         root.calendarCatalog
+                catalogModel:    root.calendarsTableModel
+                columns:         root._calendarColumns
+                isBusy:          root._busy
+                isLoading:       root._load
+                errorMessage:    root._err
+                feedbackMessage: root._ok
+                selectedRowId:   root._selectedRowId
+
+                onRowSelected:      function(id) { root._selectedRowId = id }
+                onRowActivated:     function(id) { root.openEntityDetail("calendars", id) }
+                onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
+            }
+
+            Loader {
+                id: calendarDetailLoader
+                anchors.fill: parent
+                active: root._activeSection === "calendars" && root._detailOpen
+                visible: active
+                asynchronous: true
+
+                sourceComponent: Component {
+                    AdminCalendarDetailPage {
+                        workspaceController: root.workspaceController
+                        calendar: root._detailItem || ({})
+                        busy: root._busy
+                        errorMessage: root._err
+                        feedbackMessage: root._ok
+                        onBackRequested: root.closeEntityDetail()
+                        onEditRequested: root.openCalendarEdit(root._selectedRowId)
+                        onAddHolidayRequested: dialogHostLoader.invoke("openWorkingCalendarHolidayCreate")
+                        onOpenAuditRequested: root.openAdminEntitySection("audit", "")
+                    }
+                }
+            }
+
             AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         root._activeSection === "sites" && !root._detailOpen
@@ -791,6 +848,7 @@ AppLayouts.WorkspaceFrame {
             onCloseRequested:                root._selectedRowId = ""
             onEditRequested: function(sectionId, itemId) {
                 if      (sectionId === "organizations") root.openOrganizationEdit(itemId)
+                else if (sectionId === "calendars")     root.openCalendarEdit(itemId)
                 else if (sectionId === "sites")         root.openSiteEdit(itemId)
                 else if (sectionId === "departments")   root.openDepartmentEdit(itemId)
                 else if (sectionId === "employees")     root.openEmployeeEdit(itemId)

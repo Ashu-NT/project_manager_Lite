@@ -9,11 +9,9 @@ from src.core.modules.project_management.api.desktop import (
     SchedulingBaselineCreateCommand,
     SchedulingBaselineRejectCommand,
     SchedulingBaselineSubmitCommand,
-    SchedulingCalendarUpdateCommand,
     SchedulingConstraintViolationDto,
     SchedulingDependencyCreateCommand,
     SchedulingDependencyUpdateCommand,
-    SchedulingHolidayCreateCommand,
     SchedulingWorkingDayCalculationCommand,
     build_project_management_scheduling_desktop_api,
 )
@@ -390,42 +388,6 @@ class ProjectSchedulingWorkspacePresenter:
                 baseline_rows=baseline_rows,
             ),
         )
-
-    def save_calendar(self, payload: dict[str, Any]) -> None:
-        working_days = tuple(
-            int(value)
-            for value in payload.get("workingDays", [])
-            if str(value).strip() != ""
-        )
-        hours_per_day = self._require_float(
-            payload,
-            "hoursPerDay",
-            "Hours per day must be a positive number.",
-        )
-        self._desktop_api.update_calendar(
-            SchedulingCalendarUpdateCommand(
-                working_days=working_days,
-                hours_per_day=hours_per_day,
-            )
-        )
-
-    def add_holiday(self, payload: dict[str, Any]) -> None:
-        self._desktop_api.add_holiday(
-            SchedulingHolidayCreateCommand(
-                holiday_date=self._require_date(
-                    payload,
-                    "holidayDate",
-                    "Holiday date must use YYYY-MM-DD.",
-                ),
-                name=self._optional_text(payload, "name") or "",
-            )
-        )
-
-    def delete_holiday(self, holiday_id: str) -> None:
-        normalized_id = (holiday_id or "").strip()
-        if not normalized_id:
-            raise ValueError("Select a holiday before deleting it.")
-        self._desktop_api.delete_holiday(normalized_id)
 
     def create_baseline(self, payload: dict[str, Any]) -> None:
         self._desktop_api.create_baseline(

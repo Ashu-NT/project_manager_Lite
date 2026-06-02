@@ -39,6 +39,14 @@ Item {
         siteDialog.openForEdit(state || {})
     }
 
+    function openWorkingCalendarEdit(state) {
+        workingCalendarDialog.openForEdit(state || {})
+    }
+
+    function openWorkingCalendarHolidayCreate() {
+        workingCalendarHolidayDialog.openForCreate()
+    }
+
     function openDepartmentCreate() {
         if (root.workspaceController === null) {
             return
@@ -178,6 +186,34 @@ Item {
                 ? root.workspaceController.createSite(payload)
                 : root.workspaceController.updateSite(payload)
             root._handleResult(siteDialog, result)
+        }
+    }
+
+    PlatformDialogs.WorkingCalendarEditorDialog {
+        id: workingCalendarDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.updateCalendar(payload)
+            root._handleResult(workingCalendarDialog, result)
+        }
+    }
+
+    PlatformDialogs.WorkingCalendarHolidayDialog {
+        id: workingCalendarHolidayDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.addCalendarHoliday(payload)
+            root._handleResult(workingCalendarHolidayDialog, result)
         }
     }
 

@@ -9,6 +9,7 @@ from src.core.platform.calendar.application.work_calendar_engine import WorkCale
 from src.core.platform.calendar.contracts import WorkingCalendarRepository
 from src.core.platform.calendar.domain import Holiday, WorkingCalendar
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.notifications.domain_events import domain_events
 
 
 class WorkCalendarService:
@@ -62,6 +63,7 @@ class WorkCalendarService:
             calendar.hours_per_day = hours_per_day
         self._repo.upsert(calendar)
         self._session.commit()
+        domain_events.calendars_changed.emit(calendar.id)
         return calendar
 
     def list_holidays(self) -> list[Holiday]:
@@ -83,6 +85,7 @@ class WorkCalendarService:
         holiday = Holiday.create(calendar_id=calendar.id, date=date_, name=name.strip())
         self._repo.add_holiday(holiday)
         self._session.commit()
+        domain_events.calendars_changed.emit(calendar.id)
         return holiday
 
     def delete_holiday(self, holiday_id: str) -> None:
@@ -91,8 +94,10 @@ class WorkCalendarService:
             "task.manage",
             operation_label="delete non-working day",
         )
+        calendar = self._ensure_calendar()
         self._repo.delete_holiday(holiday_id)
         self._session.commit()
+        domain_events.calendars_changed.emit(calendar.id)
 
 
 __all__ = ["WorkCalendarService"]

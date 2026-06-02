@@ -17,8 +17,10 @@ Item {
     property var rows: []
     property var columns: []
     property bool loading: false
+    property string selectedRowId: ""
     property real tableHeight: Theme.AppTheme.headerHeight + Theme.AppTheme.normalRowHeight + Theme.AppTheme.spacingLg
 
+    signal rowSelected(string rowId)
     signal rowActivated(string rowId)
 
     readonly property var _rows: root.rows || []
@@ -83,6 +85,10 @@ Item {
                     columns: root.columns
                     emptyText: root.emptyMessage
                     loading: root.loading
+                    selectedRowId: root.selectedRowId
+                    onRowSelected: function(rowId) {
+                        root.rowSelected(rowId)
+                    }
                     onRowActivated: function(rowId) {
                         root.rowActivated(rowId)
                     }

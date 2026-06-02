@@ -1,4 +1,4 @@
-﻿pragma ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -14,13 +14,6 @@ Item {
     property var calendarModel: ({
         "summaryText": "", "workingDays": [], "hoursPerDay": "8", "holidays": [], "emptyState": ""
     })
-    property var workingDayDraft: []
-    property string hoursPerDayDraft: "8"
-    property string selectedHolidayId: ""
-
-    signal workingDayDraftChanged(var draft)
-    signal hoursPerDayDraftChanged(string hours)
-    signal selectedHolidayIdChanged(string holidayId)
 
     readonly property var _calendarColumns: [
         { "key": "calendar",    "label": "Calendar",      "flex": 1.0 },
@@ -35,6 +28,15 @@ Item {
         { "key": "calendar",  "label": "Calendar",   "flex": 1.0 },
         { "key": "details",   "label": "Details",    "flex": 1.8 }
     ]
+    readonly property var _checkedDays: {
+        const days = root.calendarModel.workingDays || []
+        const selected = []
+        for (let index = 0; index < days.length; index++) {
+            if (days[index].checked === true)
+                selected.push(days[index])
+        }
+        return selected
+    }
 
     function _optionIndex(options, value) {
         const list = options || []
@@ -47,7 +49,7 @@ Item {
     SchedulingPanelFrame {
         anchors.fill: parent
         title: "Calendars"
-        subtitle: "Working-week rules, holiday exceptions, and working-day calculations for the current schedule calendar."
+        subtitle: "Shared working-calendar context consumed by scheduling, with read-only summary and working-day preview."
 
         ScrollView {
             Layout.fillWidth: true
@@ -64,14 +66,12 @@ Item {
                     Layout.fillWidth: true
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     actions: [
-                        { "id": "save",             "label": "Save Calendar",     "icon": "save",    "enabled": true },
-                        { "id": "add_exception",    "label": "Add Exception",     "icon": "add",     "enabled": true },
-                        { "id": "delete_exception", "label": "Delete Exception",  "icon": "delete",  "danger": true, "enabled": root.selectedHolidayId.length > 0 },
-                        { "id": "calculate",        "label": "Calculate Days",    "icon": "refresh", "enabled": true }
+                        { "id": "calculate", "label": "Calculate Days", "icon": "refresh", "enabled": true },
+                        { "id": "refresh",   "label": "Refresh",        "icon": "refresh", "enabled": true }
                     ]
 
                     AppControls.ComboBox {
-                        Layout.preferredWidth: 190
+                        Layout.preferredWidth: 220
                         model: root.workspaceController ? (root.workspaceController.calendarOptions || []) : []
                         textRole: "label"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
@@ -88,26 +88,30 @@ Item {
                     }
 
                     onActionTriggered: function(actionId) {
-                        if (root.workspaceController === null) return
-                        if (actionId === "save") {
-                            root.workspaceController.saveCalendar({
-                                "workingDays": root.workingDayDraft,
-                                "hoursPerDay": root.hoursPerDayDraft
-                            })
-                        } else if (actionId === "add_exception") {
-                            root.workspaceController.addHoliday({
-                                "holidayDate": holidayDateField.text,
-                                "name": holidayNameField.text
-                            })
-                        } else if (actionId === "delete_exception" && root.selectedHolidayId.length > 0) {
-                            root.workspaceController.deleteHoliday(root.selectedHolidayId)
-                        } else if (actionId === "calculate") {
+                        if (root.workspaceController === null)
+                            return
+                        if (actionId === "calculate") {
                             root.workspaceController.calculateWorkingDays({
                                 "startDate": calcStartField.text,
                                 "workingDays": calcDaysField.text
                             })
+                        } else if (actionId === "refresh") {
+                            root.workspaceController.refresh()
                         }
                     }
+                }
+
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    tone: "info"
+                    message: "Shared working calendars are managed in Platform Admin. PM Scheduling consumes the selected calendar read-only here."
+                }
+
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: String(root.calendarModel.summaryText || "").length > 0
+                    tone: "info"
+                    message: root.calendarModel.summaryText || ""
                 }
 
                 RowLayout {
@@ -116,96 +120,100 @@ Item {
 
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: calendarConfigColumn.implicitHeight + (Theme.AppTheme.marginMd * 2)
+                        Layout.preferredHeight: workingWeekColumn.implicitHeight + (Theme.AppTheme.marginMd * 2)
                         radius: Theme.AppTheme.radiusSm
                         color: Theme.AppTheme.surfaceOverlay
                         border.color: Theme.AppTheme.subtleBorder
                         border.width: 1
 
                         ColumnLayout {
-                            id: calendarConfigColumn
+                            id: workingWeekColumn
                             anchors.fill: parent
                             anchors.margins: Theme.AppTheme.marginMd
                             spacing: Theme.AppTheme.spacingSm
 
-                            AppControls.Label { Layout.fillWidth: true; text: "Working Week"; color: Theme.AppTheme.textSecondary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize; font.bold: true }
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: "Working Week"
+                                color: Theme.AppTheme.textSecondary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.bold: true
+                            }
 
                             Flow {
                                 Layout.fillWidth: true
                                 spacing: Theme.AppTheme.spacingSm
 
                                 Repeater {
-                                    model: root.calendarModel.workingDays || []
+                                    model: root._checkedDays
 
-                                    delegate: AppControls.CheckBox {
+                                    delegate: Rectangle {
                                         required property var modelData
-                                        text: String(modelData.label || "")
-                                        checked: (root.workingDayDraft || []).indexOf(modelData.index) >= 0
-                                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                        onToggled: {
-                                            const next = (root.workingDayDraft || []).slice()
-                                            const idx = next.indexOf(modelData.index)
-                                            if (checked && idx < 0) next.push(modelData.index)
-                                            else if (!checked && idx >= 0) next.splice(idx, 1)
-                                            root.workingDayDraftChanged(next)
+                                        height: 26
+                                        radius: Theme.AppTheme.radiusSm
+                                        color: Theme.AppTheme.navSelectedBackground
+                                        border.color: Theme.AppTheme.subtleBorder
+                                        border.width: 1
+                                        width: dayLabel.implicitWidth + Theme.AppTheme.spacingLg
+
+                                        AppControls.Label {
+                                            id: dayLabel
+                                            anchors.centerIn: parent
+                                            text: String(modelData.label || "")
+                                            color: Theme.AppTheme.accent
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            font.bold: true
                                         }
                                     }
                                 }
                             }
 
-                            RowLayout {
+                            AppControls.Label {
                                 Layout.fillWidth: true
-                                spacing: Theme.AppTheme.spacingSm
-                                AppControls.Label { text: "Hours/Day"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize }
-                                AppControls.TextField {
-                                    Layout.preferredWidth: 96
-                                    text: root.hoursPerDayDraft
-                                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                    onTextChanged: root.hoursPerDayDraftChanged(text)
-                                }
+                                text: "Hours / Day: " + String(root.calendarModel.hoursPerDay || "8")
+                                color: Theme.AppTheme.textPrimary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                font.bold: true
                             }
                         }
                     }
 
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: calendarExceptionColumn.implicitHeight + (Theme.AppTheme.marginMd * 2)
+                        Layout.preferredHeight: calculatorColumn.implicitHeight + (Theme.AppTheme.marginMd * 2)
                         radius: Theme.AppTheme.radiusSm
                         color: Theme.AppTheme.surfaceOverlay
                         border.color: Theme.AppTheme.subtleBorder
                         border.width: 1
 
                         ColumnLayout {
-                            id: calendarExceptionColumn
+                            id: calculatorColumn
                             anchors.fill: parent
                             anchors.margins: Theme.AppTheme.marginMd
                             spacing: Theme.AppTheme.spacingSm
 
-                            AppControls.Label { Layout.fillWidth: true; text: "Exceptions & Calculator"; color: Theme.AppTheme.textSecondary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize; font.bold: true }
-
-                            AppControls.DateField {
-                                id: holidayDateField
+                            AppControls.Label {
                                 Layout.fillWidth: true
-                                placeholderText: "Holiday date (YYYY-MM-DD)"
-                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                            }
-
-                            AppControls.TextField {
-                                id: holidayNameField
-                                Layout.fillWidth: true
-                                placeholderText: "Exception label"
-                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                text: "Working-Day Preview"
+                                color: Theme.AppTheme.textSecondary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.bold: true
                             }
 
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: Theme.AppTheme.spacingSm
+
                                 AppControls.DateField {
                                     id: calcStartField
                                     Layout.fillWidth: true
                                     placeholderText: "Calc start (YYYY-MM-DD)"
                                     enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
                                 }
+
                                 AppControls.TextField {
                                     id: calcDaysField
                                     Layout.preferredWidth: 96
@@ -222,13 +230,6 @@ Item {
                             }
                         }
                     }
-                }
-
-                AppWidgets.InlineMessage {
-                    Layout.fillWidth: true
-                    visible: String(root.calendarModel.summaryText || "").length > 0
-                    tone: "info"
-                    message: root.calendarModel.summaryText || ""
                 }
 
                 AppWidgets.TableToolbar {
@@ -259,10 +260,8 @@ Item {
                     Layout.preferredHeight: 480
                     columns: root._holidayColumns
                     sourceModel: root.workspaceController ? root.workspaceController.holidayTableModel : null
-                    selectedRowId: root.selectedHolidayId
                     loading: root.workspaceController ? root.workspaceController.isLoading : false
                     emptyText: root.calendarModel.emptyState || "No holiday exceptions are configured."
-                    onRowSelected: function(rowId) { root.selectedHolidayIdChanged(String(rowId || "")) }
                 }
 
                 Item { Layout.preferredHeight: Theme.AppTheme.marginMd }

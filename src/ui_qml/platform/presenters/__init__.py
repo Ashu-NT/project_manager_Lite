@@ -1,6 +1,7 @@
 """Platform QML presenters."""
 from src.ui_qml.platform.presenters.access_workspace_presenter import PlatformAccessWorkspacePresenter
 from src.ui_qml.platform.presenters.admin_presenter import PlatformAdminWorkspacePresenter
+from src.ui_qml.platform.presenters.calendar_catalog_presenter import PlatformCalendarCatalogPresenter
 from src.ui_qml.platform.presenters.control_queue_presenter import PlatformControlQueuePresenter
 from src.ui_qml.platform.presenters.control_presenter import PlatformControlWorkspacePresenter
 from src.ui_qml.platform.presenters.department_catalog_presenter import (
@@ -27,6 +28,7 @@ from src.ui_qml.platform.presenters.user_catalog_presenter import PlatformUserCa
 __all__ = [
     "PlatformAdminWorkspacePresenter",
     "PlatformAccessWorkspacePresenter",
+    "PlatformCalendarCatalogPresenter",
     "PlatformControlQueuePresenter",
     "PlatformControlWorkspacePresenter",
     "PlatformDepartmentCatalogPresenter",

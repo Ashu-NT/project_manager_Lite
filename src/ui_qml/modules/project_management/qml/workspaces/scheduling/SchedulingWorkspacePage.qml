@@ -72,9 +72,6 @@ AppLayouts.WorkspaceFrame {
     property string activePanelId: "activity_timeline"
     property string feedSearchText: ""
     property string selectedBaselineRegisterId: ""
-    property string selectedHolidayId: ""
-    property var workingDayDraft: []
-    property string hoursPerDayDraft: "8"
     property bool _detailOpen: false
     property int _pendingDetailSection: 0
     readonly property var detailPage: detailPageLoader.item
@@ -163,16 +160,6 @@ AppLayouts.WorkspaceFrame {
         return list.length > 0 ? 0 : -1
     }
 
-    function _syncCalendarDraft() {
-        const selected = []
-        const workingDays = root.calendarModel.workingDays || []
-        for (let i = 0; i < workingDays.length; i++) {
-            if (workingDays[i].checked) selected.push(workingDays[i].index)
-        }
-        root.workingDayDraft = selected
-        root.hoursPerDayDraft = String(root.calendarModel.hoursPerDay || "8")
-    }
-
     function _openActivityDetail(activityId) {
         if (root.workspaceController === null || !String(activityId || "").length) return
         root.workspaceController.activateActivity(String(activityId || ""))
@@ -180,8 +167,6 @@ AppLayouts.WorkspaceFrame {
         root._detailOpen = true
         if (detailPage) detailPage.scrollToSection(0)
     }
-
-    onCalendarModelChanged: root._syncCalendarDraft()
 
     Component.onCompleted: {
         const base = root._activityBaseColumns()
@@ -191,7 +176,6 @@ AppLayouts.WorkspaceFrame {
         } else {
             root._activityColumns = base
         }
-        root._syncCalendarDraft()
     }
 
     // ── Dialog host ───────────────────────────────────────────────────────
@@ -463,12 +447,6 @@ AppLayouts.WorkspaceFrame {
                             Layout.fillHeight: true
                             workspaceController: root.workspaceController
                             calendarModel: root.calendarModel
-                            workingDayDraft: root.workingDayDraft
-                            hoursPerDayDraft: root.hoursPerDayDraft
-                            selectedHolidayId: root.selectedHolidayId
-                            onWorkingDayDraftChanged: function(draft) { root.workingDayDraft = draft }
-                            onHoursPerDayDraftChanged: function(hours) { root.hoursPerDayDraft = hours }
-                            onSelectedHolidayIdChanged: function(id) { root.selectedHolidayId = id }
                         }
 
                         Panels.SchedulingActivityFeedPanel {

@@ -61,9 +61,6 @@ Component {
     Method { name: "activateActivity"; Parameter { name: "activityId"; type: "QString" } }
     Method { name: "setActivityPage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setActivityPageSize"; Parameter { name: "pageSize"; type: "int" } }
-    Method { name: "saveCalendar"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
-    Method { name: "addHoliday"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
-    Method { name: "deleteHoliday"; type: "QVariantMap"; Parameter { name: "holidayId"; type: "QString" } }
     Method { name: "createBaseline"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "deleteBaseline"; type: "QVariantMap"; Parameter { name: "baselineId"; type: "QString" } }
     Method { name: "recalculateSchedule"; type: "QVariantMap" }

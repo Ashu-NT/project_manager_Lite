@@ -101,6 +101,7 @@ Item {
         model: [
             { type: "group", label: "ORGANIZATION"                                              },
             { type: "item",  section: "organizations", label: "Organizations", icon: "admin"    },
+            { type: "item",  section: "calendars",     label: "Calendars",     icon: "scheduling" },
             { type: "item",  section: "sites",         label: "Sites",         icon: "location" },
             { type: "item",  section: "departments",   label: "Departments",   icon: "resources"},
             { type: "group", label: "WORKFORCE"                                                 },

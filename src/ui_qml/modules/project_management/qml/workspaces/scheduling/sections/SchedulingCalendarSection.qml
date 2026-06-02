@@ -17,36 +17,14 @@ Item {
     })
     property string calculatorResult: ""
     property bool isBusy: false
-    property var workingDayStates: []
 
-    signal saveCalendarRequested(var payload)
-    signal addHolidayRequested(var payload)
-    signal deleteHolidayRequested(string holidayId)
     signal calculateRequested(var payload)
 
-    function resetWorkingDayStates() {
-        root.workingDayStates = (root.calendarModel.workingDays || []).map(function(day) {
-            return {
-                "index": day.index,
-                "label": day.label,
-                "checked": Boolean(day.checked)
-            }
+    readonly property var workingDayStates: {
+        return (root.calendarModel.workingDays || []).filter(function(day) {
+            return Boolean(day.checked)
         })
     }
-
-    function selectedWorkingDays() {
-        var values = []
-        for (var index = 0; index < root.workingDayStates.length; index += 1) {
-            var day = root.workingDayStates[index]
-            if (day && day.checked) {
-                values.push(day.index)
-            }
-        }
-        return values
-    }
-
-    onCalendarModelChanged: root.resetWorkingDayStates()
-    Component.onCompleted: root.resetWorkingDayStates()
 
     implicitHeight: calendarLayout.implicitHeight
 
@@ -95,60 +73,45 @@ Item {
                     spacing: Theme.AppTheme.spacingSm
 
                     Repeater {
-                        id: dayRepeater
                         model: root.workingDayStates
 
-                        delegate: AppControls.CheckBox {
-                            id: dayCheck
+                        delegate: Rectangle {
                             required property var modelData
-                            required property int index
+                            height: 28
+                            radius: Theme.AppTheme.radiusSm
+                            color: Theme.AppTheme.navSelectedBackground
+                            border.color: Theme.AppTheme.subtleBorder
+                            border.width: 1
+                            width: dayLabel.implicitWidth + Theme.AppTheme.spacingLg
 
-                            text: String(dayCheck.modelData.label || "")
-                            checked: Boolean(dayCheck.modelData.checked)
-                            enabled: !root.isBusy
-
-                            onToggled: {
-                                var updated = root.workingDayStates.slice()
-                                updated[index] = {
-                                    "index": dayCheck.modelData.index,
-                                    "label": dayCheck.modelData.label,
-                                    "checked": checked
-                                }
-                                root.workingDayStates = updated
+                            AppControls.Label {
+                                id: dayLabel
+                                anchors.centerIn: parent
+                                text: String(modelData.label || "")
+                                color: Theme.AppTheme.accent
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.bold: true
                             }
                         }
                     }
                 }
 
-                RowLayout {
+                AppControls.Label {
                     Layout.fillWidth: true
-                    spacing: Theme.AppTheme.spacingSm
+                    text: "Hours / day: " + String(root.calendarModel.hoursPerDay || "8")
+                    color: Theme.AppTheme.textPrimary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.bold: true
+                }
 
-                    AppControls.Label {
-                        text: "Hours / day"
-                        color: Theme.AppTheme.textPrimary
-                        font.family: Theme.AppTheme.fontFamily
-                    }
-
-                    AppControls.TextField {
-                        id: hoursField
-                        Layout.preferredWidth: 120
-                        text: String(root.calendarModel.hoursPerDay || "8")
-                        placeholderText: "8"
-                        enabled: !root.isBusy
-                    }
-
-                    Item { Layout.fillWidth: true }
-
-                    AppControls.PrimaryButton {
-                        text: "Save Calendar"
-                        iconName: "save"
-                        enabled: !root.isBusy
-                        onClicked: root.saveCalendarRequested({
-                            "workingDays": root.selectedWorkingDays(),
-                            "hoursPerDay": hoursField.text
-                        })
-                    }
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: "Shared working calendars are managed in Platform Admin. Scheduling consumes them read-only here."
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    wrapMode: Text.WordWrap
                 }
             }
         }
@@ -243,33 +206,13 @@ Item {
                     font.bold: true
                 }
 
-                RowLayout {
+                AppControls.Label {
                     Layout.fillWidth: true
-                    spacing: Theme.AppTheme.spacingSm
-
-                    AppControls.DateField {
-                        id: holidayDateField
-                        Layout.fillWidth: true
-                        placeholderText: "Holiday date (YYYY-MM-DD)"
-                        enabled: !root.isBusy
-                    }
-
-                    AppControls.TextField {
-                        id: holidayNameField
-                        Layout.fillWidth: true
-                        placeholderText: "Label"
-                        enabled: !root.isBusy
-                    }
-                }
-
-                AppControls.PrimaryButton {
-                    text: "Add Non-Working Day"
-                    iconName: "add"
-                    enabled: !root.isBusy
-                    onClicked: root.addHolidayRequested({
-                        "holidayDate": holidayDateField.text,
-                        "name": holidayNameField.text
-                    })
+                    text: "Shared non-working-day exceptions are maintained in Platform Admin and shown here for schedule visibility."
+                    color: Theme.AppTheme.textSecondary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    wrapMode: Text.WordWrap
                 }
 
                 ProjectManagementWidgets.RecordListCard {
@@ -278,14 +221,7 @@ Item {
                     subtitle: "These days are skipped during scheduling and working-day calculations."
                     emptyState: String(root.calendarModel.emptyState || "")
                     items: root.calendarModel.holidays || []
-                    tertiaryActionLabel: "Remove"
-                    tertiaryDanger: true
-                    actionsEnabled: !root.isBusy
-
-                    onTertiaryActionRequested: function(itemData) {
-                        var state = itemData && itemData.state ? itemData.state : (itemData || {})
-                        root.deleteHolidayRequested(String(state.holidayId || ""))
-                    }
+                    actionsEnabled: false
                 }
             }
         }

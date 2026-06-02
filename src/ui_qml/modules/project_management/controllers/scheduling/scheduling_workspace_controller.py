@@ -932,42 +932,6 @@ class ProjectManagementSchedulingWorkspaceController(
         self.refresh()
 
     @Slot("QVariantMap", result="QVariantMap")
-    def saveCalendar(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_planning_mutation(
-            operation=lambda: self._scheduling_workspace_presenter.save_calendar(
-                dict(payload)
-            ),
-            success_message="Working calendar updated.",
-            activity_title="Working calendar updated",
-            activity_status="Success",
-            activity_meta="Calendar controls saved",
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def addHoliday(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_planning_mutation(
-            operation=lambda: self._scheduling_workspace_presenter.add_holiday(
-                dict(payload)
-            ),
-            success_message="Non-working day added.",
-            activity_title="Holiday added",
-            activity_status="Success",
-            activity_meta=str(payload.get("holidayDate", "") or ""),
-        )
-
-    @Slot(str, result="QVariantMap")
-    def deleteHoliday(self, holiday_id: str) -> dict[str, object]:
-        return self._run_planning_mutation(
-            operation=lambda: self._scheduling_workspace_presenter.delete_holiday(
-                holiday_id
-            ),
-            success_message="Non-working day removed.",
-            activity_title="Holiday removed",
-            activity_status="Warning",
-            activity_meta=str(holiday_id or ""),
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
     def createBaseline(self, payload: dict[str, object]) -> dict[str, object]:
         baseline_name = str(payload.get("name", "") or "Baseline").strip() or "Baseline"
 
@@ -1147,6 +1111,11 @@ class ProjectManagementSchedulingWorkspaceController(
             "project_baseline",
             "resource",
             scope_code="project_management",
+        )
+        self._subscribe_domain_change(
+            "working_calendar",
+            scope_code="platform",
+            category="shared_master",
         )
 
     def _run_planning_mutation(

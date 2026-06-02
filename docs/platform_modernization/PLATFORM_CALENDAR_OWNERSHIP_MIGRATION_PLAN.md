@@ -1,6 +1,6 @@
 # Platform Calendar Ownership Migration Plan
 
-Status: `discovery complete / backend ownership slice 1 complete / API ownership slice complete / UI move pending`
+Status: `discovery complete / backend ownership slice 1 complete / API ownership slice complete / frontend ownership slice complete / PM rewiring partial`
 
 ## Goal
 
@@ -166,16 +166,16 @@ though the actual working-calendar implementation still lives in PM.
 
 ### Phase 4 - Frontend move
 
-- [ ] remove calendar CRUD ownership from PM Scheduling
-- [ ] add Platform Admin calendar management section/workspace
-- [ ] preserve PM calendar selector and read-only summary/impact
-- [ ] update routes, catalogs, imports, qmldir, and qmltypes
+- [x] remove calendar CRUD ownership from PM Scheduling
+- [x] add Platform Admin calendar management section/workspace
+- [x] preserve PM calendar selector and read-only summary/impact
+- [x] update routes, catalogs, imports, qmldir, and qmltypes
 
 ### Phase 5 - PM rewiring
 
-- [ ] PM Scheduling consumes Platform calendar options and summary
+- [x] PM Scheduling consumes Platform calendar options and summary
 - [ ] PM Resources consumes Platform calendar data where needed
-- [ ] PM no longer owns calendar CRUD methods
+- [x] PM scheduling controller/presenter/QML no longer own calendar CRUD methods
 
 ### Phase 6 - Cleanup and validation
 
@@ -222,7 +222,9 @@ though the actual working-calendar implementation still lives in PM.
 - backend ownership move for shared working-calendar services: complete
 - compatibility import bridge for PM consumers: complete
 - API ownership move: complete
-- frontend ownership move into Platform Admin: next
+- frontend ownership move into Platform Admin: complete
+- PM scheduling controller/presenter/QML ownership cleanup: complete
+- PM resources follow-up and desktop API compatibility cleanup: next
 
 ## Implemented In Slice 1
 
@@ -255,9 +257,28 @@ though the actual working-calendar implementation still lives in PM.
 ## Known Follow-up After Slice 1
 
 - PM scheduling desktop API still owns calendar CRUD methods and DTOs
-- PM scheduling controller/presenter/QML still owns calendar management UX
-- PM scheduling QML still exposes calendar CRUD actions even though the API
-  ownership now sits in Platform
+- PM resources workspace still needs a focused pass if it should surface shared
+  calendar context directly
+- PM scheduling desktop API still exposes shared calendar CRUD as a compatibility
+  bridge to Platform; a later cleanup pass can decide whether that shim remains
+  or becomes a thin redirect-only contract
+
+## Implemented In Slice 3
+
+- added Platform Admin calendar governance surface:
+  - `src/ui_qml/platform/presenters/calendar_catalog_presenter.py`
+  - `src/ui_qml/platform/controllers/admin/calendar_controller.py`
+  - `src/ui_qml/platform/qml/workspaces/admin/AdminCalendarDetailPage.qml`
+  - `src/ui_qml/platform/qml/Platform/Dialogs/WorkingCalendarEditorDialog.qml`
+  - `src/ui_qml/platform/qml/Platform/Dialogs/WorkingCalendarHolidayDialog.qml`
+- wired Platform admin context/controller/typeinfo/nav/dialog-host integration
+  so shared calendars now appear as a first-class Platform admin entity
+- added `calendars_changed` shared-master domain event wiring and calendar
+  service emission so Platform Admin and PM Scheduling can refresh on calendar
+  mutations
+- downgraded PM Scheduling calendar panel to read-only/shared-consumer behavior:
+  selector, summary, exception register, and working-day preview remain
+  available, but calendar CRUD no longer lives in PM QML
 - permission semantics for the moved platform calendar service still use the
   legacy PM task permission guard for backward compatibility and should be
   revisited when the Platform Admin API/UI move lands

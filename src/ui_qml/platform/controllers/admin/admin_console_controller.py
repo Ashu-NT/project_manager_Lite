@@ -7,6 +7,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.notifications.domain_events import domain_events
 from src.ui_qml.platform.presenters.admin_presenter import PlatformAdminWorkspacePresenter
+from src.ui_qml.platform.presenters.calendar_catalog_presenter import PlatformCalendarCatalogPresenter
 from src.ui_qml.platform.presenters.department_catalog_presenter import PlatformDepartmentCatalogPresenter
 from src.ui_qml.platform.presenters.document_catalog_presenter import PlatformDocumentCatalogPresenter
 from src.ui_qml.platform.presenters.document_management_presenter import (
@@ -24,11 +25,16 @@ from .department_controller import PlatformDepartmentController
 from .document_controller import PlatformDocumentController
 from .document_structure_controller import PlatformDocumentStructureController
 from .employee_controller import PlatformEmployeeController
+from .calendar_controller import PlatformCalendarController
 from .organization_controller import PlatformOrganizationController
 from .party_controller import PlatformPartyController
 from .site_controller import PlatformSiteController
 from .user_controller import PlatformUserController
-from ..common import PlatformWorkspaceControllerBase, serialize_workspace_overview
+from ..common import (
+    PlatformWorkspaceControllerBase,
+    serialize_operation_result,
+    serialize_workspace_overview,
+)
 
 QML_IMPORT_NAME = "Platform.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -38,6 +44,7 @@ QML_IMPORT_MAJOR_VERSION = 1
 @QmlUncreatable("Platform workspace controllers are provided by the shell runtime.")
 class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     organizationsChanged = Signal()
+    calendarsChanged = Signal()
     sitesChanged = Signal()
     departmentsChanged = Signal()
     employeesChanged = Signal()
@@ -61,6 +68,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         *,
         overview_presenter: PlatformAdminWorkspacePresenter,
         organization_presenter: PlatformOrganizationCatalogPresenter,
+        calendar_presenter: PlatformCalendarCatalogPresenter,
         site_presenter: PlatformSiteCatalogPresenter,
         department_presenter: PlatformDepartmentCatalogPresenter,
         employee_presenter: PlatformEmployeeCatalogPresenter,
@@ -73,6 +81,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         super().__init__(parent)
         self._overview_presenter = overview_presenter
         self._organization_controller = PlatformOrganizationController(organization_presenter, self)
+        self._calendar_controller = PlatformCalendarController(calendar_presenter, self)
         self._site_controller = PlatformSiteController(site_presenter, self)
         self._department_controller = PlatformDepartmentController(department_presenter, self)
         self._employee_controller = PlatformEmployeeController(employee_presenter, self)
@@ -94,6 +103,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Property("QVariantMap", notify=organizationsChanged)
     def organizations(self) -> dict[str, object]:
         return self._organization_controller.organizations
+
+    @Property("QVariantMap", notify=calendarsChanged)
+    def calendars(self) -> dict[str, object]:
+        return self._calendar_controller.calendars
 
     @Property("QVariantMap", notify=sitesChanged)
     def sites(self) -> dict[str, object]:
@@ -140,6 +153,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Property(QObject, constant=True)
     def organizationsTableModel(self) -> QObject:
         return self._organization_controller.tableModel
+
+    @Property(QObject, constant=True)
+    def calendarsTableModel(self) -> QObject:
+        return self._calendar_controller.tableModel
 
     @Property(QObject, constant=True)
     def sitesTableModel(self) -> QObject:
@@ -203,6 +220,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         self._set_error_message("")
         self._refresh_overview()
         self._organization_controller.refresh()
+        self._calendar_controller.refresh()
         self._site_controller.refresh()
         self._department_controller.refresh()
         self._employee_controller.refresh()
@@ -255,6 +273,58 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             action=lambda: self._organization_controller.setActiveOrganization(organization_id),
             on_success=self._refresh_after_organization_change,
         )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateCalendar(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_admin_result_action(
+            operation=lambda: self._calendar_controller.updateCalendar(dict(payload)),
+            success_message="Working calendar updated.",
+            on_success=self._refresh_after_calendar_change,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addCalendarHoliday(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_admin_result_action(
+            operation=lambda: self._calendar_controller.addCalendarHoliday(dict(payload)),
+            success_message="Calendar exception added.",
+            on_success=self._refresh_after_calendar_change,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def deleteCalendarHoliday(self, holiday_id: str) -> dict[str, object]:
+        return self._run_admin_result_action(
+            operation=lambda: self._calendar_controller.deleteCalendarHoliday(holiday_id),
+            success_message="Calendar exception removed.",
+            on_success=self._refresh_after_calendar_change,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def calculateCalendarWorkingDays(self, payload: dict[str, object]) -> dict[str, object]:
+        self._set_is_busy(True)
+        self._set_error_message("")
+        try:
+            result = self._calendar_controller.calculateCalendarWorkingDays(dict(payload))
+            if result is not None and getattr(result, "ok", False) and getattr(result, "data", None) is not None:
+                message = self._calendar_controller.formatCalculationResult(result.data)
+                payload_map = {
+                    "ok": True,
+                    "category": "",
+                    "code": "",
+                    "message": message,
+                }
+                self._set_feedback_message("")
+                self._set_operation_result(payload_map)
+                return dict(payload_map)
+            payload_map = serialize_operation_result(
+                result,
+                success_message="Working-day calculation completed.",
+            )
+            self._set_feedback_message("")
+            self._set_error_message(str(payload_map.get("message", "")))
+            self._set_operation_result(payload_map)
+            return dict(payload_map)
+        finally:
+            self._set_is_busy(False)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createSite(self, payload: dict[str, object]) -> dict[str, object]:
@@ -424,6 +494,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def _bind_domain_events(self) -> None:
         for signal in (
             domain_events.organizations_changed,
+            domain_events.calendars_changed,
             domain_events.sites_changed,
             domain_events.departments_changed,
             domain_events.employees_changed,
@@ -441,6 +512,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         self._organization_controller.organizationEditorOptionsChanged.connect(
             self.organizationEditorOptionsChanged.emit
         )
+        self._calendar_controller.calendarsChanged.connect(self.calendarsChanged.emit)
         self._site_controller.sitesChanged.connect(self.sitesChanged.emit)
         self._department_controller.departmentsChanged.connect(self.departmentsChanged.emit)
         self._department_controller.departmentEditorOptionsChanged.connect(
@@ -489,8 +561,32 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         finally:
             self._set_is_busy(False)
 
+    def _run_admin_result_action(
+        self,
+        *,
+        operation,
+        success_message: str,
+        on_success: Callable[[], None],
+    ) -> dict[str, object]:
+        self._set_is_busy(True)
+        self._set_error_message("")
+        try:
+            result = operation()
+            payload = serialize_operation_result(result, success_message=success_message)
+            self._set_operation_result(payload)
+            if payload.get("ok"):
+                self._set_feedback_message(str(payload.get("message", "")))
+                on_success()
+            else:
+                self._set_feedback_message("")
+                self._set_error_message(str(payload.get("message", "")))
+            return dict(payload)
+        finally:
+            self._set_is_busy(False)
+
     def _refresh_after_organization_change(self) -> None:
         self._refresh_overview()
+        self._calendar_controller.refresh()
         self._site_controller.refresh()
         self._department_controller.refresh()
         self._employee_controller.refresh()
@@ -503,6 +599,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         self._refresh_overview()
         self._department_controller.refresh()
         self._employee_controller.refresh()
+        self._refresh_empty_state()
+
+    def _refresh_after_calendar_change(self) -> None:
+        self._calendar_controller.refresh()
         self._refresh_empty_state()
 
     def _refresh_after_department_change(self) -> None:
@@ -541,6 +641,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             catalog.get("items")
             for catalog in (
                 self.organizations,
+                self.calendars,
                 self.sites,
                 self.departments,
                 self.employees,

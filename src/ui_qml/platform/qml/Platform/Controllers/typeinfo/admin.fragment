@@ -4,6 +4,7 @@
         prototype: "PlatformWorkspaceControllerBase"
         exports: ["Platform.Controllers/PlatformAdminWorkspaceController 1.0"]
         Property { name: "organizations"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "calendars"; type: "QVariantMap"; isReadonly: true }
         Property { name: "sites"; type: "QVariantMap"; isReadonly: true }
         Property { name: "departments"; type: "QVariantMap"; isReadonly: true }
         Property { name: "employees"; type: "QVariantMap"; isReadonly: true }
@@ -21,10 +22,23 @@
         Property { name: "partyEditorOptions"; type: "QVariantMap"; isReadonly: true }
         Property { name: "documentEditorOptions"; type: "QVariantMap"; isReadonly: true }
         Property { name: "documentStructureEditorOptions"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "organizationsTableModel"; type: "QObject"; isReadonly: true }
+        Property { name: "calendarsTableModel"; type: "QObject"; isReadonly: true }
+        Property { name: "sitesTableModel"; type: "QObject"; isReadonly: true }
+        Property { name: "departmentsTableModel"; type: "QObject"; isReadonly: true }
+        Property { name: "employeesTableModel"; type: "QObject"; isReadonly: true }
+        Property { name: "usersTableModel"; type: "QObject"; isReadonly: true }
+        Property { name: "partiesTableModel"; type: "QObject"; isReadonly: true }
+        Property { name: "documentsTableModel"; type: "QObject"; isReadonly: true }
+        Property { name: "documentStructuresTableModel"; type: "QObject"; isReadonly: true }
         Method { name: "refresh" }
         Method { name: "createOrganization"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "updateOrganization"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "setActiveOrganization"; type: "QVariantMap"; Parameter { name: "organizationId"; type: "QString" } }
+        Method { name: "updateCalendar"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "addCalendarHoliday"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "deleteCalendarHoliday"; type: "QVariantMap"; Parameter { name: "holidayId"; type: "QString" } }
+        Method { name: "calculateCalendarWorkingDays"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "createSite"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "updateSite"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "toggleSiteActive"; type: "QVariantMap"; Parameter { name: "siteId"; type: "QString" } }
