@@ -1,4 +1,3 @@
-from src.core.platform.calendar.domain.calendar import Holiday, WorkingCalendar
 from src.core.platform.calendar.domain.enterprise_calendar import (
     ApprovalStatus,
     CalendarException,
@@ -26,7 +25,6 @@ __all__ = [
     "DepartmentCalendarAssignment",
     "EmployeeCalendarAssignment",
     "ExceptionType",
-    "Holiday",
     "ImpactType",
     "PatternType",
     "PlatformCalendar",
@@ -34,5 +32,4 @@ __all__ = [
     "ShiftPattern",
     "ShiftPatternDay",
     "SiteCalendarAssignment",
-    "WorkingCalendar",
 ]

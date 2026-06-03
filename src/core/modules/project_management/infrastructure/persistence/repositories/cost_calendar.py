@@ -19,7 +19,6 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.cost
     event_to_orm,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.cost_calendar import CalendarEventORM, CostItemORM
-from src.core.platform.infrastructure.persistence.repositories.calendar import SqlAlchemyWorkingCalendarRepository
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
@@ -110,5 +109,4 @@ class SqlAlchemyCalendarEventRepository(CalendarEventRepository):
 __all__ = [
     "SqlAlchemyCostRepository",
     "SqlAlchemyCalendarEventRepository",
-    "SqlAlchemyWorkingCalendarRepository",
 ]

@@ -95,7 +95,6 @@ from src.core.modules.project_management.application.tasks import CollaborationS
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
 )
-from src.core.platform.calendar import WorkCalendarService
 from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
 from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
 from src.core.platform.calendar.application.calendar_exception_service import CalendarExceptionService
@@ -182,8 +181,7 @@ class ServiceGraph:
     resource_service: ResourceService
     cost_service: CostService
     finance_service: FinanceService
-    work_calendar_engine: CalendarProtocol
-    work_calendar_service: WorkCalendarService
+    work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
     reporting_service: ReportingService
     baseline_service: BaselineService
@@ -274,7 +272,6 @@ class ServiceGraph:
             "cost_service": self.cost_service,
             "finance_service": self.finance_service,
             "work_calendar_engine": self.work_calendar_engine,
-            "work_calendar_service": self.work_calendar_service,
             "scheduling_engine": self.scheduling_engine,
             "reporting_service": self.reporting_service,
             "baseline_service": self.baseline_service,
@@ -383,7 +380,6 @@ def build_service_graph(session: Session) -> ServiceGraph:
         cost_service=project_management_services.cost_service,
         finance_service=project_management_services.finance_service,
         work_calendar_engine=project_management_services.work_calendar_engine,
-        work_calendar_service=project_management_services.work_calendar_service,
         scheduling_engine=project_management_services.scheduling_engine,
         reporting_service=project_management_services.reporting_service,
         baseline_service=project_management_services.baseline_service,

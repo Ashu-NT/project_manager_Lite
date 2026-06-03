@@ -38,7 +38,6 @@ from src.core.modules.project_management.application.tasks import CollaborationS
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
 )
-from src.core.platform.calendar import WorkCalendarService
 from src.core.modules.project_management.application.scheduling.project_calendar_adapter import ProjectCalendarAdapter
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
@@ -80,8 +79,7 @@ class ProjectManagementServiceBundle:
     resource_service: ResourceService
     cost_service: CostService
     finance_service: FinanceService
-    work_calendar_engine: CalendarProtocol
-    work_calendar_service: WorkCalendarService
+    work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
     reporting_service: ReportingService
     baseline_service: BaselineService
@@ -223,14 +221,6 @@ def build_project_management_service_bundle(
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_runtime_service,
     )
-    # WorkCalendarService kept for test compatibility. Passes GlobalCalendarShim as engine.
-    work_calendar_service = WorkCalendarService(
-        session,
-        repositories.work_calendar_repo,
-        platform_services.global_calendar_shim,
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
-    )
     reporting_service = ReportingService(
         session=session,
         project_repo=repositories.project_repo,
@@ -347,7 +337,6 @@ def build_project_management_service_bundle(
         cost_service=cost_service,
         finance_service=finance_service,
         work_calendar_engine=work_calendar_engine,
-        work_calendar_service=work_calendar_service,
         scheduling_engine=scheduling_engine,
         reporting_service=reporting_service,
         baseline_service=baseline_service,

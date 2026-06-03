@@ -147,7 +147,7 @@ from src.core.modules.project_management.application.resources.assignment_valida
     AssignmentSkillValidator,
 )
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.platform.calendar.application.work_calendar_service import WorkCalendarService
+# WorkCalendarService removed
 from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
 from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
 from src.core.platform.calendar.application.calendar_exception_service import CalendarExceptionService
@@ -423,9 +423,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     pm_scheduling_engine = services.get("scheduling_engine")
     if not isinstance(pm_scheduling_engine, SchedulingEngine):
         pm_scheduling_engine = None
-    pm_work_calendar_service = services.get("work_calendar_service")
-    if not isinstance(pm_work_calendar_service, WorkCalendarService):
-        pm_work_calendar_service = None
+    pm_work_calendar_service = None  # WorkCalendarService removed
     # work_calendar_engine may now be a GlobalCalendarShim (duck-typed WorkCalendarEngine replacement)
     pm_work_calendar_engine = services.get("work_calendar_engine")
     if pm_work_calendar_engine is not None and not hasattr(pm_work_calendar_engine, "is_working_day"):

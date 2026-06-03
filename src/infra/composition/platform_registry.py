@@ -300,14 +300,12 @@ def build_platform_service_bundle(
         calculator=working_time_calculator,
     )
     global_calendar_shim = GlobalCalendarShim(resolver=enterprise_calendar_resolver)
-    # Bootstrap global calendar — migrates legacy working_calendars + holidays on first run.
+    # Bootstrap global calendar. After the Alembic migration drops legacy tables,
+    # working_calendar_repo will not be passed — the enterprise tables already hold the data.
     try:
         org = repositories.organization_repo.get_active()
         if org:
-            enterprise_calendar_service.ensure_global_calendar(
-                org.id,
-                working_calendar_repo=repositories.work_calendar_repo,
-            )
+            enterprise_calendar_service.ensure_global_calendar(org.id)
     except Exception:
         pass
 

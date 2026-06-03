@@ -21,7 +21,6 @@ from src.core.modules.project_management.application.scheduling.schedule_change_
 )
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.platform.calendar import WorkCalendarService
 # WorkingCalendar/Holiday used only in _get_calendar() fallback — imported locally there
 
 
@@ -294,7 +293,7 @@ class ProjectManagementSchedulingDesktopApi:
         task_service: TaskService | None = None,
         scheduling_engine: SchedulingEngine | None = None,
         platform_calendar_api: object | None = None,
-        work_calendar_service: WorkCalendarService | None = None,
+        work_calendar_service=None,  # removed
         work_calendar_engine: CalendarProtocol | None = None,
         baseline_service: BaselineService | None = None,
         reporting_service: ReportingService | None = None,
@@ -965,8 +964,13 @@ class ProjectManagementSchedulingDesktopApi:
         # Enterprise calendar owns working rules — this is a read-only display helper.
         if self._work_calendar_service is not None:
             return self._work_calendar_service.get_calendar()
-        from src.core.platform.calendar.domain import WorkingCalendar
-        return WorkingCalendar.create_default()
+        # Return a minimal stub — all actual calendar data comes from enterprise system
+        class _DefaultCal:
+            id = "default"
+            name = "Global Calendar"
+            working_days = {0, 1, 2, 3, 4}
+            hours_per_day = 8.0
+        return _DefaultCal()
 
     def _list_holidays(self) -> list:
         if self._work_calendar_service is None:
@@ -1116,7 +1120,7 @@ def build_project_management_scheduling_desktop_api(
     task_service: TaskService | None = None,
     scheduling_engine: SchedulingEngine | None = None,
     platform_calendar_api: object | None = None,
-    work_calendar_service: WorkCalendarService | None = None,
+    work_calendar_service=None,  # removed
     work_calendar_engine: CalendarProtocol | None = None,
     baseline_service: BaselineService | None = None,
     reporting_service: ReportingService | None = None,

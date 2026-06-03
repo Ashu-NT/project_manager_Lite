@@ -8,7 +8,6 @@ from typing import Optional
 from sqlalchemy import Boolean, Date, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.platform.infrastructure.persistence.orm.calendar import HolidayORM, WorkingCalendarORM
 from src.infra.persistence.orm.base import Base
 
 
@@ -67,4 +66,4 @@ class CalendarEventORM(Base):
 Index("idx_clandar_project", CalendarEventORM.project_id)
 Index("idx_calendar_start_end", CalendarEventORM.start_date, CalendarEventORM.end_date)
 
-__all__ = ["CalendarEventORM", "CostItemORM", "HolidayORM", "WorkingCalendarORM"]
+__all__ = ["CalendarEventORM", "CostItemORM"]

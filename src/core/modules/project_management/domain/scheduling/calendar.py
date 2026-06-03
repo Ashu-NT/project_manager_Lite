@@ -5,7 +5,6 @@ from datetime import date
 from typing import Optional
 
 from src.core.modules.project_management.domain.identifiers import generate_id
-from src.core.platform.calendar.domain import Holiday, WorkingCalendar
 
 
 @dataclass
@@ -42,4 +41,4 @@ class CalendarEvent:
             description=description,
         )
 
-__all__ = ["CalendarEvent", "WorkingCalendar", "Holiday"]
+__all__ = ["CalendarEvent"]

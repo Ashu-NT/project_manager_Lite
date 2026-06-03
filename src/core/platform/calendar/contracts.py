@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from datetime import date
 from typing import Optional
 
-from src.core.platform.calendar.domain.calendar import Holiday, WorkingCalendar
 from src.core.platform.calendar.domain.enterprise_calendar import (
     CalendarException,
     CalendarRecurringEvent,
@@ -16,26 +15,6 @@ from src.core.platform.calendar.domain.enterprise_calendar import (
     ShiftPatternDay,
     SiteCalendarAssignment,
 )
-
-
-class WorkingCalendarRepository(ABC):
-    @abstractmethod
-    def get(self, calendar_id: str) -> WorkingCalendar | None: ...
-
-    @abstractmethod
-    def get_default(self) -> WorkingCalendar | None: ...
-
-    @abstractmethod
-    def upsert(self, calendar: WorkingCalendar) -> None: ...
-
-    @abstractmethod
-    def list_holidays(self, calendar_id: str) -> list[Holiday]: ...
-
-    @abstractmethod
-    def add_holiday(self, holiday: Holiday) -> None: ...
-
-    @abstractmethod
-    def delete_holiday(self, holiday_id: str) -> None: ...
 
 
 class PlatformCalendarRepository(ABC):
@@ -247,5 +226,4 @@ __all__ = [
     "CalendarWorkingRuleRepository",
     "PlatformCalendarRepository",
     "ShiftPatternRepository",
-    "WorkingCalendarRepository",
 ]

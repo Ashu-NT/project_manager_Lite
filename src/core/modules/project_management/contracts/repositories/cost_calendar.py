@@ -5,7 +5,6 @@ from typing import List, Optional
 
 from src.core.modules.project_management.domain.scheduling.calendar import CalendarEvent
 from src.core.modules.project_management.domain.financials.cost import CostItem
-from src.core.platform.calendar import Holiday, WorkingCalendar, WorkingCalendarRepository
 
 
 class CostRepository(ABC):
