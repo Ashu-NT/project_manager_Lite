@@ -16,7 +16,7 @@ from src.core.modules.project_management.access.policy import (
     resolve_project_scope_permissions,
 )
 from src.core.platform.time.application import TimeService
-from src.core.modules.project_management.application.scheduling.baseline_service import (
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
@@ -38,7 +38,7 @@ from src.core.modules.project_management.application.tasks import CollaborationS
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
 )
-from src.core.modules.project_management.application.scheduling.project_calendar_adapter import ProjectCalendarAdapter
+from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import ProjectCalendarAdapter
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
 from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore

@@ -1,3 +1,4 @@
+"""Shared CPM result DTO."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -18,3 +19,6 @@ class CPMTaskInfo:
     is_critical: bool
     deadline: Optional[date] = None
     late_by_days: Optional[int] = None
+
+
+__all__ = ["CPMTaskInfo"]

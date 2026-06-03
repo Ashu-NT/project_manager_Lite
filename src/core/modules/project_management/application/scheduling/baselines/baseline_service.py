@@ -24,7 +24,7 @@ from src.core.platform.approval.policy import is_governance_required
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import is_admin_session, require_permission
-from src.core.modules.project_management.application.scheduling.engine import SchedulingEngine
+from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 

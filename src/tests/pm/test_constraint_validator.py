@@ -6,11 +6,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.core.modules.project_management.application.scheduling.constraint_validator import (
+from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     ConstraintType,
     ConstraintValidator,
 )
-from src.core.modules.project_management.application.scheduling.models import CPMTaskInfo
+from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
 from src.core.modules.project_management.domain.tasks.task import Task
 
 

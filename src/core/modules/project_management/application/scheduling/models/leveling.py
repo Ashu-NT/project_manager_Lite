@@ -1,3 +1,4 @@
+"""Shared resource leveling DTOs."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -44,8 +45,8 @@ class ResourceLevelingResult:
 
 
 __all__ = [
-    "ResourceConflictEntry",
     "ResourceConflict",
+    "ResourceConflictEntry",
     "ResourceLevelingAction",
     "ResourceLevelingResult",
 ]

@@ -18,27 +18,27 @@ from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 # CalendarResolver removed — enterprise CalendarResolver handles hierarchy resolution
 CalendarResolver = None  # type: ignore[assignment]  # kept for isinstance checks
-from src.core.modules.project_management.application.scheduling.constraint_validator import (
+from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     ConstraintType,
 )
-from src.core.modules.project_management.application.scheduling.date_compute import (
+from src.core.modules.project_management.application.scheduling.cpm.date_compute import (
     compute_task_dates_common,
 )
-from src.core.modules.project_management.application.scheduling.graph import (
+from src.core.modules.project_management.application.scheduling.cpm.graph import (
     build_project_dependency_graph,
 )
-from src.core.modules.project_management.application.scheduling.leveling_service import (
+from src.core.modules.project_management.application.scheduling.leveling.leveling_mixin import (
     ResourceLevelingMixin,
 )
-from src.core.modules.project_management.application.scheduling.models import CPMTaskInfo
-from src.core.modules.project_management.application.scheduling.passes import (
+from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
+from src.core.modules.project_management.application.scheduling.cpm.passes import (
     run_backward_pass,
     run_forward_pass,
 )
-from src.core.modules.project_management.application.scheduling.results import (
+from src.core.modules.project_management.application.scheduling.cpm.results import (
     build_schedule_result,
 )
-from src.core.modules.project_management.application.scheduling.project_calendar_adapter import (
+from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
     BoundProjectCalendar,
     ProjectCalendarAdapter,
 )
@@ -396,27 +396,5 @@ class SchedulingEngine(ResourceLevelingMixin):
         return est, eft
 
     def _priority_value(self, task: Task) -> int:
-        """
-        Lower number = higher priority (so it comes out first in a min-heap).
-        Supports:
-        - enum with .value
-        - int
-        - string like 'HIGH', 'MEDIUM', 'LOW' (optional)
-        Unknown/missing -> medium (50)
-        """
-        priority = getattr(task, "priority", None)
-        if priority is None:
-            return 50
-        if hasattr(priority, "value"):
-            priority = priority.value
-        if isinstance(priority, (int, float)):
-            return int(priority)
-        if isinstance(priority, str):
-            normalized = priority.strip().upper()
-            if normalized in ("HIGH", "H"):
-                return 10
-            if normalized in ("MEDIUM", "M", "NORMAL"):
-                return 50
-            if normalized in ("LOW", "L"):
-                return 90
-        return 50
+        from src.core.modules.project_management.application.scheduling.utils.task_priority import get_task_priority_value
+        return get_task_priority_value(task)

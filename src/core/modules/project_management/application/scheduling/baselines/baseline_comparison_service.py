@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask, ProjectBaseline
-from src.core.modules.project_management.application.scheduling.models import CPMTaskInfo
+from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
 from src.core.platform.common.exceptions import NotFoundError
 
 

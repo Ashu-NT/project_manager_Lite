@@ -32,7 +32,7 @@ from src.core.platform.calendar.application.calendar_assignment_service import C
 from src.core.platform.calendar.application.enterprise_calendar_resolver import EnterpriseCalendarResolver
 from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
 from src.core.platform.calendar.domain.enterprise_calendar import CalendarType
-from src.core.modules.project_management.application.scheduling.project_calendar_adapter import (
+from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
     BoundProjectCalendar,
     ProjectCalendarAdapter,
 )
@@ -293,7 +293,7 @@ def test_scheduling_engine_falls_back_to_base_calendar_when_not_bootstrapped(
     (get_source_chain returns [] → bind_for_project returns None → base calendar used).
     """
     from unittest.mock import MagicMock
-    from src.core.modules.project_management.application.scheduling.engine import SchedulingEngine
+    from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
     from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 
     mock_cal = MagicMock(spec=CalendarProtocol)
@@ -319,7 +319,7 @@ def test_scheduling_engine_uses_enterprise_calendar_when_assigned(
     SchedulingEngine swaps to BoundProjectCalendar when a project calendar is assigned.
     """
     from unittest.mock import MagicMock
-    from src.core.modules.project_management.application.scheduling.engine import SchedulingEngine
+    from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
     from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 
     assignment_service.assign_project_calendar("proj-enterprise-cal", global_cal.id)

@@ -6,7 +6,7 @@ from datetime import date
 from typing import Dict, Optional
 
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.modules.project_management.application.scheduling.models import CPMTaskInfo
+from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
 
 
 def build_schedule_result(

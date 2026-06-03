@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from typing import Callable
 
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
-from src.core.modules.project_management.application.scheduling.leveling_models import (
+from src.core.modules.project_management.application.scheduling.models.leveling import (
     ResourceConflict,
     ResourceConflictEntry,
 )

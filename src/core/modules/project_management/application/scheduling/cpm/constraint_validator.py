@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Dict, List, Optional
 
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.modules.project_management.application.scheduling.models import CPMTaskInfo
+from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
 
 
 class ConstraintType(str, Enum):

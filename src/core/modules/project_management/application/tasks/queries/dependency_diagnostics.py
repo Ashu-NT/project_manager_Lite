@@ -13,18 +13,18 @@ from src.core.modules.project_management.contracts.repositories.task import (
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.modules.project_management.application.scheduling.date_compute import (
+from src.core.modules.project_management.application.scheduling.cpm.date_compute import (
     compute_task_dates_common,
 )
-from src.core.modules.project_management.application.scheduling.graph import (
+from src.core.modules.project_management.application.scheduling.cpm.graph import (
     build_project_dependency_graph,
 )
-from src.core.modules.project_management.application.scheduling.models import CPMTaskInfo
-from src.core.modules.project_management.application.scheduling.passes import (
+from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
+from src.core.modules.project_management.application.scheduling.cpm.passes import (
     run_backward_pass,
     run_forward_pass,
 )
-from src.core.modules.project_management.application.scheduling.results import (
+from src.core.modules.project_management.application.scheduling.cpm.results import (
     build_schedule_result,
 )
 

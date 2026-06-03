@@ -8,7 +8,7 @@ from src.core.modules.project_management.application.financials import (
     FinanceService,
 )
 from src.core.modules.project_management.application.projects import ProjectService
-from src.core.modules.project_management.application.scheduling.baseline_service import (
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
 from src.core.modules.project_management.application.tasks import TaskService

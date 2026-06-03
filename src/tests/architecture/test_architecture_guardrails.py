@@ -635,12 +635,12 @@ def test_scheduling_engine_is_orchestrator_only():
     )
     text = engine_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from src.core.modules.project_management.application.scheduling.graph import (" in text
+    assert "from src.core.modules.project_management.application.scheduling.cpm.graph import (" in text
     assert "build_project_dependency_graph," in text
-    assert "from src.core.modules.project_management.application.scheduling.passes import (" in text
+    assert "from src.core.modules.project_management.application.scheduling.cpm.passes import (" in text
     assert "run_backward_pass," in text
     assert "run_forward_pass," in text
-    assert "from src.core.modules.project_management.application.scheduling.results import (" in text
+    assert "from src.core.modules.project_management.application.scheduling.cpm.results import (" in text
     assert "build_schedule_result," in text
     assert "import heapq" not in text
 
@@ -658,7 +658,7 @@ def test_scheduling_leveling_is_split_from_engine():
     )
     text = engine_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from src.core.modules.project_management.application.scheduling.leveling_service import (" in text
+    assert "from src.core.modules.project_management.application.scheduling.leveling.leveling_mixin import (" in text
     assert "ResourceLevelingMixin," in text
     assert "class SchedulingEngine(ResourceLevelingMixin)" in text
 

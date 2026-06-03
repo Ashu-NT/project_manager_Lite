@@ -7,12 +7,12 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 import src.core.modules.project_management.contracts.repositories.resource as resource_contracts
 import src.core.modules.project_management.contracts.repositories.task as task_contracts
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
-from src.core.modules.project_management.application.scheduling.leveling import (
+from src.core.modules.project_management.application.scheduling.leveling.leveling import (
     build_resource_conflicts,
     build_successors_map,
     choose_auto_level_task,
 )
-from src.core.modules.project_management.application.scheduling.leveling_models import (
+from src.core.modules.project_management.application.scheduling.models.leveling import (
     ResourceConflict,
     ResourceLevelingAction,
     ResourceLevelingResult,

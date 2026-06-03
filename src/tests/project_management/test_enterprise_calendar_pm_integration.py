@@ -52,7 +52,7 @@ from src.core.modules.project_management.application.resources.enterprise_resour
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import (
     ResourceCapacityCalculator,
 )
-from src.core.modules.project_management.application.scheduling.project_calendar_adapter import (
+from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
     ProjectCalendarAdapter,
 )
 

@@ -10,13 +10,13 @@ from src.core.modules.project_management.application.projects import ProjectServ
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
 )
-from src.core.modules.project_management.application.scheduling.constraint_validator import (
+from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     ConstraintValidator,
 )
-from src.core.modules.project_management.application.scheduling.baseline_service import (
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
-from src.core.modules.project_management.application.scheduling.schedule_change_impact_service import (
+from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
     ScheduleChangeImpactService,
 )
 from src.core.modules.project_management.domain.enums import DependencyType

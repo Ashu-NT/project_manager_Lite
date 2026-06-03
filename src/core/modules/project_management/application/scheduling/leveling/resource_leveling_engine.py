@@ -10,12 +10,12 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.application.scheduling.leveling_models import (
+from src.core.modules.project_management.application.scheduling.models.leveling import (
     ResourceConflict,
     ResourceLevelingAction,
     ResourceLevelingResult,
 )
-from src.core.modules.project_management.application.scheduling.leveling import (
+from src.core.modules.project_management.application.scheduling.leveling.leveling import (
     build_resource_conflicts,
     build_successors_map,
     choose_auto_level_task,
@@ -256,22 +256,8 @@ class ResourceLevelingEngine:
         return names
 
     def _priority_value(self, task: Task) -> int:
-        p = getattr(task, "priority", None)
-        if p is None:
-            return 50
-        if hasattr(p, "value"):
-            p = p.value
-        if isinstance(p, (int, float)):
-            return int(p)
-        if isinstance(p, str):
-            norm = p.strip().upper()
-            if norm in ("HIGH", "H"):
-                return 10
-            if norm in ("MEDIUM", "M", "NORMAL"):
-                return 50
-            if norm in ("LOW", "L"):
-                return 90
-        return 50
+        from src.core.modules.project_management.application.scheduling.utils.task_priority import get_task_priority_value
+        return get_task_priority_value(task)
 
 
 __all__ = ["ResourceLevelingEngine"]

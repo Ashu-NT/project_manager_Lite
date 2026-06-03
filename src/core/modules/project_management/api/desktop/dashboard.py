@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from src.core.modules.project_management.application.scheduling.baseline_service import (
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
 from src.core.modules.project_management.application.dashboard import (

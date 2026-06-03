@@ -63,7 +63,7 @@ from src.core.modules.maintenance.application.common import (
 from src.core.modules.maintenance.infrastructure.reporting import (
     MaintenanceReportingService,
 )
-from src.core.modules.project_management.application.scheduling.baseline_service import (
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
