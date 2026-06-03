@@ -1,6 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import "../../../inventory/panels"
+import "../../inventory/panels"
 
 Item {
     id: root

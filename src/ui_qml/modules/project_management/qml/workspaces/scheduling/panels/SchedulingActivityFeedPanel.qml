@@ -13,7 +13,7 @@ Item {
     property var activityFeedModel: ({ "items": [], "emptyState": "" })
     property string feedSearchText: ""
 
-    signal feedSearchTextChanged(string text)
+    signal feedSearchRequested(string text)
 
     SchedulingPanelFrame {
         anchors.fill: parent
@@ -50,7 +50,7 @@ Item {
                     showRefresh: false
                     showExport: false
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                    onSearchChanged: function(text) { root.feedSearchTextChanged(text) }
+                    onSearchChanged: function(text) { root.feedSearchRequested(text) }
                 }
 
                 AppWidgets.ActivityFeed {

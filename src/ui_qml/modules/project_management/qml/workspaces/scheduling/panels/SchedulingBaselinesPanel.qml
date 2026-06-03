@@ -19,7 +19,7 @@ Item {
     property string selectedBaselineRegisterId: ""
     property string selectedBaselineRegisterStatus: ""
 
-    signal selectedBaselineRegisterIdChanged(string registerId)
+    signal selectedBaselineRegisterSelectionChanged(string registerId)
     signal createBaselineRequested()
 
     readonly property var _compareColumns: [
@@ -188,7 +188,7 @@ Item {
                     emptyText: root.workspaceController ? (root.workspaceController.baselineRegister.emptyState || "No baseline register entries are available.") : "No baseline register entries are available."
                     selectedRowId: root.selectedBaselineRegisterId
                     onRowSelected: function(rowId) {
-                        root.selectedBaselineRegisterIdChanged(String(rowId || ""))
+                        root.selectedBaselineRegisterSelectionChanged(String(rowId || ""))
                         if (root.workspaceController !== null)
                             root.workspaceController.loadVarianceRecordsForBaseline(String(rowId || ""))
                     }

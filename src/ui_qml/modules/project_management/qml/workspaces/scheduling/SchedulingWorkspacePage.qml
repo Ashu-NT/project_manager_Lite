@@ -333,7 +333,7 @@ AppLayouts.WorkspaceFrame {
                             baselinesModel:                  root.baselinesModel
                             selectedBaselineRegisterId:      state.selectedBaselineRegisterId
                             selectedBaselineRegisterStatus:  state.selectedBaselineRegisterStatus
-                            onSelectedBaselineRegisterIdChanged: function(id) { state.selectedBaselineRegisterId = id }
+                            onSelectedBaselineRegisterSelectionChanged: function(id) { state.selectedBaselineRegisterId = id }
                             onCreateBaselineRequested: dialogHostLoader.invoke("openCreateBaselineDialog")
                         }
 
@@ -358,7 +358,7 @@ AppLayouts.WorkspaceFrame {
                             workspaceController: root.workspaceController
                             activityFeedModel:   root.activityFeedModel
                             feedSearchText:      state.feedSearchText
-                            onFeedSearchTextChanged: function(text) { state.feedSearchText = text }
+                            onFeedSearchRequested: function(text) { state.feedSearchText = text }
                         }
                     }
                 }
