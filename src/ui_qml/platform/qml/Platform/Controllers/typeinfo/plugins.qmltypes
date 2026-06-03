@@ -65,9 +65,9 @@ Module {
         Method { name: "deleteCalendarException"; type: "QVariantMap"; Parameter { name: "exceptionId"; type: "QString" } }
         Method { name: "deleteCalendarRecurringEvent"; type: "QVariantMap"; Parameter { name: "eventId"; type: "QString" } }
         Method { name: "assignCalendar"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
-        Method { name: "removeCalendarAssignment"; type: "QVariantMap"; Parameter { name: "assignmentId"; type: "QString" }; Parameter { name: "entityType"; type: "QString" } }
+        Method { name: "removeCalendarAssignment"; type: "QVariantMap"; Parameter { name: "assignmentId"; type: "QString" } Parameter { name: "entityType"; type: "QString" } }
         Method { name: "calendarDetailContext"; type: "QVariantMap"; Parameter { name: "calendarId"; type: "QString" } }
-        Method { name: "calendarAssignmentContext"; type: "QVariantMap"; Parameter { name: "entityType"; type: "QString" }; Parameter { name: "entityId"; type: "QString" }; Parameter { name: "siteId"; type: "QString" }; Parameter { name: "departmentId"; type: "QString" } }
+        Method { name: "calendarAssignmentContext"; type: "QVariantMap"; Parameter { name: "entityType"; type: "QString" } Parameter { name: "entityId"; type: "QString" } Parameter { name: "siteId"; type: "QString" } Parameter { name: "departmentId"; type: "QString" } }
         Method { name: "createSite"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "updateSite"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "toggleSiteActive"; type: "QVariantMap"; Parameter { name: "siteId"; type: "QString" } }
