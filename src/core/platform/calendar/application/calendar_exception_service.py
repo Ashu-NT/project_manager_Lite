@@ -75,7 +75,7 @@ class CalendarExceptionService:
         if hours_override is not None and hours_override < 0:
             raise ValidationError("hours_override must be non-negative.")
 
-        username = self._user_session.username if self._user_session else None
+        username = (getattr(getattr(self._user_session, "principal", None), "username", None)) if self._user_session else None
         exc = CalendarException.create(
             calendar_id=calendar_id,
             exception_date=exception_date,
@@ -141,7 +141,7 @@ class CalendarExceptionService:
         if approved_by is not None:
             exc.approved_by = approved_by
 
-        username = self._user_session.username if self._user_session else None
+        username = (getattr(getattr(self._user_session, "principal", None), "username", None)) if self._user_session else None
         exc.updated_by = username
         exc.updated_at = datetime.utcnow()
         self._exception_repo.update(exc)

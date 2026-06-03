@@ -101,7 +101,7 @@ class EnterpriseCalendarService:
         if existing is not None:
             raise ValidationError(f"Calendar code '{code}' already exists.")
 
-        username = self._user_session.username if self._user_session else None
+        username = (getattr(getattr(self._user_session, "principal", None), "username", None)) if self._user_session else None
         cal = PlatformCalendar.create(
             organization_id=org_id,
             code=code.strip(),
@@ -170,7 +170,7 @@ class EnterpriseCalendarService:
 
         cal.version += 1
         cal.updated_at = datetime.utcnow()
-        username = self._user_session.username if self._user_session else None
+        username = (getattr(getattr(self._user_session, "principal", None), "username", None)) if self._user_session else None
         cal.updated_by = username
         self._calendar_repo.update(cal)
         self._session.commit()
