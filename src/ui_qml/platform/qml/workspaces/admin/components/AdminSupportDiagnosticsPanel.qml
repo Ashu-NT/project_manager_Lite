@@ -34,11 +34,22 @@ ColumnLayout {
         implicitHeight:   _tracePanel.implicitHeight + Theme.AppTheme.spacingSm * 2
         color:            Theme.AppTheme.surfaceOverlay
 
-        Rectangle { anchors { bottom: parent.bottom; left: parent.left; right: parent.right }; height: 1; color: Theme.AppTheme.divider }
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 1
+            color: Theme.AppTheme.divider
+        }
 
         ColumnLayout {
             id: _tracePanel
-            anchors { left: parent.left; right: parent.right; top: parent.top; leftMargin: Theme.AppTheme.marginMd; rightMargin: Theme.AppTheme.marginMd; topMargin: Theme.AppTheme.spacingSm }
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.leftMargin: Theme.AppTheme.marginMd
+            anchors.rightMargin: Theme.AppTheme.marginMd
+            anchors.topMargin: Theme.AppTheme.spacingSm
             spacing: Theme.AppTheme.spacingXs
 
             AppControls.Label { text: "ACTIVE TRACE"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize; font.bold: true; font.letterSpacing: 0.8 }
@@ -75,8 +86,20 @@ ColumnLayout {
         Layout.fillWidth: true; Layout.preferredHeight: Theme.AppTheme.toolbarHeight
         color: Theme.AppTheme.surfaceOverlay
 
-        Rectangle { anchors { top: parent.top; left: parent.left; right: parent.right }; height: 1; color: Theme.AppTheme.divider }
-        Rectangle { anchors { bottom: parent.bottom; left: parent.left; right: parent.right }; height: 1; color: Theme.AppTheme.divider }
+        Rectangle {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 1
+            color: Theme.AppTheme.divider
+        }
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 1
+            color: Theme.AppTheme.divider
+        }
 
         RowLayout {
             anchors.fill: parent; anchors.leftMargin: Theme.AppTheme.marginMd; anchors.rightMargin: Theme.AppTheme.marginMd

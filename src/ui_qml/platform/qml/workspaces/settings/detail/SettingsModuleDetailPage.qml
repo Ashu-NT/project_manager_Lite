@@ -5,7 +5,7 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Dialogs 1.0 as PlatformDialogs
-import "../admin"
+import "../../admin/components"
 
 // Module Entitlement detail page — follows the Admin list/detail pattern.
 // Sections: Overview, Capabilities, Consumers, Audit.
