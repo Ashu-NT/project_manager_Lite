@@ -24,7 +24,7 @@ from src.core.modules.maintenance import (
     MaintenanceTaskTemplateService,
 )
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.core.platform.org.domain import Organization, Site
 from .test_maintenance_foundation import (
     _AssetRepo,

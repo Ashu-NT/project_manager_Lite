@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 
 
 class CollaborationPresenceCommandMixin:

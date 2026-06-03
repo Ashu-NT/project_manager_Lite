@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field, fields
 from typing import Callable
 
-from src.core.platform.notifications.signal import Signal
+from src.core.shared.events.signal import Signal
 
 
 @dataclass(frozen=True)

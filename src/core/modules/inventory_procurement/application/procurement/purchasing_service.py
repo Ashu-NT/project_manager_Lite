@@ -37,7 +37,7 @@ from src.core.platform.documents import Document, DocumentIntegrationService, Do
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.inventory_procurement.application.common.support import normalize_optional_text
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 
 
 class PurchasingService(

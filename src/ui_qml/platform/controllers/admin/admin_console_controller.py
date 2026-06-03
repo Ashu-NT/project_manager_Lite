@@ -5,7 +5,7 @@ from typing import Callable
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.platform.presenters.admin_presenter import PlatformAdminWorkspacePresenter
 from src.ui_qml.platform.presenters.calendar_catalog_presenter import PlatformCalendarCatalogPresenter
 from src.ui_qml.platform.presenters.department_catalog_presenter import PlatformDepartmentCatalogPresenter

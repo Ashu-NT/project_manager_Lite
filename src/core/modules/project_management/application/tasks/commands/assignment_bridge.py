@@ -70,7 +70,7 @@ class TaskAssignmentBridgeMixin:
 
     @staticmethod
     def _emit_tasks_changed(project_id: str) -> None:
-        from src.core.platform.notifications.domain_events import domain_events
+        from src.core.shared.events.domain_events import domain_events
 
         domain_events.tasks_changed.emit(project_id)
 

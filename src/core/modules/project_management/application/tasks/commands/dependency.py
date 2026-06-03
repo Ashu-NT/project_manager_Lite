@@ -8,7 +8,7 @@ from src.core.platform.approval.policy import is_governance_required
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import is_admin_session, require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.domain.enums import DependencyType
 
 

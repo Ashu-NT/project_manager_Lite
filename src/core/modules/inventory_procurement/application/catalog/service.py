@@ -31,7 +31,7 @@ from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError,
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
 from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.core.platform.party import PartyService
 
 

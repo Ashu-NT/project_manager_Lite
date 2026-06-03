@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, ValidationError
 from src.core.modules.project_management.domain.financials.cost import CostItem
 from src.core.modules.project_management.domain.enums import CostType

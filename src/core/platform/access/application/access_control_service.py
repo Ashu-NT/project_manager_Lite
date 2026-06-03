@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.core.platform.access.contracts import (
     ProjectMembershipRepository,
     ScopedAccessGrantRepository,

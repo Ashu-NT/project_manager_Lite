@@ -21,7 +21,7 @@ from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol  # replaces WorkCalendarEngine
 

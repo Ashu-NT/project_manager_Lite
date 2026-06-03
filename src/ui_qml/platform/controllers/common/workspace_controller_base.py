@@ -6,8 +6,8 @@ from typing import Any
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
-from src.core.platform.notifications.signal import Signal as DomainSignal
+from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
+from src.core.shared.events.signal import Signal as DomainSignal
 
 QML_IMPORT_NAME = "Platform.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.core.modules.project_management.domain.portfolio import PortfolioScoringTemplate
 from src.core.platform.auth.authorization import require_permission
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.core.platform.common.exceptions import ValidationError
 
 

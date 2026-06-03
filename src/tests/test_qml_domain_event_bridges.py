@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
+from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.ui_qml.modules.maintenance.context import MaintenanceWorkspaceCatalog
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,

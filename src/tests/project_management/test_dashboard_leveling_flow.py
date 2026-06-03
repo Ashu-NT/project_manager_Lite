@@ -1,6 +1,6 @@
 from datetime import date
 
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 
 
 def test_dashboard_service_preview_resource_conflicts(services):
