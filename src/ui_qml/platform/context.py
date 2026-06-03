@@ -104,6 +104,7 @@ class PlatformWorkspaceCatalog(QObject):
             party_presenter=PlatformPartyCatalogPresenter(party_api=party_api),
             document_presenter=PlatformDocumentCatalogPresenter(document_api=document_api),
             document_management_presenter=PlatformDocumentManagementPresenter(document_api=document_api),
+            enterprise_calendar_api=enterprise_calendar_api,
             parent=self,
         )
         self._admin_access_workspace = PlatformAdminAccessWorkspaceController(

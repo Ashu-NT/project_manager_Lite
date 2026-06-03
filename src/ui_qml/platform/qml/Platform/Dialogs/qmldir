@@ -1,5 +1,9 @@
 module Platform.Dialogs
 ApprovalDecisionDialog 1.0 ApprovalDecisionDialog.qml
+CalendarAssignmentDialog 1.0 CalendarAssignmentDialog.qml
+CalendarEditorDialog 1.0 CalendarEditorDialog.qml
+CalendarExceptionDialog 1.0 CalendarExceptionDialog.qml
+CalendarRecurringEventDialog 1.0 CalendarRecurringEventDialog.qml
 DepartmentEditorDialog 1.0 DepartmentEditorDialog.qml
 DocumentEditorDialog 1.0 DocumentEditorDialog.qml
 DocumentLinkEditorDialog 1.0 DocumentLinkEditorDialog.qml

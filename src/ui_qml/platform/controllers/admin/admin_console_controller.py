@@ -76,10 +76,12 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         party_presenter: PlatformPartyCatalogPresenter,
         document_presenter: PlatformDocumentCatalogPresenter,
         document_management_presenter: PlatformDocumentManagementPresenter,
+        enterprise_calendar_api=None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._overview_presenter = overview_presenter
+        self._enterprise_calendar_api = enterprise_calendar_api
         self._organization_controller = PlatformOrganizationController(organization_presenter, self)
         self._calendar_controller = PlatformCalendarController(calendar_presenter, self)
         self._site_controller = PlatformSiteController(site_presenter, self)
@@ -325,6 +327,137 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             return dict(payload_map)
         finally:
             self._set_is_busy(False)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def createEnterpriseCalendar(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_admin_result_action(
+            operation=lambda: self._enterprise_calendar_api.create_calendar(
+                self._build_calendar_create_command(payload)
+            ) if self._enterprise_calendar_api else None,
+            success_message="Calendar created.",
+            on_success=self._refresh_after_calendar_change,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateEnterpriseCalendar(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_admin_result_action(
+            operation=lambda: self._enterprise_calendar_api.update_calendar(
+                self._build_calendar_update_command(payload)
+            ) if self._enterprise_calendar_api else None,
+            success_message="Calendar updated.",
+            on_success=self._refresh_after_calendar_change,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addCalendarException(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_admin_result_action(
+            operation=lambda: self._enterprise_calendar_api.add_exception(
+                self._build_exception_create_command(payload)
+            ) if self._enterprise_calendar_api else None,
+            success_message="Calendar exception added.",
+            on_success=self._refresh_after_calendar_change,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addCalendarRecurringEvent(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_admin_result_action(
+            operation=lambda: self._enterprise_calendar_api.add_recurring_event(
+                self._build_recurring_event_create_command(payload)
+            ) if self._enterprise_calendar_api else None,
+            success_message="Recurring event added.",
+            on_success=self._refresh_after_calendar_change,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def assignCalendar(self, payload: dict[str, object]) -> dict[str, object]:
+        entity_type = str(payload.get("entityType", "")).lower()
+        return self._run_admin_result_action(
+            operation=lambda: self._dispatch_calendar_assign(payload, entity_type),
+            success_message="Calendar assigned.",
+            on_success=self._refresh_after_calendar_change,
+        )
+
+    def _dispatch_calendar_assign(self, payload: dict, entity_type: str):
+        if self._enterprise_calendar_api is None:
+            return None
+        from src.api.desktop.platform.models.enterprise_calendar import (
+            SiteCalendarAssignCommand,
+            DeptCalendarAssignCommand,
+            EmpCalendarAssignCommand,
+            ProjectCalendarAssignCommand,
+            ResourceCalendarAssignCommand,
+        )
+        cal_id = str(payload.get("calendarId", ""))
+        eff_from = str(payload.get("effectiveFrom", ""))
+        eff_to = str(payload.get("effectiveTo", ""))
+        entity_id = str(payload.get("entityId", ""))
+        if entity_type == "site":
+            return self._enterprise_calendar_api.assign_site_calendar(
+                SiteCalendarAssignCommand(site_id=entity_id, calendar_id=cal_id, effective_from=eff_from, effective_to=eff_to)
+            )
+        if entity_type == "department":
+            return self._enterprise_calendar_api.assign_department_calendar(
+                DeptCalendarAssignCommand(department_id=entity_id, calendar_id=cal_id, effective_from=eff_from, effective_to=eff_to)
+            )
+        if entity_type == "employee":
+            return self._enterprise_calendar_api.assign_employee_calendar(
+                EmpCalendarAssignCommand(employee_id=entity_id, calendar_id=cal_id, effective_from=eff_from, effective_to=eff_to)
+            )
+        if entity_type == "project":
+            return self._enterprise_calendar_api.assign_project_calendar(
+                ProjectCalendarAssignCommand(project_id=entity_id, calendar_id=cal_id, effective_from=eff_from, effective_to=eff_to)
+            )
+        if entity_type == "resource":
+            return self._enterprise_calendar_api.assign_resource_calendar(
+                ResourceCalendarAssignCommand(resource_id=entity_id, calendar_id=cal_id, effective_from=eff_from, effective_to=eff_to)
+            )
+        return None
+
+    def _build_calendar_create_command(self, payload: dict):
+        from src.api.desktop.platform.models.enterprise_calendar import CalendarCreateCommand
+        return CalendarCreateCommand(
+            code=str(payload.get("code", "")),
+            name=str(payload.get("name", "")),
+            calendar_type=str(payload.get("calendarType", "GLOBAL")),
+            timezone=str(payload.get("timezone", "UTC")),
+            description=str(payload.get("description", "")),
+            is_default=bool(payload.get("isDefault", False)),
+        )
+
+    def _build_calendar_update_command(self, payload: dict):
+        from src.api.desktop.platform.models.enterprise_calendar import CalendarUpdateCommand
+        return CalendarUpdateCommand(
+            calendar_id=str(payload.get("calendarId", "")),
+            name=str(payload.get("name", "")),
+            timezone=str(payload.get("timezone", "")),
+            description=str(payload.get("description", "")),
+        )
+
+    def _build_exception_create_command(self, payload: dict):
+        from src.api.desktop.platform.models.enterprise_calendar import ExceptionCreateCommand
+        return ExceptionCreateCommand(
+            calendar_id=str(payload.get("calendarId", "")),
+            exception_date=str(payload.get("exceptionDate", "")),
+            exception_type=str(payload.get("exceptionType", "HOLIDAY")),
+            name=str(payload.get("name", "")),
+            impact_type=str(payload.get("impactType", "UNAVAILABLE")),
+            description=str(payload.get("description", "")),
+            hours_override=float(payload.get("hoursOverride", 0.0) or 0.0),
+        )
+
+    def _build_recurring_event_create_command(self, payload: dict):
+        from src.api.desktop.platform.models.enterprise_calendar import RecurringEventCreateCommand
+        return RecurringEventCreateCommand(
+            calendar_id=str(payload.get("calendarId", "")),
+            title=str(payload.get("title", "")),
+            event_type=str(payload.get("eventType", "MEETING")),
+            recurrence_rule=str(payload.get("recurrenceRule", "")),
+            start_time=str(payload.get("startTime", "")),
+            end_time=str(payload.get("endTime", "")),
+            impact_type=str(payload.get("impactType", "UNAVAILABLE")),
+            effective_from=str(payload.get("effectiveFrom", "")),
+            effective_to=str(payload.get("effectiveTo", "")),
+        )
 
     @Slot("QVariantMap", result="QVariantMap")
     def createSite(self, payload: dict[str, object]) -> dict[str, object]:

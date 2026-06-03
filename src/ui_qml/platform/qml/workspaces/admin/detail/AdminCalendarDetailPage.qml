@@ -17,11 +17,21 @@ Item {
     property string feedbackMessage: ""
     property int activeSectionIndex: 0
     property string selectedHolidayId: ""
+    property string selectedRuleId: ""
+    property string selectedExceptionId: ""
+    property string selectedRecurringEventId: ""
     property string calculationResult: ""
+    property var workingRules: []
+    property var enterpriseExceptions: []
+    property var recurringEvents: []
+    property var assignments: ({})
+    property bool isEnterpriseCalendar: false
 
     signal backRequested()
     signal editRequested()
     signal addHolidayRequested()
+    signal addExceptionRequested()
+    signal addRecurringEventRequested()
     signal openAuditRequested()
 
     readonly property var _state: (root.calendar && root.calendar.state) ? root.calendar.state : ({})
@@ -29,12 +39,21 @@ Item {
     readonly property string _workingDaysText: String(root._state.workingDaysText || "No working days configured")
     readonly property string _hoursPerDayLabel: String(root._state.hoursPerDayLabel || root._state.hoursPerDay || "8")
     readonly property var _holidayRows: root._state.holidays || []
-    readonly property var _sections: [
-        { "label": "Overview" },
-        { "label": "Holidays", "count": root._holidayRows.length },
-        { "label": "Calculator" },
-        { "label": "Audit" }
-    ]
+    readonly property var _sections: {
+        const base = [
+            { "label": "Overview" },
+            { "label": "Holidays", "count": root._holidayRows.length }
+        ]
+        if (root.isEnterpriseCalendar) {
+            base.push({ "label": "Working Rules", "count": root.workingRules.length })
+            base.push({ "label": "Exceptions", "count": root.enterpriseExceptions.length })
+            base.push({ "label": "Recurring Events", "count": root.recurringEvents.length })
+            base.push({ "label": "Assignments" })
+        }
+        base.push({ "label": "Calculator" })
+        base.push({ "label": "Audit" })
+        return base
+    }
     readonly property string _activeSectionLabel: {
         const section = root._sections[root.activeSectionIndex]
         return section ? String(section.label || "") : "Overview"
@@ -53,6 +72,30 @@ Item {
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }
+        if (root._activeSectionLabel === "Exceptions") {
+            return [
+                { "id": "add_exception", "label": "Add Exception", "icon": "add" },
+                { "id": "delete_exception", "label": "Delete", "icon": "delete", "danger": true, "enabled": root.selectedExceptionId.length > 0 },
+                { "id": "refresh", "label": "Refresh", "icon": "refresh" }
+            ]
+        }
+        if (root._activeSectionLabel === "Recurring Events") {
+            return [
+                { "id": "add_recurring", "label": "Add Recurring Event", "icon": "add" },
+                { "id": "delete_recurring", "label": "Delete", "icon": "delete", "danger": true, "enabled": root.selectedRecurringEventId.length > 0 },
+                { "id": "refresh", "label": "Refresh", "icon": "refresh" }
+            ]
+        }
+        if (root._activeSectionLabel === "Working Rules") {
+            return [
+                { "id": "refresh", "label": "Refresh", "icon": "refresh" }
+            ]
+        }
+        if (root._activeSectionLabel === "Assignments") {
+            return [
+                { "id": "refresh", "label": "Refresh", "icon": "refresh" }
+            ]
+        }
         if (root._activeSectionLabel === "Calculator") {
             return [
                 { "id": "calculate", "label": "Calculate Days", "icon": "refresh" }
@@ -68,6 +111,14 @@ Item {
             return "Shared working-week rules owned by Platform and consumed by PM Scheduling and other modules."
         case "Holidays":
             return "Holiday and non-working-day exceptions for the shared working calendar."
+        case "Working Rules":
+            return "Weekday working schedule — start/end times, breaks, and hours per day."
+        case "Exceptions":
+            return "Date-specific exceptions: holidays, shutdowns, overtime, and availability overrides."
+        case "Recurring Events":
+            return "Recurring meetings, training, maintenance windows, and on-call blocks that affect capacity."
+        case "Assignments":
+            return "Sites, departments, employees, projects, and resources assigned to this calendar."
         case "Calculator":
             return "Preview working-day finish dates using the current shared calendar."
         case "Audit":
@@ -82,9 +133,31 @@ Item {
         { "key": "calendar", "label": "Calendar", "flex": 1.4 },
         { "key": "details", "label": "Details", "flex": 1.8 }
     ]
+    readonly property var _workingRuleColumns: [
+        { "key": "weekday", "label": "Day", "flex": 0.8 },
+        { "key": "isWorkingDay", "label": "Working", "flex": 0.7 },
+        { "key": "startTime", "label": "Start", "flex": 0.8 },
+        { "key": "endTime", "label": "End", "flex": 0.8 },
+        { "key": "breakMinutes", "label": "Break (min)", "flex": 0.8 },
+        { "key": "computedHours", "label": "Hours", "flex": 0.7 }
+    ]
+    readonly property var _exceptionColumns: [
+        { "key": "exceptionDate", "label": "Date", "flex": 0.9 },
+        { "key": "exceptionType", "label": "Type", "flex": 1.0 },
+        { "key": "name", "label": "Name", "flex": 1.4 },
+        { "key": "impactType", "label": "Impact", "flex": 1.0 },
+        { "key": "approvalStatus", "label": "Status", "flex": 0.8 }
+    ]
+    readonly property var _recurringColumns: [
+        { "key": "title", "label": "Title", "flex": 1.4 },
+        { "key": "eventType", "label": "Type", "flex": 0.9 },
+        { "key": "recurrenceRule", "label": "Recurrence", "flex": 1.6 },
+        { "key": "impactType", "label": "Impact", "flex": 0.9 },
+        { "key": "isActive", "label": "Active", "flex": 0.6 }
+    ]
     readonly property var _overviewFields: [
         { "label": "Calendar Name", "value": root._title },
-        { "label": "Ownership", "value": "Platform Shared Master" },
+        { "label": "Ownership", "value": root.isEnterpriseCalendar ? "Enterprise Calendar" : "Platform Shared Master" },
         { "label": "Hours / Day", "value": root._hoursPerDayLabel + "h" },
         { "label": "Working Days", "value": root._workingDaysText },
         { "label": "Exceptions", "value": String(root._holidayRows.length) },
@@ -150,12 +223,20 @@ Item {
                     root.editRequested()
                 } else if (actionId === "add_holiday") {
                     root.addHolidayRequested()
+                } else if (actionId === "add_exception") {
+                    root.addExceptionRequested()
+                } else if (actionId === "add_recurring") {
+                    root.addRecurringEventRequested()
                 } else if (actionId === "delete_holiday") {
                     if (root.workspaceController !== null && root.selectedHolidayId.length > 0) {
                         const result = root.workspaceController.deleteCalendarHoliday(root.selectedHolidayId)
                         if (result && result.ok === true)
                             root.selectedHolidayId = ""
                     }
+                } else if (actionId === "delete_exception") {
+                    root.selectedExceptionId = ""
+                } else if (actionId === "delete_recurring") {
+                    root.selectedRecurringEventId = ""
                 } else if (actionId === "refresh") {
                     if (root.workspaceController !== null)
                         root.workspaceController.refresh()
@@ -265,7 +346,7 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root.activeSectionIndex === 1 ? holidaysLoader.implicitHeight : 0
+            implicitHeight: root._activeSectionLabel === "Holidays" ? holidaysLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
@@ -274,7 +355,7 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                active: root.activeSectionIndex === 1
+                active: root._activeSectionLabel === "Holidays"
                 keepLoaded: true
                 loadingMessage: "Loading calendar exceptions..."
                 sourceComponent: Component {
@@ -300,7 +381,137 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root.activeSectionIndex === 2 ? calculatorLoader.implicitHeight : 0
+            implicitHeight: root._activeSectionLabel === "Working Rules" ? workingRulesLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: workingRulesLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: root._activeSectionLabel === "Working Rules"
+                keepLoaded: true
+                loadingMessage: "Loading working rules..."
+                sourceComponent: Component {
+                    AdminDetailTableSection {
+                        sectionLabel: "Working Rules"
+                        infoMessage: "Weekday working schedule for this calendar. Each row defines one day's start/end time and break."
+                        rows: root.workingRules
+                        columns: root._workingRuleColumns
+                        emptyTitle: "No working rules defined"
+                        emptyMessage: "Use the working rule editor to define the working week schedule."
+                        tableHeight: root._tableHeightForCount(7)
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : root.width
+            implicitHeight: root._activeSectionLabel === "Exceptions" ? enterpriseExceptionsLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: enterpriseExceptionsLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: root._activeSectionLabel === "Exceptions"
+                keepLoaded: true
+                loadingMessage: "Loading exceptions..."
+                sourceComponent: Component {
+                    AdminDetailTableSection {
+                        sectionLabel: "Exceptions"
+                        infoMessage: "Date-specific exceptions override working rules. Holidays, shutdowns, overtime, and reduced-hours events are defined here."
+                        rows: root.enterpriseExceptions
+                        columns: root._exceptionColumns
+                        selectedRowId: root.selectedExceptionId
+                        emptyTitle: "No exceptions defined"
+                        emptyMessage: "Add exceptions for holidays, shutdowns, or other non-standard days."
+                        tableHeight: root._tableHeightForCount(root.enterpriseExceptions.length)
+                        onRowSelected: function(rowId) { root.selectedExceptionId = String(rowId || "") }
+                        onRowActivated: function(rowId) { root.selectedExceptionId = String(rowId || "") }
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : root.width
+            implicitHeight: root._activeSectionLabel === "Recurring Events" ? recurringEventsLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: recurringEventsLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: root._activeSectionLabel === "Recurring Events"
+                keepLoaded: true
+                loadingMessage: "Loading recurring events..."
+                sourceComponent: Component {
+                    AdminDetailTableSection {
+                        sectionLabel: "Recurring Events"
+                        infoMessage: "Recurring meetings, training, and maintenance windows that reduce available capacity on a schedule."
+                        rows: root.recurringEvents
+                        columns: root._recurringColumns
+                        selectedRowId: root.selectedRecurringEventId
+                        emptyTitle: "No recurring events"
+                        emptyMessage: "Add recurring events that regularly reduce available working capacity."
+                        tableHeight: root._tableHeightForCount(root.recurringEvents.length)
+                        onRowSelected: function(rowId) { root.selectedRecurringEventId = String(rowId || "") }
+                        onRowActivated: function(rowId) { root.selectedRecurringEventId = String(rowId || "") }
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : root.width
+            implicitHeight: root._activeSectionLabel === "Assignments" ? assignmentsLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: assignmentsLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: root._activeSectionLabel === "Assignments"
+                keepLoaded: true
+                loadingMessage: "Loading calendar assignments..."
+                sourceComponent: Component {
+                    AdminInformationalDetailSection {
+                        sectionLabel: "Assignments"
+                        infoMessage: "This calendar is assigned to the following sites, departments, employees, projects, and resources."
+                        cardTitle: "Usage"
+                        notes: {
+                            const lines = []
+                            const a = root.assignments || {}
+                            const sites = (a.sites || []).length
+                            const depts = (a.departments || []).length
+                            const emps = (a.employees || []).length
+                            const projs = (a.projects || []).length
+                            const ress = (a.resources || []).length
+                            if (sites > 0) lines.push("Sites: " + sites + " assignment(s)")
+                            if (depts > 0) lines.push("Departments: " + depts + " assignment(s)")
+                            if (emps > 0) lines.push("Employees: " + emps + " assignment(s)")
+                            if (projs > 0) lines.push("Projects: " + projs + " assignment(s)")
+                            if (ress > 0) lines.push("Resources: " + ress + " assignment(s)")
+                            if (lines.length === 0) lines.push("No active assignments. Assign this calendar from Site, Department, Employee, Project, or Resource detail pages.")
+                            return lines
+                        }
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : root.width
+            implicitHeight: root._activeSectionLabel === "Calculator" ? calculatorLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
@@ -309,7 +520,7 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                active: root.activeSectionIndex === 2
+                active: root._activeSectionLabel === "Calculator"
                 keepLoaded: true
                 loadingMessage: "Loading calendar calculator..."
                 sourceComponent: Component {
@@ -402,7 +613,7 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root.activeSectionIndex === 3 ? auditLoader.implicitHeight : 0
+            implicitHeight: root._activeSectionLabel === "Audit" ? auditLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
@@ -411,7 +622,7 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                active: root.activeSectionIndex === 3
+                active: root._activeSectionLabel === "Audit"
                 keepLoaded: true
                 loadingMessage: "Loading audit guidance..."
                 sourceComponent: Component {

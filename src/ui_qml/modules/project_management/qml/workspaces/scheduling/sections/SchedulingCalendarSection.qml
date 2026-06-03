@@ -15,10 +15,14 @@ Item {
         "holidays": [],
         "emptyState": ""
     })
+    property var enterpriseContext: ({})
     property string calculatorResult: ""
     property bool isBusy: false
 
     signal calculateRequested(var payload)
+
+    readonly property var _sourceChain: Array.isArray(root.enterpriseContext.sourceChain) ? root.enterpriseContext.sourceChain : []
+    readonly property bool _hasEnterpriseContext: root._sourceChain.length > 0
 
     readonly property var workingDayStates: {
         return (root.calendarModel.workingDays || []).filter(function(day) {
@@ -109,6 +113,16 @@ Item {
                     Layout.fillWidth: true
                     text: "Shared working calendars are managed in Platform Admin. Scheduling consumes them read-only here."
                     color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    wrapMode: Text.WordWrap
+                }
+
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    visible: root._hasEnterpriseContext
+                    text: "Calendar chain: " + root._sourceChain.join(" → ")
+                    color: Theme.AppTheme.accent
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.captionSize
                     wrapMode: Text.WordWrap
