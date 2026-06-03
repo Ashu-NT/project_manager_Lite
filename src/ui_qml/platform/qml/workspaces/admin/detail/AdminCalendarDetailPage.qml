@@ -236,9 +236,17 @@ Item {
                             root.selectedHolidayId = ""
                     }
                 } else if (actionId === "delete_exception") {
-                    root.selectedExceptionId = ""
+                    if (root.workspaceController !== null && root.selectedExceptionId.length > 0) {
+                        const result = root.workspaceController.deleteCalendarException(root.selectedExceptionId)
+                        if (result && result.ok === true)
+                            root.selectedExceptionId = ""
+                    }
                 } else if (actionId === "delete_recurring") {
-                    root.selectedRecurringEventId = ""
+                    if (root.workspaceController !== null && root.selectedRecurringEventId.length > 0) {
+                        const result = root.workspaceController.deleteCalendarRecurringEvent(root.selectedRecurringEventId)
+                        if (result && result.ok === true)
+                            root.selectedRecurringEventId = ""
+                    }
                 } else if (actionId === "refresh") {
                     if (root.workspaceController !== null)
                         root.workspaceController.refresh()

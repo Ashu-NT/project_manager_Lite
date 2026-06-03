@@ -170,8 +170,103 @@ AppLayouts.WorkspaceFrame {
         adminState.entityDetailOpen = false
     }
 
+    function _calendarEntityType(sectionId) {
+        if (sectionId === "sites")
+            return "site"
+        if (sectionId === "departments")
+            return "department"
+        if (sectionId === "employees")
+            return "employee"
+        return ""
+    }
+
+    function _calendarOptions() {
+        const rows = root.calendarCatalog.items || []
+        const options = []
+        for (let i = 0; i < rows.length; i++) {
+            const item = rows[i] || {}
+            const state = item.state || {}
+            const id = String(state.calendarId || state.id || item.id || "")
+            if (!id.length)
+                continue
+            options.push({
+                "id": id,
+                "name": String(state.name || item.title || id),
+                "code": String(state.code || ""),
+                "calendarType": String(state.calendarType || item.statusLabel || "")
+            })
+        }
+        return options
+    }
+
+    function _calendarEntityId(sectionId, item) {
+        const state = item && item.state ? item.state : {}
+        if (sectionId === "sites")
+            return String(state.siteId || state.id || item.id || "")
+        if (sectionId === "departments")
+            return String(state.departmentId || state.id || item.id || "")
+        if (sectionId === "employees")
+            return String(state.employeeId || state.id || item.id || "")
+        return ""
+    }
+
+    function _calendarAssignmentContext(sectionId, item, refreshKey) {
+        if (!root.workspaceController || !item)
+            return ({ "assignedCalendar": {}, "sourceChain": [] })
+        const state = item.state || {}
+        const entityType = root._calendarEntityType(sectionId)
+        const entityId = root._calendarEntityId(sectionId, item)
+        if (!entityType.length || !entityId.length)
+            return ({ "assignedCalendar": {}, "sourceChain": [] })
+        return root.workspaceController.calendarAssignmentContext(
+            entityType,
+            entityId,
+            String(state.siteId || ""),
+            String(state.departmentId || "")
+        )
+    }
+
+    function _calendarDetailContext(item, refreshKey) {
+        if (!root.workspaceController || !item)
+            return ({ "workingRules": [], "exceptions": [], "recurringEvents": [], "assignments": {} })
+        const state = item.state || {}
+        const calendarId = String(state.calendarId || state.id || item.id || "")
+        if (!calendarId.length)
+            return ({ "workingRules": [], "exceptions": [], "recurringEvents": [], "assignments": {} })
+        return root.workspaceController.calendarDetailContext(calendarId)
+    }
+
     function handleEntityDetailAction(sectionId, actionId) {
         const id = adminState.selectedRowId
+        if (actionId === "assign_calendar") {
+            const entityType = root._calendarEntityType(sectionId)
+            const item = root._detailItem || {}
+            const entityId = root._calendarEntityId(sectionId, item)
+            if (entityType.length && entityId.length) {
+                dialogHostLoader.invoke(
+                    "openCalendarAssign",
+                    entityType,
+                    entityId,
+                    String(item.title || entityId),
+                    root._calendarOptions()
+                )
+            }
+            return
+        }
+        if (actionId === "clear_calendar_assignment") {
+            const entityType = root._calendarEntityType(sectionId)
+            const ctx = root._calendarAssignmentContext(sectionId, root._detailItem, root.calendarCatalog)
+            const assigned = ctx.assignedCalendar || {}
+            const assignmentId = String(assigned.assignmentId || "")
+            if (root.workspaceController && entityType.length && assignmentId.length) {
+                root.workspaceController.removeCalendarAssignment(assignmentId, entityType)
+            }
+            return
+        }
+        if (actionId === "open_calendar_mgmt") {
+            root.openAdminEntitySection("calendars", "")
+            return
+        }
         if (actionId === "create_department") {
             dialogHostLoader.invoke("openDepartmentCreate")
             return
@@ -389,24 +484,30 @@ AppLayouts.WorkspaceFrame {
 
                 sourceComponent: Component {
                     Detail.AdminCalendarDetailPage {
+                        property var _calendarContext: root._calendarDetailContext(root._detailItem, root.calendarCatalog)
+                        property var _calendarState: root._detailItem && root._detailItem.state ? root._detailItem.state : ({})
+                        property string _calendarId: String(_calendarState.calendarId || _calendarState.id || (root._detailItem ? root._detailItem.id : "") || "")
+
                         workspaceController: root.workspaceController
                         calendar: root._detailItem || ({})
+                        workingRules: _calendarContext.workingRules || []
+                        enterpriseExceptions: _calendarContext.exceptions || []
+                        recurringEvents: _calendarContext.recurringEvents || []
+                        assignments: _calendarContext.assignments || ({})
                         busy: adminState.busy
                         errorMessage: adminState.err
                         feedbackMessage: adminState.ok
-                        isEnterpriseCalendar: {
-                            const state = root._detailItem && root._detailItem.state ? root._detailItem.state : {}
-                            return state.isEnterpriseCalendar === true
-                        }
+                        isEnterpriseCalendar: _calendarState.isEnterpriseCalendar === true
                         onBackRequested: root.closeEntityDetail()
                         onEditRequested: root.openCalendarEdit(adminState.selectedRowId)
-                        onAddHolidayRequested: dialogHostLoader.invoke("openWorkingCalendarHolidayCreate")
-                        onAddExceptionRequested: dialogHostLoader.invoke("openCalendarExceptionCreate", [{
-                            "calendarId": (root._detailItem && root._detailItem.state ? root._detailItem.state.calendarId || "" : "")
-                        }])
-                        onAddRecurringEventRequested: dialogHostLoader.invoke("openCalendarRecurringEventCreate", [{
-                            "calendarId": (root._detailItem && root._detailItem.state ? root._detailItem.state.calendarId || "" : "")
-                        }])
+                        onAddHolidayRequested: {
+                            if (_calendarState.isEnterpriseCalendar === true && _calendarId.length > 0)
+                                dialogHostLoader.invoke("openCalendarExceptionCreate", _calendarId)
+                            else
+                                dialogHostLoader.invoke("openWorkingCalendarHolidayCreate")
+                        }
+                        onAddExceptionRequested: dialogHostLoader.invoke("openCalendarExceptionCreate", _calendarId)
+                        onAddRecurringEventRequested: dialogHostLoader.invoke("openCalendarRecurringEventCreate", _calendarId)
                         onOpenAuditRequested: root.openAdminEntitySection("audit", "")
                     }
                 }
@@ -570,10 +671,14 @@ AppLayouts.WorkspaceFrame {
 
                 sourceComponent: Component {
                     Detail.AdminSiteDetailPage {
+                        property var _calendarContext: root._calendarAssignmentContext("sites", root._detailItem, root.calendarCatalog)
+
                         platformCatalog: root.platformCatalog
                         site: root._detailItem || ({})
                         departmentCatalog: root.departmentCatalog
                         departmentColumns: adminState.deptColumns
+                        siteCalendarAssignment: _calendarContext.assignedCalendar || ({})
+                        calendarSourceChain: _calendarContext.sourceChain || []
                         busy: adminState.busy
                         errorMessage: adminState.err
                         feedbackMessage: adminState.ok
@@ -597,10 +702,14 @@ AppLayouts.WorkspaceFrame {
 
                 sourceComponent: Component {
                     Detail.AdminDepartmentDetailPage {
+                        property var _calendarContext: root._calendarAssignmentContext("departments", root._detailItem, root.calendarCatalog)
+
                         platformCatalog: root.platformCatalog
                         department: root._detailItem || ({})
                         employeeCatalog: root.employeeCatalog
                         employeeColumns: adminState.employeeColumns
+                        deptCalendarAssignment: _calendarContext.assignedCalendar || ({})
+                        calendarSourceChain: _calendarContext.sourceChain || []
                         busy: adminState.busy
                         errorMessage: adminState.err
                         feedbackMessage: adminState.ok
@@ -624,8 +733,12 @@ AppLayouts.WorkspaceFrame {
 
                 sourceComponent: Component {
                     Detail.AdminEmployeeDetailPage {
+                        property var _calendarContext: root._calendarAssignmentContext("employees", root._detailItem, root.calendarCatalog)
+
                         employee: root._detailItem || ({})
                         pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
+                        empCalendarAssignment: _calendarContext.assignedCalendar || ({})
+                        calendarSourceChain: _calendarContext.sourceChain || []
                         busy: adminState.busy
                         errorMessage: adminState.err
                         feedbackMessage: adminState.ok
