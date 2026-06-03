@@ -1,10 +1,11 @@
+"""Dashboard DTOs — main project dashboard data structures."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
 from typing import List, Optional
 
-from src.core.modules.project_management.application.dashboard.portfolio_models import (
+from src.core.modules.project_management.application.dashboard.models.portfolio_models import (
     DashboardPortfolio,
 )
 from src.core.modules.project_management.infrastructure.reporting import (
@@ -84,3 +85,13 @@ class DashboardData:
     cost_sources: CostSourceBreakdown | None = None
     evm: Optional[DashboardEVM] = None
     portfolio: DashboardPortfolio | None = None
+
+
+__all__ = [
+    "BurndownPoint",
+    "CriticalPathRow",
+    "DashboardData",
+    "DashboardEVM",
+    "MilestoneHealthRow",
+    "UpcomingTask",
+]

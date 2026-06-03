@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from src.core.modules.project_management.application.dashboard.models import (
+from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
     CriticalPathRow,
     MilestoneHealthRow,
 )

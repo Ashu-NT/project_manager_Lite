@@ -1,19 +1,24 @@
+"""Dashboard orchestration service — assembles all dashboard sections."""
 from __future__ import annotations
 
 from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
-
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
-from src.core.modules.project_management.application.dashboard.alerts import DashboardAlertsMixin
-from src.core.modules.project_management.application.dashboard.burndown import DashboardBurndownMixin
-from src.core.modules.project_management.application.dashboard.evm import DashboardEvmMixin
-from src.core.modules.project_management.application.dashboard.register import DashboardRegisterMixin
-from src.core.modules.project_management.application.dashboard.models import BurndownPoint, DashboardData, DashboardEVM, UpcomingTask
-from src.core.modules.project_management.application.dashboard.portfolio import DashboardPortfolioMixin
-from src.core.modules.project_management.application.dashboard.professional import DashboardProfessionalMixin
-from src.core.modules.project_management.application.dashboard.upcoming import DashboardUpcomingMixin
+from src.core.modules.project_management.application.dashboard.alerts.alerts_mixin import DashboardAlertsMixin
+from src.core.modules.project_management.application.dashboard.analytics.burndown import DashboardBurndownMixin
+from src.core.modules.project_management.application.dashboard.analytics.evm import DashboardEvmMixin
+from src.core.modules.project_management.application.dashboard.widgets.register import DashboardRegisterMixin
+from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
+    BurndownPoint,
+    DashboardData,
+    DashboardEVM,
+    UpcomingTask,
+)
+from src.core.modules.project_management.application.dashboard.reporting.portfolio import DashboardPortfolioMixin
+from src.core.modules.project_management.application.dashboard.widgets.professional import DashboardProfessionalMixin
+from src.core.modules.project_management.application.dashboard.widgets.upcoming import DashboardUpcomingMixin
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -62,7 +67,6 @@ class DashboardService(
     def get_dashboard_data(self, project_id: str, baseline_id: str | None = None) -> DashboardData:
         require_permission(self._user_session, "report.view", operation_label="view dashboard")
         require_project_permission(self._user_session, project_id, "report.view", operation_label="view dashboard")
-        # Dashboard refresh should be read-only and never contend with task edits.
         schedule = self._sched.recalculate_project_schedule(project_id, persist=False)
 
         kpi = self._reporting.get_project_kpis(project_id, schedule=schedule)
@@ -113,17 +117,8 @@ class DashboardService(
         *,
         emit_events: bool = True,
     ) -> ResourceLevelingResult:
-        require_permission(
-            self._user_session,
-            "task.manage",
-            operation_label="auto-level resource conflicts",
-        )
-        require_project_permission(
-            self._user_session,
-            project_id,
-            "task.manage",
-            operation_label="auto-level resource conflicts",
-        )
+        require_permission(self._user_session, "task.manage", operation_label="auto-level resource conflicts")
+        require_project_permission(self._user_session, project_id, "task.manage", operation_label="auto-level resource conflicts")
         result = self._sched.auto_level_resources(
             project_id=project_id,
             max_iterations=max_iterations,
@@ -143,17 +138,8 @@ class DashboardService(
         *,
         emit_events: bool = True,
     ) -> ResourceLevelingAction:
-        require_permission(
-            self._user_session,
-            "task.manage",
-            operation_label="manual task shift",
-        )
-        require_project_permission(
-            self._user_session,
-            project_id,
-            "task.manage",
-            operation_label="manual task shift",
-        )
+        require_permission(self._user_session, "task.manage", operation_label="manual task shift")
+        require_project_permission(self._user_session, project_id, "task.manage", operation_label="manual task shift")
         action = self._sched.resolve_resource_conflict_manual(
             project_id=project_id,
             task_id=task_id,
@@ -165,4 +151,5 @@ class DashboardService(
             domain_events.tasks_changed.emit(project_id)
         return action
 
-__all__ = ["DashboardService", "DashboardData", "DashboardEVM", "UpcomingTask", "BurndownPoint"]
+
+__all__ = ["DashboardService"]

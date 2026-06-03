@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.modules.project_management.application.dashboard.models import DashboardEVM
+from src.core.modules.project_management.application.dashboard.models.dashboard_models import DashboardEVM
 from src.core.modules.project_management.infrastructure.reporting import (
     EarnedValueMetrics,
     ReportingService,
