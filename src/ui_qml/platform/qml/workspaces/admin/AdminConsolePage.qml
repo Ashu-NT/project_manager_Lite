@@ -1,4 +1,4 @@
-﻿pragma ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -18,7 +18,7 @@ import "dialogs" as Dialogs
 AppLayouts.WorkspaceFrame {
     id: root
 
-    // ── Public API (backward-compatible) ─────────────────────────
+    // -- Public API (backward-compatible) -------------------------
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property var workspaceModel: root.platformCatalog
         ? root.platformCatalog.workspace("platform.admin")
@@ -81,7 +81,7 @@ AppLayouts.WorkspaceFrame {
         ? root.settingsController.moduleEntitlements
         : ({ "title": "Module Entitlements", "subtitle": "", "emptyState": "", "items": [] })
 
-    // ── Python-owned table models ─────────────────────────────────
+    // -- Python-owned table models ---------------------------------
     property var organizationsTableModel:     root.workspaceController ? root.workspaceController.organizationsTableModel     : null
     property var calendarsTableModel:         root.workspaceController ? root.workspaceController.calendarsTableModel         : null
     property var sitesTableModel:             root.workspaceController ? root.workspaceController.sitesTableModel             : null
@@ -92,7 +92,7 @@ AppLayouts.WorkspaceFrame {
     property var documentsTableModel:         root.workspaceController ? root.workspaceController.documentsTableModel         : null
     property var documentStructuresTableModel:root.workspaceController ? root.workspaceController.documentStructuresTableModel : null
 
-    // ── Navigation & selection state ──────────────────────────────
+    // -- Navigation & selection state ------------------------------
     property string _activeSection: "organizations"
     property string _selectedRowId: ""
     property bool _entityDetailOpen: false
@@ -101,16 +101,21 @@ AppLayouts.WorkspaceFrame {
     property bool _accessDetailOpen: false
     property string _accessGrantId: ""
 
+    AdminWorkspaceState {
+        id: adminState
+        workspaceController: root.workspaceController
+    }
+
     readonly property bool _detailOpen: {
-        const s = state.activeSection
-        return state.entityDetailOpen
-            && state.selectedRowId.length > 0
+        const s = adminState.activeSection
+        return adminState.entityDetailOpen
+            && adminState.selectedRowId.length > 0
             && s !== "access" && s !== "support" && s !== "audit"
     }
 
     readonly property var _detailItem: {
-        const section = state.activeSection
-        const rowId   = state.selectedRowId
+        const section = adminState.activeSection
+        const rowId   = adminState.selectedRowId
         if (!rowId) return null
         let cat = null
         if      (section === "organizations") cat = root.organizationCatalog
@@ -134,39 +139,39 @@ AppLayouts.WorkspaceFrame {
 
 
     function openOrganizationEdit(itemId) {
-        const item = state.catalogItemById(root.organizationCatalog, itemId)
+        const item = adminState.catalogItemById(root.organizationCatalog, itemId)
         if (item !== null) dialogHostLoader.invoke("openOrganizationEdit", item.state || {})
     }
 
     function openCalendarEdit(itemId) {
-        const item = state.catalogItemById(root.calendarCatalog, itemId)
+        const item = adminState.catalogItemById(root.calendarCatalog, itemId)
         if (item !== null) dialogHostLoader.invoke("openWorkingCalendarEdit", item.state || {})
     }
 
     function openEntityDetail(sectionId, itemId) {
-        state.activeSection = String(sectionId || state.activeSection || "")
-        state.selectedRowId = String(itemId || "")
-        if (state.activeSection === "documents" && state.selectedRowId.length > 0) {
-            root.inspectDocument(state.selectedRowId)
+        adminState.activeSection = String(sectionId || adminState.activeSection || "")
+        adminState.selectedRowId = String(itemId || "")
+        if (adminState.activeSection === "documents" && adminState.selectedRowId.length > 0) {
+            root.inspectDocument(adminState.selectedRowId)
         }
-        state.entityDetailOpen = state.selectedRowId.length > 0
+        adminState.entityDetailOpen = adminState.selectedRowId.length > 0
     }
 
     function openAdminEntitySection(sectionId, rowId) {
-        state.activeSection = String(sectionId || "")
-        state.selectedRowId = rowId ? String(rowId) : ""
-        if (state.activeSection === "documents" && state.selectedRowId.length > 0) {
-            root.inspectDocument(state.selectedRowId)
+        adminState.activeSection = String(sectionId || "")
+        adminState.selectedRowId = rowId ? String(rowId) : ""
+        if (adminState.activeSection === "documents" && adminState.selectedRowId.length > 0) {
+            root.inspectDocument(adminState.selectedRowId)
         }
-        state.entityDetailOpen = state.selectedRowId.length > 0
+        adminState.entityDetailOpen = adminState.selectedRowId.length > 0
     }
 
     function closeEntityDetail() {
-        state.entityDetailOpen = false
+        adminState.entityDetailOpen = false
     }
 
     function handleEntityDetailAction(sectionId, actionId) {
-        const id = state.selectedRowId
+        const id = adminState.selectedRowId
         if (actionId === "create_department") {
             dialogHostLoader.invoke("openDepartmentCreate")
             return
@@ -227,27 +232,27 @@ AppLayouts.WorkspaceFrame {
     }
 
     function openSiteEdit(itemId) {
-        const item = state.catalogItemById(root.siteCatalog, itemId)
+        const item = adminState.catalogItemById(root.siteCatalog, itemId)
         if (item !== null) dialogHostLoader.invoke("openSiteEdit", item.state || {})
     }
 
     function openDepartmentEdit(itemId) {
-        const item = state.catalogItemById(root.departmentCatalog, itemId)
+        const item = adminState.catalogItemById(root.departmentCatalog, itemId)
         if (item !== null) dialogHostLoader.invoke("openDepartmentEdit", item.state || {})
     }
 
     function openEmployeeEdit(itemId) {
-        const item = state.catalogItemById(root.employeeCatalog, itemId)
+        const item = adminState.catalogItemById(root.employeeCatalog, itemId)
         if (item !== null) dialogHostLoader.invoke("openEmployeeEdit", item.state || {})
     }
 
     function openUserEdit(itemId) {
-        const item = state.catalogItemById(root.userCatalog, itemId)
+        const item = adminState.catalogItemById(root.userCatalog, itemId)
         if (item !== null) dialogHostLoader.invoke("openUserEdit", item.state || {})
     }
 
     function openPartyEdit(itemId) {
-        const item = state.catalogItemById(root.partyCatalog, itemId)
+        const item = adminState.catalogItemById(root.partyCatalog, itemId)
         if (item !== null) dialogHostLoader.invoke("openPartyEdit", item.state || {})
     }
 
@@ -256,7 +261,7 @@ AppLayouts.WorkspaceFrame {
     }
 
     function openDocumentEdit(itemId) {
-        const item = state.catalogItemById(root.documentCatalog, itemId)
+        const item = adminState.catalogItemById(root.documentCatalog, itemId)
         if (item !== null) {
             root.inspectDocument(itemId)
             dialogHostLoader.invoke("openDocumentEdit", item.state || {})
@@ -269,7 +274,7 @@ AppLayouts.WorkspaceFrame {
     }
 
     function openDocumentStructureEdit(itemId) {
-        const item = state.catalogItemById(root.documentStructureCatalog, itemId)
+        const item = adminState.catalogItemById(root.documentStructureCatalog, itemId)
         if (item !== null) dialogHostLoader.invoke("openDocumentStructureEdit", item.state || {})
     }
 
@@ -278,46 +283,46 @@ AppLayouts.WorkspaceFrame {
         : root.workspaceModel.title
     subtitle: root.workspaceController ? root.workspaceController.overview.subtitle : ""
 
-    // ── Shell layout ──────────────────────────────────────────────
+    // -- Shell layout ----------------------------------------------
     RowLayout {
         anchors.fill: parent
         spacing: 0
 
-        // ── Left navigation sidebar ───────────────────────────────
+        // -- Left navigation sidebar -------------------------------
             Components.AdminNavSidebar {
                 id: _sidebar
                 Layout.fillHeight:     true
                 Layout.preferredWidth: implicitWidth
-                activeSection: state.activeSection
+                activeSection: adminState.activeSection
                 onSectionChanged: function(section) {
-                    state.activeSection = section
-                    state.entityDetailOpen = false
-                    state.selectedRowId = ""
+                    adminState.activeSection = section
+                    adminState.entityDetailOpen = false
+                    adminState.selectedRowId = ""
                 }
             }
 
-        // ── Center workspace ──────────────────────────────────────
+        // -- Center workspace --------------------------------------
         Item {
             Layout.fillWidth:  true
             Layout.fillHeight: true
 
-            // ── Organizations ─────────────────────────────────────
+            // -- Organizations -------------------------------------
             Components.AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         state.activeSection === "organizations" && !state.detailOpen
+                visible:         adminState.activeSection === "organizations" && !adminState.detailOpen
                 sectionTitle:    "Organizations"
                 entityLabel:     "Organization"
                 catalog:         root.organizationCatalog
                 catalogModel:    root.organizationsTableModel
-                columns:         state.orgColumns
-                isBusy:          state.busy
-                isLoading:       state.load
-                errorMessage:    state.err
-                feedbackMessage: state.ok
-                selectedRowId:   state.selectedRowId
+                columns:         adminState.orgColumns
+                isBusy:          adminState.busy
+                isLoading:       adminState.load
+                errorMessage:    adminState.err
+                feedbackMessage: adminState.ok
+                selectedRowId:   adminState.selectedRowId
 
                 onCreateRequested:  dialogHostLoader.invoke("openOrganizationCreate")
-                onRowSelected:      function(id) { state.selectedRowId = id }
+                onRowSelected:      function(id) { adminState.selectedRowId = id }
                 onRowActivated:     function(id) { root.openEntityDetail("organizations", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
@@ -325,25 +330,25 @@ AppLayouts.WorkspaceFrame {
             Loader {
                 id: organizationDetailLoader
                 anchors.fill: parent
-                active: state.activeSection === "organizations" && state.detailOpen
+                active: adminState.activeSection === "organizations" && adminState.detailOpen
                 visible: active
                 asynchronous: true
 
                 sourceComponent: Component {
                     Detail.AdminOrganizationDetailPage {
                         organization: root._detailItem || ({})
-                        busy: state.busy
-                        errorMessage: state.err
-                        feedbackMessage: state.ok
+                        busy: adminState.busy
+                        errorMessage: adminState.err
+                        feedbackMessage: adminState.ok
 
                         onBackRequested: root.closeEntityDetail()
 
                         onActionRequested: function(actionId) {
                             if (actionId === "edit") {
-                                root.openOrganizationEdit(state.selectedRowId)
+                                root.openOrganizationEdit(adminState.selectedRowId)
                             } else if (actionId === "set_active") {
                                 if (root.workspaceController)
-                                    root.workspaceController.setActiveOrganization(state.selectedRowId)
+                                    root.workspaceController.setActiveOrganization(adminState.selectedRowId)
                             } else if (actionId === "refresh") {
                                 if (root.workspaceController)
                                     root.workspaceController.refresh()
@@ -355,22 +360,22 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
-            // ── Sites ─────────────────────────────────────────────
+            // -- Sites ---------------------------------------------
             Components.AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         state.activeSection === "calendars" && !state.detailOpen
+                visible:         adminState.activeSection === "calendars" && !adminState.detailOpen
                 sectionTitle:    "Calendars"
                 entityLabel:     ""
                 catalog:         root.calendarCatalog
                 catalogModel:    root.calendarsTableModel
-                columns:         state.calendarColumns
-                isBusy:          state.busy
-                isLoading:       state.load
-                errorMessage:    state.err
-                feedbackMessage: state.ok
-                selectedRowId:   state.selectedRowId
+                columns:         adminState.calendarColumns
+                isBusy:          adminState.busy
+                isLoading:       adminState.load
+                errorMessage:    adminState.err
+                feedbackMessage: adminState.ok
+                selectedRowId:   adminState.selectedRowId
 
-                onRowSelected:      function(id) { state.selectedRowId = id }
+                onRowSelected:      function(id) { adminState.selectedRowId = id }
                 onRowActivated:     function(id) { root.openEntityDetail("calendars", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
@@ -378,7 +383,7 @@ AppLayouts.WorkspaceFrame {
             Loader {
                 id: calendarDetailLoader
                 anchors.fill: parent
-                active: state.activeSection === "calendars" && state.detailOpen
+                active: adminState.activeSection === "calendars" && adminState.detailOpen
                 visible: active
                 asynchronous: true
 
@@ -386,11 +391,11 @@ AppLayouts.WorkspaceFrame {
                     Detail.AdminCalendarDetailPage {
                         workspaceController: root.workspaceController
                         calendar: root._detailItem || ({})
-                        busy: state.busy
-                        errorMessage: state.err
-                        feedbackMessage: state.ok
+                        busy: adminState.busy
+                        errorMessage: adminState.err
+                        feedbackMessage: adminState.ok
                         onBackRequested: root.closeEntityDetail()
-                        onEditRequested: root.openCalendarEdit(state.selectedRowId)
+                        onEditRequested: root.openCalendarEdit(adminState.selectedRowId)
                         onAddHolidayRequested: dialogHostLoader.invoke("openWorkingCalendarHolidayCreate")
                         onOpenAuditRequested: root.openAdminEntitySection("audit", "")
                     }
@@ -399,149 +404,149 @@ AppLayouts.WorkspaceFrame {
 
             Components.AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         state.activeSection === "sites" && !state.detailOpen
+                visible:         adminState.activeSection === "sites" && !adminState.detailOpen
                 sectionTitle:    "Sites"
                 entityLabel:     "Site"
                 catalog:         root.siteCatalog
                 catalogModel:    root.sitesTableModel
-                columns:         state.siteColumns
-                isBusy:          state.busy
-                isLoading:       state.load
-                errorMessage:    state.err
-                feedbackMessage: state.ok
-                selectedRowId:   state.selectedRowId
+                columns:         adminState.siteColumns
+                isBusy:          adminState.busy
+                isLoading:       adminState.load
+                errorMessage:    adminState.err
+                feedbackMessage: adminState.ok
+                selectedRowId:   adminState.selectedRowId
 
                 onCreateRequested:  dialogHostLoader.invoke("openSiteCreate")
-                onRowSelected:      function(id) { state.selectedRowId = id }
+                onRowSelected:      function(id) { adminState.selectedRowId = id }
                 onRowActivated:     function(id) { root.openEntityDetail("sites", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
-            // ── Departments ───────────────────────────────────────
+            // -- Departments ---------------------------------------
             Components.AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         state.activeSection === "departments" && !state.detailOpen
+                visible:         adminState.activeSection === "departments" && !adminState.detailOpen
                 sectionTitle:    "Departments"
                 entityLabel:     "Department"
                 catalog:         root.departmentCatalog
                 catalogModel:    root.departmentsTableModel
-                columns:         state.deptColumns
-                isBusy:          state.busy
-                isLoading:       state.load
-                errorMessage:    state.err
-                feedbackMessage: state.ok
-                selectedRowId:   state.selectedRowId
+                columns:         adminState.deptColumns
+                isBusy:          adminState.busy
+                isLoading:       adminState.load
+                errorMessage:    adminState.err
+                feedbackMessage: adminState.ok
+                selectedRowId:   adminState.selectedRowId
 
                 onCreateRequested:  dialogHostLoader.invoke("openDepartmentCreate")
-                onRowSelected:      function(id) { state.selectedRowId = id }
+                onRowSelected:      function(id) { adminState.selectedRowId = id }
                 onRowActivated:     function(id) { root.openEntityDetail("departments", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
-            // ── Employees ─────────────────────────────────────────
+            // -- Employees -----------------------------------------
             Components.AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         state.activeSection === "employees" && !state.detailOpen
+                visible:         adminState.activeSection === "employees" && !adminState.detailOpen
                 sectionTitle:    "Employees"
                 entityLabel:     "Employee"
                 catalog:         root.employeeCatalog
                 catalogModel:    root.employeesTableModel
-                columns:         state.employeeColumns
-                isBusy:          state.busy
-                isLoading:       state.load
-                errorMessage:    state.err
-                feedbackMessage: state.ok
-                selectedRowId:   state.selectedRowId
+                columns:         adminState.employeeColumns
+                isBusy:          adminState.busy
+                isLoading:       adminState.load
+                errorMessage:    adminState.err
+                feedbackMessage: adminState.ok
+                selectedRowId:   adminState.selectedRowId
 
                 onCreateRequested:  dialogHostLoader.invoke("openEmployeeCreate")
-                onRowSelected:      function(id) { state.selectedRowId = id }
+                onRowSelected:      function(id) { adminState.selectedRowId = id }
                 onRowActivated:     function(id) { root.openEntityDetail("employees", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
-            // ── Users ─────────────────────────────────────────────
+            // -- Users ---------------------------------------------
             Components.AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         state.activeSection === "users" && !state.detailOpen
+                visible:         adminState.activeSection === "users" && !adminState.detailOpen
                 sectionTitle:    "Users"
                 entityLabel:     "User"
                 catalog:         root.userCatalog
                 catalogModel:    root.usersTableModel
-                columns:         state.userColumns
-                isBusy:          state.busy
-                isLoading:       state.load
-                errorMessage:    state.err
-                feedbackMessage: state.ok
-                selectedRowId:   state.selectedRowId
+                columns:         adminState.userColumns
+                isBusy:          adminState.busy
+                isLoading:       adminState.load
+                errorMessage:    adminState.err
+                feedbackMessage: adminState.ok
+                selectedRowId:   adminState.selectedRowId
 
                 onCreateRequested:  dialogHostLoader.invoke("openUserCreate")
-                onRowSelected:      function(id) { state.selectedRowId = id }
+                onRowSelected:      function(id) { adminState.selectedRowId = id }
                 onRowActivated:     function(id) { root.openEntityDetail("users", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
-            // ── Parties ───────────────────────────────────────────
+            // -- Parties -------------------------------------------
             Components.AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         state.activeSection === "parties" && !state.detailOpen
+                visible:         adminState.activeSection === "parties" && !adminState.detailOpen
                 sectionTitle:    "Parties"
                 entityLabel:     "Party"
                 catalog:         root.partyCatalog
                 catalogModel:    root.partiesTableModel
-                columns:         state.partyColumns
-                isBusy:          state.busy
-                isLoading:       state.load
-                errorMessage:    state.err
-                feedbackMessage: state.ok
-                selectedRowId:   state.selectedRowId
+                columns:         adminState.partyColumns
+                isBusy:          adminState.busy
+                isLoading:       adminState.load
+                errorMessage:    adminState.err
+                feedbackMessage: adminState.ok
+                selectedRowId:   adminState.selectedRowId
 
                 onCreateRequested:  dialogHostLoader.invoke("openPartyCreate")
-                onRowSelected:      function(id) { state.selectedRowId = id }
+                onRowSelected:      function(id) { adminState.selectedRowId = id }
                 onRowActivated:     function(id) { root.openEntityDetail("parties", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
-            // ── Documents ─────────────────────────────────────────
+            // -- Documents -----------------------------------------
             Components.AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         state.activeSection === "documents" && !state.detailOpen
+                visible:         adminState.activeSection === "documents" && !adminState.detailOpen
                 sectionTitle:    "Documents"
                 entityLabel:     "Document"
                 catalog:         root.documentCatalog
                 catalogModel:    root.documentsTableModel
-                columns:         state.documentColumns
-                isBusy:          state.busy
-                isLoading:       state.load
-                errorMessage:    state.err
-                feedbackMessage: state.ok
-                selectedRowId:   state.selectedRowId
+                columns:         adminState.documentColumns
+                isBusy:          adminState.busy
+                isLoading:       adminState.load
+                errorMessage:    adminState.err
+                feedbackMessage: adminState.ok
+                selectedRowId:   adminState.selectedRowId
 
                 onCreateRequested:  dialogHostLoader.invoke("openDocumentCreate")
                 onRowSelected:      function(id) {
-                    state.selectedRowId = id
+                    adminState.selectedRowId = id
                     root.inspectDocument(id)
                 }
                 onRowActivated:     function(id) { root.openEntityDetail("documents", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
-            // ── Document Structures ───────────────────────────────
+            // -- Document Structures -------------------------------
             Components.AdminEntityWorkspace {
                 anchors.fill:    parent
-                visible:         state.activeSection === "structures" && !state.detailOpen
+                visible:         adminState.activeSection === "structures" && !adminState.detailOpen
                 sectionTitle:    "Document Structures"
                 entityLabel:     "Structure"
                 catalog:         root.documentStructureCatalog
                 catalogModel:    root.documentStructuresTableModel
-                columns:         state.structureColumns
-                isBusy:          state.busy
-                isLoading:       state.load
-                errorMessage:    state.err
-                feedbackMessage: state.ok
-                selectedRowId:   state.selectedRowId
+                columns:         adminState.structureColumns
+                isBusy:          adminState.busy
+                isLoading:       adminState.load
+                errorMessage:    adminState.err
+                feedbackMessage: adminState.ok
+                selectedRowId:   adminState.selectedRowId
 
                 onCreateRequested:  dialogHostLoader.invoke("openDocumentStructureCreate")
-                onRowSelected:      function(id) { state.selectedRowId = id }
+                onRowSelected:      function(id) { adminState.selectedRowId = id }
                 onRowActivated:     function(id) { root.openEntityDetail("structures", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
@@ -549,7 +554,7 @@ AppLayouts.WorkspaceFrame {
             Loader {
                 id: siteDetailLoader
                 anchors.fill: parent
-                active: state.activeSection === "sites" && state.detailOpen
+                active: adminState.activeSection === "sites" && adminState.detailOpen
                 visible: active
                 asynchronous: true
 
@@ -558,10 +563,10 @@ AppLayouts.WorkspaceFrame {
                         platformCatalog: root.platformCatalog
                         site: root._detailItem || ({})
                         departmentCatalog: root.departmentCatalog
-                        departmentColumns: state.deptColumns
-                        busy: state.busy
-                        errorMessage: state.err
-                        feedbackMessage: state.ok
+                        departmentColumns: adminState.deptColumns
+                        busy: adminState.busy
+                        errorMessage: adminState.err
+                        feedbackMessage: adminState.ok
                         onBackRequested: root.closeEntityDetail()
                         onActionRequested: function(actionId) {
                             root.handleEntityDetailAction("sites", actionId)
@@ -576,7 +581,7 @@ AppLayouts.WorkspaceFrame {
             Loader {
                 id: departmentDetailLoader
                 anchors.fill: parent
-                active: state.activeSection === "departments" && state.detailOpen
+                active: adminState.activeSection === "departments" && adminState.detailOpen
                 visible: active
                 asynchronous: true
 
@@ -585,10 +590,10 @@ AppLayouts.WorkspaceFrame {
                         platformCatalog: root.platformCatalog
                         department: root._detailItem || ({})
                         employeeCatalog: root.employeeCatalog
-                        employeeColumns: state.employeeColumns
-                        busy: state.busy
-                        errorMessage: state.err
-                        feedbackMessage: state.ok
+                        employeeColumns: adminState.employeeColumns
+                        busy: adminState.busy
+                        errorMessage: adminState.err
+                        feedbackMessage: adminState.ok
                         onBackRequested: root.closeEntityDetail()
                         onActionRequested: function(actionId) {
                             root.handleEntityDetailAction("departments", actionId)
@@ -603,7 +608,7 @@ AppLayouts.WorkspaceFrame {
             Loader {
                 id: employeeDetailLoader
                 anchors.fill: parent
-                active: state.activeSection === "employees" && state.detailOpen
+                active: adminState.activeSection === "employees" && adminState.detailOpen
                 visible: active
                 asynchronous: true
 
@@ -611,9 +616,9 @@ AppLayouts.WorkspaceFrame {
                     Detail.AdminEmployeeDetailPage {
                         employee: root._detailItem || ({})
                         pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
-                        busy: state.busy
-                        errorMessage: state.err
-                        feedbackMessage: state.ok
+                        busy: adminState.busy
+                        errorMessage: adminState.err
+                        feedbackMessage: adminState.ok
                         onBackRequested: root.closeEntityDetail()
                         onActionRequested: function(actionId) {
                             root.handleEntityDetailAction("employees", actionId)
@@ -625,7 +630,7 @@ AppLayouts.WorkspaceFrame {
             Loader {
                 id: userDetailLoader
                 anchors.fill: parent
-                active: state.activeSection === "users" && state.detailOpen
+                active: adminState.activeSection === "users" && adminState.detailOpen
                 visible: active
                 asynchronous: true
 
@@ -633,10 +638,10 @@ AppLayouts.WorkspaceFrame {
                     Detail.AdminUserDetailPage {
                         user: root._detailItem || ({})
                         moduleEntitlementCatalog: root.moduleEntitlementCatalog
-                        moduleEntitlementColumns: state.moduleColumns
-                        busy: state.busy
-                        errorMessage: state.err
-                        feedbackMessage: state.ok
+                        moduleEntitlementColumns: adminState.moduleColumns
+                        busy: adminState.busy
+                        errorMessage: adminState.err
+                        feedbackMessage: adminState.ok
                         onBackRequested: root.closeEntityDetail()
                         onActionRequested: function(actionId) {
                             root.handleEntityDetailAction("users", actionId)
@@ -648,7 +653,7 @@ AppLayouts.WorkspaceFrame {
             Loader {
                 id: partyDetailLoader
                 anchors.fill: parent
-                active: state.activeSection === "parties" && state.detailOpen
+                active: adminState.activeSection === "parties" && adminState.detailOpen
                 visible: active
                 asynchronous: true
 
@@ -657,9 +662,9 @@ AppLayouts.WorkspaceFrame {
                         party: root._detailItem || ({})
                         inventoryEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("inventory_procurement") : false
                         pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
-                        busy: state.busy
-                        errorMessage: state.err
-                        feedbackMessage: state.ok
+                        busy: adminState.busy
+                        errorMessage: adminState.err
+                        feedbackMessage: adminState.ok
                         onBackRequested: root.closeEntityDetail()
                         onActionRequested: function(actionId) {
                             root.handleEntityDetailAction("parties", actionId)
@@ -671,7 +676,7 @@ AppLayouts.WorkspaceFrame {
             Loader {
                 id: documentDetailLoader
                 anchors.fill: parent
-                active: state.activeSection === "documents" && state.detailOpen
+                active: adminState.activeSection === "documents" && adminState.detailOpen
                 visible: active
                 asynchronous: true
 
@@ -682,9 +687,9 @@ AppLayouts.WorkspaceFrame {
                         documentPreviewState: root.documentPreviewState
                         documentLinkCatalog: root.documentLinkCatalog
                         workspaceController: root.workspaceController
-                        busy: state.busy
-                        errorMessage: state.err
-                        feedbackMessage: state.ok
+                        busy: adminState.busy
+                        errorMessage: adminState.err
+                        feedbackMessage: adminState.ok
                         onBackRequested: root.closeEntityDetail()
                         onActionRequested: function(actionId) {
                             root.handleEntityDetailAction("documents", actionId)
@@ -697,16 +702,16 @@ AppLayouts.WorkspaceFrame {
             Loader {
                 id: structureDetailLoader
                 anchors.fill: parent
-                active: state.activeSection === "structures" && state.detailOpen
+                active: adminState.activeSection === "structures" && adminState.detailOpen
                 visible: active
                 asynchronous: true
 
                 sourceComponent: Component {
                     Detail.AdminDocumentStructureDetailPage {
                         structure: root._detailItem || ({})
-                        busy: state.busy
-                        errorMessage: state.err
-                        feedbackMessage: state.ok
+                        busy: adminState.busy
+                        errorMessage: adminState.err
+                        feedbackMessage: adminState.ok
                         onBackRequested: root.closeEntityDetail()
                         onActionRequested: function(actionId) {
                             root.handleEntityDetailAction("structures", actionId)
@@ -715,70 +720,70 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
-            // ── Roles & Access ────────────────────────────────────
+            // -- Roles & Access ------------------------------------
             Item {
                 anchors.fill: parent
-                visible:      state.activeSection === "access"
+                visible:      adminState.activeSection === "access"
 
                 PlatformWidgets.AccessSecurityPanel {
                     anchors.fill: parent
-                    visible:      !state.accessDetailOpen
+                    visible:      !adminState.accessDetailOpen
                     controller:   root.accessController
                     onGrantActivated: function(grantId) {
-                        state.accessGrantId = grantId
-                        state.accessDetailOpen = true
+                        adminState.accessGrantId = grantId
+                        adminState.accessDetailOpen = true
                     }
                 }
 
                 Loader {
                     anchors.fill: parent
-                    active:       state.activeSection === "access" && state.accessDetailOpen
+                    active:       adminState.activeSection === "access" && adminState.accessDetailOpen
                     visible:      active && status === Loader.Ready
                     asynchronous: true
                     sourceComponent: Component {
                         Detail.AdminAccessDetailPage {
                             controller:      root.accessController
-                            grantId:         state.accessGrantId
+                            grantId:         adminState.accessGrantId
                             busy:            root.accessController ? root.accessController.isBusy : false
                             errorMessage:    root.accessController ? root.accessController.errorMessage : ""
                             feedbackMessage: root.accessController ? root.accessController.feedbackMessage : ""
-                            onBackRequested: state.accessDetailOpen = false
+                            onBackRequested: adminState.accessDetailOpen = false
                         }
                     }
                 }
             }
 
-            // ── Support ───────────────────────────────────────────
+            // -- Support -------------------------------------------
             Sections.AdminSupportSection {
                 anchors.fill:      parent
-                visible:           state.activeSection === "support"
+                visible:           adminState.activeSection === "support"
                 supportController: root.supportController
             }
 
-            // ── Audit / Overview ──────────────────────────────────
+            // -- Audit / Overview ----------------------------------
             Sections.AdminAuditSection {
                 anchors.fill:        parent
-                visible:             state.activeSection === "audit"
+                visible:             adminState.activeSection === "audit"
                 workspaceController: root.workspaceController
             }
         }
 
 
-        // ── Right detail panel ────────────────────────────────────
+        // -- Right detail panel ------------------------------------
         Panels.AdminEntityDetailPanel {
             id: _detailPanel
             Layout.fillHeight:     true
             Layout.preferredWidth: 288
             visible:               false
-            activeSection:   state.activeSection
+            activeSection:   adminState.activeSection
             detailItem:      root._detailItem
-            selectedRowId:   state.selectedRowId
+            selectedRowId:   adminState.selectedRowId
             selectedDocument:      root.selectedDocument
             documentPreviewState:  root.documentPreviewState
             documentLinkCatalog:   root.documentLinkCatalog
             workspaceController:   root.workspaceController
-            busy:            state.busy
-            onCloseRequested:                state.selectedRowId = ""
+            busy:            adminState.busy
+            onCloseRequested:                adminState.selectedRowId = ""
             onEditRequested: function(sectionId, itemId) {
                 if      (sectionId === "organizations") root.openOrganizationEdit(itemId)
                 else if (sectionId === "calendars")     root.openCalendarEdit(itemId)
@@ -807,7 +812,7 @@ AppLayouts.WorkspaceFrame {
 
     }
 
-    // ── Dialog host ───────────────────────────────────────────────
+    // -- Dialog host -----------------------------------------------
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {

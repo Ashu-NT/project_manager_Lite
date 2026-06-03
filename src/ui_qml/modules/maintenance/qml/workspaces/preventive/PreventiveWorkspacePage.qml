@@ -6,6 +6,7 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
+import "dialogs" as Dialogs
 import "sections" as Sections
 
 AppLayouts.WorkspaceFrame {
