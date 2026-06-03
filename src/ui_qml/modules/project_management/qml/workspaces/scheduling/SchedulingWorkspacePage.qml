@@ -309,7 +309,7 @@ AppLayouts.WorkspaceFrame {
                             activityColumns:     state.activityColumns
                             activityTableId:     state.activityTableId
                             timelineModel:       root.timelineModel
-                            onActivityColumnsChanged:  function(cols)       { state.activityColumns = cols }
+                            onActivityColumnsStateChanged: function(cols)   { state.activityColumns = cols }
                             onActivityDetailRequested: function(activityId) { state.openActivityDetail(activityId) }
                         }
 

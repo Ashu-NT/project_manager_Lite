@@ -15,7 +15,7 @@ Item {
     property string activityTableId: "pm.scheduling.activity.table"
     property var timelineModel: ({ "title": "", "subtitle": "", "items": [], "emptyState": "" })
 
-    signal activityColumnsChanged(var cols)
+    signal activityColumnsStateChanged(var cols)
     signal activityDetailRequested(string activityId)
 
     function _buildColumnState(columns) {
@@ -94,7 +94,7 @@ Item {
                         onColumnsStateChanged: function(cols) {
                             if (root.workspaceController)
                                 root.workspaceController.saveTableColumnState(root.activityTableId, root._buildColumnState(cols))
-                            root.activityColumnsChanged(cols)
+                            root.activityColumnsStateChanged(cols)
                         }
                         onRowSelected: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.selectActivity(rowId)

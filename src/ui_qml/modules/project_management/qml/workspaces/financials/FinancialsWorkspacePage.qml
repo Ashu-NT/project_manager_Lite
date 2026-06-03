@@ -174,7 +174,7 @@ AppLayouts.WorkspaceFrame {
                 tableId: root._tableId
                 bulkChangeProperties: root._bulkChangeProperties
                 onRowActivated: function(rowId) { root._openDetail(0) }
-                onColumnsChanged: function(cols) {
+                onColumnsStateChanged: function(cols) {
                     if (root.workspaceController) root.workspaceController.saveTableColumnState(root._tableId, root._buildColumnState(cols))
                     root._columns = cols
                 }

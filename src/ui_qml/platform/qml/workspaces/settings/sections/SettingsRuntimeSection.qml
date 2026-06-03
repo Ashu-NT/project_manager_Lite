@@ -77,7 +77,13 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true; Layout.preferredHeight: 38
                     color: "transparent"
-                    Rectangle { anchors { bottom: parent.bottom; left: parent.left; right: parent.right }; height: 1; color: Theme.AppTheme.divider }
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        height: 1
+                        color: Theme.AppTheme.divider
+                    }
                     RowLayout {
                         anchors.fill: parent; anchors.leftMargin: Theme.AppTheme.marginMd; anchors.rightMargin: Theme.AppTheme.marginMd; spacing: Theme.AppTheme.spacingMd
                         AppControls.Label { Layout.preferredWidth: 120; text: "Theme Mode"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize; font.bold: true }
@@ -88,7 +94,13 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true; Layout.preferredHeight: 38
                     color: Theme.AppTheme.surfaceOverlay
-                    Rectangle { anchors { bottom: parent.bottom; left: parent.left; right: parent.right }; height: 1; color: Theme.AppTheme.divider }
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        height: 1
+                        color: Theme.AppTheme.divider
+                    }
                     RowLayout {
                         anchors.fill: parent; anchors.leftMargin: Theme.AppTheme.marginMd; anchors.rightMargin: Theme.AppTheme.marginMd; spacing: Theme.AppTheme.spacingMd
                         AppControls.Label { Layout.preferredWidth: 120; text: "Platform API"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize; font.bold: true }
@@ -99,7 +111,13 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true; Layout.preferredHeight: 38
                     color: "transparent"
-                    Rectangle { anchors { bottom: parent.bottom; left: parent.left; right: parent.right }; height: 1; color: Theme.AppTheme.divider }
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        height: 1
+                        color: Theme.AppTheme.divider
+                    }
                     RowLayout {
                         anchors.fill: parent; anchors.leftMargin: Theme.AppTheme.marginMd; anchors.rightMargin: Theme.AppTheme.marginMd; spacing: Theme.AppTheme.spacingMd
                         AppControls.Label { Layout.preferredWidth: 120; text: "Summary"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize; font.bold: true }

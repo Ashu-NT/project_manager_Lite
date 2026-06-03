@@ -17,7 +17,7 @@ Item {
     property var bulkChangeProperties: []
 
     signal rowActivated(string rowId)
-    signal columnsChanged(var cols)
+    signal columnsStateChanged(var cols)
     signal createRequested()
 
     function _optionIndex(options, value) {
@@ -107,7 +107,7 @@ Item {
                 emptyText: root.costsModel.emptyState || "No cost items available."
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedCostId : ""
                 selectedRowIds: root.workspaceController ? (root.workspaceController.selectedCostIds || []) : []
-                onColumnsStateChanged: function(cols) { root.columnsChanged(cols) }
+                onColumnsStateChanged: function(cols) { root.columnsStateChanged(cols) }
                 onRowSelected: function(rowId) { if (root.workspaceController !== null) root.workspaceController.selectCost(rowId) }
                 onRowActivated: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectCost(rowId)

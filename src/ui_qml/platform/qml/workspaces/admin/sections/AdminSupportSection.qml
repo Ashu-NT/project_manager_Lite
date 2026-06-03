@@ -71,7 +71,13 @@ ColumnLayout {
         Layout.fillWidth: true; Layout.preferredHeight: Theme.AppTheme.toolbarHeight - 6
         color: Theme.AppTheme.surfaceRaised; z: 1
 
-        Rectangle { anchors { bottom: parent.bottom; left: parent.left; right: parent.right }; height: 1; color: Theme.AppTheme.divider }
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 1
+            color: Theme.AppTheme.divider
+        }
         AppControls.Label {
             anchors.left: parent.left; anchors.leftMargin: Theme.AppTheme.marginMd; anchors.verticalCenter: parent.verticalCenter
             text: "Support"; color: Theme.AppTheme.textPrimary
@@ -196,7 +202,15 @@ ColumnLayout {
                     required property string modelData
                     width: parent.width; height: 34; radius: Theme.AppTheme.radiusMd
                     color: _svMA.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
-                    AppControls.Label { anchors { left: parent.left; leftMargin: Theme.AppTheme.spacingMd; verticalCenter: parent.verticalCenter }; text: modelData; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize }
+                    AppControls.Label {
+                        anchors.left: parent.left
+                        anchors.leftMargin: Theme.AppTheme.spacingMd
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: modelData
+                        color: Theme.AppTheme.textPrimary
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.smallSize
+                    }
                     MouseArea { id: _svMA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: supportViewsPopup.close() }
                 }
             }
