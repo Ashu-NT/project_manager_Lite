@@ -238,6 +238,7 @@ class EnterpriseCalendarService:
     def _migrate_legacy_calendar(self, enterprise_cal_id: str, working_calendar_repo) -> None:
         """
         Migrate legacy working_calendars + holidays into enterprise tables.
+        Falls back to Mon-Fri 08:00-17:00 defaults when no legacy data exists.
         Safe to call multiple times — skips if working rules already exist.
         """
         from src.core.platform.calendar.domain.enterprise_calendar import (
@@ -248,19 +249,18 @@ class EnterpriseCalendarService:
         )
         from datetime import time
 
+        # Load legacy calendar (may be None for fresh installs)
         try:
-            legacy_cal = working_calendar_repo.get_default()
-            if legacy_cal is None:
-                return
+            legacy_cal = working_calendar_repo.get_default() if working_calendar_repo else None
         except Exception:
-            return
+            legacy_cal = None
 
-        # Migrate working rules (Mon–Sun based on legacy working_days set)
+        # Migrate working rules — use legacy data if available, otherwise default Mon-Fri
         try:
             existing_rules = self._rule_repo.list_for_calendar(enterprise_cal_id)
             if not existing_rules:
-                working_days = legacy_cal.working_days or {0, 1, 2, 3, 4}
-                hours = float(legacy_cal.hours_per_day or 8.0)
+                working_days = (legacy_cal.working_days if legacy_cal else None) or {0, 1, 2, 3, 4}
+                hours = float((legacy_cal.hours_per_day if legacy_cal else None) or 8.0)
                 end_hour = 8 + int(hours)
                 end_minute = int((hours % 1) * 60)
                 for weekday in range(7):
@@ -278,8 +278,10 @@ class EnterpriseCalendarService:
         except Exception:
             pass
 
-        # Migrate holidays into calendar_exceptions
+        # Migrate holidays into calendar_exceptions (only when legacy data exists)
         try:
+            if legacy_cal is None or working_calendar_repo is None:
+                return
             existing_exceptions = self._exception_repo.list_for_calendar(enterprise_cal_id)
             existing_dates = {e.exception_date for e in existing_exceptions}
             holidays = working_calendar_repo.list_holidays(legacy_cal.id)
