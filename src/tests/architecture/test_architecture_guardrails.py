@@ -368,7 +368,21 @@ def test_orm_package_root_loads_all_model_packages():
     assert "from src.infra.persistence.orm.base import Base" in package_text
     assert "import src.core.modules.maintenance.infrastructure.persistence.orm.models" in package_text
     assert "import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models" in package_text
-    platform_orm_modules = ("org", "documents", "party", "modules", "time", "auth", "access", "audit", "approval", "runtime_tracking")
+    platform_orm_modules = (
+        "org",
+        "employee",
+        "sites",
+        "departments",
+        "documents",
+        "party",
+        "modules",
+        "time",
+        "auth",
+        "access",
+        "audit",
+        "approval",
+        "runtime_tracking",
+    )
     for module in platform_orm_modules:
         assert f"import src.core.platform.infrastructure.persistence.orm.{module}" in package_text
     for module in ("project", "resource", "task", "cost_calendar", "baseline", "register", "collaboration", "portfolio"):

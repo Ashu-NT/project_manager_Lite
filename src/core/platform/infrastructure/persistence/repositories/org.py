@@ -12,7 +12,10 @@ from src.core.platform.org.contracts import (
     SiteRepository,
 )
 from src.core.platform.org.domain import Department, Employee, Organization, Site
-from src.core.platform.infrastructure.persistence.orm.org import DepartmentORM, EmployeeORM, OrganizationORM, SiteORM
+from src.core.platform.infrastructure.persistence.orm.departments import DepartmentORM
+from src.core.platform.infrastructure.persistence.orm.employee import EmployeeORM
+from src.core.platform.infrastructure.persistence.orm.org import OrganizationORM
+from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
 from src.infra.persistence.db.optimistic import update_with_version_check
 from src.core.platform.infrastructure.persistence.mappers.org import (
     department_from_orm,

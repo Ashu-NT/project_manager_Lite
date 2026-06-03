@@ -4,6 +4,9 @@ from src.infra.persistence.orm.base import Base
 import src.core.modules.maintenance.infrastructure.persistence.orm.models  # noqa: F401
 import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.org  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.employee  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.sites  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.departments  # noqa: F401
 # src.core.platform.infrastructure.persistence.orm.calendar removed after Alembic migration
 # working_calendars and holidays tables are dropped by migration o8p9q0r1s2t3
 import src.core.platform.infrastructure.persistence.orm.enterprise_calendar  # noqa: F401

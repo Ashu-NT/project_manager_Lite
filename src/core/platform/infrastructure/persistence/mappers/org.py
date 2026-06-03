@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from src.core.platform.org.domain import Department, Employee, Organization, Site
-from src.core.platform.infrastructure.persistence.orm.org import DepartmentORM, EmployeeORM, OrganizationORM, SiteORM
+from src.core.platform.infrastructure.persistence.orm.departments import DepartmentORM
+from src.core.platform.infrastructure.persistence.orm.employee import EmployeeORM
+from src.core.platform.infrastructure.persistence.orm.org import OrganizationORM
+from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
 
 
 def employee_to_orm(employee: Employee) -> EmployeeORM:
