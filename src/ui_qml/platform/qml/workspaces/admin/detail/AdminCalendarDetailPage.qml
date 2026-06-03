@@ -20,6 +20,8 @@ Item {
     property string selectedRuleId: ""
     property string selectedExceptionId: ""
     property string selectedRecurringEventId: ""
+    property string calculationStartDate: ""
+    property string calculationWorkingDays: ""
     property string calculationResult: ""
     property var workingRules: []
     property var enterpriseExceptions: []
@@ -173,8 +175,8 @@ Item {
         if (root.workspaceController === null)
             return
         const result = root.workspaceController.calculateCalendarWorkingDays({
-            "startDate": calcStartField.text,
-            "workingDays": calcDaysField.text
+            "startDate": root.calculationStartDate,
+            "workingDays": root.calculationWorkingDays
         })
         if (result && result.ok === true) {
             root.calculationResult = String(result.message || "")
@@ -581,6 +583,11 @@ Item {
                                                     id: calcStartField
                                                     Layout.fillWidth: true
                                                     placeholderText: "YYYY-MM-DD"
+                                                    text: root.calculationStartDate
+                                                    onTextChanged: {
+                                                        if (root.calculationStartDate !== text)
+                                                            root.calculationStartDate = text
+                                                    }
                                                 }
                                             }
 
@@ -592,6 +599,11 @@ Item {
                                                     id: calcDaysField
                                                     Layout.fillWidth: true
                                                     placeholderText: "e.g. 5"
+                                                    text: root.calculationWorkingDays
+                                                    onTextChanged: {
+                                                        if (root.calculationWorkingDays !== text)
+                                                            root.calculationWorkingDays = text
+                                                    }
                                                 }
                                             }
                                         }

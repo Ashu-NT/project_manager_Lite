@@ -36,23 +36,34 @@ AppWidgets.EntityDialog {
         "FREQ=MONTHLY;BYDAY=1MO"
     ]
 
+    function _trimmed(value) {
+        return String(value === undefined || value === null ? "" : value).trim()
+    }
+
+    function _comboText(combo) {
+        if (!combo)
+            return ""
+        return root._trimmed(combo.editable ? (combo.editText || combo.currentText) : combo.currentText)
+    }
+
     readonly property var _formData: ({
         calendarId: root.calendarId,
-        title: titleField.text.trim(),
+        title: root._trimmed(titleField.text),
         eventType: eventTypeCombo.currentText || "MEETING",
-        recurrenceRule: rruleField.text.trim(),
-        startTime: startTimeField.text.trim(),
-        endTime: endTimeField.text.trim(),
+        recurrenceRule: root._comboText(rruleField),
+        startTime: root._trimmed(startTimeField.text),
+        endTime: root._trimmed(endTimeField.text),
         impactType: impactCombo.currentText || "UNAVAILABLE",
-        effectiveFrom: effectiveFromField.text.trim(),
-        effectiveTo: effectiveToField.text.trim()
+        effectiveFrom: root._trimmed(effectiveFromField.text),
+        effectiveTo: root._trimmed(effectiveToField.text)
     })
 
     function openForCreate(calId) {
         root.calendarId = calId || ""
         titleField.text = ""
         eventTypeCombo.currentIndex = 0
-        rruleField.text = "FREQ=WEEKLY;BYDAY=MO"
+        rruleField.currentIndex = 0
+        rruleField.editText = "FREQ=WEEKLY;BYDAY=MO"
         startTimeField.text = "09:00"
         endTimeField.text = "10:00"
         impactCombo.currentIndex = 0
@@ -62,15 +73,15 @@ AppWidgets.EntityDialog {
     }
 
     function submitDialog() {
-        if (titleField.text.trim().length === 0) {
+        if (root._trimmed(titleField.text).length === 0) {
             root.errorMessage = "Title is required."
             return
         }
-        if (rruleField.text.trim().length === 0) {
+        if (root._comboText(rruleField).length === 0) {
             root.errorMessage = "Recurrence rule is required."
             return
         }
-        if (effectiveFromField.text.trim().length === 0) {
+        if (root._trimmed(effectiveFromField.text).length === 0) {
             root.errorMessage = "Effective from date is required (YYYY-MM-DD)."
             return
         }

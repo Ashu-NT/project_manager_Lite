@@ -19,7 +19,7 @@ Item {
     signal removeAssignmentRequested(string assignmentId)
     signal openCalendarManagementRequested()
 
-    readonly property bool _hasCalendar: root.assignedCalendar && root.assignedCalendar.calendarId && root.assignedCalendar.calendarId.length > 0
+    readonly property bool _hasCalendar: String(root.assignedCalendar && root.assignedCalendar.calendarId ? root.assignedCalendar.calendarId : "").length > 0
     readonly property string _calendarName: String(root.assignedCalendar && root.assignedCalendar.calendarName ? root.assignedCalendar.calendarName : "")
     readonly property string _calendarType: String(root.assignedCalendar && root.assignedCalendar.calendarType ? root.assignedCalendar.calendarType : "")
     readonly property string _effectiveFrom: String(root.assignedCalendar && root.assignedCalendar.effectiveFrom ? root.assignedCalendar.effectiveFrom : "")
