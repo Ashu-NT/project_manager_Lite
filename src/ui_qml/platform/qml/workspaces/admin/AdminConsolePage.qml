@@ -145,7 +145,13 @@ AppLayouts.WorkspaceFrame {
 
     function openCalendarEdit(itemId) {
         const item = adminState.catalogItemById(root.calendarCatalog, itemId)
-        if (item !== null) dialogHostLoader.invoke("openWorkingCalendarEdit", item.state || {})
+        if (item !== null) {
+            const state = item.state || {}
+            if (state.isEnterpriseCalendar === true)
+                dialogHostLoader.invoke("openCalendarEdit", state)
+            else
+                dialogHostLoader.invoke("openWorkingCalendarEdit", state)
+        }
     }
 
     function openEntityDetail(sectionId, itemId) {
@@ -460,7 +466,7 @@ AppLayouts.WorkspaceFrame {
                 anchors.fill:    parent
                 visible:         adminState.activeSection === "calendars" && !adminState.detailOpen
                 sectionTitle:    "Calendars"
-                entityLabel:     ""
+                entityLabel:     "Calendar"
                 catalog:         root.calendarCatalog
                 catalogModel:    root.calendarsTableModel
                 columns:         adminState.calendarColumns
@@ -470,6 +476,7 @@ AppLayouts.WorkspaceFrame {
                 feedbackMessage: adminState.ok
                 selectedRowId:   adminState.selectedRowId
 
+                onCreateRequested:  dialogHostLoader.invoke("openCalendarCreate")
                 onRowSelected:      function(id) { adminState.selectedRowId = id }
                 onRowActivated:     function(id) { root.openEntityDetail("calendars", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
