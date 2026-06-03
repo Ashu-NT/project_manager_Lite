@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from collections.abc import Mapping
 from dataclasses import dataclass
 
@@ -9,7 +11,6 @@ from src.api.desktop.platform import (
     PlatformAccessDesktopApi,
     PlatformApprovalDesktopApi,
     PlatformAuditDesktopApi,
-    PlatformCalendarDesktopApi,
     PlatformSupportDesktopApi,
 )
 from src.api.desktop.platform.enterprise_calendar import EnterpriseCalendarDesktopApi
@@ -146,7 +147,7 @@ from src.core.modules.project_management.application.resources.assignment_valida
     AssignmentSkillValidator,
 )
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.platform.calendar import WorkCalendarEngine, WorkCalendarService
+from src.core.platform.calendar.application.work_calendar_service import WorkCalendarService
 from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
 from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
 from src.core.platform.calendar.application.calendar_exception_service import CalendarExceptionService
@@ -169,7 +170,7 @@ from src.core.platform.party import PartyService
 class DesktopApiRegistry:
     integration_capability: IntegrationCapabilityDesktopApi
     platform_runtime: PlatformRuntimeDesktopApi
-    platform_calendar: PlatformCalendarDesktopApi | None
+    platform_calendar: None  # removed — use platform_enterprise_calendar instead
     platform_enterprise_calendar: EnterpriseCalendarDesktopApi | None
     platform_site: PlatformSiteDesktopApi
     platform_department: PlatformDepartmentDesktopApi
@@ -490,15 +491,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         else None
     )
     platform_site_api = PlatformSiteDesktopApi(site_service=site_service)
-    # Legacy PlatformCalendarDesktopApi kept for backward compat while old UI is being removed.
-    # When pm_work_calendar_service/engine are None (enterprise-only mode) we build a stub.
-    if pm_work_calendar_service is not None and pm_work_calendar_engine is not None:
-        platform_calendar_api = PlatformCalendarDesktopApi(
-            work_calendar_service=pm_work_calendar_service,
-            work_calendar_engine=pm_work_calendar_engine,
-        )
-    else:
-        platform_calendar_api = None
+    platform_calendar_api = None  # PlatformCalendarDesktopApi removed; use EnterpriseCalendarDesktopApi
     access_scope_type_choices: list[tuple[str, str]] = []
     access_scope_option_loaders: dict[str, object] = {}
     access_scope_disabled_hints: dict[str, str] = {}

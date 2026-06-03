@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from datetime import date
 from typing import Callable, Dict, List, Optional
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
-)
 
 
 ForwardComputeFn = Callable[
@@ -88,7 +87,7 @@ def run_backward_pass(
     es: Dict[str, Optional[date]],
     ef: Dict[str, Optional[date]],
     project_early_finish: date,
-    calendar: WorkCalendarEngine,
+    calendar: CalendarProtocol,
 ) -> tuple[Dict[str, Optional[date]], Dict[str, Optional[date]]]:
     ls: Dict[str, Optional[date]] = {task_id: None for task_id in tasks_by_id}
     lf: Dict[str, Optional[date]] = {task_id: None for task_id in tasks_by_id}

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
@@ -7,9 +9,6 @@ from typing import Dict, List, Optional
 
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.application.scheduling.models import CPMTaskInfo
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
-)
 
 
 class ConstraintType(str, Enum):
@@ -76,7 +75,7 @@ class ConstraintValidator:
     into the DB model and migration.  This validator works with or without them.
     """
 
-    def __init__(self, calendar: WorkCalendarEngine) -> None:
+    def __init__(self, calendar: CalendarProtocol) -> None:
         self._calendar = calendar
 
     def validate(

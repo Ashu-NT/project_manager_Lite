@@ -79,8 +79,9 @@ from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
     CPMTaskInfo,
     CalendarService,
+    CalendarProtocol,
+    GlobalCalendarShim,
     SchedulingEngine,
-    WorkCalendarEngine,
     WorkCalendarService,
 )
 from src.core.modules.project_management.infrastructure.reporting import ReportingService

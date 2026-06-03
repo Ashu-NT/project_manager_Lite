@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 import logging
 from datetime import date
 
@@ -21,7 +23,7 @@ from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.modules.project_management.domain.enums import TaskStatus
-from src.core.modules.project_management.application.scheduling import WorkCalendarEngine
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol  # replaces WorkCalendarEngine
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +35,7 @@ class TaskLifecycleMixin:
     _assignment_repo: AssignmentRepository
     _calendar_repo: CalendarEventRepository
     _cost_repo: CostRepository
-    _work_calendar_engine: WorkCalendarEngine
+    _work_calendar_engine: CalendarProtocol
 
     def _resolve_task_code(
         self, code: str, project_id: str, name: str, *, exclude_id: str | None = None

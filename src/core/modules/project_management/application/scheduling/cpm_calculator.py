@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from dataclasses import dataclass
 from datetime import date
 from typing import Dict, List, Optional
@@ -18,9 +20,6 @@ from src.core.modules.project_management.application.scheduling.passes import (
 )
 from src.core.modules.project_management.application.scheduling.results import (
     build_schedule_result,
-)
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
 )
 from src.core.modules.project_management.domain.enums import DependencyType
 
@@ -41,7 +40,7 @@ class CPMCalculator:
     without any DB write.  Application services decide whether to persist.
     """
 
-    def __init__(self, calendar: WorkCalendarEngine) -> None:
+    def __init__(self, calendar: CalendarProtocol) -> None:
         self._calendar = calendar
 
     def calculate(

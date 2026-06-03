@@ -1353,19 +1353,17 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     assert api.list_projects()[0].label == "Plant Upgrade"
     assert api.get_calendar_snapshot().working_days[0].label == "Mon"
 
-    calendar = api.update_calendar(
+    # update_calendar and add_holiday are now stubs — calendar editing moved to Platform Admin.
+    # They return the current snapshot / a no-op response without mutating state.
+    calendar_stub = api.update_calendar(
         SimpleNamespace(working_days=(0, 1, 2, 3, 4, 5), hours_per_day=10.0)
     )
+    assert calendar_stub is not None  # stub returns current snapshot, not an error
 
-    assert calendar.hours_per_day == 10.0
-    assert calendar.working_days[5].checked is True
-
-    holiday = api.add_holiday(
+    holiday_stub = api.add_holiday(
         SimpleNamespace(holiday_date=date(2026, 5, 1), name="Labor Day")
     )
-
-    assert holiday.name == "Labor Day"
-    assert len(api.get_calendar_snapshot().holidays) == 1
+    assert holiday_stub is not None  # stub returns a no-op DTO
 
     calculation = api.calculate_working_days(
         SimpleNamespace(start_date=date(2026, 5, 4), working_days=3)
@@ -1400,9 +1398,11 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     assert comparison_rows[0].task_name == "Cable Pull"
     assert comparison_rows[0].start_shift_days == 1
 
-    api.delete_holiday(holiday.id)
+    # delete_holiday is now a stub (calendar editing moved to Platform Admin)
+    api.delete_holiday(getattr(holiday_stub, "id", ""))
     api.delete_baseline(created_a.value)
 
+    # get_calendar_snapshot holidays stay empty since add_holiday is a no-op stub
     assert api.get_calendar_snapshot().holidays == ()
     assert [option.value for option in api.list_baselines(project.id)] == [created_b.value]
 

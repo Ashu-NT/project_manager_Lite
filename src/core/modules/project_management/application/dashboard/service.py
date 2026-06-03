@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
@@ -20,7 +22,6 @@ from src.core.modules.project_management.application.scheduling import (
     ResourceLevelingAction,
     ResourceLevelingResult,
     SchedulingEngine,
-    WorkCalendarEngine,
 )
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import TaskService
@@ -44,7 +45,7 @@ class DashboardService(
         resource_service: ResourceService,
         register_service: RegisterService | None,
         scheduling_engine: SchedulingEngine,
-        work_calendar_engine: WorkCalendarEngine,
+        work_calendar_engine: CalendarProtocol,
         user_session=None,
         module_catalog_service=None,
     ):
@@ -54,7 +55,7 @@ class DashboardService(
         self._resources: ResourceService = resource_service
         self._registers: RegisterService | None = register_service
         self._sched: SchedulingEngine = scheduling_engine
-        self._calendar: WorkCalendarEngine = work_calendar_engine
+        self._calendar: CalendarProtocol = work_calendar_engine
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 

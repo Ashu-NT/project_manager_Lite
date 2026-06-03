@@ -1,6 +1,8 @@
 # src/core/modules/project_management/application/scheduling/engine.py
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from datetime import date
 from typing import Dict, List, Optional
 
@@ -14,9 +16,8 @@ from src.core.modules.project_management.contracts.repositories.task import (
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
-from src.core.modules.project_management.application.scheduling.calendar_resolver import (
-    CalendarResolver,
-)
+# CalendarResolver removed — enterprise CalendarResolver handles hierarchy resolution
+CalendarResolver = None  # type: ignore[assignment]  # kept for isinstance checks
 from src.core.modules.project_management.application.scheduling.constraint_validator import (
     ConstraintType,
 )
@@ -36,9 +37,6 @@ from src.core.modules.project_management.application.scheduling.passes import (
 )
 from src.core.modules.project_management.application.scheduling.results import (
     build_schedule_result,
-)
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
 )
 from src.core.modules.project_management.application.scheduling.project_calendar_adapter import (
     BoundProjectCalendar,
@@ -61,23 +59,23 @@ class SchedulingEngine(ResourceLevelingMixin):
         session: Session,
         task_repo: TaskRepository,
         dependency_repo: DependencyRepository,
-        calendar: WorkCalendarEngine,
+        calendar: CalendarProtocol,
         assignment_repo: AssignmentRepository | None = None,
         resource_repo: ResourceRepository | None = None,
         calendar_resolver: CalendarResolver | None = None,
-        resource_calendar_map: Dict[str, WorkCalendarEngine] | None = None,
+        resource_calendar_map: dict[str, CalendarProtocol] | None = None,
         project_calendar_adapter: ProjectCalendarAdapter | None = None,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
         self._dependency_repo: DependencyRepository = dependency_repo
-        self._base_calendar: WorkCalendarEngine = calendar  # never mutated; restored after each run
-        self._calendar: WorkCalendarEngine = calendar
-        self._task_calendar: WorkCalendarEngine = calendar  # per-task override, reset each pass
+        self._base_calendar: CalendarProtocol = calendar  # never mutated; restored after each run
+        self._calendar: CalendarProtocol = calendar
+        self._task_calendar: CalendarProtocol = calendar  # per-task override, reset each pass
         self._assignment_repo: AssignmentRepository | None = assignment_repo
         self._resource_repo: ResourceRepository | None = resource_repo
         self._calendar_resolver: CalendarResolver | None = calendar_resolver
-        self._resource_calendar_map: Dict[str, WorkCalendarEngine] = resource_calendar_map or {}
+        self._resource_calendar_map: dict[str, CalendarProtocol] = resource_calendar_map or {}
         self._task_primary_resource: Dict[str, str] = {}  # task_id → resource_id, pre-loaded per run
         self._project_calendar_adapter: ProjectCalendarAdapter | None = project_calendar_adapter
 
@@ -188,7 +186,7 @@ class SchedulingEngine(ResourceLevelingMixin):
         )
         return self._apply_scheduling_constraints(task, est, eft)
 
-    def _resolve_task_calendar(self, task_id: str) -> WorkCalendarEngine:
+    def _resolve_task_calendar(self, task_id: str) -> CalendarProtocol:
         """Return the highest-priority calendar for a task's primary resource."""
         if not self._calendar_resolver or not self._resource_calendar_map:
             return self._calendar

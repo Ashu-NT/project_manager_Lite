@@ -6,13 +6,14 @@ from typing import Any
 from src.api.desktop.platform import (
     DesktopApiError,
     DesktopApiResult,
-    PlatformCalendarDesktopApi,
     WorkingCalendarHolidayCreateCommand,
     WorkingCalendarSnapshotDto,
     WorkingCalendarUpdateCommand,
     WorkingDayCalculationCommand,
     WorkingDayCalculationDto,
 )
+# PlatformCalendarDesktopApi removed — legacy API deleted
+PlatformCalendarDesktopApi = None  # type annotation shim for presenter signature
 from src.ui_qml.platform.presenters.support import int_value, preview_error_result, string_value
 from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionItemViewModel,
@@ -24,7 +25,7 @@ class PlatformCalendarCatalogPresenter:
     def __init__(
         self,
         *,
-        calendar_api: PlatformCalendarDesktopApi | None = None,
+        calendar_api=None,  # PlatformCalendarDesktopApi removed — pass None; enterprise API takes over
         enterprise_calendar_api=None,
     ) -> None:
         self._calendar_api = calendar_api

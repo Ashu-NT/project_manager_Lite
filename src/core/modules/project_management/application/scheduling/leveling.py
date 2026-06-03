@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from collections import defaultdict
 from datetime import date, timedelta
 from typing import Callable
@@ -8,9 +10,6 @@ from src.core.modules.project_management.domain.tasks.task import Task, TaskAssi
 from src.core.modules.project_management.application.scheduling.leveling_models import (
     ResourceConflict,
     ResourceConflictEntry,
-)
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
 )
 
 
@@ -24,7 +23,7 @@ def build_successors_map(deps: list[TaskDependency]) -> dict[str, set[str]]:
 def build_resource_conflicts(
     tasks_by_id: dict[str, Task],
     assignments: list[TaskAssignment],
-    calendar: WorkCalendarEngine,
+    calendar: CalendarProtocol,
     resource_name_by_id: dict[str, str],
     threshold_percent: float = 100.0,
     threshold_by_resource_id: dict[str, float] | None = None,
@@ -113,7 +112,7 @@ def choose_auto_level_task(
     return candidates[0][3]
 
 
-def _iter_workdays(start: date, end: date, calendar: WorkCalendarEngine):
+def _iter_workdays(start: date, end: date, calendar: CalendarProtocol):
     cur = start
     while cur <= end:
         if calendar.is_working_day(cur):

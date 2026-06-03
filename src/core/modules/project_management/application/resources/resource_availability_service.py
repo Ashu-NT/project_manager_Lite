@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Dict, List, Optional
@@ -11,9 +13,6 @@ from src.core.modules.project_management.contracts.repositories.task import (
 )
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
-)
 
 
 @dataclass
@@ -81,7 +80,7 @@ class ResourceAvailabilityService:
         resource_repo: ResourceRepository,
         assignment_repo: AssignmentRepository,
         task_repo: TaskRepository,
-        calendar: WorkCalendarEngine,
+        calendar: CalendarProtocol,
     ) -> None:
         self._resources = resource_repo
         self._assignments = assignment_repo

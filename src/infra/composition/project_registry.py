@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
@@ -36,7 +38,7 @@ from src.core.modules.project_management.application.tasks import CollaborationS
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
 )
-from src.core.platform.calendar import WorkCalendarEngine, WorkCalendarService
+from src.core.platform.calendar import WorkCalendarService
 from src.core.modules.project_management.application.scheduling.project_calendar_adapter import ProjectCalendarAdapter
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
@@ -78,7 +80,7 @@ class ProjectManagementServiceBundle:
     resource_service: ResourceService
     cost_service: CostService
     finance_service: FinanceService
-    work_calendar_engine: WorkCalendarEngine
+    work_calendar_engine: CalendarProtocol
     work_calendar_service: WorkCalendarService
     scheduling_engine: SchedulingEngine
     reporting_service: ReportingService
@@ -112,10 +114,8 @@ def build_project_management_service_bundle(
         "project",
         lambda project_id: repositories.project_repo.get(project_id) is not None,
     )
-    # Legacy WorkCalendarEngine kept only for the initial SchedulingEngine default argument type.
-    # All actual working-day calculations now go through GlobalCalendarShim (enterprise-backed).
-    _legacy_work_calendar_engine = WorkCalendarEngine(repositories.work_calendar_repo, calendar_id="default")
-    work_calendar_engine = platform_services.global_calendar_shim  # enterprise-backed replacement
+    # GlobalCalendarShim is the enterprise-backed calendar. Used everywhere WorkCalendarEngine was.
+    work_calendar_engine = platform_services.global_calendar_shim
     project_service = ProjectService(
         session,
         repositories.project_repo,
@@ -223,12 +223,11 @@ def build_project_management_service_bundle(
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_runtime_service,
     )
-    # WorkCalendarService is kept for test compatibility but is no longer the source
-    # of truth for calendar rules — that role belongs to EnterpriseCalendarService.
+    # WorkCalendarService kept for test compatibility. Passes GlobalCalendarShim as engine.
     work_calendar_service = WorkCalendarService(
         session,
         repositories.work_calendar_repo,
-        _legacy_work_calendar_engine,  # uses legacy repo internally; not exposed to production logic
+        platform_services.global_calendar_shim,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
     )

@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 from datetime import date
 from sqlalchemy.orm import Session
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
@@ -15,16 +17,13 @@ from src.core.modules.project_management.application.scheduling.leveling_models 
     ResourceLevelingAction,
     ResourceLevelingResult,
 )
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
-)
 class ResourceLevelingMixin:
     _session: Session
     _task_repo: task_contracts.TaskRepository
     _dependency_repo: task_contracts.DependencyRepository
     _assignment_repo: task_contracts.AssignmentRepository | None
     _resource_repo: resource_contracts.ResourceRepository | None
-    _calendar: WorkCalendarEngine
+    _calendar: CalendarProtocol
     _resource_threshold_by_id: dict[str, float]
 
     def preview_resource_conflicts(

@@ -5,7 +5,7 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from src.core.platform.auth.authorization import require_permission
-from src.core.platform.calendar.application.work_calendar_engine import WorkCalendarEngine
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 from src.core.platform.calendar.contracts import WorkingCalendarRepository
 from src.core.platform.calendar.domain import Holiday, WorkingCalendar
 from src.core.platform.common.exceptions import ValidationError
@@ -19,7 +19,7 @@ class WorkCalendarService:
         self,
         session: Session,
         calendar_repo: WorkingCalendarRepository,
-        engine: WorkCalendarEngine,
+        engine: CalendarProtocol,
         user_session=None,
         module_catalog_service=None,
     ) -> None:

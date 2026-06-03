@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -93,7 +95,7 @@ from src.core.modules.project_management.application.tasks import CollaborationS
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
 )
-from src.core.platform.calendar import WorkCalendarEngine, WorkCalendarService
+from src.core.platform.calendar import WorkCalendarService
 from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
 from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
 from src.core.platform.calendar.application.calendar_exception_service import CalendarExceptionService
@@ -180,7 +182,7 @@ class ServiceGraph:
     resource_service: ResourceService
     cost_service: CostService
     finance_service: FinanceService
-    work_calendar_engine: WorkCalendarEngine
+    work_calendar_engine: CalendarProtocol
     work_calendar_service: WorkCalendarService
     scheduling_engine: SchedulingEngine
     reporting_service: ReportingService

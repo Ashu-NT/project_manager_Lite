@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.project import (
@@ -16,9 +18,6 @@ from src.core.modules.project_management.contracts.repositories.baseline import 
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 from src.core.modules.project_management.application.scheduling.engine import SchedulingEngine
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
-)
 from src.core.platform.common.service_base import ServiceBase
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
@@ -49,7 +48,7 @@ class ReportingService(
         assignment_repo: AssignmentRepository,
         cost_repo: CostRepository,
         scheduling_engine: SchedulingEngine,
-        calendar: WorkCalendarEngine,
+        calendar: CalendarProtocol,
         baseline_repo: BaselineRepository,
         project_resource_repo: ProjectResourceRepository,
         user_session=None,
@@ -62,7 +61,7 @@ class ReportingService(
         self._assignment_repo: AssignmentRepository = assignment_repo
         self._cost_repo: CostRepository = cost_repo
         self._scheduling_engine: SchedulingEngine = scheduling_engine
-        self._calendar: WorkCalendarEngine = calendar
+        self._calendar: CalendarProtocol = calendar
         self._baseline_repo: BaselineRepository = baseline_repo
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
         self._user_session = user_session

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from dataclasses import dataclass
 from datetime import date
 from types import SimpleNamespace
@@ -19,7 +21,7 @@ from src.core.modules.project_management.application.scheduling.schedule_change_
 )
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.platform.calendar import WorkCalendarEngine, WorkCalendarService
+from src.core.platform.calendar import WorkCalendarService
 from src.core.platform.calendar.domain import Holiday, WorkingCalendar
 
 
@@ -293,7 +295,7 @@ class ProjectManagementSchedulingDesktopApi:
         scheduling_engine: SchedulingEngine | None = None,
         platform_calendar_api: object | None = None,
         work_calendar_service: WorkCalendarService | None = None,
-        work_calendar_engine: WorkCalendarEngine | None = None,
+        work_calendar_engine: CalendarProtocol | None = None,
         baseline_service: BaselineService | None = None,
         reporting_service: ReportingService | None = None,
         change_impact_service: ScheduleChangeImpactService | None = None,
@@ -973,7 +975,7 @@ class ProjectManagementSchedulingDesktopApi:
             raise RuntimeError("Project management scheduling desktop API is not connected.")
         return self._work_calendar_service
 
-    def _require_work_calendar_engine(self) -> WorkCalendarEngine:
+    def _require_work_calendar_engine(self) -> CalendarProtocol:
         if self._work_calendar_engine is None:
             raise RuntimeError("Project management scheduling desktop API is not connected.")
         return self._work_calendar_engine
@@ -1117,7 +1119,7 @@ def build_project_management_scheduling_desktop_api(
     scheduling_engine: SchedulingEngine | None = None,
     platform_calendar_api: object | None = None,
     work_calendar_service: WorkCalendarService | None = None,
-    work_calendar_engine: WorkCalendarEngine | None = None,
+    work_calendar_engine: CalendarProtocol | None = None,
     baseline_service: BaselineService | None = None,
     reporting_service: ReportingService | None = None,
     change_impact_service: ScheduleChangeImpactService | None = None,

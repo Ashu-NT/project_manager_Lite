@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from dataclasses import dataclass
 from datetime import date
 from typing import Dict, List, Optional, Set
@@ -12,9 +14,6 @@ from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.application.scheduling.cpm_calculator import (
     CPMCalculator,
     CPMResult,
-)
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
 )
 
 
@@ -69,7 +68,7 @@ class ScheduleChangeImpactService:
         self,
         task_repo: TaskRepository,
         dependency_repo: DependencyRepository,
-        calendar: WorkCalendarEngine,
+        calendar: CalendarProtocol,
         approval_threshold_days: int = 5,
     ) -> None:
         self._task_repo = task_repo

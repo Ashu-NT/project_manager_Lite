@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from datetime import date, timedelta
 from typing import Dict, List, Tuple
 
@@ -16,9 +18,6 @@ from src.core.modules.project_management.contracts.repositories.resource import 
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from src.core.modules.project_management.application.scheduling.engine import SchedulingEngine
 from src.core.modules.project_management.application.scheduling.models import CPMTaskInfo
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
-)
 from src.core.modules.project_management.infrastructure.reporting.cost_policy import (
     ReportingCostPolicyMixin,
 )
@@ -33,7 +32,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
     _project_repo: ProjectRepository
     _task_repo: TaskRepository
     _scheduling_engine: SchedulingEngine
-    _calendar: WorkCalendarEngine
+    _calendar: CalendarProtocol
     _cost_repo: CostRepository
     _project_resource_repo: ProjectResourceRepository
     _resource_repo: ResourceRepository

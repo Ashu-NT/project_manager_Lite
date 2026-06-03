@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from dataclasses import dataclass
 from datetime import date
 from typing import Dict, List, Optional
@@ -7,9 +9,6 @@ from typing import Dict, List, Optional
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask, ProjectBaseline
 from src.core.modules.project_management.application.scheduling.models import CPMTaskInfo
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
-)
 from src.core.platform.common.exceptions import NotFoundError
 
 
@@ -55,7 +54,7 @@ class BaselineComparisonService:
     def __init__(
         self,
         baseline_repo: BaselineRepository,
-        calendar: WorkCalendarEngine,
+        calendar: CalendarProtocol,
     ) -> None:
         self._baselines = baseline_repo
         self._calendar = calendar

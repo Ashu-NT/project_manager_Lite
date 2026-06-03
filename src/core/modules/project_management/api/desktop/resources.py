@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
 from src.core.modules.project_management.application.resources import ResourceAvailabilityService, ResourceService
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import WorkCalendarEngine
 from src.core.modules.project_management.contracts.repositories.task import AssignmentRepository
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.core.modules.project_management.domain.resources.skills import SkillProficiencyLevel
@@ -181,7 +182,7 @@ class ProjectManagementResourcesDesktopApi:
         task_service: object | None = None,
         assignment_repo: AssignmentRepository | None = None,
         project_service: object | None = None,
-        work_calendar_engine: WorkCalendarEngine | None = None,
+        work_calendar_engine: CalendarProtocol | None = None,
     ) -> None:
         self._resource_service = resource_service
         self._employee_service = employee_service
@@ -614,7 +615,7 @@ def build_project_management_resources_desktop_api(
     task_service: object | None = None,
     assignment_repo: AssignmentRepository | None = None,
     project_service: object | None = None,
-    work_calendar_engine: WorkCalendarEngine | None = None,
+    work_calendar_engine: CalendarProtocol | None = None,
 ) -> ProjectManagementResourcesDesktopApi:
     return ProjectManagementResourcesDesktopApi(
         resource_service=resource_service,

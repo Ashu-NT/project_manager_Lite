@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from dataclasses import dataclass
 from datetime import date
 from typing import Dict, List, Optional
 
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
-)
 
 
 @dataclass
@@ -34,7 +33,7 @@ class DependencyResolver:
     Callers supply already-computed predecessor ES/EF dicts (from the forward pass).
     """
 
-    def __init__(self, calendar: WorkCalendarEngine) -> None:
+    def __init__(self, calendar: CalendarProtocol) -> None:
         self._calendar = calendar
 
     def resolve_early_dates(

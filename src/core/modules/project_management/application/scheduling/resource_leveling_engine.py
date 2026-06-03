@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.task import (
@@ -12,9 +14,6 @@ from src.core.modules.project_management.application.scheduling.leveling_models 
     ResourceConflict,
     ResourceLevelingAction,
     ResourceLevelingResult,
-)
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
 )
 from src.core.modules.project_management.application.scheduling.leveling import (
     build_resource_conflicts,
@@ -46,7 +45,7 @@ class ResourceLevelingEngine:
         dependency_repo: DependencyRepository,
         assignment_repo: AssignmentRepository,
         resource_repo: ResourceRepository,
-        calendar: WorkCalendarEngine,
+        calendar: CalendarProtocol,
     ) -> None:
         self._session = session
         self._task_repo = task_repo

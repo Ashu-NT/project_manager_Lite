@@ -1,4 +1,5 @@
 # src/core/modules/project_management/application/scheduling/baseline_service.py
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 from typing import Optional, Dict, List
 
 from sqlalchemy.orm import Session
@@ -24,9 +25,6 @@ from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import is_admin_session, require_permission
 from src.core.modules.project_management.application.scheduling.engine import SchedulingEngine
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
-)
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 
@@ -39,7 +37,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         cost_repo: CostRepository,
         baseline_repo: BaselineRepository,
         scheduling: SchedulingEngine,
-        calendar: WorkCalendarEngine,
+        calendar: CalendarProtocol,
         project_resource_repo: ProjectResourceRepository,
         resource_repo: ResourceRepository,
         user_session=None,
@@ -53,7 +51,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         self._costs: CostRepository = cost_repo
         self._baselines: BaselineRepository = baseline_repo
         self._sched: SchedulingEngine = scheduling
-        self._cal: WorkCalendarEngine = calendar
+        self._cal: CalendarProtocol = calendar
         self._project_resources: ProjectResourceRepository = project_resource_repo
         self._resources: ResourceRepository = resource_repo
         self._user_session = user_session

@@ -5,10 +5,6 @@ from src.core.modules.project_management.application.scheduling.baseline_compari
     BaselineComparisonService,
     TaskVariance,
 )
-from src.core.modules.project_management.application.scheduling.calendar_resolver import (
-    CalendarContext,
-    CalendarResolver,
-)
 from src.core.modules.project_management.application.scheduling.calendar_service import (
     CalendarService,
 )
@@ -42,29 +38,23 @@ from src.core.modules.project_management.application.scheduling.schedule_change_
     ScheduleChangeImpactService,
     TaskImpact,
 )
-from src.core.platform.calendar.application.work_calendar_engine import (
-    WorkCalendarEngine,
-)
-from src.core.platform.calendar.application.work_calendar_service import (
-    WorkCalendarService,
-)
+from src.core.platform.calendar.application.work_calendar_service import WorkCalendarService
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.calendar.application.global_calendar_shim import GlobalCalendarShim
 
 __all__ = [
-    # existing
     "CPMTaskInfo",
+    "CalendarProtocol",
     "CalendarService",
+    "GlobalCalendarShim",
     "ResourceConflict",
     "ResourceConflictEntry",
     "ResourceLevelingAction",
     "ResourceLevelingResult",
     "SchedulingEngine",
-    "WorkCalendarEngine",
     "WorkCalendarService",
-    # new — Step 2 scheduling decomposition
     "BaselineComparisonReport",
     "BaselineComparisonService",
-    "CalendarContext",
-    "CalendarResolver",
     "ConstraintType",
     "ConstraintValidationResult",
     "ConstraintValidator",

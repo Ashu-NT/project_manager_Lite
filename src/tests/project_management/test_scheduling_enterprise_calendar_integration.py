@@ -285,31 +285,31 @@ def test_project_calendar_overrides_weekend_via_bound(
 # ---------------------------------------------------------------------------
 
 
-def test_scheduling_engine_falls_back_to_work_calendar_engine_when_no_project_calendar(
+def test_scheduling_engine_falls_back_to_base_calendar_when_not_bootstrapped(
     adapter,
 ):
     """
-    SchedulingEngine.recalculate_project_schedule falls back to base WorkCalendarEngine
-    when no enterprise calendar assignment exists for the project.
+    SchedulingEngine uses the base calendar when no enterprise calendars are bootstrapped
+    (get_source_chain returns [] → bind_for_project returns None → base calendar used).
     """
     from unittest.mock import MagicMock
     from src.core.modules.project_management.application.scheduling.engine import SchedulingEngine
-    from src.core.platform.calendar.application.work_calendar_engine import WorkCalendarEngine
+    from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 
-    mock_wce = MagicMock(spec=WorkCalendarEngine)
+    mock_cal = MagicMock(spec=CalendarProtocol)
     engine = SchedulingEngine(
         session=MagicMock(),
         task_repo=MagicMock(),
         dependency_repo=MagicMock(),
-        calendar=mock_wce,
+        calendar=mock_cal,
         project_calendar_adapter=adapter,
     )
-    # project_id has no calendar assignment → bind_for_project returns None → engine uses mock_wce
-    engine._task_repo.list_by_project.return_value = []  # no tasks → returns empty dict
+    # no enterprise calendars bootstrapped → chain empty → bind_for_project returns None
+    engine._task_repo.list_by_project.return_value = []
     result = engine.recalculate_project_schedule("proj-no-cal")
     assert result == {}
     # Base calendar should be restored after the run
-    assert engine._calendar is mock_wce
+    assert engine._calendar is mock_cal
 
 
 def test_scheduling_engine_uses_enterprise_calendar_when_assigned(
@@ -318,22 +318,22 @@ def test_scheduling_engine_uses_enterprise_calendar_when_assigned(
     """
     SchedulingEngine swaps to BoundProjectCalendar when a project calendar is assigned.
     """
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
     from src.core.modules.project_management.application.scheduling.engine import SchedulingEngine
-    from src.core.platform.calendar.application.work_calendar_engine import WorkCalendarEngine
+    from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 
     assignment_service.assign_project_calendar("proj-enterprise-cal", global_cal.id)
 
-    mock_wce = MagicMock(spec=WorkCalendarEngine)
+    mock_cal = MagicMock(spec=CalendarProtocol)
     engine = SchedulingEngine(
         session=MagicMock(),
         task_repo=MagicMock(),
         dependency_repo=MagicMock(),
-        calendar=mock_wce,
+        calendar=mock_cal,
         project_calendar_adapter=adapter,
     )
     engine._task_repo.list_by_project.return_value = []
     result = engine.recalculate_project_schedule("proj-enterprise-cal")
     assert result == {}
     # After run, base calendar restored
-    assert engine._calendar is mock_wce
+    assert engine._calendar is mock_cal

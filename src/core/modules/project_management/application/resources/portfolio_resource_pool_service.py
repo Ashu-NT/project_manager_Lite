@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Dict, List, Optional
@@ -16,9 +18,6 @@ from src.core.modules.project_management.domain.resources.resource import Resour
 from src.core.modules.project_management.application.resources.resource_availability_service import (
     ResourceAvailabilityService,
     ResourceAvailabilityWindow,
-)
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
 )
 
 
@@ -86,7 +85,7 @@ class PortfolioResourcePoolService:
         assignment_repo: AssignmentRepository,
         task_repo: TaskRepository,
         project_repo: ProjectRepository,
-        calendar: WorkCalendarEngine,
+        calendar: CalendarProtocol,
     ) -> None:
         self._resources = resource_repo
         self._assignments = assignment_repo

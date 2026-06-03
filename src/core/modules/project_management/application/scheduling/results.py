@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from datetime import date
 from typing import Dict, Optional
 
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.application.scheduling.models import CPMTaskInfo
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
-)
 
 
 def build_schedule_result(
@@ -16,7 +15,7 @@ def build_schedule_result(
     ef: Dict[str, Optional[date]],
     ls: Dict[str, Optional[date]],
     lf: Dict[str, Optional[date]],
-    calendar: WorkCalendarEngine,
+    calendar: CalendarProtocol,
 ) -> Dict[str, CPMTaskInfo]:
     result: Dict[str, CPMTaskInfo] = {}
 

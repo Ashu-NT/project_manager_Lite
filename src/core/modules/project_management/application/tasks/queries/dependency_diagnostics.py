@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from collections import deque
 from dataclasses import dataclass, replace
 from datetime import date
@@ -24,9 +26,6 @@ from src.core.modules.project_management.application.scheduling.passes import (
 )
 from src.core.modules.project_management.application.scheduling.results import (
     build_schedule_result,
-)
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
 )
 
 
@@ -61,7 +60,7 @@ class DependencyDiagnostic:
 class TaskDependencyDiagnosticsMixin:
     _task_repo: TaskRepository
     _dependency_repo: DependencyRepository
-    _work_calendar_engine: WorkCalendarEngine
+    _work_calendar_engine: CalendarProtocol
 
     def get_dependency_diagnostics(
         self,

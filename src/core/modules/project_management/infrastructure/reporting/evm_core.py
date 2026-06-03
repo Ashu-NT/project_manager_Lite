@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from datetime import date
 from typing import Dict, Optional
 
@@ -8,9 +10,6 @@ from src.core.modules.project_management.contracts.repositories.project import P
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
-)
 from src.core.modules.project_management.infrastructure.reporting.cost_policy import (
     ReportingCostPolicyMixin,
 )
@@ -22,7 +21,7 @@ from src.core.modules.project_management.infrastructure.reporting.models import 
 class ReportingEvmCoreMixin(ReportingCostPolicyMixin):
     _baseline_repo: BaselineRepository
     _task_repo: TaskRepository
-    _calendar: WorkCalendarEngine
+    _calendar: CalendarProtocol
     _project_repo: ProjectRepository
     _cost_repo: CostRepository
 

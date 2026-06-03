@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 import os
 
 from sqlalchemy.orm import Session
@@ -51,10 +53,8 @@ from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.modules.project_management.application.resources import TimesheetService
-from src.core.modules.project_management.application.scheduling import (
-    SchedulingEngine,
-    WorkCalendarEngine,
-)
+from src.core.modules.project_management.application.scheduling import SchedulingEngine
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 
 
 class TaskService(
@@ -83,7 +83,7 @@ class TaskService(
         resource_repo: ResourceRepository,
         cost_repo: CostRepository,
         calendar_repo: CalendarEventRepository,
-        work_calendar_engine: WorkCalendarEngine,
+        work_calendar_engine: CalendarProtocol,
         scheduling_engine: SchedulingEngine | None = None,
         project_resource_repo: ProjectResourceRepository | None = None,
         project_repo: ProjectRepository | None = None,
@@ -102,7 +102,7 @@ class TaskService(
         self._resource_repo: ResourceRepository = resource_repo
         self._cost_repo: CostRepository = cost_repo
         self._calendar_repo: CalendarEventRepository = calendar_repo
-        self._work_calendar_engine: WorkCalendarEngine = work_calendar_engine
+        self._work_calendar_engine: CalendarProtocol = work_calendar_engine
         self._scheduling_engine: SchedulingEngine | None = scheduling_engine
         self._project_resource_repo: ProjectResourceRepository | None = project_resource_repo
         self._project_repo: ProjectRepository | None = project_repo
