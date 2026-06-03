@@ -124,12 +124,23 @@ class ProjectCalendarAdapter:
 
     def bind_for_project(self, project_id: str) -> Optional["BoundProjectCalendar"]:
         """
-        Return a BoundProjectCalendar if this project has an enterprise calendar assigned.
-        Returns None if no project-level calendar is assigned — caller falls back to WorkCalendarEngine.
+        Always returns a BoundProjectCalendar so the SchedulingEngine uses the enterprise
+        calendar hierarchy for every project.
+
+        The resolver itself handles the fallback chain: if no project-level calendar is
+        assigned it resolves Global → Site → Department in order. A project with no
+        assignment still inherits the Global enterprise calendar — the old WorkCalendarEngine
+        is not needed and is not consulted.
+
+        Returns None only if the resolver itself is unavailable (e.g. empty bootstrap),
+        letting the engine fall back to WorkCalendarEngine as a last resort.
         """
         try:
-            assignment = self._assignment_service.get_project_calendar(project_id)
-            if assignment is None:
+            # Verify the enterprise system has at least a global calendar before binding.
+            # If the resolver has no chains at all (not bootstrapped), return None so
+            # the engine falls back to WorkCalendarEngine gracefully.
+            chain = self._resolver.get_source_chain(project_id=project_id)
+            if not chain:
                 return None
             return BoundProjectCalendar(self, project_id)
         except Exception:
