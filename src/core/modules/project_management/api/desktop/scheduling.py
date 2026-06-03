@@ -22,7 +22,7 @@ from src.core.modules.project_management.application.scheduling.schedule_change_
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.platform.calendar import WorkCalendarService
-from src.core.platform.calendar.domain import Holiday, WorkingCalendar
+# WorkingCalendar/Holiday used only in _get_calendar() fallback — imported locally there
 
 
 _DAY_LABELS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -960,20 +960,18 @@ class ProjectManagementSchedulingDesktopApi:
             priority=getattr(task, "priority", None),
         )
 
-    def _get_calendar(self) -> WorkingCalendar:
+    def _get_calendar(self):
+        # Returns a minimal calendar object for snapshot display.
+        # Enterprise calendar owns working rules — this is a read-only display helper.
         if self._work_calendar_service is not None:
             return self._work_calendar_service.get_calendar()
+        from src.core.platform.calendar.domain import WorkingCalendar
         return WorkingCalendar.create_default()
 
-    def _list_holidays(self) -> list[Holiday]:
+    def _list_holidays(self) -> list:
         if self._work_calendar_service is None:
             return []
         return self._work_calendar_service.list_holidays()
-
-    def _require_work_calendar_service(self) -> WorkCalendarService:
-        if self._work_calendar_service is None:
-            raise RuntimeError("Project management scheduling desktop API is not connected.")
-        return self._work_calendar_service
 
     def _require_work_calendar_engine(self) -> CalendarProtocol:
         if self._work_calendar_engine is None:

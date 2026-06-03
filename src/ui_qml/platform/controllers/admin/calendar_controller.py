@@ -42,15 +42,6 @@ class PlatformCalendarController(QObject):
             self._table_model.set_rows(catalog.get("items", []))
             self.calendarsChanged.emit()
 
-    def updateCalendar(self, payload: dict[str, object]):
-        return self._presenter.update_calendar(payload)
-
-    def addCalendarHoliday(self, payload: dict[str, object]):
-        return self._presenter.add_holiday(payload)
-
-    def deleteCalendarHoliday(self, holiday_id: str):
-        return self._presenter.delete_holiday(holiday_id)
-
     def calculateCalendarWorkingDays(self, payload: dict[str, object]):
         return self._presenter.calculate_working_day(payload)
 
