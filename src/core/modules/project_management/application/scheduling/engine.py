@@ -40,6 +40,10 @@ from src.core.modules.project_management.application.scheduling.results import (
 from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
     WorkCalendarEngine,
 )
+from src.core.modules.project_management.application.scheduling.project_calendar_adapter import (
+    BoundProjectCalendar,
+    ProjectCalendarAdapter,
+)
 
 
 class SchedulingEngine(ResourceLevelingMixin):
@@ -62,10 +66,12 @@ class SchedulingEngine(ResourceLevelingMixin):
         resource_repo: ResourceRepository | None = None,
         calendar_resolver: CalendarResolver | None = None,
         resource_calendar_map: Dict[str, WorkCalendarEngine] | None = None,
+        project_calendar_adapter: ProjectCalendarAdapter | None = None,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
         self._dependency_repo: DependencyRepository = dependency_repo
+        self._base_calendar: WorkCalendarEngine = calendar  # never mutated; restored after each run
         self._calendar: WorkCalendarEngine = calendar
         self._task_calendar: WorkCalendarEngine = calendar  # per-task override, reset each pass
         self._assignment_repo: AssignmentRepository | None = assignment_repo
@@ -73,6 +79,7 @@ class SchedulingEngine(ResourceLevelingMixin):
         self._calendar_resolver: CalendarResolver | None = calendar_resolver
         self._resource_calendar_map: Dict[str, WorkCalendarEngine] = resource_calendar_map or {}
         self._task_primary_resource: Dict[str, str] = {}  # task_id → resource_id, pre-loaded per run
+        self._project_calendar_adapter: ProjectCalendarAdapter | None = project_calendar_adapter
 
     def recalculate_project_schedule(
         self,
@@ -91,6 +98,17 @@ class SchedulingEngine(ResourceLevelingMixin):
         tasks = self._task_repo.list_by_project(project_id)
         if not tasks:
             return {}
+
+        # If a project has an enterprise calendar assignment, bind the adapter so all
+        # CPM arithmetic uses that calendar instead of the global WorkCalendarEngine.
+        if self._project_calendar_adapter is not None:
+            try:
+                bound = self._project_calendar_adapter.bind_for_project(project_id)
+                if bound is not None:
+                    self._calendar = bound
+                    self._task_calendar = bound
+            except Exception:
+                pass  # fall back to default WorkCalendarEngine
 
         tasks_by_id: Dict[str, Task] = {t.id: t for t in tasks}
         deps: List[TaskDependency] = self._dependency_repo.list_by_project(project_id)
@@ -135,9 +153,10 @@ class SchedulingEngine(ResourceLevelingMixin):
             calendar=self._calendar,
         )
 
-        # Reset per-run state
+        # Reset per-run state — restore base calendar so multi-project calls don't cross-contaminate
         self._task_primary_resource = {}
-        self._task_calendar = self._calendar
+        self._calendar = self._base_calendar
+        self._task_calendar = self._base_calendar
 
         if persist:
             try:

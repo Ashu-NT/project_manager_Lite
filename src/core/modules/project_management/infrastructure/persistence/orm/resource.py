@@ -20,6 +20,11 @@ class ResourceORM(Base):
     role: Mapped[str] = mapped_column(String, default="")
     hourly_rate: Mapped[float] = mapped_column(Float, default=0.0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Macro capacity override used by portfolio planning and dashboard alerts.
+    # For per-day scheduling capacity, the enterprise CalendarResolver derives it
+    # from calendar_working_rules + exceptions. These two models are complementary:
+    # capacity_percent = portfolio-level availability fraction (e.g. 50% = half-time resource),
+    # enterprise daily capacity = actual hours available after rules/exceptions.
     capacity_percent: Mapped[float] = mapped_column(
         Float,
         nullable=False,

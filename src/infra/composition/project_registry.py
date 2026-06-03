@@ -155,6 +155,12 @@ def build_project_management_service_bundle(
         audit_service=platform_services.audit_service,
         module_catalog_service=platform_services.module_runtime_service,
     )
+    # Build enterprise calendar adapter here so it can be injected into SchedulingEngine.
+    # Instantiated before scheduling_engine so we pass it in during construction.
+    _pre_project_calendar_adapter = ProjectCalendarAdapter(
+        resolver=platform_services.enterprise_calendar_resolver,
+        assignment_service=platform_services.calendar_assignment_service,
+    )
     scheduling_engine = SchedulingEngine(
         session,
         repositories.task_repo,
@@ -162,6 +168,7 @@ def build_project_management_service_bundle(
         work_calendar_engine,
         assignment_repo=repositories.assignment_repo,
         resource_repo=repositories.resource_repo,
+        project_calendar_adapter=_pre_project_calendar_adapter,
     )
     task_service = TaskService(
         session,
@@ -311,10 +318,7 @@ def build_project_management_service_bundle(
         cert_repo=repositories.resource_cert_repo,
         requirement_repo=repositories.task_skill_req_repo,
     )
-    project_calendar_adapter = ProjectCalendarAdapter(
-        resolver=platform_services.enterprise_calendar_resolver,
-        assignment_service=platform_services.calendar_assignment_service,
-    )
+    project_calendar_adapter = _pre_project_calendar_adapter  # reuse the instance wired into SchedulingEngine
     enterprise_resource_availability = EnterpriseResourceAvailabilityService(
         resolver=platform_services.enterprise_calendar_resolver,
         resource_repo=repositories.resource_repo,

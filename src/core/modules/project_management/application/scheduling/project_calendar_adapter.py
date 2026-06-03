@@ -18,6 +18,34 @@ from src.core.platform.calendar.application.calendar_assignment_service import (
 )
 
 
+class BoundProjectCalendar:
+    """
+    A WorkCalendarEngine-compatible shim for a specific project.
+
+    Wraps ProjectCalendarAdapter so the SchedulingEngine can call
+    is_working_day(date) / add_working_days(date, n) / working_days_between(start, end)
+    without needing to know the project_id at every call site.
+    """
+
+    def __init__(self, adapter: "ProjectCalendarAdapter", project_id: str) -> None:
+        self._adapter = adapter
+        self._project_id = project_id
+
+    def is_working_day(self, target_date: date) -> bool:
+        return self._adapter.is_working_day(self._project_id, target_date)
+
+    def next_working_day(self, target_date: date, include_today: bool = True) -> date:
+        return self._adapter.next_working_day(
+            self._project_id, target_date, include_today=include_today
+        )
+
+    def add_working_days(self, start: date, working_days: int) -> date:
+        return self._adapter.add_working_days(self._project_id, start, working_days)
+
+    def working_days_between(self, start: date, end: date) -> int:
+        return self._adapter.working_days_between(self._project_id, start, end)
+
+
 class ProjectCalendarAdapter:
     """
     Wraps EnterpriseCalendarResolver for a project scope.
@@ -94,5 +122,18 @@ class ProjectCalendarAdapter:
     def get_source_chain(self, project_id: str) -> list[str]:
         return self._resolver.get_source_chain(project_id=project_id)
 
+    def bind_for_project(self, project_id: str) -> Optional["BoundProjectCalendar"]:
+        """
+        Return a BoundProjectCalendar if this project has an enterprise calendar assigned.
+        Returns None if no project-level calendar is assigned — caller falls back to WorkCalendarEngine.
+        """
+        try:
+            assignment = self._assignment_service.get_project_calendar(project_id)
+            if assignment is None:
+                return None
+            return BoundProjectCalendar(self, project_id)
+        except Exception:
+            return None
 
-__all__ = ["ProjectCalendarAdapter"]
+
+__all__ = ["BoundProjectCalendar", "ProjectCalendarAdapter"]

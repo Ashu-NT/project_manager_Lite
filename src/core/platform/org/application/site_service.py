@@ -157,6 +157,9 @@ class SiteService:
             currency_code=_normalize_optional_text(currency_code).upper() or organization.base_currency,
             site_type=_normalize_optional_text(site_type),
             status=_normalize_status(status, is_active=bool(is_active)),
+            # Legacy field: references working_calendars.id. Not read by the enterprise
+            # CalendarResolver — which uses site_calendar_assignments instead and falls
+            # back to the GLOBAL platform_calendar. Kept for backward-compat data export.
             default_calendar_id=_normalize_optional_text(default_calendar_id) or "default",
             default_language=_normalize_optional_text(default_language),
             is_active=bool(is_active),

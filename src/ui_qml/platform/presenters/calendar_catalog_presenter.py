@@ -25,10 +25,16 @@ class PlatformCalendarCatalogPresenter:
         self,
         *,
         calendar_api: PlatformCalendarDesktopApi | None = None,
+        enterprise_calendar_api=None,
     ) -> None:
         self._calendar_api = calendar_api
+        self._enterprise_calendar_api = enterprise_calendar_api
 
     def build_catalog(self) -> PlatformWorkspaceActionListViewModel:
+        # Enterprise calendars take priority when available — they are the authoritative source.
+        if self._enterprise_calendar_api is not None:
+            return self._build_enterprise_catalog()
+
         if self._calendar_api is None:
             return PlatformWorkspaceActionListViewModel(
                 title="Calendars",
@@ -55,6 +61,53 @@ class PlatformCalendarCatalogPresenter:
             subtitle="Shared working-calendar rules owned by Platform and consumed across modules.",
             empty_state="No shared working calendars are configured.",
             items=(self._serialize_calendar(snapshot),),
+        )
+
+    def _build_enterprise_catalog(self) -> PlatformWorkspaceActionListViewModel:
+        result = self._enterprise_calendar_api.list_calendars()
+        if not result.ok or result.data is None:
+            message = (
+                result.error.message
+                if result.error is not None
+                else "Unable to load enterprise calendars."
+            )
+            return PlatformWorkspaceActionListViewModel(
+                title="Calendars",
+                subtitle=message,
+                empty_state=message,
+            )
+        calendars = result.data
+        items = tuple(self._serialize_enterprise_calendar(cal) for cal in calendars)
+        return PlatformWorkspaceActionListViewModel(
+            title="Calendars",
+            subtitle=f"Enterprise calendars — {len(items)} calendar(s) across all types. Owned by Platform.",
+            empty_state="No enterprise calendars configured. Create a Global calendar to get started.",
+            items=items,
+        )
+
+    def _serialize_enterprise_calendar(self, cal) -> PlatformWorkspaceActionItemViewModel:
+        from src.ui_qml.platform.view_models import PlatformWorkspaceActionItemViewModel
+        return PlatformWorkspaceActionItemViewModel(
+            id=cal.id,
+            title=cal.name,
+            status_label=cal.calendar_type,
+            subtitle=f"{cal.code} | {cal.timezone}",
+            supporting_text=f"Type: {cal.calendar_type} | Default: {'Yes' if cal.is_default else 'No'}",
+            meta_text=f"Active: {'Yes' if cal.is_active else 'No'}",
+            can_primary_action=True,
+            can_secondary_action=False,
+            state={
+                "calendarId": cal.id,
+                "code": cal.code,
+                "name": cal.name,
+                "calendarType": cal.calendar_type,
+                "timezone": cal.timezone,
+                "isDefault": cal.is_default,
+                "isActive": cal.is_active,
+                "effectiveFrom": cal.effective_from,
+                "effectiveTo": cal.effective_to,
+                "isEnterpriseCalendar": True,
+            },
         )
 
     def update_calendar(self, payload: dict[str, Any]) -> DesktopApiResult[WorkingCalendarSnapshotDto]:

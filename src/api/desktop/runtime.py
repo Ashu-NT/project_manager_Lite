@@ -132,6 +132,9 @@ from src.core.modules.project_management.application.resources import (
     ResourceService,
     TimesheetService,
 )
+from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
+    EnterpriseResourceAvailabilityService,
+)
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
 )
@@ -390,9 +393,10 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         resource_service if isinstance(resource_service, ResourceService) else None
     )
     _raw_availability_service = services.get("resource_availability_service")
+    # Accept either the new EnterpriseResourceAvailabilityService or the legacy ResourceAvailabilityService.
     pm_availability_service = (
         _raw_availability_service
-        if isinstance(_raw_availability_service, ResourceAvailabilityService)
+        if isinstance(_raw_availability_service, (ResourceAvailabilityService, EnterpriseResourceAvailabilityService))
         else None
     )
     _raw_pool_service = services.get("portfolio_resource_pool_service")

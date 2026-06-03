@@ -103,6 +103,7 @@ from src.core.platform.calendar.application.calendar_assignment_service import C
 from src.core.platform.calendar.application.enterprise_calendar_resolver import EnterpriseCalendarResolver
 from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
+from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
 from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.infra.composition.inventory_registry import build_inventory_procurement_service_bundle
 from src.infra.composition.maintenance_registry import build_maintenance_service_bundle
@@ -200,6 +201,7 @@ class ServiceGraph:
     enterprise_calendar_resolver: EnterpriseCalendarResolver | None
     working_time_calculator: WorkingTimeCalculator | None
     resource_capacity_calculator: ResourceCapacityCalculator | None
+    enterprise_resource_availability: EnterpriseResourceAvailabilityService | None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -290,6 +292,9 @@ class ServiceGraph:
             "enterprise_calendar_resolver": self.enterprise_calendar_resolver,
             "working_time_calculator": self.working_time_calculator,
             "resource_capacity_calculator": self.resource_capacity_calculator,
+            # Registered as "resource_availability_service" so build_desktop_api_registry picks it up.
+            # The old ResourceAvailabilityService (uses WorkCalendarEngine) is no longer the default.
+            "resource_availability_service": self.enterprise_resource_availability,
         }
 
 
@@ -396,6 +401,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         enterprise_calendar_resolver=platform_services.enterprise_calendar_resolver,
         working_time_calculator=platform_services.working_time_calculator,
         resource_capacity_calculator=project_management_services.resource_capacity_calculator,
+        enterprise_resource_availability=project_management_services.enterprise_resource_availability,
     )
 
 
