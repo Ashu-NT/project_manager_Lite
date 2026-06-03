@@ -29,7 +29,7 @@ from src.core.modules.maintenance.api.desktop.shared_options import (
     serialize_site_option,
     serialize_system_option,
 )
-from src.core.platform.org import SiteService
+from src.core.platform.site import SiteService
 
 _DAY_CHOICES = (30, 60, 90, 180, 365)
 _LIMIT_CHOICES = (5, 10, 20, 50)

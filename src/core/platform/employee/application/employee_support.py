@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.org.contracts import (
-    DepartmentRepository,
+from src.core.platform.department.contracts import DepartmentRepository
+from src.core.platform.employee.contracts import (
     LinkedEmployeeResource,
     LinkedEmployeeResourceRepository,
-    OrganizationRepository,
-    SiteRepository,
 )
-from src.core.platform.org.domain import Employee
-from src.core.platform.org.support import employee_contact
+from src.core.platform.employee.domain import Employee
+from src.core.platform.employee.support import employee_contact
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.site.contracts import SiteRepository
 
 
 def build_employee_audit_details(employee: Employee) -> dict[str, str]:

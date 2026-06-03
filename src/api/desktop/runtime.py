@@ -162,7 +162,9 @@ from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import AuditService
 from src.core.platform.auth.application import AuthService
 from src.core.platform.documents import DocumentService
-from src.core.platform.org import DepartmentService, EmployeeService, SiteService
+from src.core.platform.department import DepartmentService
+from src.core.platform.employee import EmployeeService
+from src.core.platform.site import SiteService
 from src.core.platform.party import PartyService
 
 

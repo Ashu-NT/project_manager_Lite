@@ -83,7 +83,7 @@ from src.core.modules.maintenance.domain import (
     MaintenanceTemplateStatus,
     MaintenanceTriggerMode,
 )
-from src.core.platform.org import SiteService
+from src.core.platform.site import SiteService
 
 
 class MaintenancePreventiveDesktopApi:

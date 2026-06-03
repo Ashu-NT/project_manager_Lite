@@ -20,7 +20,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.platform.org.domain import EmploymentType
+from src.core.platform.employee.domain import EmploymentType
 from src.core.platform.time.domain import TimesheetPeriodStatus
 from src.infra.persistence.orm.base import Base
 

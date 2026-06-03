@@ -10,7 +10,7 @@ from src.core.modules.project_management.application.resources import ResourceAv
 from src.core.modules.project_management.contracts.repositories.task import AssignmentRepository
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.core.modules.project_management.domain.resources.skills import SkillProficiencyLevel
-from src.core.platform.org import EmployeeService
+from src.core.platform.employee import EmployeeService
 
 
 @dataclass(frozen=True)

@@ -18,7 +18,8 @@ from src.core.modules.maintenance import (
     MaintenanceSensorReadingService,
     MaintenanceSensorSourceMappingService,
 )
-from src.core.platform.org.domain import Organization, Site
+from src.core.platform.org.domain import Organization
+from src.core.platform.site.domain import Site
 from .test_maintenance_foundation import _AssetRepo, _LocationRepo, _OrgRepo, _SiteRepo, _user_session
 from .test_maintenance_integration_foundation import _IntegrationSourceRepo
 from .test_maintenance_sensor_foundation import _SensorReadingRepo, _SensorRepo

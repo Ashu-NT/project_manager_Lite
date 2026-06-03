@@ -43,7 +43,7 @@ from src.core.modules.maintenance.domain import (
     MaintenanceWorkRequestSourceType,
     MaintenanceWorkRequestStatus,
 )
-from src.core.platform.org import SiteService
+from src.core.platform.site import SiteService
 
 
 class MaintenanceWorkRequestsDesktopApi:

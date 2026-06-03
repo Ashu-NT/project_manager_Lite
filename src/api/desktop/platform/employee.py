@@ -7,7 +7,7 @@ from src.api.desktop.platform.models import (
     EmployeeDto,
     EmployeeUpdateCommand,
 )
-from src.core.platform.org import EmployeeService
+from src.core.platform.employee import EmployeeService
 
 
 class PlatformEmployeeDesktopApi:

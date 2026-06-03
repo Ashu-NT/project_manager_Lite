@@ -9,15 +9,13 @@ from src.core.platform.audit.helpers import record_audit
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_any_permission, require_permission
-from src.core.platform.org.contracts import (
-    DepartmentRepository,
-    EmployeeRepository,
-    LocationReferenceRepository,
-    OrganizationRepository,
-    SiteRepository,
-)
-from src.core.platform.org.domain import Department, Organization
+from src.core.platform.department.contracts import DepartmentRepository
+from src.core.platform.department.domain import Department
+from src.core.platform.employee.contracts import EmployeeRepository
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.org.domain import Organization
 from src.core.platform.org.support import normalize_code, normalize_name
+from src.core.platform.site.contracts import LocationReferenceRepository, SiteRepository
 
 
 def _normalize_optional_text(value: str | None) -> str:

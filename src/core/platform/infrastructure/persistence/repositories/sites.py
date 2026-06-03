@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.infrastructure.persistence.mappers.sites import site_from_orm, site_to_orm
 from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
-from src.core.platform.org.contracts import SiteRepository
-from src.core.platform.org.domain import Site
+from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.site.domain import Site
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 

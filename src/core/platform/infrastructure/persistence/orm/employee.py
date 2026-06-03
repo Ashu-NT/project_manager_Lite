@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy import Boolean, Enum as SAEnum, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.platform.org.domain import EmploymentType
+from src.core.platform.employee.domain import EmploymentType
 from src.infra.persistence.orm.base import Base
 
 

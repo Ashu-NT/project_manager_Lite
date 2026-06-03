@@ -22,7 +22,7 @@ from src.core.modules.project_management.contracts.repositories.skills import (
 )
 from src.core.modules.project_management.contracts.repositories.task import AssignmentRepository
 from src.core.platform.common.interfaces import TimeEntryRepository
-from src.core.platform.org.contracts import EmployeeRepository
+from src.core.platform.employee.contracts import EmployeeRepository
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 

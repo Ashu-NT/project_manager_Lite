@@ -9,7 +9,7 @@ from src.core.modules.project_management.contracts.repositories.project import P
 from src.core.modules.project_management.contracts.repositories.task import AssignmentRepository
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.platform.common.interfaces import TimeEntryRepository
-from src.core.platform.org.contracts import EmployeeRepository
+from src.core.platform.employee.contracts import EmployeeRepository
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.audit.helpers import record_audit

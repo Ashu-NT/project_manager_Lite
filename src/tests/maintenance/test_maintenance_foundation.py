@@ -35,9 +35,11 @@ from src.core.modules.maintenance.application.common.support import coerce_prior
 from src.core.platform.auth.contracts import UserRepository
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.site.contracts import SiteRepository
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.org.domain import Organization, Site
+from src.core.platform.org.domain import Organization
+from src.core.platform.site.domain import Site
 from src.core.platform.party.domain import Party, PartyType
 from src.core.platform.party.contracts import PartyRepository
 

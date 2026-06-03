@@ -10,8 +10,8 @@ from src.core.platform.infrastructure.persistence.mappers.departments import (
     department_to_orm,
 )
 from src.core.platform.infrastructure.persistence.orm.departments import DepartmentORM
-from src.core.platform.org.contracts import DepartmentRepository
-from src.core.platform.org.domain import Department
+from src.core.platform.department.contracts import DepartmentRepository
+from src.core.platform.department.domain import Department
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 

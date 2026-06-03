@@ -8,7 +8,8 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceWorkOrderRepository,
     MaintenanceWorkOrderTaskRepository,
 )
-from src.core.platform.org.contracts import EmployeeRepository, OrganizationRepository
+from src.core.platform.employee.contracts import EmployeeRepository
+from src.core.platform.org.contracts import OrganizationRepository
 
 
 @dataclass

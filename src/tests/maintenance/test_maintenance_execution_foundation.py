@@ -26,7 +26,8 @@ from src.core.modules.maintenance import (
 )
 from src.core.shared.events.domain_events import domain_events
 from .test_maintenance_foundation import _OrgRepo, _WorkOrderRepo, _WorkOrderTaskRepo, _user_session
-from src.core.platform.org.domain import Organization, Site
+from src.core.platform.org.domain import Organization
+from src.core.platform.site.domain import Site
 from src.core.platform.common.exceptions import ValidationError
 
 

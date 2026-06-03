@@ -10,8 +10,8 @@ from src.core.platform.infrastructure.persistence.mappers.employee import (
     employee_to_orm,
 )
 from src.core.platform.infrastructure.persistence.orm.employee import EmployeeORM
-from src.core.platform.org.contracts import EmployeeRepository
-from src.core.platform.org.domain import Employee
+from src.core.platform.employee.contracts import EmployeeRepository
+from src.core.platform.employee.domain import Employee
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 

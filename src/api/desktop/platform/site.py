@@ -8,7 +8,7 @@ from src.api.desktop.platform.models import (
     SiteDto,
     SiteUpdateCommand,
 )
-from src.core.platform.org import SiteService
+from src.core.platform.site import SiteService
 
 
 class PlatformSiteDesktopApi:

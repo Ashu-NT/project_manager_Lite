@@ -10,9 +10,11 @@ from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError,
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.platform.auth.authorization import require_any_permission, require_permission
-from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
-from src.core.platform.org.domain import Organization, Site
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.org.domain import Organization
 from src.core.platform.org.support import normalize_code, normalize_name
+from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.site.domain import Site
 
 
 def _normalize_optional_text(value: str | None) -> str:

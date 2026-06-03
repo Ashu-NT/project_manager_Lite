@@ -25,9 +25,10 @@ from src.core.platform.access.authorization import filter_scope_rows, require_sc
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.org.domain import Organization, Site
+from src.core.platform.org.domain import Organization
+from src.core.platform.site.domain import Site
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.org import SiteService
+from src.core.platform.site import SiteService
 from src.core.platform.party import PartyService
 
 

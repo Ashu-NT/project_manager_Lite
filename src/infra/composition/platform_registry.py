@@ -20,15 +20,11 @@ from src.core.platform.auth import AuthService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.documents import DocumentIntegrationService, DocumentService
 from src.core.platform.data_exchange import MasterDataExchangeService
-from src.core.platform.org import (
-    DepartmentService,
-    EmployeeService,
-    OrganizationRepository,
-    OrganizationService,
-    SiteRepository,
-    SiteService,
-)
-from src.core.platform.org.access_policy import (
+from src.core.platform.department import DepartmentService
+from src.core.platform.employee import EmployeeService
+from src.core.platform.org import OrganizationRepository, OrganizationService
+from src.core.platform.site import SiteRepository, SiteService
+from src.core.platform.site.access_policy import (
     SITE_SCOPE_ROLE_CHOICES,
     normalize_site_scope_role,
     resolve_site_scope_permissions,
