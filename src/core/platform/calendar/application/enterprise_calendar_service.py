@@ -25,6 +25,20 @@ _VALID_CALENDAR_TYPES = {t.value for t in CalendarType}
 _VALID_GRANULARITIES = {5, 10, 15, 30, 60}
 
 
+def _resolve_username(user_session) -> str | None:
+    if user_session is None:
+        return None
+    direct = getattr(user_session, "username", None)
+    if isinstance(direct, str):
+        return direct
+    principal = getattr(user_session, "principal", None)
+    if principal is not None:
+        via_principal = getattr(principal, "username", None)
+        if isinstance(via_principal, str):
+            return via_principal
+    return None
+
+
 class EnterpriseCalendarService:
     """Platform-owned CRUD service for PlatformCalendar entities."""
 
@@ -101,7 +115,7 @@ class EnterpriseCalendarService:
         if existing is not None:
             raise ValidationError(f"Calendar code '{code}' already exists.")
 
-        username = (getattr(getattr(self._user_session, "principal", None), "username", None)) if self._user_session else None
+        username = _resolve_username(self._user_session)
         cal = PlatformCalendar.create(
             organization_id=org_id,
             code=code.strip(),
@@ -170,7 +184,7 @@ class EnterpriseCalendarService:
 
         cal.version += 1
         cal.updated_at = datetime.utcnow()
-        username = (getattr(getattr(self._user_session, "principal", None), "username", None)) if self._user_session else None
+        username = _resolve_username(self._user_session)
         cal.updated_by = username
         self._calendar_repo.update(cal)
         self._session.commit()

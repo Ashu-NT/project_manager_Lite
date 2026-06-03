@@ -18,6 +18,7 @@ from src.core.platform.calendar.domain.enterprise_calendar import (
     ImpactType,
 )
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.calendar.application.enterprise_calendar_service import _resolve_username
 
 
 _VALID_EXCEPTION_TYPES = {t.value for t in ExceptionType}
@@ -75,7 +76,7 @@ class CalendarExceptionService:
         if hours_override is not None and hours_override < 0:
             raise ValidationError("hours_override must be non-negative.")
 
-        username = (getattr(getattr(self._user_session, "principal", None), "username", None)) if self._user_session else None
+        username = _resolve_username(self._user_session)
         exc = CalendarException.create(
             calendar_id=calendar_id,
             exception_date=exception_date,
@@ -141,7 +142,7 @@ class CalendarExceptionService:
         if approved_by is not None:
             exc.approved_by = approved_by
 
-        username = (getattr(getattr(self._user_session, "principal", None), "username", None)) if self._user_session else None
+        username = _resolve_username(self._user_session)
         exc.updated_by = username
         exc.updated_at = datetime.utcnow()
         self._exception_repo.update(exc)
