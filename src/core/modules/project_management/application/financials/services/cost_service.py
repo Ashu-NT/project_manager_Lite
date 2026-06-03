@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.financials.commands.cost_lifecycle import (
+from src.core.modules.project_management.application.financials.costs.commands.cost_lifecycle import (
     CostLifecycleMixin,
 )
-from src.core.modules.project_management.application.financials.cost_support import (
+from src.core.modules.project_management.application.financials.costs.cost_support import (
     CostSupportMixin,
 )
-from src.core.modules.project_management.application.financials.queries.cost_query import (
+from src.core.modules.project_management.application.financials.costs.queries.cost_query import (
     CostQueryMixin,
 )
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository

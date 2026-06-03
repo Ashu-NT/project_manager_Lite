@@ -13,7 +13,6 @@ class CostLifecycleMixin:
     def _resolve_cost_code(
         self, code: str, project_id: str, description: str, *, exclude_id: str | None = None
     ) -> str:
-        """Normalize a manual code or auto-generate a unique one (per-project scope)."""
         from src.core.platform.common.code_generation import (
             CodeGenerator,
             assert_code_unique,

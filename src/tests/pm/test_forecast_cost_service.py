@@ -5,14 +5,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.modules.project_management.application.financials.forecast_cost_service import (
+from src.core.modules.project_management.application.financials.forecasts.forecast_service import (
     EACMethod,
     ForecastCostService,
 )
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.financials.cost import CommitmentStatus, CostItem
 
-_PERM_PATCH = "src.core.modules.project_management.application.financials.forecast_cost_service"
+_PERM_PATCH = "src.core.modules.project_management.application.financials.forecasts.forecast_service"
 
 
 def _noop(*args, **kwargs):

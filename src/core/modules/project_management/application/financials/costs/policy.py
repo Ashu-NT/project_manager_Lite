@@ -5,7 +5,7 @@ from typing import Any
 
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from src.core.modules.project_management.domain.enums import CostType
-from src.core.modules.project_management.application.financials.helpers import (
+from src.core.modules.project_management.application.financials.utils.helpers import (
     is_effectively_equal,
 )
 

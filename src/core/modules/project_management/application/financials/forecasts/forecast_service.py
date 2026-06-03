@@ -25,12 +25,7 @@ class EACMethod(str, Enum):
 
 @dataclass
 class CommitmentSummary:
-    """
-    Snapshot of cost commitment lifecycle totals for a project.
-
-    Provides a clear view of how much cost is still uncommitted vs.
-    obligated (committed) vs. invoiced vs. paid.
-    """
+    """Snapshot of cost commitment lifecycle totals for a project."""
     project_id: str
     planned_total: float
     uncommitted_total: float
@@ -41,12 +36,10 @@ class CommitmentSummary:
 
     @property
     def exposure(self) -> float:
-        """Committed spend not yet converted to actual (invoiced or paid)."""
         return max(0.0, self.committed_total - self.actual_total)
 
     @property
     def commitment_rate(self) -> float:
-        """Fraction of planned budget with a purchase order raised."""
         if self.planned_total <= 0:
             return 0.0
         return min(1.0, self.committed_total / self.planned_total)
@@ -54,41 +47,32 @@ class CommitmentSummary:
 
 @dataclass
 class MaterialRollup:
-    """
-    Aggregated material cost figures for a project or specific task.
-    """
+    """Aggregated material cost figures for a project or specific task."""
     project_id: str
     task_id: Optional[str]
     planned: float
     committed: float
     actual: float
-    forecast: float           # effective forecast (manual or planned fallback)
+    forecast: float
     items: List[CostItem] = field(default_factory=list)
 
     @property
     def variance(self) -> float:
-        """Forecast vs planned variance (positive = over budget)."""
         return self.forecast - self.planned
 
 
 @dataclass
 class CostForecastResult:
-    """
-    ETC/EAC forecast result for a project.
-
-    ETC = Estimate To Complete (remaining cost to finish the project).
-    EAC = Estimate At Completion (total projected cost when complete).
-    VAC = Variance At Completion = BAC - EAC (negative = over budget).
-    """
+    """ETC/EAC forecast result for a project."""
     project_id: str
     method: EACMethod
-    bac: float          # Budget At Completion (total planned cost)
-    ac: float           # Actual Cost to date
-    ev: float           # Earned Value (BAC × percent_complete)
-    etc: float          # Estimate To Complete
-    eac: float          # Estimate At Completion
-    vac: float          # Variance At Completion (BAC - EAC)
-    cpi: float          # Cost Performance Index (EV / AC); 0.0 if AC == 0
+    bac: float
+    ac: float
+    ev: float
+    etc: float
+    eac: float
+    vac: float
+    cpi: float
     exceeds_threshold: bool = False
     threshold_percent: float = 10.0
 
@@ -101,12 +85,6 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
     """
     Financial model expansion service: committed costs, ETC/EAC forecasting,
     material roll-up, and cost threshold detection.
-
-    Builds on CostService's CostItem storage but adds planning-layer analytics:
-      - CommitmentSummary: tracks the UNCOMMITTED→COMMITTED→INVOICED→PAID lifecycle
-      - MaterialRollup: aggregates material cost items with forecast vs planned
-      - CostForecastResult: computes ETC/EAC via multiple earned-value methods
-      - Threshold check: flags when EAC exceeds planned budget by a set percentage
     """
 
     def __init__(
@@ -121,10 +99,7 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    # ── commitment summary ───────────────────────────────────────────────────
-
     def get_commitment_summary(self, project_id: str) -> CommitmentSummary:
-        """Aggregate commitment lifecycle totals across all cost items for a project."""
         require_permission(self._user_session, "report.view", operation_label="view commitment summary")
         require_project_permission(
             self._user_session, project_id, "report.view",
@@ -133,14 +108,11 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
         items = self._costs.list_by_project(project_id)
         return self._build_commitment_summary(project_id, items)
 
-    # ── material roll-up ─────────────────────────────────────────────────────
-
     def get_material_rollup(
         self,
         project_id: str,
         task_id: Optional[str] = None,
     ) -> MaterialRollup:
-        """Aggregate MATERIAL cost items for a project, optionally scoped to one task."""
         require_permission(self._user_session, "report.view", operation_label="view material rollup")
         require_project_permission(
             self._user_session, project_id, "report.view",
@@ -166,8 +138,6 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
             items=material,
         )
 
-    # ── ETC / EAC forecast ───────────────────────────────────────────────────
-
     def compute_forecast(
         self,
         project_id: str,
@@ -175,12 +145,6 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
         method: EACMethod = EACMethod.BAC_OVER_CPI,
         threshold_percent: float = 10.0,
     ) -> CostForecastResult:
-        """
-        Compute ETC and EAC for a project using the specified earned-value method.
-
-        percent_complete: 0.0–1.0 (project-level progress).
-        threshold_percent: flag exceeds_threshold when EAC > BAC * (1 + threshold_percent/100).
-        """
         require_permission(self._user_session, "report.view", operation_label="compute cost forecast")
         require_project_permission(
             self._user_session, project_id, "report.view",
@@ -222,10 +186,6 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
         forecast_eac: float,
         threshold_percent: float = 10.0,
     ) -> bool:
-        """
-        Return True when forecast_eac exceeds the planned budget by more than
-        threshold_percent, indicating approval routing is required.
-        """
         require_permission(self._user_session, "report.view", operation_label="check cost threshold")
         require_project_permission(
             self._user_session, project_id, "report.view",
@@ -236,8 +196,6 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
         if bac <= 0:
             return False
         return forecast_eac > bac * (1.0 + threshold_percent / 100.0)
-
-    # ── internal helpers ─────────────────────────────────────────────────────
 
     def _build_commitment_summary(
         self, project_id: str, items: List[CostItem]
@@ -280,27 +238,21 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
         items: List[CostItem],
     ) -> tuple[float, float]:
         if method == EACMethod.MANUAL:
-            etc = sum(c.effective_forecast - c.actual_amount for c in items)
-            etc = max(0.0, etc)
+            etc = max(0.0, sum(c.effective_forecast - c.actual_amount for c in items))
             eac = ac + etc
-
         elif method == EACMethod.BAC_OVER_CPI:
             eac = (bac / cpi) if cpi > 0 else bac
             etc = eac - ac
-
         elif method == EACMethod.AC_PLUS_ETC_AT_PLAN:
             etc = max(0.0, bac - ev)
             eac = ac + etc
-
         elif method == EACMethod.AC_PLUS_ETC_AT_CPI:
             remaining_work = max(0.0, bac - ev)
             etc = (remaining_work / cpi) if cpi > 0 else remaining_work
             eac = ac + etc
-
         else:
             etc = max(0.0, bac - ac)
             eac = bac
-
         return etc, eac
 
 

@@ -12,37 +12,40 @@ from src.core.modules.project_management.contracts.repositories.resource import 
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
-from src.core.modules.project_management.application.financials.analytics import (
+
+from src.core.modules.project_management.application.financials.reporting.analytics import (
     build_dimension_analytics,
     build_source_analytics,
 )
-from src.core.modules.project_management.application.financials.cashflow import (
+from src.core.modules.project_management.application.financials.cashflow.cashflow_builder import (
     build_period_cashflow,
 )
-from src.core.modules.project_management.application.financials.helpers import (
+from src.core.modules.project_management.application.financials.utils.helpers import (
     normalize_currency,
 )
-from src.core.modules.project_management.application.financials.ledger import (
+from src.core.modules.project_management.application.financials.costs.ledger import (
     build_computed_labor_actual_rows,
     build_computed_labor_plan_rows,
     build_cost_item_ledger_rows,
 )
-from src.core.modules.project_management.application.financials.models import (
+from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
+    CostPolicyEngine,
+)
+from src.core.modules.project_management.application.financials.models.finance_models import (
     FinanceAnalyticsRow,
     FinanceLedgerRow,
     FinancePeriodRow,
     FinanceSnapshot,
 )
-from src.core.modules.project_management.application.financials.policy import (
+from src.core.modules.project_management.application.financials.costs.policy import (
     manual_labor_raw_totals,
     resolve_manual_labor_inclusion,
 )
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
-from src.core.modules.project_management.infrastructure.reporting import ReportingService
 
 
 class FinanceService(ProjectManagementModuleGuardMixin):
-    """Finance/commercial read models aligned with reporting cost policy."""
+    """Finance/commercial read models aligned with cost policy engine."""
 
     def __init__(
         self,
@@ -52,7 +55,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         resource_repo: ResourceRepository,
         cost_repo: CostRepository,
         project_resource_repo: ProjectResourceRepository,
-        reporting_service: ReportingService,
+        reporting_service=None,
         user_session=None,
         module_catalog_service=None,
     ) -> None:
@@ -61,9 +64,23 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         self._resource_repo: ResourceRepository = resource_repo
         self._cost_repo: CostRepository = cost_repo
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
-        self._reporting: ReportingService = reporting_service
+        # reporting_service kept for duck-typed labor details access
+        self._reporting = reporting_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
+
+    def _make_cost_policy_engine(self) -> CostPolicyEngine:
+        """Build a CostPolicyEngine with labor details provider wired in."""
+        get_labor = None
+        if self._reporting is not None:
+            get_labor = self._reporting.get_project_labor_details
+        return CostPolicyEngine(
+            project_repo=self._project_repo,
+            cost_repo=self._cost_repo,
+            project_resource_repo=self._project_resource_repo,
+            resource_repo=self._resource_repo,
+            get_labor_details=get_labor,
+        )
 
     def get_finance_snapshot(
         self,
@@ -87,8 +104,10 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         project_currency = normalize_currency(getattr(project, "currency", None), None)
         task_map = {task.id: task for task in self._task_repo.list_by_project(project_id)}
         resource_cache: dict[str, object | None] = {}
-        source_breakdown = self._reporting.get_project_cost_source_breakdown(project_id, as_of=as_of)
-        totals = self._reporting.get_project_cost_control_totals(project_id, as_of=as_of)
+
+        engine = self._make_cost_policy_engine()
+        source_breakdown = engine.get_cost_source_breakdown(project_id, as_of=as_of)
+        totals = engine.get_cost_control_totals(project_id, as_of=as_of)
         manual_raw = manual_labor_raw_totals(cost_repo=self._cost_repo, project_id=project_id, as_of=as_of)
         manual_included = resolve_manual_labor_inclusion(source_rows=source_breakdown.rows, manual_raw=manual_raw)
 
@@ -111,14 +130,15 @@ class FinanceService(ProjectManagementModuleGuardMixin):
                 resource_cache=resource_cache,
             )
         )
-        ledger.extend(
-            build_computed_labor_actual_rows(
-                reporting_service=self._reporting,
-                project=project,
-                task_map=task_map,
-                as_of=as_of,
+        if self._reporting is not None:
+            ledger.extend(
+                build_computed_labor_actual_rows(
+                    labor_provider=self._reporting,
+                    project=project,
+                    task_map=task_map,
+                    as_of=as_of,
+                )
             )
-        )
         ledger.sort(
             key=lambda row: (
                 row.occurred_on or date.min,

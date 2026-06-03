@@ -7,12 +7,11 @@ from src.core.modules.project_management.contracts.repositories.resource import 
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.projects.project import Project
-from src.core.modules.project_management.application.financials.helpers import (
+from src.core.modules.project_management.application.financials.utils.helpers import (
     normalize_currency,
     resolve_rate,
 )
-from src.core.modules.project_management.application.financials.models import FinanceLedgerRow
-from src.core.modules.project_management.infrastructure.reporting import ReportingService
+from src.core.modules.project_management.application.financials.models.finance_models import FinanceLedgerRow
 
 
 def read_stage_amount(*, item: object, stage: str, as_of: date) -> float:
@@ -175,13 +174,18 @@ def build_computed_labor_plan_rows(
 
 def build_computed_labor_actual_rows(
     *,
-    reporting_service: ReportingService,
+    labor_provider: object,
     project: Project,
     task_map: dict[str, object],
     as_of: date,
 ) -> list[FinanceLedgerRow]:
+    """Build actual labor ledger rows from a labor provider.
+
+    labor_provider must expose get_project_labor_details(project_id) — works with
+    both LaborCostEngine and ReportingService (duck-typed).
+    """
     rows: list[FinanceLedgerRow] = []
-    for resource_row in reporting_service.get_project_labor_details(project.id):
+    for resource_row in labor_provider.get_project_labor_details(project.id):
         resource_id = str(getattr(resource_row, "resource_id", "") or "")
         resource_name = str(getattr(resource_row, "resource_name", "") or "")
         for assignment in getattr(resource_row, "assignments", []):

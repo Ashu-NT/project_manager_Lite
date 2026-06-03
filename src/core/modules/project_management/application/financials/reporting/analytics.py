@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.project_management.application.financials.models import (
+from src.core.modules.project_management.application.financials.models.finance_models import (
     FinanceAnalyticsRow,
     FinanceLedgerRow,
 )
@@ -40,13 +40,7 @@ def build_dimension_analytics(
         key, label = dimension_key_label(row=row, dimension=dimension)
         bucket = buckets.get(key)
         if bucket is None:
-            bucket = {
-                "key": key,
-                "label": label,
-                "planned": 0.0,
-                "committed": 0.0,
-                "actual": 0.0,
-            }
+            bucket = {"key": key, "label": label, "planned": 0.0, "committed": 0.0, "actual": 0.0}
             buckets[key] = bucket
         bucket[row.stage] = float(bucket[row.stage] or 0.0) + float(row.amount or 0.0)
 

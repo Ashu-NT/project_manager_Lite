@@ -4,73 +4,20 @@ from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional
 
-
-@dataclass
-class EvmSeriesPoint:
-    period_end: date
-    PV: float
-    EV: float
-    AC: float
-    BAC: float
-    CPI: float
-    SPI: float
-
-
-@dataclass
-class EarnedValueMetrics:
-    as_of: date
-    baseline_id: str
-
-    BAC: float
-    PV: float
-    EV: float
-    AC: float
-
-    CPI: Optional[float]
-    SPI: Optional[float]
-    EAC: Optional[float]
-    ETC: Optional[float]
-    VAC: Optional[float]
-    TCPI_to_BAC: Optional[float] = None
-    TCPI_to_EAC: Optional[float] = None
-    notes: Optional[str] = None
+# Financial domain DTOs live in financials/models/ — re-exported here for backward compat.
+from src.core.modules.project_management.application.financials.models.finance_models import (
+    CostBreakdownRow,
+    CostSourceBreakdown,
+    CostSourceRow,
+    EarnedValueMetrics,
+    EvmSeriesPoint,
+    LaborAssignmentRow,
+    LaborPlanActualRow,
+    LaborResourceRow,
+)
 
 
-@dataclass
-class LaborAssignmentRow:
-    assignment_id: str
-    task_id: str
-    task_name: str
-    hours: float
-    hourly_rate: float
-    currency_code: Optional[str]
-    cost: float
-
-
-@dataclass
-class LaborResourceRow:
-    resource_id: str
-    resource_name: str
-    total_hours: float
-    hourly_rate: float
-    currency_code: Optional[str]
-    total_cost: float
-    assignments: List[LaborAssignmentRow]
-
-
-@dataclass
-class LaborPlanActualRow:
-    resource_id: str
-    resource_name: str
-    planned_hours: float
-    planned_hourly_rate: float
-    planned_currency_code: Optional[str]
-    planned_cost: float
-    actual_hours: float
-    actual_currency_code: Optional[str]
-    actual_cost: float
-    variance_cost: float
-
+# ── Reporting-specific DTOs (schedule, Gantt, KPI, resource load) ─────────────
 
 @dataclass
 class GanttTaskBar:
@@ -161,31 +108,3 @@ class BaselineComparisonResult:
     removed_tasks: int
     unchanged_tasks: int
     rows: list[BaselineComparisonRow]
-
-
-@dataclass
-class CostBreakdownRow:
-    cost_type: str
-    currency: str
-    planned: float
-    actual: float
-
-
-@dataclass
-class CostSourceRow:
-    source_key: str
-    source_label: str
-    planned: float
-    committed: float
-    actual: float
-
-
-@dataclass
-class CostSourceBreakdown:
-    project_id: str
-    project_currency: str | None
-    rows: list[CostSourceRow]
-    total_planned: float
-    total_committed: float
-    total_actual: float
-    notes: list[str]

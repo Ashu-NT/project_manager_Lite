@@ -35,7 +35,6 @@ class CostQueryMixin:
         variance = total_actual - total_planned
         committed_variance = total_committed - total_planned
 
-        # Keep both legacy and normalized keys for backwards compatibility.
         return {
             "project_id": project_id,
             "total_planned": total_planned,

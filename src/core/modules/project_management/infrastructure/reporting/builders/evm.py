@@ -1,7 +1,4 @@
-"""EVM facade mixin.
-
-Keep ReportingService inheritance stable while EVM logic lives in focused mixins.
-"""
+"""EVM facade mixin — combines EVM core + series into one mixin."""
 
 from src.core.modules.project_management.infrastructure.reporting.builders.evm_core import (
     ReportingEvmCoreMixin,

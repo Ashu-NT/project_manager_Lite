@@ -567,13 +567,14 @@ def test_cost_service_is_orchestrator_only():
         / "project_management"
         / "application"
         / "financials"
+        / "services"
         / "cost_service.py"
     )
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from src.core.modules.project_management.application.financials.commands.cost_lifecycle import (" in text
-    assert "from src.core.modules.project_management.application.financials.queries.cost_query import (" in text
-    assert "from src.core.modules.project_management.application.financials.cost_support import (" in text
+    assert "from src.core.modules.project_management.application.financials.costs.commands.cost_lifecycle import (" in text
+    assert "from src.core.modules.project_management.application.financials.costs.queries.cost_query import (" in text
+    assert "from src.core.modules.project_management.application.financials.costs.cost_support import (" in text
     assert "class CostService(" in text
     assert "def add_cost_item" not in text
     assert "def update_cost_item" not in text

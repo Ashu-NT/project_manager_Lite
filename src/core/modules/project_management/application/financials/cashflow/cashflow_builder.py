@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.application.financials.helpers import (
+from src.core.modules.project_management.application.financials.utils.helpers import (
     normalize_period,
     period_bounds,
 )
-from src.core.modules.project_management.application.financials.models import (
+from src.core.modules.project_management.application.financials.models.finance_models import (
     FinanceLedgerRow,
     FinancePeriodRow,
 )
