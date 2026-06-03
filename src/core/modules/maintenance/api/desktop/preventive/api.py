@@ -44,19 +44,19 @@ from src.core.modules.maintenance.api.desktop.shared_options import (
     serialize_site_option,
     serialize_system_option,
 )
-from src.core.modules.maintenance.application.preventive.preventive_generation_service import (
+from src.core.modules.maintenance.application.preventive.services.generation_service import (
     MaintenancePreventiveGenerationService,
 )
-from src.core.modules.maintenance.application.preventive.preventive_plan_service import (
+from src.core.modules.maintenance.application.preventive.services.plan_service import (
     MaintenancePreventivePlanService,
 )
-from src.core.modules.maintenance.application.preventive.preventive_plan_task_service import (
+from src.core.modules.maintenance.application.preventive.services.plan_task_service import (
     MaintenancePreventivePlanTaskService,
 )
-from src.core.modules.maintenance.application.preventive.task_step_template_service import (
+from src.core.modules.maintenance.application.preventive.services.task_step_template_service import (
     MaintenanceTaskStepTemplateService,
 )
-from src.core.modules.maintenance.application.preventive.task_template_service import (
+from src.core.modules.maintenance.application.preventive.services.task_template_service import (
     MaintenanceTaskTemplateService,
 )
 from src.core.modules.maintenance.application.reliability.sensor_service import (

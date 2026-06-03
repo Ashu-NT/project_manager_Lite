@@ -29,7 +29,7 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceWorkOrderRepository,
     MaintenanceWorkRequestRepository,
 )
-from src.core.modules.maintenance.application.preventive.work_package import (
+from src.core.modules.maintenance.application.preventive.services.work_package import (
     MaintenancePreventiveWorkPackageBuilder,
 )
 from src.core.modules.maintenance.application.work_orders.work_order_task_service import (

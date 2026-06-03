@@ -1,6 +1,6 @@
-from __future__ import annotations
+"""Builds work order tasks and steps from a preventive plan's task definitions."""
 
-from dataclasses import dataclass
+from __future__ import annotations
 
 from src.core.modules.maintenance.domain import (
     MaintenancePreventivePlan,
@@ -17,16 +17,16 @@ from src.core.modules.maintenance.application.work_orders.work_order_task_servic
 from src.core.modules.maintenance.application.work_orders.work_order_task_step_service import (
     MaintenanceWorkOrderTaskStepService,
 )
+from src.core.modules.maintenance.application.preventive.models.results import MaintenanceGeneratedWorkPackage
 from src.core.platform.common.exceptions import ValidationError
 
 
-@dataclass(frozen=True)
-class MaintenanceGeneratedWorkPackage:
-    generated_task_ids: list[str]
-    generated_step_ids: list[str]
-
-
 class MaintenancePreventiveWorkPackageBuilder:
+    """
+    Populates a work order with tasks and step instructions sourced from
+    the preventive plan's task template definitions.
+    """
+
     def __init__(
         self,
         *,
@@ -47,10 +47,13 @@ class MaintenancePreventiveWorkPackageBuilder:
         plan_tasks: list[MaintenancePreventivePlanTask],
         work_order: MaintenanceWorkOrder,
     ) -> MaintenanceGeneratedWorkPackage:
+        """Create work order tasks (and their step instructions) from the plan task list."""
         generated_task_ids: list[str] = []
         generated_step_ids: list[str] = []
-        sorted_plan_tasks = sorted(plan_tasks, key=lambda row: (row.sequence_no, row.created_at or row.updated_at))
-
+        sorted_plan_tasks = sorted(
+            plan_tasks,
+            key=lambda row: (row.sequence_no, row.created_at or row.updated_at),
+        )
         for plan_task in sorted_plan_tasks:
             task_template = self._get_task_template(plan_task.task_template_id, organization_id=plan.organization_id)
             step_templates = self._task_step_template_repo.list_for_organization(
@@ -105,4 +108,4 @@ class MaintenancePreventiveWorkPackageBuilder:
         return row
 
 
-__all__ = ["MaintenanceGeneratedWorkPackage", "MaintenancePreventiveWorkPackageBuilder"]
+__all__ = ["MaintenancePreventiveWorkPackageBuilder"]
