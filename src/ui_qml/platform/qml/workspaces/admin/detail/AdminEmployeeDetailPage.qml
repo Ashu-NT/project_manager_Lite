@@ -5,12 +5,15 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import "../components"
+import "../sections"
 
 Item {
     id: root
 
     property var employee: ({})
     property bool pmEnabled: false
+    property var empCalendarAssignment: ({})
+    property var calendarSourceChain: []
     property bool busy: false
     property string errorMessage: ""
     property string feedbackMessage: ""
@@ -34,6 +37,7 @@ Item {
             sections.push({ "label": "Timesheets" })
             sections.push({ "label": "Certifications" })
         }
+        sections.push({ "label": "Calendar" })
         sections.push({ "label": "Documents" })
         sections.push({ "label": "Audit" })
         return sections
@@ -54,6 +58,8 @@ Item {
             return "Time-entry workflows remain governed by shared timesheet and PM execution surfaces."
         case "Certifications":
             return "Skill and certification posture remains governed by Project Management resource controls."
+        case "Calendar":
+            return "Employee calendar assignment — governs working hours, vacation, and recurring availability."
         case "Documents":
             return "Employee-linked document governance stays in the shared document workspace."
         case "Audit":
@@ -373,6 +379,36 @@ Item {
                             "Open the PM Resources workspace to manage certifications, skills, and assignment-readiness.",
                             "Platform employee records should stay focused on shared master data rather than duplicating PM qualification ledgers."
                         ]
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : root.width
+            implicitHeight: root._activeSectionLabel === "Calendar" ? empCalendarLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: empCalendarLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: root._activeSectionLabel === "Calendar"
+                keepLoaded: true
+                loadingMessage: "Loading employee calendar..."
+                sourceComponent: Component {
+                    AdminCalendarAssignmentSection {
+                        width: parent ? parent.width : 0
+                        entityType: "employee"
+                        entityId: String(root._state.employeeId || root._state.id || "")
+                        entityLabel: root._title
+                        assignedCalendar: root.empCalendarAssignment
+                        sourceChain: root.calendarSourceChain
+                        busy: root.busy
+                        onAssignCalendarRequested: root.actionRequested("assign_calendar")
+                        onOpenCalendarManagementRequested: root.actionRequested("open_calendar_mgmt")
                     }
                 }
             }

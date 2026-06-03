@@ -12,6 +12,7 @@ from src.api.desktop.platform import (
     PlatformCalendarDesktopApi,
     PlatformSupportDesktopApi,
 )
+from src.api.desktop.platform.enterprise_calendar import EnterpriseCalendarDesktopApi
 from src.api.desktop.platform import (
     PlatformDocumentDesktopApi,
     PlatformDepartmentDesktopApi,
@@ -143,6 +144,14 @@ from src.core.modules.project_management.application.resources.assignment_valida
 )
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.platform.calendar import WorkCalendarEngine, WorkCalendarService
+from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
+from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
+from src.core.platform.calendar.application.calendar_exception_service import CalendarExceptionService
+from src.core.platform.calendar.application.recurring_event_service import RecurringEventService
+from src.core.platform.calendar.application.shift_pattern_service import ShiftPatternService
+from src.core.platform.calendar.application.calendar_assignment_service import CalendarAssignmentService
+from src.core.platform.calendar.application.enterprise_calendar_resolver import EnterpriseCalendarResolver
+from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
 from src.core.platform.access import AccessControlService
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.approval import ApprovalService
@@ -158,6 +167,7 @@ class DesktopApiRegistry:
     integration_capability: IntegrationCapabilityDesktopApi
     platform_runtime: PlatformRuntimeDesktopApi
     platform_calendar: PlatformCalendarDesktopApi
+    platform_enterprise_calendar: EnterpriseCalendarDesktopApi | None
     platform_site: PlatformSiteDesktopApi
     platform_department: PlatformDepartmentDesktopApi
     platform_employee: PlatformEmployeeDesktopApi
@@ -534,12 +544,42 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         from src.application.runtime.entitlement_runtime import ModuleRuntimeService as _FMRS
         _fallback_registry = _FallbackMR(_FMRS(_fallback_catalog))
         _integration_capability = build_integration_capability_api(_fallback_registry)
+    _enterprise_calendar_api: EnterpriseCalendarDesktopApi | None = None
+    _ent_cal_svc = services.get("enterprise_calendar_service")
+    _rule_svc = services.get("working_rule_service")
+    _exc_svc = services.get("calendar_exception_service")
+    _rec_svc = services.get("recurring_event_service")
+    _shift_svc = services.get("shift_pattern_service")
+    _assign_svc = services.get("calendar_assignment_service")
+    _resolver = services.get("enterprise_calendar_resolver")
+    _capacity_calc = services.get("resource_capacity_calculator")
+    if (
+        isinstance(_ent_cal_svc, EnterpriseCalendarService)
+        and isinstance(_rule_svc, WorkingRuleService)
+        and isinstance(_exc_svc, CalendarExceptionService)
+        and isinstance(_rec_svc, RecurringEventService)
+        and isinstance(_shift_svc, ShiftPatternService)
+        and isinstance(_assign_svc, CalendarAssignmentService)
+        and isinstance(_resolver, EnterpriseCalendarResolver)
+    ):
+        _enterprise_calendar_api = EnterpriseCalendarDesktopApi(
+            calendar_service=_ent_cal_svc,
+            rule_service=_rule_svc,
+            exception_service=_exc_svc,
+            recurring_event_service=_rec_svc,
+            shift_pattern_service=_shift_svc,
+            assignment_service=_assign_svc,
+            resolver=_resolver,
+            capacity_calculator=_capacity_calc,
+        )
+
     return DesktopApiRegistry(
         integration_capability=_integration_capability,
         platform_runtime=PlatformRuntimeDesktopApi(
             platform_runtime_application_service=platform_runtime_application_service,
         ),
         platform_calendar=platform_calendar_api,
+        platform_enterprise_calendar=_enterprise_calendar_api,
         platform_site=platform_site_api,
         platform_department=PlatformDepartmentDesktopApi(
             department_service=department_service,

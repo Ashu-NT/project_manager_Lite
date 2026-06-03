@@ -58,6 +58,7 @@ class PlatformWorkspaceCatalog(QObject):
         self._runtime_presenter = PlatformRuntimePresenter(runtime_api)
         site_api = getattr(desktop_api_registry, "platform_site", None)
         calendar_api = getattr(desktop_api_registry, "platform_calendar", None)
+        enterprise_calendar_api = getattr(desktop_api_registry, "platform_enterprise_calendar", None)
         department_api = getattr(desktop_api_registry, "platform_department", None)
         employee_api = getattr(desktop_api_registry, "platform_employee", None)
         user_api = getattr(desktop_api_registry, "platform_user", None)

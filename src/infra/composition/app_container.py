@@ -94,6 +94,15 @@ from src.core.modules.project_management.application.resources.assignment_valida
     AssignmentSkillValidator,
 )
 from src.core.platform.calendar import WorkCalendarEngine, WorkCalendarService
+from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
+from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
+from src.core.platform.calendar.application.calendar_exception_service import CalendarExceptionService
+from src.core.platform.calendar.application.recurring_event_service import RecurringEventService
+from src.core.platform.calendar.application.shift_pattern_service import ShiftPatternService
+from src.core.platform.calendar.application.calendar_assignment_service import CalendarAssignmentService
+from src.core.platform.calendar.application.enterprise_calendar_resolver import EnterpriseCalendarResolver
+from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
+from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
 from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.infra.composition.inventory_registry import build_inventory_procurement_service_bundle
 from src.infra.composition.maintenance_registry import build_maintenance_service_bundle
@@ -182,6 +191,15 @@ class ServiceGraph:
     data_import_service: DataImportService
     task_collaboration_store: TaskCollaborationStore
     assignment_skill_validator: AssignmentSkillValidator
+    enterprise_calendar_service: EnterpriseCalendarService | None
+    working_rule_service: WorkingRuleService | None
+    calendar_exception_service: CalendarExceptionService | None
+    recurring_event_service: RecurringEventService | None
+    shift_pattern_service: ShiftPatternService | None
+    calendar_assignment_service: CalendarAssignmentService | None
+    enterprise_calendar_resolver: EnterpriseCalendarResolver | None
+    working_time_calculator: WorkingTimeCalculator | None
+    resource_capacity_calculator: ResourceCapacityCalculator | None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -263,6 +281,15 @@ class ServiceGraph:
             "data_import_service": self.data_import_service,
             "task_collaboration_store": self.task_collaboration_store,
             "assignment_skill_validator": self.assignment_skill_validator,
+            "enterprise_calendar_service": self.enterprise_calendar_service,
+            "working_rule_service": self.working_rule_service,
+            "calendar_exception_service": self.calendar_exception_service,
+            "recurring_event_service": self.recurring_event_service,
+            "shift_pattern_service": self.shift_pattern_service,
+            "calendar_assignment_service": self.calendar_assignment_service,
+            "enterprise_calendar_resolver": self.enterprise_calendar_resolver,
+            "working_time_calculator": self.working_time_calculator,
+            "resource_capacity_calculator": self.resource_capacity_calculator,
         }
 
 
@@ -360,6 +387,15 @@ def build_service_graph(session: Session) -> ServiceGraph:
         data_import_service=project_management_services.data_import_service,
         task_collaboration_store=project_management_services.task_collaboration_store,
         assignment_skill_validator=project_management_services.assignment_skill_validator,
+        enterprise_calendar_service=platform_services.enterprise_calendar_service,
+        working_rule_service=platform_services.working_rule_service,
+        calendar_exception_service=platform_services.calendar_exception_service,
+        recurring_event_service=platform_services.recurring_event_service,
+        shift_pattern_service=platform_services.shift_pattern_service,
+        calendar_assignment_service=platform_services.calendar_assignment_service,
+        enterprise_calendar_resolver=platform_services.enterprise_calendar_resolver,
+        working_time_calculator=platform_services.working_time_calculator,
+        resource_capacity_calculator=project_management_services.resource_capacity_calculator,
     )
 
 

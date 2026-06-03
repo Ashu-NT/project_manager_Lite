@@ -9,7 +9,9 @@ EXPECTED_AREAS = {
     "approval",
     "audit",
     "auth",
+    "calendar",
     "documents",
+    "enterprise_calendar",
     "modules",
     "org",
     "party",
@@ -35,5 +37,5 @@ def test_platform_persistence_uses_module_style_layout() -> None:
     assert _source_file_stems(PERSISTENCE_ROOT / "mappers") == EXPECTED_AREAS - {
         "modules",
         "runtime_tracking",
-    }
+    } | {"enterprise_calendar"}
 

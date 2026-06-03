@@ -6,6 +6,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
 import "../components"
+import "../sections"
 
 Item {
     id: root
@@ -14,6 +15,8 @@ Item {
     property var site: ({})
     property var departmentCatalog: ({ "items": [], "emptyState": "No departments are available yet." })
     property var departmentColumns: []
+    property var siteCalendarAssignment: ({})
+    property var calendarSourceChain: []
     property bool busy: false
     property string errorMessage: ""
     property string feedbackMessage: ""
@@ -62,6 +65,7 @@ Item {
         if (root._maintenanceEnabled) {
             sections.push({ "label": "Assets" })
         }
+        sections.push({ "label": "Calendar" })
         sections.push({ "label": "Documents" })
         sections.push({ "label": "Audit" })
         return sections
@@ -84,6 +88,8 @@ Item {
             return "Project Management project/site alignment delegated to the PM module."
         case "Assets":
             return "Maintenance-owned asset and location alignment delegated from the shared site master."
+        case "Calendar":
+            return "Site-level calendar assignment and working schedule inherited from the global calendar hierarchy."
         case "Documents":
             return "Site-scoped document governance stays in the shared document workspace."
         case "Audit":
@@ -104,6 +110,13 @@ Item {
             return [
                 { "id": "create_department", "label": "New Department", "icon": "add" },
                 { "id": "show_departments", "label": "Open Departments", "icon": "chevron_right" }
+            ]
+        }
+        if (root._activeSectionLabel === "Calendar") {
+            return [
+                { "id": "assign_calendar", "label": "Assign Calendar", "icon": "calendar" },
+                { "id": "open_calendar_mgmt", "label": "Calendar Management", "icon": "chevron_right" },
+                { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }
         if (root._activeSectionLabel === "Documents") {
@@ -454,6 +467,36 @@ Item {
                             "Use the Maintenance module to manage asset libraries and operational equipment assigned to this site.",
                             "Platform admin keeps the site and organization master record stable while maintenance owns asset execution detail."
                         ]
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : root.width
+            implicitHeight: root._activeSectionLabel === "Calendar" ? calendarLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: calendarLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: root._activeSectionLabel === "Calendar"
+                keepLoaded: true
+                loadingMessage: "Loading site calendar..."
+                sourceComponent: Component {
+                    AdminCalendarAssignmentSection {
+                        width: parent ? parent.width : 0
+                        entityType: "site"
+                        entityId: root._siteId
+                        entityLabel: root._title
+                        assignedCalendar: root.siteCalendarAssignment
+                        sourceChain: root.calendarSourceChain
+                        busy: root.busy
+                        onAssignCalendarRequested: root.actionRequested("assign_calendar")
+                        onOpenCalendarManagementRequested: root.actionRequested("open_calendar_mgmt")
                     }
                 }
             }

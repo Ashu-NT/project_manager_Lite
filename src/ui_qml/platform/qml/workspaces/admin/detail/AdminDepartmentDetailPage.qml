@@ -6,6 +6,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
 import "../components"
+import "../sections"
 
 Item {
     id: root
@@ -14,6 +15,8 @@ Item {
     property var department: ({})
     property var employeeCatalog: ({ "items": [], "emptyState": "No employees are available yet." })
     property var employeeColumns: []
+    property var deptCalendarAssignment: ({})
+    property var calendarSourceChain: []
     property bool busy: false
     property string errorMessage: ""
     property string feedbackMessage: ""
@@ -54,6 +57,7 @@ Item {
         if (root._inventoryEnabled) {
             sections.push({ "label": "Warehouses" })
         }
+        sections.push({ "label": "Calendar" })
         sections.push({ "label": "Documents" })
         sections.push({ "label": "Audit" })
         return sections
@@ -68,6 +72,8 @@ Item {
             return root._subtitle
         case "Employees":
             return "Employees aligned to this department through the shared employee master."
+        case "Calendar":
+            return "Department-level calendar assignment and working schedule."
         case "Users":
             return "Identity accounts remain governed by the shared platform user workspace."
         case "Projects":
@@ -399,6 +405,36 @@ Item {
                             "Department usage of warehouses should be referenced from Inventory & Procurement rather than maintained in Platform Admin.",
                             "Any linked warehouse views should remain capability-gated and open the module that owns the records."
                         ]
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : root.width
+            implicitHeight: root._activeSectionLabel === "Calendar" ? deptCalendarLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: deptCalendarLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: root._activeSectionLabel === "Calendar"
+                keepLoaded: true
+                loadingMessage: "Loading department calendar..."
+                sourceComponent: Component {
+                    AdminCalendarAssignmentSection {
+                        width: parent ? parent.width : 0
+                        entityType: "department"
+                        entityId: root._departmentId
+                        entityLabel: root._title
+                        assignedCalendar: root.deptCalendarAssignment
+                        sourceChain: root.calendarSourceChain
+                        busy: root.busy
+                        onAssignCalendarRequested: root.actionRequested("assign_calendar")
+                        onOpenCalendarManagementRequested: root.actionRequested("open_calendar_mgmt")
                     }
                 }
             }
