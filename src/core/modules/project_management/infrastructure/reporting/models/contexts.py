@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional
 
-from src.core.modules.project_management.infrastructure.reporting import (
+from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     CostSourceBreakdown,
     GanttTaskBar,
     ProjectKPI,

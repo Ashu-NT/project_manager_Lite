@@ -11,7 +11,7 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import getSampleStyleSheet
 
-from src.core.modules.project_management.infrastructure.reporting.contexts import PdfReportContext
+from src.core.modules.project_management.infrastructure.reporting.models.contexts import PdfReportContext
 
 
 class PdfReportRenderer:

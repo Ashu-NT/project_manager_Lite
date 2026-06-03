@@ -6,10 +6,10 @@ from typing import List, Optional
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.modules.project_management.domain.enums import CostType
-from src.core.modules.project_management.infrastructure.reporting.cost_policy import (
+from src.core.modules.project_management.infrastructure.reporting.builders.cost_policy import (
     ReportingCostPolicyMixin,
 )
-from src.core.modules.project_management.infrastructure.reporting.models import (
+from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     CostBreakdownRow,
 )
 

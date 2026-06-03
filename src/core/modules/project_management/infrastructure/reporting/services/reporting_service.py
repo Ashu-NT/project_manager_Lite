@@ -21,12 +21,12 @@ from src.core.modules.project_management.application.scheduling.services.schedul
 from src.core.platform.common.service_base import ServiceBase
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
-from .baseline_compare import ReportingBaselineCompareMixin
-from .cost_breakdown import ReportingCostBreakdownMixin
-from .evm import ReportingEvmMixin
-from .kpi import ReportingKpiMixin
-from .labor import ReportingLaborMixin
-from .variance import ReportingVarianceMixin
+from src.core.modules.project_management.infrastructure.reporting.builders.baseline_compare import ReportingBaselineCompareMixin
+from src.core.modules.project_management.infrastructure.reporting.builders.cost_breakdown import ReportingCostBreakdownMixin
+from src.core.modules.project_management.infrastructure.reporting.builders.evm import ReportingEvmMixin
+from src.core.modules.project_management.infrastructure.reporting.builders.kpi import ReportingKpiMixin
+from src.core.modules.project_management.infrastructure.reporting.builders.labor import ReportingLaborMixin
+from src.core.modules.project_management.infrastructure.reporting.builders.variance import ReportingVarianceMixin
 
 
 class ReportingService(

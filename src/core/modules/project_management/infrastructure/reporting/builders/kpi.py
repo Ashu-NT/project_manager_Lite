@@ -18,10 +18,10 @@ from src.core.modules.project_management.contracts.repositories.resource import 
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
 from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
-from src.core.modules.project_management.infrastructure.reporting.cost_policy import (
+from src.core.modules.project_management.infrastructure.reporting.builders.cost_policy import (
     ReportingCostPolicyMixin,
 )
-from src.core.modules.project_management.infrastructure.reporting.models import (
+from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     GanttTaskBar,
     ProjectKPI,
     ResourceLoadRow,

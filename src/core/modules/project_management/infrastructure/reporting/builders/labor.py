@@ -13,7 +13,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
-from src.core.modules.project_management.infrastructure.reporting.models import (
+from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     LaborAssignmentRow,
     LaborPlanActualRow,
     LaborResourceRow,
@@ -51,7 +51,7 @@ class ReportingLaborMixin:
         # group assignments by resource
         by_res: dict[str, List[TaskAssignment]] = {}
         for a in assignments:
-            lst = by_res.get(a.resource_id, []) 
+            lst = by_res.get(a.resource_id, [])
             lst.append(a)
             by_res[a.resource_id] = lst
 
@@ -89,7 +89,6 @@ class ReportingLaborMixin:
                     currency_code=currency,
                     total_cost=total_cost,
                     assignments=as_rows,
-
                 )
             )
 

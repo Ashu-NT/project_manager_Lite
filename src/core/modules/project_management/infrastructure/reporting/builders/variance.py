@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
-from src.core.modules.project_management.infrastructure.reporting.models import (
+from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     TaskVarianceRow,
 )
 

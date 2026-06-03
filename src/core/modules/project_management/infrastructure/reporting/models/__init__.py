@@ -1,4 +1,4 @@
-"""Project management reporting adapters."""
+"""Reporting data transfer objects."""
 
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     BaselineComparisonResult,
@@ -16,12 +16,8 @@ from src.core.modules.project_management.infrastructure.reporting.models.report_
     ResourceLoadRow,
     TaskVarianceRow,
 )
-from src.core.modules.project_management.infrastructure.reporting.services.reporting_service import (
-    ReportingService,
-)
 
 __all__ = [
-    "ReportingService",
     "BaselineComparisonResult",
     "BaselineComparisonRow",
     "CostBreakdownRow",

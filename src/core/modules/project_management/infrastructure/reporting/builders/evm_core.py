@@ -10,10 +10,10 @@ from src.core.modules.project_management.contracts.repositories.project import P
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
-from src.core.modules.project_management.infrastructure.reporting.cost_policy import (
+from src.core.modules.project_management.infrastructure.reporting.builders.cost_policy import (
     ReportingCostPolicyMixin,
 )
-from src.core.modules.project_management.infrastructure.reporting.models import (
+from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     EarnedValueMetrics,
 )
 

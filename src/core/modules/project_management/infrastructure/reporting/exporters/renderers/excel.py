@@ -2,7 +2,7 @@ from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
-from src.core.modules.project_management.infrastructure.reporting.contexts import ExcelReportContext
+from src.core.modules.project_management.infrastructure.reporting.models.contexts import ExcelReportContext
 
 
 class ExcelReportRenderer:

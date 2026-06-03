@@ -9,7 +9,7 @@ from matplotlib.lines import Line2D
 from matplotlib.dates import date2num
 from matplotlib import ticker
 
-from src.core.modules.project_management.infrastructure.reporting import GanttTaskBar
+from src.core.modules.project_management.infrastructure.reporting.models.report_models import GanttTaskBar
 
 
 class GanttPngRenderer:
