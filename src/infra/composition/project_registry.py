@@ -112,7 +112,10 @@ def build_project_management_service_bundle(
         "project",
         lambda project_id: repositories.project_repo.get(project_id) is not None,
     )
-    work_calendar_engine = WorkCalendarEngine(repositories.work_calendar_repo, calendar_id="default")
+    # Legacy WorkCalendarEngine kept only for the initial SchedulingEngine default argument type.
+    # All actual working-day calculations now go through GlobalCalendarShim (enterprise-backed).
+    _legacy_work_calendar_engine = WorkCalendarEngine(repositories.work_calendar_repo, calendar_id="default")
+    work_calendar_engine = platform_services.global_calendar_shim  # enterprise-backed replacement
     project_service = ProjectService(
         session,
         repositories.project_repo,
@@ -165,7 +168,7 @@ def build_project_management_service_bundle(
         session,
         repositories.task_repo,
         repositories.dependency_repo,
-        work_calendar_engine,
+        platform_services.global_calendar_shim,  # enterprise global as base calendar
         assignment_repo=repositories.assignment_repo,
         resource_repo=repositories.resource_repo,
         project_calendar_adapter=_pre_project_calendar_adapter,
@@ -220,10 +223,12 @@ def build_project_management_service_bundle(
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_runtime_service,
     )
+    # WorkCalendarService is kept for test compatibility but is no longer the source
+    # of truth for calendar rules — that role belongs to EnterpriseCalendarService.
     work_calendar_service = WorkCalendarService(
         session,
         repositories.work_calendar_repo,
-        work_calendar_engine,
+        _legacy_work_calendar_engine,  # uses legacy repo internally; not exposed to production logic
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
     )
@@ -235,7 +240,7 @@ def build_project_management_service_bundle(
         assignment_repo=repositories.assignment_repo,
         cost_repo=repositories.cost_repo,
         scheduling_engine=scheduling_engine,
-        calendar=work_calendar_engine,
+        calendar=platform_services.global_calendar_shim,
         baseline_repo=repositories.baseline_repo,
         project_resource_repo=repositories.project_resource_repo,
         user_session=platform_services.user_session,
@@ -285,7 +290,7 @@ def build_project_management_service_bundle(
         cost_repo=repositories.cost_repo,
         baseline_repo=repositories.baseline_repo,
         scheduling=scheduling_engine,
-        calendar=work_calendar_engine,
+        calendar=platform_services.global_calendar_shim,
         project_resource_repo=repositories.project_resource_repo,
         resource_repo=repositories.resource_repo,
         user_session=platform_services.user_session,
@@ -300,7 +305,7 @@ def build_project_management_service_bundle(
         resource_service=resource_service,
         register_service=register_service,
         scheduling_engine=scheduling_engine,
-        work_calendar_engine=work_calendar_engine,
+        work_calendar_engine=platform_services.global_calendar_shim,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
     )

@@ -402,76 +402,28 @@ class ProjectManagementSchedulingDesktopApi:
         self,
         command: SchedulingCalendarUpdateCommand,
     ) -> SchedulingCalendarSnapshotDto:
-        if self._platform_calendar_api is not None:
-            snapshot = self._unwrap_platform_calendar_result(
-                self._platform_calendar_api.update_calendar(
-                    SimpleNamespace(
-                        working_days=command.working_days,
-                        hours_per_day=command.hours_per_day,
-                    )
-                )
-            )
-            return SchedulingCalendarSnapshotDto(
-                working_days=tuple(
-                    SchedulingDayDescriptor(
-                        index=day.index,
-                        label=day.label,
-                        checked=day.checked,
-                    )
-                    for day in snapshot.working_days
-                ),
-                hours_per_day=float(snapshot.hours_per_day or 8.0),
-                holidays=tuple(
-                    SchedulingHolidayDto(
-                        id=holiday.id,
-                        date=holiday.date,
-                        name=holiday.name or "",
-                    )
-                    for holiday in snapshot.holidays
-                ),
-            )
-        service = self._require_work_calendar_service()
-        service.set_working_days(
-            set(command.working_days),
-            hours_per_day=command.hours_per_day,
-        )
+        # Calendar editing has moved to Platform Admin → Calendar Management.
+        # The scheduling workspace is read-only for calendar context.
+        # This stub is kept for QML compatibility during the transition period;
+        # callers should be redirected to EnterpriseCalendarDesktopApi.update_calendar.
         return self.get_calendar_snapshot()
 
     def add_holiday(
         self,
         command: SchedulingHolidayCreateCommand,
     ) -> SchedulingHolidayDto:
-        if self._platform_calendar_api is not None:
-            holiday = self._unwrap_platform_calendar_result(
-                self._platform_calendar_api.add_holiday(
-                    SimpleNamespace(
-                        holiday_date=command.holiday_date,
-                        name=command.name,
-                    )
-                )
-            )
-            return SchedulingHolidayDto(
-                id=holiday.id,
-                date=holiday.date,
-                name=holiday.name or "",
-            )
-        holiday = self._require_work_calendar_service().add_holiday(
-            command.holiday_date,
-            command.name,
-        )
+        # Holiday management has moved to Platform Admin → Calendar Management.
+        # This stub returns a minimal response so existing QML doesn't crash.
+        from datetime import datetime as _dt
         return SchedulingHolidayDto(
-            id=holiday.id,
-            date=holiday.date,
-            name=holiday.name or "",
+            id="",
+            date=command.holiday_date if hasattr(command, "holiday_date") else _dt.today().date(),
+            name=getattr(command, "name", ""),
         )
 
     def delete_holiday(self, holiday_id: str) -> None:
-        if self._platform_calendar_api is not None:
-            self._unwrap_platform_calendar_result(
-                self._platform_calendar_api.delete_holiday(holiday_id)
-            )
-            return
-        self._require_work_calendar_service().delete_holiday(holiday_id)
+        # Holiday management has moved to Platform Admin → Calendar Management.
+        pass
 
     def calculate_working_days(
         self,

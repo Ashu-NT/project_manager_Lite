@@ -44,6 +44,7 @@ from src.core.platform.calendar.application.shift_pattern_service import ShiftPa
 from src.core.platform.calendar.application.calendar_assignment_service import CalendarAssignmentService
 from src.core.platform.calendar.application.enterprise_calendar_resolver import EnterpriseCalendarResolver
 from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
+from src.core.platform.calendar.application.global_calendar_shim import GlobalCalendarShim
 from src.core.platform.infrastructure.persistence.repositories.modules import SqlAlchemyModuleEntitlementRepository
 from src.core.platform.infrastructure.persistence.repositories.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
 from src.infra.composition.repositories import RepositoryBundle
@@ -80,6 +81,7 @@ class PlatformServiceBundle:
     calendar_assignment_service: CalendarAssignmentService
     enterprise_calendar_resolver: EnterpriseCalendarResolver
     working_time_calculator: WorkingTimeCalculator
+    global_calendar_shim: GlobalCalendarShim
 
 
 def build_platform_service_bundle(
@@ -244,6 +246,8 @@ def build_platform_service_bundle(
         calendar_repo=repositories.platform_calendar_repo,
         assignment_repo=repositories.calendar_assignment_repo,
         organization_repo=repositories.organization_repo,
+        rule_repo=repositories.calendar_working_rule_repo,
+        exception_repo=repositories.calendar_exception_repo,
         user_session=user_session,
         audit_service=audit_service,
     )
@@ -295,11 +299,15 @@ def build_platform_service_bundle(
         resource_assignment_repo=repositories.resource_calendar_assignment_repo,
         calculator=working_time_calculator,
     )
-    # Bootstrap global calendar for active org
+    global_calendar_shim = GlobalCalendarShim(resolver=enterprise_calendar_resolver)
+    # Bootstrap global calendar — migrates legacy working_calendars + holidays on first run.
     try:
         org = repositories.organization_repo.get_active()
         if org:
-            enterprise_calendar_service.ensure_global_calendar(org.id)
+            enterprise_calendar_service.ensure_global_calendar(
+                org.id,
+                working_calendar_repo=repositories.work_calendar_repo,
+            )
     except Exception:
         pass
 
@@ -333,6 +341,7 @@ def build_platform_service_bundle(
         calendar_assignment_service=calendar_assignment_service,
         enterprise_calendar_resolver=enterprise_calendar_resolver,
         working_time_calculator=working_time_calculator,
+        global_calendar_shim=global_calendar_shim,
     )
 
 

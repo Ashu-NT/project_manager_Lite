@@ -169,7 +169,7 @@ from src.core.platform.party import PartyService
 class DesktopApiRegistry:
     integration_capability: IntegrationCapabilityDesktopApi
     platform_runtime: PlatformRuntimeDesktopApi
-    platform_calendar: PlatformCalendarDesktopApi
+    platform_calendar: PlatformCalendarDesktopApi | None
     platform_enterprise_calendar: EnterpriseCalendarDesktopApi | None
     platform_site: PlatformSiteDesktopApi
     platform_department: PlatformDepartmentDesktopApi
@@ -211,7 +211,7 @@ class DesktopApiRegistry:
 
 def _build_schedule_change_impact_service(
     task_service: TaskService | None,
-    calendar: WorkCalendarEngine | None,
+    calendar,  # WorkCalendarEngine or GlobalCalendarShim (duck-typed)
 ) -> ScheduleChangeImpactService | None:
     if task_service is None or calendar is None:
         return None
@@ -425,9 +425,10 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     pm_work_calendar_service = services.get("work_calendar_service")
     if not isinstance(pm_work_calendar_service, WorkCalendarService):
         pm_work_calendar_service = None
+    # work_calendar_engine may now be a GlobalCalendarShim (duck-typed WorkCalendarEngine replacement)
     pm_work_calendar_engine = services.get("work_calendar_engine")
-    if not isinstance(pm_work_calendar_engine, WorkCalendarEngine):
-        pm_work_calendar_engine = None
+    if pm_work_calendar_engine is not None and not hasattr(pm_work_calendar_engine, "is_working_day"):
+        pm_work_calendar_engine = None  # not calendar-like at all
     pm_dashboard_service = services.get("dashboard_service")
     if not isinstance(pm_dashboard_service, DashboardService):
         pm_dashboard_service = None
@@ -489,12 +490,15 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         else None
     )
     platform_site_api = PlatformSiteDesktopApi(site_service=site_service)
-    if pm_work_calendar_service is None or pm_work_calendar_engine is None:
-        raise RuntimeError("Platform calendar services are not configured.")
-    platform_calendar_api = PlatformCalendarDesktopApi(
-        work_calendar_service=pm_work_calendar_service,
-        work_calendar_engine=pm_work_calendar_engine,
-    )
+    # Legacy PlatformCalendarDesktopApi kept for backward compat while old UI is being removed.
+    # When pm_work_calendar_service/engine are None (enterprise-only mode) we build a stub.
+    if pm_work_calendar_service is not None and pm_work_calendar_engine is not None:
+        platform_calendar_api = PlatformCalendarDesktopApi(
+            work_calendar_service=pm_work_calendar_service,
+            work_calendar_engine=pm_work_calendar_engine,
+        )
+    else:
+        platform_calendar_api = None
     access_scope_type_choices: list[tuple[str, str]] = []
     access_scope_option_loaders: dict[str, object] = {}
     access_scope_disabled_hints: dict[str, str] = {}

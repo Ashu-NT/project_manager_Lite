@@ -394,9 +394,19 @@ AppLayouts.WorkspaceFrame {
                         busy: adminState.busy
                         errorMessage: adminState.err
                         feedbackMessage: adminState.ok
+                        isEnterpriseCalendar: {
+                            const state = root._detailItem && root._detailItem.state ? root._detailItem.state : {}
+                            return state.isEnterpriseCalendar === true
+                        }
                         onBackRequested: root.closeEntityDetail()
                         onEditRequested: root.openCalendarEdit(adminState.selectedRowId)
                         onAddHolidayRequested: dialogHostLoader.invoke("openWorkingCalendarHolidayCreate")
+                        onAddExceptionRequested: dialogHostLoader.invoke("openCalendarExceptionCreate", [{
+                            "calendarId": (root._detailItem && root._detailItem.state ? root._detailItem.state.calendarId || "" : "")
+                        }])
+                        onAddRecurringEventRequested: dialogHostLoader.invoke("openCalendarRecurringEventCreate", [{
+                            "calendarId": (root._detailItem && root._detailItem.state ? root._detailItem.state.calendarId || "" : "")
+                        }])
                         onOpenAuditRequested: root.openAdminEntitySection("audit", "")
                     }
                 }

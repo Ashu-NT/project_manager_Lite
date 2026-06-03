@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.calendar.contracts import (
     CalendarAssignmentRepository,
+    CalendarExceptionRepository,
+    CalendarWorkingRuleRepository,
     PlatformCalendarRepository,
 )
 from src.core.platform.calendar.domain.enterprise_calendar import (
@@ -32,6 +34,8 @@ class EnterpriseCalendarService:
         calendar_repo: PlatformCalendarRepository,
         assignment_repo: CalendarAssignmentRepository,
         organization_repo,
+        rule_repo: CalendarWorkingRuleRepository | None = None,
+        exception_repo: CalendarExceptionRepository | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
@@ -39,6 +43,8 @@ class EnterpriseCalendarService:
         self._calendar_repo = calendar_repo
         self._assignment_repo = assignment_repo
         self._organization_repo = organization_repo
+        self._rule_repo = rule_repo
+        self._exception_repo = exception_repo
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -187,8 +193,19 @@ class EnterpriseCalendarService:
         self._calendar_repo.delete(calendar_id)
         self._session.commit()
 
-    def ensure_global_calendar(self, organization_id: str) -> PlatformCalendar:
-        """Bootstrap: create the GLOBAL calendar for an org if it doesn't exist."""
+    def ensure_global_calendar(
+        self,
+        organization_id: str,
+        working_calendar_repo=None,
+    ) -> PlatformCalendar:
+        """
+        Bootstrap: create the GLOBAL enterprise calendar for an org if it doesn't exist.
+
+        If working_calendar_repo is provided and a legacy 'default' working_calendar exists,
+        its working-day rules and holidays are migrated into the new enterprise tables so
+        no calendar behavior is lost. The legacy tables remain until the Alembic migration
+        drops them explicitly.
+        """
         existing = self._calendar_repo.get_global(organization_id)
         if existing is not None:
             return existing
@@ -201,7 +218,7 @@ class EnterpriseCalendarService:
             name="Global Calendar",
             calendar_type=CalendarType.GLOBAL.value,
             timezone="UTC",
-            description="Organization-wide default working calendar.",
+            description="Organization-wide default working calendar (migrated from legacy).",
             is_default=True,
             is_active=True,
             priority=0,
@@ -210,8 +227,74 @@ class EnterpriseCalendarService:
             updated_at=now,
         )
         self._calendar_repo.add(cal)
+        self._session.flush()
+
+        if working_calendar_repo is not None:
+            self._migrate_legacy_calendar(cal.id, working_calendar_repo)
+
         self._session.commit()
         return cal
+
+    def _migrate_legacy_calendar(self, enterprise_cal_id: str, working_calendar_repo) -> None:
+        """
+        Migrate legacy working_calendars + holidays into enterprise tables.
+        Safe to call multiple times — skips if working rules already exist.
+        """
+        from src.core.platform.calendar.domain.enterprise_calendar import (
+            CalendarWorkingRule,
+            CalendarException,
+            ExceptionType,
+            ImpactType,
+        )
+        from datetime import time
+
+        try:
+            legacy_cal = working_calendar_repo.get_default()
+            if legacy_cal is None:
+                return
+        except Exception:
+            return
+
+        # Migrate working rules (Mon–Sun based on legacy working_days set)
+        try:
+            existing_rules = self._rule_repo.list_for_calendar(enterprise_cal_id)
+            if not existing_rules:
+                working_days = legacy_cal.working_days or {0, 1, 2, 3, 4}
+                hours = float(legacy_cal.hours_per_day or 8.0)
+                end_hour = 8 + int(hours)
+                end_minute = int((hours % 1) * 60)
+                for weekday in range(7):
+                    is_working = weekday in working_days
+                    rule = CalendarWorkingRule.create(
+                        calendar_id=enterprise_cal_id,
+                        weekday=weekday,
+                        is_working_day=is_working,
+                        start_time=time(8, 0) if is_working else None,
+                        end_time=time(min(end_hour, 23), end_minute) if is_working else None,
+                        break_minutes=60 if is_working else 0,
+                        hours_override=hours if is_working else None,
+                    )
+                    self._rule_repo.save(rule)
+        except Exception:
+            pass
+
+        # Migrate holidays into calendar_exceptions
+        try:
+            existing_exceptions = self._exception_repo.list_for_calendar(enterprise_cal_id)
+            existing_dates = {e.exception_date for e in existing_exceptions}
+            holidays = working_calendar_repo.list_holidays(legacy_cal.id)
+            for holiday in holidays:
+                if holiday.date not in existing_dates:
+                    exc = CalendarException.create(
+                        calendar_id=enterprise_cal_id,
+                        exception_date=holiday.date,
+                        exception_type=ExceptionType.HOLIDAY.value,
+                        name=holiday.name or "Holiday",
+                        impact_type=ImpactType.UNAVAILABLE.value,
+                    )
+                    self._exception_repo.add(exc)
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
     # Validators
