@@ -587,6 +587,36 @@ class EnterpriseCalendarDesktopApi:
             )
         )
 
+    def list_site_calendar_assignments(self, site_id: str) -> DesktopApiResult:
+        return execute_desktop_operation(
+            lambda: tuple(
+                self._serialize_assignment(assignment, entity_type="site")
+                for assignment in self._assignment_service.list_site_assignments(site_id)
+            )
+        )
+
+    def list_department_calendar_assignments(
+        self, department_id: str
+    ) -> DesktopApiResult:
+        return execute_desktop_operation(
+            lambda: tuple(
+                self._serialize_assignment(assignment, entity_type="department")
+                for assignment in self._assignment_service.list_department_assignments(
+                    department_id
+                )
+            )
+        )
+
+    def list_employee_calendar_assignments(self, employee_id: str) -> DesktopApiResult:
+        return execute_desktop_operation(
+            lambda: tuple(
+                self._serialize_assignment(assignment, entity_type="employee")
+                for assignment in self._assignment_service.list_employee_assignments(
+                    employee_id
+                )
+            )
+        )
+
     def remove_assignment(self, assignment_id: str, assignment_type: str) -> DesktopApiResult:
         def _remove():
             t = assignment_type.lower()
@@ -604,8 +634,33 @@ class EnterpriseCalendarDesktopApi:
         return execute_desktop_operation(_remove)
 
     def list_calendar_assignments(self, calendar_id: str) -> DesktopApiResult:
+        def _list_assignments():
+            assignments = self._assignment_service.list_calendar_assignments(calendar_id)
+            return {
+                "sites": tuple(
+                    self._serialize_assignment(assignment, entity_type="site")
+                    for assignment in assignments.get("sites", ())
+                ),
+                "departments": tuple(
+                    self._serialize_assignment(assignment, entity_type="department")
+                    for assignment in assignments.get("departments", ())
+                ),
+                "employees": tuple(
+                    self._serialize_assignment(assignment, entity_type="employee")
+                    for assignment in assignments.get("employees", ())
+                ),
+                "projects": tuple(
+                    self._serialize_assignment(assignment, entity_type="project")
+                    for assignment in assignments.get("projects", ())
+                ),
+                "resources": tuple(
+                    self._serialize_assignment(assignment, entity_type="resource")
+                    for assignment in assignments.get("resources", ())
+                ),
+            }
+
         return execute_desktop_operation(
-            lambda: self._assignment_service.list_calendar_assignments(calendar_id)
+            _list_assignments
         )
 
     # --- Resolution ---

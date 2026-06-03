@@ -25,8 +25,13 @@ Item {
     readonly property string _effectiveFrom: String(root.assignedCalendar && root.assignedCalendar.effectiveFrom ? root.assignedCalendar.effectiveFrom : "")
     readonly property string _effectiveTo: String(root.assignedCalendar && root.assignedCalendar.effectiveTo ? root.assignedCalendar.effectiveTo : "")
     readonly property var _chainItems: Array.isArray(root.sourceChain) ? root.sourceChain : []
+    readonly property real _cardHeaderHeight: Theme.AppTheme.sectionTitleSize + Theme.AppTheme.spacingMd * 2 + Theme.AppTheme.spacingSm
 
     implicitHeight: contentColumn.implicitHeight
+
+    function _cardHeight(contentHeight) {
+        return contentHeight + root._cardHeaderHeight + Theme.AppTheme.marginMd * 2
+    }
 
     ColumnLayout {
         id: contentColumn
@@ -54,7 +59,7 @@ Item {
 
             AppWidgets.SectionCard {
                 Layout.fillWidth: true
-                implicitHeight: calendarCardContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+                implicitHeight: root._cardHeight(calendarCardContent.implicitHeight)
                 title: "Assigned Calendar"
                 outlined: true
 
@@ -115,7 +120,7 @@ Item {
             AppWidgets.SectionCard {
                 Layout.fillWidth: true
                 visible: root._chainItems.length > 0
-                implicitHeight: chainContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+                implicitHeight: root._cardHeight(chainContent.implicitHeight)
                 title: "Inheritance Chain"
                 outlined: true
 
@@ -154,7 +159,7 @@ Item {
 
             AppWidgets.SectionCard {
                 Layout.fillWidth: true
-                implicitHeight: mgmtContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+                implicitHeight: root._cardHeight(mgmtContent.implicitHeight)
                 title: "Calendar Management"
                 outlined: true
 

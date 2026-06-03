@@ -368,6 +368,26 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             on_success=self._refresh_after_calendar_change,
         )
 
+    @Slot(str, result="QVariantMap")
+    def deleteCalendarException(self, exception_id: str) -> dict[str, object]:
+        return self._run_admin_result_action(
+            operation=lambda: self._enterprise_calendar_api.delete_exception(exception_id)
+            if self._enterprise_calendar_api
+            else None,
+            success_message="Calendar exception removed.",
+            on_success=self._refresh_after_calendar_change,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def deleteCalendarRecurringEvent(self, event_id: str) -> dict[str, object]:
+        return self._run_admin_result_action(
+            operation=lambda: self._enterprise_calendar_api.delete_recurring_event(event_id)
+            if self._enterprise_calendar_api
+            else None,
+            success_message="Recurring event removed.",
+            on_success=self._refresh_after_calendar_change,
+        )
+
     @Slot("QVariantMap", result="QVariantMap")
     def assignCalendar(self, payload: dict[str, object]) -> dict[str, object]:
         entity_type = str(payload.get("entityType", "")).lower()
@@ -376,6 +396,106 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             success_message="Calendar assigned.",
             on_success=self._refresh_after_calendar_change,
         )
+
+    @Slot(str, str, result="QVariantMap")
+    def removeCalendarAssignment(
+        self, assignment_id: str, entity_type: str
+    ) -> dict[str, object]:
+        return self._run_admin_result_action(
+            operation=lambda: self._enterprise_calendar_api.remove_assignment(
+                assignment_id,
+                entity_type,
+            )
+            if self._enterprise_calendar_api
+            else None,
+            success_message="Calendar assignment removed.",
+            on_success=self._refresh_after_calendar_change,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def calendarDetailContext(self, calendar_id: str) -> dict[str, object]:
+        if self._enterprise_calendar_api is None or not str(calendar_id or "").strip():
+            return self._empty_calendar_detail_context()
+
+        calendar_id = str(calendar_id).strip()
+        rules_result = self._enterprise_calendar_api.list_working_rules(calendar_id)
+        exceptions_result = self._enterprise_calendar_api.list_exceptions(calendar_id)
+        recurring_result = self._enterprise_calendar_api.list_recurring_events(
+            calendar_id,
+            active_only=False,
+        )
+        assignments_result = self._enterprise_calendar_api.list_calendar_assignments(
+            calendar_id
+        )
+
+        return {
+            "workingRules": [
+                self._serialize_working_rule(rule)
+                for rule in self._result_sequence(rules_result)
+            ],
+            "exceptions": [
+                self._serialize_calendar_exception(exception)
+                for exception in self._result_sequence(exceptions_result)
+            ],
+            "recurringEvents": [
+                self._serialize_recurring_event(event)
+                for event in self._result_sequence(recurring_result)
+            ],
+            "assignments": self._serialize_assignment_groups(
+                assignments_result.data
+                if getattr(assignments_result, "ok", False)
+                and getattr(assignments_result, "data", None) is not None
+                else {}
+            ),
+        }
+
+    @Slot(str, str, str, str, result="QVariantMap")
+    def calendarAssignmentContext(
+        self,
+        entity_type: str,
+        entity_id: str,
+        site_id: str = "",
+        department_id: str = "",
+    ) -> dict[str, object]:
+        if self._enterprise_calendar_api is None or not str(entity_id or "").strip():
+            return self._empty_calendar_assignment_context()
+
+        normalized_type = str(entity_type or "").strip().lower()
+        normalized_id = str(entity_id or "").strip()
+        assignment_result = None
+        if normalized_type == "site":
+            assignment_result = self._enterprise_calendar_api.list_site_calendar_assignments(
+                normalized_id
+            )
+            site_id = normalized_id
+        elif normalized_type == "department":
+            assignment_result = (
+                self._enterprise_calendar_api.list_department_calendar_assignments(
+                    normalized_id
+                )
+            )
+            department_id = normalized_id
+        elif normalized_type == "employee":
+            assignment_result = (
+                self._enterprise_calendar_api.list_employee_calendar_assignments(
+                    normalized_id
+                )
+            )
+        else:
+            return self._empty_calendar_assignment_context()
+
+        assignments = self._result_sequence(assignment_result)
+        selected_assignment = assignments[0] if assignments else None
+        source_chain = self._calendar_source_chain(
+            normalized_type=normalized_type,
+            entity_id=normalized_id,
+            site_id=site_id,
+            department_id=department_id,
+        )
+        return {
+            "assignedCalendar": self._serialize_calendar_assignment(selected_assignment),
+            "sourceChain": source_chain,
+        }
 
     def _dispatch_calendar_assign(self, payload: dict, entity_type: str):
         if self._enterprise_calendar_api is None:
@@ -412,6 +532,143 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
                 ResourceCalendarAssignCommand(resource_id=entity_id, calendar_id=cal_id, effective_from=eff_from, effective_to=eff_to)
             )
         return None
+
+    @staticmethod
+    def _empty_calendar_detail_context() -> dict[str, object]:
+        return {
+            "workingRules": [],
+            "exceptions": [],
+            "recurringEvents": [],
+            "assignments": {
+                "sites": [],
+                "departments": [],
+                "employees": [],
+                "projects": [],
+                "resources": [],
+            },
+        }
+
+    @staticmethod
+    def _empty_calendar_assignment_context() -> dict[str, object]:
+        return {
+            "assignedCalendar": {},
+            "sourceChain": [],
+        }
+
+    @staticmethod
+    def _result_sequence(result) -> list[object]:
+        if (
+            result is None
+            or not getattr(result, "ok", False)
+            or getattr(result, "data", None) is None
+        ):
+            return []
+        data = result.data
+        if isinstance(data, (list, tuple)):
+            return list(data)
+        return []
+
+    def _calendar_source_chain(
+        self,
+        *,
+        normalized_type: str,
+        entity_id: str,
+        site_id: str,
+        department_id: str,
+    ) -> list[str]:
+        if self._enterprise_calendar_api is None:
+            return []
+        result = self._enterprise_calendar_api.get_source_chain(
+            site_id=entity_id if normalized_type == "site" else str(site_id or ""),
+            department_id=entity_id
+            if normalized_type == "department"
+            else str(department_id or ""),
+            employee_id=entity_id if normalized_type == "employee" else "",
+        )
+        if (
+            result is None
+            or not getattr(result, "ok", False)
+            or getattr(result, "data", None) is None
+        ):
+            return []
+        return [str(item) for item in result.data]
+
+    @staticmethod
+    def _serialize_calendar_assignment(assignment) -> dict[str, object]:
+        if assignment is None:
+            return {}
+        return {
+            "assignmentId": str(getattr(assignment, "id", "") or ""),
+            "entityType": str(getattr(assignment, "entity_type", "") or ""),
+            "entityId": str(getattr(assignment, "entity_id", "") or ""),
+            "calendarId": str(getattr(assignment, "calendar_id", "") or ""),
+            "calendarName": str(getattr(assignment, "calendar_name", "") or ""),
+            "calendarType": str(getattr(assignment, "calendar_type", "") or ""),
+            "isDefault": bool(getattr(assignment, "is_default", False)),
+            "priority": int(getattr(assignment, "priority", 0) or 0),
+            "effectiveFrom": str(getattr(assignment, "effective_from", "") or ""),
+            "effectiveTo": str(getattr(assignment, "effective_to", "") or ""),
+        }
+
+    def _serialize_assignment_groups(self, assignments: object) -> dict[str, object]:
+        if not isinstance(assignments, dict):
+            return self._empty_calendar_detail_context()["assignments"]
+        return {
+            "sites": [
+                self._serialize_calendar_assignment(item)
+                for item in assignments.get("sites", ())
+            ],
+            "departments": [
+                self._serialize_calendar_assignment(item)
+                for item in assignments.get("departments", ())
+            ],
+            "employees": [
+                self._serialize_calendar_assignment(item)
+                for item in assignments.get("employees", ())
+            ],
+            "projects": [
+                self._serialize_calendar_assignment(item)
+                for item in assignments.get("projects", ())
+            ],
+            "resources": [
+                self._serialize_calendar_assignment(item)
+                for item in assignments.get("resources", ())
+            ],
+        }
+
+    @staticmethod
+    def _serialize_working_rule(rule) -> dict[str, object]:
+        return {
+            "id": str(getattr(rule, "id", "") or ""),
+            "weekday": int(getattr(rule, "weekday", 0) or 0),
+            "isWorkingDay": bool(getattr(rule, "is_working_day", False)),
+            "startTime": str(getattr(rule, "start_time", "") or ""),
+            "endTime": str(getattr(rule, "end_time", "") or ""),
+            "breakMinutes": int(getattr(rule, "break_minutes", 0) or 0),
+            "computedHours": float(getattr(rule, "computed_hours", 0.0) or 0.0),
+        }
+
+    @staticmethod
+    def _serialize_calendar_exception(exception) -> dict[str, object]:
+        return {
+            "id": str(getattr(exception, "id", "") or ""),
+            "exceptionDate": str(getattr(exception, "exception_date", "") or ""),
+            "exceptionType": str(getattr(exception, "exception_type", "") or ""),
+            "name": str(getattr(exception, "name", "") or ""),
+            "impactType": str(getattr(exception, "impact_type", "") or ""),
+            "approvalStatus": str(getattr(exception, "approval_status", "") or ""),
+        }
+
+    @staticmethod
+    def _serialize_recurring_event(event) -> dict[str, object]:
+        return {
+            "id": str(getattr(event, "id", "") or ""),
+            "title": str(getattr(event, "title", "") or ""),
+            "eventType": str(getattr(event, "event_type", "") or ""),
+            "recurrenceRule": str(getattr(event, "recurrence_rule", "") or ""),
+            "impactType": str(getattr(event, "impact_type", "") or ""),
+            "isActive": bool(getattr(event, "is_active", False)),
+        }
 
     def _build_calendar_create_command(self, payload: dict):
         from src.api.desktop.platform.models.enterprise_calendar import CalendarCreateCommand

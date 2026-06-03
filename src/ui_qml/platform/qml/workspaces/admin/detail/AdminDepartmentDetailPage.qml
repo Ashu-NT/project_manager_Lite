@@ -34,6 +34,7 @@ Item {
     readonly property bool _inventoryEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("inventory_procurement") : false
     readonly property bool _pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
     readonly property string _departmentId: String(root._state.departmentId || root._state.id || root.department.id || "")
+    readonly property bool _hasCalendarAssignment: String(root.deptCalendarAssignment && root.deptCalendarAssignment.assignmentId ? root.deptCalendarAssignment.assignmentId : "").length > 0
     readonly property var _employeeRows: {
         const rows = root.employeeCatalog.items || []
         const departmentId = root._departmentId
@@ -100,6 +101,14 @@ Item {
             return [
                 { "id": "create_employee", "label": "New Employee", "icon": "add" },
                 { "id": "show_employees", "label": "Open Employees", "icon": "chevron_right" }
+            ]
+        }
+        if (root._activeSectionLabel === "Calendar") {
+            return [
+                { "id": "assign_calendar", "label": root._hasCalendarAssignment ? "Change Calendar" : "Assign Calendar", "icon": "calendar" },
+                { "id": "clear_calendar_assignment", "label": "Clear Assignment", "icon": "delete", "danger": true, "enabled": root._hasCalendarAssignment },
+                { "id": "open_calendar_mgmt", "label": "Calendar Management", "icon": "chevron_right" },
+                { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }
         if (root._activeSectionLabel === "Users") {

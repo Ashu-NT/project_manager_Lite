@@ -27,6 +27,7 @@ Item {
     readonly property string _status: String(root.employee && root.employee.statusLabel ? root.employee.statusLabel : "")
     readonly property string _subtitle: String(root.employee && root.employee.subtitle ? root.employee.subtitle : "")
     readonly property bool _isActive: root._state.isActive === true
+    readonly property bool _hasCalendarAssignment: String(root.empCalendarAssignment && root.empCalendarAssignment.assignmentId ? root.empCalendarAssignment.assignmentId : "").length > 0
     readonly property var _sections: {
         const sections = [
             { "label": "Overview" },
@@ -89,6 +90,14 @@ Item {
         if (root._activeSectionLabel === "Timesheets") {
             return [
                 { "id": "open_timesheets", "label": "Open Timesheets", "icon": "chevron_right" }
+            ]
+        }
+        if (root._activeSectionLabel === "Calendar") {
+            return [
+                { "id": "assign_calendar", "label": root._hasCalendarAssignment ? "Change Calendar" : "Assign Calendar", "icon": "calendar" },
+                { "id": "clear_calendar_assignment", "label": "Clear Assignment", "icon": "delete", "danger": true, "enabled": root._hasCalendarAssignment },
+                { "id": "open_calendar_mgmt", "label": "Calendar Management", "icon": "chevron_right" },
+                { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }
         if (root._activeSectionLabel === "Documents") {

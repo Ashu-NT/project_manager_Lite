@@ -37,6 +37,7 @@ Item {
     readonly property bool _pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
     readonly property bool _maintenanceEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("maintenance_management") : false
     readonly property string _siteId: String(root._state.siteId || root._state.id || root.site.id || "")
+    readonly property bool _hasCalendarAssignment: String(root.siteCalendarAssignment && root.siteCalendarAssignment.assignmentId ? root.siteCalendarAssignment.assignmentId : "").length > 0
     readonly property var _departmentRows: {
         const rows = root.departmentCatalog.items || []
         const siteId = root._siteId
@@ -114,7 +115,8 @@ Item {
         }
         if (root._activeSectionLabel === "Calendar") {
             return [
-                { "id": "assign_calendar", "label": "Assign Calendar", "icon": "calendar" },
+                { "id": "assign_calendar", "label": root._hasCalendarAssignment ? "Change Calendar" : "Assign Calendar", "icon": "calendar" },
+                { "id": "clear_calendar_assignment", "label": "Clear Assignment", "icon": "delete", "danger": true, "enabled": root._hasCalendarAssignment },
                 { "id": "open_calendar_mgmt", "label": "Calendar Management", "icon": "chevron_right" },
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
