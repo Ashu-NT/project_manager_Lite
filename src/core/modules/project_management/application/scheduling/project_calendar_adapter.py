@@ -79,34 +79,45 @@ class ProjectCalendarAdapter:
     def working_days_between(self, project_id: str, start: date, end: date) -> int:
         if end < start:
             return 0
-        count = 0
-        current = start
-        while current <= end:
-            if self.is_working_day(project_id, current):
-                count += 1
-            current += timedelta(days=1)
-        return count
+        # Use resolve_range for bulk efficiency — single set of DB queries for the range
+        try:
+            days = self._resolver.resolve_range(project_id=project_id, start=start, end=end)
+            return sum(1 for d in days if d.available_hours > 0)
+        except Exception:
+            # Fallback: day-by-day (safe but slower)
+            count = 0
+            current = start
+            while current <= end:
+                if self.is_working_day(project_id, current):
+                    count += 1
+                current += timedelta(days=1)
+            return count
 
     def add_working_days(self, project_id: str, start: date, n: int) -> date:
         if n == 0:
             return start
-
+        # Safety bound: no real project spans >40 years of working days
+        max_iter = max(abs(n) * 7, 365 * 40)
         if n > 0:
             current = self.next_working_day(project_id, start, include_today=True)
             remaining = n - 1
-            while remaining > 0:
+            iterations = 0
+            while remaining > 0 and iterations < max_iter:
                 current += timedelta(days=1)
                 if self.is_working_day(project_id, current):
                     remaining -= 1
+                iterations += 1
             return current
 
         # negative: walk backwards
         remaining = -n
         current = start
-        while remaining > 0:
+        iterations = 0
+        while remaining > 0 and iterations < max_iter:
             current -= timedelta(days=1)
             if self.is_working_day(project_id, current):
                 remaining -= 1
+            iterations += 1
         return current
 
     def next_working_day(
@@ -115,9 +126,12 @@ class ProjectCalendarAdapter:
         current = target_date
         if not include_today:
             current += timedelta(days=1)
-        while not self.is_working_day(project_id, current):
+        # Safety bound: 730 days (2 years) — if no working day found, return best guess
+        for _ in range(730):
+            if self.is_working_day(project_id, current):
+                return current
             current += timedelta(days=1)
-        return current
+        return current  # fallback: return last attempted date
 
     def get_source_chain(self, project_id: str) -> list[str]:
         return self._resolver.get_source_chain(project_id=project_id)

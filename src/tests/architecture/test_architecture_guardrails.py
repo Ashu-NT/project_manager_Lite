@@ -10,7 +10,7 @@ ROOT = REPO_ROOT
 _LARGE_MODULE_BUDGETS = {
     "src/core/modules/maintenance/infrastructure/persistence/mappers/mapper.py": 1203,
     "src/core/modules/maintenance/infrastructure/persistence/repositories/repository.py": 1489,
-    "src/infra/persistence/orm/maintenance/models.py": 1283,
+    "src/core/modules/maintenance/infrastructure/persistence/orm/models.py": 1283,
     "src/core/modules/project_management/api/desktop/dashboard.py": 2709,
     "src/ui_qml/modules/project_management/presenters/scheduling_workspace_presenter.py": 1356,
     "src/ui_qml/modules/project_management/controllers/scheduling/scheduling_workspace_controller.py": 1338,
@@ -366,8 +366,8 @@ def test_orm_package_root_loads_all_model_packages():
 
     assert not (ROOT / "src" / "infra" / "persistence" / "orm" / "platform").exists()
     assert "from src.infra.persistence.orm.base import Base" in package_text
-    assert "import src.infra.persistence.orm.maintenance.models" in package_text
-    assert "import src.infra.persistence.orm.maintenance.preventive_runtime_models" in package_text
+    assert "import src.core.modules.maintenance.infrastructure.persistence.orm.models" in package_text
+    assert "import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models" in package_text
     platform_orm_modules = ("org", "documents", "party", "modules", "time", "auth", "access", "audit", "approval", "runtime_tracking")
     for module in platform_orm_modules:
         assert f"import src.core.platform.infrastructure.persistence.orm.{module}" in package_text

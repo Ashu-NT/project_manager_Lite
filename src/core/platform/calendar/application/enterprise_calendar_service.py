@@ -243,8 +243,9 @@ class EnterpriseCalendarService:
         self._calendar_repo.add(cal)
         self._session.flush()
 
-        if working_calendar_repo is not None:
-            self._migrate_legacy_calendar(cal.id, working_calendar_repo)
+        # Always seed working rules — migrates from legacy if repo provided,
+        # otherwise seeds Mon-Fri 08:00-17:00 defaults (fresh install path).
+        self._migrate_legacy_calendar(cal.id, working_calendar_repo)
 
         self._session.commit()
         return cal

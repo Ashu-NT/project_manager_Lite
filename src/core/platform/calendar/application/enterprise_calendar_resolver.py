@@ -115,6 +115,16 @@ class EnterpriseCalendarResolver:
         self._project_assignment_repo = project_assignment_repo
         self._resource_assignment_repo = resource_assignment_repo
         self._calculator = calculator
+        # In-process caches for data that rarely changes within a request/transaction.
+        # Eliminates repeated DB queries when resolve_calendar_context is called
+        # many times for the same calendar (e.g. during CPM forward pass).
+        self._recurring_cache: dict[str, list] = {}  # cal_id → recurring events
+        self._rules_cache: dict[str, list] = {}      # cal_id → working rules
+
+    def invalidate_cache(self) -> None:
+        """Clear the in-process caches. Call after calendar data is mutated."""
+        self._recurring_cache.clear()
+        self._rules_cache.clear()
 
     # ------------------------------------------------------------------
     # Public API
@@ -177,25 +187,103 @@ class EnterpriseCalendarResolver:
         end: date,
         assigned_hours_by_date: Optional[dict[date, float]] = None,
     ) -> list[ResolvedCalendarContext]:
+        """
+        Efficient range resolution: builds the chain once and bulk-fetches all
+        calendar data before iterating. DB queries = O(chain_length), not O(days).
+        """
         from datetime import timedelta
 
+        if end < start:
+            return []
+
+        # 1. Build chain once — assignments are stable across a typical range
+        chain = self._build_chain(
+            site_id=site_id,
+            department_id=department_id,
+            employee_id=employee_id,
+            project_id=project_id,
+            resource_id=resource_id,
+            worker_type=worker_type,
+            at_date=start,
+        )
+
+        if not chain:
+            results = []
+            current = start
+            while current <= end:
+                ah = (assigned_hours_by_date or {}).get(current, 0.0)
+                results.append(ResolvedCalendarContext(
+                    date=current, base_hours=0.0, available_hours=0.0,
+                    assigned_hours=ah, remaining_hours=0.0,
+                    capacity_percent=0.0, utilization_percent=0.0,
+                    status="UNAVAILABLE", source_chain=[], overrides=[],
+                    timezone="UTC", working_start=None, working_end=None,
+                    exceptions=[],
+                ))
+                current += timedelta(days=1)
+            return results
+
+        # 2. Bulk-fetch all data — one pass per calendar in chain, using caches
+        all_rules: list = []
+        for _label, cal_id in chain:
+            if cal_id not in self._rules_cache:
+                self._rules_cache[cal_id] = self._rule_repo.list_for_calendar(cal_id)
+            all_rules.extend(self._rules_cache[cal_id])
+
+        all_exceptions: list = []
+        for _label, cal_id in chain:
+            all_exceptions.extend(
+                self._exception_repo.list_for_calendar(cal_id, start=start, end=end)
+            )
+
+        all_recurring: list = []
+        for _label, cal_id in chain:
+            if cal_id not in self._recurring_cache:
+                self._recurring_cache[cal_id] = self._recurring_repo.list_for_calendar(
+                    cal_id, active_only=True
+                )
+            all_recurring.extend(self._recurring_cache[cal_id])
+
+        timezone = self._resolve_timezone(chain)
+        labels = [label for label, _ in chain]
+
+        # 3. Iterate days in pure Python — zero DB calls in the loop
         results = []
         current = start
         while current <= end:
-            ah = (assigned_hours_by_date or {}).get(current, 0.0)
-            results.append(
-                self.resolve_calendar_context(
-                    site_id=site_id,
-                    department_id=department_id,
-                    employee_id=employee_id,
-                    project_id=project_id,
-                    resource_id=resource_id,
-                    worker_type=worker_type,
-                    target_date=current,
-                    assigned_hours=ah,
+            weekday = current.weekday()
+
+            # Resolve working rule: innermost chain level wins
+            effective_rule = None
+            for _label, cal_id in chain:
+                rule = next(
+                    (r for r in all_rules if r.calendar_id == cal_id and r.weekday == weekday),
+                    None,
                 )
+                if rule is not None:
+                    effective_rule = rule
+
+            day_exceptions = [e for e in all_exceptions if e.exception_date == current]
+            day_exceptions.sort(key=lambda e: e.priority, reverse=True)
+
+            working_rules = [effective_rule] if effective_rule else []
+            ah = (assigned_hours_by_date or {}).get(current, 0.0)
+            day = self._calculator.compute_day(
+                working_rules=working_rules,
+                exceptions=day_exceptions,
+                recurring_events=all_recurring,
+                target_date=current,
+                assigned_hours=ah,
             )
+
+            results.append(ResolvedCalendarContext.from_day_capacity(
+                day,
+                source_chain=labels,
+                timezone=timezone,
+                exceptions=day_exceptions,
+            ))
             current += timedelta(days=1)
+
         return results
 
     def get_source_chain(
@@ -294,7 +382,11 @@ class EnterpriseCalendarResolver:
     ) -> Optional[CalendarWorkingRule]:
         effective: Optional[CalendarWorkingRule] = None
         for _label, cal_id in chain:
-            rule = self._rule_repo.get_for_weekday(cal_id, weekday)
+            # Use cached rules if available — avoids N DB queries per weekday lookup
+            if cal_id not in self._rules_cache:
+                self._rules_cache[cal_id] = self._rule_repo.list_for_calendar(cal_id)
+            rules = self._rules_cache[cal_id]
+            rule = next((r for r in rules if r.weekday == weekday), None)
             if rule is not None:
                 effective = rule
         return effective
@@ -314,8 +406,12 @@ class EnterpriseCalendarResolver:
     ) -> list[CalendarRecurringEvent]:
         all_events: list[CalendarRecurringEvent] = []
         for _label, cal_id in chain:
-            events = self._recurring_repo.list_for_calendar(cal_id, active_only=True)
-            all_events.extend(events)
+            # Use cache — recurring events change rarely; avoids repeated DB queries
+            if cal_id not in self._recurring_cache:
+                self._recurring_cache[cal_id] = self._recurring_repo.list_for_calendar(
+                    cal_id, active_only=True
+                )
+            all_events.extend(self._recurring_cache[cal_id])
         return all_events
 
     def _resolve_timezone(self, chain: list[tuple[str, str]]) -> str:

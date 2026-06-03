@@ -50,34 +50,45 @@ class GlobalCalendarShim:
     def add_working_days(self, start: date, working_days: int) -> date:
         if working_days == 0:
             return start
-
+        # Safety bound: no real schedule spans >40 years of working days
+        max_iter = max(abs(working_days) * 7, 365 * 40)
         if working_days > 0:
             current = self.next_working_day(start, include_today=True)
             remaining = working_days - 1
-            while remaining > 0:
+            iterations = 0
+            while remaining > 0 and iterations < max_iter:
                 current += timedelta(days=1)
                 if self.is_working_day(current):
                     remaining -= 1
+                iterations += 1
             return current
 
         remaining = -working_days
         current = start
-        while remaining > 0:
+        iterations = 0
+        while remaining > 0 and iterations < max_iter:
             current -= timedelta(days=1)
             if self.is_working_day(current):
                 remaining -= 1
+            iterations += 1
         return current
 
     def working_days_between(self, start: date, end: date) -> int:
         if end < start:
             return 0
-        count = 0
-        current = start
-        while current <= end:
-            if self.is_working_day(current):
-                count += 1
-            current += timedelta(days=1)
-        return count
+        # Use resolve_range for bulk efficiency — single set of DB queries for entire range
+        try:
+            days = self._resolver.resolve_range(start=start, end=end)
+            return sum(1 for d in days if d.available_hours > 0)
+        except Exception:
+            # Fallback: day-by-day (safe but slower)
+            count = 0
+            current = start
+            while current <= end:
+                if self.is_working_day(current):
+                    count += 1
+                current += timedelta(days=1)
+            return count
 
 
 __all__ = ["GlobalCalendarShim"]
