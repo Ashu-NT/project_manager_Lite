@@ -66,13 +66,11 @@ from src.core.platform.infrastructure.persistence.repositories.documents import 
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentStructureRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.org import (
-    SqlAlchemyDepartmentRepository,
-    SqlAlchemyEmployeeRepository,
-    SqlAlchemyOrganizationRepository,
-    SqlAlchemySiteRepository,
-)
+from src.core.platform.infrastructure.persistence.repositories.departments import SqlAlchemyDepartmentRepository
+from src.core.platform.infrastructure.persistence.repositories.employee import SqlAlchemyEmployeeRepository
+from src.core.platform.infrastructure.persistence.repositories.org import SqlAlchemyOrganizationRepository
 from src.core.platform.infrastructure.persistence.repositories.party import SqlAlchemyPartyRepository
+from src.core.platform.infrastructure.persistence.repositories.sites import SqlAlchemySiteRepository
 from src.core.platform.infrastructure.persistence.repositories.time import (
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,

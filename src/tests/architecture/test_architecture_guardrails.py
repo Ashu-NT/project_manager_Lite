@@ -307,7 +307,10 @@ def test_composition_imports_focused_persistence_adapters():
     assert "from infra.platform.db.mappers import" not in text
     assert "from src.core.modules.project_management.infrastructure.persistence.repositories.task import" in text
     assert "from src.core.platform.infrastructure.persistence.repositories.auth import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.departments import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.employee import" in text
     assert "from src.core.platform.infrastructure.persistence.repositories.org import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.sites import" in text
     assert "from src.core.platform.infrastructure.persistence.repositories.time import" in text
 
 
