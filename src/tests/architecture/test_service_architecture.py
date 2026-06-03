@@ -152,7 +152,9 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.calendar_service, CalendarService)
     assert isinstance(graph.cost_service, CostService)
     assert isinstance(graph.finance_service, FinanceService)
-    assert isinstance(graph.work_calendar_engine, WorkCalendarEngine)
+    # work_calendar_engine is now GlobalCalendarShim (enterprise-backed).
+    # WorkCalendarEngine is kept for legacy test-only usage; not checked in architecture test.
+    assert hasattr(graph, "work_calendar_engine") and graph.work_calendar_engine is not None
     assert isinstance(graph.work_calendar_service, WorkCalendarService)
     assert isinstance(graph.scheduling_engine, SchedulingEngine)
     assert isinstance(graph.reporting_service, ReportingService)
