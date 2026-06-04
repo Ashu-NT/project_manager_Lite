@@ -72,7 +72,8 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.infrastructure.importers import DataImportService
 from src.core.modules.project_management.application.financials import CostService, FinanceService
-from src.core.modules.project_management.application.projects import PortfolioService, ProjectService
+from src.core.modules.project_management.application.portfolio import PortfolioService
+from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,

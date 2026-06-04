@@ -121,10 +121,8 @@ from src.core.modules.project_management.application.scheduling.forecasting.sche
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import FinanceService
-from src.core.modules.project_management.application.projects import (
-    PortfolioService,
-    ProjectService,
-)
+from src.core.modules.project_management.application.portfolio import PortfolioService
+from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.resources import (
     PortfolioResourcePoolService,

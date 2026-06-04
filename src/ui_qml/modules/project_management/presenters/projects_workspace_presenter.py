@@ -20,12 +20,18 @@ from src.core.modules.project_management.api.desktop.tasks import (
     ProjectManagementTasksDesktopApi,
     build_project_management_tasks_desktop_api,
 )
-from src.core.modules.project_management.infrastructure.importers.import_parser import (
+from src.core.modules.project_management.infrastructure.importers.utils.csv_parser import (
     CsvImportParser,
+)
+from src.core.modules.project_management.infrastructure.importers.scheduling.mpp.mpp_parser import (
+    MSProjectXmlParser,
+)
+from src.core.modules.project_management.infrastructure.importers.scheduling.primavera.p6_parser import (
+    P6Parser,
+)
+from src.core.modules.project_management.infrastructure.importers.services.validation import (
     ImportValidationService,
     ImportValidationSeverity,
-    MSProjectXmlParser,
-    P6Parser,
 )
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectCatalogMetricViewModel,

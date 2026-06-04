@@ -12,7 +12,7 @@ from src.core.modules.project_management.api.desktop.collaboration import (
     TaskCollaborationPostCommand,
     TaskCollaborationSnapshotDto,
     build_project_management_collaboration_desktop_api,
-)
+)  # collaboration/ subpackage
 from src.core.modules.project_management.api.desktop.dashboard import (
     ProjectDashboardActivityFeedDescriptor,
     ProjectDashboardActivityItemDescriptor,

@@ -3,10 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from src.core.modules.project_management.application.projects import (
-    PortfolioService,
-    ProjectService,
-)
+from src.core.modules.project_management.application.portfolio import PortfolioService
+from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import PortfolioResourcePoolService
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
