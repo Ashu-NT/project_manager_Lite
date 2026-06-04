@@ -62,7 +62,7 @@ Orchestration code between services and the UI. Complex dispatch, serialization,
 | LOC | File |
 |----:|------|
 | 2793 | `src/core/modules/project_management/api/desktop/dashboard.py` |
-| 1345 | `src/core/modules/project_management/api/desktop/tasks.py` |
+| split | `src/core/modules/project_management/api/desktop/tasks/` |
 | 1241 | `src/core/modules/project_management/api/desktop/scheduling.py` |
 |  854 | `src/core/modules/maintenance/api/desktop/preventive/api.py` |
 |  835 | `src/core/modules/project_management/api/desktop/financials.py` |

@@ -596,7 +596,7 @@ Project Management QML presenter/view-model status as of 2026-04-29:
 - `src/core/modules/project_management/api/desktop/register.py` defines the PM risk/register desktop API contract, including project/type/status/severity selectors and register-entry CRUD DTOs
 - `src/core/modules/project_management/api/desktop/resources.py` defines the PM resources CRUD desktop API contract, including worker-type, category, and employee selector DTOs
 - `src/core/modules/project_management/api/desktop/scheduling.py` defines the PM scheduling operations desktop API contract
-- `src/core/modules/project_management/api/desktop/tasks.py` defines the PM tasks CRUD/progress desktop API contract, including assignment and dependency DTOs plus task-execution mutations
+- `src/core/modules/project_management/api/desktop/tasks/` defines the PM tasks CRUD/progress desktop API contract, including assignment and dependency DTOs plus task-execution mutations split across focused API, model, command, serializer, builder, service, utility, and factory modules
 - `src/ui_qml/modules/project_management/view_models/workspace.py` defines the first PM QML workspace view model
 - `src/ui_qml/modules/project_management/view_models/dashboard.py` defines PM dashboard overview, selector, analysis-panel, chart, section, and workspace view models for the QML dashboard slice
 - `src/ui_qml/modules/project_management/view_models/financials.py` defines PM financial overview, selector, collection, detail, and finance insight view models
