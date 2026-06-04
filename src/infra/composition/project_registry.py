@@ -35,7 +35,8 @@ from src.core.modules.project_management.application.scheduling import (
 )
 from src.core.modules.project_management.infrastructure.importers import DataImportService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.modules.project_management.application.tasks import CollaborationService, TaskService
+from src.core.modules.project_management.application.collaboration import CollaborationService
+from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
 )

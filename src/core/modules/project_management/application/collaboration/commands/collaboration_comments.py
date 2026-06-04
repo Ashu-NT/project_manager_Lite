@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from src.core.modules.project_management.domain.collaboration import TaskComment
+from src.core.modules.project_management.domain.collaboration import TaskComment, resolve_mentions
 from src.core.modules.project_management.infrastructure.collaboration_attachments import store_task_comment_attachments
-from src.core.modules.project_management.application.tasks.collaboration_mentions import resolve_mentions
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ValidationError

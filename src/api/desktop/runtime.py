@@ -137,10 +137,8 @@ from src.core.modules.project_management.application.resources.enterprise_resour
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
 )
-from src.core.modules.project_management.application.tasks import (
-    CollaborationService,
-    TaskService,
-)
+from src.core.modules.project_management.application.collaboration import CollaborationService
+from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
 )

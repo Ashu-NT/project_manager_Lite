@@ -1,11 +1,35 @@
+"""Mention entities, parsing rules, and value objects."""
+
 from __future__ import annotations
 
 import re
-
-from src.core.modules.project_management.domain.collaboration import CollaborationMentionCandidate
+from dataclasses import dataclass
 
 
 MENTION_RE = re.compile(r"@([A-Za-z0-9_.-]+)")
+
+
+@dataclass(frozen=True)
+class CollaborationMentionCandidate:
+    user_id: str
+    username: str
+    display_name: str | None = None
+    scope_role: str | None = None
+
+    @property
+    def handle(self) -> str:
+        return (self.username or "").strip().lower()
+
+    @property
+    def label(self) -> str:
+        display = (self.display_name or "").strip()
+        role = (self.scope_role or "").strip()
+        pieces = [f"@{self.handle}"]
+        if display and display.lower() != self.handle:
+            pieces.append(display)
+        if role:
+            pieces.append(role.title())
+        return "  ".join(piece for piece in pieces if piece)
 
 
 def extract_mention_tokens(text: str) -> list[str]:
@@ -46,4 +70,10 @@ def resolve_mentions(
     return sorted(canonical_mentions), sorted(mentioned_user_ids), sorted(unresolved)
 
 
-__all__ = ["MENTION_RE", "candidate_handles", "extract_mention_tokens", "resolve_mentions"]
+__all__ = [
+    "CollaborationMentionCandidate",
+    "MENTION_RE",
+    "candidate_handles",
+    "extract_mention_tokens",
+    "resolve_mentions",
+]

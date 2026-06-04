@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from src.core.modules.project_management.application.tasks import CollaborationService
+from src.core.modules.project_management.application.collaboration import CollaborationService
 from src.core.modules.project_management.api.desktop.collaboration.api import (
     ProjectManagementCollaborationDesktopApi,
 )

@@ -88,7 +88,8 @@ from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
 )
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.modules.project_management.application.tasks import CollaborationService, TaskService
+from src.core.modules.project_management.application.collaboration import CollaborationService
+from src.core.modules.project_management.application.tasks import TaskService
 from src.infra.composition.app_container import ServiceGraph, build_service_graph
 from pathlib import Path
 

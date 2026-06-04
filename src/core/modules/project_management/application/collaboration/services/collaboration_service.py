@@ -5,31 +5,31 @@ import os
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
-from src.core.modules.project_management.application.tasks.collaboration_principal import (
+from src.core.modules.project_management.application.collaboration.utils.principal import (
     CollaborationPrincipalMixin,
 )
-from src.core.modules.project_management.application.tasks.collaboration_support import (
+from src.core.modules.project_management.application.collaboration.utils.support import (
     CollaborationSupportMixin,
 )
-from src.core.modules.project_management.application.tasks.commands.collaboration_comments import (
+from src.core.modules.project_management.application.collaboration.commands.collaboration_comments import (
     CollaborationCommentCommandMixin,
 )
-from src.core.modules.project_management.application.tasks.commands.collaboration_presence import (
+from src.core.modules.project_management.application.collaboration.commands.collaboration_presence import (
     CollaborationPresenceCommandMixin,
 )
-from src.core.modules.project_management.application.tasks.queries.collaboration_comments import (
+from src.core.modules.project_management.application.collaboration.queries.collaboration_comments import (
     CollaborationCommentQueryMixin,
 )
-from src.core.modules.project_management.application.tasks.queries.collaboration_documents import (
+from src.core.modules.project_management.application.collaboration.queries.collaboration_documents import (
     CollaborationDocumentQueryMixin,
 )
-from src.core.modules.project_management.application.tasks.queries.collaboration_inbox import (
+from src.core.modules.project_management.application.collaboration.queries.collaboration_inbox import (
     CollaborationInboxQueryMixin,
 )
-from src.core.modules.project_management.application.tasks.queries.collaboration_notifications import (
+from src.core.modules.project_management.application.collaboration.queries.collaboration_notifications import (
     CollaborationNotificationQueryMixin,
 )
-from src.core.modules.project_management.application.tasks.queries.collaboration_presence import (
+from src.core.modules.project_management.application.collaboration.queries.collaboration_presence import (
     CollaborationPresenceQueryMixin,
 )
 from src.core.modules.project_management.contracts.repositories.collaboration import (

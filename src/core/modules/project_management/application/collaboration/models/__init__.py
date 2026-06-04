@@ -1,0 +1,1 @@
+"""Collaboration application models."""

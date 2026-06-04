@@ -15,7 +15,7 @@ from src.core.modules.project_management.application.risk import (
     RegisterProjectSummary,
     RegisterService,
 )
-from src.core.modules.project_management.application.tasks import CollaborationService
+from src.core.modules.project_management.application.collaboration import CollaborationService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
