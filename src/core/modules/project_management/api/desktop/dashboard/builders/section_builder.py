@@ -43,7 +43,7 @@ def _build_reports_section() -> ProjectDashboardSectionDescriptor:
         ("evm_summary", "Earned Value Summary", "project_management.financials", "BCWS, BCWP, ACWP, SPI, CPI, and VAC per period."),
         ("resource_utilization", "Resource Utilization", "project_management.resources", "Allocation %, peak load, and overload indicators per resource."),
         ("baseline_variance", "Baseline Variance", "project_management.scheduling", "Start and finish drift vs. the approved baseline per task."),
-        ("risk_register", "Risk Register Summary", "project_management.risk", "Open risks, issues, and change requests by severity and status."),
+        ("risk_register", "Risk Register Summary", "project_management.register", "Open risks, issues, and change requests by severity and status."),
     )
     return ProjectDashboardSectionDescriptor(
         title="Reports",

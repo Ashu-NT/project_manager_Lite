@@ -136,7 +136,7 @@ def _build_high_risks_table(dashboard_data: Any, *, register_service=None) -> Pr
         empty_state="No high-risk register entries are visible right now.",
         columns=(_COL("title", "Risk", 3, 220, True), _COL("severityLabel", "Severity", 0, 96, False, True, "status"), _COL("owner", "Owner", 2, 140), _COL("dueDate", "Due", 1, 108, True), _COL("statusLabel", "Status", 0, 110, False, True, "status"), _COL("response", "Response", 3, 220)),
         rows=tuple(
-            ProjectDashboardTableRowDescriptor(id=i.id, route_id="project_management.risk", state={"entryId": i.id, "projectId": i.project_id}, values={"title": i.title, "severityLabel": as_register_entry_severity(i.severity).value.title(), "owner": i.owner_name or "Unassigned", "dueDate": fmt_date(i.due_date), "statusLabel": as_register_entry_status(i.status).value.replace("_", " ").title(), "response": i.response_plan or i.impact_summary or i.description or ""})
+            ProjectDashboardTableRowDescriptor(id=i.id, route_id="project_management.register", state={"entryId": i.id, "projectId": i.project_id}, values={"title": i.title, "severityLabel": as_register_entry_severity(i.severity).value.title(), "owner": i.owner_name or "Unassigned", "dueDate": fmt_date(i.due_date), "statusLabel": as_register_entry_status(i.status).value.replace("_", " ").title(), "response": i.response_plan or i.impact_summary or i.description or ""})
             for i in risk_rows
             if i.severity in (RegisterEntrySeverity.HIGH, RegisterEntrySeverity.CRITICAL) and i.status in (RegisterEntryStatus.OPEN, RegisterEntryStatus.IN_REVIEW)
         ),
