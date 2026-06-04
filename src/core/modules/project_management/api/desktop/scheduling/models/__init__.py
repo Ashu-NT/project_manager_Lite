@@ -15,6 +15,8 @@ from src.core.modules.project_management.api.desktop.scheduling.models.calendars
     SchedulingWorkingDayCalculationDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
+    ScheduleImpactAffectedTaskDto,
+    ScheduleImpactReportDto,
     SchedulingChangeImpactAffectedTaskDto,
     SchedulingChangeImpactDto,
 )
@@ -42,6 +44,8 @@ __all__ = [
     "SchedulingBaselineVarianceRowDto",
     "SchedulingCalendarOptionDescriptor",
     "SchedulingCalendarSnapshotDto",
+    "ScheduleImpactAffectedTaskDto",
+    "ScheduleImpactReportDto",
     "SchedulingChangeImpactAffectedTaskDto",
     "SchedulingChangeImpactDto",
     "SchedulingConstraintViolationDto",

@@ -14,8 +14,13 @@ from src.core.modules.project_management.application.resources.assignment_valida
 from src.core.modules.project_management.application.resources.resource_availability_service import (
     ResourceAvailabilityService,
 )
-from src.core.modules.project_management.api.desktop.tasks_schedule_impact import (
-    ScheduleImpactAffectedTaskDto, ScheduleImpactReportDto, compute_schedule_impact)
+from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import (
+    compute_schedule_impact,
+)
+from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
+    ScheduleImpactAffectedTaskDto,
+    ScheduleImpactReportDto,
+)
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
 from src.core.platform.common.exceptions import BusinessRuleError

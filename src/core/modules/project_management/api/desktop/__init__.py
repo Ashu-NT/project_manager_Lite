@@ -110,6 +110,8 @@ from src.core.modules.project_management.api.desktop.register import (
 )
 from src.core.modules.project_management.api.desktop.scheduling import (
     ProjectManagementSchedulingDesktopApi,
+    ScheduleImpactAffectedTaskDto,
+    ScheduleImpactReportDto,
     SchedulingBaselineComparisonRowDto,
     SchedulingBaselineVarianceRowDto,
     SchedulingBaselineCreateCommand,
@@ -160,10 +162,6 @@ from src.core.modules.project_management.api.desktop.tasks import (
     TaskStatusDescriptor,
     TaskUpdateCommand,
     build_project_management_tasks_desktop_api,
-)
-from src.core.modules.project_management.api.desktop.tasks_schedule_impact import (
-    ScheduleImpactAffectedTaskDto,
-    ScheduleImpactReportDto,
 )
 from src.core.modules.project_management.api.desktop.timesheets import (
     ProjectManagementTimesheetsDesktopApi,
