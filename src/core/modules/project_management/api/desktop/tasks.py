@@ -19,7 +19,7 @@ from src.core.modules.project_management.api.desktop.tasks_schedule_impact impor
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
 from src.core.platform.common.exceptions import BusinessRuleError
-
+from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import ScheduleChangeImpactService
 
 @dataclass(frozen=True)
 class TaskProjectOptionDescriptor:
