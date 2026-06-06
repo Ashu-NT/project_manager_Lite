@@ -39,9 +39,25 @@ def build_charts_from_dashboard_data(
             _build_portfolio_cost_chart(dashboard_data=dashboard_data),
             _build_resource_chart(dashboard_data=dashboard_data, portfolio_mode=True),
         )
+    project_id = str(getattr(getattr(dashboard_data, "kpi", None), "project_id", "") or "")
+    baseline_id = getattr(getattr(dashboard_data, "evm", None), "baseline_id", None)
+    evm_series = _filtered_evm_series(
+        project_id=project_id,
+        baseline_id=baseline_id,
+        selected_period_key=selected_period_key,
+        reporting_service=reporting_service,
+    )
     return (
-        _build_schedule_trend_chart(dashboard_data=dashboard_data, selected_period_key=selected_period_key, reporting_service=reporting_service),
-        _build_cost_trend_chart(dashboard_data=dashboard_data, selected_period_key=selected_period_key, reporting_service=reporting_service),
+        _build_schedule_trend_chart(
+            dashboard_data=dashboard_data,
+            selected_period_key=selected_period_key,
+            evm_series=evm_series,
+        ),
+        _build_cost_trend_chart(
+            dashboard_data=dashboard_data,
+            selected_period_key=selected_period_key,
+            evm_series=evm_series,
+        ),
         _build_resource_chart(dashboard_data=dashboard_data, portfolio_mode=False),
     )
 
@@ -82,10 +98,13 @@ def _build_portfolio_cost_chart(*, dashboard_data: Any) -> ProjectDashboardChart
     )
 
 
-def _build_schedule_trend_chart(*, dashboard_data: Any, selected_period_key: str, reporting_service=None) -> ProjectDashboardChartDescriptor:
-    project_id = str(getattr(getattr(dashboard_data, "kpi", None), "project_id", "") or "")
-    baseline_id = getattr(getattr(dashboard_data, "evm", None), "baseline_id", None)
-    series = _filtered_evm_series(project_id=project_id, baseline_id=baseline_id, selected_period_key=selected_period_key, reporting_service=reporting_service)
+def _build_schedule_trend_chart(
+    *,
+    dashboard_data: Any,
+    selected_period_key: str,
+    evm_series: tuple[Any, ...] = (),
+) -> ProjectDashboardChartDescriptor:
+    series = evm_series
     if series:
         series_length = len(series)
         return ProjectDashboardChartDescriptor(
@@ -95,10 +114,13 @@ def _build_schedule_trend_chart(*, dashboard_data: Any, selected_period_key: str
     return _build_burndown_fallback_chart(dashboard_data)
 
 
-def _build_cost_trend_chart(*, dashboard_data: Any, selected_period_key: str, reporting_service=None) -> ProjectDashboardChartDescriptor:
-    project_id = str(getattr(getattr(dashboard_data, "kpi", None), "project_id", "") or "")
-    baseline_id = getattr(getattr(dashboard_data, "evm", None), "baseline_id", None)
-    series = _filtered_evm_series(project_id=project_id, baseline_id=baseline_id, selected_period_key=selected_period_key, reporting_service=reporting_service)
+def _build_cost_trend_chart(
+    *,
+    dashboard_data: Any,
+    selected_period_key: str,
+    evm_series: tuple[Any, ...] = (),
+) -> ProjectDashboardChartDescriptor:
+    series = evm_series
     if series:
         series_length = len(series)
         return ProjectDashboardChartDescriptor(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from math import ceil
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
@@ -27,6 +28,8 @@ from src.ui_qml.modules.project_management.presenters import (
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
 
+logger = logging.getLogger(__name__)
+
 
 @QmlElement
 @QmlUncreatable("Project management workspace controllers are provided by the shell runtime.")
@@ -34,6 +37,7 @@ class ProjectManagementDashboardWorkspaceController(
     ProjectManagementWorkspaceControllerBase
 ):
     overviewChanged = Signal()
+    hasLoadedChanged = Signal()
     projectOptionsChanged = Signal()
     selectedProjectIdChanged = Signal()
     baselineOptionsChanged = Signal()
@@ -70,7 +74,20 @@ class ProjectManagementDashboardWorkspaceController(
         self._dashboard_workspace_presenter = (
             dashboard_workspace_presenter or ProjectDashboardWorkspacePresenter()
         )
-        self._overview: dict[str, object] = {"title": "", "subtitle": "", "metrics": []}
+        workspace_view_model = serialize_workspace_view_model(
+            self._workspace_presenter.build_view_model()
+        )
+        self._workspace = workspace_view_model
+        self._overview: dict[str, object] = {
+            "title": str(workspace_view_model.get("title", "") or "Dashboard"),
+            "subtitle": "Select a project to see schedule and cost health.",
+            "metrics": [],
+        }
+        self._has_loaded = False
+        self._is_refreshing = False
+        self._load_count = 0
+        self._refresh_count = 0
+        self._selector_debug_counts: dict[str, int] = {}
         self._project_options: list[dict[str, str]] = []
         self._selected_project_id = ""
         self._baseline_options: list[dict[str, str]] = []
@@ -100,11 +117,14 @@ class ProjectManagementDashboardWorkspaceController(
         self._sections: list[dict[str, object]] = []
         self._raw_operational_tables: list[dict[str, object]] = []
         self._bind_domain_events()
-        self.refresh()
 
     @Property("QVariantMap", notify=overviewChanged)
     def overview(self) -> dict[str, object]:
         return self._overview
+
+    @Property(bool, notify=hasLoadedChanged)
+    def hasLoaded(self) -> bool:
+        return self._has_loaded
 
     @Property("QVariantList", notify=projectOptionsChanged)
     def projectOptions(self) -> list[dict[str, str]]:
@@ -195,16 +215,48 @@ class ProjectManagementDashboardWorkspaceController(
         return self._sections
 
     @Slot()
+    def load(self) -> None:
+        if self._has_loaded:
+            logger.debug("PM dashboard load skipped: already loaded")
+            return
+        if self._is_refreshing:
+            logger.debug("PM dashboard load skipped: refresh already in progress")
+            return
+        self._load_count += 1
+        logger.debug("PM dashboard load #%s", self._load_count)
+        self._refresh_dashboard(source="load", mark_loaded=True)
+
+    @Slot()
     def refresh(self) -> None:
+        if not self._has_loaded:
+            logger.debug("PM dashboard refresh requested before load; delegating to load()")
+            self.load()
+            return
+        self._refresh_dashboard(source="refresh")
+
+    def _refresh_dashboard(self, *, source: str, mark_loaded: bool = False) -> None:
+        if self._is_refreshing:
+            logger.debug(
+                "PM dashboard refresh skipped: source=%s already refreshing",
+                source,
+            )
+            return
+        self._is_refreshing = True
+        self._refresh_count += 1
+        logger.debug(
+            "PM dashboard refresh #%s source=%s project=%r baseline=%r period=%r view=%r",
+            self._refresh_count,
+            source,
+            self._selected_project_id,
+            self._selected_baseline_id,
+            self._selected_period_key,
+            self._selected_view_key,
+        )
         self._set_is_loading(True)
+        loaded_successfully = False
         try:
             self._set_error_message("")
             self._set_feedback_message("")
-            self._set_workspace(
-                serialize_workspace_view_model(
-                    self._workspace_presenter.build_view_model()
-                )
-            )
             workspace_state = self._dashboard_workspace_presenter.build_workspace_state(
                 project_id=self._selected_project_id or None,
                 baseline_id=self._selected_baseline_id or None,
@@ -270,48 +322,81 @@ class ProjectManagementDashboardWorkspaceController(
             )
             self._set_empty_state(workspace_state.empty_state)
             self._apply_operational_table_state()
+            loaded_successfully = True
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:
+            if mark_loaded and loaded_successfully:
+                self._set_has_loaded(True)
+            self._is_refreshing = False
             self._set_is_loading(False)
 
     @Slot(str)
     def selectProject(self, project_id: str) -> None:
         normalized_id = (project_id or "").strip()
+        self._log_selector_call("selectProject", normalized_id)
+        if self._is_refreshing:
+            logger.debug("PM dashboard selectProject ignored during refresh")
+            return
         if normalized_id == self._selected_project_id:
             return
         self._set_selected_project_id(normalized_id)
         self._set_selected_baseline_id("")
-        self.refresh()
+        if not self._has_loaded:
+            self.load()
+            return
+        self._refresh_dashboard(source="selectProject")
 
     @Slot(str)
     def selectBaseline(self, baseline_id: str) -> None:
         normalized_id = (baseline_id or "").strip()
+        self._log_selector_call("selectBaseline", normalized_id)
+        if self._is_refreshing:
+            logger.debug("PM dashboard selectBaseline ignored during refresh")
+            return
         if normalized_id == self._selected_baseline_id:
             return
         self._set_selected_baseline_id(normalized_id)
-        self.refresh()
+        if not self._has_loaded:
+            self.load()
+            return
+        self._refresh_dashboard(source="selectBaseline")
 
     @Slot(str)
     def selectPeriod(self, period_key: str) -> None:
         normalized_key = (period_key or "").strip()
+        self._log_selector_call("selectPeriod", normalized_key)
+        if self._is_refreshing:
+            logger.debug("PM dashboard selectPeriod ignored during refresh")
+            return
         if normalized_key == self._selected_period_key:
             return
         self._set_selected_period_key(normalized_key)
-        self.refresh()
+        if not self._has_loaded:
+            self.load()
+            return
+        self._refresh_dashboard(source="selectPeriod")
 
     @Slot(str)
     def selectView(self, view_key: str) -> None:
         normalized_key = (view_key or "").strip()
+        self._log_selector_call("selectView", normalized_key)
+        if self._is_refreshing:
+            logger.debug("PM dashboard selectView ignored during refresh")
+            return
         if normalized_key == self._selected_view_key:
             return
         self._set_selected_view_key(normalized_key)
         self._set_selected_operational_tab_id("")
-        self.refresh()
+        if not self._has_loaded:
+            self.load()
+            return
+        self._refresh_dashboard(source="selectView")
 
     @Slot(str)
     def selectOperationalTab(self, tab_id: str) -> None:
         normalized_id = (tab_id or "").strip()
+        self._log_selector_call("selectOperationalTab", normalized_id)
         if normalized_id == self._selected_operational_tab_id:
             return
         self._set_selected_operational_tab_id(normalized_id)
@@ -355,6 +440,12 @@ class ProjectManagementDashboardWorkspaceController(
         self._set_error_message("")
         self._set_feedback_message(message)
         return {"ok": True, "message": message}
+
+    def _request_domain_refresh(self) -> None:
+        if not self._has_loaded:
+            logger.debug("PM dashboard domain refresh ignored before initial load")
+            return
+        super()._request_domain_refresh()
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(
@@ -468,6 +559,12 @@ class ProjectManagementDashboardWorkspaceController(
             return
         self._overview = overview
         self.overviewChanged.emit()
+
+    def _set_has_loaded(self, value: bool) -> None:
+        if value == self._has_loaded:
+            return
+        self._has_loaded = value
+        self.hasLoadedChanged.emit()
 
     def _set_project_options(self, project_options: list[dict[str, str]]) -> None:
         if project_options == self._project_options:
@@ -595,6 +692,18 @@ class ProjectManagementDashboardWorkspaceController(
             return
         self._sections = sections
         self.sectionsChanged.emit()
+
+    def _log_selector_call(self, selector_name: str, selected_value: str) -> None:
+        next_count = self._selector_debug_counts.get(selector_name, 0) + 1
+        self._selector_debug_counts[selector_name] = next_count
+        logger.debug(
+            "PM dashboard %s #%s value=%r loaded=%s refreshing=%s",
+            selector_name,
+            next_count,
+            selected_value,
+            self._has_loaded,
+            self._is_refreshing,
+        )
 
 
 __all__ = ["ProjectManagementDashboardWorkspaceController"]

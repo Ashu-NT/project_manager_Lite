@@ -705,3 +705,49 @@ def test_platform_admin_console_clears_workspace_messages_on_context_switch() ->
     assert "root.workspaceController.clearMessages()" in text
     assert text.count("root._clearWorkspaceMessages()") >= 4
 
+
+def test_project_management_dashboard_load_is_qml_driven_and_selector_sync_is_guarded() -> None:
+    controller_path = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "controllers"
+        / "dashboard"
+        / "dashboard_workspace_controller.py"
+    )
+    page_path = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "dashboard"
+        / "DashboardWorkspacePage.qml"
+    )
+    selection_bar_path = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "dashboard"
+        / "sections"
+        / "DashboardSelectionBar.qml"
+    )
+
+    controller_text = controller_path.read_text(encoding="utf-8", errors="ignore")
+    page_text = page_path.read_text(encoding="utf-8", errors="ignore")
+    selection_bar_text = selection_bar_path.read_text(encoding="utf-8", errors="ignore")
+    init_block = controller_text.split("def __init__", 1)[1].split("@Property", 1)[0]
+
+    assert "self.refresh()" not in init_block
+    assert "def load(self) -> None:" in controller_text
+    assert "self._has_loaded = False" in controller_text
+    assert "self._is_refreshing = False" in controller_text
+    assert "def _request_domain_refresh(self) -> None:" in controller_text
+    assert "Component.onCompleted: root.ensureLoaded()" in page_text
+    assert "root.workspaceController.load()" in page_text
+    assert "property bool syncingSelection: false" in selection_bar_text
+    assert "currentIndex: root.indexForValue" not in selection_bar_text
+    assert "if (projectCombo.syncingSelection)" in selection_bar_text
+

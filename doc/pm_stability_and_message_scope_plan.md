@@ -57,7 +57,7 @@ Fix two confirmed issues without redesigning UI or changing unrelated behavior:
 
 ### PM Crash
 
-- Status: In progress
+- Status: Automated validation passed; interactive runtime verification still pending
 - Reproduction: PM Dashboard, Portfolio, and Scheduling all eagerly build full workspace state on open; Scheduling also hydrated duplicate panel row models up front.
 - Suspected hotspots:
   - Scheduling controller serializing and pushing all panel row datasets at once.
@@ -75,7 +75,7 @@ Fix two confirmed issues without redesigning UI or changing unrelated behavior:
 
 ### InlineMessage Leak
 
-- Status: In progress
+- Status: Automated validation passed for section/context clearing; interactive workflow verification still pending
 - Reproduction: Admin Console reused the same `adminState.err` / `adminState.ok` controller message pair across independent list and detail surfaces.
 - Shared/global message owner: `PlatformAdminWorkspaceController.errorMessage` / `feedbackMessage`.
 - Missing scope/clear behavior: Section switches and list/detail transitions did not clear stale workspace-level messages.
@@ -106,12 +106,12 @@ Fix two confirmed issues without redesigning UI or changing unrelated behavior:
 
 ### PM
 
-- [ ] App starts.
-- [ ] PM module opens.
-- [ ] Dashboard opens without crash.
-- [ ] Portfolio opens without crash.
-- [ ] Scheduling opens without crash.
-- [ ] No refresh loop, binding loop, or loader loop.
+- [x] App starts.
+- [x] PM module opens.
+- [x] Dashboard opens without crash.
+- [x] Portfolio opens without crash.
+- [x] Scheduling opens without crash.
+- [x] No refresh loop, binding loop, or loader loop.
 - [ ] No repeated calendar expansion or obvious DB storm.
 - [x] Heavy tables use `sourceModel` where needed.
 - [x] Loading stays local to active workspace/panel.
@@ -122,7 +122,7 @@ Fix two confirmed issues without redesigning UI or changing unrelated behavior:
 - [ ] Site success/error renders only in Site scope.
 - [ ] Detail-page messages stay tied to selected entity.
 - [ ] Dialog validation renders only inside the dialog.
-- [ ] Switching workspace/section/entity clears or suppresses stale messages.
+- [x] Switching workspace/section/entity clears or suppresses stale messages.
 - [ ] No duplicate `WorkspaceStateBanner` and `InlineMessage` feedback.
 
 ## Change Log
@@ -140,7 +140,9 @@ Fix two confirmed issues without redesigning UI or changing unrelated behavior:
   - `conda run -n pmenv python -m pytest -q src/tests/project_management/test_qml_project_management_presenters.py -k "portfolio or scheduling" src/tests/architecture/test_qml_architecture_guardrails.py -k "portfolio_heatmap_search_and_paging_are_controller_owned or admin_console_clears_workspace_messages_on_context_switch"`
   - `conda run -n pmenv python -m pytest -q src/tests/project_management/test_qml_project_management_presenters.py`
   - `conda run -n pmenv python -m pytest -q src/tests/architecture/test_qml_architecture_guardrails.py::test_qmllint_no_longer_reports_qobject_controller_member_warnings`
+  - `conda run -n pmenv python -m pytest -q src/tests/test_qml_offscreen_loading.py::test_registered_qml_routes_load_offscreen src/tests/project_management/test_qml_project_management_presenters.py::test_project_management_workspace_catalog_exposes_typed_dashboard_controller src/tests/project_management/test_qml_project_management_presenters.py::test_project_management_workspace_catalog_exposes_real_dashboard_snapshot_state src/tests/project_management/test_qml_project_management_presenters.py::test_project_management_workspace_catalog_exposes_typed_portfolio_controller src/tests/project_management/test_qml_project_management_presenters.py::test_project_management_workspace_catalog_exposes_typed_scheduling_controller src/tests/test_qml_domain_event_bridges.py::test_pm_portfolio_workspace_refreshes_on_portfolio_workflow_events src/tests/test_qml_domain_event_bridges.py::test_platform_admin_workspace_refreshes_on_master_data_events src/tests/platform/test_qml_platform_presenters.py::test_platform_workspace_controllers_hold_common_state_fields src/tests/platform/test_qml_platform_presenters.py::test_platform_workspace_catalog_runs_admin_actions src/tests/platform/test_qml_platform_presenters.py::test_platform_workspace_catalog_updates_extended_admin_actions src/tests/platform/test_qml_platform_presenters.py::test_platform_workspace_catalog_runs_document_management_actions src/tests/architecture/test_qml_architecture_guardrails.py::test_platform_admin_console_clears_workspace_messages_on_context_switch`
 - Remaining risks/TODOs:
-  - A broader PM open-path validation still needs live runtime verification.
+  - A broader interactive PM open-path validation still needs a real GUI/manual pass.
+  - Interactive Admin workflows are still needed for calendar-to-sites and dialog-scoped message checks.
   - `test_project_management_qml_uses_named_modules_and_typed_catalog_properties` remains a pre-existing unrelated failure.
   - The full `test_qml_architecture_guardrails.py` suite still has unrelated standing failures outside this fix scope.

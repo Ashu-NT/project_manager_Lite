@@ -77,6 +77,7 @@ def test_project_management_workspace_catalog_exposes_typed_dashboard_controller
     catalog = ProjectManagementWorkspaceCatalog()
 
     controller = catalog.dashboardWorkspace
+    controller.load()
     workspace = controller.workspace
     overview = controller.overview
 
@@ -91,6 +92,28 @@ def test_project_management_workspace_catalog_exposes_typed_dashboard_controller
     assert controller.healthCards[0]["title"] == "Schedule Health"
     assert controller.operationalTable["id"] == "delayed_tasks"
     assert controller.activityFeed["title"] == "Recent Activity"
+
+
+def test_project_management_dashboard_controller_requires_explicit_load() -> None:
+    catalog = ProjectManagementWorkspaceCatalog()
+
+    controller = catalog.dashboardWorkspace
+
+    assert controller.hasLoaded is False
+    assert controller.projectOptions == []
+    assert controller.selectedProjectId == ""
+    assert controller.selectedViewKey == ""
+
+    controller.load()
+
+    assert controller.hasLoaded is True
+    assert controller.projectOptions[0]["label"] == "Portfolio Overview"
+    assert controller.selectedViewKey == "executive"
+
+    controller.load()
+
+    assert controller.hasLoaded is True
+    assert controller.selectedViewKey == "executive"
 
 
 def test_project_management_workspace_catalog_exposes_typed_collaboration_controller() -> None:
@@ -1611,6 +1634,7 @@ def test_project_management_workspace_catalog_exposes_real_dashboard_snapshot_st
     )
 
     controller = catalog.dashboardWorkspace
+    controller.load()
 
     assert controller.projectOptions[1]["label"] == "Plant Upgrade"
     assert controller.selectedProjectId == "proj-1"
@@ -1657,6 +1681,7 @@ def test_project_dashboard_presenter_exposes_empty_overview_view_model() -> None
 
 def test_project_management_workspace_catalog_exposes_dashboard_overview() -> None:
     catalog = ProjectManagementWorkspaceCatalog()
+    catalog.dashboardWorkspace.load()
 
     overview = catalog.dashboardOverview()
 

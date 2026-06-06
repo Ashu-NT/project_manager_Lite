@@ -24,6 +24,14 @@ Item {
     signal refreshRequested()
     signal exportRequested()
 
+    function optionValue(options, index) {
+        const rows = options || []
+        if (index < 0 || index >= rows.length) {
+            return ""
+        }
+        return String(rows[index].value || "")
+    }
+
     function indexForValue(options, selectedValue) {
         const rows = options || []
         for (let index = 0; index < rows.length; index += 1) {
@@ -34,10 +42,55 @@ Item {
         return rows.length > 0 ? 0 : -1
     }
 
+    function syncComboSelection(combo, options, selectedValue) {
+        if (!combo) {
+            return
+        }
+        const nextIndex = root.indexForValue(options, selectedValue)
+        if (combo.currentIndex === nextIndex) {
+            return
+        }
+        combo.syncingSelection = true
+        combo.currentIndex = nextIndex
+        Qt.callLater(function() {
+            combo.syncingSelection = false
+        })
+    }
+
+    function syncProjectCombo() {
+        root.syncComboSelection(projectCombo, root.projectOptions, root.selectedProjectId)
+    }
+
+    function syncBaselineCombo() {
+        root.syncComboSelection(baselineCombo, root.baselineOptions, root.selectedBaselineId)
+    }
+
+    function syncPeriodCombo() {
+        root.syncComboSelection(periodCombo, root.periodOptions, root.selectedPeriodKey)
+    }
+
+    function syncViewCombo() {
+        root.syncComboSelection(viewCombo, root.viewOptions, root.selectedViewKey)
+    }
+
     readonly property bool baselineSelectionLocked: (root.baselineOptions || []).length === 1
         && String(root.baselineOptions[0].label || "") === "Portfolio view"
 
     implicitHeight: toolbarColumn.implicitHeight
+    Component.onCompleted: {
+        root.syncProjectCombo()
+        root.syncBaselineCombo()
+        root.syncPeriodCombo()
+        root.syncViewCombo()
+    }
+    onProjectOptionsChanged: Qt.callLater(root.syncProjectCombo)
+    onSelectedProjectIdChanged: Qt.callLater(root.syncProjectCombo)
+    onBaselineOptionsChanged: Qt.callLater(root.syncBaselineCombo)
+    onSelectedBaselineIdChanged: Qt.callLater(root.syncBaselineCombo)
+    onPeriodOptionsChanged: Qt.callLater(root.syncPeriodCombo)
+    onSelectedPeriodKeyChanged: Qt.callLater(root.syncPeriodCombo)
+    onViewOptionsChanged: Qt.callLater(root.syncViewCombo)
+    onSelectedViewKeyChanged: Qt.callLater(root.syncViewCombo)
 
     ColumnLayout {
         id: toolbarColumn
@@ -72,16 +125,24 @@ Item {
                 }
 
                 AppControls.ComboBox {
+                    id: projectCombo
+
+                    property bool syncingSelection: false
+
                     Layout.preferredWidth: Math.max(220, root.width * 0.24)
                     Layout.fillWidth: true
                     enabled: !root.isLoading
                     model: root.projectOptions || []
                     textRole: "label"
-                    currentIndex: root.indexForValue(root.projectOptions, root.selectedProjectId)
 
                     onActivated: function(index) {
-                        const option = root.projectOptions[index]
-                        root.projectSelected(String(option && option.value ? option.value : ""))
+                        if (projectCombo.syncingSelection) {
+                            return
+                        }
+                        const nextValue = root.optionValue(root.projectOptions, index)
+                        if (nextValue !== String(root.selectedProjectId || "")) {
+                            root.projectSelected(nextValue)
+                        }
                     }
                 }
 
@@ -94,15 +155,23 @@ Item {
                 }
 
                 AppControls.ComboBox {
+                    id: baselineCombo
+
+                    property bool syncingSelection: false
+
                     Layout.preferredWidth: 210
                     enabled: !root.isLoading && !root.baselineSelectionLocked
                     model: root.baselineOptions || []
                     textRole: "label"
-                    currentIndex: root.indexForValue(root.baselineOptions, root.selectedBaselineId)
 
                     onActivated: function(index) {
-                        const option = root.baselineOptions[index]
-                        root.baselineSelected(String(option && option.value ? option.value : ""))
+                        if (baselineCombo.syncingSelection) {
+                            return
+                        }
+                        const nextValue = root.optionValue(root.baselineOptions, index)
+                        if (nextValue !== String(root.selectedBaselineId || "")) {
+                            root.baselineSelected(nextValue)
+                        }
                     }
                 }
 
@@ -115,15 +184,23 @@ Item {
                 }
 
                 AppControls.ComboBox {
+                    id: periodCombo
+
+                    property bool syncingSelection: false
+
                     Layout.preferredWidth: 150
                     enabled: !root.isLoading
                     model: root.periodOptions || []
                     textRole: "label"
-                    currentIndex: root.indexForValue(root.periodOptions, root.selectedPeriodKey)
 
                     onActivated: function(index) {
-                        const option = root.periodOptions[index]
-                        root.periodSelected(String(option && option.value ? option.value : ""))
+                        if (periodCombo.syncingSelection) {
+                            return
+                        }
+                        const nextValue = root.optionValue(root.periodOptions, index)
+                        if (nextValue !== String(root.selectedPeriodKey || "")) {
+                            root.periodSelected(nextValue)
+                        }
                     }
                 }
 
@@ -136,15 +213,23 @@ Item {
                 }
 
                 AppControls.ComboBox {
+                    id: viewCombo
+
+                    property bool syncingSelection: false
+
                     Layout.preferredWidth: 190
                     enabled: !root.isLoading
                     model: root.viewOptions || []
                     textRole: "label"
-                    currentIndex: root.indexForValue(root.viewOptions, root.selectedViewKey)
 
                     onActivated: function(index) {
-                        const option = root.viewOptions[index]
-                        root.viewSelected(String(option && option.value ? option.value : ""))
+                        if (viewCombo.syncingSelection) {
+                            return
+                        }
+                        const nextValue = root.optionValue(root.viewOptions, index)
+                        if (nextValue !== String(root.selectedViewKey || "")) {
+                            root.viewSelected(nextValue)
+                        }
                     }
                 }
 

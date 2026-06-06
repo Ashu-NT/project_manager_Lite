@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from PySide6.QtWidgets import QApplication
+
 from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.ui_qml.modules.maintenance.context import MaintenanceWorkspaceCatalog
 from src.ui_qml.modules.project_management.context import (
@@ -51,7 +53,9 @@ def test_pm_collaboration_workspace_refreshes_on_collaboration_workflow_events(m
     assert refresh_calls == ["refresh", "refresh", "refresh"]
 
 
-def test_pm_portfolio_workspace_refreshes_on_portfolio_workflow_events(monkeypatch) -> None:
+def test_pm_portfolio_workspace_refreshes_on_portfolio_workflow_events(
+    monkeypatch, qapp
+) -> None:
     catalog = ProjectManagementWorkspaceCatalog()
     controller = catalog.portfolioWorkspace
     refresh_calls: list[str] = []
@@ -75,8 +79,9 @@ def test_pm_portfolio_workspace_refreshes_on_portfolio_workflow_events(monkeypat
             source_event="manual_test",
         )
     )
+    QApplication.processEvents()
 
-    assert refresh_calls == ["refresh", "refresh"]
+    assert refresh_calls == ["refresh"]
 
 
 def test_pm_timesheets_workspace_refreshes_on_timesheet_workflow_events(monkeypatch) -> None:

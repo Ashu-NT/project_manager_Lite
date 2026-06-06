@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementDashboardDesktopApi,
     build_project_management_dashboard_desktop_api,
@@ -24,6 +26,8 @@ from src.ui_qml.modules.project_management.view_models.dashboard import (
     ProjectDashboardWorkspaceViewModel,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class ProjectDashboardWorkspacePresenter:
     def __init__(
@@ -32,6 +36,7 @@ class ProjectDashboardWorkspacePresenter:
         desktop_api: ProjectManagementDashboardDesktopApi | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_dashboard_desktop_api()
+        self._build_workspace_state_count = 0
 
     def build_workspace_state(
         self,
@@ -41,6 +46,15 @@ class ProjectDashboardWorkspacePresenter:
         period_key: str | None = None,
         view_key: str | None = None,
     ) -> ProjectDashboardWorkspaceViewModel:
+        self._build_workspace_state_count += 1
+        logger.debug(
+            "PM dashboard presenter build_workspace_state #%s project=%r baseline=%r period=%r view=%r",
+            self._build_workspace_state_count,
+            project_id,
+            baseline_id,
+            period_key,
+            view_key,
+        )
         snapshot = self._desktop_api.build_snapshot(
             project_id=project_id,
             baseline_id=baseline_id,
