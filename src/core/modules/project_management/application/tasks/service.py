@@ -52,8 +52,8 @@ from src.core.platform.audit.application.audit_service import AuditService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
-from src.core.modules.project_management.application.resources import TimesheetService
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
+from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 
 

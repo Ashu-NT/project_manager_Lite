@@ -48,9 +48,9 @@ from src.core.modules.project_management.api.desktop.timesheets.utils.status_uti
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
     ResourceService,
-    TimesheetService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.platform.time.domain import TimesheetPeriodStatus
 
 

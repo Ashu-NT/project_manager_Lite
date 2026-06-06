@@ -129,11 +129,11 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceAvailabilityService,
     ResourceService,
-    TimesheetService,
 )
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
     EnterpriseResourceAvailabilityService,
 )
+from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
 )

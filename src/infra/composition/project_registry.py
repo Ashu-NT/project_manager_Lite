@@ -26,7 +26,6 @@ from src.core.modules.project_management.application.projects import ProjectServ
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
-    TimesheetService,
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
@@ -37,6 +36,7 @@ from src.core.modules.project_management.infrastructure.importers import DataImp
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.collaboration import CollaborationService
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
 )
