@@ -32,11 +32,8 @@ Item {
         : ({ "title": "Capacity Pool", "subtitle": "", "emptyState": "No capacity data available.", "items": [] })
 
     // ── Mutable UI state ──────────────────────────────────────────────────
-    property string searchText:           ""
     property string selectedRowId:        ""
     property var    selectedRowIds:       []
-    property int    currentPage:          1
-    property int    pageSize:             25
     property int    bottomTab:            0
     property string selectedFundingId:    ""
     property bool   detailOpen:           false
@@ -75,32 +72,6 @@ Item {
             if (String(items[i].id || "") === id) return items[i]
         }
         return null
-    }
-
-    readonly property var heatmapAllRows: {
-        const items = root.heatmapModel.items || []
-        const text  = root.searchText.toLowerCase()
-        return items
-            .filter(function(item) {
-                return !text || String(item.title || "").toLowerCase().indexOf(text) >= 0
-            })
-            .map(function(item) {
-                return {
-                    "id":       String(item.id            || ""),
-                    "name":     String(item.title         || ""),
-                    "status":   String(item.subtitle      || ""),
-                    "pressure": String(item.statusLabel   || ""),
-                    "details":  String(item.supportingText || ""),
-                    "variance": String(item.metaText      || "")
-                }
-            })
-    }
-
-    readonly property int heatmapTotal: root.heatmapAllRows.length
-
-    readonly property var pagedHeatmapRows: {
-        const start = (root.currentPage - 1) * root.pageSize
-        return root.heatmapAllRows.slice(start, start + root.pageSize)
     }
 
     readonly property var activityItems: {

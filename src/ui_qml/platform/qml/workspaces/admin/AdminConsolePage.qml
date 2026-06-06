@@ -139,6 +139,11 @@ AppLayouts.WorkspaceFrame {
         if (item !== null) dialogHostLoader.invoke("openOrganizationEdit", item.state || {})
     }
 
+    function _clearWorkspaceMessages() {
+        if (root.workspaceController)
+            root.workspaceController.clearMessages()
+    }
+
     function openCalendarEdit(itemId) {
         const item = adminState.catalogItemById(root.calendarCatalog, itemId)
         if (item !== null) {
@@ -157,6 +162,7 @@ AppLayouts.WorkspaceFrame {
             root.inspectDocument(adminState.selectedRowId)
         }
         adminState.entityDetailOpen = adminState.selectedRowId.length > 0
+        root._clearWorkspaceMessages()
     }
 
     function openAdminEntitySection(sectionId, rowId) {
@@ -166,10 +172,12 @@ AppLayouts.WorkspaceFrame {
             root.inspectDocument(adminState.selectedRowId)
         }
         adminState.entityDetailOpen = adminState.selectedRowId.length > 0
+        root._clearWorkspaceMessages()
     }
 
     function closeEntityDetail() {
         adminState.entityDetailOpen = false
+        root._clearWorkspaceMessages()
     }
 
     function _calendarEntityType(sectionId) {
@@ -395,6 +403,7 @@ AppLayouts.WorkspaceFrame {
                     adminState.activeSection = section
                     adminState.entityDetailOpen = false
                     adminState.selectedRowId = ""
+                    root._clearWorkspaceMessages()
                 }
             }
 

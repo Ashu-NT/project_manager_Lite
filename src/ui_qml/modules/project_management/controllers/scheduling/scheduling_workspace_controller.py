@@ -252,6 +252,7 @@ class ProjectManagementSchedulingWorkspaceController(
             "requiresApproval": False, "newlyCriticalCount": 0,
             "noLongerCriticalCount": 0, "affectedTasks": [], "available": False,
         }
+        self._active_panel_id = "activity_timeline"
         self._bind_domain_events()
         self.refresh()
 
@@ -714,47 +715,20 @@ class ProjectManagementSchedulingWorkspaceController(
             serialized_activity_feed = serialize_scheduling_collection_view_model(
                 workspace_state.activity_feed
             )
-            self._set_calendar(serialized_calendar)
-            self._set_baselines(serialized_baselines)
-            self._set_schedule(serialized_schedule)
-            self._set_timeline(serialized_timeline)
-            self._set_critical_path(serialized_critical_path)
-            self._set_diagnostics(serialized_diagnostics)
-            self._set_delayed_activities(serialized_delayed)
-            self._set_resource_loading(serialized_resource_loading)
-            self._set_baseline_register(serialized_baseline_register)
-            self._set_dependencies(serialized_dependencies)
-            self._set_constraints(serialized_constraints)
-            self._set_constraint_violations(serialized_constraint_violations)
-            self._set_activity_feed(serialized_activity_feed)
-            self._set_calendar_summary_rows(
-                self._build_calendar_summary_rows(serialized_calendar)
-            )
-            self._set_holiday_rows(self._build_holiday_rows(serialized_calendar))
-            self._set_baseline_compare_rows(
-                self._build_baseline_compare_rows(serialized_baselines)
-            )
-            self._set_schedule_rows(self._build_schedule_rows(serialized_schedule))
-            self._set_diagnostics_rows(
-                self._build_diagnostics_rows(serialized_diagnostics)
-            )
-            self._set_delayed_activity_rows(
-                self._build_delayed_rows(serialized_delayed)
-            )
-            self._set_resource_loading_rows(
-                self._build_resource_rows(serialized_resource_loading)
-            )
-            self._set_baseline_register_rows(
-                self._build_baseline_register_rows(serialized_baseline_register)
-            )
-            self._set_dependency_rows(
-                self._build_dependency_rows(serialized_dependencies)
-            )
-            self._set_constraint_rows(
-                self._build_constraint_rows(serialized_constraints)
-            )
-            self._set_violation_rows(
-                self._build_violation_rows(serialized_constraint_violations)
+            self._hydrate_visible_panel_models(
+                serialized_calendar=serialized_calendar,
+                serialized_baselines=serialized_baselines,
+                serialized_schedule=serialized_schedule,
+                serialized_timeline=serialized_timeline,
+                serialized_critical_path=serialized_critical_path,
+                serialized_diagnostics=serialized_diagnostics,
+                serialized_delayed=serialized_delayed,
+                serialized_resource_loading=serialized_resource_loading,
+                serialized_baseline_register=serialized_baseline_register,
+                serialized_dependencies=serialized_dependencies,
+                serialized_constraints=serialized_constraints,
+                serialized_constraint_violations=serialized_constraint_violations,
+                serialized_activity_feed=serialized_activity_feed,
             )
             self._set_selected_activity(
                 serialize_scheduling_detail_view_model(
@@ -769,6 +743,14 @@ class ProjectManagementSchedulingWorkspaceController(
             self._set_error_message(str(exc))
         finally:
             self._set_is_loading(False)
+
+    @Slot(str)
+    def setActivePanel(self, panel_id: str) -> None:
+        normalized_value = (panel_id or "").strip() or "activity_timeline"
+        if normalized_value == self._active_panel_id:
+            return
+        self._active_panel_id = normalized_value
+        self.refresh()
 
     @Slot(str)
     def selectProject(self, project_id: str) -> None:
@@ -1364,6 +1346,74 @@ class ProjectManagementSchedulingWorkspaceController(
             return
         self._activity_feed = activity_feed
         self.activityFeedChanged.emit()
+
+    def _hydrate_visible_panel_models(
+        self,
+        *,
+        serialized_calendar: dict[str, object],
+        serialized_baselines: dict[str, object],
+        serialized_schedule: dict[str, object],
+        serialized_timeline: dict[str, object],
+        serialized_critical_path: dict[str, object],
+        serialized_diagnostics: dict[str, object],
+        serialized_delayed: dict[str, object],
+        serialized_resource_loading: dict[str, object],
+        serialized_baseline_register: dict[str, object],
+        serialized_dependencies: dict[str, object],
+        serialized_constraints: dict[str, object],
+        serialized_constraint_violations: dict[str, object],
+        serialized_activity_feed: dict[str, object],
+    ) -> None:
+        detail_active = bool(self._selected_activity_id)
+
+        self._set_calendar(serialized_calendar)
+        self._set_baselines(serialized_baselines)
+        self._set_schedule(serialized_schedule)
+        self._set_timeline(serialized_timeline)
+        self._set_critical_path(serialized_critical_path)
+        self._set_diagnostics(serialized_diagnostics)
+        self._set_delayed_activities(serialized_delayed)
+        self._set_resource_loading(serialized_resource_loading)
+        self._set_baseline_register(serialized_baseline_register)
+        self._set_dependencies(serialized_dependencies)
+        self._set_constraints(serialized_constraints)
+        self._set_constraint_violations(serialized_constraint_violations)
+        self._set_activity_feed(serialized_activity_feed)
+
+        if self._active_panel_id == "activity_timeline":
+            self._set_schedule_rows(self._build_schedule_rows(serialized_schedule))
+
+        if self._active_panel_id == "diagnostics":
+            self._set_diagnostics_rows(self._build_diagnostics_rows(serialized_diagnostics))
+            self._set_violation_rows(
+                self._build_violation_rows(serialized_constraint_violations)
+            )
+
+        if self._active_panel_id == "delays":
+            self._set_delayed_activity_rows(self._build_delayed_rows(serialized_delayed))
+
+        if self._active_panel_id == "resources" or detail_active:
+            self._set_resource_loading_rows(
+                self._build_resource_rows(serialized_resource_loading)
+            )
+
+        if self._active_panel_id == "baselines" or detail_active:
+            self._set_baseline_compare_rows(
+                self._build_baseline_compare_rows(serialized_baselines)
+            )
+            self._set_baseline_register_rows(
+                self._build_baseline_register_rows(serialized_baseline_register)
+            )
+
+        if self._active_panel_id == "calendars" or detail_active:
+            self._set_calendar_summary_rows(
+                self._build_calendar_summary_rows(serialized_calendar)
+            )
+            self._set_holiday_rows(self._build_holiday_rows(serialized_calendar))
+
+        if detail_active:
+            self._set_dependency_rows(self._build_dependency_rows(serialized_dependencies))
+            self._set_constraint_rows(self._build_constraint_rows(serialized_constraints))
 
     @staticmethod
     def _filter_rows(

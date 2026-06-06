@@ -288,6 +288,16 @@ def test_project_management_workspace_catalog_exposes_typed_portfolio_controller
                     peak_utilization_label="118.0%",
                     cost_variance_label="-EUR 8,500.00",
                 ),
+                SimpleNamespace(
+                    project_id="proj-2",
+                    project_name="Warehouse Retrofit",
+                    pressure_label="Watch",
+                    project_status_label="Planned",
+                    late_tasks=0,
+                    critical_tasks=0,
+                    peak_utilization_label="82.0%",
+                    cost_variance_label="+EUR 1,200.00",
+                ),
             )
 
         def list_dependencies(self):
@@ -343,6 +353,26 @@ def test_project_management_workspace_catalog_exposes_typed_portfolio_controller
     assert [item["title"] for item in controller.intakeItems["items"]] == [
         "Warehouse HVAC Refresh"
     ]
+    assert controller.heatmapTotalCount == 2
+    assert controller.heatmapVisibleRowIds == ["proj-1", "proj-2"]
+
+    controller.setHeatmapSearchText("Warehouse")
+
+    assert controller.heatmapSearchText == "Warehouse"
+    assert controller.heatmapTotalCount == 1
+    assert controller.heatmapVisibleRowIds == ["proj-2"]
+
+    controller.setHeatmapSearchText("")
+    controller.setHeatmapPageSize(1)
+
+    assert controller.heatmapPageSize == 1
+    assert controller.heatmapPage == 1
+    assert controller.heatmapVisibleRowIds == ["proj-1"]
+
+    controller.setHeatmapPage(2)
+
+    assert controller.heatmapPage == 2
+    assert controller.heatmapVisibleRowIds == ["proj-2"]
 
 
 def test_project_management_workspace_catalog_exposes_typed_projects_controller() -> None:

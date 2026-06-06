@@ -56,6 +56,7 @@ Component {
     Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
     Method { name: "setShowCriticalOnly"; Parameter { name: "enabled"; type: "bool" } }
     Method { name: "setShowDelayedOnly"; Parameter { name: "enabled"; type: "bool" } }
+    Method { name: "setActivePanel"; Parameter { name: "panelId"; type: "QString" } }
     Method { name: "clearFilters" }
     Method { name: "selectActivity"; Parameter { name: "activityId"; type: "QString" } }
     Method { name: "activateActivity"; Parameter { name: "activityId"; type: "QString" } }

@@ -48,6 +48,11 @@ class ProjectManagementPortfolioWorkspaceController(
     recentActionsChanged = Signal()
     capacityPoolChanged = Signal()
     activeTemplateSummaryChanged = Signal()
+    heatmapSearchTextChanged = Signal()
+    heatmapPageChanged = Signal()
+    heatmapPageSizeChanged = Signal()
+    heatmapTotalCountChanged = Signal()
+    heatmapVisibleRowIdsChanged = Signal()
 
     def __init__(
         self,
@@ -86,6 +91,11 @@ class ProjectManagementPortfolioWorkspaceController(
         self._recent_actions: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._capacity_pool: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._active_template_summary = ""
+        self._heatmap_search_text = ""
+        self._heatmap_page = 1
+        self._heatmap_page_size = 25
+        self._heatmap_total_count = 0
+        self._heatmap_visible_row_ids: list[str] = []
         self._bind_domain_events()
         self.refresh()
 
@@ -180,6 +190,26 @@ class ProjectManagementPortfolioWorkspaceController(
     @Property(str, notify=activeTemplateSummaryChanged)
     def activeTemplateSummary(self) -> str:
         return self._active_template_summary
+
+    @Property(str, notify=heatmapSearchTextChanged)
+    def heatmapSearchText(self) -> str:
+        return self._heatmap_search_text
+
+    @Property(int, notify=heatmapPageChanged)
+    def heatmapPage(self) -> int:
+        return self._heatmap_page
+
+    @Property(int, notify=heatmapPageSizeChanged)
+    def heatmapPageSize(self) -> int:
+        return self._heatmap_page_size
+
+    @Property(int, notify=heatmapTotalCountChanged)
+    def heatmapTotalCount(self) -> int:
+        return self._heatmap_total_count
+
+    @Property("QVariantList", notify=heatmapVisibleRowIdsChanged)
+    def heatmapVisibleRowIds(self) -> list[str]:
+        return self._heatmap_visible_row_ids
 
     @Slot()
     def refresh(self) -> None:
@@ -289,6 +319,37 @@ class ProjectManagementPortfolioWorkspaceController(
             return
         self._set_selected_compare_scenario_id(normalized_value)
         self.refresh()
+
+    @Slot(str)
+    def setHeatmapSearchText(self, search_text: str) -> None:
+        normalized_value = (search_text or "").strip()
+        if normalized_value == self._heatmap_search_text:
+            return
+        self._heatmap_search_text = normalized_value
+        self._heatmap_page = 1
+        self.heatmapSearchTextChanged.emit()
+        self.heatmapPageChanged.emit()
+        self._rebuild_heatmap_table_model()
+
+    @Slot(int)
+    def setHeatmapPage(self, page: int) -> None:
+        normalized_page = max(1, int(page or 1))
+        if normalized_page == self._heatmap_page:
+            return
+        self._heatmap_page = normalized_page
+        self.heatmapPageChanged.emit()
+        self._rebuild_heatmap_table_model()
+
+    @Slot(int)
+    def setHeatmapPageSize(self, page_size: int) -> None:
+        normalized_page_size = max(1, int(page_size or 25))
+        if normalized_page_size == self._heatmap_page_size:
+            return
+        self._heatmap_page_size = normalized_page_size
+        self._heatmap_page = 1
+        self.heatmapPageSizeChanged.emit()
+        self.heatmapPageChanged.emit()
+        self._rebuild_heatmap_table_model()
 
     @Slot()
     def exportPortfolio(self) -> None:
@@ -485,7 +546,7 @@ class ProjectManagementPortfolioWorkspaceController(
         if heatmap == self._heatmap:
             return
         self._heatmap = heatmap
-        self._heatmap_table_model.set_rows(heatmap.get("items", []))
+        self._rebuild_heatmap_table_model()
         self.heatmapChanged.emit()
 
     def _set_dependencies(self, dependencies: dict[str, object]) -> None:
@@ -512,6 +573,39 @@ class ProjectManagementPortfolioWorkspaceController(
             return
         self._active_template_summary = active_template_summary
         self.activeTemplateSummaryChanged.emit()
+
+    def _rebuild_heatmap_table_model(self) -> None:
+        items = list(self._heatmap.get("items", []) or [])
+        search_text = self._heatmap_search_text.casefold()
+        if search_text:
+            items = [
+                item
+                for item in items
+                if search_text in str(item.get("title", "")).casefold()
+            ]
+
+        total_count = len(items)
+        max_page = max(1, (total_count + self._heatmap_page_size - 1) // self._heatmap_page_size)
+        if self._heatmap_page > max_page:
+            self._heatmap_page = max_page
+            self.heatmapPageChanged.emit()
+
+        start = (self._heatmap_page - 1) * self._heatmap_page_size
+        page_rows = items[start : start + self._heatmap_page_size]
+        self._heatmap_table_model.set_rows(page_rows)
+
+        if total_count != self._heatmap_total_count:
+            self._heatmap_total_count = total_count
+            self.heatmapTotalCountChanged.emit()
+
+        visible_row_ids = [
+            str(item.get("id", "") or "")
+            for item in page_rows
+            if str(item.get("id", "") or "")
+        ]
+        if visible_row_ids != self._heatmap_visible_row_ids:
+            self._heatmap_visible_row_ids = visible_row_ids
+            self.heatmapVisibleRowIdsChanged.emit()
 
 
 __all__ = ["ProjectManagementPortfolioWorkspaceController"]

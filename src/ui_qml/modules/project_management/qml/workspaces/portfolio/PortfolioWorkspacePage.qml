@@ -109,7 +109,7 @@ AppLayouts.WorkspaceFrame {
                 AppWidgets.TableToolbar {
                     id: tableToolbar
                     Layout.fillWidth: true
-                    searchText:        state.searchText
+                    searchText:        root.workspaceController ? root.workspaceController.heatmapSearchText : ""
                     searchPlaceholder: "Search portfolio projects..."
                     showRefresh: true
                     showExport:  true
@@ -118,8 +118,8 @@ AppLayouts.WorkspaceFrame {
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
                     onSearchChanged: function(text) {
-                        state.searchText = text
-                        state.currentPage = 1
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setHeatmapSearchText(text)
                         state.selectedRowIds = []
                     }
                     onFilterClicked:   filterPopup.open()
@@ -161,7 +161,7 @@ AppLayouts.WorkspaceFrame {
                         }
                         onSelectAllToggled: function(allSelected) {
                             state.selectedRowIds = allSelected
-                                ? state.pagedHeatmapRows.map(function(r) { return String(r.id || "") })
+                                ? (root.workspaceController ? (root.workspaceController.heatmapVisibleRowIds || []) : [])
                                 : []
                         }
                     }
@@ -171,12 +171,18 @@ AppLayouts.WorkspaceFrame {
                         anchors.left:   parent.left
                         anchors.right:  parent.right
                         anchors.bottom: _bottomPanel.top
-                        currentPage: state.currentPage
-                        pageSize:    state.pageSize
-                        totalItems:  state.heatmapTotal
+                        currentPage: root.workspaceController ? root.workspaceController.heatmapPage : 1
+                        pageSize:    root.workspaceController ? root.workspaceController.heatmapPageSize : 25
+                        totalItems:  root.workspaceController ? root.workspaceController.heatmapTotalCount : 0
                         busy: root.workspaceController ? root.workspaceController.isBusy : false
-                        onPageRequested:     function(page) { state.currentPage = page }
-                        onPageSizeRequested: function(ps)   { state.pageSize = ps; state.currentPage = 1 }
+                        onPageRequested: function(page) {
+                            if (root.workspaceController !== null)
+                                root.workspaceController.setHeatmapPage(page)
+                        }
+                        onPageSizeRequested: function(ps) {
+                            if (root.workspaceController !== null)
+                                root.workspaceController.setHeatmapPageSize(ps)
+                        }
                     }
 
                     AppWidgets.BulkActionBar {

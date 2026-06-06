@@ -115,5 +115,15 @@ Item {
         return result
     }
 
+    onActivePanelIdChanged: {
+        if (root.workspaceController !== null)
+            root.workspaceController.setActivePanel(root.activePanelId)
+    }
+
+    onWorkspaceControllerChanged: {
+        if (root.workspaceController !== null)
+            root.workspaceController.setActivePanel(root.activePanelId)
+    }
+
     Component.onCompleted: initColumns()
 }

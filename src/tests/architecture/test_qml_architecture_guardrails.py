@@ -659,3 +659,49 @@ def test_legacy_widget_ui_roots_are_removed() -> None:
     assert not LEGACY_SRC_UI_ROOT.exists()
     assert not LEGACY_TOPLEVEL_UI_ROOT.exists()
 
+
+def test_project_management_portfolio_heatmap_search_and_paging_are_controller_owned() -> None:
+    page_path = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "portfolio"
+        / "PortfolioWorkspacePage.qml"
+    )
+    state_path = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "portfolio"
+        / "PortfolioWorkspaceState.qml"
+    )
+    page_text = page_path.read_text(encoding="utf-8", errors="ignore")
+    state_text = state_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "setHeatmapSearchText" in page_text
+    assert "setHeatmapPage(" in page_text
+    assert "setHeatmapPageSize(" in page_text
+    assert "pagedHeatmapRows" not in page_text
+    assert "heatmapAllRows" not in state_text
+    assert "pagedHeatmapRows" not in state_text
+
+
+def test_platform_admin_console_clears_workspace_messages_on_context_switch() -> None:
+    page_path = (
+        UI_QML_ROOT
+        / "platform"
+        / "qml"
+        / "workspaces"
+        / "admin"
+        / "AdminConsolePage.qml"
+    )
+    text = page_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "function _clearWorkspaceMessages()" in text
+    assert "root.workspaceController.clearMessages()" in text
+    assert text.count("root._clearWorkspaceMessages()") >= 4
+
