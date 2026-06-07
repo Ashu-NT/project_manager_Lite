@@ -17,11 +17,15 @@ the full hierarchy: Global → Site → Department → Employee → Project → 
 
 from __future__ import annotations
 
+import logging
 from datetime import date, timedelta
 
 from src.core.platform.calendar.application.enterprise_calendar_resolver import (
     EnterpriseCalendarResolver,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class GlobalCalendarShim:
@@ -50,8 +54,9 @@ class GlobalCalendarShim:
     def add_working_days(self, start: date, working_days: int) -> date:
         if working_days == 0:
             return start
-        # Safety bound: no real schedule spans >40 years of working days
-        max_iter = max(abs(working_days) * 7, 365 * 40)
+        # Small moves should fail fast if the calendar is misconfigured. Large
+        # moves are still capped so bad data cannot scan decades indefinitely.
+        max_iter = min(max(abs(working_days) * 7, 730), 365 * 40)
         if working_days > 0:
             current = self.next_working_day(start, include_today=True)
             remaining = working_days - 1
@@ -61,6 +66,14 @@ class GlobalCalendarShim:
                 if self.is_working_day(current):
                     remaining -= 1
                 iterations += 1
+            if remaining > 0:
+                logger.warning(
+                    "Global calendar add_working_days exhausted search start=%s working_days=%s remaining=%s iterations=%s",
+                    start,
+                    working_days,
+                    remaining,
+                    iterations,
+                )
             return current
 
         remaining = -working_days
@@ -71,6 +84,14 @@ class GlobalCalendarShim:
             if self.is_working_day(current):
                 remaining -= 1
             iterations += 1
+        if remaining > 0:
+            logger.warning(
+                "Global calendar add_working_days exhausted reverse search start=%s working_days=%s remaining=%s iterations=%s",
+                start,
+                working_days,
+                remaining,
+                iterations,
+            )
         return current
 
     def working_days_between(self, start: date, end: date) -> int:

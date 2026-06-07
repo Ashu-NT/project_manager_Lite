@@ -6,6 +6,7 @@ All calendar logic stays in Platform — PM only consumes.
 
 from __future__ import annotations
 
+import logging
 from datetime import date, timedelta
 from typing import Optional
 
@@ -16,6 +17,9 @@ from src.core.platform.calendar.application.enterprise_calendar_resolver import 
 from src.core.platform.calendar.application.calendar_assignment_service import (
     CalendarAssignmentService,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class BoundProjectCalendar:
@@ -96,8 +100,9 @@ class ProjectCalendarAdapter:
     def add_working_days(self, project_id: str, start: date, n: int) -> date:
         if n == 0:
             return start
-        # Safety bound: no real project spans >40 years of working days
-        max_iter = max(abs(n) * 7, 365 * 40)
+        # Small moves should fail fast if the calendar is misconfigured. Large
+        # moves are still capped so bad data cannot scan decades indefinitely.
+        max_iter = min(max(abs(n) * 7, 730), 365 * 40)
         if n > 0:
             current = self.next_working_day(project_id, start, include_today=True)
             remaining = n - 1
@@ -107,6 +112,15 @@ class ProjectCalendarAdapter:
                 if self.is_working_day(project_id, current):
                     remaining -= 1
                 iterations += 1
+            if remaining > 0:
+                logger.warning(
+                    "Project calendar add_working_days exhausted search project_id=%s start=%s working_days=%s remaining=%s iterations=%s",
+                    project_id,
+                    start,
+                    n,
+                    remaining,
+                    iterations,
+                )
             return current
 
         # negative: walk backwards
@@ -118,6 +132,15 @@ class ProjectCalendarAdapter:
             if self.is_working_day(project_id, current):
                 remaining -= 1
             iterations += 1
+        if remaining > 0:
+            logger.warning(
+                "Project calendar add_working_days exhausted reverse search project_id=%s start=%s working_days=%s remaining=%s iterations=%s",
+                project_id,
+                start,
+                n,
+                remaining,
+                iterations,
+            )
         return current
 
     def next_working_day(

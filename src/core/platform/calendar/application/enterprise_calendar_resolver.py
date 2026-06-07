@@ -125,6 +125,8 @@ class EnterpriseCalendarResolver:
         self._recurring_cache: dict[str, list] = {}  # cal_id → recurring events
         self._rules_cache: dict[str, list] = {}      # cal_id → working rules
 
+        self._missing_rule_warning_keys: set[tuple[tuple[str, ...], int]] = set()
+
     def invalidate_cache(self) -> None:
         """Clear the in-process caches. Call after calendar data is mutated."""
         logger.info(
@@ -135,6 +137,7 @@ class EnterpriseCalendarResolver:
         )
         self._recurring_cache.clear()
         self._rules_cache.clear()
+        self._missing_rule_warning_keys.clear()
 
     # ------------------------------------------------------------------
     # Public API
@@ -164,6 +167,8 @@ class EnterpriseCalendarResolver:
         )
 
         effective_rule = self._resolve_working_rule(chain, target_date.weekday())
+        if chain and effective_rule is None:
+            self._warn_missing_rule_once(chain, target_date.weekday(), target_date)
         all_exceptions = self._collect_exceptions(chain, target_date)
         all_recurring = self._collect_recurring(chain)
         timezone = self._resolve_timezone(chain)
@@ -185,22 +190,22 @@ class EnterpriseCalendarResolver:
             exceptions=all_exceptions,
         )
         duration_ms = (perf_counter() - started) * 1000
-        log_method = logger.warning if duration_ms > 50 else logger.debug
-        log_method(
-            "Calendar context resolved organization_id=%s target_date=%s site_id=%s department_id=%s employee_id=%s project_id=%s resource_id=%s worker_type=%s chain=%s exception_count=%s recurring_count=%s duration_ms=%.1f",
-            self._org_id,
-            target_date,
-            site_id or "-",
-            department_id or "-",
-            employee_id or "-",
-            project_id or "-",
-            resource_id or "-",
-            worker_type or "-",
-            labels,
-            len(all_exceptions),
-            len(all_recurring),
-            duration_ms,
-        )
+        if duration_ms > 50:
+            logger.warning(
+                "Calendar context resolved slowly organization_id=%s target_date=%s site_id=%s department_id=%s employee_id=%s project_id=%s resource_id=%s worker_type=%s chain=%s exception_count=%s recurring_count=%s duration_ms=%.1f",
+                self._org_id,
+                target_date,
+                site_id or "-",
+                department_id or "-",
+                employee_id or "-",
+                project_id or "-",
+                resource_id or "-",
+                worker_type or "-",
+                labels,
+                len(all_exceptions),
+                len(all_recurring),
+                duration_ms,
+            )
         if not chain:
             logger.warning(
                 "Calendar context resolved without source chain organization_id=%s target_date=%s project_id=%s resource_id=%s",
@@ -291,8 +296,6 @@ class EnterpriseCalendarResolver:
             if cal_id not in self._rules_cache:
                 logger.debug("Calendar rules cache miss calendar_id=%s", cal_id)
                 self._rules_cache[cal_id] = self._rule_repo.list_for_calendar(cal_id)
-            else:
-                logger.debug("Calendar rules cache hit calendar_id=%s", cal_id)
             all_rules.extend(self._rules_cache[cal_id])
 
         all_exceptions: list = []
@@ -308,8 +311,6 @@ class EnterpriseCalendarResolver:
                 self._recurring_cache[cal_id] = self._recurring_repo.list_for_calendar(
                     cal_id, active_only=True
                 )
-            else:
-                logger.debug("Calendar recurring cache hit calendar_id=%s", cal_id)
             all_recurring.extend(self._recurring_cache[cal_id])
 
         timezone = self._resolve_timezone(chain)
@@ -480,8 +481,6 @@ class EnterpriseCalendarResolver:
             if cal_id not in self._rules_cache:
                 logger.debug("Calendar rules cache miss calendar_id=%s weekday=%s", cal_id, weekday)
                 self._rules_cache[cal_id] = self._rule_repo.list_for_calendar(cal_id)
-            else:
-                logger.debug("Calendar rules cache hit calendar_id=%s weekday=%s", cal_id, weekday)
             rules = self._rules_cache[cal_id]
             rule = next((r for r in rules if r.weekday == weekday), None)
             if rule is not None:
@@ -509,10 +508,27 @@ class EnterpriseCalendarResolver:
                 self._recurring_cache[cal_id] = self._recurring_repo.list_for_calendar(
                     cal_id, active_only=True
                 )
-            else:
-                logger.debug("Calendar recurring cache hit calendar_id=%s", cal_id)
             all_events.extend(self._recurring_cache[cal_id])
         return all_events
+
+    def _warn_missing_rule_once(
+        self,
+        chain: list[tuple[str, str]],
+        weekday: int,
+        target_date: date,
+    ) -> None:
+        calendar_ids = tuple(calendar_id for _label, calendar_id in chain)
+        key = (calendar_ids, weekday)
+        if key in self._missing_rule_warning_keys:
+            return
+        self._missing_rule_warning_keys.add(key)
+        logger.warning(
+            "Calendar chain has no working rule for weekday; day will be unavailable organization_id=%s target_date=%s weekday=%s chain=%s",
+            self._org_id,
+            target_date,
+            weekday,
+            [label for label, _calendar_id in chain],
+        )
 
     def _resolve_timezone(self, chain: list[tuple[str, str]]) -> str:
         if not chain:

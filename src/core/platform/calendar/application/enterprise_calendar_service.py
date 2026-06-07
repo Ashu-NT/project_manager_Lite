@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import Optional
 
@@ -23,6 +24,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 _VALID_CALENDAR_TYPES = {t.value for t in CalendarType}
 _VALID_GRANULARITIES = {5, 10, 15, 30, 60}
+logger = logging.getLogger(__name__)
 
 
 def _resolve_username(user_session) -> str | None:
@@ -222,6 +224,8 @@ class EnterpriseCalendarService:
         """
         existing = self._calendar_repo.get_global(organization_id)
         if existing is not None:
+            self._ensure_working_rules(existing.id, working_calendar_repo)
+            self._session.commit()
             return existing
 
         now = datetime.utcnow()
@@ -250,6 +254,22 @@ class EnterpriseCalendarService:
         self._session.commit()
         return cal
 
+    def _ensure_working_rules(self, enterprise_cal_id: str, working_calendar_repo) -> None:
+        if self._rule_repo is None:
+            logger.warning(
+                "Cannot verify global calendar working rules because rule repository is unavailable calendar_id=%s",
+                enterprise_cal_id,
+            )
+            return
+        existing_rules = self._rule_repo.list_for_calendar(enterprise_cal_id)
+        if existing_rules:
+            return
+        logger.warning(
+            "Global calendar has no working rules; seeding default working week calendar_id=%s",
+            enterprise_cal_id,
+        )
+        self._migrate_legacy_calendar(enterprise_cal_id, working_calendar_repo)
+
     def _migrate_legacy_calendar(self, enterprise_cal_id: str, working_calendar_repo) -> None:
         """
         Migrate legacy working_calendars + holidays into enterprise tables.
@@ -263,6 +283,13 @@ class EnterpriseCalendarService:
             ImpactType,
         )
         from datetime import time
+
+        if self._rule_repo is None:
+            logger.warning(
+                "Skipping enterprise calendar working rule seed because rule repository is unavailable calendar_id=%s",
+                enterprise_cal_id,
+            )
+            return
 
         # Load legacy calendar (may be None for fresh installs)
         try:
@@ -291,11 +318,15 @@ class EnterpriseCalendarService:
                     )
                     self._rule_repo.save(rule)
         except Exception:
-            pass
+            logger.exception(
+                "Failed to seed enterprise calendar working rules calendar_id=%s",
+                enterprise_cal_id,
+            )
+            raise
 
         # Migrate holidays into calendar_exceptions (only when legacy data exists)
         try:
-            if legacy_cal is None or working_calendar_repo is None:
+            if legacy_cal is None or working_calendar_repo is None or self._exception_repo is None:
                 return
             existing_exceptions = self._exception_repo.list_for_calendar(enterprise_cal_id)
             existing_dates = {e.exception_date for e in existing_exceptions}
@@ -311,7 +342,11 @@ class EnterpriseCalendarService:
                     )
                     self._exception_repo.add(exc)
         except Exception:
-            pass
+            logger.exception(
+                "Failed to migrate enterprise calendar exceptions calendar_id=%s",
+                enterprise_cal_id,
+            )
+            raise
 
     # ------------------------------------------------------------------
     # Validators
