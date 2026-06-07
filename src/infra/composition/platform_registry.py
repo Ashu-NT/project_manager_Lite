@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
+from time import perf_counter
 
 from sqlalchemy.orm import Session
 
@@ -46,6 +48,9 @@ from src.core.platform.infrastructure.persistence.repositories.runtime_tracking 
 from src.infra.composition.repositories import RepositoryBundle
 
 
+logger = logging.getLogger(__name__)
+
+
 @dataclass(frozen=True)
 class PlatformServiceBundle:
     session: Session
@@ -84,6 +89,8 @@ def build_platform_service_bundle(
     session: Session,
     repositories: RepositoryBundle,
 ) -> PlatformServiceBundle:
+    started = perf_counter()
+    logger.info("Platform service bundle build begin")
     user_session = UserSessionContext()
     audit_service = AuditService(
         session=session,
@@ -110,7 +117,12 @@ def build_platform_service_bundle(
         audit_service=audit_service,
     )
     user_session.set_validator(auth_service.validate_session_principal)
+    logger.info("Platform auth service created; bootstrapping defaults")
     auth_service.bootstrap_defaults()
+    logger.info(
+        "Platform auth defaults bootstrapped duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
 
     organization_service = OrganizationService(
         session=session,
@@ -118,7 +130,12 @@ def build_platform_service_bundle(
         user_session=user_session,
         audit_service=audit_service,
     )
+    logger.info("Platform organization service created; bootstrapping defaults")
     organization_service.bootstrap_defaults()
+    logger.info(
+        "Platform organization defaults bootstrapped duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
 
     document_service = DocumentService(
         session=session,
@@ -187,7 +204,12 @@ def build_platform_service_bundle(
         audit_service=audit_service,
         organization_context_provider=_active_organization,
     )
+    logger.info("Platform module catalog service created; bootstrapping defaults")
     module_catalog_service.bootstrap_defaults()
+    logger.info(
+        "Platform module catalog defaults bootstrapped duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
     module_runtime_service = ModuleRuntimeService(module_catalog_service)
     platform_runtime_application_service = PlatformRuntimeApplicationService(
         module_runtime_service=module_runtime_service,
@@ -301,11 +323,13 @@ def build_platform_service_bundle(
     try:
         org = repositories.organization_repo.get_active()
         if org:
+            logger.info("Ensuring enterprise global calendar organization_id=%s", org.id)
             enterprise_calendar_service.ensure_global_calendar(org.id)
+            logger.info("Enterprise global calendar ensured organization_id=%s", org.id)
     except Exception:
-        pass
+        logger.exception("Enterprise global calendar bootstrap failed; continuing startup")
 
-    return PlatformServiceBundle(
+    bundle = PlatformServiceBundle(
         session=session,
         user_session=user_session,
         organization_repo=repositories.organization_repo,
@@ -337,6 +361,11 @@ def build_platform_service_bundle(
         working_time_calculator=working_time_calculator,
         global_calendar_shim=global_calendar_shim,
     )
+    logger.info(
+        "Platform service bundle build complete duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
+    return bundle
 
 
 __all__ = ["PlatformServiceBundle", "build_platform_service_bundle"]

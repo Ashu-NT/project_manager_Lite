@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
+from time import perf_counter
 
 from src.core.platform.access import ScopedRolePolicy
 from src.core.modules.inventory_procurement import (
@@ -52,6 +54,9 @@ from src.core.modules.inventory_procurement.infrastructure.reporting import Inve
 from src.infra.composition.platform_registry import PlatformServiceBundle
 
 
+logger = logging.getLogger(__name__)
+
+
 @dataclass(frozen=True)
 class InventoryProcurementServiceBundle:
     inventory_reference_service: InventoryReferenceService
@@ -71,6 +76,8 @@ class InventoryProcurementServiceBundle:
 def build_inventory_procurement_service_bundle(
     platform_services: PlatformServiceBundle,
 ) -> InventoryProcurementServiceBundle:
+    started = perf_counter()
+    logger.info("Inventory/Procurement service bundle build begin")
     platform_services.access_service.register_scope_policy(
         ScopedRolePolicy(
             scope_type="storeroom",
@@ -79,6 +86,8 @@ def build_inventory_procurement_service_bundle(
             resolve_permissions=resolve_storeroom_scope_permissions,
         )
     )
+    logger.debug("Inventory/Procurement storeroom access policy registered")
+    logger.debug("Inventory/Procurement repositories build begin")
     balance_repo = SqlAlchemyStockBalanceRepository(platform_services.session)
     category_repo = SqlAlchemyInventoryItemCategoryRepository(platform_services.session)
     item_repo = SqlAlchemyStockItemRepository(platform_services.session)
@@ -94,6 +103,8 @@ def build_inventory_procurement_service_bundle(
     reservation_repo = SqlAlchemyStockReservationRepository(platform_services.session)
     transaction_repo = SqlAlchemyStockTransactionRepository(platform_services.session)
     storeroom_repo = SqlAlchemyStoreroomRepository(platform_services.session)
+    logger.debug("Inventory/Procurement repositories built")
+    logger.debug("Inventory/Procurement core services build begin")
     inventory_item_category_service = ItemCategoryService(
         platform_services.session,
         category_repo,
@@ -245,6 +256,7 @@ def build_inventory_procurement_service_bundle(
         reservation_service=inventory_reservation_service,
         procurement_service=inventory_procurement_service,
     )
+    logger.debug("Inventory/Procurement core services built")
 
     def _storeroom_exists(storeroom_id: str) -> bool:
         storeroom = storeroom_repo.get(storeroom_id)
@@ -257,6 +269,10 @@ def build_inventory_procurement_service_bundle(
 
     platform_services.access_service.register_scope_exists_resolver("storeroom", _storeroom_exists)
 
+    logger.info(
+        "Inventory/Procurement service bundle build complete duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
     return InventoryProcurementServiceBundle(
         inventory_reference_service=inventory_reference_service,
         inventory_data_exchange_service=inventory_data_exchange_service,

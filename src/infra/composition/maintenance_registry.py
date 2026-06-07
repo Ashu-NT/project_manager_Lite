@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
+from time import perf_counter
 
 from src.core.platform.access import ScopedRolePolicy
 from src.core.modules.maintenance import (
@@ -81,6 +83,9 @@ from src.infra.composition.inventory_registry import InventoryProcurementService
 from src.infra.composition.platform_registry import PlatformServiceBundle
 
 
+logger = logging.getLogger(__name__)
+
+
 @dataclass(frozen=True)
 class MaintenanceServiceBundle:
     maintenance_runtime_contract_catalog_service: MaintenanceRuntimeContractCatalogService
@@ -115,6 +120,9 @@ def build_maintenance_service_bundle(
     platform_services: PlatformServiceBundle,
     inventory_services: InventoryProcurementServiceBundle,
 ) -> MaintenanceServiceBundle:
+    started = perf_counter()
+    logger.info("Maintenance service bundle build begin")
+    logger.debug("Maintenance repositories build begin")
     location_repo = SqlAlchemyMaintenanceLocationRepository(platform_services.session)
     system_repo = SqlAlchemyMaintenanceSystemRepository(platform_services.session)
     asset_repo = SqlAlchemyMaintenanceAssetRepository(platform_services.session)
@@ -143,7 +151,9 @@ def build_maintenance_service_bundle(
     employee_repo = SqlAlchemyEmployeeRepository(platform_services.session)
     time_entry_repo = SqlAlchemyTimeEntryRepository(platform_services.session)
     timesheet_period_repo = SqlAlchemyTimesheetPeriodRepository(platform_services.session)
+    logger.debug("Maintenance repositories built")
     
+    logger.debug("Maintenance platform registrations begin")
     platform_services.department_service.register_location_reference_repository(location_repo)
     platform_services.access_service.register_scope_policy(
         ScopedRolePolicy(
@@ -161,6 +171,8 @@ def build_maintenance_service_bundle(
             or asset_repo.get(entity_id) is not None
         ),
     )
+    logger.debug("Maintenance platform registrations complete")
+    logger.debug("Maintenance core services build begin")
     maintenance_runtime_contract_catalog_service = MaintenanceRuntimeContractCatalogService()
     maintenance_task_time_allocation_repo = MaintenanceTaskWorkAllocationRepository(
         organization_repo=platform_services.organization_repo,
@@ -454,6 +466,11 @@ def build_maintenance_service_bundle(
         work_order_task_step_service=maintenance_work_order_task_step_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
+    )
+    logger.debug("Maintenance core services built")
+    logger.info(
+        "Maintenance service bundle build complete duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
     )
     return MaintenanceServiceBundle(
         maintenance_runtime_contract_catalog_service=maintenance_runtime_contract_catalog_service,

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+from time import perf_counter
+
 from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 
 from dataclasses import dataclass
@@ -116,6 +119,9 @@ from src.infra.composition.maintenance_registry import build_maintenance_service
 from src.infra.composition.platform_registry import build_platform_service_bundle
 from src.infra.composition.project_registry import build_project_management_service_bundle
 from src.infra.composition.repositories import build_repository_bundle
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -303,21 +309,43 @@ class ServiceGraph:
 
 
 def build_service_graph(session: Session) -> ServiceGraph:
+    started = perf_counter()
+    logger.info("Service graph build begin session_type=%s", type(session).__name__)
     repositories = build_repository_bundle(session)
+    logger.info(
+        "Repository bundle built duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
     platform_services = build_platform_service_bundle(session, repositories)
+    logger.info(
+        "Platform service bundle built duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
     inventory_procurement_services = build_inventory_procurement_service_bundle(platform_services)
+    logger.info(
+        "Inventory/Procurement service bundle built duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
     maintenance_services = build_maintenance_service_bundle(
         platform_services,
         inventory_procurement_services,
+    )
+    logger.info(
+        "Maintenance service bundle built duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
     )
     project_management_services = build_project_management_service_bundle(
         session,
         repositories,
         platform_services,
     )
+    logger.info(
+        "Project Management service bundle built duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
     _module_registry = ModuleRegistry(platform_services.module_runtime_service)
     _integration_resolver = IntegrationResolver(_module_registry)
-    return ServiceGraph(
+    graph = ServiceGraph(
         session=session,
         user_session=platform_services.user_session,
         platform_runtime_application_service=platform_services.platform_runtime_application_service,
@@ -406,7 +434,20 @@ def build_service_graph(session: Session) -> ServiceGraph:
         resource_capacity_calculator=project_management_services.resource_capacity_calculator,
         enterprise_resource_availability=project_management_services.enterprise_resource_availability,
     )
+    logger.info(
+        "Service graph build complete duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
+    return graph
 
 
 def build_service_dict(session: Session) -> dict[str, Any]:
-    return build_service_graph(session).as_dict()
+    started = perf_counter()
+    graph = build_service_graph(session)
+    services = graph.as_dict()
+    logger.info(
+        "Service dictionary build complete service_count=%s duration_ms=%.1f",
+        len(services),
+        (perf_counter() - started) * 1000,
+    )
+    return services

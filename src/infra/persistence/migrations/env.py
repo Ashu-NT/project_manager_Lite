@@ -1,4 +1,4 @@
-from logging.config import fileConfig
+import logging
 
 from alembic import context
 from sqlalchemy import create_engine, pool
@@ -9,8 +9,8 @@ import src.infra.persistence.orm  # noqa
 
 config = context.config
 
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+logger = logging.getLogger(__name__)
+logger.debug("Alembic env loaded config_file=%s", config.config_file_name)
 
 target_metadata = Base.metadata
 
@@ -35,6 +35,7 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    logger.info("Alembic online migration context begin")
     connectable = create_engine(
         _db_url(),
         future=True,
@@ -52,6 +53,7 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
+    logger.info("Alembic online migration context complete")
 
 
 if context.is_offline_mode():

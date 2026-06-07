@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
+from time import perf_counter
 
 from sqlalchemy.orm import Session
 
@@ -77,6 +79,9 @@ from src.core.platform.infrastructure.persistence.repositories.time import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 @dataclass(frozen=True)
 class RepositoryBundle:
     project_repo: SqlAlchemyProjectRepository
@@ -129,7 +134,9 @@ class RepositoryBundle:
 
 
 def build_repository_bundle(session: Session) -> RepositoryBundle:
-    return RepositoryBundle(
+    started = perf_counter()
+    logger.info("Repository bundle build begin session_type=%s", type(session).__name__)
+    bundle = RepositoryBundle(
         project_repo=SqlAlchemyProjectRepository(session),
         task_repo=SqlAlchemyTaskRepository(session),
         resource_repo=SqlAlchemyResourceRepository(session),
@@ -178,6 +185,12 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         resource_cert_repo=SqlAlchemyResourceCertificationRepository(session),
         task_skill_req_repo=SqlAlchemyTaskSkillRequirementRepository(session),
     )
+    logger.info(
+        "Repository bundle build complete duration_ms=%.1f repository_count=%s",
+        (perf_counter() - started) * 1000,
+        len(bundle.__dataclass_fields__),
+    )
+    return bundle
 
 
 __all__ = ["RepositoryBundle", "build_repository_bundle"]

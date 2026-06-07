@@ -41,12 +41,26 @@ def build_services() -> dict[str, object]:
     started = perf_counter()
     db_url = get_db_url()
     logger.info("Service build begin db_url=%s", db_url)
-    run_migrations(db_url=db_url)
-    logger.info("Database migrations complete duration_ms=%.1f", (perf_counter() - started) * 1000)
+    migration_started = perf_counter()
+    logger.info("Database migration step begin")
+    try:
+        run_migrations(db_url=db_url)
+    except Exception:
+        logger.exception("Database migration step failed")
+        raise
+    logger.info(
+        "Database migrations complete duration_ms=%.1f",
+        (perf_counter() - migration_started) * 1000,
+    )
     session = SessionLocal()
     logger.info("Database session created session_class=%s", type(session).__name__)
+    graph_started = perf_counter()
     services = build_service_dict(session)
-    logger.info("Service graph built service_count=%s", len(services))
+    logger.info(
+        "Service graph built service_count=%s duration_ms=%.1f",
+        len(services),
+        (perf_counter() - graph_started) * 1000,
+    )
     desktop_api_registry = build_desktop_api_registry(services)
     services["desktop_api_registry"] = desktop_api_registry
     logger.info(

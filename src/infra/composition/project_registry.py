@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 
+import logging
 from dataclasses import dataclass
 from datetime import date
+from time import perf_counter
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -46,6 +48,9 @@ from src.core.modules.project_management.application.resources.resource_capacity
 from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle
+
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_date(value: Any) -> date | None:
@@ -102,6 +107,9 @@ def build_project_management_service_bundle(
     repositories: RepositoryBundle,
     platform_services: PlatformServiceBundle,
 ) -> ProjectManagementServiceBundle:
+    started = perf_counter()
+    logger.info("Project Management service bundle build begin")
+    logger.debug("Project Management platform registrations begin")
     platform_services.access_service.register_scope_policy(
         ScopedRolePolicy(
             scope_type="project",
@@ -114,6 +122,8 @@ def build_project_management_service_bundle(
         "project",
         lambda project_id: repositories.project_repo.get(project_id) is not None,
     )
+    logger.debug("Project Management platform registrations complete")
+    logger.debug("Project Management core services build begin")
     # GlobalCalendarShim is the enterprise-backed calendar. Used everywhere WorkCalendarEngine was.
     work_calendar_engine = platform_services.global_calendar_shim
     project_service = ProjectService(
@@ -173,6 +183,7 @@ def build_project_management_service_bundle(
         resource_repo=repositories.resource_repo,
         project_calendar_adapter=_pre_project_calendar_adapter,
     )
+    logger.debug("Project Management scheduling foundation built")
     task_service = TaskService(
         session,
         repositories.task_repo,
@@ -322,11 +333,17 @@ def build_project_management_service_bundle(
     resource_capacity_calculator = ResourceCapacityCalculator(
         availability_service=enterprise_resource_availability,
     )
+    logger.debug("Project Management core services built")
     _register_project_management_approval_handlers(
         approval_service=platform_services.approval_service,
         baseline_service=baseline_service,
         task_service=task_service,
         cost_service=cost_service,
+    )
+    logger.debug("Project Management approval handlers registered")
+    logger.info(
+        "Project Management service bundle build complete duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
     )
     return ProjectManagementServiceBundle(
         time_service=time_service,
