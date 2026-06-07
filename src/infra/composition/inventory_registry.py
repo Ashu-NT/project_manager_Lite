@@ -77,7 +77,7 @@ def build_inventory_procurement_service_bundle(
     platform_services: PlatformServiceBundle,
 ) -> InventoryProcurementServiceBundle:
     started = perf_counter()
-    logger.info("Inventory/Procurement service bundle build begin")
+    logger.debug("Inventory/Procurement service bundle build begin")
     platform_services.access_service.register_scope_policy(
         ScopedRolePolicy(
             scope_type="storeroom",
@@ -269,7 +269,7 @@ def build_inventory_procurement_service_bundle(
 
     platform_services.access_service.register_scope_exists_resolver("storeroom", _storeroom_exists)
 
-    logger.info(
+    logger.debug(
         "Inventory/Procurement service bundle build complete duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )

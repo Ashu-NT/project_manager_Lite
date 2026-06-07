@@ -67,11 +67,8 @@ def create_qml_engine() -> QQmlApplicationEngine:
         if import_root.exists():
             engine.addImportPath(str(import_root))
             added_paths.append(str(import_root))
-    logger.info(
-        "QML engine created import_path_count=%s import_paths=%s",
-        len(added_paths),
-        added_paths,
-    )
+    logger.info("QML engine created import_path_count=%s", len(added_paths))
+    logger.debug("QML engine import paths=%s", added_paths)
     return engine
 
 

@@ -35,7 +35,7 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    logger.info("Alembic online migration context begin")
+    logger.debug("Alembic online migration context begin")
     connectable = create_engine(
         _db_url(),
         future=True,
@@ -53,7 +53,7 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
-    logger.info("Alembic online migration context complete")
+    logger.debug("Alembic online migration context complete")
 
 
 if context.is_offline_mode():

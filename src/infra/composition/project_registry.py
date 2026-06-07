@@ -108,7 +108,7 @@ def build_project_management_service_bundle(
     platform_services: PlatformServiceBundle,
 ) -> ProjectManagementServiceBundle:
     started = perf_counter()
-    logger.info("Project Management service bundle build begin")
+    logger.debug("Project Management service bundle build begin")
     logger.debug("Project Management platform registrations begin")
     platform_services.access_service.register_scope_policy(
         ScopedRolePolicy(
@@ -341,7 +341,7 @@ def build_project_management_service_bundle(
         cost_service=cost_service,
     )
     logger.debug("Project Management approval handlers registered")
-    logger.info(
+    logger.debug(
         "Project Management service bundle build complete duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )

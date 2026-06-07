@@ -121,7 +121,7 @@ def build_maintenance_service_bundle(
     inventory_services: InventoryProcurementServiceBundle,
 ) -> MaintenanceServiceBundle:
     started = perf_counter()
-    logger.info("Maintenance service bundle build begin")
+    logger.debug("Maintenance service bundle build begin")
     logger.debug("Maintenance repositories build begin")
     location_repo = SqlAlchemyMaintenanceLocationRepository(platform_services.session)
     system_repo = SqlAlchemyMaintenanceSystemRepository(platform_services.session)
@@ -468,7 +468,7 @@ def build_maintenance_service_bundle(
         audit_service=platform_services.audit_service,
     )
     logger.debug("Maintenance core services built")
-    logger.info(
+    logger.debug(
         "Maintenance service bundle build complete duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )

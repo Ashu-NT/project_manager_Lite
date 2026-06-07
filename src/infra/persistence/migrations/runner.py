@@ -52,7 +52,7 @@ def run_migrations(db_url: str) -> None:
     started = perf_counter()
     app_dir = _app_dir()
     candidates = _migration_candidates(app_dir)
-    logger.info(
+    logger.debug(
         "Alembic migration discovery begin app_dir=%s candidate_count=%s candidates=%s",
         app_dir,
         len(candidates),
@@ -97,7 +97,7 @@ def run_migrations(db_url: str) -> None:
     try:
         script = ScriptDirectory.from_config(cfg)
         heads = script.get_heads()
-        logger.info(
+        logger.debug(
             "Alembic migration upgrade begin script_location=%s config=%s heads=%s db_url=%s",
             script_location,
             alembic_ini,
@@ -114,7 +114,7 @@ def run_migrations(db_url: str) -> None:
         raise
     finally:
         slow_watchdog.cancel()
-    logger.info(
+    logger.debug(
         "Alembic migration upgrade complete duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )

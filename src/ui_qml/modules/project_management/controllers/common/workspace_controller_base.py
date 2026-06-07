@@ -254,7 +254,7 @@ class ProjectManagementWorkspaceControllerBase(QObject):
         self._pending_domain_refresh = False
         refresh = getattr(self, "refresh", None)
         if callable(refresh):
-            logger.info("Domain refresh executing context=%s", self._diagnostic_context())
+            logger.debug("Domain refresh executing context=%s", self._diagnostic_context())
             refresh()
 
     def _disconnect_domain_event_subscriptions(

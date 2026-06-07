@@ -16,6 +16,14 @@ sql_logger = logging.getLogger("sqlalchemy.diagnostics")
 _query_state = threading.local()
 _SLOW_QUERY_MS = float(os.getenv("PM_SLOW_QUERY_MS", "250") or 250)
 _TRACE_SQL = (os.getenv("PM_SQL_TRACE", "0") or "").strip().lower() in {"1", "true", "yes"}
+_LOGGED_DB_URLS: set[str] = set()
+
+
+def _log_db_url_once(url: str, message: str) -> None:
+    if not logging.getLogger().handlers or url in _LOGGED_DB_URLS:
+        return
+    logger.info(message, url)
+    _LOGGED_DB_URLS.add(url)
 
 
 def get_db_url() -> str:
@@ -24,13 +32,13 @@ def get_db_url() -> str:
         parsed = urlparse(env_url)
         if parsed.scheme not in ("sqlite", "postgresql", "mysql", "oracle", "mssql"):
             raise ValueError(f"Unsupported database scheme: {parsed.scheme}")
-        logger.info("Using database URL from PM_DB_URL.")
+        _log_db_url_once(env_url, "Using database URL from PM_DB_URL: %s")
         return env_url
 
     db_path: Path = default_db_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
     url = f"sqlite:///{db_path.as_posix()}"
-    logger.info("Using SQLite database at: %s", url)
+    _log_db_url_once(url, "Using SQLite database at: %s")
     return url
 
 

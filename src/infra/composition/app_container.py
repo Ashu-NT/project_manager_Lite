@@ -310,19 +310,19 @@ class ServiceGraph:
 
 def build_service_graph(session: Session) -> ServiceGraph:
     started = perf_counter()
-    logger.info("Service graph build begin session_type=%s", type(session).__name__)
+    logger.debug("Service graph build begin session_type=%s", type(session).__name__)
     repositories = build_repository_bundle(session)
-    logger.info(
+    logger.debug(
         "Repository bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
     platform_services = build_platform_service_bundle(session, repositories)
-    logger.info(
+    logger.debug(
         "Platform service bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
     inventory_procurement_services = build_inventory_procurement_service_bundle(platform_services)
-    logger.info(
+    logger.debug(
         "Inventory/Procurement service bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
@@ -330,7 +330,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         platform_services,
         inventory_procurement_services,
     )
-    logger.info(
+    logger.debug(
         "Maintenance service bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
@@ -339,7 +339,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         repositories,
         platform_services,
     )
-    logger.info(
+    logger.debug(
         "Project Management service bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
@@ -434,7 +434,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         resource_capacity_calculator=project_management_services.resource_capacity_calculator,
         enterprise_resource_availability=project_management_services.enterprise_resource_availability,
     )
-    logger.info(
+    logger.debug(
         "Service graph build complete duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
@@ -445,7 +445,7 @@ def build_service_dict(session: Session) -> dict[str, Any]:
     started = perf_counter()
     graph = build_service_graph(session)
     services = graph.as_dict()
-    logger.info(
+    logger.debug(
         "Service dictionary build complete service_count=%s duration_ms=%.1f",
         len(services),
         (perf_counter() - started) * 1000,

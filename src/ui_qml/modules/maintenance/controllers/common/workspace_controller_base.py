@@ -196,7 +196,7 @@ class MaintenanceWorkspaceControllerBase(QObject):
             return
         refresh = getattr(self, "refresh", None)
         if callable(refresh):
-            logger.info("Maintenance domain refresh executing context=%s", self._diagnostic_context())
+            logger.debug("Maintenance domain refresh executing context=%s", self._diagnostic_context())
             refresh()
 
     def _flush_pending_domain_refresh(self) -> None:
@@ -205,7 +205,7 @@ class MaintenanceWorkspaceControllerBase(QObject):
         self._pending_domain_refresh = False
         refresh = getattr(self, "refresh", None)
         if callable(refresh):
-            logger.info("Maintenance pending domain refresh executing context=%s", self._diagnostic_context())
+            logger.debug("Maintenance pending domain refresh executing context=%s", self._diagnostic_context())
             refresh()
 
     def _disconnect_domain_event_subscriptions(

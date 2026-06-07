@@ -18,9 +18,37 @@ _LOGGING_CONFIGURED = False
 _QT_MESSAGE_HANDLER_INSTALLED = False
 
 
+def _debug_logging_enabled() -> bool:
+    return (os.getenv("PM_DEBUG_LOGGING") or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _resolve_log_level() -> int:
-    raw_level = (os.getenv("PM_LOG_LEVEL") or os.getenv("LOG_LEVEL") or "DEBUG").strip().upper()
-    return getattr(logging, raw_level, logging.DEBUG)
+    default_level = "DEBUG" if _debug_logging_enabled() else "INFO"
+    raw_level = (os.getenv("PM_LOG_LEVEL") or os.getenv("LOG_LEVEL") or default_level).strip().upper()
+    return getattr(logging, raw_level, logging.INFO)
+
+
+def _apply_logger_overrides(root_level: int) -> None:
+    debug_enabled = root_level <= logging.DEBUG
+    debug_or_info = logging.DEBUG if debug_enabled else logging.INFO
+    overrides = {
+        "src.ui_qml.shared.models.data_table_model": debug_or_info,
+        "src.ui_qml.modules.project_management.controllers.common.workspace_controller_base": debug_or_info,
+        "src.ui_qml.platform.controllers.common.workspace_controller_base": debug_or_info,
+        "src.ui_qml.modules.inventory_procurement.controllers.common.workspace_controller_base": debug_or_info,
+        "src.ui_qml.modules.maintenance.controllers.common.workspace_controller_base": debug_or_info,
+        "src.core.platform.calendar.application.enterprise_calendar_resolver": debug_or_info,
+        "qt.qml": logging.DEBUG if debug_enabled else logging.WARNING,
+        "sqlalchemy.engine": logging.WARNING,
+        "alembic": logging.INFO,
+        "alembic.runtime.migration": logging.WARNING,
+    }
+    for logger_name, level in overrides.items():
+        logging.getLogger(logger_name).setLevel(level)
+
+
+def _should_log_qt_message(level: int) -> bool:
+    return level >= logging.WARNING or logging.getLogger("qt.qml").isEnabledFor(level)
 
 
 def _install_qt_message_handler() -> None:
@@ -41,6 +69,8 @@ def _install_qt_message_handler() -> None:
             level = logging.ERROR
         else:
             level = logging.CRITICAL
+        if not _should_log_qt_message(level):
+            return
         file_name = getattr(context, "file", "") or ""
         function = getattr(context, "function", "") or ""
         category = getattr(context, "category", "") or ""
@@ -58,7 +88,7 @@ def _install_qt_message_handler() -> None:
 
     qInstallMessageHandler(_handler)
     _QT_MESSAGE_HANDLER_INSTALLED = True
-    logging.getLogger(__name__).info("Qt/QML message handler installed.")
+    logging.getLogger(__name__).debug("Qt/QML message handler installed.")
 
 
 def setup_logging() -> Path:
@@ -112,6 +142,7 @@ def setup_logging() -> Path:
     logger.addHandler(console)
 
     _LOGGING_CONFIGURED = True
+    _apply_logger_overrides(log_level)
     install_global_exception_hooks()
     _install_qt_message_handler()
     logger.info(

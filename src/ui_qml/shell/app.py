@@ -53,7 +53,7 @@ def build_services() -> dict[str, object]:
         (perf_counter() - migration_started) * 1000,
     )
     session = SessionLocal()
-    logger.info("Database session created session_class=%s", type(session).__name__)
+    logger.debug("Database session created session_class=%s", type(session).__name__)
     graph_started = perf_counter()
     services = build_service_dict(session)
     logger.info(
@@ -129,7 +129,7 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         desktop_api_registry = services["desktop_api_registry"]
         skip_login = os.getenv("PM_SKIP_LOGIN", "0").strip().lower() in {"1", "true"}
         preauthenticated = bool(services["user_session"].is_authenticated())
-        logger.info(
+        logger.debug(
             "Authentication gate evaluated skip_login=%s preauthenticated=%s",
             skip_login,
             preauthenticated,
@@ -165,24 +165,24 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         )
     else:
         update_shell_runtime_state(shell_context, theme_mode=startup_theme)
-    logger.info("Creating workspace catalogs.")
+    logger.debug("Creating workspace catalogs.")
     platform_workspace_catalog = PlatformWorkspaceCatalog(
         getattr(desktop_api_registry, "platform_runtime", None) if desktop_api_registry is not None else None,
         desktop_api_registry=desktop_api_registry,
     )
-    logger.info("Platform workspace catalog created.")
+    logger.debug("Platform workspace catalog created.")
     pm_workspace_catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=desktop_api_registry,
     )
-    logger.info("Project Management workspace catalog created.")
+    logger.debug("Project Management workspace catalog created.")
     inventory_workspace_catalog = InventoryProcurementWorkspaceCatalog(
         desktop_api_registry=desktop_api_registry,
     )
-    logger.info("Inventory/Procurement workspace catalog created.")
+    logger.debug("Inventory/Procurement workspace catalog created.")
     maintenance_workspace_catalog = MaintenanceWorkspaceCatalog(
         desktop_api_registry=desktop_api_registry,
     )
-    logger.info("Maintenance workspace catalog created.")
+    logger.debug("Maintenance workspace catalog created.")
     engine = create_qml_engine()
     shell_route = registry.get("shell.app")
     logger.info("Loading shell QML path=%s", shell_route.qml_path)

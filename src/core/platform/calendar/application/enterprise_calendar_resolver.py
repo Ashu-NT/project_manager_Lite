@@ -246,6 +246,18 @@ class EnterpriseCalendarResolver:
             )
             return []
         started = perf_counter()
+        requested_day_count = (end - start).days + 1
+        far_future_year = date.today().year + 20
+        if requested_day_count > 5000 or end.year > far_future_year:
+            logger.warning(
+                "Calendar range is suspicious organization_id=%s start=%s end=%s day_count=%s project_id=%s resource_id=%s",
+                self._org_id,
+                start,
+                end,
+                requested_day_count,
+                project_id or "-",
+                resource_id or "-",
+            )
 
         # 1. Build chain once — assignments are stable across a typical range
         chain = self._build_chain(
@@ -280,7 +292,7 @@ class EnterpriseCalendarResolver:
                     exceptions=[],
                 ))
                 current += timedelta(days=1)
-            logger.info(
+            logger.debug(
                 "Calendar range resolved without source chain organization_id=%s start=%s end=%s day_count=%s duration_ms=%.1f",
                 self._org_id,
                 start,
@@ -354,7 +366,7 @@ class EnterpriseCalendarResolver:
             current += timedelta(days=1)
 
         duration_ms = (perf_counter() - started) * 1000
-        log_method = logger.warning if duration_ms > 250 else logger.info
+        log_method = logger.warning if duration_ms > 250 or len(results) > 5000 else logger.debug
         log_method(
             "Calendar range resolved organization_id=%s start=%s end=%s day_count=%s chain=%s rule_count=%s exception_count=%s recurring_count=%s duration_ms=%.1f",
             self._org_id,

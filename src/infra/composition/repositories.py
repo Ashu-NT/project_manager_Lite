@@ -135,7 +135,7 @@ class RepositoryBundle:
 
 def build_repository_bundle(session: Session) -> RepositoryBundle:
     started = perf_counter()
-    logger.info("Repository bundle build begin session_type=%s", type(session).__name__)
+    logger.debug("Repository bundle build begin session_type=%s", type(session).__name__)
     bundle = RepositoryBundle(
         project_repo=SqlAlchemyProjectRepository(session),
         task_repo=SqlAlchemyTaskRepository(session),
@@ -185,7 +185,7 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         resource_cert_repo=SqlAlchemyResourceCertificationRepository(session),
         task_skill_req_repo=SqlAlchemyTaskSkillRequirementRepository(session),
     )
-    logger.info(
+    logger.debug(
         "Repository bundle build complete duration_ms=%.1f repository_count=%s",
         (perf_counter() - started) * 1000,
         len(bundle.__dataclass_fields__),
