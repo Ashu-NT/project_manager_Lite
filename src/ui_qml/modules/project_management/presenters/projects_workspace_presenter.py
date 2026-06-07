@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import date
 from typing import Any
-from urllib.parse import unquote
 
 from src.core.modules.project_management.api.desktop import (
     ProjectCreateCommand,
@@ -33,6 +32,7 @@ from src.core.modules.project_management.infrastructure.importers.services.valid
     ImportValidationService,
     ImportValidationSeverity,
 )
+from src.ui_qml.modules.project_management.utils.file_paths import local_path_from_qml_file_url
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectCatalogMetricViewModel,
     ProjectCatalogOverviewViewModel,
@@ -686,14 +686,7 @@ class ProjectProjectsWorkspacePresenter:
         file_path: str,
         source_format: str,
     ) -> dict[str, object]:
-        normalized_path = (file_path or "").strip()
-        if normalized_path.startswith("file:///"):
-            tail = normalized_path[8:]
-            # Windows: file:///C:/... → C:/...; Unix: file:///home/... → /home/...
-            normalized_path = tail if (len(tail) > 1 and tail[1] == ":") else "/" + tail
-        elif normalized_path.startswith("file://"):
-            normalized_path = normalized_path[7:]
-        normalized_path = unquote(normalized_path)
+        normalized_path = local_path_from_qml_file_url(file_path)
 
         normalized_format = (source_format or "csv").strip().lower()
         _parsers = {

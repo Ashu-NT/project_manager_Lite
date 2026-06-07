@@ -3,6 +3,8 @@ from __future__ import annotations
 import csv
 import os
 
+from src.ui_qml.modules.project_management.utils.file_paths import local_path_from_qml_file_url
+
 
 def export_to_file(
     rows: list[dict[str, object]],
@@ -14,7 +16,7 @@ def export_to_file(
         return {"ok": False, "error": "No records to export."}
     if not columns:
         return {"ok": False, "error": "No columns selected for export."}
-    resolved = (file_path or "").strip()
+    resolved = local_path_from_qml_file_url(file_path)
     if not resolved:
         return {"ok": False, "error": "No file path specified."}
     _, ext = os.path.splitext(resolved.lower())
