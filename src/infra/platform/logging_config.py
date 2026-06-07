@@ -22,7 +22,7 @@ def setup_logging():
     log_file = log_dir / "app.log"
 
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
 
     # Clear any existing handlers (important in PyInstaller single-process)
     logger.handlers.clear()

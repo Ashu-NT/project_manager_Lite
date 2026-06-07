@@ -340,7 +340,10 @@ def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None
         ),
         "src/ui_qml/modules/project_management/controllers/financials/financials_workspace_controller.py": (
             "self._bind_domain_events()",
+        ),
+        "src/ui_qml/modules/project_management/controllers/financials/financials_refresh_mixin.py": (
             '_subscribe_domain_change(',
+            'scope_code="project_management"',
         ),
         "src/ui_qml/modules/project_management/controllers/register/register_workspace_controller.py": (
             "self._bind_domain_events()",
