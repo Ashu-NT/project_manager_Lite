@@ -48,6 +48,7 @@ class ResourceService(
         user_session=None,
         audit_service=None,
         module_catalog_service=None,
+        tenant_context_service=None,
     ):
         self._session: Session = session
         self._resource_repo: ResourceRepository = resource_repo
@@ -60,6 +61,7 @@ class ResourceService(
         self._user_session = user_session
         self._audit_service = audit_service
         self._module_catalog_service = module_catalog_service
+        self._tenant_context_service = tenant_context_service
 
 
 __all__ = ["ResourceService"]

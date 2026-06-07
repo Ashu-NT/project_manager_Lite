@@ -104,6 +104,7 @@ class UserSessionPrincipal:
     identity_provider: str | None = None
     last_login_auth_method: str | None = None
     session_id: str | None = None
+    active_organization_id: str | None = None
 
 
 class UserSessionContext:
@@ -114,6 +115,7 @@ class UserSessionContext:
     ):
         self._principal: UserSessionPrincipal | None = None
         self._principal_validator = principal_validator
+        self._active_organization_id: str | None = None
 
     @property
     def principal(self) -> UserSessionPrincipal | None:
@@ -144,10 +146,14 @@ class UserSessionContext:
             identity_provider=(str(getattr(principal, "identity_provider", "") or "").strip() or None),
             last_login_auth_method=(str(getattr(principal, "last_login_auth_method", "") or "").strip() or None),
             session_id=(str(getattr(principal, "session_id", "") or "").strip() or None),
+            active_organization_id=(
+                str(getattr(principal, "active_organization_id", "") or "").strip() or None
+            ),
         )
 
     def clear(self) -> None:
         self._principal = None
+        self._active_organization_id = None
 
     def is_authenticated(self) -> bool:
         return self._active_principal() is not None
@@ -202,6 +208,43 @@ class UserSessionContext:
 
     def project_ids_for(self, permission_code: str) -> set[str]:
         return self.scope_ids_for("project", permission_code)
+
+    def organization_ids(self) -> set[str]:
+        principal = self._active_principal()
+        if principal is None:
+            return set()
+        return set(self._scope_rows(principal, "organization").keys())
+
+    def has_organization_access(self, organization_id: str) -> bool:
+        principal = self._active_principal()
+        if principal is None:
+            return False
+        if "admin" in principal.role_names:
+            return True
+        normalized_organization_id = str(organization_id or "").strip()
+        if not normalized_organization_id:
+            return False
+        organization_ids = self.organization_ids()
+        return not organization_ids or normalized_organization_id in organization_ids
+
+    def set_active_organization_id(self, organization_id: str | None) -> None:
+        self._active_organization_id = str(organization_id or "").strip() or None
+
+    def active_organization_id(self) -> str | None:
+        session_organization_id = str(self._active_organization_id or "").strip() or None
+        if session_organization_id:
+            return session_organization_id
+        principal = self._active_principal()
+        if principal is None:
+            return None
+        principal_organization_id = (
+            str(getattr(principal, "active_organization_id", "") or "").strip()
+            or None
+        )
+        if principal_organization_id:
+            return principal_organization_id
+        organization_ids = sorted(self.organization_ids())
+        return organization_ids[0] if len(organization_ids) == 1 else None
 
     def is_scope_restricted(self, scope_type: str) -> bool:
         principal = self._active_principal()

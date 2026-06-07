@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.domain.resources.resource import Resource
+from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM, ProjectResourceORM
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.platform.infrastructure.persistence.orm.departments import DepartmentORM
+from src.core.platform.infrastructure.persistence.orm.employee import EmployeeORM
+from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
 from src.infra.persistence.db.optimistic import update_with_version_check
 from src.core.modules.project_management.infrastructure.persistence.mappers.resource import resource_from_orm, resource_to_orm
 
@@ -51,6 +55,26 @@ class SqlAlchemyResourceRepository(ResourceRepository):
 
     def list_all(self) -> List[Resource]:
         stmt = select(ResourceORM)
+        rows = self.session.execute(stmt).scalars().all()
+        return [resource_from_orm(row) for row in rows]
+
+    def list_for_organization(self, organization_id: str) -> List[Resource]:
+        stmt = (
+            select(ResourceORM)
+            .distinct()
+            .outerjoin(ProjectResourceORM, ProjectResourceORM.resource_id == ResourceORM.id)
+            .outerjoin(ProjectORM, ProjectORM.id == ProjectResourceORM.project_id)
+            .outerjoin(EmployeeORM, EmployeeORM.id == ResourceORM.employee_id)
+            .outerjoin(SiteORM, SiteORM.id == EmployeeORM.site_id)
+            .outerjoin(DepartmentORM, DepartmentORM.id == EmployeeORM.department_id)
+            .where(
+                or_(
+                    ProjectORM.organization_id == organization_id,
+                    SiteORM.organization_id == organization_id,
+                    DepartmentORM.organization_id == organization_id,
+                )
+            )
+        )
         rows = self.session.execute(stmt).scalars().all()
         return [resource_from_orm(row) for row in rows]
 

@@ -60,6 +60,11 @@ class SqlAlchemyProjectRepository(ProjectRepository):
         rows = self.session.execute(stmt).scalars().all()
         return [project_from_orm(row) for row in rows]
 
+    def list_for_organization(self, organization_id: str) -> List[Project]:
+        stmt = select(ProjectORM).where(ProjectORM.organization_id == organization_id)
+        rows = self.session.execute(stmt).scalars().all()
+        return [project_from_orm(row) for row in rows]
+
 
 class SqlAlchemyProjectResourceRepository(ProjectResourceRepository):
     def __init__(self, session: Session):

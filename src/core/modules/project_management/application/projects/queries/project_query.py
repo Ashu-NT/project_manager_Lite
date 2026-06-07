@@ -14,8 +14,14 @@ class ProjectQueryMixin:
 
     def list_projects(self) -> List[Project]:
         require_permission(self._user_session, "project.read", operation_label="list projects")
+        organization_id = self._active_organization_id(operation_label="list projects")
+        project_rows = (
+            self._project_repo.list_for_organization(organization_id)
+            if organization_id and hasattr(self._project_repo, "list_for_organization")
+            else self._project_repo.list_all()
+        )
         return filter_project_rows(
-            self._project_repo.list_all(),
+            project_rows,
             self._user_session,
             permission_code="project.read",
             project_id_getter=lambda project: project.id,
@@ -25,6 +31,8 @@ class ProjectQueryMixin:
         require_permission(self._user_session, "project.read", operation_label="view project")
         project = self._project_repo.get(project_id)
         if project is None:
+            return None
+        if not self._is_project_in_active_organization(project):
             return None
         require_project_permission(
             self._user_session,
@@ -42,6 +50,19 @@ class ProjectQueryMixin:
         require_permission(self._user_session, "project.read", operation_label="search projects")
         normalized = query.strip().lower()
         return [project for project in self.list_projects() if normalized in project.name.lower()]
+
+    def _active_organization_id(self, *, operation_label: str) -> str | None:
+        tenant_context = getattr(self, "_tenant_context_service", None)
+        if tenant_context is None:
+            return None
+        return tenant_context.require_active_organization_id(operation_label=operation_label)
+
+    def _is_project_in_active_organization(self, project: Project) -> bool:
+        organization_id = self._active_organization_id(operation_label="view project")
+        if not organization_id:
+            return True
+        project_organization_id = str(getattr(project, "organization_id", "") or "").strip()
+        return bool(project_organization_id and project_organization_id == organization_id)
 
 
 __all__ = ["ProjectQueryMixin"]

@@ -68,6 +68,9 @@ class PortfolioExecutiveQueryMixin:
 
     def list_recent_pm_actions(self, *, limit: int = 12) -> list[PortfolioRecentAction]:
         require_permission(self._user_session, "portfolio.read", operation_label="view recent pm actions")
+        accessible_projects = {project.id: project for project in self._accessible_projects()}
+        if not accessible_projects:
+            return []
         _PM_PREFIXES = (
             "project.",
             "task.",
@@ -82,15 +85,16 @@ class PortfolioExecutiveQueryMixin:
             action = str(getattr(row, "action", "") or "").strip().lower()
             if not any(action.startswith(prefix) for prefix in _PM_PREFIXES):
                 continue
+            project_id = str(getattr(row, "project_id", "") or "").strip()
+            project = accessible_projects.get(project_id)
+            if project is None:
+                continue
             rows.append(
                 PortfolioRecentAction(
-                    action=str(getattr(row, "action", "") or ""),
-                    action_label=self._audit_action_label(str(getattr(row, "action", "") or "")),
-                    entity_type=str(getattr(row, "entity_type", "") or ""),
-                    entity_id=str(getattr(row, "entity_id", "") or ""),
-                    project_id=str(getattr(row, "project_id", "") or "") or None,
-                    actor_username=str(getattr(row, "actor_username", "") or ""),
                     occurred_at=getattr(row, "occurred_at", None),
+                    project_name=project.name,
+                    action_label=self._audit_action_label(str(getattr(row, "action", "") or "")),
+                    actor_username=str(getattr(row, "actor_username", "") or ""),
                     summary=self._audit_summary(row),
                 )
             )

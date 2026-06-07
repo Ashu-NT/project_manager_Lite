@@ -138,6 +138,7 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
         module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     timesheet_service = TimesheetService(
         session=session,
@@ -223,6 +224,7 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
         module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     cost_service = CostService(
         session,
@@ -284,6 +286,7 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
         module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     baseline_service = BaselineService(
         session=session,

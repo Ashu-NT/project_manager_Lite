@@ -42,7 +42,7 @@ class PortfolioScenarioQueryMixin:
 
         available_capacity_percent = sum(
             float(getattr(resource, "capacity_percent", 0.0) or 0.0)
-            for resource in self._resource_repo.list_all()
+            for resource in self._portfolio_resources()
             if bool(getattr(resource, "is_active", True))
         )
         capacity_limit = (
@@ -144,6 +144,12 @@ class PortfolioScenarioQueryMixin:
         )
         comparison.summary = self._build_comparison_summary(comparison)
         return comparison
+
+    def _portfolio_resources(self):
+        organization_id = self._active_portfolio_organization_id(operation_label="evaluate portfolio resources")
+        if organization_id and hasattr(self._resource_repo, "list_for_organization"):
+            return self._resource_repo.list_for_organization(organization_id)
+        return self._resource_repo.list_all()
 
 
 __all__ = ["PortfolioScenarioQueryMixin"]

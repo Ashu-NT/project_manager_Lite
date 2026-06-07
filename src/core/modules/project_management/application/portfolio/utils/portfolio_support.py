@@ -12,13 +12,24 @@ from src.core.modules.project_management.domain.portfolio import (
 
 class PortfolioSupportMixin:
     def _accessible_projects(self):
-        projects = self._project_repo.list_all()
+        organization_id = self._active_portfolio_organization_id(operation_label="view portfolio projects")
+        projects = (
+            self._project_repo.list_for_organization(organization_id)
+            if organization_id and hasattr(self._project_repo, "list_for_organization")
+            else self._project_repo.list_all()
+        )
         return filter_project_rows(
             projects,
             self._user_session,
             permission_code="project.read",
             project_id_getter=lambda project: project.id,
         )
+
+    def _active_portfolio_organization_id(self, *, operation_label: str) -> str | None:
+        tenant_context = getattr(self, "_tenant_context_service", None)
+        if tenant_context is None:
+            return None
+        return tenant_context.require_active_organization_id(operation_label=operation_label)
 
     @staticmethod
     def _require_non_empty(value: str, label: str) -> str:

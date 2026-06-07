@@ -11,6 +11,9 @@ class ResourceQueryMixin:
     
     def list_resources(self) -> list[Resource]:
         require_permission(self._user_session, "resource.read", operation_label="list resources")
+        organization_id = self._active_organization_id(operation_label="list resources")
+        if organization_id and hasattr(self._resource_repo, "list_for_organization"):
+            return self._resource_repo.list_for_organization(organization_id)
         return self._resource_repo.list_all()
 
     def get_resource(self, resource_id: str) -> Resource:
@@ -18,7 +21,21 @@ class ResourceQueryMixin:
         resource = self._resource_repo.get(resource_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+        if not self._is_resource_in_active_organization(resource):
+            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
         return resource
+
+    def _active_organization_id(self, *, operation_label: str) -> str | None:
+        tenant_context = getattr(self, "_tenant_context_service", None)
+        if tenant_context is None:
+            return None
+        return tenant_context.require_active_organization_id(operation_label=operation_label)
+
+    def _is_resource_in_active_organization(self, resource: Resource) -> bool:
+        organization_id = self._active_organization_id(operation_label="view resource")
+        if not organization_id or not hasattr(self._resource_repo, "list_for_organization"):
+            return True
+        return any(row.id == resource.id for row in self._resource_repo.list_for_organization(organization_id))
 
 
 __all__ = ["ResourceQueryMixin"]

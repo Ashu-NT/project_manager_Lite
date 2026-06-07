@@ -52,9 +52,11 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "auth.read": "View user and role directory data",
     "auth.manage": "Manage users and roles",
     "security.manage": "Manage login security, lockouts, and session controls",
+    "organization.access": "Access tenant organization context",
 }
 
 _VIEWER = {
+    "organization.access",
     "project.read",
     "task.read",
     "time.read",

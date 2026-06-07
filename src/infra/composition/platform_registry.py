@@ -31,6 +31,12 @@ from src.core.platform.site.access_policy import (
     normalize_site_scope_role,
     resolve_site_scope_permissions,
 )
+from src.core.platform.tenancy import (
+    ORGANIZATION_SCOPE_ROLE_CHOICES,
+    TenantContextService,
+    normalize_organization_scope_role,
+    resolve_organization_scope_permissions,
+)
 from src.core.platform.party import PartyService
 from src.core.platform.party.contracts import PartyRepository
 from src.core.platform.runtime_tracking import RuntimeExecutionService
@@ -58,6 +64,7 @@ class PlatformServiceBundle:
     organization_repo: OrganizationRepository
     site_repo: SiteRepository
     party_repo: PartyRepository
+    tenant_context_service: TenantContextService
     platform_runtime_application_service: PlatformRuntimeApplicationService
     module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
@@ -136,6 +143,10 @@ def build_platform_service_bundle(
         "Platform organization defaults bootstrapped duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
+    tenant_context_service = TenantContextService(
+        organization_repo=repositories.organization_repo,
+        user_session=user_session,
+    )
 
     document_service = DocumentService(
         session=session,
@@ -180,11 +191,10 @@ def build_platform_service_bundle(
     )
 
     def _active_organization():
-        return repositories.organization_repo.get_active()
+        return tenant_context_service.get_active_organization()
 
     def _active_organization_id() -> str | None:
-        organization = _active_organization()
-        return organization.id if organization is not None else None
+        return tenant_context_service.get_active_organization_id()
 
     module_entitlement_repo = SqlAlchemyModuleEntitlementRepository(
         session,
@@ -214,6 +224,7 @@ def build_platform_service_bundle(
     platform_runtime_application_service = PlatformRuntimeApplicationService(
         module_runtime_service=module_runtime_service,
         organization_service=organization_service,
+        tenant_context_service=tenant_context_service,
     )
     runtime_execution_service = RuntimeExecutionService(
         runtime_execution_repo=SqlAlchemyRuntimeExecutionRepository(session),
@@ -227,6 +238,12 @@ def build_platform_service_bundle(
         policy_registry=ScopedRolePolicyRegistry(
             (
                 ScopedRolePolicy(
+                    scope_type="organization",
+                    role_choices=ORGANIZATION_SCOPE_ROLE_CHOICES,
+                    normalize_role=normalize_organization_scope_role,
+                    resolve_permissions=resolve_organization_scope_permissions,
+                ),
+                ScopedRolePolicy(
                     scope_type="site",
                     role_choices=SITE_SCOPE_ROLE_CHOICES,
                     normalize_role=normalize_site_scope_role,
@@ -236,6 +253,7 @@ def build_platform_service_bundle(
         ),
         scoped_access_repo=repositories.scoped_access_repo,
         scope_exists_resolvers={
+            "organization": lambda organization_id: repositories.organization_repo.get(organization_id) is not None,
             "site": lambda site_id: repositories.site_repo.get(site_id) is not None,
         },
         user_session=user_session,
@@ -303,8 +321,7 @@ def build_platform_service_bundle(
     )
 
     def _get_active_org_id():
-        org = repositories.organization_repo.get_active()
-        return org.id if org else ""
+        return tenant_context_service.get_active_organization_id() or ""
 
     enterprise_calendar_resolver = EnterpriseCalendarResolver(
         organization_id=_get_active_org_id(),
@@ -321,7 +338,7 @@ def build_platform_service_bundle(
     # Bootstrap global calendar. After the Alembic migration drops legacy tables,
     # working_calendar_repo will not be passed — the enterprise tables already hold the data.
     try:
-        org = repositories.organization_repo.get_active()
+        org = tenant_context_service.get_active_organization()
         if org:
             logger.debug("Ensuring enterprise global calendar organization_id=%s", org.id)
             enterprise_calendar_service.ensure_global_calendar(org.id)
@@ -335,6 +352,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         site_repo=repositories.site_repo,
         party_repo=repositories.party_repo,
+        tenant_context_service=tenant_context_service,
         platform_runtime_application_service=platform_runtime_application_service,
         module_runtime_service=module_runtime_service,
         module_catalog_service=module_catalog_service,
