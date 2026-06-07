@@ -19,13 +19,10 @@ class FinancialsMutationMixin:
         )
 
     def _apply_forecast(self, method: str) -> None:
-        # TODO: expose a public presenter method for forecast recalculation instead of
-        # reaching through private presenter internals. Kept unchanged for this refactor.
-        forecast_dto = self._financials_workspace_presenter._desktop_api.get_cost_forecast(
+        vm = self._financials_workspace_presenter.compute_forecast(
             self._selected_project_id,
             method=method,
         )
-        vm = self._financials_workspace_presenter._build_forecast_view_model(forecast_dto)
         self._set_forecast(serialize_financials_forecast_view_model(vm))
 
     def _export_financials(self) -> None:

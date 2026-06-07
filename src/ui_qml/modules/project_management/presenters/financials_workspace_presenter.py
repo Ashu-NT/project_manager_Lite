@@ -126,9 +126,7 @@ class ProjectFinancialsWorkspacePresenter:
                 subtitle="Expense exposure grouped by category.",
                 rows=snapshot.by_cost_type,
             ),
-            forecast=self._build_forecast_view_model(
-                self._desktop_api.get_cost_forecast(resolved_project_id)
-            ),
+            forecast=self.compute_forecast(resolved_project_id),
             commitment_summary=self._build_commitment_summary_view_model(
                 self._desktop_api.get_commitment_summary(resolved_project_id)
             ),
@@ -241,6 +239,19 @@ class ProjectFinancialsWorkspacePresenter:
         if not normalized_value:
             raise ValueError("Cost item ID is required to delete a cost item.")
         self._desktop_api.delete_cost_item(normalized_value)
+
+    def compute_forecast(
+        self,
+        selected_project_id: str | None,
+        *,
+        method: str = "bac_over_cpi",
+    ) -> FinancialsForecastViewModel:
+        normalized_method = (method or "bac_over_cpi").strip().lower()
+        forecast_dto = self._desktop_api.get_cost_forecast(
+            selected_project_id,
+            method=normalized_method,
+        )
+        return self._build_forecast_view_model(forecast_dto)
 
     @staticmethod
     def _resolve_selected_project_id(

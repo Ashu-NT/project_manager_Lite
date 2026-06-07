@@ -11,6 +11,7 @@ from src.ui_qml.modules.project_management.controllers.common import (
 )
 from src.ui_qml.modules.project_management.presenters import (
     ProjectDashboardPresenter,
+    ProjectFinancialsWorkspacePresenter,
     build_project_management_workspace_presenters,
 )
 from src.ui_qml.modules.project_management.routes import build_project_management_routes
@@ -609,6 +610,45 @@ def test_project_management_workspace_catalog_exposes_typed_financials_controlle
 
     assert controller.costs["items"] == []
     assert controller.emptyState == "No cost items match the current filters."
+
+
+def test_financials_presenter_computes_forecast_via_public_desktop_api() -> None:
+    class _FakeFinancialsDesktopApi:
+        def __init__(self) -> None:
+            self.forecast_calls: list[tuple[str | None, str]] = []
+
+        def get_cost_forecast(
+            self,
+            project_id: str | None,
+            *,
+            method: str = "bac_over_cpi",
+        ) -> SimpleNamespace:
+            self.forecast_calls.append((project_id, method))
+            return SimpleNamespace(
+                method=method,
+                bac_label="EUR 10,000.00",
+                ac_label="EUR 4,000.00",
+                ev_label="EUR 5,000.00",
+                etc_label="EUR 4,500.00",
+                eac_label="EUR 8,500.00",
+                vac_label="EUR 1,500.00",
+                cpi_label="1.25",
+                cpi=1.25,
+                vac=1500.0,
+                is_over_budget=False,
+                exceeds_threshold=False,
+                threshold_percent=10.0,
+            )
+
+    desktop_api = _FakeFinancialsDesktopApi()
+    presenter = ProjectFinancialsWorkspacePresenter(desktop_api=desktop_api)
+
+    forecast = presenter.compute_forecast("proj-1", method=" AC_ETC_CPI ")
+
+    assert desktop_api.forecast_calls == [("proj-1", "ac_etc_cpi")]
+    assert forecast.method == "ac_etc_cpi"
+    assert forecast.method_label == "AC + ETC at CPI rate"
+    assert forecast.eac_label == "EUR 8,500.00"
 
 
 def test_project_management_workspace_catalog_exposes_typed_resources_controller() -> None:

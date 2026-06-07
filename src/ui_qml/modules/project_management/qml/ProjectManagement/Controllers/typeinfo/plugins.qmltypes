@@ -125,14 +125,35 @@ Component {
     Property { name: "selectedCostId"; type: "QString"; isReadonly: true }
     Property { name: "cashflow"; type: "QVariantMap"; isReadonly: true }
     Property { name: "ledger"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "costsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "ledgerTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "sourceAnalytics"; type: "QVariantMap"; isReadonly: true }
     Property { name: "costTypeAnalytics"; type: "QVariantMap"; isReadonly: true }
     Property { name: "notes"; type: "QVariantList"; isReadonly: true }
+    Property { name: "forecast"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "commitmentSummary"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "baselineVariance"; type: "QVariantList"; isReadonly: true }
+    Property { name: "bulkCostTypeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "costPage"; type: "int"; isReadonly: true }
+    Property { name: "costPageSize"; type: "int"; isReadonly: true }
+    Property { name: "costTotalCount"; type: "int"; isReadonly: true }
+    Property { name: "selectedCostIds"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedCostCount"; type: "int"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "setCostTypeFilter"; Parameter { name: "costType"; type: "QString" } }
     Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
     Method { name: "selectCost"; Parameter { name: "costId"; type: "QString" } }
+    Method { name: "computeForecast"; type: "QVariantMap"; Parameter { name: "method"; type: "QString" } }
+    Method { name: "exportFinancials" }
+    Method { name: "setCostPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setCostPageSize"; Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "setCostBulkSelection"; Parameter { name: "costId"; type: "QString" } Parameter { name: "selected"; type: "bool" } }
+    Method { name: "selectVisibleCosts" }
+    Method { name: "clearCostBulkSelection" }
+    Method { name: "bulkDeleteCosts"; type: "QVariantMap"; Parameter { name: "costIds"; type: "QVariantList" } }
+    Method { name: "applyBulkCostType"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "generateEntityCode"; type: "QString"; Parameter { name: "entityType"; type: "QString" } Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "createCostItem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "updateCostItem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "deleteCostItem"; type: "QVariantMap"; Parameter { name: "costId"; type: "QString" } }
