@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -56,17 +57,27 @@ QML_IMPORT_ROOTS = (
     *(path for path in (UI_QML_ROOT / "modules").glob("*/qml")),
 )
 
+logger = logging.getLogger(__name__)
+
 
 def create_qml_engine() -> QQmlApplicationEngine:
     engine = QQmlApplicationEngine()
+    added_paths: list[str] = []
     for import_root in QML_IMPORT_ROOTS:
         if import_root.exists():
             engine.addImportPath(str(import_root))
+            added_paths.append(str(import_root))
+    logger.info(
+        "QML engine created import_path_count=%s import_paths=%s",
+        len(added_paths),
+        added_paths,
+    )
     return engine
 
 
 def expose_context_property(engine: QQmlApplicationEngine, name: str, value: Any) -> None:
     engine.rootContext().setContextProperty(name, value)
+    logger.debug("QML context property exposed name=%s value_type=%s", name, type(value).__name__)
 
 
 def load_qml(
@@ -77,9 +88,21 @@ def load_qml(
 ) -> None:
     if initial_properties is not None:
         engine.setInitialProperties(initial_properties)
-    engine.load(str(qml_path))
-    if not engine.rootObjects():
+    logger.info(
+        "QML load begin path=%s initial_property_count=%s",
+        qml_path,
+        len(initial_properties or {}),
+    )
+    try:
+        engine.load(str(qml_path))
+    except Exception:
+        logger.exception("QML load raised exception path=%s", qml_path)
+        raise
+    root_count = len(engine.rootObjects())
+    if not root_count:
+        logger.error("QML load failed with no root objects path=%s", qml_path)
         raise RuntimeError(f"Failed to load QML root: {qml_path}")
+    logger.info("QML load complete path=%s root_count=%s", qml_path, root_count)
 
 
 __all__ = ["create_qml_engine", "expose_context_property", "load_qml"]

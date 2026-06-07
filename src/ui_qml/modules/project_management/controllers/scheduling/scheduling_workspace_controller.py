@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+from time import perf_counter
+
 from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
@@ -22,6 +25,8 @@ from src.ui_qml.modules.project_management.presenters import (
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
+
+logger = logging.getLogger(__name__)
 
 
 @QmlElement
@@ -619,7 +624,22 @@ class ProjectManagementSchedulingWorkspaceController(
 
     @Slot()
     def refresh(self) -> None:
+        started = perf_counter()
+        logger.info(
+            "PM scheduling refresh begin project=%s calendar=%s baseline=%s panel=%s status_filter=%s search=%s page=%s page_size=%s critical_only=%s delayed_only=%s",
+            self._selected_project_id,
+            self._selected_calendar_id,
+            self._selected_baseline_id,
+            self._active_panel_id,
+            self._selected_status_filter,
+            self._search_text,
+            self._activity_page,
+            self._activity_page_size,
+            self._show_critical_only,
+            self._show_delayed_only,
+        )
         self._set_is_loading(True)
+        success = False
         try:
             self._set_error_message("")
             self._set_feedback_message("")
@@ -739,9 +759,25 @@ class ProjectManagementSchedulingWorkspaceController(
                 workspace_state.schedule.empty_state
                 or workspace_state.selected_activity_detail.empty_state
             )
+            success = True
         except Exception as exc:  # pragma: no cover - defensive fallback
+            logger.exception("PM scheduling refresh failed")
             self._set_error_message(str(exc))
         finally:
+            duration_ms = (perf_counter() - started) * 1000
+            log_method = logger.warning if duration_ms > 500 else logger.info
+            log_method(
+                "PM scheduling refresh complete success=%s duration_ms=%.1f project=%s panel=%s schedule_rows=%s total_count=%s diagnostics_rows=%s delayed_rows=%s resource_rows=%s",
+                success,
+                duration_ms,
+                self._selected_project_id,
+                self._active_panel_id,
+                len(self._schedule.get("items", []) or []),
+                self._activity_total_count,
+                len(self._diagnostics.get("items", []) or []),
+                len(self._delayed_activities.get("items", []) or []),
+                len(self._resource_loading.get("items", []) or []),
+            )
             self._set_is_loading(False)
 
     @Slot(str)

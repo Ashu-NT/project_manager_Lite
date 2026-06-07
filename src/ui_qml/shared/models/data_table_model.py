@@ -7,6 +7,8 @@ direct array lookups.
 
 from __future__ import annotations
 
+import logging
+from time import monotonic
 from typing import Any
 
 from PySide6.QtCore import (
@@ -22,6 +24,11 @@ from PySide6.QtQml import QmlElement
 
 QML_IMPORT_NAME = "App.Models"
 QML_IMPORT_MAJOR_VERSION = 1
+
+logger = logging.getLogger(__name__)
+_LARGE_ROW_WARNING_THRESHOLD = 5_000
+_RESET_STORM_WINDOW_SECONDS = 2.0
+_RESET_STORM_THRESHOLD = 10
 
 
 def _safe_str(v: Any) -> str:
@@ -79,6 +86,7 @@ class DynamicTableModel(QAbstractTableModel):
         self._unsorted_rows: list = []
         self._sort_key: str = ""
         self._sort_ascending: bool = True
+        self._reset_timestamps: list[float] = []
 
     # ── QAbstractTableModel interface ─────────────────────────────────
 
@@ -184,6 +192,7 @@ class DynamicTableModel(QAbstractTableModel):
         next_rows = list(value) if value is not None else []
         if next_rows == self._rows:
             return
+        self._record_reset("rows", len(next_rows))
         self.beginResetModel()
         self._rows = next_rows
         self.endResetModel()
@@ -201,6 +210,7 @@ class DynamicTableModel(QAbstractTableModel):
             c for c in next_columns
             if isinstance(c, dict) and c.get("visible", True) is not False
         ]
+        self._record_reset("columns", len(next_columns))
         self.beginResetModel()
         self._columns = next_columns
         self._vis_cols = next_vis_cols
@@ -216,6 +226,20 @@ class DynamicTableModel(QAbstractTableModel):
     def set_rows(self, rows: list[dict]) -> None:
         """Push a new row dataset from Python without crossing the QML bridge."""
         self._unsorted_rows = list(rows) if rows is not None else []
+        row_count = len(self._unsorted_rows)
+        logger.debug(
+            "DynamicTableModel set_rows model_id=%s row_count=%s sort_key=%s",
+            id(self),
+            row_count,
+            self._sort_key or "-",
+        )
+        if row_count > _LARGE_ROW_WARNING_THRESHOLD:
+            logger.warning(
+                "DynamicTableModel received large row list model_id=%s row_count=%s threshold=%s",
+                id(self),
+                row_count,
+                _LARGE_ROW_WARNING_THRESHOLD,
+            )
         if self._sort_key:
             self._set_rows(self._sorted(self._unsorted_rows))
         else:
@@ -231,6 +255,13 @@ class DynamicTableModel(QAbstractTableModel):
         else:
             self._sort_key = key
             self._sort_ascending = True
+        logger.debug(
+            "DynamicTableModel sort toggled model_id=%s sort_key=%s ascending=%s row_count=%s",
+            id(self),
+            self._sort_key,
+            self._sort_ascending,
+            len(self._unsorted_rows),
+        )
         self._set_rows(self._sorted(self._unsorted_rows))
 
     def _sorted(self, rows: list[dict]) -> list[dict]:
@@ -254,12 +285,23 @@ class DynamicTableModel(QAbstractTableModel):
 
     def set_columns(self, columns: list[dict]) -> None:
         """Push a new column definition list from Python."""
+        logger.debug(
+            "DynamicTableModel set_columns model_id=%s column_count=%s",
+            id(self),
+            len(columns or []),
+        )
         self._set_columns(columns)
 
     def append_rows(self, rows: list[dict]) -> None:
         """Append rows without a full model reset — for pagination append / lazy loading."""
         if not rows:
             return
+        logger.debug(
+            "DynamicTableModel append_rows model_id=%s append_count=%s current_row_count=%s",
+            id(self),
+            len(rows),
+            len(self._rows),
+        )
         first = len(self._rows)
         last = first + len(rows) - 1
         self.beginInsertRows(QModelIndex(), first, last)
@@ -267,6 +309,30 @@ class DynamicTableModel(QAbstractTableModel):
         self.endInsertRows()
         self.rowsChanged.emit()
         self.rowCountChanged.emit()
+
+    def _record_reset(self, reset_type: str, item_count: int) -> None:
+        now = monotonic()
+        self._reset_timestamps = [
+            timestamp
+            for timestamp in self._reset_timestamps
+            if now - timestamp <= _RESET_STORM_WINDOW_SECONDS
+        ]
+        self._reset_timestamps.append(now)
+        reset_count = len(self._reset_timestamps)
+        logger.debug(
+            "DynamicTableModel reset model_id=%s reset_type=%s item_count=%s reset_count_window=%s",
+            id(self),
+            reset_type,
+            item_count,
+            reset_count,
+        )
+        if reset_count == _RESET_STORM_THRESHOLD:
+            logger.warning(
+                "DynamicTableModel reset storm detected model_id=%s reset_count=%s window_seconds=%.1f",
+                id(self),
+                reset_count,
+                _RESET_STORM_WINDOW_SECONDS,
+            )
 
     @Slot(int, result=str)
     def rowId(self, row: int) -> str:

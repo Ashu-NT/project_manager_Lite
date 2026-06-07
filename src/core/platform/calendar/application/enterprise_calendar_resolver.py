@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import date, time
+from time import perf_counter
 from typing import Optional
 
 from src.core.platform.calendar.contracts import (
@@ -23,6 +25,8 @@ from src.core.platform.calendar.domain.enterprise_calendar import (
     CalendarWorkingRule,
     PlatformCalendar,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -123,6 +127,12 @@ class EnterpriseCalendarResolver:
 
     def invalidate_cache(self) -> None:
         """Clear the in-process caches. Call after calendar data is mutated."""
+        logger.info(
+            "Enterprise calendar resolver cache invalidated organization_id=%s rules_cached=%s recurring_cached=%s",
+            self._org_id,
+            len(self._rules_cache),
+            len(self._recurring_cache),
+        )
         self._recurring_cache.clear()
         self._rules_cache.clear()
 
@@ -142,6 +152,7 @@ class EnterpriseCalendarResolver:
         target_date: date,
         assigned_hours: float = 0.0,
     ) -> ResolvedCalendarContext:
+        started = perf_counter()
         chain = self._build_chain(
             site_id=site_id,
             department_id=department_id,
@@ -167,12 +178,38 @@ class EnterpriseCalendarResolver:
         )
 
         labels = [label for label, _ in chain]
-        return ResolvedCalendarContext.from_day_capacity(
+        result = ResolvedCalendarContext.from_day_capacity(
             day,
             source_chain=labels,
             timezone=timezone,
             exceptions=all_exceptions,
         )
+        duration_ms = (perf_counter() - started) * 1000
+        log_method = logger.warning if duration_ms > 50 else logger.debug
+        log_method(
+            "Calendar context resolved organization_id=%s target_date=%s site_id=%s department_id=%s employee_id=%s project_id=%s resource_id=%s worker_type=%s chain=%s exception_count=%s recurring_count=%s duration_ms=%.1f",
+            self._org_id,
+            target_date,
+            site_id or "-",
+            department_id or "-",
+            employee_id or "-",
+            project_id or "-",
+            resource_id or "-",
+            worker_type or "-",
+            labels,
+            len(all_exceptions),
+            len(all_recurring),
+            duration_ms,
+        )
+        if not chain:
+            logger.warning(
+                "Calendar context resolved without source chain organization_id=%s target_date=%s project_id=%s resource_id=%s",
+                self._org_id,
+                target_date,
+                project_id or "-",
+                resource_id or "-",
+            )
+        return result
 
     def resolve_range(
         self,
@@ -194,7 +231,16 @@ class EnterpriseCalendarResolver:
         from datetime import timedelta
 
         if end < start:
+            logger.warning(
+                "Calendar range resolution skipped because end precedes start organization_id=%s start=%s end=%s project_id=%s resource_id=%s",
+                self._org_id,
+                start,
+                end,
+                project_id or "-",
+                resource_id or "-",
+            )
             return []
+        started = perf_counter()
 
         # 1. Build chain once — assignments are stable across a typical range
         chain = self._build_chain(
@@ -208,6 +254,14 @@ class EnterpriseCalendarResolver:
         )
 
         if not chain:
+            logger.warning(
+                "Calendar range resolution using unavailable fallback organization_id=%s start=%s end=%s project_id=%s resource_id=%s",
+                self._org_id,
+                start,
+                end,
+                project_id or "-",
+                resource_id or "-",
+            )
             results = []
             current = start
             while current <= end:
@@ -221,13 +275,24 @@ class EnterpriseCalendarResolver:
                     exceptions=[],
                 ))
                 current += timedelta(days=1)
+            logger.info(
+                "Calendar range resolved without source chain organization_id=%s start=%s end=%s day_count=%s duration_ms=%.1f",
+                self._org_id,
+                start,
+                end,
+                len(results),
+                (perf_counter() - started) * 1000,
+            )
             return results
 
         # 2. Bulk-fetch all data — one pass per calendar in chain, using caches
         all_rules: list = []
         for _label, cal_id in chain:
             if cal_id not in self._rules_cache:
+                logger.debug("Calendar rules cache miss calendar_id=%s", cal_id)
                 self._rules_cache[cal_id] = self._rule_repo.list_for_calendar(cal_id)
+            else:
+                logger.debug("Calendar rules cache hit calendar_id=%s", cal_id)
             all_rules.extend(self._rules_cache[cal_id])
 
         all_exceptions: list = []
@@ -239,9 +304,12 @@ class EnterpriseCalendarResolver:
         all_recurring: list = []
         for _label, cal_id in chain:
             if cal_id not in self._recurring_cache:
+                logger.debug("Calendar recurring cache miss calendar_id=%s", cal_id)
                 self._recurring_cache[cal_id] = self._recurring_repo.list_for_calendar(
                     cal_id, active_only=True
                 )
+            else:
+                logger.debug("Calendar recurring cache hit calendar_id=%s", cal_id)
             all_recurring.extend(self._recurring_cache[cal_id])
 
         timezone = self._resolve_timezone(chain)
@@ -284,6 +352,20 @@ class EnterpriseCalendarResolver:
             ))
             current += timedelta(days=1)
 
+        duration_ms = (perf_counter() - started) * 1000
+        log_method = logger.warning if duration_ms > 250 else logger.info
+        log_method(
+            "Calendar range resolved organization_id=%s start=%s end=%s day_count=%s chain=%s rule_count=%s exception_count=%s recurring_count=%s duration_ms=%.1f",
+            self._org_id,
+            start,
+            end,
+            len(results),
+            labels,
+            len(all_rules),
+            len(all_exceptions),
+            len(all_recurring),
+            duration_ms,
+        )
         return results
 
     def get_source_chain(
@@ -375,6 +457,18 @@ class EnterpriseCalendarResolver:
                     label = f"RESOURCE-{self._short(cal.code or resource_id)}"
                     chain.append((label, cal.id))
 
+        calendar_ids = [calendar_id for _label, calendar_id in chain]
+        if len(calendar_ids) != len(set(calendar_ids)):
+            logger.warning(
+                "Calendar chain contains repeated calendar ids organization_id=%s chain=%s site_id=%s department_id=%s employee_id=%s project_id=%s resource_id=%s",
+                self._org_id,
+                chain,
+                site_id or "-",
+                department_id or "-",
+                employee_id or "-",
+                project_id or "-",
+                resource_id or "-",
+            )
         return chain
 
     def _resolve_working_rule(
@@ -384,7 +478,10 @@ class EnterpriseCalendarResolver:
         for _label, cal_id in chain:
             # Use cached rules if available — avoids N DB queries per weekday lookup
             if cal_id not in self._rules_cache:
+                logger.debug("Calendar rules cache miss calendar_id=%s weekday=%s", cal_id, weekday)
                 self._rules_cache[cal_id] = self._rule_repo.list_for_calendar(cal_id)
+            else:
+                logger.debug("Calendar rules cache hit calendar_id=%s weekday=%s", cal_id, weekday)
             rules = self._rules_cache[cal_id]
             rule = next((r for r in rules if r.weekday == weekday), None)
             if rule is not None:
@@ -408,9 +505,12 @@ class EnterpriseCalendarResolver:
         for _label, cal_id in chain:
             # Use cache — recurring events change rarely; avoids repeated DB queries
             if cal_id not in self._recurring_cache:
+                logger.debug("Calendar recurring cache miss calendar_id=%s", cal_id)
                 self._recurring_cache[cal_id] = self._recurring_repo.list_for_calendar(
                     cal_id, active_only=True
                 )
+            else:
+                logger.debug("Calendar recurring cache hit calendar_id=%s", cal_id)
             all_events.extend(self._recurring_cache[cal_id])
         return all_events
 

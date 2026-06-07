@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import logging
 from typing import Callable
+
+logger = logging.getLogger(__name__)
 
 
 def run_mutation(
@@ -17,6 +20,7 @@ def run_mutation(
     try:
         operation()
     except Exception as exc:
+        logger.exception("Inventory workspace mutation failed.")
         set_feedback_message("")
         set_error_message(str(exc))
         payload = {

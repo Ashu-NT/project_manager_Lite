@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
@@ -7,6 +9,8 @@ from src.ui_qml.shell.navigation import NavigationItemViewModel
 
 QML_IMPORT_NAME = "Shell.Context"
 QML_IMPORT_MAJOR_VERSION = 1
+
+logger = logging.getLogger(__name__)
 
 
 @QmlElement
@@ -87,13 +91,22 @@ class ShellContext(QObject):
     def selectRoute(self, route_id: str) -> None:
         route_id = route_id.strip()
         if route_id == self._current_route_id:
+            logger.debug("Route selection ignored because route is already active route_id=%s", route_id)
             return
         known_route_ids = {item.route_id for item in self._navigation_items}
         if route_id not in known_route_ids:
+            logger.warning("Route selection ignored because route is unknown route_id=%s", route_id)
             return
+        previous_route_id = self._current_route_id
         self._current_route_id = route_id
         self.currentRouteIdChanged.emit()
         self.currentRouteSourceChanged.emit()
+        logger.info(
+            "Navigating to route route_id=%s previous_route_id=%s qml_source=%s",
+            route_id,
+            previous_route_id,
+            self.currentRouteSource,
+        )
 
 
 def build_shell_context(navigation_items: list[NavigationItemViewModel]) -> ShellContext:

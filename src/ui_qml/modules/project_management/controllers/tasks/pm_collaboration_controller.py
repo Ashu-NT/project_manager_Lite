@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+from time import perf_counter
 from typing import Callable
 
 from PySide6.QtCore import Property, QObject, QRunnable, QThreadPool, QTimer, Signal, Slot
@@ -12,6 +14,8 @@ from src.ui_qml.modules.project_management.controllers.common import (
 from src.ui_qml.modules.project_management.presenters import (
     ProjectTasksWorkspacePresenter,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class _PresenceWorkerSignals(QObject):
@@ -32,11 +36,20 @@ class _PresenceWorker(QRunnable):
         return self._signals
 
     def run(self) -> None:
+        started = perf_counter()
+        logger.debug("PM task presence worker start")
         try:
             self._fn()
             self._signals.succeeded.emit()
+            logger.debug(
+                "PM task presence worker complete duration_ms=%.1f",
+                (perf_counter() - started) * 1000,
+            )
         except Exception:
-            pass
+            logger.exception(
+                "PM task presence worker failed duration_ms=%.1f",
+                (perf_counter() - started) * 1000,
+            )
 
 
 class PMCollaborationController(QObject):

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 from datetime import date
+from time import perf_counter
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
@@ -22,6 +24,8 @@ from src.ui_qml.modules.project_management.view_models.portfolio import (
     PortfolioWorkspaceViewModel,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class ProjectPortfolioWorkspacePresenter:
     def __init__(
@@ -39,6 +43,7 @@ class ProjectPortfolioWorkspacePresenter:
         base_compare_scenario_id: str | None = None,
         compare_scenario_id: str | None = None,
     ) -> PortfolioWorkspaceViewModel:
+        started = perf_counter()
         templates = self._desktop_api.list_templates()
         intake_items = self._desktop_api.list_intake_items()
         scenarios = self._desktop_api.list_scenarios()
@@ -110,6 +115,20 @@ class ProjectPortfolioWorkspacePresenter:
             scenarios=scenarios,
         )
         hot_projects = sum(1 for row in heatmap if row.pressure_label == "Hot")
+        duration_ms = (perf_counter() - started) * 1000
+        log_method = logger.warning if duration_ms > 500 else logger.info
+        log_method(
+            "PM portfolio presenter build complete duration_ms=%.1f intake_count=%s filtered_intake_count=%s template_count=%s scenario_count=%s heatmap_count=%s dependency_count=%s filter=%s scenario=%s",
+            duration_ms,
+            len(intake_items),
+            len(filtered_intake_items),
+            len(templates),
+            len(scenarios),
+            len(heatmap),
+            len(dependencies),
+            normalized_intake_status_filter,
+            resolved_scenario_id,
+        )
         return PortfolioWorkspaceViewModel(
             overview=PortfolioOverviewViewModel(
                 title="Portfolio",

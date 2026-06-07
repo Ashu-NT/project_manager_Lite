@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from time import perf_counter
 
 from src.ui_qml.modules.project_management.controllers.common import (
     serialize_dashboard_activity_feed_view_model,
@@ -49,6 +50,7 @@ class DashboardRefreshMixin:
             return
         self._is_refreshing = True
         self._refresh_count += 1
+        started = perf_counter()
         logger.debug(
             "PM dashboard refresh #%s source=%s project=%r baseline=%r period=%r view=%r",
             self._refresh_count,
@@ -130,8 +132,31 @@ class DashboardRefreshMixin:
             self._apply_operational_table_state()
             loaded_successfully = True
         except Exception as exc:  # pragma: no cover - defensive fallback
+            logger.exception(
+                "PM dashboard refresh failed source=%s project=%r baseline=%r period=%r view=%r",
+                source,
+                self._selected_project_id,
+                self._selected_baseline_id,
+                self._selected_period_key,
+                self._selected_view_key,
+            )
             self._set_error_message(str(exc))
         finally:
+            duration_ms = (perf_counter() - started) * 1000
+            row_count = int(self._operational_table.get("rowCount", 0) or 0)
+            log_method = logger.warning if duration_ms > 500 else logger.info
+            log_method(
+                "PM dashboard refresh complete source=%s success=%s duration_ms=%.1f project=%r baseline=%r period=%r view=%r operational_tab=%r row_count=%s",
+                source,
+                loaded_successfully,
+                duration_ms,
+                self._selected_project_id,
+                self._selected_baseline_id,
+                self._selected_period_key,
+                self._selected_view_key,
+                self._selected_operational_tab_id,
+                row_count,
+            )
             if mark_loaded and loaded_successfully:
                 self._set_has_loaded(True)
             self._is_refreshing = False

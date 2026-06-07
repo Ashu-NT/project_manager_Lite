@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+import logging
+from time import perf_counter
+
+from PySide6.QtCore import QCoreApplication, Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
@@ -21,6 +24,8 @@ from src.ui_qml.modules.project_management.presenters import (
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
+
+logger = logging.getLogger(__name__)
 
 
 @QmlElement
@@ -213,7 +218,19 @@ class ProjectManagementPortfolioWorkspaceController(
 
     @Slot()
     def refresh(self) -> None:
+        started = perf_counter()
+        logger.info(
+            "PM portfolio refresh begin intake_filter=%s scenario=%s compare_base=%s compare=%s heatmap_page=%s heatmap_page_size=%s heatmap_search=%s",
+            self._selected_intake_status_filter,
+            self._selected_scenario_id,
+            self._selected_base_scenario_id,
+            self._selected_compare_scenario_id,
+            self._heatmap_page,
+            self._heatmap_page_size,
+            self._heatmap_search_text,
+        )
         self._set_is_loading(True)
+        success = False
         try:
             self._set_error_message("")
             self._set_feedback_message("")
@@ -283,9 +300,21 @@ class ProjectManagementPortfolioWorkspaceController(
             )
             self._set_active_template_summary(workspace_state.active_template_summary)
             self._set_empty_state(workspace_state.empty_state)
+            success = True
         except Exception as exc:  # pragma: no cover - defensive fallback
+            logger.exception("PM portfolio refresh failed")
             self._set_error_message(str(exc))
         finally:
+            duration_ms = (perf_counter() - started) * 1000
+            log_method = logger.warning if duration_ms > 500 else logger.info
+            log_method(
+                "PM portfolio refresh complete success=%s duration_ms=%.1f intake_count=%s heatmap_total=%s scenario=%s",
+                success,
+                duration_ms,
+                len(self._intake_items.get("items", []) or []),
+                self._heatmap_total_count,
+                self._selected_scenario_id,
+            )
             self._set_is_loading(False)
 
     @Slot(str)
@@ -450,6 +479,21 @@ class ProjectManagementPortfolioWorkspaceController(
             "resource",
             scope_code="project_management",
         )
+
+    def _request_domain_refresh(self) -> None:
+        if QCoreApplication.instance() is None:
+            super()._request_domain_refresh()
+            return
+        self._pending_domain_refresh = True
+        if self._is_loading or self._is_busy:
+            logger.debug("PM portfolio domain refresh queued while busy/loading")
+            return
+        if self._domain_refresh_scheduled:
+            logger.debug("PM portfolio domain refresh coalesced; refresh already scheduled")
+            return
+        self._domain_refresh_scheduled = True
+        logger.debug("PM portfolio domain refresh scheduled")
+        self._domain_refresh_timer.start(0)
 
     def _set_overview(self, overview: dict[str, object]) -> None:
         if overview == self._overview:

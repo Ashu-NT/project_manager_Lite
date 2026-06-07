@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 from datetime import date
+from time import perf_counter
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
@@ -29,6 +31,8 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingWorkspaceViewModel,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class ProjectSchedulingWorkspacePresenter:
     def __init__(
@@ -56,6 +60,7 @@ class ProjectSchedulingWorkspacePresenter:
         include_unchanged: bool = False,
         activity_log: tuple[dict[str, str], ...] = (),
     ) -> SchedulingWorkspaceViewModel:
+        started = perf_counter()
         project_options = tuple(
             SchedulingSelectorOptionViewModel(value=option.value, label=option.label)
             for option in self._desktop_api.list_projects()
@@ -215,6 +220,26 @@ class ProjectSchedulingWorkspacePresenter:
 
         critical_items = tuple(item for item in filtered_schedule if item.is_critical)
         delayed_items = tuple(item for item in filtered_schedule if (item.late_by_days or 0) > 0)
+        duration_ms = (perf_counter() - started) * 1000
+        log_method = logger.warning if duration_ms > 500 else logger.info
+        log_method(
+            "PM scheduling presenter build complete duration_ms=%.1f project=%s schedule_count=%s filtered_count=%s paged_count=%s dependency_count=%s baseline_count=%s resource_load_count=%s violation_count=%s page=%s page_size=%s search=%s status_filter=%s critical_only=%s delayed_only=%s",
+            duration_ms,
+            resolved_project_id,
+            len(schedule_items),
+            total_count,
+            len(paged_schedule),
+            len(dependency_rows),
+            len(baseline_options),
+            len(resource_load),
+            len(constraint_violations),
+            resolved_page,
+            resolved_page_size,
+            normalized_search,
+            resolved_status_filter,
+            show_critical_only,
+            show_delayed_only,
+        )
 
         return SchedulingWorkspaceViewModel(
             overview=self._build_overview(
