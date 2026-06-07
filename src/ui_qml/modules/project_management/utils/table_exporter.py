@@ -24,8 +24,23 @@ def export_to_file(
         if ext == ".xlsx":
             return _write_xlsx(rows, columns, resolved)
         return _write_csv(rows, columns, resolved)
+    except PermissionError:
+        return {
+            "ok": False,
+            "error": _permission_error_message(resolved),
+            "errorCode": "permission_denied",
+            "path": resolved,
+        }
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
+
+
+def _permission_error_message(file_path: str) -> str:
+    file_name = os.path.basename(file_path) or file_path
+    return (
+        f"Cannot write to {file_name}. Close the file if it is open in Excel, "
+        "choose a different filename, or check folder permissions."
+    )
 
 
 def _write_xlsx(
