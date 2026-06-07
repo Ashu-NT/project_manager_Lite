@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 
 from src.core.platform.access.authorization import require_scope_permission
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.infrastructure.persistence.orm.access import ScopedAccessGrantORM
+from src.core.platform.infrastructure.persistence.repositories.access import _scoped_access_grants_from_rows
 from src.core.modules.maintenance.access import resolve_maintenance_scope_permissions
 from src.core.modules.inventory_procurement.access.policy import resolve_storeroom_scope_permissions
 from src.core.modules.project_management.access.policy import resolve_project_scope_permissions
@@ -69,6 +73,25 @@ def test_require_scope_permission_uses_generic_scope_model():
             "task.read",
             operation_label="view project tasks",
         )
+
+
+def test_scoped_access_repository_skips_null_rows_from_identity_map():
+    row = ScopedAccessGrantORM(
+        id="grant-1",
+        scope_type="site",
+        scope_id="site-1",
+        user_id="user-1",
+        scope_role="viewer",
+        permission_codes_json='["site.read"]',
+        created_at=datetime.now(timezone.utc),
+    )
+
+    grants = _scoped_access_grants_from_rows([None, row], source="test")
+
+    assert len(grants) == 1
+    assert grants[0].id == "grant-1"
+    assert grants[0].scope_type == "site"
+    assert grants[0].permission_codes == ["site.read"]
 
 
 def test_auth_build_principal_populates_generic_scoped_access_from_project_memberships(services):
