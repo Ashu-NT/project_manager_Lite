@@ -715,6 +715,7 @@ def test_project_management_dashboard_load_is_qml_driven_and_selector_sync_is_gu
         / "dashboard"
         / "dashboard_workspace_controller.py"
     )
+    refresh_mixin_path = controller_path.with_name("dashboard_refresh_mixin.py")
     page_path = (
         UI_QML_ROOT
         / "modules"
@@ -736,6 +737,7 @@ def test_project_management_dashboard_load_is_qml_driven_and_selector_sync_is_gu
     )
 
     controller_text = controller_path.read_text(encoding="utf-8", errors="ignore")
+    refresh_mixin_text = refresh_mixin_path.read_text(encoding="utf-8", errors="ignore")
     page_text = page_path.read_text(encoding="utf-8", errors="ignore")
     selection_bar_text = selection_bar_path.read_text(encoding="utf-8", errors="ignore")
     init_block = controller_text.split("def __init__", 1)[1].split("@Property", 1)[0]
@@ -744,7 +746,7 @@ def test_project_management_dashboard_load_is_qml_driven_and_selector_sync_is_gu
     assert "def load(self) -> None:" in controller_text
     assert "self._has_loaded = False" in controller_text
     assert "self._is_refreshing = False" in controller_text
-    assert "def _request_domain_refresh(self) -> None:" in controller_text
+    assert "def _request_domain_refresh(self) -> None:" in refresh_mixin_text
     assert "Component.onCompleted: root.ensureLoaded()" in page_text
     assert "root.workspaceController.load()" in page_text
     assert "property bool syncingSelection: false" in selection_bar_text

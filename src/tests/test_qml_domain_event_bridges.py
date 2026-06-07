@@ -307,7 +307,11 @@ def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None
     controller_expectations = {
         "src/ui_qml/modules/project_management/controllers/dashboard/dashboard_workspace_controller.py": (
             "self._bind_domain_events()",
+        ),
+        "src/ui_qml/modules/project_management/controllers/dashboard/dashboard_refresh_mixin.py": (
             '_subscribe_domain_change(',
+            'scope_code="project_management"',
+            '"approval_request"',
         ),
         "src/ui_qml/modules/project_management/controllers/projects/projects_workspace_controller.py": (
             "self._bind_domain_events()",
