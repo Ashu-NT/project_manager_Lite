@@ -20,6 +20,7 @@ from src.core.platform.calendar.domain.enterprise_calendar import (
     PlatformCalendar,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.tenancy import TenantContextService
 
 
 _VALID_CALENDAR_TYPES = {t.value for t in CalendarType}
@@ -54,6 +55,7 @@ class EnterpriseCalendarService:
         exception_repo: CalendarExceptionRepository | None = None,
         user_session=None,
         audit_service=None,
+        tenant_context_service: TenantContextService | None = None,
     ) -> None:
         self._session = session
         self._calendar_repo = calendar_repo
@@ -63,8 +65,14 @@ class EnterpriseCalendarService:
         self._exception_repo = exception_repo
         self._user_session = user_session
         self._audit_service = audit_service
+        self._tenant_context_service = tenant_context_service
 
     def _active_org_id(self) -> str:
+        if self._tenant_context_service is not None:
+            org_id = self._tenant_context_service.get_active_organization_id()
+            if not org_id:
+                raise BusinessRuleError("No active organization found.")
+            return org_id
         org = self._organization_repo.get_active()
         if org is None:
             raise BusinessRuleError("No active organization found.")
@@ -84,10 +92,7 @@ class EnterpriseCalendarService:
 
     def get_calendar(self, calendar_id: str) -> PlatformCalendar:
         require_permission(self._user_session, "task.read", operation_label="get calendar")
-        cal = self._calendar_repo.get(calendar_id)
-        if cal is None:
-            raise NotFoundError(f"Calendar '{calendar_id}' not found.")
-        return cal
+        return self._require_calendar_in_active_organization(calendar_id)
 
     def create_calendar(
         self,
@@ -156,9 +161,7 @@ class EnterpriseCalendarService:
         require_permission(
             self._user_session, "task.manage", operation_label="update calendar"
         )
-        cal = self._calendar_repo.get(calendar_id)
-        if cal is None:
-            raise NotFoundError(f"Calendar '{calendar_id}' not found.")
+        cal = self._require_calendar_in_active_organization(calendar_id)
 
         if name is not None:
             cal.name = name.strip()
@@ -196,9 +199,7 @@ class EnterpriseCalendarService:
         require_permission(
             self._user_session, "task.manage", operation_label="delete calendar"
         )
-        cal = self._calendar_repo.get(calendar_id)
-        if cal is None:
-            raise NotFoundError(f"Calendar '{calendar_id}' not found.")
+        cal = self._require_calendar_in_active_organization(calendar_id)
 
         count = self._assignment_repo.count_active_assignments_for_calendar(calendar_id)
         if count > 0:
@@ -358,6 +359,13 @@ class EnterpriseCalendarService:
                 f"Invalid calendar_type '{calendar_type}'. "
                 f"Valid values: {sorted(_VALID_CALENDAR_TYPES)}"
             )
+
+    def _require_calendar_in_active_organization(self, calendar_id: str) -> PlatformCalendar:
+        org_id = self._active_org_id()
+        cal = self._calendar_repo.get(calendar_id)
+        if cal is None or cal.organization_id != org_id:
+            raise NotFoundError(f"Calendar '{calendar_id}' not found.")
+        return cal
 
     def _validate_effective_dates(self, effective_from, effective_to) -> None:
         if effective_from and effective_to and effective_from > effective_to:

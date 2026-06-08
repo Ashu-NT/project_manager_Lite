@@ -47,6 +47,24 @@ def test_app_settings_store_round_trip(repo_workspace):
     assert bytes(loaded_geometry) == bytes(geometry)
 
 
+def test_app_settings_store_scopes_cached_ui_state_by_organization(repo_workspace):
+    store, _settings = _store_with_ini(repo_workspace)
+
+    store.save_task_saved_views({"A View": {"query": "org:a"}}, organization_id="org-a")
+    store.save_task_saved_views({"B View": {"query": "org:b"}}, organization_id="org-b")
+    store.save_dashboard_layout({"density": "compact"}, organization_id="org-a")
+    store.save_dashboard_layout({"density": "comfortable"}, organization_id="org-b")
+    store.save_table_column_state("tasks", {"columns": ["name"]}, organization_id="org-a")
+    store.save_table_column_state("tasks", {"columns": ["budget"]}, organization_id="org-b")
+
+    assert store.load_task_saved_views(organization_id="org-a") == {"A View": {"query": "org:a"}}
+    assert store.load_task_saved_views(organization_id="org-b") == {"B View": {"query": "org:b"}}
+    assert store.load_dashboard_layout(organization_id="org-a") == {"density": "compact"}
+    assert store.load_dashboard_layout(organization_id="org-b") == {"density": "comfortable"}
+    assert store.load_table_column_state("tasks", organization_id="org-a") == {"columns": ["name"]}
+    assert store.load_table_column_state("tasks", organization_id="org-b") == {"columns": ["budget"]}
+
+
 def test_app_settings_store_normalizes_invalid_values(repo_workspace):
     store, settings = _store_with_ini(repo_workspace)
     settings.setValue("ui/theme_mode", "INVALID")

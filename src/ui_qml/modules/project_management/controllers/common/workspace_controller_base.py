@@ -98,11 +98,36 @@ class ProjectManagementWorkspaceControllerBase(QObject):
 
     @Slot(str, result="QVariantMap")
     def loadTableColumnState(self, table_id: str) -> dict[str, object]:
-        return self._app_settings.load_table_column_state(table_id)
+        return self._app_settings.load_table_column_state(
+            table_id,
+            organization_id=self._active_organization_id_for_settings(),
+        )
 
     @Slot(str, "QVariantMap")
     def saveTableColumnState(self, table_id: str, state: "dict[str, object]") -> None:
-        self._app_settings.save_table_column_state(table_id, state)
+        self._app_settings.save_table_column_state(
+            table_id,
+            state,
+            organization_id=self._active_organization_id_for_settings(),
+        )
+
+    def _active_organization_id_for_settings(self) -> str | None:
+        app = QCoreApplication.instance()
+        runtime_api = app.property("platformRuntimeApi") if app is not None else None
+        if runtime_api is None:
+            return None
+        try:
+            snapshot = runtime_api.snapshot()
+            data = getattr(snapshot, "data", None)
+            organization = getattr(data, "active_organization", None)
+            return str(getattr(organization, "id", "") or "").strip() or None
+        except Exception:
+            logger.debug(
+                "Unable to resolve active organization for table settings context=%s",
+                self._diagnostic_context(),
+                exc_info=True,
+            )
+            return None
 
     def _set_workspace(self, workspace: dict[str, object]) -> None:
         if workspace == self._workspace:

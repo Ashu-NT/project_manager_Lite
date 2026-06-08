@@ -113,7 +113,7 @@ class PlatformCalendar:
         priority: int = 0,
         created_by: Optional[str] = None,
     ) -> "PlatformCalendar":
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return PlatformCalendar(
             id=generate_id(),
             organization_id=organization_id,

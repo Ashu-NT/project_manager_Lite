@@ -5,6 +5,7 @@ from typing import List, Optional
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.platform.approval.contracts import ApprovalRepository
 from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from src.core.platform.infrastructure.persistence.mappers.approval import approval_from_orm, approval_to_orm
@@ -51,6 +52,43 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         entity_id: str | None = None,
     ) -> List[ApprovalRequest]:
         stmt = select(ApprovalRequestORM)
+        if status is not None:
+            stmt = stmt.where(ApprovalRequestORM.status == status.value)
+        if project_id is not None:
+            stmt = stmt.where(ApprovalRequestORM.project_id == project_id)
+        if entity_type is not None:
+            if isinstance(entity_type, str):
+                stmt = stmt.where(ApprovalRequestORM.entity_type == entity_type)
+            else:
+                stmt = stmt.where(ApprovalRequestORM.entity_type.in_(entity_type))
+        if entity_id is not None:
+            stmt = stmt.where(ApprovalRequestORM.entity_id == entity_id)
+        stmt = stmt.order_by(desc(ApprovalRequestORM.requested_at)).limit(max(1, int(limit)))
+        rows = self.session.execute(stmt).scalars().all()
+        return [approval_from_orm(row) for row in rows]
+
+    def project_belongs_to_organization(self, project_id: str, organization_id: str) -> bool:
+        stmt = select(ProjectORM.id).where(
+            ProjectORM.id == project_id,
+            ProjectORM.organization_id == organization_id,
+        )
+        return self.session.execute(stmt).first() is not None
+
+    def list_by_status_for_organization(
+        self,
+        organization_id: str,
+        status: ApprovalStatus | None = None,
+        *,
+        limit: int = 200,
+        project_id: str | None = None,
+        entity_type: str | list[str] | None = None,
+        entity_id: str | None = None,
+    ) -> List[ApprovalRequest]:
+        stmt = (
+            select(ApprovalRequestORM)
+            .join(ProjectORM, ProjectORM.id == ApprovalRequestORM.project_id)
+            .where(ProjectORM.organization_id == organization_id)
+        )
         if status is not None:
             stmt = stmt.where(ApprovalRequestORM.status == status.value)
         if project_id is not None:

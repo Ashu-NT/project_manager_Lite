@@ -14,6 +14,7 @@ from src.core.platform.org.domain import Organization
 from src.core.platform.org.support import normalize_code, normalize_email, normalize_name, normalize_phone
 from src.core.platform.party.contracts import PartyRepository
 from src.core.platform.party.domain import Party, PartyType
+from src.core.platform.tenancy import TenantContextService
 
 
 def _normalize_optional_text(value: str | None) -> str:
@@ -39,12 +40,14 @@ class PartyService:
         organization_repo: OrganizationRepository,
         user_session=None,
         audit_service=None,
+        tenant_context_service: TenantContextService | None = None,
     ):
         self._session = session
         self._party_repo = party_repo
         self._organization_repo = organization_repo
         self._user_session = user_session
         self._audit_service = audit_service
+        self._tenant_context_service = tenant_context_service
 
     def list_parties(self, *, active_only: bool | None = None) -> list[Party]:
         self._require_party_read_access("list parties")
@@ -277,6 +280,11 @@ class PartyService:
         return party
 
     def _active_organization(self) -> Organization:
+        if self._tenant_context_service is not None:
+            organization = self._tenant_context_service.get_active_organization()
+            if organization is None:
+                raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
+            return organization
         organization = self._organization_repo.get_active()
         if organization is None:
             raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")

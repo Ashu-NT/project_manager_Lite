@@ -27,6 +27,13 @@ class AppSettingsStore:
     def __init__(self, settings: QSettings | None = None) -> None:
         self._settings = settings or QSettings(self.ORG_NAME, self.APP_NAME)
 
+    @staticmethod
+    def _tenant_key(base_key: str, organization_id: str | None = None) -> str:
+        normalized = str(organization_id or "").strip()
+        if not normalized:
+            return base_key
+        return f"tenant/{normalized}/{base_key}"
+
     def load_theme_mode(self, default_mode: str = "light") -> str:
         default = (default_mode or "light").strip().lower()
         if default not in {"light", "dark"}:
@@ -112,8 +119,8 @@ class AppSettingsStore:
             self._settings.setValue(self._KEY_GEOMETRY, geometry)
             self._settings.sync()
 
-    def load_task_saved_views(self) -> dict[str, dict[str, object]]:
-        raw = self._settings.value(self._KEY_TASK_SAVED_VIEWS, "{}")
+    def load_task_saved_views(self, *, organization_id: str | None = None) -> dict[str, dict[str, object]]:
+        raw = self._settings.value(self._tenant_key(self._KEY_TASK_SAVED_VIEWS, organization_id), "{}")
         try:
             payload = json.loads(str(raw or "{}"))
         except (TypeError, ValueError, json.JSONDecodeError):
@@ -126,29 +133,43 @@ class AppSettingsStore:
                 normalized[key] = dict(value)
         return normalized
 
-    def save_task_saved_views(self, views: dict[str, dict[str, object]]) -> None:
+    def save_task_saved_views(
+        self,
+        views: dict[str, dict[str, object]],
+        *,
+        organization_id: str | None = None,
+    ) -> None:
         payload = {}
         for key, value in (views or {}).items():
             if isinstance(key, str) and isinstance(value, dict):
                 payload[key] = value
-        self._settings.setValue(self._KEY_TASK_SAVED_VIEWS, json.dumps(payload, sort_keys=True))
+        self._settings.setValue(
+            self._tenant_key(self._KEY_TASK_SAVED_VIEWS, organization_id),
+            json.dumps(payload, sort_keys=True),
+        )
         self._settings.sync()
 
-    def load_dashboard_layout(self) -> dict[str, object]:
-        raw = self._settings.value(self._KEY_DASHBOARD_LAYOUT, "{}")
+    def load_dashboard_layout(self, *, organization_id: str | None = None) -> dict[str, object]:
+        raw = self._settings.value(self._tenant_key(self._KEY_DASHBOARD_LAYOUT, organization_id), "{}")
         try:
             payload = json.loads(str(raw or "{}"))
         except (TypeError, ValueError, json.JSONDecodeError):
             return {}
         return dict(payload) if isinstance(payload, dict) else {}
 
-    def save_dashboard_layout(self, layout: dict[str, object]) -> None:
+    def save_dashboard_layout(self, layout: dict[str, object], *, organization_id: str | None = None) -> None:
         payload = dict(layout) if isinstance(layout, dict) else {}
-        self._settings.setValue(self._KEY_DASHBOARD_LAYOUT, json.dumps(payload, sort_keys=True))
+        self._settings.setValue(
+            self._tenant_key(self._KEY_DASHBOARD_LAYOUT, organization_id),
+            json.dumps(payload, sort_keys=True),
+        )
         self._settings.sync()
 
-    def load_table_column_state(self, table_id: str) -> dict[str, object]:
-        all_states_raw = self._settings.value(self._KEY_TABLE_COLUMN_STATE, "{}")
+    def load_table_column_state(self, table_id: str, *, organization_id: str | None = None) -> dict[str, object]:
+        all_states_raw = self._settings.value(
+            self._tenant_key(self._KEY_TABLE_COLUMN_STATE, organization_id),
+            "{}",
+        )
         try:
             all_states = json.loads(str(all_states_raw or "{}"))
         except (TypeError, ValueError, json.JSONDecodeError):
@@ -158,8 +179,15 @@ class AppSettingsStore:
         state = all_states.get(str(table_id), {})
         return dict(state) if isinstance(state, dict) else {}
 
-    def save_table_column_state(self, table_id: str, state: dict[str, object]) -> None:
-        all_states_raw = self._settings.value(self._KEY_TABLE_COLUMN_STATE, "{}")
+    def save_table_column_state(
+        self,
+        table_id: str,
+        state: dict[str, object],
+        *,
+        organization_id: str | None = None,
+    ) -> None:
+        table_state_key = self._tenant_key(self._KEY_TABLE_COLUMN_STATE, organization_id)
+        all_states_raw = self._settings.value(table_state_key, "{}")
         try:
             all_states = json.loads(str(all_states_raw or "{}"))
         except (TypeError, ValueError, json.JSONDecodeError):
@@ -167,7 +195,7 @@ class AppSettingsStore:
         if not isinstance(all_states, dict):
             all_states = {}
         all_states[str(table_id)] = dict(state) if isinstance(state, dict) else {}
-        self._settings.setValue(self._KEY_TABLE_COLUMN_STATE, json.dumps(all_states, sort_keys=True))
+        self._settings.setValue(table_state_key, json.dumps(all_states, sort_keys=True))
         self._settings.sync()
 
 

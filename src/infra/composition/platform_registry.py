@@ -99,16 +99,22 @@ def build_platform_service_bundle(
     started = perf_counter()
     logger.debug("Platform service bundle build begin")
     user_session = UserSessionContext()
+    tenant_context_service = TenantContextService(
+        organization_repo=repositories.organization_repo,
+        user_session=user_session,
+    )
     audit_service = AuditService(
         session=session,
         audit_repo=repositories.audit_repo,
         user_session=user_session,
+        tenant_context_service=tenant_context_service,
     )
     approval_service = ApprovalService(
         session=session,
         approval_repo=repositories.approval_repo,
         user_session=user_session,
         audit_service=audit_service,
+        tenant_context_service=tenant_context_service,
     )
     auth_service = AuthService(
         session=session,
@@ -143,11 +149,6 @@ def build_platform_service_bundle(
         "Platform organization defaults bootstrapped duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
-    tenant_context_service = TenantContextService(
-        organization_repo=repositories.organization_repo,
-        user_session=user_session,
-    )
-
     document_service = DocumentService(
         session=session,
         document_repo=repositories.document_repo,
@@ -156,6 +157,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         audit_service=audit_service,
+        tenant_context_service=tenant_context_service,
     )
     document_integration_service = DocumentIntegrationService(
         session=session,
@@ -165,6 +167,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         audit_service=audit_service,
+        tenant_context_service=tenant_context_service,
     )
     party_service = PartyService(
         session=session,
@@ -172,6 +175,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         audit_service=audit_service,
+        tenant_context_service=tenant_context_service,
     )
     site_service = SiteService(
         session=session,
@@ -179,6 +183,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         audit_service=audit_service,
+        tenant_context_service=tenant_context_service,
     )
     department_service = DepartmentService(
         session=session,
@@ -188,6 +193,7 @@ def build_platform_service_bundle(
         employee_repo=repositories.employee_repo,
         user_session=user_session,
         audit_service=audit_service,
+        tenant_context_service=tenant_context_service,
     )
 
     def _active_organization():
@@ -286,6 +292,7 @@ def build_platform_service_bundle(
         exception_repo=repositories.calendar_exception_repo,
         user_session=user_session,
         audit_service=audit_service,
+        tenant_context_service=tenant_context_service,
     )
     working_rule_service = WorkingRuleService(
         session=session,
@@ -310,6 +317,7 @@ def build_platform_service_bundle(
         pattern_repo=repositories.shift_pattern_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
+        tenant_context_service=tenant_context_service,
     )
     calendar_assignment_service = CalendarAssignmentService(
         session=session,

@@ -19,7 +19,7 @@ class CollaborationSupportMixin:
     def _accessible_task_context_for_collaboration(self):
         tasks = []
         project_name_by_id: dict[str, str] = {}
-        for project in self._project_repo.list_all():
+        for project in self._collaboration_projects():
             if self._user_session is None:
                 continue
             if not self._user_session.has_project_permission(project.id, "collaboration.read"):
@@ -70,13 +70,49 @@ class CollaborationSupportMixin:
     def _principal_can_access_project(self, project_id: str | None) -> bool:
         if not project_id or self._user_session is None:
             return False
-        return self._user_session.has_project_permission(project_id, "collaboration.read")
+        return (
+            self._project_in_active_organization(project_id)
+            and self._user_session.has_project_permission(project_id, "collaboration.read")
+        )
 
     def _project_name(self, project_id: str | None) -> str:
         if not project_id:
             return ""
         project = self._project_repo.get(project_id)
+        if project is None or not self._project_in_active_organization(project.id):
+            return ""
         return project.name if project is not None else ""
+
+    def _collaboration_projects(self):
+        organization_id = self._active_collaboration_organization_id(
+            operation_label="view collaboration projects"
+        )
+        if organization_id and hasattr(self._project_repo, "list_for_organization"):
+            return self._project_repo.list_for_organization(organization_id)
+        return self._project_repo.list_all()
+
+    def _active_collaboration_organization_id(self, *, operation_label: str) -> str | None:
+        tenant_context = getattr(self, "_tenant_context_service", None)
+        if tenant_context is None:
+            return None
+        return tenant_context.require_active_organization_id(operation_label=operation_label)
+
+    def _project_in_active_organization(self, project_id: str) -> bool:
+        organization_id = self._active_collaboration_organization_id(
+            operation_label="view collaboration project"
+        )
+        if not organization_id:
+            return True
+        project = self._project_repo.get(project_id)
+        return bool(project is not None and getattr(project, "organization_id", None) == organization_id)
+
+    def _recent_audit_rows_for_collaboration(self, *, limit: int):
+        organization_id = self._active_collaboration_organization_id(
+            operation_label="view collaboration notifications"
+        )
+        if organization_id and hasattr(self._audit_repo, "list_recent_for_organization"):
+            return self._audit_repo.list_recent_for_organization(organization_id, limit=limit)
+        return self._audit_repo.list_recent(limit=limit)
 
     def _project_names_label(self, project_ids: list[str]) -> str:
         names = [project_name for project_id in project_ids if (project_name := self._project_name(project_id))]

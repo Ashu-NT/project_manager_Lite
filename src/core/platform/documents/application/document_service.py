@@ -38,6 +38,7 @@ from src.core.platform.documents.support import (
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
 from src.core.platform.org.support import normalize_code, normalize_name
+from src.core.platform.tenancy import TenantContextService
 
 
 def _normalize_optional_date(value: date | None) -> date | None:
@@ -63,6 +64,7 @@ class DocumentService:
         organization_repo: OrganizationRepository,
         user_session=None,
         audit_service=None,
+        tenant_context_service: TenantContextService | None = None,
     ):
         self._session = session
         self._document_repo = document_repo
@@ -71,6 +73,7 @@ class DocumentService:
         self._organization_repo = organization_repo
         self._user_session = user_session
         self._audit_service = audit_service
+        self._tenant_context_service = tenant_context_service
 
     def get_context_organization(self) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="view document context")
@@ -575,6 +578,11 @@ class DocumentService:
         return structure
 
     def _active_organization(self) -> Organization:
+        if self._tenant_context_service is not None:
+            organization = self._tenant_context_service.get_active_organization()
+            if organization is None:
+                raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
+            return organization
         organization = self._organization_repo.get_active()
         if organization is None:
             raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")

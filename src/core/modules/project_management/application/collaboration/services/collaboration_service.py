@@ -70,6 +70,7 @@ class CollaborationService(
         document_integration_service: DocumentIntegrationService | None = None,
         user_session=None,
         module_catalog_service=None,
+        tenant_context_service=None,
     ) -> None:
         self._session = session
         self._comment_repo = comment_repo
@@ -82,6 +83,7 @@ class CollaborationService(
         self._document_integration_service = document_integration_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
+        self._tenant_context_service = tenant_context_service
         self._presence_ttl_seconds = max(int(os.getenv("PM_TASK_PRESENCE_TTL_SECONDS", "900") or 900), 60)
 
 

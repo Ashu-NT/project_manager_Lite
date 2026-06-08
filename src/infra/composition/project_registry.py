@@ -272,6 +272,7 @@ def build_project_management_service_bundle(
         document_integration_service=platform_services.document_integration_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     portfolio_service = PortfolioService(
         session=session,

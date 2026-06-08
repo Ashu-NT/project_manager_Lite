@@ -40,7 +40,7 @@ class CollaborationNotificationQueryMixin:
             )
             for item in inbox_items
         ]
-        for row in self._audit_repo.list_recent(limit=max(limit * 3, 100)):
+        for row in self._recent_audit_rows_for_collaboration(limit=max(limit * 3, 100)):
             notification = self._notification_from_audit(row)
             if notification is not None:
                 rows.append(notification)

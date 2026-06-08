@@ -145,6 +145,7 @@ def test_access_service_supports_storeroom_scope_grants_and_principal_hydration(
     assert grant.permission_codes == sorted(resolve_storeroom_scope_permissions("operator"))
     assert access.list_scope_role_choices("storeroom") == ("viewer", "operator", "manager")
     assert set(access.list_supported_scope_types()) == {
+        "organization",
         "project",
         "site",
         "storeroom",

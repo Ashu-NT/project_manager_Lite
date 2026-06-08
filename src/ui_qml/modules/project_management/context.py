@@ -54,7 +54,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
     ) -> None:
         super().__init__(parent)
         self._presenters = build_project_management_workspace_presenters()
-        self._task_view_store = task_view_store or ProjectManagementTaskViewStore()
+        self._desktop_api_registry = desktop_api_registry
+        self._platform_runtime_api = (
+            getattr(desktop_api_registry, "platform_runtime", None)
+            if desktop_api_registry is not None else None
+        )
+        self._task_view_store = task_view_store or ProjectManagementTaskViewStore(
+            organization_id_provider=self._active_organization_id,
+        )
+        if task_view_store is not None and hasattr(task_view_store, "set_organization_id_provider"):
+            task_view_store.set_organization_id_provider(self._active_organization_id)
         self._dashboard_api = getattr(
             desktop_api_registry,
             "project_management_dashboard",
@@ -125,6 +134,18 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._dashboard_workspace: ProjectManagementDashboardWorkspaceController | None = None
         self._collaboration_workspace: ProjectManagementCollaborationWorkspaceController | None = None
         self._timesheets_workspace: ProjectManagementTimesheetsWorkspaceController | None = None
+
+    def _active_organization_id(self) -> str | None:
+        runtime_api = self._platform_runtime_api
+        if runtime_api is None:
+            return None
+        try:
+            snapshot = runtime_api.snapshot()
+            data = getattr(snapshot, "data", None)
+            organization = getattr(data, "active_organization", None)
+            return str(getattr(organization, "id", "") or "").strip() or None
+        except Exception:
+            return None
 
     def _get_projects_workspace(self) -> ProjectManagementProjectsWorkspaceController:
         if self._projects_workspace is None:

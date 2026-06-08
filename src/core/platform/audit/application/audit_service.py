@@ -16,10 +16,12 @@ class AuditService:
         session: Session,
         audit_repo: AuditLogRepository,
         user_session: UserSessionContext | None = None,
+        tenant_context_service=None,
     ):
         self._session = session
         self._audit_repo = audit_repo
         self._user_session = user_session
+        self._tenant_context_service = tenant_context_service
 
     def record(
         self,
@@ -62,11 +64,25 @@ class AuditService:
         entity_type: str | None = None,
     ) -> list[AuditLogEntry]:
         require_permission(self._user_session, "audit.read", operation_label="view audit log")
+        organization_id = self._active_organization_id(operation_label="view audit log")
+        if organization_id and hasattr(self._audit_repo, "list_recent_for_organization"):
+            return self._audit_repo.list_recent_for_organization(
+                organization_id,
+                limit=limit,
+                project_id=project_id,
+                entity_type=entity_type,
+            )
         return self._audit_repo.list_recent(
             limit=limit,
             project_id=project_id,
             entity_type=entity_type,
         )
+
+    def _active_organization_id(self, *, operation_label: str) -> str | None:
+        tenant_context = getattr(self, "_tenant_context_service", None)
+        if tenant_context is None:
+            return None
+        return tenant_context.require_active_organization_id(operation_label=operation_label)
 
 
 __all__ = ["AuditService"]

@@ -18,5 +18,15 @@ class AuditLogRepository(ABC):
         entity_type: str | None = None,
     ) -> list[AuditLogEntry]: ...
 
+    @abstractmethod
+    def list_recent_for_organization(
+        self,
+        organization_id: str,
+        limit: int = 200,
+        *,
+        project_id: str | None = None,
+        entity_type: str | None = None,
+    ) -> list[AuditLogEntry]: ...
+
 
 __all__ = ["AuditLogRepository"]

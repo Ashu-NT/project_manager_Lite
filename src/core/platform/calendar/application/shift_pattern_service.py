@@ -15,6 +15,7 @@ from src.core.platform.calendar.domain.enterprise_calendar import (
     ShiftPatternDay,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.tenancy import TenantContextService
 
 
 _VALID_PATTERN_TYPES = {t.value for t in PatternType}
@@ -27,13 +28,20 @@ class ShiftPatternService:
         pattern_repo: ShiftPatternRepository,
         organization_repo,
         user_session=None,
+        tenant_context_service: TenantContextService | None = None,
     ) -> None:
         self._session = session
         self._pattern_repo = pattern_repo
         self._organization_repo = organization_repo
         self._user_session = user_session
+        self._tenant_context_service = tenant_context_service
 
     def _active_org_id(self) -> str:
+        if self._tenant_context_service is not None:
+            org_id = self._tenant_context_service.get_active_organization_id()
+            if not org_id:
+                raise BusinessRuleError("No active organization found.")
+            return org_id
         org = self._organization_repo.get_active()
         if org is None:
             raise BusinessRuleError("No active organization found.")
@@ -52,10 +60,7 @@ class ShiftPatternService:
         require_permission(
             self._user_session, "task.read", operation_label="get shift pattern"
         )
-        pattern = self._pattern_repo.get(pattern_id)
-        if pattern is None:
-            raise NotFoundError(f"Shift pattern '{pattern_id}' not found.")
-        return pattern
+        return self._require_pattern_in_active_organization(pattern_id)
 
     def create_shift_pattern(
         self,
@@ -106,9 +111,7 @@ class ShiftPatternService:
         require_permission(
             self._user_session, "task.manage", operation_label="update shift pattern"
         )
-        pattern = self._pattern_repo.get(pattern_id)
-        if pattern is None:
-            raise NotFoundError(f"Shift pattern '{pattern_id}' not found.")
+        pattern = self._require_pattern_in_active_organization(pattern_id)
 
         if name is not None:
             pattern.name = name.strip()
@@ -133,9 +136,7 @@ class ShiftPatternService:
         require_permission(
             self._user_session, "task.manage", operation_label="delete shift pattern"
         )
-        pattern = self._pattern_repo.get(pattern_id)
-        if pattern is None:
-            raise NotFoundError(f"Shift pattern '{pattern_id}' not found.")
+        pattern = self._require_pattern_in_active_organization(pattern_id)
         self._pattern_repo.delete(pattern_id)
         self._session.commit()
 
@@ -143,8 +144,7 @@ class ShiftPatternService:
         require_permission(
             self._user_session, "task.read", operation_label="list shift pattern days"
         )
-        if self._pattern_repo.get(pattern_id) is None:
-            raise NotFoundError(f"Shift pattern '{pattern_id}' not found.")
+        self._require_pattern_in_active_organization(pattern_id)
         return self._pattern_repo.list_days(pattern_id)
 
     def set_day(
@@ -162,8 +162,7 @@ class ShiftPatternService:
         require_permission(
             self._user_session, "task.manage", operation_label="set shift pattern day"
         )
-        if self._pattern_repo.get(pattern_id) is None:
-            raise NotFoundError(f"Shift pattern '{pattern_id}' not found.")
+        self._require_pattern_in_active_organization(pattern_id)
         if day_offset < 0:
             raise ValidationError("day_offset must be >= 0.")
         if is_working_day and start_time and end_time:
@@ -192,6 +191,13 @@ class ShiftPatternService:
         )
         self._pattern_repo.delete_day(day_id)
         self._session.commit()
+
+    def _require_pattern_in_active_organization(self, pattern_id: str) -> ShiftPattern:
+        org_id = self._active_org_id()
+        pattern = self._pattern_repo.get(pattern_id)
+        if pattern is None or pattern.organization_id != org_id:
+            raise NotFoundError(f"Shift pattern '{pattern_id}' not found.")
+        return pattern
 
 
 __all__ = ["ShiftPatternService"]

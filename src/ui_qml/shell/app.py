@@ -166,6 +166,12 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
     else:
         update_shell_runtime_state(shell_context, theme_mode=startup_theme)
     logger.debug("Creating workspace catalogs.")
+    if hasattr(app, "setProperty"):
+        app.setProperty(
+            "platformRuntimeApi",
+            getattr(desktop_api_registry, "platform_runtime", None)
+            if desktop_api_registry is not None else None,
+        )
     platform_workspace_catalog = PlatformWorkspaceCatalog(
         getattr(desktop_api_registry, "platform_runtime", None) if desktop_api_registry is not None else None,
         desktop_api_registry=desktop_api_registry,
@@ -198,11 +204,13 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         },
     )
     logger.info("Shell QML loaded; entering Qt event loop.")
-    app.setProperty("pmEventLoopRunning", True)
+    if hasattr(app, "setProperty"):
+        app.setProperty("pmEventLoopRunning", True)
     try:
         return app.exec()
     finally:
-        app.setProperty("pmEventLoopRunning", False)
+        if hasattr(app, "setProperty"):
+            app.setProperty("pmEventLoopRunning", False)
 
 
 __all__ = ["main"]

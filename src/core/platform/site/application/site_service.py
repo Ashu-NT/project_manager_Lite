@@ -15,6 +15,7 @@ from src.core.platform.org.domain import Organization
 from src.core.platform.org.support import normalize_code, normalize_name
 from src.core.platform.site.contracts import SiteRepository
 from src.core.platform.site.domain import Site
+from src.core.platform.tenancy import TenantContextService
 
 
 def _normalize_optional_text(value: str | None) -> str:
@@ -41,12 +42,14 @@ class SiteService:
         organization_repo: OrganizationRepository,
         user_session=None,
         audit_service=None,
+        tenant_context_service: TenantContextService | None = None,
     ):
         self._session = session
         self._site_repo = site_repo
         self._organization_repo = organization_repo
         self._user_session = user_session
         self._audit_service = audit_service
+        self._tenant_context_service = tenant_context_service
 
     def list_sites(self, *, active_only: bool | None = None) -> list[Site]:
         self._require_site_read_access("list sites")
@@ -315,6 +318,11 @@ class SiteService:
         return site
 
     def _active_organization(self) -> Organization:
+        if self._tenant_context_service is not None:
+            organization = self._tenant_context_service.get_active_organization()
+            if organization is None:
+                raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
+            return organization
         organization = self._organization_repo.get_active()
         if organization is None:
             raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")

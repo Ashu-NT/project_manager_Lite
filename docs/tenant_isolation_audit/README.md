@@ -1,8 +1,28 @@
 # Tenant Isolation Architecture Audit
 
-Status: Phase 1 discovery report only. No tenant-isolation implementation has been started from this document.
+Status: Phase 1 discovery complete. Initial implementation slice in progress.
 
 This report captures the current multi-tenant posture of the modular SaaS codebase and identifies the tenant-boundary work required before implementation. The core business rule is that an `Organization` is a tenant boundary. Data from one organization must never be visible, queryable, exportable, cached into, reported with, or refreshed into another organization's UI context.
+
+## Implementation Progress
+
+Completed in the first tenant-hardening slice:
+
+- Added runtime tenant-context wiring through platform runtime and desktop API composition.
+- Added organization scoped-access policy support and principal/session active organization helpers.
+- Hardened PM project/resource/portfolio/collaboration query paths to derive tenant scope server-side.
+- Added tenant-scoped approval and audit list helpers for PM workflow/collaboration surfaces.
+- Hardened platform site, department, party, document, calendar, and shift-pattern services to prefer session tenant context over the global active organization fallback.
+- Added direct object reference protection for enterprise calendar and shift-pattern reads/mutations.
+- Tenant-keyed PM task saved views, dashboard layouts, and table column preferences in QSettings-backed UI settings.
+- Added regression coverage for tenant-scoped PM services, platform master data, documents, calendars, UI settings, and organization scoped-access registration.
+
+Still remaining:
+
+- Add direct `organization_id` migrations/indexes for high-risk shared workflow/runtime records where parent joins are not enough.
+- Finish tenant-context replacement in employee support, inventory composition bootstrapping, maintenance services, runtime execution records, time/timesheets, document-link validation, exports, reports, and derived dashboard/report snapshots.
+- Replace service-level fallback branches only after all composition paths inject tenant context.
+- Add background-worker tenant propagation tests and cross-module integration isolation tests.
 
 ## Scope Inspected
 
@@ -391,4 +411,3 @@ PM and other modules must not introduce:
 - Standalone cache/reporting platforms disconnected from platform runtime
 
 The correct direction is to harden and consume shared platform services by reference while enforcing tenant isolation at every boundary.
-
