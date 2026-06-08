@@ -56,13 +56,17 @@ class PortfolioProjectDependencyRepository(ABC):
     def add(self, dependency: PortfolioProjectDependency) -> None: ...
 
     @abstractmethod
-    def get(self, dependency_id: str) -> Optional[PortfolioProjectDependency]: ...
+    def get_for_organization(
+        self,
+        dependency_id: str,
+        organization_id: str,
+    ) -> Optional[PortfolioProjectDependency]: ...
 
     @abstractmethod
     def list_for_organization(self, organization_id: str) -> List[PortfolioProjectDependency]: ...
 
     @abstractmethod
-    def delete(self, dependency_id: str) -> None: ...
+    def delete_for_organization(self, dependency_id: str, organization_id: str) -> None: ...
 
 
 class PortfolioScoringTemplateRepository(ABC):

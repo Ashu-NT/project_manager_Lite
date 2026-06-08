@@ -16,6 +16,7 @@ class ApprovalRequest:
     entity_id: str
     project_id: str | None
     payload: dict[str, Any]
+    organization_id: str = ""
     status: ApprovalStatus = ApprovalStatus.PENDING
     requested_by_user_id: str | None = None
     requested_by_username: str | None = None
@@ -32,6 +33,7 @@ class ApprovalRequest:
         entity_id: str,
         *,
         project_id: str | None,
+        organization_id: str | None = None,
         payload: dict[str, Any] | None = None,
         requested_by_user_id: str | None = None,
         requested_by_username: str | None = None,
@@ -43,6 +45,7 @@ class ApprovalRequest:
             entity_id=entity_id,
             project_id=project_id,
             payload=payload or {},
+            organization_id=str(organization_id or "").strip(),
             requested_by_user_id=requested_by_user_id,
             requested_by_username=requested_by_username,
         )

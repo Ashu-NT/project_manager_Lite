@@ -145,8 +145,24 @@ class SqlAlchemyPortfolioProjectDependencyRepository(PortfolioProjectDependencyR
     def add(self, dependency: PortfolioProjectDependency) -> None:
         self.session.add(portfolio_project_dependency_to_orm(dependency))
 
-    def get(self, dependency_id: str) -> Optional[PortfolioProjectDependency]:
-        obj = self.session.get(PortfolioProjectDependencyORM, dependency_id)
+    def get_for_organization(
+        self,
+        dependency_id: str,
+        organization_id: str,
+    ) -> Optional[PortfolioProjectDependency]:
+        predecessor = aliased(ProjectORM)
+        successor = aliased(ProjectORM)
+        stmt = (
+            select(PortfolioProjectDependencyORM)
+            .join(predecessor, predecessor.id == PortfolioProjectDependencyORM.predecessor_project_id)
+            .join(successor, successor.id == PortfolioProjectDependencyORM.successor_project_id)
+            .where(
+                PortfolioProjectDependencyORM.id == dependency_id,
+                predecessor.organization_id == organization_id,
+                successor.organization_id == organization_id,
+            )
+        )
+        obj = self.session.execute(stmt).scalars().first()
         return portfolio_project_dependency_from_orm(obj) if obj else None
 
     def list_for_organization(self, organization_id: str) -> List[PortfolioProjectDependency]:
@@ -168,8 +184,20 @@ class SqlAlchemyPortfolioProjectDependencyRepository(PortfolioProjectDependencyR
         rows = self.session.execute(stmt).scalars().all()
         return [portfolio_project_dependency_from_orm(row) for row in rows]
 
-    def delete(self, dependency_id: str) -> None:
-        obj = self.session.get(PortfolioProjectDependencyORM, dependency_id)
+    def delete_for_organization(self, dependency_id: str, organization_id: str) -> None:
+        predecessor = aliased(ProjectORM)
+        successor = aliased(ProjectORM)
+        stmt = (
+            select(PortfolioProjectDependencyORM)
+            .join(predecessor, predecessor.id == PortfolioProjectDependencyORM.predecessor_project_id)
+            .join(successor, successor.id == PortfolioProjectDependencyORM.successor_project_id)
+            .where(
+                PortfolioProjectDependencyORM.id == dependency_id,
+                predecessor.organization_id == organization_id,
+                successor.organization_id == organization_id,
+            )
+        )
+        obj = self.session.execute(stmt).scalars().first()
         if obj is not None:
             self.session.delete(obj)
 

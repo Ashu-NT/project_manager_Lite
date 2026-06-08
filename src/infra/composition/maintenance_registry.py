@@ -178,6 +178,7 @@ def build_maintenance_service_bundle(
         organization_repo=platform_services.organization_repo,
         work_order_task_repo=work_order_task_repo,
         work_order_repo=work_order_repo,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     maintenance_task_time_owner_repo = MaintenanceTaskWorkOwnerRepository(
         work_order_task_repo=work_order_task_repo,
@@ -194,6 +195,7 @@ def build_maintenance_service_bundle(
         location_repo=location_repo,
         system_repo=system_repo,
         party_repo=platform_services.party_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -203,6 +205,7 @@ def build_maintenance_service_bundle(
         asset_repo=asset_repo,
         organization_repo=platform_services.organization_repo,
         party_repo=platform_services.party_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -218,6 +221,7 @@ def build_maintenance_service_bundle(
         asset_repo=asset_repo,
         work_request_repo=work_request_repo,
         work_order_repo=work_order_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
     maintenance_downtime_event_service = MaintenanceDowntimeEventService(
@@ -228,6 +232,7 @@ def build_maintenance_service_bundle(
         asset_repo=asset_repo,
         component_repo=component_repo,
         system_repo=system_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -235,6 +240,7 @@ def build_maintenance_service_bundle(
         platform_services.session,
         failure_code_repo,
         organization_repo=platform_services.organization_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -243,6 +249,7 @@ def build_maintenance_service_bundle(
         location_repo,
         organization_repo=platform_services.organization_repo,
         site_repo=platform_services.site_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -250,6 +257,7 @@ def build_maintenance_service_bundle(
         platform_services.session,
         task_template_repo,
         organization_repo=platform_services.organization_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -258,6 +266,7 @@ def build_maintenance_service_bundle(
         task_step_template_repo,
         organization_repo=platform_services.organization_repo,
         task_template_repo=task_template_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -272,6 +281,7 @@ def build_maintenance_service_bundle(
         work_order_repo=work_order_repo,
         failure_code_repo=failure_code_repo,
         downtime_event_repo=downtime_event_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
     maintenance_sensor_exception_service = MaintenanceSensorExceptionService(
@@ -281,6 +291,7 @@ def build_maintenance_service_bundle(
         sensor_repo=sensor_repo,
         integration_source_repo=integration_source_repo,
         sensor_source_mapping_repo=sensor_source_mapping_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -298,6 +309,7 @@ def build_maintenance_service_bundle(
         integration_source_repo=integration_source_repo,
         reliability_service=maintenance_reliability_service,
         sensor_exception_service=maintenance_sensor_exception_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
         runtime_execution_service=platform_services.runtime_execution_service,
@@ -307,6 +319,7 @@ def build_maintenance_service_bundle(
         integration_source_repo,
         organization_repo=platform_services.organization_repo,
         sensor_exception_service=maintenance_sensor_exception_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -318,6 +331,7 @@ def build_maintenance_service_bundle(
         asset_repo=asset_repo,
         component_repo=component_repo,
         system_repo=system_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -327,6 +341,7 @@ def build_maintenance_service_bundle(
         organization_repo=platform_services.organization_repo,
         integration_source_repo=integration_source_repo,
         sensor_repo=sensor_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -337,6 +352,7 @@ def build_maintenance_service_bundle(
         sensor_repo=sensor_repo,
         component_repo=component_repo,
         sensor_exception_service=maintenance_sensor_exception_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -346,6 +362,7 @@ def build_maintenance_service_bundle(
         organization_repo=platform_services.organization_repo,
         site_repo=platform_services.site_repo,
         location_repo=location_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -358,6 +375,7 @@ def build_maintenance_service_bundle(
         component_repo=component_repo,
         system_repo=system_repo,
         sensor_repo=sensor_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -369,6 +387,7 @@ def build_maintenance_service_bundle(
         task_template_repo=task_template_repo,
         sensor_repo=sensor_repo,
         component_repo=component_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -383,6 +402,7 @@ def build_maintenance_service_bundle(
         location_repo=location_repo,
         system_repo=system_repo,
         failure_code_repo=failure_code_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -392,6 +412,7 @@ def build_maintenance_service_bundle(
         organization_repo=platform_services.organization_repo,
         work_order_repo=work_order_repo,
         work_order_task_step_repo=work_order_task_step_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -401,6 +422,7 @@ def build_maintenance_service_bundle(
         organization_repo=platform_services.organization_repo,
         work_order_repo=work_order_repo,
         work_order_task_repo=work_order_task_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -423,6 +445,7 @@ def build_maintenance_service_bundle(
         task_step_template_repo=task_step_template_repo,
         work_order_task_service=maintenance_work_order_task_service,
         work_order_task_step_service=maintenance_work_order_task_step_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -434,6 +457,7 @@ def build_maintenance_service_bundle(
         item_service=inventory_services.inventory_item_service,
         inventory_service=inventory_services.inventory_service,
         maintenance_material_service=inventory_services.inventory_maintenance_material_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -464,6 +488,7 @@ def build_maintenance_service_bundle(
         work_order_service=maintenance_work_order_service,
         work_order_task_service=maintenance_work_order_task_service,
         work_order_task_step_service=maintenance_work_order_task_step_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )

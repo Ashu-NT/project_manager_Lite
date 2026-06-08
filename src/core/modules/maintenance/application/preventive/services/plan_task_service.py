@@ -34,6 +34,7 @@ from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org.domain import Organization
 
@@ -49,12 +50,17 @@ class MaintenancePreventivePlanTaskService:
         task_template_repo: MaintenanceTaskTemplateRepository,
         sensor_repo: MaintenanceSensorRepository,
         component_repo: MaintenanceAssetComponentRepository,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
         self._session = session
         self._preventive_plan_task_repo = preventive_plan_task_repo
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._preventive_plan_repo = preventive_plan_repo
         self._task_template_repo = task_template_repo
         self._sensor_repo = sensor_repo
@@ -468,10 +474,9 @@ class MaintenancePreventivePlanTaskService:
             )
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="maintenance preventive plan tasks"
+        ).organization
 
     def _get_plan(self, plan_id: str, *, organization: Organization) -> MaintenancePreventivePlan:
         row = self._preventive_plan_repo.get(plan_id)

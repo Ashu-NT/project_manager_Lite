@@ -140,6 +140,20 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_runtime_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
+
+    def _time_scope_organization_id(scope_type: str, scope_id: str) -> str | None:
+        normalized_scope_type = str(scope_type or "").strip().lower()
+        normalized_scope_id = str(scope_id or "").strip()
+        if not normalized_scope_id:
+            return None
+        if normalized_scope_type == "project":
+            project = repositories.project_repo.get(normalized_scope_id)
+            return getattr(project, "organization_id", None) if project is not None else None
+        if normalized_scope_type == "site":
+            site = platform_services.site_repo.get(normalized_scope_id)
+            return getattr(site, "organization_id", None) if site is not None else None
+        return None
+
     timesheet_service = TimesheetService(
         session=session,
         assignment_repo=repositories.assignment_repo,
@@ -151,6 +165,8 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
         module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        scope_organization_resolver=_time_scope_organization_id,
     )
     time_service: TimeService = timesheet_service
     project_resource_service = ProjectResourceService(

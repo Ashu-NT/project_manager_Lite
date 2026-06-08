@@ -20,6 +20,7 @@ from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org.domain import Organization
 from src.core.platform.site.domain import Site
@@ -33,12 +34,17 @@ class MaintenanceLocationService:
         *,
         organization_repo: OrganizationRepository,
         site_repo: SiteRepository,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
         self._session = session
         self._location_repo = location_repo
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._site_repo = site_repo
         self._user_session = user_session
         self._audit_service = audit_service
@@ -261,10 +267,9 @@ class MaintenanceLocationService:
         return parent
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="maintenance locations"
+        ).organization
 
     def _get_site(self, site_id: str, *, organization: Organization) -> Site:
         site = self._site_repo.get(site_id)

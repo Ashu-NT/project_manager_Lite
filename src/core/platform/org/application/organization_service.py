@@ -199,6 +199,8 @@ class OrganizationService:
                 "display_name": organization.display_name,
             },
         )
+        if self._user_session is not None:
+            self._user_session.set_active_organization_id(organization.id)
         domain_events.organizations_changed.emit(organization.id)
         return organization
 

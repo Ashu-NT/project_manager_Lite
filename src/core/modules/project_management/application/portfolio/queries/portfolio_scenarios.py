@@ -100,8 +100,17 @@ class PortfolioScenarioQueryMixin:
                 code="PORTFOLIO_COMPARISON_DUPLICATE",
             )
 
-        base_scenario = self._scenario_repo.get(normalized_base)
-        candidate_scenario = self._scenario_repo.get(normalized_candidate)
+        organization_id = self._active_portfolio_organization_id(
+            operation_label="compare portfolio scenarios"
+        )
+        base_scenario = self._scenario_repo.get_for_organization(
+            normalized_base,
+            organization_id,
+        )
+        candidate_scenario = self._scenario_repo.get_for_organization(
+            normalized_candidate,
+            organization_id,
+        )
         if base_scenario is None or candidate_scenario is None:
             raise NotFoundError("Portfolio scenario not found.", code="PORTFOLIO_SCENARIO_NOT_FOUND")
 
@@ -109,7 +118,6 @@ class PortfolioScenarioQueryMixin:
         candidate_evaluation = self.evaluate_scenario(candidate_scenario.id)
 
         accessible_projects = {project.id: project for project in self._accessible_projects()}
-        organization_id = self._active_portfolio_organization_id(operation_label="compare portfolio scenarios")
         intake_by_id = {
             item.id: item
             for item in self._intake_repo.list_for_organization(organization_id)

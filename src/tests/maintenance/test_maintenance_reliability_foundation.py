@@ -18,6 +18,7 @@ from src.core.modules.maintenance import MaintenanceDowntimeEventService, Mainte
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
+from .test_maintenance_foundation import _TenantContext
 
 
 class _OrgRepo(OrganizationRepository):
@@ -250,6 +251,7 @@ def test_failure_code_service_creates_same_type_hierarchy(session) -> None:
         session,
         _FailureCodeRepo(),
         organization_repo=_OrgRepo(organization),
+        tenant_context_service=_TenantContext(organization),
         user_session=_maintenance_session(),
     )
 
@@ -296,6 +298,7 @@ def test_downtime_event_service_tracks_duration_and_syncs_work_order(session) ->
         asset_repo=_AssetRepo([asset]),
         component_repo=_EmptyComponentRepo(),
         system_repo=_EmptySystemRepo(),
+        tenant_context_service=_TenantContext(organization),
         user_session=_maintenance_session(),
     )
 

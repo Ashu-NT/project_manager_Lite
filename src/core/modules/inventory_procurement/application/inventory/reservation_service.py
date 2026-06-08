@@ -34,6 +34,7 @@ from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
 from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink
 from src.core.shared.events.domain_events import domain_events
+from src.core.platform.tenancy.tenant_context import TenantContextService
 
 
 def _build_reservation_number() -> str:
@@ -50,6 +51,7 @@ class ReservationService:
         item_service: ItemMasterService,
         inventory_service: InventoryService,
         stock_service: StockControlService,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
         document_integration_service: DocumentIntegrationService | None = None,
@@ -57,6 +59,10 @@ class ReservationService:
         self._session = session
         self._reservation_repo = reservation_repo
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._item_service = item_service
         self._inventory_service = inventory_service
         self._stock_service = stock_service
@@ -456,10 +462,9 @@ class ReservationService:
             )
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="inventory reservations"
+        ).organization
 
     def _require_read(self, operation_label: str) -> None:
         require_permission(self._user_session, "inventory.read", operation_label=operation_label)

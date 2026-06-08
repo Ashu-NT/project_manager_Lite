@@ -75,6 +75,7 @@ from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org.domain import Organization
 from src.core.platform.site.domain import Site
@@ -107,11 +108,16 @@ class MaintenancePreventiveGenerationService:
         work_order_task_service: MaintenanceWorkOrderTaskService,
         work_order_task_step_service: MaintenanceWorkOrderTaskStepService,
         blackout_window_repo: MaintenanceBlackoutWindowRepository | None = None,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
         self._session = session
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._site_repo = site_repo
         self._preventive_plan_instance_repo = preventive_plan_instance_repo
         self._preventive_plan_repo = preventive_plan_repo
@@ -571,10 +577,9 @@ class MaintenancePreventiveGenerationService:
         return row
 
     def _active_organization(self) -> Organization:
-        org = self._organization_repo.get_active()
-        if org is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return org
+        return self._tenant_context_service.require_context(
+            operation_label="maintenance preventive generation"
+        ).organization
 
     def _get_site(self, site_id: str, *, organization: Organization) -> Site:
         row = self._site_repo.get(site_id)

@@ -15,6 +15,7 @@ from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink, DocumentStructure
 from src.core.platform.documents.contracts import (
     DocumentLinkRepository,
@@ -63,6 +64,7 @@ class MaintenanceDocumentService:
         asset_repo: MaintenanceAssetRepository,
         work_request_repo: MaintenanceWorkRequestRepository,
         work_order_repo: MaintenanceWorkOrderRepository,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
     ) -> None:
         self._document_repo = document_repo
@@ -70,6 +72,10 @@ class MaintenanceDocumentService:
         self._structure_repo = structure_repo
         self._document_integration_service = document_integration_service
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._site_repo = site_repo
         self._location_repo = location_repo
         self._system_repo = system_repo
@@ -476,10 +482,9 @@ class MaintenanceDocumentService:
         }
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="maintenance documents"
+        ).organization
 
     def _normalize_entity_type(self, entity_type: str | None, *, allow_blank: bool = False) -> str | None:
         normalized = str(entity_type or "").strip().lower()

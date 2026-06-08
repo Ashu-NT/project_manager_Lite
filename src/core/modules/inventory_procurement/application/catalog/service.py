@@ -33,6 +33,7 @@ from src.core.platform.org.domain import Organization
 from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.party import PartyService
+from src.core.platform.tenancy.tenant_context import TenantContextService
 
 
 class ItemMasterService:
@@ -45,6 +46,7 @@ class ItemMasterService:
         organization_repo: OrganizationRepository,
         party_service: PartyService,
         document_integration_service: DocumentIntegrationService,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
     ):
@@ -52,6 +54,10 @@ class ItemMasterService:
         self._item_repo = item_repo
         self._category_repo = category_repo
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._party_service = party_service
         self._document_integration_service = document_integration_service
         self._user_session = user_session
@@ -591,10 +597,9 @@ class ItemMasterService:
             )
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="inventory items"
+        ).organization
 
     def _require_read(self, operation_label: str) -> None:
         require_permission(self._user_session, "inventory.read", operation_label=operation_label)

@@ -36,6 +36,7 @@ from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.core.modules.inventory_procurement.application.common.support import normalize_optional_text
 from src.core.shared.events.domain_events import domain_events
 
@@ -65,6 +66,7 @@ class PurchasingService(
         item_service: ItemMasterService,
         stock_service: StockControlService,
         approval_service: ApprovalService,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
         document_integration_service: DocumentIntegrationService | None = None,
@@ -78,6 +80,10 @@ class PurchasingService(
         self._requisition_line_repo = requisition_line_repo
         self._balance_repo = balance_repo
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._reference_service = reference_service
         self._inventory_service = inventory_service
         self._item_service = item_service

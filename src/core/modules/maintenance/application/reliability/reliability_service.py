@@ -30,6 +30,7 @@ from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.core.platform.org.domain import Organization
 from src.core.platform.site.domain import Site
 
@@ -55,10 +56,15 @@ class MaintenanceReliabilityService:
         work_order_repo: MaintenanceWorkOrderRepository,
         failure_code_repo: MaintenanceFailureCodeRepository,
         downtime_event_repo: MaintenanceDowntimeEventRepository,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
     ) -> None:
         self._session = session
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._site_repo = site_repo
         self._asset_repo = asset_repo
         self._component_repo = component_repo
@@ -416,10 +422,9 @@ class MaintenanceReliabilityService:
         return patterns[:limit]
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="maintenance reliability analytics"
+        ).organization
 
     def _validate_scope_filters(
         self,

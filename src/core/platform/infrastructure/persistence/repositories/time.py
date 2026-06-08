@@ -77,7 +77,7 @@ class SqlAlchemyTimesheetPeriodRepository(TimesheetPeriodRepository):
         rows = self.session.execute(stmt).scalars().all()
         return [timesheet_period_from_orm(row) for row in rows]
 
-    def list_all(
+    def list_review_candidates(
         self,
         *,
         status: TimesheetPeriodStatus | None = None,

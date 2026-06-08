@@ -54,6 +54,9 @@ class ApprovalService:
             "approval.request",
             operation_label="request governed change",
         )
+        organization_id = self._active_organization_id(
+            operation_label="request governed change"
+        )
         self._assert_project_in_active_organization(project_id, operation_label="request governed change")
         existing_pending = self._list_approval_rows(
             status=ApprovalStatus.PENDING,
@@ -74,6 +77,7 @@ class ApprovalService:
             entity_type=entity_type,
             entity_id=entity_id,
             project_id=project_id,
+            organization_id=organization_id,
             payload=payload or {},
             requested_by_user_id=principal.user_id if principal else None,
             requested_by_username=principal.username if principal else None,

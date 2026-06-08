@@ -109,6 +109,7 @@ def build_inventory_procurement_service_bundle(
         platform_services.session,
         category_repo,
         organization_repo=platform_services.organization_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -118,6 +119,7 @@ def build_inventory_procurement_service_bundle(
         organization_repo=platform_services.organization_repo,
         site_service=platform_services.site_service,
         party_service=platform_services.party_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -128,6 +130,7 @@ def build_inventory_procurement_service_bundle(
         organization_repo=platform_services.organization_repo,
         party_service=platform_services.party_service,
         document_integration_service=platform_services.document_integration_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -140,6 +143,7 @@ def build_inventory_procurement_service_bundle(
         item_service=inventory_item_service,
         party_service=platform_services.party_service,
         approval_service=platform_services.approval_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -150,6 +154,7 @@ def build_inventory_procurement_service_bundle(
         organization_repo=platform_services.organization_repo,
         item_service=inventory_item_service,
         inventory_service=inventory_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -172,6 +177,7 @@ def build_inventory_procurement_service_bundle(
         item_service=inventory_item_service,
         stock_service=inventory_stock_service,
         approval_service=platform_services.approval_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
         document_integration_service=platform_services.document_integration_service,
@@ -183,6 +189,7 @@ def build_inventory_procurement_service_bundle(
         item_service=inventory_item_service,
         inventory_service=inventory_service,
         stock_service=inventory_stock_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
         document_integration_service=platform_services.document_integration_service,
@@ -198,6 +205,7 @@ def build_inventory_procurement_service_bundle(
         stock_service=inventory_stock_service,
         party_service=platform_services.party_service,
         module_runtime_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -260,11 +268,11 @@ def build_inventory_procurement_service_bundle(
 
     def _storeroom_exists(storeroom_id: str) -> bool:
         storeroom = storeroom_repo.get(storeroom_id)
-        organization = platform_services.organization_repo.get_active()
+        organization_id = platform_services.tenant_context_service.get_active_organization_id()
         return bool(
             storeroom is not None
-            and organization is not None
-            and storeroom.organization_id == organization.id
+            and organization_id
+            and storeroom.organization_id == organization_id
         )
 
     platform_services.access_service.register_scope_exists_resolver("storeroom", _storeroom_exists)

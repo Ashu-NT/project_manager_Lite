@@ -23,6 +23,7 @@ from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org.domain import Organization
 from src.core.platform.party.domain import PartyType
@@ -51,6 +52,7 @@ class MaintenanceAssetComponentService:
         asset_repo: MaintenanceAssetRepository,
         organization_repo: OrganizationRepository,
         party_repo: PartyRepository,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
@@ -58,6 +60,10 @@ class MaintenanceAssetComponentService:
         self._component_repo = component_repo
         self._asset_repo = asset_repo
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._party_repo = party_repo
         self._user_session = user_session
         self._audit_service = audit_service
@@ -449,10 +455,9 @@ class MaintenanceAssetComponentService:
         return party
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="maintenance asset components"
+        ).organization
 
     def _get_asset(self, asset_id: str, *, organization: Organization):
         asset = self._asset_repo.get(asset_id)

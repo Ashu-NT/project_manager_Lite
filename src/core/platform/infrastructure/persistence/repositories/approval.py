@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
@@ -28,6 +28,7 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         obj.entity_type = request.entity_type
         obj.entity_id = request.entity_id
         obj.project_id = request.project_id
+        obj.organization_id = request.organization_id or None
         obj.payload_json = approval_to_orm(request).payload_json
         obj.status = request.status.value
         obj.requested_by_user_id = request.requested_by_user_id
@@ -86,8 +87,13 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
     ) -> List[ApprovalRequest]:
         stmt = (
             select(ApprovalRequestORM)
-            .join(ProjectORM, ProjectORM.id == ApprovalRequestORM.project_id)
-            .where(ProjectORM.organization_id == organization_id)
+            .outerjoin(ProjectORM, ProjectORM.id == ApprovalRequestORM.project_id)
+            .where(
+                or_(
+                    ApprovalRequestORM.organization_id == organization_id,
+                    ProjectORM.organization_id == organization_id,
+                )
+            )
         )
         if status is not None:
             stmt = stmt.where(ApprovalRequestORM.status == status.value)

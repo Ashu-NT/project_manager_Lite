@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from sqlalchemy.orm import Session
 
 from src.core.platform.audit.application.audit_service import AuditService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.employee.contracts import EmployeeRepository
+from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.core.platform.time.application.timesheet_entries import TimesheetEntriesMixin
 from src.core.platform.time.application.timesheet_periods import TimesheetPeriodsMixin
 from src.core.platform.time.application.timesheet_query import TimesheetQueryMixin
@@ -40,6 +43,8 @@ class TimeService(
         user_session: UserSessionContext | None = None,
         audit_service: AuditService | None = None,
         module_catalog_service=None,
+        tenant_context_service: TenantContextService | None = None,
+        scope_organization_resolver: Callable[[str, str], str | None] | None = None,
     ):
         self._session: Session = session
         self._work_allocation_repo: WorkAllocationRepository = assignment_repo
@@ -53,6 +58,8 @@ class TimeService(
         self._user_session: UserSessionContext | None = user_session
         self._audit_service: AuditService | None = audit_service
         self._module_catalog_service = module_catalog_service
+        self._tenant_context_service = tenant_context_service
+        self._scope_organization_resolver = scope_organization_resolver
 
 
 __all__ = ["TimeService"]

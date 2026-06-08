@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from src.core.platform.infrastructure.persistence.orm.departments import DepartmentORM
 from src.core.platform.infrastructure.persistence.mappers.employee import (
     employee_from_orm,
     employee_to_orm,
 )
 from src.core.platform.infrastructure.persistence.orm.employee import EmployeeORM
+from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
 from src.core.platform.employee.contracts import EmployeeRepository
 from src.core.platform.employee.domain import Employee
 from src.infra.persistence.db.optimistic import update_with_version_check
@@ -54,8 +56,37 @@ class SqlAlchemyEmployeeRepository(EmployeeRepository):
         obj = self.session.execute(stmt).scalars().first()
         return employee_from_orm(obj) if obj else None
 
-    def list_all(self, *, active_only: bool | None = None) -> List[Employee]:
-        stmt = select(EmployeeORM)
+    def _organization_scope_predicate(self, organization_id: str):
+        return or_(
+            SiteORM.organization_id == organization_id,
+            DepartmentORM.organization_id == organization_id,
+        )
+
+    def _scoped_statement(self, organization_id: str):
+        return (
+            select(EmployeeORM)
+            .outerjoin(SiteORM, SiteORM.id == EmployeeORM.site_id)
+            .outerjoin(DepartmentORM, DepartmentORM.id == EmployeeORM.department_id)
+            .where(self._organization_scope_predicate(organization_id))
+        )
+
+    def get_for_organization(self, employee_id: str, organization_id: str) -> Optional[Employee]:
+        stmt = self._scoped_statement(organization_id).where(EmployeeORM.id == employee_id)
+        obj = self.session.execute(stmt).scalars().first()
+        return employee_from_orm(obj) if obj else None
+
+    def get_by_code_for_organization(self, employee_code: str, organization_id: str) -> Optional[Employee]:
+        stmt = self._scoped_statement(organization_id).where(EmployeeORM.employee_code == employee_code)
+        obj = self.session.execute(stmt).scalars().first()
+        return employee_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+    ) -> List[Employee]:
+        stmt = self._scoped_statement(organization_id)
         if active_only is not None:
             stmt = stmt.where(EmployeeORM.is_active == bool(active_only))
         rows = self.session.execute(stmt.order_by(EmployeeORM.full_name.asc())).scalars().all()

@@ -26,6 +26,7 @@ from src.core.platform.employee.support import (
 )
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.tenancy.tenant_context import TenantContextService
 
 
 class EmployeeService:
@@ -38,6 +39,7 @@ class EmployeeService:
         site_repo: SiteRepository | None = None,
         department_repo: DepartmentRepository | None = None,
         organization_repo: OrganizationRepository | None = None,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
     ):
@@ -47,6 +49,14 @@ class EmployeeService:
         self._site_repo = site_repo
         self._department_repo = department_repo
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or (
+            TenantContextService(
+                organization_repo=organization_repo,
+                user_session=user_session,
+            )
+            if organization_repo is not None
+            else None
+        )
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -66,23 +76,26 @@ class EmployeeService:
         is_active: bool = True,
     ) -> Employee:
         require_permission(self._user_session, "employee.manage", operation_label="create employee")
+        organization_id = self._active_organization_id(operation_label="create employee")
         normalized_code = (employee_code or "").strip().upper()
         normalized_name = (full_name or "").strip()
         if not normalized_code:
             raise ValidationError("Employee code is required.", code="EMPLOYEE_CODE_REQUIRED")
         if not normalized_name:
             raise ValidationError("Employee name is required.", code="EMPLOYEE_NAME_REQUIRED")
-        if self._employee_repo.get_by_code(normalized_code) is not None:
+        if self._employee_repo.get_by_code_for_organization(normalized_code, organization_id) is not None:
             raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS")
         resolved_department_id, resolved_department_name = resolve_employee_department_reference(
             department_repo=self._department_repo,
             organization_repo=self._organization_repo,
+            active_organization_id=organization_id,
             department_id=department_id,
             department_name=department or "",
         )
         resolved_site_id, resolved_site_name = resolve_employee_site_reference(
             site_repo=self._site_repo,
             organization_repo=self._organization_repo,
+            active_organization_id=organization_id,
             site_id=site_id,
             site_name=site_name,
         )
@@ -137,7 +150,8 @@ class EmployeeService:
         expected_version: int | None = None,
     ) -> Employee:
         require_permission(self._user_session, "employee.manage", operation_label="update employee")
-        employee = self._employee_repo.get(employee_id)
+        organization_id = self._active_organization_id(operation_label="update employee")
+        employee = self._employee_repo.get_for_organization(employee_id, organization_id)
         if employee is None:
             raise NotFoundError("Employee not found.", code="EMPLOYEE_NOT_FOUND")
         if expected_version is not None and employee.version != expected_version:
@@ -150,7 +164,10 @@ class EmployeeService:
             normalized_code = (employee_code or "").strip().upper()
             if not normalized_code:
                 raise ValidationError("Employee code is required.", code="EMPLOYEE_CODE_REQUIRED")
-            existing = self._employee_repo.get_by_code(normalized_code)
+            existing = self._employee_repo.get_by_code_for_organization(
+                normalized_code,
+                organization_id,
+            )
             if existing is not None and existing.id != employee.id:
                 raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS")
             employee.employee_code = normalized_code
@@ -163,6 +180,7 @@ class EmployeeService:
             employee.department_id, employee.department = resolve_employee_department_reference(
                 department_repo=self._department_repo,
                 organization_repo=self._organization_repo,
+                active_organization_id=organization_id,
                 department_id=department_id if department_id is not None else None,
                 department_name=department if department is not None else employee.department,
             )
@@ -170,6 +188,7 @@ class EmployeeService:
             employee.site_id, employee.site_name = resolve_employee_site_reference(
                 site_repo=self._site_repo,
                 organization_repo=self._organization_repo,
+                active_organization_id=organization_id,
                 site_id=site_id if site_id is not None else None,
                 site_name=site_name if site_name is not None else employee.site_name,
             )
@@ -206,14 +225,26 @@ class EmployeeService:
 
     def list_employees(self, *, active_only: bool | None = None) -> list[Employee]:
         require_permission(self._user_session, "employee.read", operation_label="list employees")
-        return self._employee_repo.list_all(active_only=active_only)
+        organization_id = self._active_organization_id(operation_label="list employees")
+        return self._employee_repo.list_for_organization(organization_id, active_only=active_only)
 
     def get_employee(self, employee_id: str) -> Employee:
         require_permission(self._user_session, "employee.read", operation_label="view employee")
-        employee = self._employee_repo.get(employee_id)
+        organization_id = self._active_organization_id(operation_label="view employee")
+        employee = self._employee_repo.get_for_organization(employee_id, organization_id)
         if employee is None:
             raise NotFoundError("Employee not found.", code="EMPLOYEE_NOT_FOUND")
         return employee
+
+    def _active_organization_id(self, *, operation_label: str) -> str:
+        if self._tenant_context_service is None:
+            raise ValidationError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_active_organization_id(
+            operation_label=operation_label,
+        )
 
 
 __all__ = ["EmployeeService"]

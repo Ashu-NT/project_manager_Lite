@@ -238,10 +238,9 @@ class PurchasingSupportMixin:
         require_permission(self._user_session, "inventory.read", operation_label=operation_label)
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise ValidationError("No active organization is selected.", code="ORG_ACTIVE_MISSING")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="inventory purchasing"
+        ).organization
 
 
 __all__ = [

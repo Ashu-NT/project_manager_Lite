@@ -21,6 +21,7 @@ from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError,
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.org.domain import Organization
+from src.core.platform.tenancy.tenant_context import TenantContextService
 
 
 class ItemCategoryService:
@@ -30,12 +31,17 @@ class ItemCategoryService:
         category_repo: InventoryItemCategoryRepository,
         *,
         organization_repo: OrganizationRepository,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
         self._session = session
         self._category_repo = category_repo
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -277,10 +283,9 @@ class ItemCategoryService:
         return category
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="inventory item categories"
+        ).organization
 
     def _require_read(self, operation_label: str) -> None:
         require_permission(self._user_session, "inventory.read", operation_label=operation_label)

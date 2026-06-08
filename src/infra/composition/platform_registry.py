@@ -145,6 +145,15 @@ def build_platform_service_bundle(
     )
     logger.debug("Platform organization service created; bootstrapping defaults")
     organization_service.bootstrap_defaults()
+    if user_session.active_organization_id() is None:
+        # Bootstrap the local/session tenant explicitly after organization
+        # defaults exist. This does not make Organization.is_active a runtime
+        # selector for repositories; it seeds UserSession -> TenantContext.
+        organizations = repositories.organization_repo.list_all(active_only=True)
+        if not organizations:
+            organizations = repositories.organization_repo.list_all()
+        if organizations:
+            user_session.set_active_organization_id(organizations[0].id)
     logger.debug(
         "Platform organization defaults bootstrapped duration_ms=%.1f",
         (perf_counter() - started) * 1000,
@@ -272,6 +281,7 @@ def build_platform_service_bundle(
         site_repo=repositories.site_repo,
         department_repo=repositories.department_repo,
         organization_repo=repositories.organization_repo,
+        tenant_context_service=tenant_context_service,
         user_session=user_session,
         audit_service=audit_service,
     )

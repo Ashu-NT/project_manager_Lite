@@ -20,7 +20,18 @@ class EmployeeRepository(ABC):
     def get_by_code(self, employee_code: str) -> Employee | None: ...
 
     @abstractmethod
-    def list_all(self, *, active_only: bool | None = None) -> list[Employee]: ...
+    def get_for_organization(self, employee_id: str, organization_id: str) -> Employee | None: ...
+
+    @abstractmethod
+    def get_by_code_for_organization(self, employee_code: str, organization_id: str) -> Employee | None: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+    ) -> list[Employee]: ...
 
 
 class LinkedEmployeeResource(Protocol):

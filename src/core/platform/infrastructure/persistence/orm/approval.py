@@ -31,6 +31,11 @@ class ApprovalRequestORM(Base):
     request_type: Mapped[str] = mapped_column(String(64), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
     entity_id: Mapped[str] = mapped_column(String, nullable=False)
+    organization_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("organizations.id"),
+        nullable=True,
+    )
     project_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     payload_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="PENDING", server_default="PENDING")
@@ -44,3 +49,4 @@ class ApprovalRequestORM(Base):
 
 
 Index("idx_approval_status", ApprovalRequestORM.status)
+Index("idx_approval_organization_status", ApprovalRequestORM.organization_id, ApprovalRequestORM.status)

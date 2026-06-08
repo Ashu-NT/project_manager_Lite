@@ -94,9 +94,18 @@ class TenantContextService:
         return self._user_session.active_organization_id()
 
     def _can_access(self, organization_id: str) -> bool:
-        if self._user_session is None or self._user_session.principal is None:
+        if self._user_session is None:
             return True
-        return self._user_session.has_organization_access(organization_id)
+        principal = self._user_session.principal
+        if principal is None:
+            return True
+        if "admin" in getattr(principal, "role_names", frozenset()):
+            return True
+        normalized_organization_id = str(organization_id or "").strip()
+        if not normalized_organization_id:
+            return False
+        organization_scopes = dict((principal.scoped_access or {}).get("organization", {}))
+        return not organization_scopes or normalized_organization_id in organization_scopes
 
 
 __all__ = ["TenantContext", "TenantContextService"]

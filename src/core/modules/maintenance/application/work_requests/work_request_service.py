@@ -32,6 +32,7 @@ from src.core.platform.auth.contracts import UserRepository
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org.domain import Organization
 from src.core.platform.site.domain import Site
@@ -51,12 +52,17 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         location_repo: MaintenanceLocationRepository,
         system_repo: MaintenanceSystemRepository,
         failure_code_repo: MaintenanceFailureCodeRepository | None = None,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
         self._session = session
         self._work_request_repo = work_request_repo
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._site_repo = site_repo
         self._user_repo = user_repo
         self._asset_repo = asset_repo
@@ -386,10 +392,9 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         return location
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="maintenance work requests"
+        ).organization
 
     def _normalize_failure_symptom_code(
         self,

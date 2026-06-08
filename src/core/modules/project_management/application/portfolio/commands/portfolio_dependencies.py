@@ -74,7 +74,13 @@ class PortfolioDependencyCommandMixin:
 
     def remove_project_dependency(self, dependency_id: str) -> None:
         require_permission(self._user_session, "portfolio.manage", operation_label="remove portfolio dependency")
-        dependency = self._dependency_repo.get(dependency_id)
+        organization_id = self._active_portfolio_organization_id(
+            operation_label="remove portfolio dependency"
+        )
+        dependency = self._dependency_repo.get_for_organization(
+            dependency_id,
+            organization_id,
+        )
         if dependency is None:
             raise NotFoundError(
                 "Portfolio dependency not found.",
@@ -88,7 +94,7 @@ class PortfolioDependencyCommandMixin:
                 "You no longer have access to one of the projects in this dependency.",
                 code="PORTFOLIO_DEPENDENCY_SCOPE_INVALID",
             )
-        self._dependency_repo.delete(dependency_id)
+        self._dependency_repo.delete_for_organization(dependency_id, organization_id)
         self._session.commit()
         record_audit(
             self,

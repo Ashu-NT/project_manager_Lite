@@ -269,7 +269,7 @@ class UserSessionContext:
             self.clear()
             return None
         validator = self._principal_validator
-        if validator is not None:
+        if validator is not None and principal.session_id:
             validated = validator(principal)
             if validated is None:
                 self.clear()

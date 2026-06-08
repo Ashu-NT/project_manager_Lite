@@ -53,17 +53,22 @@ def resolve_employee_site_reference(
     *,
     site_repo: SiteRepository | None,
     organization_repo: OrganizationRepository | None,
+    active_organization_id: str | None = None,
     site_id: str | None,
     site_name: str,
 ) -> tuple[str | None, str]:
     normalized_id = (site_id or "").strip() or None
     normalized_name = (site_name or "").strip()
-    site = _load_site(site_repo=site_repo, organization_repo=organization_repo, site_id=normalized_id)
+    site = _load_site(
+        site_repo=site_repo,
+        active_organization_id=active_organization_id,
+        site_id=normalized_id,
+    )
     if site is not None:
         return site.id, site.name
     matched = _match_site_by_name(
         site_repo=site_repo,
-        organization_repo=organization_repo,
+        active_organization_id=active_organization_id,
         site_name=normalized_name,
     )
     if matched is not None:
@@ -75,6 +80,7 @@ def resolve_employee_department_reference(
     *,
     department_repo: DepartmentRepository | None,
     organization_repo: OrganizationRepository | None,
+    active_organization_id: str | None = None,
     department_id: str | None,
     department_name: str,
 ) -> tuple[str | None, str]:
@@ -82,14 +88,14 @@ def resolve_employee_department_reference(
     normalized_name = (department_name or "").strip()
     department = _load_department(
         department_repo=department_repo,
-        organization_repo=organization_repo,
+        active_organization_id=active_organization_id,
         department_id=normalized_id,
     )
     if department is not None:
         return department.id, department.name
     matched = _match_department_by_name(
         department_repo=department_repo,
-        organization_repo=organization_repo,
+        active_organization_id=active_organization_id,
         department_name=normalized_name,
     )
     if matched is not None:
@@ -100,14 +106,14 @@ def resolve_employee_department_reference(
 def _load_site(
     *,
     site_repo: SiteRepository | None,
-    organization_repo: OrganizationRepository | None,
+    active_organization_id: str | None,
     site_id: str | None,
 ):
     if site_id is None or site_repo is None:
         return None
     site = site_repo.get(site_id)
     if site is None or not _belongs_to_active_organization(
-        organization_repo=organization_repo,
+        active_organization_id=active_organization_id,
         organization_id=getattr(site, "organization_id", None),
     ):
         raise ValidationError("Employee site must belong to the active organization.", code="EMPLOYEE_SITE_INVALID")
@@ -117,14 +123,14 @@ def _load_site(
 def _load_department(
     *,
     department_repo: DepartmentRepository | None,
-    organization_repo: OrganizationRepository | None,
+    active_organization_id: str | None,
     department_id: str | None,
 ):
     if department_id is None or department_repo is None:
         return None
     department = department_repo.get(department_id)
     if department is None or not _belongs_to_active_organization(
-        organization_repo=organization_repo,
+        active_organization_id=active_organization_id,
         organization_id=getattr(department, "organization_id", None),
     ):
         raise ValidationError(
@@ -137,11 +143,10 @@ def _load_department(
 def _match_site_by_name(
     *,
     site_repo: SiteRepository | None,
-    organization_repo: OrganizationRepository | None,
+    active_organization_id: str | None,
     site_name: str,
 ):
     normalized = (site_name or "").strip().lower()
-    active_organization_id = _active_organization_id(organization_repo)
     if not normalized or active_organization_id is None or site_repo is None:
         return None
     matches = [
@@ -155,11 +160,10 @@ def _match_site_by_name(
 def _match_department_by_name(
     *,
     department_repo: DepartmentRepository | None,
-    organization_repo: OrganizationRepository | None,
+    active_organization_id: str | None,
     department_name: str,
 ):
     normalized = (department_name or "").strip().lower()
-    active_organization_id = _active_organization_id(organization_repo)
     if not normalized or active_organization_id is None or department_repo is None:
         return None
     matches = [
@@ -170,21 +174,13 @@ def _match_department_by_name(
     return matches[0] if len(matches) == 1 else None
 
 
-def _active_organization_id(organization_repo: OrganizationRepository | None) -> str | None:
-    if organization_repo is None:
-        return None
-    organization = organization_repo.get_active()
-    return organization.id if organization is not None else None
-
-
 def _belongs_to_active_organization(
     *,
-    organization_repo: OrganizationRepository | None,
+    active_organization_id: str | None,
     organization_id: str | None,
 ) -> bool:
-    active_organization_id = _active_organization_id(organization_repo)
     if active_organization_id is None:
-        return True
+        return False
     return organization_id == active_organization_id
 
 
