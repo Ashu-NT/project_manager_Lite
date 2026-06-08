@@ -22,7 +22,8 @@ class PortfolioDependencyQueryMixin:
             for row in (heatmap_rows if heatmap_rows is not None else self.list_portfolio_heatmap())
         }
         rows: list[PortfolioProjectDependencyView] = []
-        for dependency in self._dependency_repo.list_all():
+        organization_id = self._active_portfolio_organization_id(operation_label="view portfolio dependencies")
+        for dependency in self._dependency_repo.list_for_organization(organization_id):
             predecessor = accessible_projects.get(dependency.predecessor_project_id)
             successor = accessible_projects.get(dependency.successor_project_id)
             if predecessor is None or successor is None:

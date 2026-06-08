@@ -19,6 +19,7 @@ class PortfolioTemplateCommandMixin:
         activate: bool = False,
     ) -> PortfolioScoringTemplate:
         require_permission(self._user_session, "portfolio.manage", operation_label="create scoring template")
+        organization_id = self._active_portfolio_organization_id(operation_label="create scoring template")
         templates = self._ensure_scoring_templates()
         normalized_name = self._require_non_empty(name, "Template name")
         if any(template.name.casefold() == normalized_name.casefold() for template in templates):
@@ -27,6 +28,7 @@ class PortfolioTemplateCommandMixin:
                 code="PORTFOLIO_TEMPLATE_DUPLICATE",
             )
         template = PortfolioScoringTemplate.create(
+            organization_id=organization_id,
             name=normalized_name,
             summary=(summary or "").strip(),
             strategic_weight=self._template_weight(strategic_weight, "Strategic weight"),

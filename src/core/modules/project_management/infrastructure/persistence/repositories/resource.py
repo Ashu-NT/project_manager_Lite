@@ -53,11 +53,6 @@ class SqlAlchemyResourceRepository(ResourceRepository):
         obj = self.session.get(ResourceORM, resource_id)
         return resource_from_orm(obj) if obj else None
 
-    def list_all(self) -> List[Resource]:
-        stmt = select(ResourceORM)
-        rows = self.session.execute(stmt).scalars().all()
-        return [resource_from_orm(row) for row in rows]
-
     def list_for_organization(self, organization_id: str) -> List[Resource]:
         stmt = (
             select(ResourceORM)

@@ -27,8 +27,10 @@ class PortfolioIntakeCommandMixin:
         status: PortfolioIntakeStatus = PortfolioIntakeStatus.PROPOSED,
     ) -> PortfolioIntakeItem:
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio intake")
+        organization_id = self._active_portfolio_organization_id(operation_label="create portfolio intake")
         scoring_template = self._resolve_scoring_template(scoring_template_id)
         item = PortfolioIntakeItem.create(
+            organization_id=organization_id,
             title=self._require_non_empty(title, "Title"),
             sponsor_name=self._require_non_empty(sponsor_name, "Sponsor"),
             summary=summary,
@@ -57,7 +59,8 @@ class PortfolioIntakeCommandMixin:
 
     def update_intake_item(self, item_id: str, **changes) -> PortfolioIntakeItem:
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio intake")
-        item = self._intake_repo.get(item_id)
+        organization_id = self._active_portfolio_organization_id(operation_label="update portfolio intake")
+        item = self._intake_repo.get_for_organization(item_id, organization_id)
         if item is None:
             raise NotFoundError("Portfolio intake item not found.", code="PORTFOLIO_INTAKE_NOT_FOUND")
         if "title" in changes and changes["title"] is not None:

@@ -24,6 +24,169 @@ Still remaining:
 - Replace service-level fallback branches only after all composition paths inject tenant context.
 - Add background-worker tenant propagation tests and cross-module integration isolation tests.
 
+## Strict Runtime Enforcement Addendum
+
+This section supersedes any earlier wording that implies tenant isolation can be phased by leaving unsafe runtime fallbacks in place. `Organization` is the tenant boundary. If Organization A is active, only Organization A data may be loaded, queried, exported, cached, displayed, counted, searched, aggregated, or refreshed into the UI.
+
+### Absolute Rule
+
+For tenant-owned runtime data, unsafe unscoped methods must be removed or made unreachable from runtime services/controllers.
+
+Forbidden in runtime code:
+
+- `list_all()`, `get_all()`, `search_all()`, `export_all()`, `count_all()`, and `fetch_all()` for tenant-owned data.
+- `session.query(...).all()` without organization scope for tenant-owned data.
+- `select(...)` without organization scope for tenant-owned data.
+- Repository `get(id)` usage without an organization ownership check.
+- Dashboard/report/export/cache/search/metric aggregation without `organization_id`.
+- QML-side tenant filtering as a security boundary.
+- Runtime fallback from missing tenant context to a globally active organization.
+
+Allowed only inside migration scripts:
+
+- Controlled one-time backfill queries.
+- Local migration-only unscoped reads used to assign tenant ownership.
+- Queries that are not imported by runtime services, APIs, controllers, presenters, or background workers.
+
+### Mandatory Scan Targets
+
+Every tenant-isolation implementation pass must scan runtime code for:
+
+- `list_all(`, `.list_all`, `get_all(`, `.get_all`, `search_all(`, `export_all(`, `count_all(`, `fetch_all(`
+- `query(`, `session.query`, `select(`, `.all()`
+- `get_by_id(`, `find_by_id(`, `search(`, `export(`
+- `dashboard`, `aggregate`, `summary`, `metrics`, `overview`, `cache`, `report`
+
+Required scan roots:
+
+- `src/core/**`
+- `src/infra/**`
+- `src/ui_qml/**`
+- `src/modules/**`
+- `src/platform/**`
+- `src/shared/**`
+
+### Tenant Context Contract
+
+All runtime paths that access tenant-owned data must receive or derive `active_organization_id` server-side.
+
+Bad:
+
+```text
+repository.list_projects()
+repository.get_task(task_id)
+```
+
+Good:
+
+```text
+repository.list_projects(organization_id=active_organization_id)
+repository.get_task(task_id, organization_id=active_organization_id)
+```
+
+If a caller cannot provide `organization_id`, that caller is incomplete and must be fixed. QML payloads may select display context but must never be trusted as the tenant authorization boundary.
+
+### Repository Method Contract
+
+Tenant-owned repositories must expose scoped methods only:
+
+- `list_for_organization(organization_id, ...)`
+- `get_for_organization(id, organization_id)`
+- `search_for_organization(organization_id, ...)`
+- `count_for_organization(organization_id, ...)`
+- `export_for_organization(organization_id, ...)`
+
+Unsafe compatibility wrappers must not remain in runtime repositories.
+
+### Mutation Rules
+
+Create:
+
+- Stamp `organization_id` from tenant context.
+- Ignore or reject QML/client-provided `organization_id` for tenant-owned records unless this is an explicit tenant-administration workflow.
+
+Update:
+
+- Load by `id + organization_id`.
+- Return safe not-found or permission-denied errors for cross-tenant IDs.
+
+Delete:
+
+- Delete by `id + organization_id`.
+- Never delete tenant-owned records by `id` alone.
+
+### Dashboard, Report, Export, And Cache Rules
+
+Dashboards, reports, exports, search, summaries, metrics, and overview data must be tenant-scoped at the query source. No aggregate may count across organizations unless it is a clearly separated super-admin system report protected by an explicit platform super-admin permission.
+
+Cache keys for tenant-owned data must include `organization_id`.
+
+Bad:
+
+```text
+tasks:list
+dashboard:portfolio
+```
+
+Good:
+
+```text
+org:{organization_id}:tasks:list
+org:{organization_id}:dashboard:portfolio
+```
+
+### One-Time Backfill Migration Requirement
+
+Add an idempotent migration before relying on direct `organization_id` for tables that currently miss tenant ownership.
+
+Migration steps:
+
+1. Find or create the default organization.
+2. For every tenant-owned table, backfill missing or `NULL` `organization_id`.
+3. Prefer inherited ownership where possible, for example task from project, task comment from task, document link from document.
+4. Assign to the default organization only when no deterministic parent owner exists.
+5. Add indexes on `organization_id` and common tenant query paths.
+6. Add `NOT NULL` constraints only after safe backfill if the migration system supports it.
+7. Keep migration queries local to migration files and outside runtime imports.
+
+### Database Ownership Audit Format
+
+Each implementation pass must maintain a table audit with:
+
+- Table name.
+- Tenant-owned yes/no.
+- `organization_id` exists yes/no.
+- Missing backfill yes/no.
+- Query risk level.
+
+Risk levels:
+
+- `CRITICAL`: cross-tenant leak possible.
+- `HIGH`: runtime unscoped query exists.
+- `MEDIUM`: ownership inherited but not enforced.
+- `LOW`: safe/platform-global.
+
+### Validation Requirement
+
+Use at least two organizations, Org A and Org B, and verify:
+
+- Org A sees only Org A projects, tasks, inventory, maintenance data, dashboards, search results, exports, and cache-backed views.
+- Org B sees only Org B equivalents.
+- Background refreshes preserve tenant context.
+- Cross-tenant direct object references return safe not-found or permission-denied results.
+
+### Final Hard Audit Gate
+
+After changes, search again. Runtime code should have no tenant-owned unsafe calls:
+
+- No unsafe `list_all()`, `get_all()`, unscoped search/export/count access.
+- No tenant-owned query without `organization_id`.
+- No repository `get(id)` result returned without ownership validation.
+- No QML-side tenant filtering used as security.
+- No fallback from missing tenant context to global active organization for tenant-owned runtime services.
+
+If any remain, the task is not complete. They must be fixed or explicitly reported as remaining risks.
+
 ## Scope Inspected
 
 The discovery pass inspected the platform foundation, Project Management, Inventory & Procurement, Maintenance, shared approval/audit/document/time services, QML controllers/presenters, dashboard/report/export paths, and runtime entitlement seams.

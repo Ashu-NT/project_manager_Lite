@@ -68,15 +68,14 @@ class EnterpriseCalendarService:
         self._tenant_context_service = tenant_context_service
 
     def _active_org_id(self) -> str:
-        if self._tenant_context_service is not None:
-            org_id = self._tenant_context_service.get_active_organization_id()
-            if not org_id:
-                raise BusinessRuleError("No active organization found.")
-            return org_id
-        org = self._organization_repo.get_active()
-        if org is None:
-            raise BusinessRuleError("No active organization found.")
-        return org.id
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_active_organization_id(
+            operation_label="calendar access",
+        )
 
     def list_calendars(
         self,

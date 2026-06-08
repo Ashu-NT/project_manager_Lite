@@ -49,15 +49,28 @@ def list_resources_for_context(
         resource_repo = getattr(resource_service, "_resource_repo", None)
         if resource_repo is None:
             return ()
+        tenant_context = getattr(resource_service, "_tenant_context_service", None)
+        organization_id = (
+            tenant_context.require_active_organization_id(operation_label="list project resources")
+            if tenant_context is not None
+            else None
+        )
+        if not organization_id:
+            return ()
         normalized_ids = tuple({
             str(rid or "").strip()
             for rid in (resource_ids or ())
             if str(rid or "").strip()
         })
+        scoped_resources = list(resource_repo.list_for_organization(organization_id))
         if normalized_ids:
-            resources = [resource_repo.get(rid) for rid in normalized_ids]
+            resources = [
+                resource
+                for resource in scoped_resources
+                if str(getattr(resource, "id", "") or "").strip() in normalized_ids
+            ]
         else:
-            resources = list(resource_repo.list_all())
+            resources = scoped_resources
     return tuple(r for r in resources if r is not None)
 
 

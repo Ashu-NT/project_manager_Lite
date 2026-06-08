@@ -12,15 +12,20 @@ from src.core.platform.common.exceptions import NotFoundError, ValidationError
 class PortfolioScenarioQueryMixin:
     def list_scenarios(self) -> list[PortfolioScenario]:
         require_permission(self._user_session, "portfolio.read", operation_label="view portfolio scenarios")
-        return self._scenario_repo.list_all()
+        organization_id = self._active_portfolio_organization_id(operation_label="view portfolio scenarios")
+        return self._scenario_repo.list_for_organization(organization_id)
 
     def evaluate_scenario(self, scenario_id: str) -> PortfolioScenarioEvaluation:
         require_permission(self._user_session, "portfolio.read", operation_label="evaluate portfolio scenario")
-        scenario = self._scenario_repo.get(scenario_id)
+        organization_id = self._active_portfolio_organization_id(operation_label="evaluate portfolio scenario")
+        scenario = self._scenario_repo.get_for_organization(scenario_id, organization_id)
         if scenario is None:
             raise NotFoundError("Portfolio scenario not found.", code="PORTFOLIO_SCENARIO_NOT_FOUND")
         projects = {project.id: project for project in self._accessible_projects()}
-        intake_by_id = {item.id: item for item in self._intake_repo.list_all()}
+        intake_by_id = {
+            item.id: item
+            for item in self._intake_repo.list_for_organization(organization_id)
+        }
         selected_projects, selected_intake = self._scenario_selection(
             scenario,
             accessible_projects=projects,
@@ -104,7 +109,11 @@ class PortfolioScenarioQueryMixin:
         candidate_evaluation = self.evaluate_scenario(candidate_scenario.id)
 
         accessible_projects = {project.id: project for project in self._accessible_projects()}
-        intake_by_id = {item.id: item for item in self._intake_repo.list_all()}
+        organization_id = self._active_portfolio_organization_id(operation_label="compare portfolio scenarios")
+        intake_by_id = {
+            item.id: item
+            for item in self._intake_repo.list_for_organization(organization_id)
+        }
         base_projects, base_intake = self._scenario_selection(
             base_scenario,
             accessible_projects=accessible_projects,
@@ -147,9 +156,7 @@ class PortfolioScenarioQueryMixin:
 
     def _portfolio_resources(self):
         organization_id = self._active_portfolio_organization_id(operation_label="evaluate portfolio resources")
-        if organization_id and hasattr(self._resource_repo, "list_for_organization"):
-            return self._resource_repo.list_for_organization(organization_id)
-        return self._resource_repo.list_all()
+        return self._resource_repo.list_for_organization(organization_id)
 
 
 __all__ = ["PortfolioScenarioQueryMixin"]

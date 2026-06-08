@@ -19,6 +19,7 @@ from src.core.modules.project_management.application.resources.resource_availabi
     ResourceAvailabilityService,
     ResourceAvailabilityWindow,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
 
 
 @dataclass
@@ -86,12 +87,14 @@ class PortfolioResourcePoolService:
         task_repo: TaskRepository,
         project_repo: ProjectRepository,
         calendar: CalendarProtocol,
+        tenant_context_service=None,
     ) -> None:
         self._resources = resource_repo
         self._assignments = assignment_repo
         self._tasks = task_repo
         self._projects = project_repo
         self._calendar = calendar
+        self._tenant_context_service = tenant_context_service
         self._availability = ResourceAvailabilityService(
             resource_repo=resource_repo,
             assignment_repo=assignment_repo,
@@ -110,9 +113,16 @@ class PortfolioResourcePoolService:
 
         If resource_ids is None, includes all active resources.
         """
+        organization_id = self._active_organization_id(operation_label="build portfolio resource pool")
         if resource_ids is None:
-            all_resources = self._resources.list_all()
+            all_resources = self._resources.list_for_organization(organization_id)
             resource_ids = [r.id for r in all_resources if getattr(r, "is_active", True)]
+        else:
+            scoped_resource_ids = {
+                resource.id
+                for resource in self._resources.list_for_organization(organization_id)
+            }
+            resource_ids = [resource_id for resource_id in resource_ids if resource_id in scoped_resource_ids]
 
         summaries: List[ResourcePoolSummary] = []
         for rid in resource_ids:
@@ -207,6 +217,15 @@ class PortfolioResourcePoolService:
             ))
 
         return demands
+
+    def _active_organization_id(self, *, operation_label: str) -> str:
+        tenant_context = self._tenant_context_service
+        if tenant_context is None:
+            raise BusinessRuleError(
+                f"Active organization context is required for {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return tenant_context.require_active_organization_id(operation_label=operation_label)
 
 
 __all__ = [

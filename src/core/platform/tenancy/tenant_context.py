@@ -27,11 +27,9 @@ class TenantContextService:
         *,
         organization_repo: OrganizationRepository,
         user_session: UserSessionContext | None = None,
-        fallback_to_global_active: bool = True,
     ) -> None:
         self._organization_repo = organization_repo
         self._user_session = user_session
-        self._fallback_to_global_active = bool(fallback_to_global_active)
 
     def get_active_organization_id(self) -> str | None:
         organization = self.get_active_organization()
@@ -55,10 +53,6 @@ class TenantContextService:
             if self._user_session is not None:
                 self._user_session.set_active_organization_id(None)
 
-        if self._fallback_to_global_active:
-            organization = self._organization_repo.get_active()
-            if organization is not None and self._can_access(organization.id):
-                return organization
         return None
 
     def set_active_organization(self, organization_id: str) -> Organization:

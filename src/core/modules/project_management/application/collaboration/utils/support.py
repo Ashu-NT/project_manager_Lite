@@ -87,22 +87,22 @@ class CollaborationSupportMixin:
         organization_id = self._active_collaboration_organization_id(
             operation_label="view collaboration projects"
         )
-        if organization_id and hasattr(self._project_repo, "list_for_organization"):
-            return self._project_repo.list_for_organization(organization_id)
-        return self._project_repo.list_all()
+        return self._project_repo.list_for_organization(organization_id)
 
     def _active_collaboration_organization_id(self, *, operation_label: str) -> str | None:
         tenant_context = getattr(self, "_tenant_context_service", None)
         if tenant_context is None:
-            return None
+            from src.core.platform.common.exceptions import BusinessRuleError
+            raise BusinessRuleError(
+                f"Active organization context is required for {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
         return tenant_context.require_active_organization_id(operation_label=operation_label)
 
     def _project_in_active_organization(self, project_id: str) -> bool:
         organization_id = self._active_collaboration_organization_id(
             operation_label="view collaboration project"
         )
-        if not organization_id:
-            return True
         project = self._project_repo.get(project_id)
         return bool(project is not None and getattr(project, "organization_id", None) == organization_id)
 

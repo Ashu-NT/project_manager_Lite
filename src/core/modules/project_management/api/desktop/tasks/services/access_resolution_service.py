@@ -19,6 +19,16 @@ def project_rows_for_task_scope(
         user_session = task_user_session(task_service)
         if project_repo is None or user_session is None:
             return ()
+        tenant_context = getattr(project_service, "_tenant_context_service", None) or getattr(
+            task_service, "_tenant_context_service", None
+        )
+        organization_id = (
+            tenant_context.require_active_organization_id(operation_label="list task projects")
+            if tenant_context is not None
+            else None
+        )
+        if not organization_id:
+            return ()
         project_ids: set[str] = set()
         for permission_code in ("task.read", "task.manage", "project.read"):
             project_ids.update(user_session.project_ids_for(permission_code))
@@ -27,10 +37,16 @@ def project_rows_for_task_scope(
                 project_repo.get(project_id)
                 for project_id in sorted(project_ids)
             ]
+            projects = [
+                project
+                for project in projects
+                if project is not None
+                and str(getattr(project, "organization_id", "") or "").strip() == organization_id
+            ]
         elif user_session.has_permission("task.read") or user_session.has_permission(
             "task.manage"
         ):
-            projects = list(project_repo.list_all())
+            projects = list(project_repo.list_for_organization(organization_id))
         else:
             projects = []
     return tuple(

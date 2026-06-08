@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.platform.audit.helpers import record_audit
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_any_permission, require_permission
 from src.core.platform.department.contracts import DepartmentRepository
@@ -384,14 +384,17 @@ class DepartmentService:
         return normalized
 
     def _active_organization(self) -> Organization:
-        if self._tenant_context_service is not None:
-            organization = self._tenant_context_service.get_active_organization()
-            if organization is None:
-                raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-            return organization
-        organization = self._organization_repo.get_active()
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        organization = self._tenant_context_service.get_active_organization()
         if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
+            raise BusinessRuleError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
         return organization
 
     def _require_department_read_access(self, operation_label: str) -> None:

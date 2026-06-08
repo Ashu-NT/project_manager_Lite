@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from src.core.modules.project_management.contracts.repositories.portfolio import (
     PortfolioIntakeRepository,
@@ -23,6 +23,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.portfoli
     PortfolioScoringTemplateORM,
     PortfolioScenarioORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.infra.persistence.db.optimistic import update_with_version_check
 from src.core.modules.project_management.infrastructure.persistence.mappers.portfolio import (
     portfolio_intake_from_orm,
@@ -77,8 +78,20 @@ class SqlAlchemyPortfolioIntakeRepository(PortfolioIntakeRepository):
         obj = self.session.get(PortfolioIntakeItemORM, item_id)
         return portfolio_intake_from_orm(obj) if obj else None
 
-    def list_all(self) -> List[PortfolioIntakeItem]:
-        stmt = select(PortfolioIntakeItemORM).order_by(PortfolioIntakeItemORM.updated_at.desc())
+    def get_for_organization(self, item_id: str, organization_id: str) -> Optional[PortfolioIntakeItem]:
+        stmt = select(PortfolioIntakeItemORM).where(
+            PortfolioIntakeItemORM.id == item_id,
+            PortfolioIntakeItemORM.organization_id == organization_id,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return portfolio_intake_from_orm(obj) if obj else None
+
+    def list_for_organization(self, organization_id: str) -> List[PortfolioIntakeItem]:
+        stmt = (
+            select(PortfolioIntakeItemORM)
+            .where(PortfolioIntakeItemORM.organization_id == organization_id)
+            .order_by(PortfolioIntakeItemORM.updated_at.desc())
+        )
         rows = self.session.execute(stmt).scalars().all()
         return [portfolio_intake_from_orm(row) for row in rows]
 
@@ -102,8 +115,20 @@ class SqlAlchemyPortfolioScenarioRepository(PortfolioScenarioRepository):
         obj = self.session.get(PortfolioScenarioORM, scenario_id)
         return portfolio_scenario_from_orm(obj) if obj else None
 
-    def list_all(self) -> List[PortfolioScenario]:
-        stmt = select(PortfolioScenarioORM).order_by(PortfolioScenarioORM.updated_at.desc())
+    def get_for_organization(self, scenario_id: str, organization_id: str) -> Optional[PortfolioScenario]:
+        stmt = select(PortfolioScenarioORM).where(
+            PortfolioScenarioORM.id == scenario_id,
+            PortfolioScenarioORM.organization_id == organization_id,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return portfolio_scenario_from_orm(obj) if obj else None
+
+    def list_for_organization(self, organization_id: str) -> List[PortfolioScenario]:
+        stmt = (
+            select(PortfolioScenarioORM)
+            .where(PortfolioScenarioORM.organization_id == organization_id)
+            .order_by(PortfolioScenarioORM.updated_at.desc())
+        )
         rows = self.session.execute(stmt).scalars().all()
         return [portfolio_scenario_from_orm(row) for row in rows]
 
@@ -124,10 +149,21 @@ class SqlAlchemyPortfolioProjectDependencyRepository(PortfolioProjectDependencyR
         obj = self.session.get(PortfolioProjectDependencyORM, dependency_id)
         return portfolio_project_dependency_from_orm(obj) if obj else None
 
-    def list_all(self) -> List[PortfolioProjectDependency]:
-        stmt = select(PortfolioProjectDependencyORM).order_by(
-            PortfolioProjectDependencyORM.updated_at.desc(),
-            PortfolioProjectDependencyORM.created_at.desc(),
+    def list_for_organization(self, organization_id: str) -> List[PortfolioProjectDependency]:
+        predecessor = aliased(ProjectORM)
+        successor = aliased(ProjectORM)
+        stmt = (
+            select(PortfolioProjectDependencyORM)
+            .join(predecessor, predecessor.id == PortfolioProjectDependencyORM.predecessor_project_id)
+            .join(successor, successor.id == PortfolioProjectDependencyORM.successor_project_id)
+            .where(
+                predecessor.organization_id == organization_id,
+                successor.organization_id == organization_id,
+            )
+            .order_by(
+                PortfolioProjectDependencyORM.updated_at.desc(),
+                PortfolioProjectDependencyORM.created_at.desc(),
+            )
         )
         rows = self.session.execute(stmt).scalars().all()
         return [portfolio_project_dependency_from_orm(row) for row in rows]
@@ -152,11 +188,23 @@ class SqlAlchemyPortfolioScoringTemplateRepository(PortfolioScoringTemplateRepos
         obj = self.session.get(PortfolioScoringTemplateORM, template_id)
         return portfolio_scoring_template_from_orm(obj) if obj else None
 
-    def list_all(self) -> List[PortfolioScoringTemplate]:
-        stmt = select(PortfolioScoringTemplateORM).order_by(
-            PortfolioScoringTemplateORM.is_active.desc(),
-            PortfolioScoringTemplateORM.updated_at.desc(),
-            PortfolioScoringTemplateORM.name.asc(),
+    def get_for_organization(self, template_id: str, organization_id: str) -> Optional[PortfolioScoringTemplate]:
+        stmt = select(PortfolioScoringTemplateORM).where(
+            PortfolioScoringTemplateORM.id == template_id,
+            PortfolioScoringTemplateORM.organization_id == organization_id,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return portfolio_scoring_template_from_orm(obj) if obj else None
+
+    def list_for_organization(self, organization_id: str) -> List[PortfolioScoringTemplate]:
+        stmt = (
+            select(PortfolioScoringTemplateORM)
+            .where(PortfolioScoringTemplateORM.organization_id == organization_id)
+            .order_by(
+                PortfolioScoringTemplateORM.is_active.desc(),
+                PortfolioScoringTemplateORM.updated_at.desc(),
+                PortfolioScoringTemplateORM.name.asc(),
+            )
         )
         rows = self.session.execute(stmt).scalars().all()
         return [portfolio_scoring_template_from_orm(row) for row in rows]

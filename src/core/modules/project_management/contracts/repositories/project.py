@@ -20,9 +20,6 @@ class ProjectRepository(ABC):
     def get(self, project_id: str) -> Optional[Project]: ...
 
     @abstractmethod
-    def list_all(self) -> List[Project]: ...
-
-    @abstractmethod
     def list_for_organization(self, organization_id: str) -> List[Project]: ...
 
 

@@ -15,11 +15,7 @@ class ProjectQueryMixin:
     def list_projects(self) -> List[Project]:
         require_permission(self._user_session, "project.read", operation_label="list projects")
         organization_id = self._active_organization_id(operation_label="list projects")
-        project_rows = (
-            self._project_repo.list_for_organization(organization_id)
-            if organization_id and hasattr(self._project_repo, "list_for_organization")
-            else self._project_repo.list_all()
-        )
+        project_rows = self._project_repo.list_for_organization(organization_id)
         return filter_project_rows(
             project_rows,
             self._user_session,
@@ -54,13 +50,15 @@ class ProjectQueryMixin:
     def _active_organization_id(self, *, operation_label: str) -> str | None:
         tenant_context = getattr(self, "_tenant_context_service", None)
         if tenant_context is None:
-            return None
+            from src.core.platform.common.exceptions import BusinessRuleError
+            raise BusinessRuleError(
+                f"Active organization context is required for {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
         return tenant_context.require_active_organization_id(operation_label=operation_label)
 
     def _is_project_in_active_organization(self, project: Project) -> bool:
         organization_id = self._active_organization_id(operation_label="view project")
-        if not organization_id:
-            return True
         project_organization_id = str(getattr(project, "organization_id", "") or "").strip()
         return bool(project_organization_id and project_organization_id == organization_id)
 

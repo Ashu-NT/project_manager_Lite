@@ -10,7 +10,7 @@ from src.core.modules.project_management.contracts.repositories.task import Assi
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.platform.common.interfaces import TimeEntryRepository
 from src.core.platform.employee.contracts import EmployeeRepository
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.audit.helpers import record_audit
 from src.core.shared.events.domain_events import domain_events
@@ -50,9 +50,15 @@ class ResourceCommandMixin:
             normalize_manual_code,
         )
 
+        active_organization_id = self._active_organization_id(operation_label="resolve resource code")
+        if not active_organization_id:
+            raise BusinessRuleError(
+                "Active organization context is required for resource code generation.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
         existing = {
             str(getattr(resource, "code", "") or "").upper()
-            for resource in self._resource_repo.list_all()
+            for resource in self._resource_repo.list_for_organization(active_organization_id)
             if exclude_id is None or resource.id != exclude_id
         }
         manual = normalize_manual_code(code)
@@ -173,6 +179,8 @@ class ResourceCommandMixin:
         resource = self._resource_repo.get(resource_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+        if not self._is_resource_in_active_organization(resource):
+            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
         if code is not None and code.strip():
             resource.code = self._resolve_resource_code(code, resource.name, exclude_id=resource.id)
         if expected_version is not None and resource.version != expected_version:
@@ -259,6 +267,8 @@ class ResourceCommandMixin:
         require_permission(self._user_session, "resource.manage", operation_label="delete resource")
         resource = self._resource_repo.get(resource_id)
         if not resource:
+            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+        if not self._is_resource_in_active_organization(resource):
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
 
         try:

@@ -116,9 +116,7 @@ class PlatformRuntimeApplicationService:
     def get_active_organization(self) -> Organization | None:
         if self._tenant_context_service is not None:
             return self._tenant_context_service.get_active_organization()
-        if self._organization_service is None:
-            return None
-        return self._organization_service.get_active_organization()
+        return None
 
     def create_organization(
         self,
@@ -199,15 +197,13 @@ class PlatformRuntimeApplicationService:
         if is_active:
             if self._tenant_context_service is not None:
                 return self._tenant_context_service.set_active_organization(organization.id)
-            return self._organization_service.set_active_organization(organization.id)
+            raise RuntimeError("Tenant context service is not configured.")
         return organization
 
     def set_active_organization(self, organization_id: str) -> Organization:
         if self._tenant_context_service is not None:
             return self._tenant_context_service.set_active_organization(organization_id)
-        if self._organization_service is None:
-            raise RuntimeError("Organization service is not configured.")
-        return self._organization_service.set_active_organization(organization_id)
+        raise RuntimeError("Tenant context service is not configured.")
 
 
 def resolve_platform_runtime_application_service(

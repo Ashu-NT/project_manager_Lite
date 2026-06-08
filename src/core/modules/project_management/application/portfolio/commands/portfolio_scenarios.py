@@ -18,7 +18,9 @@ class PortfolioScenarioCommandMixin:
         notes: str = "",
     ) -> PortfolioScenario:
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio scenario")
+        organization_id = self._active_portfolio_organization_id(operation_label="create portfolio scenario")
         scenario = PortfolioScenario.create(
+            organization_id=organization_id,
             name=self._require_non_empty(name, "Scenario name"),
             budget_limit=(None if budget_limit is None else self._non_negative(budget_limit, "Budget limit")),
             capacity_limit_percent=(
@@ -37,7 +39,8 @@ class PortfolioScenarioCommandMixin:
 
     def update_scenario(self, scenario_id: str, **changes) -> PortfolioScenario:
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio scenario")
-        scenario = self._scenario_repo.get(scenario_id)
+        organization_id = self._active_portfolio_organization_id(operation_label="update portfolio scenario")
+        scenario = self._scenario_repo.get_for_organization(scenario_id, organization_id)
         if scenario is None:
             raise NotFoundError("Portfolio scenario not found.", code="PORTFOLIO_SCENARIO_NOT_FOUND")
         if "name" in changes and changes["name"] is not None:

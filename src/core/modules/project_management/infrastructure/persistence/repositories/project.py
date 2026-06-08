@@ -55,11 +55,6 @@ class SqlAlchemyProjectRepository(ProjectRepository):
         obj = self.session.get(ProjectORM, project_id)
         return project_from_orm(obj) if obj else None
 
-    def list_all(self) -> List[Project]:
-        stmt = select(ProjectORM)
-        rows = self.session.execute(stmt).scalars().all()
-        return [project_from_orm(row) for row in rows]
-
     def list_for_organization(self, organization_id: str) -> List[Project]:
         stmt = select(ProjectORM).where(ProjectORM.organization_id == organization_id)
         rows = self.session.execute(stmt).scalars().all()

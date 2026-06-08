@@ -1023,8 +1023,12 @@ def test_project_management_tasks_desktop_api_falls_back_to_task_scope_without_p
         def __init__(self, projects):
             self._projects = {project.id: project for project in projects}
 
-        def list_all(self):
-            return list(self._projects.values())
+        def list_for_organization(self, organization_id):
+            return [
+                project
+                for project in self._projects.values()
+                if getattr(project, "organization_id", organization_id) == organization_id
+            ]
 
         def get(self, project_id):
             return self._projects.get(project_id)
@@ -1032,6 +1036,9 @@ def test_project_management_tasks_desktop_api_falls_back_to_task_scope_without_p
     class _ProjectReadDeniedService:
         def __init__(self, projects):
             self._project_repo = _ProjectRepo(projects)
+            self._tenant_context_service = SimpleNamespace(
+                require_active_organization_id=lambda **_kwargs: "org-test",
+            )
 
         def list_projects(self):
             raise BusinessRuleError(
@@ -1043,6 +1050,7 @@ def test_project_management_tasks_desktop_api_falls_back_to_task_scope_without_p
         name="Plant Upgrade",
         description="Replace switchgear and commission the new line.",
     )
+    project.organization_id = "org-test"
     task_service = _FakeTaskService()
     task = task_service.create_task(
         project_id=project.id,
@@ -1233,7 +1241,7 @@ def test_project_management_tasks_desktop_api_lists_assignments_without_resource
         def __init__(self, resources):
             self._resources = {resource.id: resource for resource in resources}
 
-        def list_all(self):
+        def list_for_organization(self, organization_id):
             return list(self._resources.values())
 
         def get(self, resource_id):
@@ -1242,6 +1250,9 @@ def test_project_management_tasks_desktop_api_lists_assignments_without_resource
     class _ResourceReadDeniedService:
         def __init__(self, resources):
             self._resource_repo = _ResourceRepo(resources)
+            self._tenant_context_service = SimpleNamespace(
+                require_active_organization_id=lambda **_kwargs: "org-test",
+            )
 
         def list_resources(self):
             raise BusinessRuleError(

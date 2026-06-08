@@ -39,13 +39,23 @@ def resource_by_id(
             or user_session.has_permission("task.manage")
         ):
             return {}
+        tenant_context = getattr(resource_service, "_tenant_context_service", None) or getattr(
+            task_service, "_tenant_context_service", None
+        )
+        organization_id = (
+            tenant_context.require_active_organization_id(operation_label="list task resources")
+            if tenant_context is not None
+            else None
+        )
+        if not organization_id:
+            return {}
+        resources = list(resource_repo.list_for_organization(organization_id))
         if normalized_ids:
             resources = [
-                resource_repo.get(resource_id)
-                for resource_id in normalized_ids
+                resource
+                for resource in resources
+                if str(getattr(resource, "id", "") or "").strip() in normalized_ids
             ]
-        else:
-            resources = list(resource_repo.list_all())
     return {
         resource.id: resource
         for resource in resources

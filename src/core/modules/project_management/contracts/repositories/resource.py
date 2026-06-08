@@ -20,9 +20,6 @@ class ResourceRepository(ABC):
     def get(self, resource_id: str) -> Optional[Resource]: ...
 
     @abstractmethod
-    def list_all(self) -> List[Resource]: ...
-
-    @abstractmethod
     def list_for_organization(self, organization_id: str) -> List[Resource]: ...
 
     @abstractmethod

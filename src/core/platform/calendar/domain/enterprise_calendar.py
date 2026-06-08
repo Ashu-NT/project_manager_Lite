@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone as dt_timezone
 from enum import Enum
 from typing import Optional
 
@@ -113,7 +113,7 @@ class PlatformCalendar:
         priority: int = 0,
         created_by: Optional[str] = None,
     ) -> "PlatformCalendar":
-        now = datetime.now(timezone.utc)
+        now = datetime.now(dt_timezone.utc)
         return PlatformCalendar(
             id=generate_id(),
             organization_id=organization_id,

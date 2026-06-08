@@ -31,7 +31,8 @@ class PortfolioDependencyCommandMixin:
                 "Portfolio dependency must link two different projects.",
                 code="PORTFOLIO_DEPENDENCY_SAME_PROJECT",
             )
-        for existing in self._dependency_repo.list_all():
+        organization_id = self._active_portfolio_organization_id(operation_label="create portfolio dependency")
+        for existing in self._dependency_repo.list_for_organization(organization_id):
             if (
                 existing.predecessor_project_id == predecessor.id
                 and existing.successor_project_id == successor.id

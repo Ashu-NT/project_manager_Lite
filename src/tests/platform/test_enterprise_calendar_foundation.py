@@ -101,13 +101,30 @@ def mock_org_repo(db_session, org_id):
 
 
 @pytest.fixture
-def cal_service(db_session, repos, mock_org_repo, mock_user_session):
+def tenant_context(org_id):
+    from unittest.mock import MagicMock
+    from dataclasses import dataclass
+
+    @dataclass
+    class FakeOrg:
+        id: str = org_id
+
+    context = MagicMock()
+    context.require_active_organization_id.return_value = org_id
+    context.get_active_organization_id.return_value = org_id
+    context.get_active_organization.return_value = FakeOrg()
+    return context
+
+
+@pytest.fixture
+def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
     return EnterpriseCalendarService(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
         organization_repo=mock_org_repo,
         user_session=mock_user_session,
+        tenant_context_service=tenant_context,
     )
 
 
@@ -142,12 +159,13 @@ def recurring_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def shift_service(db_session, repos, mock_org_repo, mock_user_session):
+def shift_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
     return ShiftPatternService(
         session=db_session,
         pattern_repo=repos["shift"],
         organization_repo=mock_org_repo,
         user_session=mock_user_session,
+        tenant_context_service=tenant_context,
     )
 
 
