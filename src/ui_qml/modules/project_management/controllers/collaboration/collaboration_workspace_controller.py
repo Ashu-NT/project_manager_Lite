@@ -5,9 +5,6 @@ import logging
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
-
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
@@ -23,11 +20,27 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
 )
 from src.ui_qml.modules.project_management.view_models.collaboration import (
-    CollaborationCollectionViewModel,
-    CollaborationDetailFieldViewModel,
     CollaborationDetailViewModel,
-    CollaborationRecordViewModel,
 )
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
+from .detail_builder import build_detail_payload
+from .domain_event_binder import bind_collaboration_domain_events
+from .panel_filter_service import CollaborationPanelFilterService
+from .panel_row_builder import (
+    build_approvals_rows,
+    build_inbox_rows,
+    build_mentions_rows,
+    build_team_updates_rows,
+)
+from .state import (
+    default_collection,
+    default_context,
+    default_overview,
+    default_selected_item_detail,
+)
+from .table_models import create_collaboration_table_models
+from .utils import panel_label
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -42,7 +55,6 @@ class ProjectManagementCollaborationWorkspaceController(
 ):
     overviewChanged = Signal()
     notificationsChanged = Signal()
-    # Panel filter / search state
     selectedProjectIdChanged = Signal()
     selectedTeamIdChanged = Signal()
     selectedPeriodKeyChanged = Signal()
@@ -79,102 +91,26 @@ class ProjectManagementCollaborationWorkspaceController(
             collaboration_workspace_presenter
             or ProjectCollaborationWorkspacePresenter()
         )
-        self._inbox_table_model = DynamicTableModel(self)
-        self._mentions_table_model = DynamicTableModel(self)
-        self._approvals_table_model = DynamicTableModel(self)
-        self._team_updates_table_model = DynamicTableModel(self)
-        self._related_items_table_model = DynamicTableModel(self)
-        # Filter and search state (owned by Python, replaces QML-local properties)
-        self._selected_project_id = "all"
-        self._selected_team_id = "all"
-        self._selected_period_key = "all"
-        self._selected_unread_key = "all"
-        self._inbox_search_text = ""
-        self._mentions_search_text = ""
-        self._approvals_search_text = ""
-        self._team_updates_search_text = ""
-        self._overview: dict[str, object] = {"title": "", "subtitle": "", "metrics": []}
-        self._notifications: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._inbox: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._recent_activity: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._active_presence: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._context: dict[str, object] = {
-            "projectOptions": [],
-            "teamOptions": [],
-            "periodOptions": [],
-            "unreadOptions": [],
-        }
+        self._table_models = create_collaboration_table_models(self)
+        self._filter_service = CollaborationPanelFilterService()
+        self._overview: dict[str, object] = default_overview()
+        self._notifications: dict[str, object] = default_collection()
+        self._inbox: dict[str, object] = default_collection()
+        self._recent_activity: dict[str, object] = default_collection()
+        self._active_presence: dict[str, object] = default_collection()
+        self._context: dict[str, object] = default_context()
         self._panel_tabs: list[dict[str, object]] = []
-        self._mentions: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._approvals: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._activity_feed: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._team_updates: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._audit_feed: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._selected_item_detail: dict[str, object] = {
-            "id": "",
-            "title": "",
-            "statusLabel": "",
-            "subtitle": "",
-            "description": "",
-            "state": {},
-            "fields": [],
-            "activity": {"title": "", "subtitle": "", "emptyState": "", "items": []},
-            "relatedItems": {
-                "title": "",
-                "subtitle": "",
-                "emptyState": "",
-                "items": [],
-            },
-            "audit": {"title": "", "subtitle": "", "emptyState": "", "items": []},
-        }
+        self._mentions: dict[str, object] = default_collection()
+        self._approvals: dict[str, object] = default_collection()
+        self._activity_feed: dict[str, object] = default_collection()
+        self._team_updates: dict[str, object] = default_collection()
+        self._audit_feed: dict[str, object] = default_collection()
+        self._selected_item_detail: dict[str, object] = default_selected_item_detail()
         self._panel_item_index: dict[str, dict[str, dict[str, object]]] = {}
-        self._bind_domain_events()
+        bind_collaboration_domain_events(self)
         self.refresh()
+
+    # ── Overview / notifications ──────────────────────────────────────
 
     @Property("QVariantMap", notify=overviewChanged)
     def overview(self) -> dict[str, object]:
@@ -188,129 +124,139 @@ class ProjectManagementCollaborationWorkspaceController(
 
     @Property(QObject, constant=True)
     def inboxTableModel(self) -> DynamicTableModel:
-        return self._inbox_table_model
+        return self._table_models.inbox
 
     @Property(QObject, constant=True)
     def mentionsTableModel(self) -> DynamicTableModel:
-        return self._mentions_table_model
+        return self._table_models.mentions
 
     @Property(QObject, constant=True)
     def approvalsTableModel(self) -> DynamicTableModel:
-        return self._approvals_table_model
+        return self._table_models.approvals
 
     @Property(QObject, constant=True)
     def teamUpdatesTableModel(self) -> DynamicTableModel:
-        return self._team_updates_table_model
+        return self._table_models.team_updates
 
     @Property(QObject, constant=True)
     def relatedItemsTableModel(self) -> DynamicTableModel:
-        return self._related_items_table_model
+        return self._table_models.related_items
 
     # ── Filter and search state ───────────────────────────────────────
 
     @Property(str, notify=selectedProjectIdChanged)
     def selectedProjectId(self) -> str:
-        return self._selected_project_id
+        return self._filter_service.selected_project_id
 
     @Property(str, notify=selectedTeamIdChanged)
     def selectedTeamId(self) -> str:
-        return self._selected_team_id
+        return self._filter_service.selected_team_id
 
     @Property(str, notify=selectedPeriodKeyChanged)
     def selectedPeriodKey(self) -> str:
-        return self._selected_period_key
+        return self._filter_service.selected_period_key
 
     @Property(str, notify=selectedUnreadKeyChanged)
     def selectedUnreadKey(self) -> str:
-        return self._selected_unread_key
+        return self._filter_service.selected_unread_key
 
     @Property(str, notify=inboxSearchTextChanged)
     def inboxSearchText(self) -> str:
-        return self._inbox_search_text
+        return self._filter_service.inbox_search_text
 
     @Property(str, notify=mentionsSearchTextChanged)
     def mentionsSearchText(self) -> str:
-        return self._mentions_search_text
+        return self._filter_service.mentions_search_text
 
     @Property(str, notify=approvalsSearchTextChanged)
     def approvalsSearchText(self) -> str:
-        return self._approvals_search_text
+        return self._filter_service.approvals_search_text
 
     @Property(str, notify=teamUpdatesSearchTextChanged)
     def teamUpdatesSearchText(self) -> str:
-        return self._team_updates_search_text
+        return self._filter_service.team_updates_search_text
 
     @Slot(str)
     def setSelectedProjectId(self, value: str) -> None:
         v = (value or "").strip() or "all"
-        if v == self._selected_project_id:
+        if v == self._filter_service.selected_project_id:
             return
-        self._selected_project_id = v
+        self._filter_service.selected_project_id = v
         self.selectedProjectIdChanged.emit()
         self._rebuild_all_panel_models()
 
     @Slot(str)
     def setSelectedTeamId(self, value: str) -> None:
         v = (value or "").strip() or "all"
-        if v == self._selected_team_id:
+        if v == self._filter_service.selected_team_id:
             return
-        self._selected_team_id = v
+        self._filter_service.selected_team_id = v
         self.selectedTeamIdChanged.emit()
         self._rebuild_all_panel_models()
 
     @Slot(str)
     def setSelectedPeriodKey(self, value: str) -> None:
         v = (value or "").strip() or "all"
-        if v == self._selected_period_key:
+        if v == self._filter_service.selected_period_key:
             return
-        self._selected_period_key = v
+        self._filter_service.selected_period_key = v
         self.selectedPeriodKeyChanged.emit()
         self._rebuild_all_panel_models()
 
     @Slot(str)
     def setSelectedUnreadKey(self, value: str) -> None:
         v = (value or "").strip() or "all"
-        if v == self._selected_unread_key:
+        if v == self._filter_service.selected_unread_key:
             return
-        self._selected_unread_key = v
+        self._filter_service.selected_unread_key = v
         self.selectedUnreadKeyChanged.emit()
         self._rebuild_all_panel_models()
 
     @Slot(str)
     def setInboxSearchText(self, text: str) -> None:
         v = (text or "").strip()
-        if v == self._inbox_search_text:
+        if v == self._filter_service.inbox_search_text:
             return
-        self._inbox_search_text = v
+        self._filter_service.inbox_search_text = v
         self.inboxSearchTextChanged.emit()
-        self._inbox_table_model.set_rows(self._build_inbox_rows())
+        self._table_models.inbox.set_rows(
+            build_inbox_rows(self._notifications, self._filter_service)
+        )
 
     @Slot(str)
     def setMentionsSearchText(self, text: str) -> None:
         v = (text or "").strip()
-        if v == self._mentions_search_text:
+        if v == self._filter_service.mentions_search_text:
             return
-        self._mentions_search_text = v
+        self._filter_service.mentions_search_text = v
         self.mentionsSearchTextChanged.emit()
-        self._mentions_table_model.set_rows(self._build_mentions_rows())
+        self._table_models.mentions.set_rows(
+            build_mentions_rows(self._mentions, self._filter_service)
+        )
 
     @Slot(str)
     def setApprovalsSearchText(self, text: str) -> None:
         v = (text or "").strip()
-        if v == self._approvals_search_text:
+        if v == self._filter_service.approvals_search_text:
             return
-        self._approvals_search_text = v
+        self._filter_service.approvals_search_text = v
         self.approvalsSearchTextChanged.emit()
-        self._approvals_table_model.set_rows(self._build_approvals_rows())
+        self._table_models.approvals.set_rows(
+            build_approvals_rows(self._approvals, self._filter_service)
+        )
 
     @Slot(str)
     def setTeamUpdatesSearchText(self, text: str) -> None:
         v = (text or "").strip()
-        if v == self._team_updates_search_text:
+        if v == self._filter_service.team_updates_search_text:
             return
-        self._team_updates_search_text = v
+        self._filter_service.team_updates_search_text = v
         self.teamUpdatesSearchTextChanged.emit()
-        self._team_updates_table_model.set_rows(self._build_team_updates_rows())
+        self._table_models.team_updates.set_rows(
+            build_team_updates_rows(self._team_updates, self._filter_service)
+        )
+
+    # ── Collection properties ─────────────────────────────────────────
 
     @Property("QVariantMap", notify=inboxChanged)
     def inbox(self) -> dict[str, object]:
@@ -356,6 +302,8 @@ class ProjectManagementCollaborationWorkspaceController(
     def selectedItemDetail(self) -> dict[str, object]:
         return self._selected_item_detail
 
+    # ── Slots ─────────────────────────────────────────────────────────
+
     @Slot()
     def refresh(self) -> None:
         self._set_is_loading(True)
@@ -367,55 +315,37 @@ class ProjectManagementCollaborationWorkspaceController(
                     self._workspace_presenter.build_view_model()
                 )
             )
-            workspace_state = self._collaboration_workspace_presenter.build_workspace_state()
-            self._set_overview(
-                serialize_collaboration_overview_view_model(workspace_state.overview)
-            )
+            ws = self._collaboration_workspace_presenter.build_workspace_state()
+            self._set_overview(serialize_collaboration_overview_view_model(ws.overview))
             self._set_notifications(
-                serialize_collaboration_collection_view_model(
-                    workspace_state.notifications
-                )
+                serialize_collaboration_collection_view_model(ws.notifications)
             )
-            self._set_inbox(
-                serialize_collaboration_collection_view_model(workspace_state.inbox)
-            )
+            self._set_inbox(serialize_collaboration_collection_view_model(ws.inbox))
             self._set_recent_activity(
-                serialize_collaboration_collection_view_model(
-                    workspace_state.recent_activity
-                )
+                serialize_collaboration_collection_view_model(ws.recent_activity)
             )
             self._set_active_presence(
-                serialize_collaboration_collection_view_model(
-                    workspace_state.active_presence
-                )
+                serialize_collaboration_collection_view_model(ws.active_presence)
             )
-            self._set_context(
-                serialize_collaboration_context_view_model(workspace_state.context)
-            )
+            self._set_context(serialize_collaboration_context_view_model(ws.context))
             self._set_panel_tabs(
-                serialize_collaboration_panel_tab_view_models(workspace_state.panel_tabs)
+                serialize_collaboration_panel_tab_view_models(ws.panel_tabs)
             )
-            self._set_mentions(
-                serialize_collaboration_collection_view_model(workspace_state.mentions)
-            )
+            self._set_mentions(serialize_collaboration_collection_view_model(ws.mentions))
             self._set_approvals(
-                serialize_collaboration_collection_view_model(workspace_state.approvals)
+                serialize_collaboration_collection_view_model(ws.approvals)
             )
             self._set_activity_feed(
-                serialize_collaboration_collection_view_model(
-                    workspace_state.activity_feed
-                )
+                serialize_collaboration_collection_view_model(ws.activity_feed)
             )
             self._set_team_updates(
-                serialize_collaboration_collection_view_model(
-                    workspace_state.team_updates
-                )
+                serialize_collaboration_collection_view_model(ws.team_updates)
             )
             self._set_audit_feed(
-                serialize_collaboration_collection_view_model(workspace_state.audit_feed)
+                serialize_collaboration_collection_view_model(ws.audit_feed)
             )
             self._rebuild_panel_item_index()
-            self._set_empty_state(workspace_state.empty_state)
+            self._set_empty_state(ws.empty_state)
         except Exception as exc:  # pragma: no cover - defensive fallback
             logger.exception("Failed to refresh project management collaboration workspace.")
             self._set_error_message(str(exc))
@@ -474,8 +404,11 @@ class ProjectManagementCollaborationWorkspaceController(
 
     @Slot(str, result="QVariantMap")
     def exportPanel(self, panel_id: str) -> dict[str, object]:
-        panel_label = self._panel_label(str(panel_id or ""))
-        message = f"Export is not available here. Open the Reports section to generate {panel_label.lower()} summaries and collaboration exports."
+        label = panel_label(str(panel_id or ""))
+        message = (
+            f"Export is not available here. Open the Reports section to generate "
+            f"{label.lower()} summaries and collaboration exports."
+        )
         self._set_error_message("")
         self._set_feedback_message(message)
         return {"ok": True, "message": message}
@@ -487,27 +420,21 @@ class ProjectManagementCollaborationWorkspaceController(
             self._set_selected_item_detail(
                 serialize_collaboration_detail_view_model(
                     CollaborationDetailViewModel(
-                        id="",
-                        title="",
-                        status_label="",
-                        subtitle="",
-                        description="",
+                        id="", title="", status_label="", subtitle="", description=""
                     )
                 )
             )
             return
-        self._set_selected_item_detail(self._build_detail_payload(panel_id, item))
+        self._set_selected_item_detail(
+            build_detail_payload(panel_id, item, self._panel_item_index)
+        )
 
     @Slot()
     def clearSelection(self) -> None:
         self._set_selected_item_detail(
             serialize_collaboration_detail_view_model(
                 CollaborationDetailViewModel(
-                    id="",
-                    title="",
-                    status_label="",
-                    subtitle="",
-                    description="",
+                    id="", title="", status_label="", subtitle="", description=""
                 )
             )
         )
@@ -519,24 +446,12 @@ class ProjectManagementCollaborationWorkspaceController(
             return ""
         return str(item.get("state", {}).get("routeId") or "")
 
-    def _bind_domain_events(self) -> None:
-        self._subscribe_domain_change(
-            "project",
-            "project_tasks",
-            "task_collaboration",
-            scope_code="project_management",
-        )
-        self._subscribe_domain_signal(
-            domain_events.approvals_changed,
-            self._on_domain_event,
-        )
-        self._subscribe_domain_signal(
-            domain_events.timesheet_periods_changed,
-            self._on_domain_event,
-        )
+    # ── Domain event handler ──────────────────────────────────────────
 
     def _on_domain_event(self, _payload: object) -> None:
         self._request_domain_refresh()
+
+    # ── Internal state management ─────────────────────────────────────
 
     def _rebuild_panel_item_index(self) -> None:
         self._panel_item_index = {}
@@ -548,8 +463,8 @@ class ProjectManagementCollaborationWorkspaceController(
             "team_updates": self._team_updates,
             "audit": self._audit_feed,
         }
-        for panel_id, panel in panel_map.items():
-            self._panel_item_index[panel_id] = {
+        for pid, panel in panel_map.items():
+            self._panel_item_index[pid] = {
                 str(item.get("id") or ""): dict(item)
                 for item in panel.get("items", [])
             }
@@ -559,173 +474,19 @@ class ProjectManagementCollaborationWorkspaceController(
             str(item_id or "")
         )
 
-    def _build_detail_payload(
-        self,
-        panel_id: str,
-        item: dict[str, object],
-    ) -> dict[str, object]:
-        state = dict(item.get("state") or {})
-        project_id = str(state.get("projectId") or "")
-        task_id = str(state.get("taskId") or "")
-        item_id = str(item.get("id") or "")
-        related = []
-        route_id = str(state.get("routeId") or "")
-        if route_id:
-            related.append(
-                {
-                    "id": f"{item_id}:source",
-                    "title": "Open Source Workspace",
-                    "statusLabel": "Navigation",
-                    "subtitle": route_id.replace(".", " / "),
-                    "supportingText": str(item.get("subtitle") or ""),
-                    "metaText": str(item.get("metaText") or ""),
-                    "state": {"routeId": route_id},
-                }
-            )
-        if task_id:
-            related.append(
-                {
-                    "id": f"{item_id}:task",
-                    "title": "Related Task",
-                    "statusLabel": "Task",
-                    "subtitle": task_id,
-                    "supportingText": str(item.get("title") or ""),
-                    "metaText": "",
-                    "state": {"routeId": "project_management.tasks", "taskId": task_id},
-                }
-            )
-        if project_id:
-            related.append(
-                {
-                    "id": f"{item_id}:project",
-                    "title": "Related Project",
-                    "statusLabel": "Project",
-                    "subtitle": project_id,
-                    "supportingText": str(state.get("projectName") or ""),
-                    "metaText": "",
-                    "state": {"routeId": "project_management.projects", "projectId": project_id},
-                }
-            )
-
-        activity_items = self._matching_items_for_task_or_project(
-            source_panels=("activity", "team_updates"),
-            task_id=task_id,
-            project_id=project_id,
-            exclude_item_id=item_id,
+    def _rebuild_all_panel_models(self) -> None:
+        self._table_models.inbox.set_rows(
+            build_inbox_rows(self._notifications, self._filter_service)
         )
-        audit_items = self._matching_items_for_task_or_project(
-            source_panels=("audit", "inbox", "mentions", "approvals"),
-            task_id=task_id,
-            project_id=project_id,
-            exclude_item_id=item_id,
+        self._table_models.mentions.set_rows(
+            build_mentions_rows(self._mentions, self._filter_service)
         )
-        detail = CollaborationDetailViewModel(
-            id=item_id,
-            title=str(item.get("title") or ""),
-            status_label=str(item.get("statusLabel") or ""),
-            subtitle=str(item.get("subtitle") or ""),
-            description=str(item.get("supportingText") or ""),
-            state={
-                "panelId": panel_id,
-                "routeId": route_id,
-                **state,
-            },
-            fields=(
-                CollaborationDetailFieldViewModel("Panel", self._panel_label(panel_id)),
-                CollaborationDetailFieldViewModel(
-                    "Project",
-                    str(state.get("projectName") or state.get("projectId") or "Cross-project"),
-                ),
-                CollaborationDetailFieldViewModel(
-                    "Actor",
-                    str(
-                        state.get("actorUsername")
-                        or state.get("requestor")
-                        or state.get("username")
-                        or "System"
-                    ),
-                ),
-                CollaborationDetailFieldViewModel(
-                    "Created",
-                    str(item.get("metaText") or state.get("createdAt") or "Timestamp unavailable"),
-                ),
-                CollaborationDetailFieldViewModel(
-                    "Source",
-                    str(route_id or "No linked source route"),
-                ),
-            ),
-            activity=CollaborationCollectionViewModel(
-                title="Activity",
-                subtitle="Related workflow and collaboration events.",
-                empty_state="No related activity is available for this collaboration item.",
-                items=tuple(self._to_record_view_model(entry) for entry in activity_items),
-            ),
-            related_items=CollaborationCollectionViewModel(
-                title="Related Items",
-                subtitle="Open the source workspace or review related project records.",
-                empty_state="No related drill-down targets are available for this item.",
-                items=tuple(self._to_record_view_model(entry) for entry in related),
-            ),
-            audit=CollaborationCollectionViewModel(
-                title="Audit",
-                subtitle="Related workflow trace and governance trail.",
-                empty_state="No related audit events were found for this item.",
-                items=tuple(self._to_record_view_model(entry) for entry in audit_items),
-            ),
+        self._table_models.approvals.set_rows(
+            build_approvals_rows(self._approvals, self._filter_service)
         )
-        return serialize_collaboration_detail_view_model(detail)
-
-    def _matching_items_for_task_or_project(
-        self,
-        *,
-        source_panels: tuple[str, ...],
-        task_id: str,
-        project_id: str,
-        exclude_item_id: str,
-    ) -> list[dict[str, object]]:
-        matches: list[dict[str, object]] = []
-        seen_ids: set[str] = set()
-        for panel_id in source_panels:
-            for item in self._panel_item_index.get(panel_id, {}).values():
-                if str(item.get("id") or "") == exclude_item_id:
-                    continue
-                state = dict(item.get("state") or {})
-                same_task = task_id and str(state.get("taskId") or "") == task_id
-                same_project = project_id and str(state.get("projectId") or "") == project_id
-                if not same_task and not same_project:
-                    continue
-                item_id = str(item.get("id") or "")
-                if item_id in seen_ids:
-                    continue
-                seen_ids.add(item_id)
-                matches.append(dict(item))
-        matches.sort(key=lambda entry: str(dict(entry.get("state") or {}).get("createdAt") or ""), reverse=True)
-        return matches[:10]
-
-    @staticmethod
-    def _to_record_view_model(item: dict[str, object]) -> CollaborationRecordViewModel:
-        state = dict(item.get("state") or {})
-        return CollaborationRecordViewModel(
-            id=str(item.get("id") or ""),
-            title=str(item.get("title") or ""),
-            status_label=str(item.get("statusLabel") or ""),
-            subtitle=str(item.get("subtitle") or ""),
-            supporting_text=str(item.get("supportingText") or ""),
-            meta_text=str(item.get("metaText") or ""),
-            state=state,
+        self._table_models.team_updates.set_rows(
+            build_team_updates_rows(self._team_updates, self._filter_service)
         )
-
-    @staticmethod
-    def _panel_label(panel_id: str) -> str:
-        labels = {
-            "inbox": "Inbox",
-            "mentions": "Mentions",
-            "approvals": "Approvals",
-            "activity": "Activity",
-            "team_updates": "Team Updates",
-            "audit": "Audit",
-        }
-        return labels.get(panel_id, "Collaboration")
 
     def _set_overview(self, overview: dict[str, object]) -> None:
         if overview == self._overview:
@@ -733,138 +494,13 @@ class ProjectManagementCollaborationWorkspaceController(
         self._overview = overview
         self.overviewChanged.emit()
 
-    # ── Panel row build helpers ───────────────────────────────────────
-
-    @staticmethod
-    def _title_case(value: str) -> str:
-        raw = str(value or "").replace("_", " ").strip()
-        return " ".join(w.capitalize() for w in raw.split()) if raw else ""
-
-    def _matches_global_filters(self, item: dict) -> bool:
-        state = item.get("state") or {}
-        if self._selected_project_id != "all":
-            if str(state.get("projectId") or "") != self._selected_project_id:
-                return False
-        if self._selected_team_id != "all":
-            key = str(
-                state.get("actorUsername") or state.get("requestor") or state.get("username") or ""
-            )
-            if key != self._selected_team_id:
-                return False
-        if self._selected_unread_key == "unread" and not bool(state.get("unread")):
-            return False
-        if self._selected_unread_key == "attention" and not bool(state.get("attention")):
-            return False
-        return True
-
-    def _matches_search(self, item: dict, search: str) -> bool:
-        if not search:
-            return True
-        term = search.lower()
-        for key in ("title", "subtitle", "supportingText", "metaText", "statusLabel"):
-            if term in str(item.get(key) or "").lower():
-                return True
-        return False
-
-    def _build_inbox_rows(self) -> list[dict]:
-        result = []
-        for item in self._notifications.get("items", []):
-            if not self._matches_global_filters(item):
-                continue
-            if not self._matches_search(item, self._inbox_search_text):
-                continue
-            state = item.get("state") or {}
-            result.append({
-                "id":             item.get("id"),
-                "title":          str(item.get("title") or ""),
-                "workflowType":   self._title_case(state.get("notificationType") or "workflow"),
-                "projectName":    str(state.get("projectName") or "Cross-project"),
-                "supportingText": str(item.get("supportingText") or ""),
-                "statusLabel":    str(item.get("statusLabel") or ""),
-                "subtitle":       str(item.get("subtitle") or ""),
-                "metaText":       str(item.get("metaText") or ""),
-                "state":          dict(state),
-            })
-        return result
-
-    def _build_mentions_rows(self) -> list[dict]:
-        result = []
-        for item in self._mentions.get("items", []):
-            if not self._matches_global_filters(item):
-                continue
-            if not self._matches_search(item, self._mentions_search_text):
-                continue
-            state = item.get("state") or {}
-            actor = state.get("actorUsername") or ""
-            result.append({
-                "id":             item.get("id"),
-                "title":          str(item.get("title") or ""),
-                "sourceName":     str(state.get("taskId") or item.get("subtitle") or ""),
-                "actorLabel":     ("@" + actor) if actor else "",
-                "metaText":       str(item.get("metaText") or ""),
-                "statusLabel":    str(item.get("statusLabel") or ""),
-                "subtitle":       str(item.get("subtitle") or ""),
-                "supportingText": str(item.get("supportingText") or ""),
-                "state":          dict(state),
-            })
-        return result
-
-    def _build_approvals_rows(self) -> list[dict]:
-        result = []
-        for item in self._approvals.get("items", []):
-            if not self._matches_global_filters(item):
-                continue
-            if not self._matches_search(item, self._approvals_search_text):
-                continue
-            state = item.get("state") or {}
-            req = state.get("requestor") or ""
-            result.append({
-                "id":             item.get("id"),
-                "title":          str(item.get("title") or ""),
-                "approvalType":   self._title_case(
-                    state.get("requestType") or state.get("entityType") or "approval"
-                ),
-                "requestor":      ("@" + req) if req else "",
-                "moduleLabel":    str(state.get("moduleLabel") or ""),
-                "statusLabel":    str(item.get("statusLabel") or ""),
-                "subtitle":       str(item.get("subtitle") or ""),
-                "supportingText": str(item.get("supportingText") or ""),
-                "metaText":       str(item.get("metaText") or ""),
-                "state":          dict(state),
-            })
-        return result
-
-    def _build_team_updates_rows(self) -> list[dict]:
-        result = []
-        for item in self._team_updates.get("items", []):
-            if not self._matches_global_filters(item):
-                continue
-            if not self._matches_search(item, self._team_updates_search_text):
-                continue
-            state = item.get("state") or {}
-            result.append({
-                "id":           item.get("id"),
-                "title":        str(item.get("title") or ""),
-                "activityType": self._title_case(state.get("activityType") or ""),
-                "sourceName":   str(state.get("taskName") or item.get("subtitle") or ""),
-                "projectName":  str(state.get("projectName") or ""),
-                "metaText":     str(item.get("metaText") or ""),
-                "statusLabel":  str(item.get("statusLabel") or ""),
-                "state":        dict(state),
-            })
-        return result
-
-    def _rebuild_all_panel_models(self) -> None:
-        self._inbox_table_model.set_rows(self._build_inbox_rows())
-        self._mentions_table_model.set_rows(self._build_mentions_rows())
-        self._approvals_table_model.set_rows(self._build_approvals_rows())
-        self._team_updates_table_model.set_rows(self._build_team_updates_rows())
-
     def _set_notifications(self, notifications: dict[str, object]) -> None:
         if notifications == self._notifications:
             return
         self._notifications = notifications
-        self._inbox_table_model.set_rows(self._build_inbox_rows())
+        self._table_models.inbox.set_rows(
+            build_inbox_rows(self._notifications, self._filter_service)
+        )
         self.notificationsChanged.emit()
 
     def _set_inbox(self, inbox: dict[str, object]) -> None:
@@ -901,14 +537,18 @@ class ProjectManagementCollaborationWorkspaceController(
         if mentions == self._mentions:
             return
         self._mentions = mentions
-        self._mentions_table_model.set_rows(self._build_mentions_rows())
+        self._table_models.mentions.set_rows(
+            build_mentions_rows(self._mentions, self._filter_service)
+        )
         self.mentionsChanged.emit()
 
     def _set_approvals(self, approvals: dict[str, object]) -> None:
         if approvals == self._approvals:
             return
         self._approvals = approvals
-        self._approvals_table_model.set_rows(self._build_approvals_rows())
+        self._table_models.approvals.set_rows(
+            build_approvals_rows(self._approvals, self._filter_service)
+        )
         self.approvalsChanged.emit()
 
     def _set_activity_feed(self, activity_feed: dict[str, object]) -> None:
@@ -921,7 +561,9 @@ class ProjectManagementCollaborationWorkspaceController(
         if team_updates == self._team_updates:
             return
         self._team_updates = team_updates
-        self._team_updates_table_model.set_rows(self._build_team_updates_rows())
+        self._table_models.team_updates.set_rows(
+            build_team_updates_rows(self._team_updates, self._filter_service)
+        )
         self.teamUpdatesChanged.emit()
 
     def _set_audit_feed(self, audit_feed: dict[str, object]) -> None:
@@ -934,8 +576,12 @@ class ProjectManagementCollaborationWorkspaceController(
         if selected_item_detail == self._selected_item_detail:
             return
         self._selected_item_detail = selected_item_detail
-        related = selected_item_detail.get("relatedItems") if isinstance(selected_item_detail, dict) else {}
-        self._related_items_table_model.set_rows(
+        related = (
+            selected_item_detail.get("relatedItems")
+            if isinstance(selected_item_detail, dict)
+            else {}
+        )
+        self._table_models.related_items.set_rows(
             related.get("items", []) if isinstance(related, dict) else []
         )
         self.selectedItemDetailChanged.emit()
