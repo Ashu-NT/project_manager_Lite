@@ -42,6 +42,13 @@ class AuditService:
         resolved_actor_username = actor_username if actor_username is not None else (
             principal.username if principal else None
         )
+        organization_id: str | None = None
+        tenant_context = getattr(self, "_tenant_context_service", None)
+        if tenant_context is not None:
+            try:
+                organization_id = tenant_context.get_active_organization_id()
+            except Exception:
+                pass
         entry = AuditLogEntry.create(
             action=action,
             entity_type=entity_type,
@@ -49,6 +56,7 @@ class AuditService:
             actor_user_id=resolved_actor_user_id,
             actor_username=resolved_actor_username,
             project_id=project_id,
+            organization_id=organization_id,
             details=details or {},
         )
         self._audit_repo.add(entry)

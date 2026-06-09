@@ -35,7 +35,13 @@ class AuditLogORM(Base):
     entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
     entity_id: Mapped[str] = mapped_column(String, nullable=False)
     project_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    organization_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     details_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
 
 
 Index("idx_audit_logs_occurred_at", AuditLogORM.occurred_at)
+Index("idx_audit_logs_organization_occurred", AuditLogORM.organization_id, AuditLogORM.occurred_at)

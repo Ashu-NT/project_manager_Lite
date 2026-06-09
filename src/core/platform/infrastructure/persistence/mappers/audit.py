@@ -38,6 +38,7 @@ def audit_to_orm(entry: AuditLogEntry) -> AuditLogORM:
         entity_type=entry.entity_type,
         entity_id=entry.entity_id,
         project_id=entry.project_id,
+        organization_id=getattr(entry, "organization_id", None),
         details_json=_to_json(entry.details),
     )
 
@@ -52,6 +53,7 @@ def audit_from_orm(obj: AuditLogORM) -> AuditLogEntry:
         entity_type=obj.entity_type,
         entity_id=obj.entity_id,
         project_id=obj.project_id,
+        organization_id=getattr(obj, "organization_id", None),
         details=_from_json(obj.details_json),
     )
 

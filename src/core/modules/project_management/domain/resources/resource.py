@@ -23,6 +23,7 @@ class Resource:
     contact: str = ""
     worker_type: WorkerType = WorkerType.EXTERNAL
     employee_id: Optional[str] = None
+    organization_id: Optional[str] = None
 
     @staticmethod
     def create(
@@ -38,6 +39,7 @@ class Resource:
         worker_type: WorkerType = WorkerType.EXTERNAL,
         employee_id: str | None = None,
         code: str = "",
+        organization_id: str | None = None,
     ) -> "Resource":
         return Resource(
             id=generate_id(),
@@ -53,6 +55,7 @@ class Resource:
             contact=contact,
             worker_type=worker_type,
             employee_id=employee_id,
+            organization_id=organization_id,
         )
 
 

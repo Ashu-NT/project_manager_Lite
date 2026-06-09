@@ -65,21 +65,29 @@ class _ProjectRepo:
 class _ResourceRepo:
     def __init__(self) -> None:
         self.rows = [
-            Resource(id="resource-a", name="A Resource"),
-            Resource(id="resource-b", name="B Resource"),
+            Resource(id="resource-a", name="A Resource", organization_id="org-a"),
+            Resource(id="resource-b", name="B Resource", organization_id="org-b"),
         ]
-        self.by_org = {"org-a": [self.rows[0]], "org-b": [self.rows[1]]}
         self.list_for_organization_calls: list[str] = []
 
     def get(self, resource_id: str):
         return next((row for row in self.rows if row.id == resource_id), None)
+
+    def get_for_organization(self, resource_id: str, organization_id: str):
+        return next(
+            (
+                row for row in self.rows
+                if row.id == resource_id and getattr(row, "organization_id", None) == organization_id
+            ),
+            None,
+        )
 
     def list_all(self):
         return list(self.rows)
 
     def list_for_organization(self, organization_id: str):
         self.list_for_organization_calls.append(organization_id)
-        return list(self.by_org.get(organization_id, ()))
+        return [row for row in self.rows if getattr(row, "organization_id", None) == organization_id]
 
 
 class _PlatformScopedRepo:

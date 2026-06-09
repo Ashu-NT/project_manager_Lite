@@ -17,6 +17,7 @@ class AuditLogEntry:
     entity_type: str
     entity_id: str
     project_id: str | None = None
+    organization_id: str | None = None
     details: dict[str, Any] = field(default_factory=dict)
 
     @staticmethod
@@ -28,6 +29,7 @@ class AuditLogEntry:
         actor_user_id: str | None = None,
         actor_username: str | None = None,
         project_id: str | None = None,
+        organization_id: str | None = None,
         details: dict[str, Any] | None = None,
     ) -> "AuditLogEntry":
         return AuditLogEntry(
@@ -39,6 +41,7 @@ class AuditLogEntry:
             entity_type=entity_type,
             entity_id=entity_id,
             project_id=project_id,
+            organization_id=organization_id,
             details=details or {},
         )
 

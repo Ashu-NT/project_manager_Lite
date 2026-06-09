@@ -119,6 +119,7 @@ class ResourceCommandMixin:
             raise ValidationError("Hourly rate cannot be negative.")
         resolved_currency = (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
         resolved_capacity = _normalize_capacity_percent(capacity_percent)
+        organization_id = self._active_organization_id(operation_label="create resource")
         resolved_code = self._resolve_resource_code(code, resolved_name)
         resource = Resource.create(
             name=resolved_name,
@@ -133,6 +134,7 @@ class ResourceCommandMixin:
             contact=resolved_contact,
             worker_type=resolved_worker_type,
             employee_id=employee_id,
+            organization_id=organization_id,
         )
         try:
             self._resource_repo.add(resource)
@@ -176,10 +178,9 @@ class ResourceCommandMixin:
         code: str | None = None,
     ) -> Resource:
         require_permission(self._user_session, "resource.manage", operation_label="update resource")
-        resource = self._resource_repo.get(resource_id)
+        organization_id = self._active_organization_id(operation_label="update resource")
+        resource = self._resource_repo.get_for_organization(resource_id, organization_id)
         if not resource:
-            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
-        if not self._is_resource_in_active_organization(resource):
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
         if code is not None and code.strip():
             resource.code = self._resolve_resource_code(code, resource.name, exclude_id=resource.id)
@@ -265,10 +266,9 @@ class ResourceCommandMixin:
 
     def delete_resource(self, resource_id: str) -> None:
         require_permission(self._user_session, "resource.manage", operation_label="delete resource")
-        resource = self._resource_repo.get(resource_id)
+        organization_id = self._active_organization_id(operation_label="delete resource")
+        resource = self._resource_repo.get_for_organization(resource_id, organization_id)
         if not resource:
-            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
-        if not self._is_resource_in_active_organization(resource):
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
 
         try:

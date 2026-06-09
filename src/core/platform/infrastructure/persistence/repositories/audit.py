@@ -5,7 +5,6 @@ from typing import List
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.platform.audit.contracts import AuditLogRepository
 from src.core.platform.audit.domain import AuditLogEntry
 from src.core.platform.infrastructure.persistence.mappers.audit import audit_from_orm, audit_to_orm
@@ -43,11 +42,7 @@ class SqlAlchemyAuditLogRepository(AuditLogRepository):
         project_id: str | None = None,
         entity_type: str | None = None,
     ) -> List[AuditLogEntry]:
-        stmt = (
-            select(AuditLogORM)
-            .join(ProjectORM, ProjectORM.id == AuditLogORM.project_id)
-            .where(ProjectORM.organization_id == organization_id)
-        )
+        stmt = select(AuditLogORM).where(AuditLogORM.organization_id == organization_id)
         if project_id is not None:
             stmt = stmt.where(AuditLogORM.project_id == project_id)
         if entity_type is not None:
