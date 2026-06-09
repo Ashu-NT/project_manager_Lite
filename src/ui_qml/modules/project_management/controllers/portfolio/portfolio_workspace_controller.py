@@ -3,14 +3,11 @@ from __future__ import annotations
 import logging
 from time import perf_counter
 
-from PySide6.QtCore import QCoreApplication, Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
-
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
-    run_mutation,
     serialize_portfolio_collection_view_model,
     serialize_portfolio_overview_view_model,
     serialize_portfolio_summary_view_model,
@@ -21,6 +18,14 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
     ProjectPortfolioWorkspacePresenter,
 )
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
+from .domain_event_binder import bind_portfolio_domain_events, portfolio_request_domain_refresh
+from .heatmap_table_controller import HeatmapTableController
+from .mutation_handler import PortfolioMutationHandler
+from .state import default_collection, default_overview, default_summary
+from .table_models import create_portfolio_table_models
+from .utils import normalize_intake_status
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -73,7 +78,16 @@ class ProjectManagementPortfolioWorkspaceController(
         self._portfolio_workspace_presenter = (
             portfolio_workspace_presenter or ProjectPortfolioWorkspacePresenter()
         )
-        self._overview: dict[str, object] = {"title": "", "subtitle": "", "metrics": []}
+        self._table_models = create_portfolio_table_models(self)
+        self._heatmap_ctrl = HeatmapTableController()
+        self._mutations = PortfolioMutationHandler(
+            presenter=self._portfolio_workspace_presenter,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+            request_domain_refresh=self._request_domain_refresh,
+        )
+        self._overview: dict[str, object] = default_overview()
         self._intake_status_options: list[dict[str, str]] = []
         self._template_options: list[dict[str, str]] = []
         self._project_options: list[dict[str, str]] = []
@@ -83,26 +97,20 @@ class ProjectManagementPortfolioWorkspaceController(
         self._selected_scenario_id = ""
         self._selected_base_scenario_id = ""
         self._selected_compare_scenario_id = ""
-        self._heatmap_table_model = DynamicTableModel(self)
-        self._intake_items_table_model = DynamicTableModel(self)
-        self._dependencies_table_model = DynamicTableModel(self)
-        self._intake_items: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
-        self._templates: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
-        self._scenarios: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
-        self._evaluation: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "fields": []}
-        self._comparison: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "fields": []}
-        self._heatmap: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
-        self._dependencies: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
-        self._recent_actions: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
-        self._capacity_pool: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
+        self._intake_items: dict[str, object] = default_collection()
+        self._templates: dict[str, object] = default_collection()
+        self._scenarios: dict[str, object] = default_collection()
+        self._evaluation: dict[str, object] = default_summary()
+        self._comparison: dict[str, object] = default_summary()
+        self._heatmap: dict[str, object] = default_collection()
+        self._dependencies: dict[str, object] = default_collection()
+        self._recent_actions: dict[str, object] = default_collection()
+        self._capacity_pool: dict[str, object] = default_collection()
         self._active_template_summary = ""
-        self._heatmap_search_text = ""
-        self._heatmap_page = 1
-        self._heatmap_page_size = 25
-        self._heatmap_total_count = 0
-        self._heatmap_visible_row_ids: list[str] = []
-        self._bind_domain_events()
+        bind_portfolio_domain_events(self)
         self.refresh()
+
+    # ── Overview and option list properties ──────────────────────────
 
     @Property("QVariantMap", notify=overviewChanged)
     def overview(self) -> dict[str, object]:
@@ -128,6 +136,8 @@ class ProjectManagementPortfolioWorkspaceController(
     def dependencyTypeOptions(self) -> list[dict[str, str]]:
         return self._dependency_type_options
 
+    # ── Selection state properties ────────────────────────────────────
+
     @Property(str, notify=selectedIntakeStatusFilterChanged)
     def selectedIntakeStatusFilter(self) -> str:
         return self._selected_intake_status_filter
@@ -144,21 +154,11 @@ class ProjectManagementPortfolioWorkspaceController(
     def selectedCompareScenarioId(self) -> str:
         return self._selected_compare_scenario_id
 
+    # ── Collection properties ─────────────────────────────────────────
+
     @Property("QVariantMap", notify=intakeItemsChanged)
     def intakeItems(self) -> dict[str, object]:
         return self._intake_items
-
-    @Property(QObject, constant=True)
-    def heatmapTableModel(self) -> DynamicTableModel:
-        return self._heatmap_table_model
-
-    @Property(QObject, constant=True)
-    def intakeItemsTableModel(self) -> DynamicTableModel:
-        return self._intake_items_table_model
-
-    @Property(QObject, constant=True)
-    def portfolioDependenciesTableModel(self) -> DynamicTableModel:
-        return self._dependencies_table_model
 
     @Property("QVariantMap", notify=templatesChanged)
     def templates(self) -> dict[str, object]:
@@ -196,25 +196,43 @@ class ProjectManagementPortfolioWorkspaceController(
     def activeTemplateSummary(self) -> str:
         return self._active_template_summary
 
+    # ── Table model properties ────────────────────────────────────────
+
+    @Property(QObject, constant=True)
+    def heatmapTableModel(self) -> DynamicTableModel:
+        return self._table_models.heatmap
+
+    @Property(QObject, constant=True)
+    def intakeItemsTableModel(self) -> DynamicTableModel:
+        return self._table_models.intake_items
+
+    @Property(QObject, constant=True)
+    def portfolioDependenciesTableModel(self) -> DynamicTableModel:
+        return self._table_models.dependencies
+
+    # ── Heatmap pagination/search properties ─────────────────────────
+
     @Property(str, notify=heatmapSearchTextChanged)
     def heatmapSearchText(self) -> str:
-        return self._heatmap_search_text
+        return self._heatmap_ctrl.search_text
 
     @Property(int, notify=heatmapPageChanged)
     def heatmapPage(self) -> int:
-        return self._heatmap_page
+        return self._heatmap_ctrl.page
 
     @Property(int, notify=heatmapPageSizeChanged)
     def heatmapPageSize(self) -> int:
-        return self._heatmap_page_size
+        return self._heatmap_ctrl.page_size
 
     @Property(int, notify=heatmapTotalCountChanged)
     def heatmapTotalCount(self) -> int:
-        return self._heatmap_total_count
+        return self._heatmap_ctrl.total_count
 
     @Property("QVariantList", notify=heatmapVisibleRowIdsChanged)
     def heatmapVisibleRowIds(self) -> list[str]:
-        return self._heatmap_visible_row_ids
+        return self._heatmap_ctrl.visible_row_ids
+
+    # ── Slots ─────────────────────────────────────────────────────────
 
     @Slot()
     def refresh(self) -> None:
@@ -225,9 +243,9 @@ class ProjectManagementPortfolioWorkspaceController(
             self._selected_scenario_id,
             self._selected_base_scenario_id,
             self._selected_compare_scenario_id,
-            self._heatmap_page,
-            self._heatmap_page_size,
-            self._heatmap_search_text,
+            self._heatmap_ctrl.page,
+            self._heatmap_ctrl.page_size,
+            self._heatmap_ctrl.search_text,
         )
         self._set_is_loading(True)
         success = False
@@ -237,69 +255,45 @@ class ProjectManagementPortfolioWorkspaceController(
             self._set_workspace(
                 serialize_workspace_view_model(self._workspace_presenter.build_view_model())
             )
-            workspace_state = self._portfolio_workspace_presenter.build_workspace_state(
+            ws = self._portfolio_workspace_presenter.build_workspace_state(
                 intake_status_filter=self._selected_intake_status_filter,
                 selected_scenario_id=self._selected_scenario_id or None,
                 base_compare_scenario_id=self._selected_base_scenario_id or None,
                 compare_scenario_id=self._selected_compare_scenario_id or None,
             )
-            self._set_overview(
-                serialize_portfolio_overview_view_model(workspace_state.overview)
-            )
+            self._set_overview(serialize_portfolio_overview_view_model(ws.overview))
             self._set_intake_status_options(
-                serialize_selector_options(workspace_state.intake_status_options)
+                serialize_selector_options(ws.intake_status_options)
             )
-            self._set_template_options(
-                serialize_selector_options(workspace_state.template_options)
-            )
-            self._set_project_options(
-                serialize_selector_options(workspace_state.project_options)
-            )
-            self._set_scenario_options(
-                serialize_selector_options(workspace_state.scenario_options)
-            )
+            self._set_template_options(serialize_selector_options(ws.template_options))
+            self._set_project_options(serialize_selector_options(ws.project_options))
+            self._set_scenario_options(serialize_selector_options(ws.scenario_options))
             self._set_dependency_type_options(
-                serialize_selector_options(workspace_state.dependency_type_options)
+                serialize_selector_options(ws.dependency_type_options)
             )
-            self._set_selected_intake_status_filter(
-                workspace_state.selected_intake_status_filter
-            )
-            self._set_selected_scenario_id(workspace_state.selected_scenario_id)
-            self._set_selected_base_scenario_id(
-                workspace_state.selected_base_scenario_id
-            )
-            self._set_selected_compare_scenario_id(
-                workspace_state.selected_compare_scenario_id
-            )
+            self._set_selected_intake_status_filter(ws.selected_intake_status_filter)
+            self._set_selected_scenario_id(ws.selected_scenario_id)
+            self._set_selected_base_scenario_id(ws.selected_base_scenario_id)
+            self._set_selected_compare_scenario_id(ws.selected_compare_scenario_id)
             self._set_intake_items(
-                serialize_portfolio_collection_view_model(workspace_state.intake_items)
+                serialize_portfolio_collection_view_model(ws.intake_items)
             )
-            self._set_templates(
-                serialize_portfolio_collection_view_model(workspace_state.templates)
-            )
-            self._set_scenarios(
-                serialize_portfolio_collection_view_model(workspace_state.scenarios)
-            )
-            self._set_evaluation(
-                serialize_portfolio_summary_view_model(workspace_state.evaluation)
-            )
-            self._set_comparison(
-                serialize_portfolio_summary_view_model(workspace_state.comparison)
-            )
-            self._set_heatmap(
-                serialize_portfolio_collection_view_model(workspace_state.heatmap)
-            )
+            self._set_templates(serialize_portfolio_collection_view_model(ws.templates))
+            self._set_scenarios(serialize_portfolio_collection_view_model(ws.scenarios))
+            self._set_evaluation(serialize_portfolio_summary_view_model(ws.evaluation))
+            self._set_comparison(serialize_portfolio_summary_view_model(ws.comparison))
+            self._set_heatmap(serialize_portfolio_collection_view_model(ws.heatmap))
             self._set_dependencies(
-                serialize_portfolio_collection_view_model(workspace_state.dependencies)
+                serialize_portfolio_collection_view_model(ws.dependencies)
             )
             self._set_recent_actions(
-                serialize_portfolio_collection_view_model(workspace_state.recent_actions)
+                serialize_portfolio_collection_view_model(ws.recent_actions)
             )
             self._set_capacity_pool(
-                serialize_portfolio_collection_view_model(workspace_state.capacity_pool)
+                serialize_portfolio_collection_view_model(ws.capacity_pool)
             )
-            self._set_active_template_summary(workspace_state.active_template_summary)
-            self._set_empty_state(workspace_state.empty_state)
+            self._set_active_template_summary(ws.active_template_summary)
+            self._set_empty_state(ws.empty_state)
             success = True
         except Exception as exc:  # pragma: no cover - defensive fallback
             logger.exception("PM portfolio refresh failed")
@@ -312,70 +306,70 @@ class ProjectManagementPortfolioWorkspaceController(
                 success,
                 duration_ms,
                 len(self._intake_items.get("items", []) or []),
-                self._heatmap_total_count,
+                self._heatmap_ctrl.total_count,
                 self._selected_scenario_id,
             )
             self._set_is_loading(False)
 
     @Slot(str)
     def setIntakeStatusFilter(self, intake_status_filter: str) -> None:
-        normalized_value = (intake_status_filter or "").strip().upper() or "ALL"
-        if normalized_value.lower() == self._selected_intake_status_filter.lower():
+        normalized = normalize_intake_status(intake_status_filter)
+        if normalized.lower() == self._selected_intake_status_filter.lower():
             return
-        self._set_selected_intake_status_filter(normalized_value.lower() if normalized_value == "ALL" else normalized_value)
+        self._set_selected_intake_status_filter(normalized)
         self.refresh()
 
     @Slot(str)
     def selectScenario(self, scenario_id: str) -> None:
-        normalized_value = (scenario_id or "").strip()
-        if normalized_value == self._selected_scenario_id:
+        normalized = (scenario_id or "").strip()
+        if normalized == self._selected_scenario_id:
             return
-        self._set_selected_scenario_id(normalized_value)
+        self._set_selected_scenario_id(normalized)
         self.refresh()
 
     @Slot(str)
     def selectCompareBase(self, scenario_id: str) -> None:
-        normalized_value = (scenario_id or "").strip()
-        if normalized_value == self._selected_base_scenario_id:
+        normalized = (scenario_id or "").strip()
+        if normalized == self._selected_base_scenario_id:
             return
-        self._set_selected_base_scenario_id(normalized_value)
+        self._set_selected_base_scenario_id(normalized)
         self.refresh()
 
     @Slot(str)
     def selectCompareScenario(self, scenario_id: str) -> None:
-        normalized_value = (scenario_id or "").strip()
-        if normalized_value == self._selected_compare_scenario_id:
+        normalized = (scenario_id or "").strip()
+        if normalized == self._selected_compare_scenario_id:
             return
-        self._set_selected_compare_scenario_id(normalized_value)
+        self._set_selected_compare_scenario_id(normalized)
         self.refresh()
 
     @Slot(str)
     def setHeatmapSearchText(self, search_text: str) -> None:
-        normalized_value = (search_text or "").strip()
-        if normalized_value == self._heatmap_search_text:
+        normalized = (search_text or "").strip()
+        if normalized == self._heatmap_ctrl.search_text:
             return
-        self._heatmap_search_text = normalized_value
-        self._heatmap_page = 1
+        self._heatmap_ctrl.search_text = normalized
+        self._heatmap_ctrl.page = 1
         self.heatmapSearchTextChanged.emit()
         self.heatmapPageChanged.emit()
         self._rebuild_heatmap_table_model()
 
     @Slot(int)
     def setHeatmapPage(self, page: int) -> None:
-        normalized_page = max(1, int(page or 1))
-        if normalized_page == self._heatmap_page:
+        normalized = max(1, int(page or 1))
+        if normalized == self._heatmap_ctrl.page:
             return
-        self._heatmap_page = normalized_page
+        self._heatmap_ctrl.page = normalized
         self.heatmapPageChanged.emit()
         self._rebuild_heatmap_table_model()
 
     @Slot(int)
     def setHeatmapPageSize(self, page_size: int) -> None:
-        normalized_page_size = max(1, int(page_size or 25))
-        if normalized_page_size == self._heatmap_page_size:
+        normalized = max(1, int(page_size or 25))
+        if normalized == self._heatmap_ctrl.page_size:
             return
-        self._heatmap_page_size = normalized_page_size
-        self._heatmap_page = 1
+        self._heatmap_ctrl.page_size = normalized
+        self._heatmap_ctrl.page = 1
         self.heatmapPageSizeChanged.emit()
         self.heatmapPageChanged.emit()
         self._rebuild_heatmap_table_model()
@@ -389,111 +383,47 @@ class ProjectManagementPortfolioWorkspaceController(
 
     @Slot("QVariantMap", result="QVariantMap")
     def createTemplate(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._portfolio_workspace_presenter.create_template(dict(payload)),
-            success_message="Scoring template created.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._mutations.create_template(payload)
 
     @Slot(str, result="QVariantMap")
     def activateTemplate(self, template_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._portfolio_workspace_presenter.activate_template(template_id),
-            success_message="Scoring template activated.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._mutations.activate_template(template_id)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createIntakeItem(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._portfolio_workspace_presenter.create_intake_item(dict(payload)),
-            success_message="Intake item created.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._mutations.create_intake_item(payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createScenario(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._portfolio_workspace_presenter.create_scenario(dict(payload)),
-            success_message="Scenario saved.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._mutations.create_scenario(payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createDependency(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._portfolio_workspace_presenter.create_dependency(dict(payload)),
-            success_message="Dependency created.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._mutations.create_dependency(payload)
 
     @Slot(str, result="QVariantMap")
     def removeDependency(self, dependency_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._portfolio_workspace_presenter.remove_dependency(dependency_id),
-            success_message="Dependency removed.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._mutations.remove_dependency(dependency_id)
 
     @Slot(str, str, result="QVariantMap")
-    def updateIntakeItemStatus(
-        self,
-        item_id: str,
-        status: str,
-    ) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._portfolio_workspace_presenter.update_intake_item_status(
-                item_id, status
-            ),
-            success_message="Intake item status updated.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+    def updateIntakeItemStatus(self, item_id: str, status: str) -> dict[str, object]:
+        return self._mutations.update_intake_item_status(item_id, status)
 
-    def _bind_domain_events(self) -> None:
-        self._subscribe_domain_change(
-            "portfolio_entity",
-            "project",
-            "project_tasks",
-            "project_costs",
-            "resource",
-            scope_code="project_management",
-        )
+    # ── Domain event overrides ────────────────────────────────────────
 
     def _request_domain_refresh(self) -> None:
-        if QCoreApplication.instance() is None:
-            super()._request_domain_refresh()
-            return
-        self._pending_domain_refresh = True
-        if self._is_loading or self._is_busy:
-            logger.debug("PM portfolio domain refresh queued while busy/loading")
-            return
-        if self._domain_refresh_scheduled:
-            logger.debug("PM portfolio domain refresh coalesced; refresh already scheduled")
-            return
-        self._domain_refresh_scheduled = True
-        logger.debug("PM portfolio domain refresh scheduled")
-        self._domain_refresh_timer.start(0)
+        portfolio_request_domain_refresh(self, super()._request_domain_refresh)
+
+    # ── Internal state management ─────────────────────────────────────
+
+    def _rebuild_heatmap_table_model(self) -> None:
+        self._heatmap_ctrl.rebuild(
+            heatmap_items=self._heatmap.get("items", []) or [],
+            table_model=self._table_models.heatmap,
+            emit_page_changed=self.heatmapPageChanged.emit,
+            emit_total_count_changed=self.heatmapTotalCountChanged.emit,
+            emit_visible_ids_changed=self.heatmapVisibleRowIdsChanged.emit,
+        )
 
     def _set_overview(self, overview: dict[str, object]) -> None:
         if overview == self._overview:
@@ -525,41 +455,43 @@ class ProjectManagementPortfolioWorkspaceController(
         self._scenario_options = scenario_options
         self.scenarioOptionsChanged.emit()
 
-    def _set_dependency_type_options(self, dependency_type_options: list[dict[str, str]]) -> None:
+    def _set_dependency_type_options(
+        self, dependency_type_options: list[dict[str, str]]
+    ) -> None:
         if dependency_type_options == self._dependency_type_options:
             return
         self._dependency_type_options = dependency_type_options
         self.dependencyTypeOptionsChanged.emit()
 
-    def _set_selected_intake_status_filter(self, selected_intake_status_filter: str) -> None:
-        if selected_intake_status_filter == self._selected_intake_status_filter:
+    def _set_selected_intake_status_filter(self, value: str) -> None:
+        if value == self._selected_intake_status_filter:
             return
-        self._selected_intake_status_filter = selected_intake_status_filter
+        self._selected_intake_status_filter = value
         self.selectedIntakeStatusFilterChanged.emit()
 
-    def _set_selected_scenario_id(self, selected_scenario_id: str) -> None:
-        if selected_scenario_id == self._selected_scenario_id:
+    def _set_selected_scenario_id(self, value: str) -> None:
+        if value == self._selected_scenario_id:
             return
-        self._selected_scenario_id = selected_scenario_id
+        self._selected_scenario_id = value
         self.selectedScenarioIdChanged.emit()
 
-    def _set_selected_base_scenario_id(self, selected_base_scenario_id: str) -> None:
-        if selected_base_scenario_id == self._selected_base_scenario_id:
+    def _set_selected_base_scenario_id(self, value: str) -> None:
+        if value == self._selected_base_scenario_id:
             return
-        self._selected_base_scenario_id = selected_base_scenario_id
+        self._selected_base_scenario_id = value
         self.selectedBaseScenarioIdChanged.emit()
 
-    def _set_selected_compare_scenario_id(self, selected_compare_scenario_id: str) -> None:
-        if selected_compare_scenario_id == self._selected_compare_scenario_id:
+    def _set_selected_compare_scenario_id(self, value: str) -> None:
+        if value == self._selected_compare_scenario_id:
             return
-        self._selected_compare_scenario_id = selected_compare_scenario_id
+        self._selected_compare_scenario_id = value
         self.selectedCompareScenarioIdChanged.emit()
 
     def _set_intake_items(self, intake_items: dict[str, object]) -> None:
         if intake_items == self._intake_items:
             return
         self._intake_items = intake_items
-        self._intake_items_table_model.set_rows(intake_items.get("items", []))
+        self._table_models.intake_items.set_rows(intake_items.get("items", []))
         self.intakeItemsChanged.emit()
 
     def _set_templates(self, templates: dict[str, object]) -> None:
@@ -597,7 +529,7 @@ class ProjectManagementPortfolioWorkspaceController(
         if dependencies == self._dependencies:
             return
         self._dependencies = dependencies
-        self._dependencies_table_model.set_rows(dependencies.get("items", []))
+        self._table_models.dependencies.set_rows(dependencies.get("items", []))
         self.dependenciesChanged.emit()
 
     def _set_recent_actions(self, recent_actions: dict[str, object]) -> None:
@@ -617,39 +549,6 @@ class ProjectManagementPortfolioWorkspaceController(
             return
         self._active_template_summary = active_template_summary
         self.activeTemplateSummaryChanged.emit()
-
-    def _rebuild_heatmap_table_model(self) -> None:
-        items = list(self._heatmap.get("items", []) or [])
-        search_text = self._heatmap_search_text.casefold()
-        if search_text:
-            items = [
-                item
-                for item in items
-                if search_text in str(item.get("title", "")).casefold()
-            ]
-
-        total_count = len(items)
-        max_page = max(1, (total_count + self._heatmap_page_size - 1) // self._heatmap_page_size)
-        if self._heatmap_page > max_page:
-            self._heatmap_page = max_page
-            self.heatmapPageChanged.emit()
-
-        start = (self._heatmap_page - 1) * self._heatmap_page_size
-        page_rows = items[start : start + self._heatmap_page_size]
-        self._heatmap_table_model.set_rows(page_rows)
-
-        if total_count != self._heatmap_total_count:
-            self._heatmap_total_count = total_count
-            self.heatmapTotalCountChanged.emit()
-
-        visible_row_ids = [
-            str(item.get("id", "") or "")
-            for item in page_rows
-            if str(item.get("id", "") or "")
-        ]
-        if visible_row_ids != self._heatmap_visible_row_ids:
-            self._heatmap_visible_row_ids = visible_row_ids
-            self.heatmapVisibleRowIdsChanged.emit()
 
 
 __all__ = ["ProjectManagementPortfolioWorkspaceController"]
