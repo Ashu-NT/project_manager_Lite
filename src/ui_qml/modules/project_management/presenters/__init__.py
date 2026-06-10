@@ -17,10 +17,10 @@ from src.ui_qml.modules.project_management.presenters.portfolio import (
 from src.ui_qml.modules.project_management.presenters.projects import (
     ProjectProjectsWorkspacePresenter,
 )
-from src.ui_qml.modules.project_management.presenters.register_workspace_presenter import (
+from src.ui_qml.modules.project_management.presenters.register import (
     ProjectRegisterWorkspacePresenter,
 )
-from src.ui_qml.modules.project_management.presenters.resources_workspace_presenter import (
+from src.ui_qml.modules.project_management.presenters.resources import (
     ProjectResourcesWorkspacePresenter,
 )
 from src.ui_qml.modules.project_management.presenters.scheduling import (
