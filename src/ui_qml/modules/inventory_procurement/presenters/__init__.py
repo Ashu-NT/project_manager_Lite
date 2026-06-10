@@ -12,7 +12,7 @@ from src.ui_qml.modules.inventory_procurement.presenters.inventory import (
 from src.ui_qml.modules.inventory_procurement.presenters.pricing_workspace_presenter import (
     InventoryPricingWorkspacePresenter,
 )
-from src.ui_qml.modules.inventory_procurement.presenters.procurement_workspace_presenter import (
+from src.ui_qml.modules.inventory_procurement.presenters.procurement import (
     InventoryProcurementProcurementWorkspacePresenter,
 )
 from src.ui_qml.modules.inventory_procurement.presenters.reservations_workspace_presenter import (
