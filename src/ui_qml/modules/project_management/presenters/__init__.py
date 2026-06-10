@@ -2,10 +2,8 @@
 from src.ui_qml.modules.project_management.presenters.collaboration import (
     ProjectCollaborationWorkspacePresenter,
 )
-from src.ui_qml.modules.project_management.presenters.dashboard_presenter import (
+from src.ui_qml.modules.project_management.presenters.dashboard import (
     ProjectDashboardPresenter,
-)
-from src.ui_qml.modules.project_management.presenters.dashboard_workspace_presenter import (
     ProjectDashboardWorkspacePresenter,
 )
 from src.ui_qml.modules.project_management.presenters.financials import (
@@ -26,7 +24,7 @@ from src.ui_qml.modules.project_management.presenters.resources import (
 from src.ui_qml.modules.project_management.presenters.scheduling import (
     ProjectSchedulingWorkspacePresenter,
 )
-from src.ui_qml.modules.project_management.presenters.tasks_workspace_presenter import (
+from src.ui_qml.modules.project_management.presenters.tasks import (
     ProjectTasksWorkspacePresenter,
 )
 from src.ui_qml.modules.project_management.presenters.timesheets import (
