@@ -6,7 +6,7 @@ from src.ui_qml.modules.inventory_procurement.presenters.catalog import (
 from src.ui_qml.modules.inventory_procurement.presenters.dashboard_workspace_presenter import (
     InventoryDashboardWorkspacePresenter,
 )
-from src.ui_qml.modules.inventory_procurement.presenters.inventory_workspace_presenter import (
+from src.ui_qml.modules.inventory_procurement.presenters.inventory import (
     InventoryInventoryWorkspacePresenter,
 )
 from src.ui_qml.modules.inventory_procurement.presenters.pricing_workspace_presenter import (
