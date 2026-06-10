@@ -3,21 +3,93 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
     InventoryProcurementWorkspaceControllerBase,
-    run_mutation,
-    serialize_audit_entries_for_activity,
-    serialize_catalog_detail_view_model,
-    serialize_catalog_overview_view_model,
-    serialize_record_view_models,
-    serialize_selector_options,
-    serialize_workspace_view_model,
 )
 from src.ui_qml.modules.inventory_procurement.presenters import (
     InventoryProcurementProcurementWorkspacePresenter,
     InventoryProcurementWorkspacePresenter,
 )
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
+from .procurement_activity_handler import load_detail_activity
+from .procurement_bulk_handler import (
+    clear_purchase_order_bulk_selection,
+    clear_requisition_bulk_selection,
+    select_visible_purchase_orders,
+    select_visible_requisitions,
+    set_purchase_order_bulk_selection,
+    set_requisition_bulk_selection,
+)
+from .procurement_domain_event_binder import bind_domain_events
+from .procurement_export_handler import export_table, is_requisitions_view
+from .procurement_filter_handler import (
+    clear_filters,
+    set_purchase_order_status_filter,
+    set_requisition_status_filter,
+    set_search_text,
+    set_site_filter,
+    set_storeroom_filter,
+    set_supplier_filter,
+)
+from .procurement_purchase_order_handler import (
+    add_purchase_order_line,
+    cancel_purchase_order,
+    close_purchase_order,
+    create_purchase_order,
+    send_purchase_order,
+    submit_purchase_order,
+    update_purchase_order,
+)
+from .procurement_receipt_handler import post_receipt
+from .procurement_refresh_service import refresh as _do_refresh
+from .procurement_requisition_handler import (
+    add_requisition_line,
+    cancel_requisition,
+    create_requisition,
+    submit_requisition,
+    update_requisition,
+)
+from .procurement_selection_handler import (
+    select_purchase_order,
+    select_requisition,
+    set_active_view,
+    set_purchase_order_page,
+    set_purchase_order_page_size,
+    set_requisition_page,
+    set_requisition_page_size,
+)
+from .procurement_state import default_collection, default_detail, default_overview
+from .procurement_state_setters import (
+    set_detail_activity_items,
+    set_item_options,
+    set_overview,
+    set_purchase_order_lines,
+    set_purchase_order_status_options,
+    set_purchase_orders,
+    set_receipts,
+    set_requisition_line_options,
+    set_requisition_lines,
+    set_requisition_options,
+    set_requisition_status_options,
+    set_requisitions,
+    set_search_text as _set_search_text_setter,
+    set_selected_purchase_order,
+    set_selected_purchase_order_id,
+    set_selected_purchase_order_ids,
+    set_selected_purchase_order_status_filter,
+    set_selected_requisition,
+    set_selected_requisition_id,
+    set_selected_requisition_ids,
+    set_selected_requisition_status_filter,
+    set_selected_site_filter,
+    set_selected_storeroom_filter,
+    set_selected_supplier_filter,
+    set_site_options,
+    set_storeroom_options,
+    set_supplier_options,
+)
+from .procurement_table_models import create_procurement_table_models
 
 QML_IMPORT_NAME = "InventoryProcurement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -52,7 +124,6 @@ class InventoryProcurementProcurementWorkspaceController(
     selectedPurchaseOrderIdChanged = Signal()
     purchaseOrderLinesChanged = Signal()
     receiptsChanged = Signal()
-    # pagination + bulk + view
     requisitionPageChanged = Signal()
     requisitionPageSizeChanged = Signal()
     selectedRequisitionIdsChanged = Signal()
@@ -72,14 +143,17 @@ class InventoryProcurementProcurementWorkspaceController(
         parent=None,
     ) -> None:
         super().__init__(parent)
-        self._workspace_presenter = workspace_presenter or InventoryProcurementWorkspacePresenter(
-            "inventory_procurement.procurement"
+        self._workspace_presenter = (
+            workspace_presenter
+            or InventoryProcurementWorkspacePresenter(
+                "inventory_procurement.procurement"
+            )
         )
         self._procurement_workspace_presenter = (
             procurement_workspace_presenter
             or InventoryProcurementProcurementWorkspacePresenter()
         )
-        self._overview: dict[str, object] = {"title": "", "subtitle": "", "metrics": []}
+        self._overview: dict[str, object] = default_overview()
         self._site_options: list[dict[str, str]] = []
         self._storeroom_options: list[dict[str, str]] = []
         self._supplier_options: list[dict[str, str]] = []
@@ -94,66 +168,22 @@ class InventoryProcurementProcurementWorkspaceController(
         self._selected_requisition_status_filter = "all"
         self._selected_purchase_order_status_filter = "all"
         self._search_text = ""
-        self._requisitions_table_model = DynamicTableModel(self)
-        self._purchase_orders_table_model = DynamicTableModel(self)
-        self._requisitions: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._selected_requisition: dict[str, object] = {
-            "id": "",
-            "title": "",
-            "statusLabel": "",
-            "subtitle": "",
-            "description": "",
-            "emptyState": "",
-            "fields": [],
-            "linkedDocuments": [],
-            "state": {},
-        }
+        (
+            self._requisitions_table_model,
+            self._purchase_orders_table_model,
+            self._requisition_lines_table_model,
+            self._purchase_order_lines_table_model,
+            self._receipts_table_model,
+        ) = create_procurement_table_models(self)
+        self._requisitions: dict[str, object] = default_collection()
+        self._selected_requisition: dict[str, object] = default_detail()
         self._selected_requisition_id = ""
-        self._requisition_lines_table_model = DynamicTableModel(self)
-        self._purchase_order_lines_table_model = DynamicTableModel(self)
-        self._receipts_table_model = DynamicTableModel(self)
-        self._requisition_lines: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._purchase_orders: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._selected_purchase_order: dict[str, object] = {
-            "id": "",
-            "title": "",
-            "statusLabel": "",
-            "subtitle": "",
-            "description": "",
-            "emptyState": "",
-            "fields": [],
-            "linkedDocuments": [],
-            "state": {},
-        }
+        self._requisition_lines: dict[str, object] = default_collection()
+        self._purchase_orders: dict[str, object] = default_collection()
+        self._selected_purchase_order: dict[str, object] = default_detail()
         self._selected_purchase_order_id = ""
-        self._purchase_order_lines: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._receipts: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        # pagination + bulk + view state
+        self._purchase_order_lines: dict[str, object] = default_collection()
+        self._receipts: dict[str, object] = default_collection()
         self._requisition_page = 1
         self._requisition_page_size = 25
         self._selected_requisition_ids: list[str] = []
@@ -163,8 +193,10 @@ class InventoryProcurementProcurementWorkspaceController(
         self._active_view = "requisitions"
         self._platform_audit = platform_audit
         self._detail_activity_items: list[dict[str, object]] = []
-        self._bind_domain_events()
+        bind_domain_events(self)
         self.refresh()
+
+    # ── Properties ───────────────────────────────────────────────────
 
     @Property("QVariantMap", notify=overviewChanged)
     def overview(self) -> dict[str, object]:
@@ -234,16 +266,6 @@ class InventoryProcurementProcurementWorkspaceController(
     def requisitionsTableModel(self) -> DynamicTableModel:
         return self._requisitions_table_model
 
-    @Slot("QVariantList", str, result="QVariantMap")
-    def exportTable(self, columns: list, file_path: str) -> dict[str, object]:
-        from src.ui_qml.modules.project_management.utils.table_exporter import export_to_file
-        model = self._requisitions_table_model if self._is_requisitions_view else self._purchase_orders_table_model
-        return export_to_file(list(model._rows), list(columns), (file_path or "").strip())
-
-    @property
-    def _is_requisitions_view(self) -> bool:
-        return getattr(self, "_active_view", "requisitions") != "purchase_orders"
-
     @Property("QVariantMap", notify=selectedRequisitionChanged)
     def selectedRequisition(self) -> dict[str, object]:
         return self._selected_requisition
@@ -259,14 +281,6 @@ class InventoryProcurementProcurementWorkspaceController(
     @Property(QObject, constant=True)
     def requisitionLinesTableModel(self) -> DynamicTableModel:
         return self._requisition_lines_table_model
-
-    @Property(QObject, constant=True)
-    def purchaseOrderLinesTableModel(self) -> DynamicTableModel:
-        return self._purchase_order_lines_table_model
-
-    @Property(QObject, constant=True)
-    def receiptsTableModel(self) -> DynamicTableModel:
-        return self._receipts_table_model
 
     @Property("QVariantMap", notify=purchaseOrdersChanged)
     def purchaseOrders(self) -> dict[str, object]:
@@ -288,393 +302,17 @@ class InventoryProcurementProcurementWorkspaceController(
     def purchaseOrderLines(self) -> dict[str, object]:
         return self._purchase_order_lines
 
+    @Property(QObject, constant=True)
+    def purchaseOrderLinesTableModel(self) -> DynamicTableModel:
+        return self._purchase_order_lines_table_model
+
     @Property("QVariantMap", notify=receiptsChanged)
     def receipts(self) -> dict[str, object]:
         return self._receipts
 
-    @Slot()
-    def refresh(self) -> None:
-        self._set_is_loading(True)
-        try:
-            self._set_error_message("")
-            self._set_feedback_message("")
-            self._set_workspace(
-                serialize_workspace_view_model(
-                    self._workspace_presenter.build_view_model()
-                )
-            )
-            workspace_state = (
-                self._procurement_workspace_presenter.build_workspace_state(
-                    search_text=self._search_text,
-                    site_filter=self._selected_site_filter,
-                    storeroom_filter=self._selected_storeroom_filter,
-                    supplier_filter=self._selected_supplier_filter,
-                    requisition_status_filter=self._selected_requisition_status_filter,
-                    purchase_order_status_filter=self._selected_purchase_order_status_filter,
-                    selected_requisition_id=self._selected_requisition_id or None,
-                    selected_purchase_order_id=self._selected_purchase_order_id or None,
-                )
-            )
-            self._set_overview(
-                serialize_catalog_overview_view_model(workspace_state.overview)
-            )
-            self._set_site_options(
-                serialize_selector_options(workspace_state.site_options)
-            )
-            self._set_storeroom_options(
-                serialize_selector_options(workspace_state.storeroom_options)
-            )
-            self._set_supplier_options(
-                serialize_selector_options(workspace_state.supplier_options)
-            )
-            self._set_requisition_status_options(
-                serialize_selector_options(workspace_state.requisition_status_options)
-            )
-            self._set_purchase_order_status_options(
-                serialize_selector_options(
-                    workspace_state.purchase_order_status_options
-                )
-            )
-            self._set_item_options(
-                serialize_selector_options(workspace_state.item_options)
-            )
-            self._set_requisition_options(
-                serialize_selector_options(workspace_state.requisition_options)
-            )
-            self._set_requisition_line_options(
-                serialize_selector_options(workspace_state.requisition_line_options)
-            )
-            self._set_selected_site_filter(workspace_state.selected_site_filter)
-            self._set_selected_storeroom_filter(
-                workspace_state.selected_storeroom_filter
-            )
-            self._set_selected_supplier_filter(
-                workspace_state.selected_supplier_filter
-            )
-            self._set_selected_requisition_status_filter(
-                workspace_state.selected_requisition_status_filter
-            )
-            self._set_selected_purchase_order_status_filter(
-                workspace_state.selected_purchase_order_status_filter
-            )
-            self._set_search_text(workspace_state.search_text)
-            self._set_requisitions(
-                {
-                    "title": "Requisitions",
-                    "subtitle": (
-                        "Capture internal supply demand, add line-level item needs, "
-                        "and move draft demand into approvals."
-                    ),
-                    "emptyState": workspace_state.requisitions_empty_state,
-                    "items": serialize_record_view_models(workspace_state.requisitions),
-                }
-            )
-            self._set_selected_requisition_id(
-                workspace_state.selected_requisition_id
-            )
-            self._set_selected_requisition(
-                serialize_catalog_detail_view_model(
-                    workspace_state.selected_requisition_detail
-                )
-            )
-            self._set_requisition_lines(
-                {
-                    "title": "Requisition Lines",
-                    "subtitle": (
-                        "Demand lines that will later be converted into supplier-facing "
-                        "procurement commitments."
-                    ),
-                    "emptyState": workspace_state.requisition_lines_empty_state,
-                    "items": serialize_record_view_models(
-                        workspace_state.requisition_lines
-                    ),
-                }
-            )
-            self._set_purchase_orders(
-                {
-                    "title": "Purchase Orders",
-                    "subtitle": (
-                        "Commit approved demand to suppliers, track approval state, and "
-                        "prepare orders for receiving."
-                    ),
-                    "emptyState": workspace_state.purchase_orders_empty_state,
-                    "items": serialize_record_view_models(
-                        workspace_state.purchase_orders
-                    ),
-                }
-            )
-            self._set_selected_purchase_order_id(
-                workspace_state.selected_purchase_order_id
-            )
-            self._set_selected_purchase_order(
-                serialize_catalog_detail_view_model(
-                    workspace_state.selected_purchase_order_detail
-                )
-            )
-            self._set_purchase_order_lines(
-                {
-                    "title": "Purchase-Order Lines",
-                    "subtitle": (
-                        "Receiving destinations, ordered quantities, and outstanding "
-                        "supplier commitments on the selected order."
-                    ),
-                    "emptyState": workspace_state.purchase_order_lines_empty_state,
-                    "items": serialize_record_view_models(
-                        workspace_state.purchase_order_lines
-                    ),
-                }
-            )
-            self._set_receipts(
-                {
-                    "title": "Receipt History",
-                    "subtitle": (
-                        "Posted receiving transactions for the selected purchase order, "
-                        "including accepted and rejected quantities."
-                    ),
-                    "emptyState": workspace_state.receipts_empty_state,
-                    "items": serialize_record_view_models(workspace_state.receipts),
-                }
-            )
-            self._set_empty_state(workspace_state.empty_state)
-        except Exception as exc:  # pragma: no cover - defensive fallback
-            self._set_error_message(str(exc))
-        finally:
-            self._set_is_loading(False)
-
-    @Slot(str)
-    def setSearchText(self, search_text: str) -> None:
-        normalized = (search_text or "").strip()
-        if normalized == self._search_text:
-            return
-        self._set_search_text(normalized)
-        self.refresh()
-
-    @Slot(str)
-    def setSiteFilter(self, site_id: str) -> None:
-        normalized = (site_id or "").strip() or "all"
-        if normalized == self._selected_site_filter:
-            return
-        self._set_selected_site_filter(normalized)
-        self.refresh()
-
-    @Slot(str)
-    def setStoreroomFilter(self, storeroom_id: str) -> None:
-        normalized = (storeroom_id or "").strip() or "all"
-        if normalized == self._selected_storeroom_filter:
-            return
-        self._set_selected_storeroom_filter(normalized)
-        self.refresh()
-
-    @Slot(str)
-    def setSupplierFilter(self, supplier_id: str) -> None:
-        normalized = (supplier_id or "").strip() or "all"
-        if normalized == self._selected_supplier_filter:
-            return
-        self._set_selected_supplier_filter(normalized)
-        self.refresh()
-
-    @Slot(str)
-    def setRequisitionStatusFilter(self, status: str) -> None:
-        normalized = (status or "").strip() or "all"
-        if normalized == self._selected_requisition_status_filter:
-            return
-        self._set_selected_requisition_status_filter(normalized)
-        self.refresh()
-
-    @Slot(str)
-    def setPurchaseOrderStatusFilter(self, status: str) -> None:
-        normalized = (status or "").strip() or "all"
-        if normalized == self._selected_purchase_order_status_filter:
-            return
-        self._set_selected_purchase_order_status_filter(normalized)
-        self.refresh()
-
-    @Slot(str)
-    def selectRequisition(self, requisition_id: str) -> None:
-        normalized = (requisition_id or "").strip()
-        if normalized == self._selected_requisition_id:
-            return
-        self._set_selected_requisition_id(normalized)
-        self.refresh()
-
-    @Slot(str)
-    def selectPurchaseOrder(self, purchase_order_id: str) -> None:
-        normalized = (purchase_order_id or "").strip()
-        if normalized == self._selected_purchase_order_id:
-            return
-        self._set_selected_purchase_order_id(normalized)
-        self.refresh()
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def createRequisition(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._procurement_workspace_presenter.create_requisition(
-                dict(payload)
-            ),
-            success_message="Requisition created.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def updateRequisition(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._procurement_workspace_presenter.update_requisition(
-                dict(payload)
-            ),
-            success_message="Requisition updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def addRequisitionLine(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._procurement_workspace_presenter.add_requisition_line(
-                dict(payload)
-            ),
-            success_message="Requisition line added.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot(str, result="QVariantMap")
-    def submitRequisition(self, requisition_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._procurement_workspace_presenter.submit_requisition(
-                requisition_id
-            ),
-            success_message="Requisition submitted.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot(str, result="QVariantMap")
-    def cancelRequisition(self, requisition_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._procurement_workspace_presenter.cancel_requisition(
-                requisition_id
-            ),
-            success_message="Requisition cancelled.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def createPurchaseOrder(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._procurement_workspace_presenter.create_purchase_order(
-                dict(payload)
-            ),
-            success_message="Purchase order created.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def updatePurchaseOrder(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._procurement_workspace_presenter.update_purchase_order(
-                dict(payload)
-            ),
-            success_message="Purchase order updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def addPurchaseOrderLine(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._procurement_workspace_presenter.add_purchase_order_line(
-                dict(payload)
-            ),
-            success_message="Purchase-order line added.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot(str, result="QVariantMap")
-    def submitPurchaseOrder(self, purchase_order_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._procurement_workspace_presenter.submit_purchase_order(
-                purchase_order_id
-            ),
-            success_message="Purchase order submitted.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot(str, result="QVariantMap")
-    def sendPurchaseOrder(self, purchase_order_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._procurement_workspace_presenter.send_purchase_order(
-                purchase_order_id
-            ),
-            success_message="Purchase order sent.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot(str, result="QVariantMap")
-    def cancelPurchaseOrder(self, purchase_order_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._procurement_workspace_presenter.cancel_purchase_order(
-                purchase_order_id
-            ),
-            success_message="Purchase order cancelled.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot(str, result="QVariantMap")
-    def closePurchaseOrder(self, purchase_order_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._procurement_workspace_presenter.close_purchase_order(
-                purchase_order_id
-            ),
-            success_message="Purchase order closed.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def postReceipt(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._procurement_workspace_presenter.post_receipt(
-                dict(payload)
-            ),
-            success_message="Receipt posted.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    # ── pagination + bulk + view ─────────────────────────────────────
+    @Property(QObject, constant=True)
+    def receiptsTableModel(self) -> DynamicTableModel:
+        return self._receipts_table_model
 
     @Property(int, notify=requisitionPageChanged)
     def requisitionPage(self) -> int:
@@ -720,329 +358,252 @@ class InventoryProcurementProcurementWorkspaceController(
     def activeView(self) -> str:
         return self._active_view
 
-    @Slot(str)
-    def activateRequisition(self, req_id: str) -> None:
-        self.selectRequisition(req_id)
-
-    @Slot(str)
-    def activatePurchaseOrder(self, po_id: str) -> None:
-        self.selectPurchaseOrder(po_id)
-
-    @Slot(str)
-    def setActiveView(self, view: str) -> None:
-        normalized = view if view in ("requisitions", "purchase_orders") else "requisitions"
-        if normalized == self._active_view:
-            return
-        self._active_view = normalized
-        self.activeViewChanged.emit()
-
-    @Slot(int)
-    def setRequisitionPage(self, page: int) -> None:
-        self._requisition_page = max(1, int(page))
-        self.requisitionPageChanged.emit()
-
-    @Slot(int)
-    def setRequisitionPageSize(self, size: int) -> None:
-        self._requisition_page_size = max(10, min(200, int(size)))
-        self._requisition_page = 1
-        self.requisitionPageSizeChanged.emit()
-        self.requisitionPageChanged.emit()
-
-    @Slot(int)
-    def setPurchaseOrderPage(self, page: int) -> None:
-        self._purchase_order_page = max(1, int(page))
-        self.purchaseOrderPageChanged.emit()
-
-    @Slot(int)
-    def setPurchaseOrderPageSize(self, size: int) -> None:
-        self._purchase_order_page_size = max(10, min(200, int(size)))
-        self._purchase_order_page = 1
-        self.purchaseOrderPageSizeChanged.emit()
-        self.purchaseOrderPageChanged.emit()
-
-    @Slot(str, bool)
-    def setRequisitionBulkSelection(self, row_id: str, selected: bool) -> None:
-        ids = list(self._selected_requisition_ids)
-        if selected and row_id not in ids:
-            ids.append(row_id)
-        elif not selected and row_id in ids:
-            ids.remove(row_id)
-        self._set_selected_requisition_ids(ids)
-
-    @Slot()
-    def clearRequisitionBulkSelection(self) -> None:
-        self._set_selected_requisition_ids([])
-
-    @Slot()
-    def selectVisibleRequisitions(self) -> None:
-        all_ids = [
-            str(r.get("id", ""))
-            for r in self._requisitions.get("items", [])
-            if r.get("id")
-        ]
-        self._set_selected_requisition_ids(all_ids)
-
-    @Slot(str, bool)
-    def setPurchaseOrderBulkSelection(self, row_id: str, selected: bool) -> None:
-        ids = list(self._selected_purchase_order_ids)
-        if selected and row_id not in ids:
-            ids.append(row_id)
-        elif not selected and row_id in ids:
-            ids.remove(row_id)
-        self._set_selected_purchase_order_ids(ids)
-
-    @Slot()
-    def clearPurchaseOrderBulkSelection(self) -> None:
-        self._set_selected_purchase_order_ids([])
-
-    @Slot()
-    def selectVisiblePurchaseOrders(self) -> None:
-        all_ids = [
-            str(r.get("id", ""))
-            for r in self._purchase_orders.get("items", [])
-            if r.get("id")
-        ]
-        self._set_selected_purchase_order_ids(all_ids)
-
-    @Slot()
-    def clearFilters(self) -> None:
-        self._set_selected_site_filter("all")
-        self._set_selected_storeroom_filter("all")
-        self._set_selected_supplier_filter("all")
-        self._set_selected_requisition_status_filter("all")
-        self._set_selected_purchase_order_status_filter("all")
-        self._set_search_text("")
-        self.refresh()
-
-    def _set_selected_requisition_ids(self, ids: list[str]) -> None:
-        if ids == self._selected_requisition_ids:
-            return
-        self._selected_requisition_ids = ids
-        self.selectedRequisitionIdsChanged.emit()
-
-    def _set_selected_purchase_order_ids(self, ids: list[str]) -> None:
-        if ids == self._selected_purchase_order_ids:
-            return
-        self._selected_purchase_order_ids = ids
-        self.selectedPurchaseOrderIdsChanged.emit()
-
     @Property("QVariantList", notify=detailActivityItemsChanged)
     def detailActivityItems(self) -> list[dict[str, object]]:
         return self._detail_activity_items
 
+    # ── Internal view helper ──────────────────────────────────────────
+
+    @property
+    def _is_requisitions_view(self) -> bool:
+        return is_requisitions_view(self)
+
+    # ── Slots ─────────────────────────────────────────────────────────
+
+    @Slot()
+    def refresh(self) -> None:
+        _do_refresh(self)
+
+    @Slot(str)
+    def setSearchText(self, search_text: str) -> None:
+        set_search_text(self, search_text)
+
+    @Slot(str)
+    def setSiteFilter(self, site_id: str) -> None:
+        set_site_filter(self, site_id)
+
+    @Slot(str)
+    def setStoreroomFilter(self, storeroom_id: str) -> None:
+        set_storeroom_filter(self, storeroom_id)
+
+    @Slot(str)
+    def setSupplierFilter(self, supplier_id: str) -> None:
+        set_supplier_filter(self, supplier_id)
+
+    @Slot(str)
+    def setRequisitionStatusFilter(self, status: str) -> None:
+        set_requisition_status_filter(self, status)
+
+    @Slot(str)
+    def setPurchaseOrderStatusFilter(self, status: str) -> None:
+        set_purchase_order_status_filter(self, status)
+
+    @Slot()
+    def clearFilters(self) -> None:
+        clear_filters(self)
+
+    @Slot(str)
+    def selectRequisition(self, requisition_id: str) -> None:
+        select_requisition(self, requisition_id)
+
+    @Slot(str)
+    def activateRequisition(self, req_id: str) -> None:
+        select_requisition(self, req_id)
+
+    @Slot(str)
+    def selectPurchaseOrder(self, purchase_order_id: str) -> None:
+        select_purchase_order(self, purchase_order_id)
+
+    @Slot(str)
+    def activatePurchaseOrder(self, po_id: str) -> None:
+        select_purchase_order(self, po_id)
+
+    @Slot(str)
+    def setActiveView(self, view: str) -> None:
+        set_active_view(self, view)
+
+    @Slot(int)
+    def setRequisitionPage(self, page: int) -> None:
+        set_requisition_page(self, page)
+
+    @Slot(int)
+    def setRequisitionPageSize(self, size: int) -> None:
+        set_requisition_page_size(self, size)
+
+    @Slot(int)
+    def setPurchaseOrderPage(self, page: int) -> None:
+        set_purchase_order_page(self, page)
+
+    @Slot(int)
+    def setPurchaseOrderPageSize(self, size: int) -> None:
+        set_purchase_order_page_size(self, size)
+
+    @Slot(str, bool)
+    def setRequisitionBulkSelection(self, row_id: str, selected: bool) -> None:
+        set_requisition_bulk_selection(self, row_id, selected)
+
+    @Slot()
+    def clearRequisitionBulkSelection(self) -> None:
+        clear_requisition_bulk_selection(self)
+
+    @Slot()
+    def selectVisibleRequisitions(self) -> None:
+        select_visible_requisitions(self)
+
+    @Slot(str, bool)
+    def setPurchaseOrderBulkSelection(self, row_id: str, selected: bool) -> None:
+        set_purchase_order_bulk_selection(self, row_id, selected)
+
+    @Slot()
+    def clearPurchaseOrderBulkSelection(self) -> None:
+        clear_purchase_order_bulk_selection(self)
+
+    @Slot()
+    def selectVisiblePurchaseOrders(self) -> None:
+        select_visible_purchase_orders(self)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def createRequisition(self, payload: dict[str, object]) -> dict[str, object]:
+        return create_requisition(self, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateRequisition(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_requisition(self, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addRequisitionLine(self, payload: dict[str, object]) -> dict[str, object]:
+        return add_requisition_line(self, dict(payload))
+
+    @Slot(str, result="QVariantMap")
+    def submitRequisition(self, requisition_id: str) -> dict[str, object]:
+        return submit_requisition(self, requisition_id)
+
+    @Slot(str, result="QVariantMap")
+    def cancelRequisition(self, requisition_id: str) -> dict[str, object]:
+        return cancel_requisition(self, requisition_id)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def createPurchaseOrder(self, payload: dict[str, object]) -> dict[str, object]:
+        return create_purchase_order(self, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updatePurchaseOrder(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_purchase_order(self, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addPurchaseOrderLine(self, payload: dict[str, object]) -> dict[str, object]:
+        return add_purchase_order_line(self, dict(payload))
+
+    @Slot(str, result="QVariantMap")
+    def submitPurchaseOrder(self, purchase_order_id: str) -> dict[str, object]:
+        return submit_purchase_order(self, purchase_order_id)
+
+    @Slot(str, result="QVariantMap")
+    def sendPurchaseOrder(self, purchase_order_id: str) -> dict[str, object]:
+        return send_purchase_order(self, purchase_order_id)
+
+    @Slot(str, result="QVariantMap")
+    def cancelPurchaseOrder(self, purchase_order_id: str) -> dict[str, object]:
+        return cancel_purchase_order(self, purchase_order_id)
+
+    @Slot(str, result="QVariantMap")
+    def closePurchaseOrder(self, purchase_order_id: str) -> dict[str, object]:
+        return close_purchase_order(self, purchase_order_id)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def postReceipt(self, payload: dict[str, object]) -> dict[str, object]:
+        return post_receipt(self, dict(payload))
+
+    @Slot("QVariantList", str, result="QVariantMap")
+    def exportTable(self, columns: list, file_path: str) -> dict[str, object]:
+        return export_table(self, columns, file_path)
+
     @Slot(str, str)
     def loadDetailActivity(self, entity_id: str, entity_type: str) -> None:
-        if self._platform_audit is None or not entity_id:
-            self._set_detail_activity_items([])
-            return
-        try:
-            result = self._platform_audit.list_recent(entity_type=entity_type, limit=200)
-            items = (
-                serialize_audit_entries_for_activity(result.data, entity_id)
-                if result.ok and result.data is not None
-                else []
-            )
-        except Exception:  # pragma: no cover - defensive fallback
-            items = []
-        self._set_detail_activity_items(items)
+        load_detail_activity(self, entity_id, entity_type)
 
-    def _set_detail_activity_items(self, items: list[dict[str, object]]) -> None:
-        if items == self._detail_activity_items:
-            return
-        self._detail_activity_items = items
-        self.detailActivityItemsChanged.emit()
+    # ── Private state setters (called by handlers and refresh service) ─
 
-    def _bind_domain_events(self) -> None:
-        self._subscribe_domain_change(scope_code="inventory_procurement")
-        self._subscribe_domain_change("site", scope_code="platform")
-        self._subscribe_domain_change("party", scope_code="platform")
+    def _set_overview(self, v: dict[str, object]) -> None:
+        set_overview(self, v)
 
-    def _set_overview(self, overview: dict[str, object]) -> None:
-        if overview == self._overview:
-            return
-        self._overview = overview
-        self.overviewChanged.emit()
+    def _set_site_options(self, v: list[dict[str, str]]) -> None:
+        set_site_options(self, v)
 
-    def _set_site_options(self, site_options: list[dict[str, str]]) -> None:
-        if site_options == self._site_options:
-            return
-        self._site_options = site_options
-        self.siteOptionsChanged.emit()
+    def _set_storeroom_options(self, v: list[dict[str, str]]) -> None:
+        set_storeroom_options(self, v)
 
-    def _set_storeroom_options(self, storeroom_options: list[dict[str, str]]) -> None:
-        if storeroom_options == self._storeroom_options:
-            return
-        self._storeroom_options = storeroom_options
-        self.storeroomOptionsChanged.emit()
+    def _set_supplier_options(self, v: list[dict[str, str]]) -> None:
+        set_supplier_options(self, v)
 
-    def _set_supplier_options(self, supplier_options: list[dict[str, str]]) -> None:
-        if supplier_options == self._supplier_options:
-            return
-        self._supplier_options = supplier_options
-        self.supplierOptionsChanged.emit()
+    def _set_requisition_status_options(self, v: list[dict[str, str]]) -> None:
+        set_requisition_status_options(self, v)
 
-    def _set_requisition_status_options(
-        self,
-        status_options: list[dict[str, str]],
-    ) -> None:
-        if status_options == self._requisition_status_options:
-            return
-        self._requisition_status_options = status_options
-        self.requisitionStatusOptionsChanged.emit()
+    def _set_purchase_order_status_options(self, v: list[dict[str, str]]) -> None:
+        set_purchase_order_status_options(self, v)
 
-    def _set_purchase_order_status_options(
-        self,
-        status_options: list[dict[str, str]],
-    ) -> None:
-        if status_options == self._purchase_order_status_options:
-            return
-        self._purchase_order_status_options = status_options
-        self.purchaseOrderStatusOptionsChanged.emit()
+    def _set_item_options(self, v: list[dict[str, str]]) -> None:
+        set_item_options(self, v)
 
-    def _set_item_options(self, item_options: list[dict[str, str]]) -> None:
-        if item_options == self._item_options:
-            return
-        self._item_options = item_options
-        self.itemOptionsChanged.emit()
+    def _set_requisition_options(self, v: list[dict[str, str]]) -> None:
+        set_requisition_options(self, v)
 
-    def _set_requisition_options(
-        self,
-        requisition_options: list[dict[str, str]],
-    ) -> None:
-        if requisition_options == self._requisition_options:
-            return
-        self._requisition_options = requisition_options
-        self.requisitionOptionsChanged.emit()
+    def _set_requisition_line_options(self, v: list[dict[str, str]]) -> None:
+        set_requisition_line_options(self, v)
 
-    def _set_requisition_line_options(
-        self,
-        requisition_line_options: list[dict[str, str]],
-    ) -> None:
-        if requisition_line_options == self._requisition_line_options:
-            return
-        self._requisition_line_options = requisition_line_options
-        self.requisitionLineOptionsChanged.emit()
+    def _set_selected_site_filter(self, v: str) -> None:
+        set_selected_site_filter(self, v)
 
-    def _set_selected_site_filter(self, selected_site_filter: str) -> None:
-        if selected_site_filter == self._selected_site_filter:
-            return
-        self._selected_site_filter = selected_site_filter
-        self.selectedSiteFilterChanged.emit()
+    def _set_selected_storeroom_filter(self, v: str) -> None:
+        set_selected_storeroom_filter(self, v)
 
-    def _set_selected_storeroom_filter(
-        self,
-        selected_storeroom_filter: str,
-    ) -> None:
-        if selected_storeroom_filter == self._selected_storeroom_filter:
-            return
-        self._selected_storeroom_filter = selected_storeroom_filter
-        self.selectedStoreroomFilterChanged.emit()
+    def _set_selected_supplier_filter(self, v: str) -> None:
+        set_selected_supplier_filter(self, v)
 
-    def _set_selected_supplier_filter(self, selected_supplier_filter: str) -> None:
-        if selected_supplier_filter == self._selected_supplier_filter:
-            return
-        self._selected_supplier_filter = selected_supplier_filter
-        self.selectedSupplierFilterChanged.emit()
+    def _set_selected_requisition_status_filter(self, v: str) -> None:
+        set_selected_requisition_status_filter(self, v)
 
-    def _set_selected_requisition_status_filter(
-        self,
-        selected_requisition_status_filter: str,
-    ) -> None:
-        if selected_requisition_status_filter == self._selected_requisition_status_filter:
-            return
-        self._selected_requisition_status_filter = selected_requisition_status_filter
-        self.selectedRequisitionStatusFilterChanged.emit()
+    def _set_selected_purchase_order_status_filter(self, v: str) -> None:
+        set_selected_purchase_order_status_filter(self, v)
 
-    def _set_selected_purchase_order_status_filter(
-        self,
-        selected_purchase_order_status_filter: str,
-    ) -> None:
-        if (
-            selected_purchase_order_status_filter
-            == self._selected_purchase_order_status_filter
-        ):
-            return
-        self._selected_purchase_order_status_filter = (
-            selected_purchase_order_status_filter
-        )
-        self.selectedPurchaseOrderStatusFilterChanged.emit()
+    def _set_search_text(self, v: str) -> None:
+        _set_search_text_setter(self, v)
 
-    def _set_search_text(self, search_text: str) -> None:
-        if search_text == self._search_text:
-            return
-        self._search_text = search_text
-        self.searchTextChanged.emit()
+    def _set_requisitions(self, v: dict[str, object]) -> None:
+        set_requisitions(self, v)
 
-    def _set_requisitions(self, requisitions: dict[str, object]) -> None:
-        if requisitions == self._requisitions:
-            return
-        self._requisitions = requisitions
-        self._requisitions_table_model.set_rows(requisitions.get("items", []))
-        self.requisitionsChanged.emit()
+    def _set_selected_requisition(self, v: dict[str, object]) -> None:
+        set_selected_requisition(self, v)
 
-    def _set_selected_requisition(
-        self,
-        selected_requisition: dict[str, object],
-    ) -> None:
-        if selected_requisition == self._selected_requisition:
-            return
-        self._selected_requisition = selected_requisition
-        self.selectedRequisitionChanged.emit()
+    def _set_selected_requisition_id(self, v: str) -> None:
+        set_selected_requisition_id(self, v)
 
-    def _set_selected_requisition_id(self, selected_requisition_id: str) -> None:
-        if selected_requisition_id == self._selected_requisition_id:
-            return
-        self._selected_requisition_id = selected_requisition_id
-        self.selectedRequisitionIdChanged.emit()
+    def _set_requisition_lines(self, v: dict[str, object]) -> None:
+        set_requisition_lines(self, v)
 
-    def _set_requisition_lines(self, requisition_lines: dict[str, object]) -> None:
-        if requisition_lines == self._requisition_lines:
-            return
-        self._requisition_lines = requisition_lines
-        self._requisition_lines_table_model.set_rows(requisition_lines.get("items", []))
-        self.requisitionLinesChanged.emit()
+    def _set_purchase_orders(self, v: dict[str, object]) -> None:
+        set_purchase_orders(self, v)
 
-    def _set_purchase_orders(self, purchase_orders: dict[str, object]) -> None:
-        if purchase_orders == self._purchase_orders:
-            return
-        self._purchase_orders = purchase_orders
-        self._purchase_orders_table_model.set_rows(purchase_orders.get("items", []))
-        self.purchaseOrdersChanged.emit()
+    def _set_selected_purchase_order(self, v: dict[str, object]) -> None:
+        set_selected_purchase_order(self, v)
 
-    def _set_selected_purchase_order(
-        self,
-        selected_purchase_order: dict[str, object],
-    ) -> None:
-        if selected_purchase_order == self._selected_purchase_order:
-            return
-        self._selected_purchase_order = selected_purchase_order
-        self.selectedPurchaseOrderChanged.emit()
+    def _set_selected_purchase_order_id(self, v: str) -> None:
+        set_selected_purchase_order_id(self, v)
 
-    def _set_selected_purchase_order_id(
-        self,
-        selected_purchase_order_id: str,
-    ) -> None:
-        if selected_purchase_order_id == self._selected_purchase_order_id:
-            return
-        self._selected_purchase_order_id = selected_purchase_order_id
-        self.selectedPurchaseOrderIdChanged.emit()
+    def _set_purchase_order_lines(self, v: dict[str, object]) -> None:
+        set_purchase_order_lines(self, v)
 
-    def _set_purchase_order_lines(
-        self,
-        purchase_order_lines: dict[str, object],
-    ) -> None:
-        if purchase_order_lines == self._purchase_order_lines:
-            return
-        self._purchase_order_lines = purchase_order_lines
-        self._purchase_order_lines_table_model.set_rows(purchase_order_lines.get("items", []))
-        self.purchaseOrderLinesChanged.emit()
+    def _set_receipts(self, v: dict[str, object]) -> None:
+        set_receipts(self, v)
 
-    def _set_receipts(self, receipts: dict[str, object]) -> None:
-        if receipts == self._receipts:
-            return
-        self._receipts = receipts
-        self._receipts_table_model.set_rows(receipts.get("items", []))
-        self.receiptsChanged.emit()
+    def _set_selected_requisition_ids(self, v: list[str]) -> None:
+        set_selected_requisition_ids(self, v)
+
+    def _set_selected_purchase_order_ids(self, v: list[str]) -> None:
+        set_selected_purchase_order_ids(self, v)
+
+    def _set_detail_activity_items(self, v: list[dict[str, object]]) -> None:
+        set_detail_activity_items(self, v)
 
 
 __all__ = ["InventoryProcurementProcurementWorkspaceController"]
