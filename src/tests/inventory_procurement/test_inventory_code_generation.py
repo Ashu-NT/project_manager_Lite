@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.ui_qml.modules.inventory_procurement.presenters.catalog_workspace_presenter import (
+from src.ui_qml.modules.inventory_procurement.presenters.catalog import (
     InventoryCatalogWorkspacePresenter,
 )
 from src.ui_qml.modules.inventory_procurement.presenters.inventory_workspace_presenter import (
