@@ -17,7 +17,7 @@ from src.core.modules.project_management.api.desktop.register import (
     RegisterEntryDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks import TaskDesktopDto
-from src.ui_qml.modules.project_management.presenters.projects_workspace_presenter import (
+from src.ui_qml.modules.project_management.presenters.projects import (
     ProjectProjectsWorkspacePresenter,
 )
 

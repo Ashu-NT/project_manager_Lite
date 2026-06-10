@@ -1,5 +1,5 @@
 """Project management QML presenters."""
-from src.ui_qml.modules.project_management.presenters.collaboration_workspace_presenter import (
+from src.ui_qml.modules.project_management.presenters.collaboration import (
     ProjectCollaborationWorkspacePresenter,
 )
 from src.ui_qml.modules.project_management.presenters.dashboard_presenter import (
@@ -14,7 +14,7 @@ from src.ui_qml.modules.project_management.presenters.financials import (
 from src.ui_qml.modules.project_management.presenters.portfolio import (
     ProjectPortfolioWorkspacePresenter,
 )
-from src.ui_qml.modules.project_management.presenters.projects_workspace_presenter import (
+from src.ui_qml.modules.project_management.presenters.projects import (
     ProjectProjectsWorkspacePresenter,
 )
 from src.ui_qml.modules.project_management.presenters.register_workspace_presenter import (

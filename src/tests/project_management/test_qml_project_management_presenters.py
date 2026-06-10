@@ -40,7 +40,7 @@ from src.core.modules.project_management.domain.risk.register import (
 )
 from src.core.platform.documents import DocumentStorageKind
 from src.tests.ui_runtime_helpers import wait_until
-from src.ui_qml.modules.project_management.presenters.collaboration_workspace_presenter import (
+from src.ui_qml.modules.project_management.presenters.collaboration import (
     ProjectCollaborationWorkspacePresenter,
 )
 
