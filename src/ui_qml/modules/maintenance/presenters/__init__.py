@@ -1,6 +1,6 @@
 """Maintenance QML presenters."""
 
-from src.ui_qml.modules.maintenance.presenters.assets_workspace_presenter import (
+from src.ui_qml.modules.maintenance.presenters.assets import (
     MaintenanceAssetsWorkspacePresenter,
 )
 from src.ui_qml.modules.maintenance.presenters.dashboard_workspace_presenter import (
