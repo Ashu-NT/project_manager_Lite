@@ -1,12 +1,13 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "RegisterColumnConfig.js" as ColumnConfig
 
 Item {
     id: root
 
-    property var pmCatalog: null
+    property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog: null
     property var workspaceController: null
 
     readonly property string tableId: "pm.register.table"

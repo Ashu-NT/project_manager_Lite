@@ -5,13 +5,14 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "../components"
 
 Item {
     id: root
 
     property var workspaceController: null
-    property var pmCatalog: null
+    property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog: null
     property var baselinesModel: ({
         "options": [], "selectedBaselineAId": "", "selectedBaselineBId": "",
         "includeUnchanged": false, "summaryText": "", "emptyState": ""

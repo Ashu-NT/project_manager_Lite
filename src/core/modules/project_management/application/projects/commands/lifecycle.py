@@ -113,7 +113,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         project = Project.create(
             name=name.strip(),
             code=resolved_code,
-            description=description.strip(),
+            description=(description or "").strip(),
             client_name=(client_name or "").strip() or None,
             client_contact=(client_contact or "").strip() or None,
             planned_budget=planned_budget,

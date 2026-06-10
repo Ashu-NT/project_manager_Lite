@@ -11,7 +11,6 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "components" as Components
-import "dialogs" as Dialogs
 import "sections" as Sections
 import "panels" as Panels
 
@@ -117,7 +116,7 @@ AppLayouts.WorkspaceFrame {
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            Dialogs.TasksDialogHost {
+            TasksDialogHost {
                 selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
                 workspaceController: root.workspaceController
                 projectOptions: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
