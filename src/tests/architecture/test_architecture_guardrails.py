@@ -12,7 +12,6 @@ _LARGE_MODULE_BUDGETS = {
     "src/core/modules/maintenance/infrastructure/persistence/repositories/repository.py": 1489,
     "src/core/modules/maintenance/infrastructure/persistence/orm/models.py": 1283,
     "src/core/modules/project_management/api/desktop/dashboard.py": 2709,
-    "src/ui_qml/modules/project_management/presenters/scheduling_workspace_presenter.py": 1356,
     "src/ui_qml/modules/project_management/controllers/scheduling/scheduling_workspace_controller.py": 1338,
     "src/ui_qml/modules/project_management/presenters/tasks_workspace_presenter.py": 1603,
     "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": 1600,

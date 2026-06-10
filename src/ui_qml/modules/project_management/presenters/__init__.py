@@ -23,7 +23,7 @@ from src.ui_qml.modules.project_management.presenters.register_workspace_present
 from src.ui_qml.modules.project_management.presenters.resources_workspace_presenter import (
     ProjectResourcesWorkspacePresenter,
 )
-from src.ui_qml.modules.project_management.presenters.scheduling_workspace_presenter import (
+from src.ui_qml.modules.project_management.presenters.scheduling import (
     ProjectSchedulingWorkspacePresenter,
 )
 from src.ui_qml.modules.project_management.presenters.tasks_workspace_presenter import (
