@@ -10,16 +10,16 @@ from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml
 
 
 INVENTORY_DIALOG_HOST = Path(
-    "src/ui_qml/modules/inventory_procurement/qml/workspaces/inventory/InventoryDialogHost.qml"
+    "src/ui_qml/modules/inventory_procurement/qml/workspaces/inventory/dialogs/InventoryDialogHost.qml"
 )
 CATALOG_DIALOG_HOST = Path(
-    "src/ui_qml/modules/inventory_procurement/qml/workspaces/catalog/CatalogDialogHost.qml"
+    "src/ui_qml/modules/inventory_procurement/qml/workspaces/catalog/dialogs/CatalogDialogHost.qml"
 )
 PROCUREMENT_DIALOG_HOST = Path(
-    "src/ui_qml/modules/inventory_procurement/qml/workspaces/procurement/ProcurementDialogHost.qml"
+    "src/ui_qml/modules/inventory_procurement/qml/workspaces/procurement/dialogs/ProcurementDialogHost.qml"
 )
 RESERVATIONS_DIALOG_HOST = Path(
-    "src/ui_qml/modules/inventory_procurement/qml/workspaces/reservations/ReservationsDialogHost.qml"
+    "src/ui_qml/modules/inventory_procurement/qml/workspaces/reservations/dialogs/ReservationsDialogHost.qml"
 )
 
 
