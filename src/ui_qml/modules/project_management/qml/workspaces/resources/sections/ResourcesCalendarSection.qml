@@ -18,7 +18,7 @@ Item {
     property bool isBusy: false
 
     readonly property bool _hasResource: String(root.resourceDetail.id || "").length > 0
-    readonly property bool _hasEnterpriseData: root.enterpriseCapacity && root.enterpriseCapacity.resourceId && root.enterpriseCapacity.resourceId.length > 0
+    readonly property bool _hasEnterpriseData: String(root.enterpriseCapacity && root.enterpriseCapacity.resourceId || "").length > 0
     readonly property var _state: (root.resourceDetail && root.resourceDetail.state) ? root.resourceDetail.state : ({})
     readonly property string _workerType: String(root._state.workerType || "EXTERNAL")
     readonly property bool _isEmployeeBacked: root._workerType === "EMPLOYEE"

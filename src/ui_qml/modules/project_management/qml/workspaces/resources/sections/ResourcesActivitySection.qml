@@ -6,7 +6,9 @@ import App.Theme 1.0 as Theme
 Item {
     id: root
 
-    property var resourceDetail: ({ "state": {} })
+    property var resourceDetail: ({ "id": "", "title": "", "state": {} })
+
+    readonly property bool _hasResource: String(root.resourceDetail.id || "").length > 0
 
     implicitHeight: _col.implicitHeight
 
@@ -15,7 +17,12 @@ Item {
         width: parent.width
         spacing: 0
 
-        AppWidgets.SectionHeading { width: parent.width; label: "Activity" }
+        AppWidgets.ContextualActionToolbar {
+            width: parent.width
+            title: root._hasResource ? root.resourceDetail.title : "Activity"
+            subtitle: root._hasResource ? "Change history and audit trail for this resource" : ""
+            actions: []
+        }
 
         Item {
             width: parent.width

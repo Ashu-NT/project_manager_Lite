@@ -21,7 +21,7 @@ AppWidgets.EntityDialog {
     title:        root.modeTitle
     subtitle:     root.modeTitle === "Create Resource"
         ? "Set up a PM resource record for internal staffing or external support."
-        : "Update capacity, category, worker linkage, or resource availability."
+        : "Update category, worker linkage, rate, or resource availability."
     primaryText:  root.modeTitle === "Create Resource" ? "Create Resource" : "Save Changes"
     primaryIcon:  root.modeTitle === "Create Resource" ? "add" : "save"
     width: 620
@@ -72,7 +72,6 @@ AppWidgets.EntityDialog {
         nameField.text = String(state.name || "")
         roleField.text = String(state.role || "")
         hourlyRateField.text = String(state.hourlyRate || "0.00")
-        capacityField.text = String(state.capacityPercent || "100.0")
         currencyField.text = String(state.currency || "")
         addressField.text = String(state.address || "")
         contactField.text = String(state.contact || "")
@@ -87,7 +86,6 @@ AppWidgets.EntityDialog {
             "resourceCode": root.resourceCode,
             "role": roleField.text,
             "hourlyRate": hourlyRateField.text,
-            "capacityPercent": capacityField.text,
             "currency": currencyField.text,
             "costType": String((root.categoryOptions[categoryCombo.currentIndex] || { "value": "LABOR" }).value || "LABOR"),
             "address": addressField.text,
@@ -180,12 +178,6 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             label: "Hourly rate"
             AppControls.TextField { id: hourlyRateField; Layout.fillWidth: true; inputMethodHints: Qt.ImhFormattedNumbersOnly; placeholderText: "95.00" }
-        }
-
-        AppWidgets.FormField {
-            Layout.fillWidth: true
-            label: "Capacity (%)"
-            AppControls.TextField { id: capacityField; Layout.fillWidth: true; inputMethodHints: Qt.ImhFormattedNumbersOnly; placeholderText: "100.0" }
         }
 
         AppWidgets.FormField {
