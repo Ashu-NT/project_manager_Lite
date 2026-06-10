@@ -11,7 +11,7 @@ from src.ui_qml.modules.project_management.presenters.dashboard_workspace_presen
 from src.ui_qml.modules.project_management.presenters.financials import (
     ProjectFinancialsWorkspacePresenter,
 )
-from src.ui_qml.modules.project_management.presenters.portfolio_workspace_presenter import (
+from src.ui_qml.modules.project_management.presenters.portfolio import (
     ProjectPortfolioWorkspacePresenter,
 )
 from src.ui_qml.modules.project_management.presenters.projects_workspace_presenter import (
