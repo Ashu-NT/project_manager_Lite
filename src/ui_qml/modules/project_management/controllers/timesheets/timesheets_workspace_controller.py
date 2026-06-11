@@ -5,11 +5,6 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
-    serialize_selector_options,
-    serialize_timesheet_collection_view_model,
-    serialize_timesheet_detail_view_model,
-    serialize_timesheet_overview_view_model,
-    serialize_workspace_view_model,
 )
 from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
@@ -17,9 +12,11 @@ from src.ui_qml.modules.project_management.presenters import (
 )
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
+from . import state_setters as _setters
 from .detail_builder import build_entry_detail
 from .domain_event_binder import bind_timesheets_domain_events
 from .mutation_handler import TimesheetsMutationHandler
+from .refresh_service import refresh_timesheets_workspace
 from .review_queue_controller import (
     clear_queue_bulk_selection,
     load_queue_period_detail,
@@ -218,63 +215,7 @@ class ProjectManagementTimesheetsWorkspaceController(
 
     @Slot()
     def refresh(self) -> None:
-        self._set_is_loading(True)
-        try:
-            self._set_error_message("")
-            self._set_feedback_message("")
-            self._set_workspace(
-                serialize_workspace_view_model(self._workspace_presenter.build_view_model())
-            )
-            workspace_state = self._timesheets_workspace_presenter.build_workspace_state(
-                project_id=self._selected_project_id,
-                assignment_id=self._selected_assignment_id or None,
-                period_start=self._selected_period_start,
-                queue_status=self._selected_queue_status,
-                selected_entry_id=self._selected_entry_id or None,
-                selected_queue_period_id=self._selected_queue_period_id or None,
-            )
-            self._set_overview(
-                serialize_timesheet_overview_view_model(workspace_state.overview)
-            )
-            self._set_project_options(
-                serialize_selector_options(workspace_state.project_options)
-            )
-            self._set_assignment_options(
-                serialize_selector_options(workspace_state.assignment_options)
-            )
-            self._set_period_options(
-                serialize_selector_options(workspace_state.period_options)
-            )
-            self._set_queue_status_options(
-                serialize_selector_options(workspace_state.queue_status_options)
-            )
-            self._set_selected_project_id(workspace_state.selected_project_id)
-            self._set_selected_assignment_id(workspace_state.selected_assignment_id)
-            self._set_selected_period_start(workspace_state.selected_period_start)
-            self._set_selected_queue_status(workspace_state.selected_queue_status)
-            self._set_selected_entry_id(workspace_state.selected_entry_id)
-            self._set_selected_queue_period_id(workspace_state.selected_queue_period_id)
-            self._set_assignment_summary(
-                serialize_timesheet_detail_view_model(workspace_state.assignment_summary)
-            )
-            self._set_entries(
-                serialize_timesheet_collection_view_model(workspace_state.entries)
-            )
-            self._set_selected_entry(
-                serialize_timesheet_detail_view_model(workspace_state.selected_entry_detail)
-            )
-            self._set_review_queue(
-                serialize_timesheet_collection_view_model(workspace_state.review_queue)
-            )
-            self._set_queue_total_count(len(self._review_queue.get("items") or []))
-            self._set_review_detail(
-                serialize_timesheet_detail_view_model(workspace_state.review_detail)
-            )
-            self._set_empty_state(workspace_state.empty_state)
-        except Exception as exc:  # pragma: no cover - defensive fallback
-            self._set_error_message(str(exc))
-        finally:
-            self._set_is_loading(False)
+        refresh_timesheets_workspace(self)
 
     # ── Selection slots ───────────────────────────────────────────────
 
@@ -384,121 +325,61 @@ class ProjectManagementTimesheetsWorkspaceController(
     # ── State setters ─────────────────────────────────────────────────
 
     def _set_overview(self, v: dict[str, object]) -> None:
-        if v == self._overview:
-            return
-        self._overview = v
-        self.overviewChanged.emit()
+        _setters.set_overview(self, v)
 
     def _set_project_options(self, v: list[dict[str, str]]) -> None:
-        if v == self._project_options:
-            return
-        self._project_options = v
-        self.projectOptionsChanged.emit()
+        _setters.set_project_options(self, v)
 
     def _set_assignment_options(self, v: list[dict[str, str]]) -> None:
-        if v == self._assignment_options:
-            return
-        self._assignment_options = v
-        self.assignmentOptionsChanged.emit()
+        _setters.set_assignment_options(self, v)
 
     def _set_period_options(self, v: list[dict[str, str]]) -> None:
-        if v == self._period_options:
-            return
-        self._period_options = v
-        self.periodOptionsChanged.emit()
+        _setters.set_period_options(self, v)
 
     def _set_queue_status_options(self, v: list[dict[str, str]]) -> None:
-        if v == self._queue_status_options:
-            return
-        self._queue_status_options = v
-        self.queueStatusOptionsChanged.emit()
+        _setters.set_queue_status_options(self, v)
 
     def _set_selected_project_id(self, v: str) -> None:
-        if v == self._selected_project_id:
-            return
-        self._selected_project_id = v
-        self.selectedProjectIdChanged.emit()
+        _setters.set_selected_project_id(self, v)
 
     def _set_selected_assignment_id(self, v: str) -> None:
-        if v == self._selected_assignment_id:
-            return
-        self._selected_assignment_id = v
-        self.selectedAssignmentIdChanged.emit()
+        _setters.set_selected_assignment_id(self, v)
 
     def _set_selected_period_start(self, v: str) -> None:
-        if v == self._selected_period_start:
-            return
-        self._selected_period_start = v
-        self.selectedPeriodStartChanged.emit()
+        _setters.set_selected_period_start(self, v)
 
     def _set_selected_queue_status(self, v: str) -> None:
-        if v == self._selected_queue_status:
-            return
-        self._selected_queue_status = v
-        self.selectedQueueStatusChanged.emit()
+        _setters.set_selected_queue_status(self, v)
 
     def _set_selected_entry_id(self, v: str) -> None:
-        if v == self._selected_entry_id:
-            return
-        self._selected_entry_id = v
-        self.selectedEntryIdChanged.emit()
+        _setters.set_selected_entry_id(self, v)
 
     def _set_selected_queue_period_id(self, v: str) -> None:
-        if v == self._selected_queue_period_id:
-            return
-        self._selected_queue_period_id = v
-        self.selectedQueuePeriodIdChanged.emit()
+        _setters.set_selected_queue_period_id(self, v)
 
     def _set_assignment_summary(self, v: dict[str, object]) -> None:
-        if v == self._assignment_summary:
-            return
-        self._assignment_summary = v
-        self.assignmentSummaryChanged.emit()
+        _setters.set_assignment_summary(self, v)
 
     def _set_entries(self, v: dict[str, object]) -> None:
-        if v == self._entries:
-            return
-        self._entries = v
-        self._table_models.entries.set_rows(v.get("items", []))
-        self.entriesChanged.emit()
+        _setters.set_entries(self, v)
 
     def _set_selected_entry(self, v: dict[str, object]) -> None:
-        if v == self._selected_entry:
-            return
-        self._selected_entry = v
-        self.selectedEntryChanged.emit()
+        _setters.set_selected_entry(self, v)
 
     def _set_review_queue(self, v: dict[str, object]) -> None:
-        if v == self._review_queue:
-            return
-        self._review_queue = v
-        self._table_models.review_queue.set_rows(v.get("items", []))
-        self.reviewQueueChanged.emit()
+        _setters.set_review_queue(self, v)
 
     def _set_review_detail(self, v: dict[str, object]) -> None:
-        if v == self._review_detail:
-            return
-        self._review_detail = v
-        self.reviewDetailChanged.emit()
+        _setters.set_review_detail(self, v)
 
     def _set_queue_page(self, v: int) -> None:
-        if v == self._queue_page:
-            return
-        self._queue_page = v
-        self.queuePageChanged.emit()
+        _setters.set_queue_page(self, v)
 
     def _set_queue_total_count(self, v: int) -> None:
-        if v == self._queue_total_count:
-            return
-        self._queue_total_count = v
-        self.queueTotalCountChanged.emit()
+        _setters.set_queue_total_count(self, v)
 
     def _set_selected_queue_period_ids(self, ids: list[str]) -> None:
-        if ids == self._selected_queue_period_ids:
-            return
-        self._selected_queue_period_ids = ids
-        self.selectedQueuePeriodIdsChanged.emit()
-        self.selectedQueuePeriodCountChanged.emit()
+        _setters.set_selected_queue_period_ids(self, ids)
 
 
 __all__ = ["ProjectManagementTimesheetsWorkspaceController"]
