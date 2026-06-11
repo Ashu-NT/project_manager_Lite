@@ -6,14 +6,26 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.maintenance.controllers.common import (
     MaintenanceWorkspaceControllerBase,
-    run_mutation,
-    serialize_work_order_workspace_state,
-    serialize_workspace_view_model,
 )
 from src.ui_qml.modules.maintenance.presenters import (
     MaintenanceWorkOrdersWorkspacePresenter,
     MaintenanceWorkspacePresenter,
 )
+from .work_orders_mutations import (
+    create_work_order,
+    set_work_order_status,
+    update_work_order,
+)
+from .work_orders_selection import (
+    apply_asset_filter,
+    apply_priority_filter,
+    apply_search_text,
+    apply_select_work_order,
+    apply_site_filter,
+    apply_status_filter,
+    apply_work_order_type_filter,
+)
+from .work_orders_state_loader import load_workspace_state
 
 QML_IMPORT_NAME = "Maintenance.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -109,6 +121,8 @@ class MaintenanceWorkOrdersWorkspaceController(MaintenanceWorkspaceControllerBas
         self._form_vendor_options: list[dict[str, str]] = []
         self._bind_domain_events()
         self.refresh()
+
+    # --- Qt Properties ---
 
     @Property("QVariantMap", notify=overviewChanged)
     def overview(self) -> dict[str, object]:
@@ -222,336 +236,59 @@ class MaintenanceWorkOrdersWorkspaceController(MaintenanceWorkspaceControllerBas
     def formVendorOptions(self) -> list[dict[str, str]]:
         return self._form_vendor_options
 
+    # --- Slots ---
+
     @Slot()
     def refresh(self) -> None:
-        self._set_is_loading(True)
-        try:
-            self._set_error_message("")
-            self._set_feedback_message("")
-            self._set_workspace(
-                serialize_workspace_view_model(
-                    self._workspace_presenter.build_view_model()
-                )
-            )
-            state = serialize_work_order_workspace_state(
-                self._work_orders_workspace_presenter.build_workspace_state(
-                    search_text=self._search_text,
-                    site_filter=self._selected_site_filter,
-                    status_filter=self._selected_status_filter,
-                    priority_filter=self._selected_priority_filter,
-                    work_order_type_filter=self._selected_work_order_type_filter,
-                    asset_filter=self._selected_asset_filter,
-                    selected_work_order_id=self._selected_work_order_id or None,
-                )
-            )
-            self._set_overview(state["overview"])
-            self._set_site_options(state["siteOptions"])
-            self._set_status_options(state["statusOptions"])
-            self._set_priority_options(state["priorityOptions"])
-            self._set_work_order_type_options(state["workOrderTypeOptions"])
-            self._set_asset_options(state["assetOptions"])
-            self._set_selected_site_filter(str(state["selectedSiteFilter"]))
-            self._set_selected_status_filter(str(state["selectedStatusFilter"]))
-            self._set_selected_priority_filter(str(state["selectedPriorityFilter"]))
-            self._set_selected_work_order_type_filter(
-                str(state["selectedWorkOrderTypeFilter"])
-            )
-            self._set_selected_asset_filter(str(state["selectedAssetFilter"]))
-            self._set_search_text(str(state["searchText"]))
-            self._set_work_orders(state["workOrders"])
-            self._set_selected_work_order_id(str(state["selectedWorkOrderId"]))
-            self._set_selected_work_order(state["selectedWorkOrder"])
-            self._set_form_site_options(state["formSiteOptions"])
-            self._set_form_location_options(state["formLocationOptions"])
-            self._set_form_system_options(state["formSystemOptions"])
-            self._set_form_asset_options(state["formAssetOptions"])
-            self._set_form_component_options(state["formComponentOptions"])
-            self._set_form_source_type_options(state["formSourceTypeOptions"])
-            self._set_form_source_work_request_options(
-                state["formSourceWorkRequestOptions"]
-            )
-            self._set_form_work_order_type_options(state["formWorkOrderTypeOptions"])
-            self._set_form_priority_options(state["formPriorityOptions"])
-            self._set_form_status_options(state["formStatusOptions"])
-            self._set_form_employee_options(state["formEmployeeOptions"])
-            self._set_form_vendor_options(state["formVendorOptions"])
-            self._set_empty_state(str(state["emptyState"]))
-        except Exception as exc:  # pragma: no cover - defensive fallback
-            self._set_error_message(str(exc))
-        finally:
-            self._set_is_loading(False)
+        load_workspace_state(self)
 
     @Slot(str)
     def setSearchText(self, search_text: str) -> None:
-        normalized = (search_text or "").strip()
-        if normalized == self._search_text:
-            return
-        self._set_search_text(normalized)
-        self.refresh()
+        apply_search_text(self, search_text)
 
     @Slot(str)
     def setSiteFilter(self, site_id: str) -> None:
-        normalized = (site_id or "").strip() or "all"
-        if normalized == self._selected_site_filter:
-            return
-        self._set_selected_site_filter(normalized)
-        self.refresh()
+        apply_site_filter(self, site_id)
 
     @Slot(str)
     def setStatusFilter(self, status: str) -> None:
-        normalized = (status or "").strip() or "all"
-        if normalized == self._selected_status_filter:
-            return
-        self._set_selected_status_filter(normalized)
-        self.refresh()
+        apply_status_filter(self, status)
 
     @Slot(str)
     def setPriorityFilter(self, priority: str) -> None:
-        normalized = (priority or "").strip() or "all"
-        if normalized == self._selected_priority_filter:
-            return
-        self._set_selected_priority_filter(normalized)
-        self.refresh()
+        apply_priority_filter(self, priority)
 
     @Slot(str)
     def setWorkOrderTypeFilter(self, work_order_type: str) -> None:
-        normalized = (work_order_type or "").strip() or "all"
-        if normalized == self._selected_work_order_type_filter:
-            return
-        self._set_selected_work_order_type_filter(normalized)
-        self.refresh()
+        apply_work_order_type_filter(self, work_order_type)
 
     @Slot(str)
     def setAssetFilter(self, asset_id: str) -> None:
-        normalized = (asset_id or "").strip() or "all"
-        if normalized == self._selected_asset_filter:
-            return
-        self._set_selected_asset_filter(normalized)
-        self.refresh()
+        apply_asset_filter(self, asset_id)
 
     @Slot(str)
     def selectWorkOrder(self, work_order_id: str) -> None:
-        normalized = (work_order_id or "").strip()
-        if normalized == self._selected_work_order_id:
-            return
-        self._set_selected_work_order_id(normalized)
-        self.refresh()
+        apply_select_work_order(self, work_order_id)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createWorkOrder(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._work_orders_workspace_presenter.create_work_order(
-                dict(payload)
-            ),
-            success_message="Work order created.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return create_work_order(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def updateWorkOrder(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._work_orders_workspace_presenter.update_work_order(
-                dict(payload)
-            ),
-            success_message="Work order updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return update_work_order(self, payload)
 
     @Slot(str, str, int, result="QVariantMap")
     def setWorkOrderStatus(
-        self,
-        work_order_id: str,
-        status: str,
-        expected_version: int,
+        self, work_order_id: str, status: str, expected_version: int
     ) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._work_orders_workspace_presenter.set_work_order_status(
-                work_order_id,
-                status=status,
-                expected_version=expected_version,
-            ),
-            success_message="Work order status updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return set_work_order_status(self, work_order_id, status, expected_version)
+
+    # --- Domain event wiring ---
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(scope_code="maintenance_management")
         self._subscribe_domain_change("site", scope_code="platform")
-
-    def _set_overview(self, overview: dict[str, object]) -> None:
-        if overview == self._overview:
-            return
-        self._overview = overview
-        self.overviewChanged.emit()
-
-    def _set_site_options(self, options: list[dict[str, object]]) -> None:
-        if options == self._site_options:
-            return
-        self._site_options = options
-        self.siteOptionsChanged.emit()
-
-    def _set_status_options(self, options: list[dict[str, object]]) -> None:
-        if options == self._status_options:
-            return
-        self._status_options = options
-        self.statusOptionsChanged.emit()
-
-    def _set_priority_options(self, options: list[dict[str, object]]) -> None:
-        if options == self._priority_options:
-            return
-        self._priority_options = options
-        self.priorityOptionsChanged.emit()
-
-    def _set_work_order_type_options(self, options: list[dict[str, object]]) -> None:
-        if options == self._work_order_type_options:
-            return
-        self._work_order_type_options = options
-        self.workOrderTypeOptionsChanged.emit()
-
-    def _set_asset_options(self, options: list[dict[str, object]]) -> None:
-        if options == self._asset_options:
-            return
-        self._asset_options = options
-        self.assetOptionsChanged.emit()
-
-    def _set_selected_site_filter(self, value: str) -> None:
-        if value == self._selected_site_filter:
-            return
-        self._selected_site_filter = value
-        self.selectedSiteFilterChanged.emit()
-
-    def _set_selected_status_filter(self, value: str) -> None:
-        if value == self._selected_status_filter:
-            return
-        self._selected_status_filter = value
-        self.selectedStatusFilterChanged.emit()
-
-    def _set_selected_priority_filter(self, value: str) -> None:
-        if value == self._selected_priority_filter:
-            return
-        self._selected_priority_filter = value
-        self.selectedPriorityFilterChanged.emit()
-
-    def _set_selected_work_order_type_filter(self, value: str) -> None:
-        if value == self._selected_work_order_type_filter:
-            return
-        self._selected_work_order_type_filter = value
-        self.selectedWorkOrderTypeFilterChanged.emit()
-
-    def _set_selected_asset_filter(self, value: str) -> None:
-        if value == self._selected_asset_filter:
-            return
-        self._selected_asset_filter = value
-        self.selectedAssetFilterChanged.emit()
-
-    def _set_search_text(self, value: str) -> None:
-        if value == self._search_text:
-            return
-        self._search_text = value
-        self.searchTextChanged.emit()
-
-    def _set_work_orders(self, value: dict[str, object]) -> None:
-        if value == self._work_orders:
-            return
-        self._work_orders = value
-        self._work_orders_table_model.set_rows(value.get("items", []))
-        self.workOrdersChanged.emit()
-
-    def _set_selected_work_order(self, value: dict[str, object]) -> None:
-        if value == self._selected_work_order:
-            return
-        self._selected_work_order = value
-        self.selectedWorkOrderChanged.emit()
-
-    def _set_selected_work_order_id(self, value: str) -> None:
-        if value == self._selected_work_order_id:
-            return
-        self._selected_work_order_id = value
-        self.selectedWorkOrderIdChanged.emit()
-
-    def _set_form_site_options(self, value: list[dict[str, str]]) -> None:
-        if value == self._form_site_options:
-            return
-        self._form_site_options = value
-        self.formSiteOptionsChanged.emit()
-
-    def _set_form_location_options(self, value: list[dict[str, str]]) -> None:
-        if value == self._form_location_options:
-            return
-        self._form_location_options = value
-        self.formLocationOptionsChanged.emit()
-
-    def _set_form_system_options(self, value: list[dict[str, str]]) -> None:
-        if value == self._form_system_options:
-            return
-        self._form_system_options = value
-        self.formSystemOptionsChanged.emit()
-
-    def _set_form_asset_options(self, value: list[dict[str, str]]) -> None:
-        if value == self._form_asset_options:
-            return
-        self._form_asset_options = value
-        self.formAssetOptionsChanged.emit()
-
-    def _set_form_component_options(self, value: list[dict[str, str]]) -> None:
-        if value == self._form_component_options:
-            return
-        self._form_component_options = value
-        self.formComponentOptionsChanged.emit()
-
-    def _set_form_source_type_options(self, value: list[dict[str, str]]) -> None:
-        if value == self._form_source_type_options:
-            return
-        self._form_source_type_options = value
-        self.formSourceTypeOptionsChanged.emit()
-
-    def _set_form_source_work_request_options(
-        self,
-        value: list[dict[str, object]],
-    ) -> None:
-        if value == self._form_source_work_request_options:
-            return
-        self._form_source_work_request_options = value
-        self.formSourceWorkRequestOptionsChanged.emit()
-
-    def _set_form_work_order_type_options(self, value: list[dict[str, str]]) -> None:
-        if value == self._form_work_order_type_options:
-            return
-        self._form_work_order_type_options = value
-        self.formWorkOrderTypeOptionsChanged.emit()
-
-    def _set_form_priority_options(self, value: list[dict[str, str]]) -> None:
-        if value == self._form_priority_options:
-            return
-        self._form_priority_options = value
-        self.formPriorityOptionsChanged.emit()
-
-    def _set_form_status_options(self, value: list[dict[str, str]]) -> None:
-        if value == self._form_status_options:
-            return
-        self._form_status_options = value
-        self.formStatusOptionsChanged.emit()
-
-    def _set_form_employee_options(self, value: list[dict[str, str]]) -> None:
-        if value == self._form_employee_options:
-            return
-        self._form_employee_options = value
-        self.formEmployeeOptionsChanged.emit()
-
-    def _set_form_vendor_options(self, value: list[dict[str, str]]) -> None:
-        if value == self._form_vendor_options:
-            return
-        self._form_vendor_options = value
-        self.formVendorOptionsChanged.emit()
 
 
 __all__ = ["MaintenanceWorkOrdersWorkspaceController"]
