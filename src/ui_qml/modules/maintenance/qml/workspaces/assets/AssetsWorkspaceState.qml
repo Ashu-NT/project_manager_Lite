@@ -1,11 +1,12 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Maintenance.Controllers 1.0 as MaintenanceControllers
 
 Item {
     id: root
 
-    property var maintenanceCatalog: null
+    property MaintenanceControllers.MaintenanceWorkspaceCatalog maintenanceCatalog
     property var workspaceController: null
 
     readonly property string tableId: "maintenance.assets.table"

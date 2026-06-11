@@ -2,11 +2,12 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "WorkOrdersColumnConfig.js" as ColumnConfig
+import Maintenance.Controllers 1.0 as MaintenanceControllers
 
 Item {
     id: root
 
-    property var maintenanceCatalog: null
+    property MaintenanceControllers.MaintenanceWorkspaceCatalog maintenanceCatalog
     property var platformCatalog: null
     property var workspaceController: null
 

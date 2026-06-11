@@ -10,13 +10,13 @@ from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml
 
 
 WORK_REQUESTS_DIALOG_HOST = Path(
-    "src/ui_qml/modules/maintenance/qml/workspaces/work_requests/WorkRequestsDialogHost.qml"
+    "src/ui_qml/modules/maintenance/qml/workspaces/work_requests/dialogs/WorkRequestsDialogHost.qml"
 )
 WORK_ORDERS_DIALOG_HOST = Path(
-    "src/ui_qml/modules/maintenance/qml/workspaces/work_orders/WorkOrdersDialogHost.qml"
+    "src/ui_qml/modules/maintenance/qml/workspaces/work_orders/dialogs/WorkOrdersDialogHost.qml"
 )
 ASSETS_DIALOG_HOST = Path(
-    "src/ui_qml/modules/maintenance/qml/workspaces/assets/AssetsDialogHost.qml"
+    "src/ui_qml/modules/maintenance/qml/workspaces/assets/dialogs/AssetsDialogHost.qml"
 )
 
 

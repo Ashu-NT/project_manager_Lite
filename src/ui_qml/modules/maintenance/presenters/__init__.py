@@ -15,7 +15,7 @@ from src.ui_qml.modules.maintenance.presenters.preventive import (
 from src.ui_qml.modules.maintenance.presenters.reliability_workspace_presenter import (
     MaintenanceReliabilityWorkspacePresenter,
 )
-from src.ui_qml.modules.maintenance.presenters.work_orders_workspace_presenter import (
+from src.ui_qml.modules.maintenance.presenters.work_orders import (
     MaintenanceWorkOrdersWorkspacePresenter,
 )
 from src.ui_qml.modules.maintenance.presenters.work_requests_workspace_presenter import (
