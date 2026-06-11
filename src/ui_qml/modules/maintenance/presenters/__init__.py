@@ -9,7 +9,7 @@ from src.ui_qml.modules.maintenance.presenters.dashboard_workspace_presenter imp
 from src.ui_qml.modules.maintenance.presenters.planner_workspace_presenter import (
     MaintenancePlannerWorkspacePresenter,
 )
-from src.ui_qml.modules.maintenance.presenters.preventive_workspace_presenter import (
+from src.ui_qml.modules.maintenance.presenters.preventive import (
     MaintenancePreventiveWorkspacePresenter,
 )
 from src.ui_qml.modules.maintenance.presenters.reliability_workspace_presenter import (

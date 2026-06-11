@@ -14,7 +14,6 @@ _LARGE_MODULE_BUDGETS = {
     "src/core/modules/project_management/api/desktop/dashboard.py": 2709,
     "src/ui_qml/modules/project_management/controllers/scheduling/scheduling_workspace_controller.py": 1338,
     "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": 1600,
-    "src/ui_qml/modules/maintenance/presenters/preventive_workspace_presenter.py": 1500,
     "src/tests/project_management/test_project_management_desktop_api.py": 3212,
     "src/tests/project_management/test_qml_project_management_presenters.py": 2235,
     "src/tests/architecture/test_architecture_guardrails.py": 1500,
