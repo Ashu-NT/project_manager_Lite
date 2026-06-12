@@ -50,24 +50,38 @@ class SqlAlchemyResourceRepository(ResourceRepository):
 
     def get(self, resource_id: str) -> Resource | None:
         obj = self.session.get(ResourceORM, resource_id)
-        return resource_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return resource_from_orm(obj)
 
     def get_for_organization(self, resource_id: str, organization_id: str) -> Resource | None:
+        _tid = self._tenant_id_provider()
         stmt = (
             select(ResourceORM)
             .where(ResourceORM.id == resource_id)
             .where(ResourceORM.organization_id == organization_id)
         )
+        if _tid is not None:
+            stmt = stmt.where(ResourceORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return resource_from_orm(obj) if obj else None
 
     def list_for_organization(self, organization_id: str) -> list[Resource]:
+        _tid = self._tenant_id_provider()
         stmt = select(ResourceORM).where(ResourceORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(ResourceORM.tenant_id == _tid)
         rows = self.session.execute(stmt).scalars().all()
         return [resource_from_orm(row) for row in rows]
 
     def list_by_employee(self, employee_id: str) -> list[Resource]:
+        _tid = self._tenant_id_provider()
         stmt = select(ResourceORM).where(ResourceORM.employee_id == employee_id)
+        if _tid is not None:
+            stmt = stmt.where(ResourceORM.tenant_id == _tid)
         rows = self.session.execute(stmt).scalars().all()
         return [resource_from_orm(row) for row in rows]
 

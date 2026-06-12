@@ -29,7 +29,10 @@ class SqlAlchemyAuditLogRepository(AuditLogRepository):
         project_id: str | None = None,
         entity_type: str | None = None,
     ) -> list[AuditLogEntry]:
+        _tid = self._tenant_id_provider()
         stmt = select(AuditLogORM)
+        if _tid is not None:
+            stmt = stmt.where(AuditLogORM.tenant_id == _tid)
         if project_id is not None:
             stmt = stmt.where(AuditLogORM.project_id == project_id)
         if entity_type is not None:
@@ -46,7 +49,10 @@ class SqlAlchemyAuditLogRepository(AuditLogRepository):
         project_id: str | None = None,
         entity_type: str | None = None,
     ) -> list[AuditLogEntry]:
+        _tid = self._tenant_id_provider()
         stmt = select(AuditLogORM).where(AuditLogORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(AuditLogORM.tenant_id == _tid)
         if project_id is not None:
             stmt = stmt.where(AuditLogORM.project_id == project_id)
         if entity_type is not None:

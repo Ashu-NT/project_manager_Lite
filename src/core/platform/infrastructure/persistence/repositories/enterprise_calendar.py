@@ -68,22 +68,34 @@ class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
 
     def get(self, calendar_id: str) -> PlatformCalendar | None:
         obj = self._session.get(PlatformCalendarORM, calendar_id)
-        return platform_calendar_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return platform_calendar_from_orm(obj)
 
     def get_by_code(self, organization_id: str, code: str) -> PlatformCalendar | None:
+        _tid = self._tenant_id_provider()
         stmt = select(PlatformCalendarORM).where(
             PlatformCalendarORM.organization_id == organization_id,
             PlatformCalendarORM.code == code,
         )
+        if _tid is not None:
+            stmt = stmt.where(PlatformCalendarORM.tenant_id == _tid)
         obj = self._session.execute(stmt).scalars().first()
         return platform_calendar_from_orm(obj) if obj else None
 
     def get_global(self, organization_id: str) -> PlatformCalendar | None:
+        _tid = self._tenant_id_provider()
         stmt = select(PlatformCalendarORM).where(
             PlatformCalendarORM.organization_id == organization_id,
             PlatformCalendarORM.calendar_type == "GLOBAL",
             PlatformCalendarORM.is_active.is_(True),
-        ).order_by(PlatformCalendarORM.priority.desc())
+        )
+        if _tid is not None:
+            stmt = stmt.where(PlatformCalendarORM.tenant_id == _tid)
+        stmt = stmt.order_by(PlatformCalendarORM.priority.desc())
         obj = self._session.execute(stmt).scalars().first()
         return platform_calendar_from_orm(obj) if obj else None
 
@@ -94,9 +106,12 @@ class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
         calendar_type: str | None = None,
         active_only: bool | None = None,
     ) -> list[PlatformCalendar]:
+        _tid = self._tenant_id_provider()
         stmt = select(PlatformCalendarORM).where(
             PlatformCalendarORM.organization_id == organization_id
         )
+        if _tid is not None:
+            stmt = stmt.where(PlatformCalendarORM.tenant_id == _tid)
         if calendar_type is not None:
             stmt = stmt.where(PlatformCalendarORM.calendar_type == calendar_type)
         if active_only is not None:
@@ -324,9 +339,12 @@ class SqlAlchemyShiftPatternRepository(ShiftPatternRepository):
     def list_for_organization(
         self, organization_id: str, *, active_only: bool | None = None
     ) -> list[ShiftPattern]:
+        _tid = self._tenant_id_provider()
         stmt = select(ShiftPatternORM).where(
             ShiftPatternORM.organization_id == organization_id
         )
+        if _tid is not None:
+            stmt = stmt.where(ShiftPatternORM.tenant_id == _tid)
         if active_only is not None:
             stmt = stmt.where(ShiftPatternORM.is_active.is_(active_only))
         stmt = stmt.order_by(ShiftPatternORM.name)
@@ -335,13 +353,21 @@ class SqlAlchemyShiftPatternRepository(ShiftPatternRepository):
 
     def get(self, pattern_id: str) -> ShiftPattern | None:
         obj = self._session.get(ShiftPatternORM, pattern_id)
-        return shift_pattern_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return shift_pattern_from_orm(obj)
 
     def get_by_code(self, organization_id: str, code: str) -> ShiftPattern | None:
+        _tid = self._tenant_id_provider()
         stmt = select(ShiftPatternORM).where(
             ShiftPatternORM.organization_id == organization_id,
             ShiftPatternORM.code == code,
         )
+        if _tid is not None:
+            stmt = stmt.where(ShiftPatternORM.tenant_id == _tid)
         obj = self._session.execute(stmt).scalars().first()
         return shift_pattern_from_orm(obj) if obj else None
 

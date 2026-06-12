@@ -48,7 +48,12 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
 
     def get(self, request_id: str) -> ApprovalRequest | None:
         obj = self.session.get(ApprovalRequestORM, request_id)
-        return approval_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return approval_from_orm(obj)
 
     def list_by_status(
         self,
@@ -59,7 +64,10 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         entity_type: str | list[str] | None = None,
         entity_id: str | None = None,
     ) -> list[ApprovalRequest]:
+        _tid = self._tenant_id_provider()
         stmt = select(ApprovalRequestORM)
+        if _tid is not None:
+            stmt = stmt.where(ApprovalRequestORM.tenant_id == _tid)
         if status is not None:
             stmt = stmt.where(ApprovalRequestORM.status == status.value)
         if project_id is not None:
@@ -92,6 +100,7 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         entity_type: str | list[str] | None = None,
         entity_id: str | None = None,
     ) -> list[ApprovalRequest]:
+        _tid = self._tenant_id_provider()
         stmt = (
             select(ApprovalRequestORM)
             .outerjoin(ProjectORM, ProjectORM.id == ApprovalRequestORM.project_id)
@@ -102,6 +111,8 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
                 )
             )
         )
+        if _tid is not None:
+            stmt = stmt.where(ApprovalRequestORM.tenant_id == _tid)
         if status is not None:
             stmt = stmt.where(ApprovalRequestORM.status == status.value)
         if project_id is not None:

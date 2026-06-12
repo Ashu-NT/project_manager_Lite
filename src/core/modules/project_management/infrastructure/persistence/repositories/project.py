@@ -56,10 +56,18 @@ class SqlAlchemyProjectRepository(ProjectRepository):
 
     def get(self, project_id: str) -> Project | None:
         obj = self.session.get(ProjectORM, project_id)
-        return project_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return project_from_orm(obj)
 
     def list_for_organization(self, organization_id: str) -> list[Project]:
+        _tid = self._tenant_id_provider()
         stmt = select(ProjectORM).where(ProjectORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(ProjectORM.tenant_id == _tid)
         rows = self.session.execute(stmt).scalars().all()
         return [project_from_orm(row) for row in rows]
 

@@ -79,22 +79,33 @@ class SqlAlchemyPortfolioIntakeRepository(PortfolioIntakeRepository):
 
     def get(self, item_id: str) -> PortfolioIntakeItem | None:
         obj = self.session.get(PortfolioIntakeItemORM, item_id)
-        return portfolio_intake_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return portfolio_intake_from_orm(obj)
 
     def get_for_organization(self, item_id: str, organization_id: str) -> PortfolioIntakeItem | None:
+        _tid = self._tenant_id_provider()
         stmt = select(PortfolioIntakeItemORM).where(
             PortfolioIntakeItemORM.id == item_id,
             PortfolioIntakeItemORM.organization_id == organization_id,
         )
+        if _tid is not None:
+            stmt = stmt.where(PortfolioIntakeItemORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return portfolio_intake_from_orm(obj) if obj else None
 
     def list_for_organization(self, organization_id: str) -> list[PortfolioIntakeItem]:
+        _tid = self._tenant_id_provider()
         stmt = (
             select(PortfolioIntakeItemORM)
             .where(PortfolioIntakeItemORM.organization_id == organization_id)
             .order_by(PortfolioIntakeItemORM.updated_at.desc())
         )
+        if _tid is not None:
+            stmt = stmt.where(PortfolioIntakeItemORM.tenant_id == _tid)
         rows = self.session.execute(stmt).scalars().all()
         return [portfolio_intake_from_orm(row) for row in rows]
 
@@ -124,22 +135,33 @@ class SqlAlchemyPortfolioScenarioRepository(PortfolioScenarioRepository):
 
     def get(self, scenario_id: str) -> PortfolioScenario | None:
         obj = self.session.get(PortfolioScenarioORM, scenario_id)
-        return portfolio_scenario_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return portfolio_scenario_from_orm(obj)
 
     def get_for_organization(self, scenario_id: str, organization_id: str) -> PortfolioScenario | None:
+        _tid = self._tenant_id_provider()
         stmt = select(PortfolioScenarioORM).where(
             PortfolioScenarioORM.id == scenario_id,
             PortfolioScenarioORM.organization_id == organization_id,
         )
+        if _tid is not None:
+            stmt = stmt.where(PortfolioScenarioORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return portfolio_scenario_from_orm(obj) if obj else None
 
     def list_for_organization(self, organization_id: str) -> list[PortfolioScenario]:
+        _tid = self._tenant_id_provider()
         stmt = (
             select(PortfolioScenarioORM)
             .where(PortfolioScenarioORM.organization_id == organization_id)
             .order_by(PortfolioScenarioORM.updated_at.desc())
         )
+        if _tid is not None:
+            stmt = stmt.where(PortfolioScenarioORM.tenant_id == _tid)
         rows = self.session.execute(stmt).scalars().all()
         return [portfolio_scenario_from_orm(row) for row in rows]
 
@@ -233,17 +255,26 @@ class SqlAlchemyPortfolioScoringTemplateRepository(PortfolioScoringTemplateRepos
 
     def get(self, template_id: str) -> PortfolioScoringTemplate | None:
         obj = self.session.get(PortfolioScoringTemplateORM, template_id)
-        return portfolio_scoring_template_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return portfolio_scoring_template_from_orm(obj)
 
     def get_for_organization(self, template_id: str, organization_id: str) -> PortfolioScoringTemplate | None:
+        _tid = self._tenant_id_provider()
         stmt = select(PortfolioScoringTemplateORM).where(
             PortfolioScoringTemplateORM.id == template_id,
             PortfolioScoringTemplateORM.organization_id == organization_id,
         )
+        if _tid is not None:
+            stmt = stmt.where(PortfolioScoringTemplateORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return portfolio_scoring_template_from_orm(obj) if obj else None
 
     def list_for_organization(self, organization_id: str) -> list[PortfolioScoringTemplate]:
+        _tid = self._tenant_id_provider()
         stmt = (
             select(PortfolioScoringTemplateORM)
             .where(PortfolioScoringTemplateORM.organization_id == organization_id)
@@ -253,6 +284,8 @@ class SqlAlchemyPortfolioScoringTemplateRepository(PortfolioScoringTemplateRepos
                 PortfolioScoringTemplateORM.name.asc(),
             )
         )
+        if _tid is not None:
+            stmt = stmt.where(PortfolioScoringTemplateORM.tenant_id == _tid)
         rows = self.session.execute(stmt).scalars().all()
         return [portfolio_scoring_template_from_orm(row) for row in rows]
 

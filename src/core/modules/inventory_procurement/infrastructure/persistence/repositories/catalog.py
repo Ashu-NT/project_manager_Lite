@@ -59,13 +59,21 @@ class SqlAlchemyInventoryItemCategoryRepository(InventoryItemCategoryRepository)
 
     def get(self, category_id: str) -> InventoryItemCategory | None:
         obj = self.session.get(InventoryItemCategoryORM, category_id)
-        return inventory_item_category_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return inventory_item_category_from_orm(obj)
 
     def get_by_code(self, organization_id: str, category_code: str) -> InventoryItemCategory | None:
+        _tid = self._tenant_id_provider()
         stmt = select(InventoryItemCategoryORM).where(
             InventoryItemCategoryORM.organization_id == organization_id,
             InventoryItemCategoryORM.category_code == category_code,
         )
+        if _tid is not None:
+            stmt = stmt.where(InventoryItemCategoryORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return inventory_item_category_from_orm(obj) if obj else None
 
@@ -76,7 +84,10 @@ class SqlAlchemyInventoryItemCategoryRepository(InventoryItemCategoryRepository)
         active_only: bool | None = None,
         category_type: str | None = None,
     ) -> list[InventoryItemCategory]:
+        _tid = self._tenant_id_provider()
         stmt = select(InventoryItemCategoryORM).where(InventoryItemCategoryORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(InventoryItemCategoryORM.tenant_id == _tid)
         if active_only is not None:
             stmt = stmt.where(InventoryItemCategoryORM.is_active == bool(active_only))
         if category_type is not None:
@@ -140,13 +151,21 @@ class SqlAlchemyStockItemRepository(StockItemRepository):
 
     def get(self, item_id: str) -> StockItem | None:
         obj = self.session.get(StockItemORM, item_id)
-        return stock_item_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return stock_item_from_orm(obj)
 
     def get_by_code(self, organization_id: str, item_code: str) -> StockItem | None:
+        _tid = self._tenant_id_provider()
         stmt = select(StockItemORM).where(
             StockItemORM.organization_id == organization_id,
             StockItemORM.item_code == item_code,
         )
+        if _tid is not None:
+            stmt = stmt.where(StockItemORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return stock_item_from_orm(obj) if obj else None
 
@@ -156,7 +175,10 @@ class SqlAlchemyStockItemRepository(StockItemRepository):
         *,
         active_only: bool | None = None,
     ) -> list[StockItem]:
+        _tid = self._tenant_id_provider()
         stmt = select(StockItemORM).where(StockItemORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(StockItemORM.tenant_id == _tid)
         if active_only is not None:
             stmt = stmt.where(StockItemORM.is_active == bool(active_only))
         rows = self.session.execute(stmt.order_by(StockItemORM.name.asc())).scalars().all()

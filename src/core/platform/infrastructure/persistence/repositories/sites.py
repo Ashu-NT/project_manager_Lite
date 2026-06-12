@@ -58,13 +58,21 @@ class SqlAlchemySiteRepository(SiteRepository):
 
     def get(self, site_id: str) -> Site | None:
         obj = self.session.get(SiteORM, site_id)
-        return site_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return site_from_orm(obj)
 
     def get_by_code(self, organization_id: str, site_code: str) -> Site | None:
+        _tid = self._tenant_id_provider()
         stmt = select(SiteORM).where(
             SiteORM.organization_id == organization_id,
             SiteORM.site_code == site_code,
         )
+        if _tid is not None:
+            stmt = stmt.where(SiteORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return site_from_orm(obj) if obj else None
 
@@ -74,7 +82,10 @@ class SqlAlchemySiteRepository(SiteRepository):
         *,
         active_only: bool | None = None,
     ) -> list[Site]:
+        _tid = self._tenant_id_provider()
         stmt = select(SiteORM).where(SiteORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(SiteORM.tenant_id == _tid)
         if active_only is not None:
             stmt = stmt.where(SiteORM.is_active == bool(active_only))
         rows = self.session.execute(stmt.order_by(SiteORM.name.asc())).scalars().all()

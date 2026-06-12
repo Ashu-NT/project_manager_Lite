@@ -56,13 +56,21 @@ class SqlAlchemyPartyRepository(PartyRepository):
 
     def get(self, party_id: str) -> Party | None:
         obj = self.session.get(PartyORM, party_id)
-        return party_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return party_from_orm(obj)
 
     def get_by_code(self, organization_id: str, party_code: str) -> Party | None:
+        _tid = self._tenant_id_provider()
         stmt = select(PartyORM).where(
             PartyORM.organization_id == organization_id,
             PartyORM.party_code == party_code,
         )
+        if _tid is not None:
+            stmt = stmt.where(PartyORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return party_from_orm(obj) if obj else None
 
@@ -72,7 +80,10 @@ class SqlAlchemyPartyRepository(PartyRepository):
         *,
         active_only: bool | None = None,
     ) -> list[Party]:
+        _tid = self._tenant_id_provider()
         stmt = select(PartyORM).where(PartyORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(PartyORM.tenant_id == _tid)
         if active_only is not None:
             stmt = stmt.where(PartyORM.is_active == bool(active_only))
         rows = self.session.execute(stmt.order_by(PartyORM.party_name.asc())).scalars().all()

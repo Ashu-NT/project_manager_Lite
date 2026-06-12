@@ -31,7 +31,12 @@ class SqlAlchemyTimeEntryRepository(TimeEntryRepository):
 
     def get(self, entry_id: str) -> TimeEntry | None:
         obj = self.session.get(TimeEntryORM, entry_id)
-        return time_entry_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return time_entry_from_orm(obj)
 
     def update(self, entry: TimeEntry) -> None:
         orm = time_entry_to_orm(entry)
@@ -44,20 +49,20 @@ class SqlAlchemyTimeEntryRepository(TimeEntryRepository):
         self.session.query(TimeEntryORM).filter_by(id=entry_id).delete()
 
     def list_by_work_allocation(self, work_allocation_id: str) -> list[TimeEntry]:
-        stmt = (
-            select(TimeEntryORM)
-            .where(TimeEntryORM.work_allocation_id == work_allocation_id)
-            .order_by(TimeEntryORM.entry_date.asc(), TimeEntryORM.created_at.asc())
-        )
+        _tid = self._tenant_id_provider()
+        stmt = select(TimeEntryORM).where(TimeEntryORM.work_allocation_id == work_allocation_id)
+        if _tid is not None:
+            stmt = stmt.where(TimeEntryORM.tenant_id == _tid)
+        stmt = stmt.order_by(TimeEntryORM.entry_date.asc(), TimeEntryORM.created_at.asc())
         rows = self.session.execute(stmt).scalars().all()
         return [time_entry_from_orm(row) for row in rows]
 
     def list_for_organization(self, organization_id: str) -> list[TimeEntry]:
-        stmt = (
-            select(TimeEntryORM)
-            .where(TimeEntryORM.organization_id == organization_id)
-            .order_by(TimeEntryORM.entry_date.desc(), TimeEntryORM.created_at.desc())
-        )
+        _tid = self._tenant_id_provider()
+        stmt = select(TimeEntryORM).where(TimeEntryORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(TimeEntryORM.tenant_id == _tid)
+        stmt = stmt.order_by(TimeEntryORM.entry_date.desc(), TimeEntryORM.created_at.desc())
         rows = self.session.execute(stmt).scalars().all()
         return [time_entry_from_orm(row) for row in rows]
 
@@ -80,7 +85,12 @@ class SqlAlchemyTimesheetPeriodRepository(TimesheetPeriodRepository):
 
     def get(self, period_id: str) -> TimesheetPeriod | None:
         obj = self.session.get(TimesheetPeriodORM, period_id)
-        return timesheet_period_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return timesheet_period_from_orm(obj)
 
     def update(self, period: TimesheetPeriod) -> None:
         orm = timesheet_period_to_orm(period)
@@ -90,19 +100,22 @@ class SqlAlchemyTimesheetPeriodRepository(TimesheetPeriodRepository):
         self.session.merge(orm)
 
     def get_by_resource_period(self, resource_id: str, period_start: date) -> TimesheetPeriod | None:
+        _tid = self._tenant_id_provider()
         stmt = select(TimesheetPeriodORM).where(
             TimesheetPeriodORM.resource_id == resource_id,
             TimesheetPeriodORM.period_start == period_start,
         )
+        if _tid is not None:
+            stmt = stmt.where(TimesheetPeriodORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalar_one_or_none()
         return timesheet_period_from_orm(obj) if obj else None
 
     def list_by_resource(self, resource_id: str) -> list[TimesheetPeriod]:
-        stmt = (
-            select(TimesheetPeriodORM)
-            .where(TimesheetPeriodORM.resource_id == resource_id)
-            .order_by(TimesheetPeriodORM.period_start.desc())
-        )
+        _tid = self._tenant_id_provider()
+        stmt = select(TimesheetPeriodORM).where(TimesheetPeriodORM.resource_id == resource_id)
+        if _tid is not None:
+            stmt = stmt.where(TimesheetPeriodORM.tenant_id == _tid)
+        stmt = stmt.order_by(TimesheetPeriodORM.period_start.desc())
         rows = self.session.execute(stmt).scalars().all()
         return [timesheet_period_from_orm(row) for row in rows]
 
@@ -113,7 +126,10 @@ class SqlAlchemyTimesheetPeriodRepository(TimesheetPeriodRepository):
         status: TimesheetPeriodStatus | None = None,
         limit: int | None = None,
     ) -> list[TimesheetPeriod]:
+        _tid = self._tenant_id_provider()
         stmt = select(TimesheetPeriodORM)
+        if _tid is not None:
+            stmt = stmt.where(TimesheetPeriodORM.tenant_id == _tid)
         if organization_id is not None:
             stmt = stmt.where(TimesheetPeriodORM.organization_id == organization_id)
         if status is not None:

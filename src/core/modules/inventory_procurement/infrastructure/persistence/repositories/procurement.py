@@ -85,13 +85,21 @@ class SqlAlchemyPurchaseRequisitionRepository(PurchaseRequisitionRepository):
 
     def get(self, requisition_id: str):
         obj = self.session.get(PurchaseRequisitionORM, requisition_id)
-        return purchase_requisition_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return purchase_requisition_from_orm(obj)
 
     def get_by_number(self, organization_id: str, requisition_number: str):
+        _tid = self._tenant_id_provider()
         stmt = select(PurchaseRequisitionORM).where(
             PurchaseRequisitionORM.organization_id == organization_id,
             PurchaseRequisitionORM.requisition_number == requisition_number,
         )
+        if _tid is not None:
+            stmt = stmt.where(PurchaseRequisitionORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return purchase_requisition_from_orm(obj) if obj else None
 
@@ -104,7 +112,10 @@ class SqlAlchemyPurchaseRequisitionRepository(PurchaseRequisitionRepository):
         storeroom_id: str | None = None,
         limit: int = 200,
     ):
+        _tid = self._tenant_id_provider()
         stmt = select(PurchaseRequisitionORM).where(PurchaseRequisitionORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(PurchaseRequisitionORM.tenant_id == _tid)
         if status is not None:
             stmt = stmt.where(PurchaseRequisitionORM.status == status)
         if site_id is not None:
@@ -195,13 +206,21 @@ class SqlAlchemyPurchaseOrderRepository(PurchaseOrderRepository):
 
     def get(self, purchase_order_id: str) -> PurchaseOrder | None:
         obj = self.session.get(PurchaseOrderORM, purchase_order_id)
-        return purchase_order_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return purchase_order_from_orm(obj)
 
     def get_by_number(self, organization_id: str, po_number: str) -> PurchaseOrder | None:
+        _tid = self._tenant_id_provider()
         stmt = select(PurchaseOrderORM).where(
             PurchaseOrderORM.organization_id == organization_id,
             PurchaseOrderORM.po_number == po_number,
         )
+        if _tid is not None:
+            stmt = stmt.where(PurchaseOrderORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return purchase_order_from_orm(obj) if obj else None
 
@@ -214,7 +233,10 @@ class SqlAlchemyPurchaseOrderRepository(PurchaseOrderRepository):
         supplier_party_id: str | None = None,
         limit: int = 200,
     ) -> list[PurchaseOrder]:
+        _tid = self._tenant_id_provider()
         stmt = select(PurchaseOrderORM).where(PurchaseOrderORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(PurchaseOrderORM.tenant_id == _tid)
         if status is not None:
             stmt = stmt.where(PurchaseOrderORM.status == status)
         if site_id is not None:
@@ -280,13 +302,21 @@ class SqlAlchemyReceiptHeaderRepository(ReceiptHeaderRepository):
 
     def get(self, receipt_id: str) -> ReceiptHeader | None:
         obj = self.session.get(ReceiptHeaderORM, receipt_id)
-        return receipt_header_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return receipt_header_from_orm(obj)
 
     def get_by_number(self, organization_id: str, receipt_number: str) -> ReceiptHeader | None:
+        _tid = self._tenant_id_provider()
         stmt = select(ReceiptHeaderORM).where(
             ReceiptHeaderORM.organization_id == organization_id,
             ReceiptHeaderORM.receipt_number == receipt_number,
         )
+        if _tid is not None:
+            stmt = stmt.where(ReceiptHeaderORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return receipt_header_from_orm(obj) if obj else None
 
@@ -297,7 +327,10 @@ class SqlAlchemyReceiptHeaderRepository(ReceiptHeaderRepository):
         purchase_order_id: str | None = None,
         limit: int = 200,
     ) -> list[ReceiptHeader]:
+        _tid = self._tenant_id_provider()
         stmt = select(ReceiptHeaderORM).where(ReceiptHeaderORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(ReceiptHeaderORM.tenant_id == _tid)
         if purchase_order_id is not None:
             stmt = stmt.where(ReceiptHeaderORM.purchase_order_id == purchase_order_id)
         rows = self.session.execute(

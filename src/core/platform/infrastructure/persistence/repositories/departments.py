@@ -53,13 +53,21 @@ class SqlAlchemyDepartmentRepository(DepartmentRepository):
 
     def get(self, department_id: str) -> Department | None:
         obj = self.session.get(DepartmentORM, department_id)
-        return department_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return department_from_orm(obj)
 
     def get_by_code(self, organization_id: str, department_code: str) -> Department | None:
+        _tid = self._tenant_id_provider()
         stmt = select(DepartmentORM).where(
             DepartmentORM.organization_id == organization_id,
             DepartmentORM.department_code == department_code,
         )
+        if _tid is not None:
+            stmt = stmt.where(DepartmentORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return department_from_orm(obj) if obj else None
 
@@ -69,7 +77,10 @@ class SqlAlchemyDepartmentRepository(DepartmentRepository):
         *,
         active_only: bool | None = None,
     ) -> list[Department]:
+        _tid = self._tenant_id_provider()
         stmt = select(DepartmentORM).where(DepartmentORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(DepartmentORM.tenant_id == _tid)
         if active_only is not None:
             stmt = stmt.where(DepartmentORM.is_active == bool(active_only))
         rows = self.session.execute(stmt.order_by(DepartmentORM.name.asc())).scalars().all()

@@ -143,17 +143,25 @@ class SqlAlchemyMaintenanceLocationRepository(MaintenanceLocationRepository):
 
     def get(self, location_id: str) -> MaintenanceLocation | None:
         obj = self.session.get(MaintenanceLocationORM, location_id)
-        return maintenance_location_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return maintenance_location_from_orm(obj)
 
     def get_by_code(
         self,
         organization_id: str,
         location_code: str,
     ) -> MaintenanceLocation | None:
+        _tid = self._tenant_id_provider()
         stmt = select(MaintenanceLocationORM).where(
             MaintenanceLocationORM.organization_id == organization_id,
             MaintenanceLocationORM.location_code == location_code,
         )
+        if _tid is not None:
+            stmt = stmt.where(MaintenanceLocationORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_location_from_orm(obj) if obj else None
 
@@ -165,7 +173,10 @@ class SqlAlchemyMaintenanceLocationRepository(MaintenanceLocationRepository):
         site_id: str | None = None,
         parent_location_id: str | None = None,
     ) -> list[MaintenanceLocation]:
+        _tid = self._tenant_id_provider()
         stmt = select(MaintenanceLocationORM).where(MaintenanceLocationORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(MaintenanceLocationORM.tenant_id == _tid)
         if active_only is not None:
             stmt = stmt.where(MaintenanceLocationORM.is_active == bool(active_only))
         if site_id is not None:
@@ -216,17 +227,25 @@ class SqlAlchemyMaintenanceSystemRepository(MaintenanceSystemRepository):
 
     def get(self, system_id: str) -> MaintenanceSystem | None:
         obj = self.session.get(MaintenanceSystemORM, system_id)
-        return maintenance_system_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return maintenance_system_from_orm(obj)
 
     def get_by_code(
         self,
         organization_id: str,
         system_code: str,
     ) -> MaintenanceSystem | None:
+        _tid = self._tenant_id_provider()
         stmt = select(MaintenanceSystemORM).where(
             MaintenanceSystemORM.organization_id == organization_id,
             MaintenanceSystemORM.system_code == system_code,
         )
+        if _tid is not None:
+            stmt = stmt.where(MaintenanceSystemORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_system_from_orm(obj) if obj else None
 
@@ -239,7 +258,10 @@ class SqlAlchemyMaintenanceSystemRepository(MaintenanceSystemRepository):
         location_id: str | None = None,
         parent_system_id: str | None = None,
     ) -> list[MaintenanceSystem]:
+        _tid = self._tenant_id_provider()
         stmt = select(MaintenanceSystemORM).where(MaintenanceSystemORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(MaintenanceSystemORM.tenant_id == _tid)
         if active_only is not None:
             stmt = stmt.where(MaintenanceSystemORM.is_active == bool(active_only))
         if site_id is not None:
@@ -308,17 +330,25 @@ class SqlAlchemyMaintenanceAssetRepository(MaintenanceAssetRepository):
 
     def get(self, asset_id: str) -> MaintenanceAsset | None:
         obj = self.session.get(MaintenanceAssetORM, asset_id)
-        return maintenance_asset_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return maintenance_asset_from_orm(obj)
 
     def get_by_code(
         self,
         organization_id: str,
         asset_code: str,
     ) -> MaintenanceAsset | None:
+        _tid = self._tenant_id_provider()
         stmt = select(MaintenanceAssetORM).where(
             MaintenanceAssetORM.organization_id == organization_id,
             MaintenanceAssetORM.asset_code == asset_code,
         )
+        if _tid is not None:
+            stmt = stmt.where(MaintenanceAssetORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_asset_from_orm(obj) if obj else None
 
@@ -333,7 +363,10 @@ class SqlAlchemyMaintenanceAssetRepository(MaintenanceAssetRepository):
         parent_asset_id: str | None = None,
         asset_category: str | None = None,
     ) -> list[MaintenanceAsset]:
+        _tid = self._tenant_id_provider()
         stmt = select(MaintenanceAssetORM).where(MaintenanceAssetORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(MaintenanceAssetORM.tenant_id == _tid)
         if active_only is not None:
             stmt = stmt.where(MaintenanceAssetORM.is_active == bool(active_only))
         if site_id is not None:
@@ -479,17 +512,25 @@ class SqlAlchemyMaintenanceSensorRepository(MaintenanceSensorRepository):
 
     def get(self, sensor_id: str) -> MaintenanceSensor | None:
         obj = self.session.get(MaintenanceSensorORM, sensor_id)
-        return maintenance_sensor_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return maintenance_sensor_from_orm(obj)
 
     def get_by_code(
         self,
         organization_id: str,
         sensor_code: str,
     ) -> MaintenanceSensor | None:
+        _tid = self._tenant_id_provider()
         stmt = select(MaintenanceSensorORM).where(
             MaintenanceSensorORM.organization_id == organization_id,
             MaintenanceSensorORM.sensor_code == sensor_code,
         )
+        if _tid is not None:
+            stmt = stmt.where(MaintenanceSensorORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_sensor_from_orm(obj) if obj else None
 
@@ -505,7 +546,10 @@ class SqlAlchemyMaintenanceSensorRepository(MaintenanceSensorRepository):
         sensor_type: str | None = None,
         source_type: str | None = None,
     ) -> list[MaintenanceSensor]:
+        _tid = self._tenant_id_provider()
         stmt = select(MaintenanceSensorORM).where(MaintenanceSensorORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(MaintenanceSensorORM.tenant_id == _tid)
         if active_only is not None:
             stmt = stmt.where(MaintenanceSensorORM.is_active == bool(active_only))
         if site_id is not None:
@@ -822,17 +866,25 @@ class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepositor
 
     def get(self, work_request_id: str) -> MaintenanceWorkRequest | None:
         obj = self.session.get(MaintenanceWorkRequestORM, work_request_id)
-        return maintenance_work_request_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return maintenance_work_request_from_orm(obj)
 
     def get_by_code(
         self,
         organization_id: str,
         work_request_code: str,
     ) -> MaintenanceWorkRequest | None:
+        _tid = self._tenant_id_provider()
         stmt = select(MaintenanceWorkRequestORM).where(
             MaintenanceWorkRequestORM.organization_id == organization_id,
             MaintenanceWorkRequestORM.work_request_code == work_request_code,
         )
+        if _tid is not None:
+            stmt = stmt.where(MaintenanceWorkRequestORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_work_request_from_orm(obj) if obj else None
 
@@ -850,7 +902,10 @@ class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepositor
         requested_by_user_id: str | None = None,
         triaged_by_user_id: str | None = None,
     ) -> list[MaintenanceWorkRequest]:
+        _tid = self._tenant_id_provider()
         stmt = select(MaintenanceWorkRequestORM).where(MaintenanceWorkRequestORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(MaintenanceWorkRequestORM.tenant_id == _tid)
         if site_id is not None:
             stmt = stmt.where(MaintenanceWorkRequestORM.site_id == site_id)
         if asset_id is not None:
@@ -938,17 +993,25 @@ class SqlAlchemyMaintenanceWorkOrderRepository(MaintenanceWorkOrderRepository):
 
     def get(self, work_order_id: str) -> MaintenanceWorkOrder | None:
         obj = self.session.get(MaintenanceWorkOrderORM, work_order_id)
-        return maintenance_work_order_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return maintenance_work_order_from_orm(obj)
 
     def get_by_code(
         self,
         organization_id: str,
         work_order_code: str,
     ) -> MaintenanceWorkOrder | None:
+        _tid = self._tenant_id_provider()
         stmt = select(MaintenanceWorkOrderORM).where(
             MaintenanceWorkOrderORM.organization_id == organization_id,
             MaintenanceWorkOrderORM.work_order_code == work_order_code,
         )
+        if _tid is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_work_order_from_orm(obj) if obj else None
 
@@ -971,7 +1034,10 @@ class SqlAlchemyMaintenanceWorkOrderRepository(MaintenanceWorkOrderRepository):
         is_preventive: bool | None = None,
         is_emergency: bool | None = None,
     ) -> list[MaintenanceWorkOrder]:
+        _tid = self._tenant_id_provider()
         stmt = select(MaintenanceWorkOrderORM).where(MaintenanceWorkOrderORM.organization_id == organization_id)
+        if _tid is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.tenant_id == _tid)
         if site_id is not None:
             stmt = stmt.where(MaintenanceWorkOrderORM.site_id == site_id)
         if asset_id is not None:
@@ -1382,13 +1448,21 @@ class SqlAlchemyMaintenancePreventivePlanRepository(MaintenancePreventivePlanRep
 
     def get(self, preventive_plan_id: str) -> MaintenancePreventivePlan | None:
         obj = self.session.get(MaintenancePreventivePlanORM, preventive_plan_id)
-        return maintenance_preventive_plan_from_orm(obj) if obj else None
+        if obj is None:
+            return None
+        _tid = self._tenant_id_provider()
+        if _tid is not None and obj.tenant_id != _tid:
+            return None
+        return maintenance_preventive_plan_from_orm(obj)
 
     def get_by_code(self, organization_id: str, plan_code: str) -> MaintenancePreventivePlan | None:
+        _tid = self._tenant_id_provider()
         stmt = select(MaintenancePreventivePlanORM).where(
             MaintenancePreventivePlanORM.organization_id == organization_id,
             MaintenancePreventivePlanORM.plan_code == plan_code,
         )
+        if _tid is not None:
+            stmt = stmt.where(MaintenancePreventivePlanORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_preventive_plan_from_orm(obj) if obj else None
 
@@ -1406,9 +1480,12 @@ class SqlAlchemyMaintenancePreventivePlanRepository(MaintenancePreventivePlanRep
         trigger_mode: str | None = None,
         sensor_id: str | None = None,
     ) -> list[MaintenancePreventivePlan]:
+        _tid = self._tenant_id_provider()
         stmt = select(MaintenancePreventivePlanORM).where(
             MaintenancePreventivePlanORM.organization_id == organization_id
         )
+        if _tid is not None:
+            stmt = stmt.where(MaintenancePreventivePlanORM.tenant_id == _tid)
         if active_only is not None:
             stmt = stmt.where(MaintenancePreventivePlanORM.is_active == bool(active_only))
         if site_id is not None:
