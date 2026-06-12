@@ -18,26 +18,31 @@ from src.core.platform.infrastructure.persistence.mappers.documents import (
     document_to_orm,
 )
 from src.core.platform.infrastructure.persistence.orm.documents import DocumentLinkORM, DocumentORM, DocumentStructureORM
+from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
+    TenantScopedRepositorySupport,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
-class SqlAlchemyDocumentStructureRepository(DocumentStructureRepository):
+class SqlAlchemyDocumentStructureRepository(
+    TenantScopedRepositorySupport, DocumentStructureRepository
+):
+    _repository_label = "DocumentStructureRepository"
     session: Session
 
     def __init__(self, session: Session) -> None:
         self.session = session
         self._tenant_context_service = None
 
-    def _get_active_tid(self) -> str | None:
-        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
-
     def add(self, structure: DocumentStructure) -> None:
+        ctx = self._context(operation_label="access document structures")
         orm = document_structure_to_orm(structure)
-        if orm.tenant_id is None:
-            orm.tenant_id = self._get_active_tid()
+        orm.tenant_id = ctx.tenant_id
+        orm.organization_id = ctx.organization_id
         self.session.add(orm)
 
     def update(self, structure: DocumentStructure) -> None:
+        ctx = self._context(operation_label="access document structures")
         structure.version = update_with_version_check(
             self.session,
             DocumentStructureORM,
@@ -54,26 +59,31 @@ class SqlAlchemyDocumentStructureRepository(DocumentStructureRepository):
                 "is_active": structure.is_active,
                 "notes": structure.notes or None,
             },
+            extra_filters={
+                "tenant_id": ctx.tenant_id,
+                "organization_id": ctx.organization_id,
+            },
             not_found_message="Document structure not found.",
             stale_message="Document structure was updated by another user.",
         )
 
     def get(self, structure_id: str) -> DocumentStructure | None:
-        _tid = self._get_active_tid()
-        stmt = select(DocumentStructureORM).where(DocumentStructureORM.id == structure_id)
-        if _tid is not None:
-            stmt = stmt.where(DocumentStructureORM.tenant_id == _tid)
+        ctx = self._context(operation_label="access document structures")
+        stmt = select(DocumentStructureORM).where(
+            DocumentStructureORM.id == structure_id,
+            DocumentStructureORM.tenant_id == ctx.tenant_id,
+            DocumentStructureORM.organization_id == ctx.organization_id,
+        )
         obj = self.session.execute(stmt).scalar_one_or_none()
         return document_structure_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, structure_code: str) -> DocumentStructure | None:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="access document structures")
         stmt = select(DocumentStructureORM).where(
-            DocumentStructureORM.organization_id == organization_id,
+            DocumentStructureORM.organization_id == ctx.organization_id,
             DocumentStructureORM.structure_code == structure_code,
+            DocumentStructureORM.tenant_id == ctx.tenant_id,
         )
-        if _tid is not None:
-            stmt = stmt.where(DocumentStructureORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return document_structure_from_orm(obj) if obj else None
 
@@ -84,10 +94,11 @@ class SqlAlchemyDocumentStructureRepository(DocumentStructureRepository):
         active_only: bool | None = None,
         object_scope: str | None = None,
     ) -> list[DocumentStructure]:
-        _tid = self._get_active_tid()
-        stmt = select(DocumentStructureORM).where(DocumentStructureORM.organization_id == organization_id)
-        if _tid is not None:
-            stmt = stmt.where(DocumentStructureORM.tenant_id == _tid)
+        ctx = self._context(operation_label="access document structures")
+        stmt = select(DocumentStructureORM).where(
+            DocumentStructureORM.organization_id == ctx.organization_id,
+            DocumentStructureORM.tenant_id == ctx.tenant_id,
+        )
         if active_only is not None:
             stmt = stmt.where(DocumentStructureORM.is_active == bool(active_only))
         if object_scope is not None:
@@ -101,23 +112,23 @@ class SqlAlchemyDocumentStructureRepository(DocumentStructureRepository):
         return [document_structure_from_orm(row) for row in rows]
 
 
-class SqlAlchemyDocumentRepository(DocumentRepository):
+class SqlAlchemyDocumentRepository(TenantScopedRepositorySupport, DocumentRepository):
+    _repository_label = "DocumentRepository"
     session: Session
 
     def __init__(self, session: Session) -> None:
         self.session = session
         self._tenant_context_service = None
 
-    def _get_active_tid(self) -> str | None:
-        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
-
     def add(self, document: Document) -> None:
+        ctx = self._context(operation_label="access documents")
         orm = document_to_orm(document)
-        if orm.tenant_id is None:
-            orm.tenant_id = self._get_active_tid()
+        orm.tenant_id = ctx.tenant_id
+        orm.organization_id = ctx.organization_id
         self.session.add(orm)
 
     def update(self, document: Document) -> None:
+        ctx = self._context(operation_label="access documents")
         document.version = update_with_version_check(
             self.session,
             DocumentORM,
@@ -144,26 +155,31 @@ class SqlAlchemyDocumentRepository(DocumentRepository):
                 "notes": document.notes or None,
                 "is_active": document.is_active,
             },
+            extra_filters={
+                "tenant_id": ctx.tenant_id,
+                "organization_id": ctx.organization_id,
+            },
             not_found_message="Document not found.",
             stale_message="Document was updated by another user.",
         )
 
     def get(self, document_id: str) -> Document | None:
-        _tid = self._get_active_tid()
-        stmt = select(DocumentORM).where(DocumentORM.id == document_id)
-        if _tid is not None:
-            stmt = stmt.where(DocumentORM.tenant_id == _tid)
+        ctx = self._context(operation_label="access documents")
+        stmt = select(DocumentORM).where(
+            DocumentORM.id == document_id,
+            DocumentORM.tenant_id == ctx.tenant_id,
+            DocumentORM.organization_id == ctx.organization_id,
+        )
         obj = self.session.execute(stmt).scalar_one_or_none()
         return document_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, document_code: str) -> Document | None:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="access documents")
         stmt = select(DocumentORM).where(
-            DocumentORM.organization_id == organization_id,
+            DocumentORM.organization_id == ctx.organization_id,
             DocumentORM.document_code == document_code,
+            DocumentORM.tenant_id == ctx.tenant_id,
         )
-        if _tid is not None:
-            stmt = stmt.where(DocumentORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return document_from_orm(obj) if obj else None
 
@@ -173,31 +189,46 @@ class SqlAlchemyDocumentRepository(DocumentRepository):
         *,
         active_only: bool | None = None,
     ) -> list[Document]:
-        _tid = self._get_active_tid()
-        stmt = select(DocumentORM).where(DocumentORM.organization_id == organization_id)
-        if _tid is not None:
-            stmt = stmt.where(DocumentORM.tenant_id == _tid)
+        ctx = self._context(operation_label="access documents")
+        stmt = select(DocumentORM).where(
+            DocumentORM.organization_id == ctx.organization_id,
+            DocumentORM.tenant_id == ctx.tenant_id,
+        )
         if active_only is not None:
             stmt = stmt.where(DocumentORM.is_active == bool(active_only))
         rows = self.session.execute(stmt.order_by(DocumentORM.title.asc())).scalars().all()
         return [document_from_orm(row) for row in rows]
 
 
-class SqlAlchemyDocumentLinkRepository(DocumentLinkRepository):
+class SqlAlchemyDocumentLinkRepository(TenantScopedRepositorySupport, DocumentLinkRepository):
+    _repository_label = "DocumentLinkRepository"
     session: Session
 
     def __init__(self, session: Session) -> None:
         self.session = session
+        self._tenant_context_service = None
 
     def add(self, link: DocumentLink) -> None:
-        self.session.add(document_link_to_orm(link))
+        ctx = self._context(operation_label="access document links")
+        orm = document_link_to_orm(link)
+        orm.organization_id = ctx.organization_id
+        self.session.add(orm)
 
     def get(self, link_id: str) -> DocumentLink | None:
-        obj = self.session.get(DocumentLinkORM, link_id)
+        ctx = self._context(operation_label="access document links")
+        stmt = select(DocumentLinkORM).where(
+            DocumentLinkORM.id == link_id,
+            DocumentLinkORM.organization_id == ctx.organization_id,
+        )
+        obj = self.session.execute(stmt).scalar_one_or_none()
         return document_link_from_orm(obj) if obj else None
 
     def list_for_document(self, document_id: str) -> list[DocumentLink]:
-        stmt = select(DocumentLinkORM).where(DocumentLinkORM.document_id == document_id)
+        ctx = self._context(operation_label="access document links")
+        stmt = select(DocumentLinkORM).where(
+            DocumentLinkORM.document_id == document_id,
+            DocumentLinkORM.organization_id == ctx.organization_id,
+        )
         rows = self.session.execute(
             stmt.order_by(
                 DocumentLinkORM.module_code.asc(),
@@ -209,8 +240,9 @@ class SqlAlchemyDocumentLinkRepository(DocumentLinkRepository):
         return [document_link_from_orm(row) for row in rows]
 
     def list_for_entity(self, organization_id: str, module_code: str, entity_type: str, entity_id: str) -> list[DocumentLink]:
+        ctx = self._context(operation_label="access document links")
         stmt = select(DocumentLinkORM).where(
-            DocumentLinkORM.organization_id == organization_id,
+            DocumentLinkORM.organization_id == ctx.organization_id,
             DocumentLinkORM.module_code == module_code,
             DocumentLinkORM.entity_type == entity_type,
             DocumentLinkORM.entity_id == entity_id,
@@ -225,8 +257,9 @@ class SqlAlchemyDocumentLinkRepository(DocumentLinkRepository):
         *,
         entity_type: str | None = None,
     ) -> list[DocumentLink]:
+        ctx = self._context(operation_label="access document links")
         stmt = select(DocumentLinkORM).where(
-            DocumentLinkORM.organization_id == organization_id,
+            DocumentLinkORM.organization_id == ctx.organization_id,
             DocumentLinkORM.module_code == module_code,
         )
         if entity_type is not None:
@@ -249,7 +282,9 @@ class SqlAlchemyDocumentLinkRepository(DocumentLinkRepository):
         entity_id: str,
         link_role: str,
     ) -> DocumentLink | None:
+        ctx = self._context(operation_label="access document links")
         stmt = select(DocumentLinkORM).where(
+            DocumentLinkORM.organization_id == ctx.organization_id,
             DocumentLinkORM.document_id == document_id,
             DocumentLinkORM.module_code == module_code,
             DocumentLinkORM.entity_type == entity_type,
@@ -260,7 +295,12 @@ class SqlAlchemyDocumentLinkRepository(DocumentLinkRepository):
         return document_link_from_orm(obj) if obj else None
 
     def delete(self, link_id: str) -> None:
-        obj = self.session.get(DocumentLinkORM, link_id)
+        ctx = self._context(operation_label="access document links")
+        stmt = select(DocumentLinkORM).where(
+            DocumentLinkORM.id == link_id,
+            DocumentLinkORM.organization_id == ctx.organization_id,
+        )
+        obj = self.session.execute(stmt).scalar_one_or_none()
         if obj is not None:
             self.session.delete(obj)
 

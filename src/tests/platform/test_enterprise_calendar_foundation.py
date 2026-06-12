@@ -61,8 +61,8 @@ def db_session():
 
 
 @pytest.fixture
-def repos(db_session):
-    return {
+def repos(db_session, tenant_context):
+    repos = {
         "calendar": SqlAlchemyPlatformCalendarRepository(db_session),
         "rule": SqlAlchemyCalendarWorkingRuleRepository(db_session),
         "exception": SqlAlchemyCalendarExceptionRepository(db_session),
@@ -70,6 +70,10 @@ def repos(db_session):
         "shift": SqlAlchemyShiftPatternRepository(db_session),
         "assignment": SqlAlchemyCalendarAssignmentRepository(db_session),
     }
+    for repo in repos.values():
+        if hasattr(repo, "_tenant_context_service"):
+            repo._tenant_context_service = tenant_context
+    return repos
 
 
 @pytest.fixture
@@ -109,10 +113,20 @@ def tenant_context(org_id):
     class FakeOrg:
         id: str = org_id
 
+    @dataclass
+    class FakeContext:
+        tenant_id: str = "tenant-platform-foundation"
+        organization_id: str = org_id
+        organization: FakeOrg | None = None
+
     context = MagicMock()
     context.require_active_organization_id.return_value = org_id
     context.get_active_organization_id.return_value = org_id
     context.get_active_organization.return_value = FakeOrg()
+    context.get_active_tenant_id.return_value = "tenant-platform-foundation"
+    context.require_organization_context.return_value = FakeContext(
+        organization=FakeOrg()
+    )
     return context
 
 

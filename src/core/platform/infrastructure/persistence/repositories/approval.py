@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import desc, or_, select
+from sqlalchemy import and_, desc, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
@@ -8,37 +8,46 @@ from src.core.platform.approval.contracts import ApprovalRepository
 from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from src.core.platform.infrastructure.persistence.mappers.approval import approval_from_orm, approval_to_orm
 from src.core.platform.infrastructure.persistence.orm.approval import ApprovalRequestORM
+from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
+    TenantScopedRepositorySupport,
+)
 
 
-class SqlAlchemyApprovalRepository(ApprovalRepository):
+class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalRepository):
+    _repository_label = "ApprovalRepository"
     session: Session
 
     def __init__(self, session: Session) -> None:
         self.session = session
         self._tenant_context_service = None
 
-    def _get_active_tid(self) -> str | None:
-        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
-
     def add(self, request: ApprovalRequest) -> None:
+        ctx = self._context(operation_label="access approvals")
         orm = approval_to_orm(request)
-        if orm.tenant_id is None:
-            orm.tenant_id = self._get_active_tid()
+        orm.tenant_id = ctx.tenant_id
+        orm.organization_id = ctx.organization_id
         self.session.add(orm)
 
     def update(self, request: ApprovalRequest) -> None:
-        obj = self.session.get(ApprovalRequestORM, request.id)
+        ctx = self._context(operation_label="access approvals")
+        obj = self.session.execute(
+            select(ApprovalRequestORM).where(
+                ApprovalRequestORM.id == request.id,
+                ApprovalRequestORM.tenant_id == ctx.tenant_id,
+                ApprovalRequestORM.organization_id == ctx.organization_id,
+            )
+        ).scalar_one_or_none()
         if obj is None:
             orm = approval_to_orm(request)
-            if orm.tenant_id is None:
-                orm.tenant_id = self._get_active_tid()
+            orm.tenant_id = ctx.tenant_id
+            orm.organization_id = ctx.organization_id
             self.session.add(orm)
             return
         obj.request_type = request.request_type
         obj.entity_type = request.entity_type
         obj.entity_id = request.entity_id
         obj.project_id = request.project_id
-        obj.organization_id = request.organization_id or None
+        obj.organization_id = ctx.organization_id
         obj.payload_json = approval_to_orm(request).payload_json
         obj.status = request.status.value
         obj.requested_by_user_id = request.requested_by_user_id
@@ -50,10 +59,25 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         obj.decision_note = request.decision_note
 
     def get(self, request_id: str) -> ApprovalRequest | None:
-        _tid = self._get_active_tid()
-        stmt = select(ApprovalRequestORM).where(ApprovalRequestORM.id == request_id)
-        if _tid is not None:
-            stmt = stmt.where(ApprovalRequestORM.tenant_id == _tid)
+        ctx = self._context(operation_label="access approvals")
+        stmt = (
+            select(ApprovalRequestORM)
+            .outerjoin(
+                ProjectORM,
+                and_(
+                    ProjectORM.id == ApprovalRequestORM.project_id,
+                    ProjectORM.tenant_id == ctx.tenant_id,
+                ),
+            )
+            .where(
+                ApprovalRequestORM.id == request_id,
+                ApprovalRequestORM.tenant_id == ctx.tenant_id,
+                or_(
+                    ApprovalRequestORM.organization_id == ctx.organization_id,
+                    ProjectORM.organization_id == ctx.organization_id,
+                ),
+            )
+        )
         obj = self.session.execute(stmt).scalar_one_or_none()
         return approval_from_orm(obj) if obj else None
 
@@ -66,10 +90,24 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         entity_type: str | list[str] | None = None,
         entity_id: str | None = None,
     ) -> list[ApprovalRequest]:
-        _tid = self._get_active_tid()
-        stmt = select(ApprovalRequestORM)
-        if _tid is not None:
-            stmt = stmt.where(ApprovalRequestORM.tenant_id == _tid)
+        ctx = self._context(operation_label="access approvals")
+        stmt = (
+            select(ApprovalRequestORM)
+            .outerjoin(
+                ProjectORM,
+                and_(
+                    ProjectORM.id == ApprovalRequestORM.project_id,
+                    ProjectORM.tenant_id == ctx.tenant_id,
+                ),
+            )
+            .where(
+                ApprovalRequestORM.tenant_id == ctx.tenant_id,
+                or_(
+                    ApprovalRequestORM.organization_id == ctx.organization_id,
+                    ProjectORM.organization_id == ctx.organization_id,
+                ),
+            )
+        )
         if status is not None:
             stmt = stmt.where(ApprovalRequestORM.status == status.value)
         if project_id is not None:
@@ -86,9 +124,13 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         return [approval_from_orm(row) for row in rows]
 
     def project_belongs_to_organization(self, project_id: str, organization_id: str) -> bool:
+        ctx = self._context(operation_label="access approvals")
+        if organization_id != ctx.organization_id:
+            return False
         stmt = select(ProjectORM.id).where(
             ProjectORM.id == project_id,
-            ProjectORM.organization_id == organization_id,
+            ProjectORM.tenant_id == ctx.tenant_id,
+            ProjectORM.organization_id == ctx.organization_id,
         )
         return self.session.execute(stmt).first() is not None
 
@@ -102,19 +144,26 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         entity_type: str | list[str] | None = None,
         entity_id: str | None = None,
     ) -> list[ApprovalRequest]:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="access approvals")
+        if organization_id != ctx.organization_id:
+            return []
         stmt = (
             select(ApprovalRequestORM)
-            .outerjoin(ProjectORM, ProjectORM.id == ApprovalRequestORM.project_id)
+            .outerjoin(
+                ProjectORM,
+                and_(
+                    ProjectORM.id == ApprovalRequestORM.project_id,
+                    ProjectORM.tenant_id == ctx.tenant_id,
+                ),
+            )
             .where(
+                ApprovalRequestORM.tenant_id == ctx.tenant_id,
                 or_(
-                    ApprovalRequestORM.organization_id == organization_id,
-                    ProjectORM.organization_id == organization_id,
+                    ApprovalRequestORM.organization_id == ctx.organization_id,
+                    ProjectORM.organization_id == ctx.organization_id,
                 )
             )
         )
-        if _tid is not None:
-            stmt = stmt.where(ApprovalRequestORM.tenant_id == _tid)
         if status is not None:
             stmt = stmt.where(ApprovalRequestORM.status == status.value)
         if project_id is not None:

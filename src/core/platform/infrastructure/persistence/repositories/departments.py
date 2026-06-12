@@ -8,28 +8,31 @@ from src.core.platform.infrastructure.persistence.mappers.departments import (
     department_to_orm,
 )
 from src.core.platform.infrastructure.persistence.orm.departments import DepartmentORM
+from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
+    TenantScopedRepositorySupport,
+)
 from src.core.platform.department.contracts import DepartmentRepository
 from src.core.platform.department.domain import Department
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
-class SqlAlchemyDepartmentRepository(DepartmentRepository):
+class SqlAlchemyDepartmentRepository(TenantScopedRepositorySupport, DepartmentRepository):
+    _repository_label = "DepartmentRepository"
     session: Session
 
     def __init__(self, session: Session) -> None:
         self.session = session
         self._tenant_context_service = None
 
-    def _get_active_tid(self) -> str | None:
-        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
-
     def add(self, department: Department) -> None:
+        ctx = self._context(operation_label="access departments")
         orm = department_to_orm(department)
-        if orm.tenant_id is None:
-            orm.tenant_id = self._get_active_tid()
+        orm.tenant_id = ctx.tenant_id
+        orm.organization_id = ctx.organization_id
         self.session.add(orm)
 
     def update(self, department: Department) -> None:
+        ctx = self._context(operation_label="access departments")
         department.version = update_with_version_check(
             self.session,
             DepartmentORM,
@@ -50,26 +53,31 @@ class SqlAlchemyDepartmentRepository(DepartmentRepository):
                 "updated_at": department.updated_at,
                 "notes": department.notes or None,
             },
+            extra_filters={
+                "tenant_id": ctx.tenant_id,
+                "organization_id": ctx.organization_id,
+            },
             not_found_message="Department not found.",
             stale_message="Department was updated by another user.",
         )
 
     def get(self, department_id: str) -> Department | None:
-        _tid = self._get_active_tid()
-        stmt = select(DepartmentORM).where(DepartmentORM.id == department_id)
-        if _tid is not None:
-            stmt = stmt.where(DepartmentORM.tenant_id == _tid)
+        ctx = self._context(operation_label="access departments")
+        stmt = select(DepartmentORM).where(
+            DepartmentORM.id == department_id,
+            DepartmentORM.tenant_id == ctx.tenant_id,
+            DepartmentORM.organization_id == ctx.organization_id,
+        )
         obj = self.session.execute(stmt).scalar_one_or_none()
         return department_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, department_code: str) -> Department | None:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="access departments")
         stmt = select(DepartmentORM).where(
-            DepartmentORM.organization_id == organization_id,
+            DepartmentORM.organization_id == ctx.organization_id,
             DepartmentORM.department_code == department_code,
+            DepartmentORM.tenant_id == ctx.tenant_id,
         )
-        if _tid is not None:
-            stmt = stmt.where(DepartmentORM.tenant_id == _tid)
         obj = self.session.execute(stmt).scalars().first()
         return department_from_orm(obj) if obj else None
 
@@ -79,10 +87,11 @@ class SqlAlchemyDepartmentRepository(DepartmentRepository):
         *,
         active_only: bool | None = None,
     ) -> list[Department]:
-        _tid = self._get_active_tid()
-        stmt = select(DepartmentORM).where(DepartmentORM.organization_id == organization_id)
-        if _tid is not None:
-            stmt = stmt.where(DepartmentORM.tenant_id == _tid)
+        ctx = self._context(operation_label="access departments")
+        stmt = select(DepartmentORM).where(
+            DepartmentORM.organization_id == ctx.organization_id,
+            DepartmentORM.tenant_id == ctx.tenant_id,
+        )
         if active_only is not None:
             stmt = stmt.where(DepartmentORM.is_active == bool(active_only))
         rows = self.session.execute(stmt.order_by(DepartmentORM.name.asc())).scalars().all()

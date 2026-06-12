@@ -7,22 +7,24 @@ from src.core.platform.audit.contracts import AuditLogRepository
 from src.core.platform.audit.domain import AuditLogEntry
 from src.core.platform.infrastructure.persistence.mappers.audit import audit_from_orm, audit_to_orm
 from src.core.platform.infrastructure.persistence.orm.audit import AuditLogORM
+from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
+    TenantScopedRepositorySupport,
+)
 
 
-class SqlAlchemyAuditLogRepository(AuditLogRepository):
+class SqlAlchemyAuditLogRepository(TenantScopedRepositorySupport, AuditLogRepository):
+    _repository_label = "AuditLogRepository"
     session: Session
 
     def __init__(self, session: Session) -> None:
         self.session = session
         self._tenant_context_service = None
 
-    def _get_active_tid(self) -> str | None:
-        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
-
     def add(self, entry: AuditLogEntry) -> None:
+        ctx = self._context(operation_label="access audit log")
         orm = audit_to_orm(entry)
-        if orm.tenant_id is None:
-            orm.tenant_id = self._get_active_tid()
+        orm.tenant_id = ctx.tenant_id
+        orm.organization_id = ctx.organization_id
         self.session.add(orm)
 
     def list_recent(
@@ -32,10 +34,11 @@ class SqlAlchemyAuditLogRepository(AuditLogRepository):
         project_id: str | None = None,
         entity_type: str | None = None,
     ) -> list[AuditLogEntry]:
-        _tid = self._get_active_tid()
-        stmt = select(AuditLogORM)
-        if _tid is not None:
-            stmt = stmt.where(AuditLogORM.tenant_id == _tid)
+        ctx = self._context(operation_label="access audit log")
+        stmt = select(AuditLogORM).where(
+            AuditLogORM.tenant_id == ctx.tenant_id,
+            AuditLogORM.organization_id == ctx.organization_id,
+        )
         if project_id is not None:
             stmt = stmt.where(AuditLogORM.project_id == project_id)
         if entity_type is not None:
@@ -52,10 +55,11 @@ class SqlAlchemyAuditLogRepository(AuditLogRepository):
         project_id: str | None = None,
         entity_type: str | None = None,
     ) -> list[AuditLogEntry]:
-        _tid = self._get_active_tid()
-        stmt = select(AuditLogORM).where(AuditLogORM.organization_id == organization_id)
-        if _tid is not None:
-            stmt = stmt.where(AuditLogORM.tenant_id == _tid)
+        ctx = self._context(operation_label="access audit log")
+        stmt = select(AuditLogORM).where(
+            AuditLogORM.organization_id == ctx.organization_id,
+            AuditLogORM.tenant_id == ctx.tenant_id,
+        )
         if project_id is not None:
             stmt = stmt.where(AuditLogORM.project_id == project_id)
         if entity_type is not None:

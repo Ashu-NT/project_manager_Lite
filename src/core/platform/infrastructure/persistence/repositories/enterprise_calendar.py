@@ -26,6 +26,7 @@ from src.core.platform.calendar.domain.enterprise_calendar import (
     ShiftPatternDay,
     SiteCalendarAssignment,
 )
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.infrastructure.persistence.mappers.enterprise_calendar import (
     calendar_exception_from_orm,
     calendar_exception_to_orm,
@@ -46,6 +47,8 @@ from src.core.platform.infrastructure.persistence.mappers.enterprise_calendar im
     working_rule_from_orm,
     working_rule_to_orm,
 )
+from src.core.platform.infrastructure.persistence.orm.departments import DepartmentORM
+from src.core.platform.infrastructure.persistence.orm.employee import EmployeeORM
 from src.core.platform.infrastructure.persistence.orm.enterprise_calendar import (
     CalendarExceptionORM,
     CalendarRecurringEventORM,
@@ -57,47 +60,145 @@ from src.core.platform.infrastructure.persistence.orm.enterprise_calendar import
     ShiftPatternORM,
     SiteCalendarAssignmentORM,
 )
+from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
+from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
+    TenantScopedRepositorySupport,
+)
 
 
-class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
+def _scoped_calendar_stmt(base_stmt, child_orm, ctx):
+    return (
+        base_stmt.join(PlatformCalendarORM, child_orm.calendar_id == PlatformCalendarORM.id)
+        .where(
+            PlatformCalendarORM.tenant_id == ctx.tenant_id,
+            PlatformCalendarORM.organization_id == ctx.organization_id,
+        )
+    )
+
+
+def _scoped_shift_pattern_day_stmt(base_stmt, ctx):
+    return (
+        base_stmt.join(
+            ShiftPatternORM,
+            ShiftPatternDayORM.shift_pattern_id == ShiftPatternORM.id,
+        ).where(
+            ShiftPatternORM.tenant_id == ctx.tenant_id,
+            ShiftPatternORM.organization_id == ctx.organization_id,
+        )
+    )
+
+
+def _scoped_assignment_stmt(base_stmt, assignment_orm, entity_orm, entity_id_col, ctx):
+    return (
+        base_stmt.join(PlatformCalendarORM, assignment_orm.calendar_id == PlatformCalendarORM.id).where(
+            PlatformCalendarORM.tenant_id == ctx.tenant_id,
+            PlatformCalendarORM.organization_id == ctx.organization_id,
+        )
+    )
+
+
+def _ensure_calendar_in_scope(session: Session, ctx, calendar_id: str) -> None:
+    exists = session.execute(
+        select(PlatformCalendarORM.id).where(
+            PlatformCalendarORM.id == calendar_id,
+            PlatformCalendarORM.tenant_id == ctx.tenant_id,
+            PlatformCalendarORM.organization_id == ctx.organization_id,
+        )
+    ).scalar_one_or_none()
+    if exists is None:
+        raise NotFoundError("Calendar not found.")
+
+
+def _ensure_shift_pattern_in_scope(session: Session, ctx, pattern_id: str) -> None:
+    exists = session.execute(
+        select(ShiftPatternORM.id).where(
+            ShiftPatternORM.id == pattern_id,
+            ShiftPatternORM.tenant_id == ctx.tenant_id,
+            ShiftPatternORM.organization_id == ctx.organization_id,
+        )
+    ).scalar_one_or_none()
+    if exists is None:
+        raise NotFoundError("Shift pattern not found.")
+
+
+def _ensure_site_in_scope(session: Session, ctx, site_id: str) -> None:
+    exists = session.execute(
+        select(SiteORM.id).where(
+            SiteORM.id == site_id,
+            SiteORM.tenant_id == ctx.tenant_id,
+            SiteORM.organization_id == ctx.organization_id,
+        )
+    ).scalar_one_or_none()
+    if exists is None:
+        raise NotFoundError("Site not found.")
+
+
+def _ensure_department_in_scope(session: Session, ctx, department_id: str) -> None:
+    exists = session.execute(
+        select(DepartmentORM.id).where(
+            DepartmentORM.id == department_id,
+            DepartmentORM.tenant_id == ctx.tenant_id,
+            DepartmentORM.organization_id == ctx.organization_id,
+        )
+    ).scalar_one_or_none()
+    if exists is None:
+        raise NotFoundError("Department not found.")
+
+
+def _ensure_employee_in_scope(session: Session, ctx, employee_id: str) -> None:
+    exists = session.execute(
+        select(EmployeeORM.id).where(
+            EmployeeORM.id == employee_id,
+            EmployeeORM.tenant_id == ctx.tenant_id,
+            EmployeeORM.organization_id == ctx.organization_id,
+        )
+    ).scalar_one_or_none()
+    if exists is None:
+        raise NotFoundError("Employee not found.")
+
+
+class SqlAlchemyPlatformCalendarRepository(
+    TenantScopedRepositorySupport, PlatformCalendarRepository
+):
+    _repository_label = "PlatformCalendarRepository"
     _session: Session
 
     def __init__(self, session: Session) -> None:
         self._session = session
         self._tenant_context_service = None
 
-    def _get_active_tid(self) -> str | None:
-        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
-
     def get(self, calendar_id: str) -> PlatformCalendar | None:
-        _tid = self._get_active_tid()
-        stmt = select(PlatformCalendarORM).where(PlatformCalendarORM.id == calendar_id)
-        if _tid is not None:
-            stmt = stmt.where(PlatformCalendarORM.tenant_id == _tid)
+        ctx = self._context(operation_label="access platform calendars")
+        stmt = select(PlatformCalendarORM).where(
+            PlatformCalendarORM.id == calendar_id,
+            PlatformCalendarORM.tenant_id == ctx.tenant_id,
+            PlatformCalendarORM.organization_id == ctx.organization_id,
+        )
         obj = self._session.execute(stmt).scalar_one_or_none()
         return platform_calendar_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, code: str) -> PlatformCalendar | None:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="access platform calendars")
         stmt = select(PlatformCalendarORM).where(
-            PlatformCalendarORM.organization_id == organization_id,
+            PlatformCalendarORM.organization_id == ctx.organization_id,
             PlatformCalendarORM.code == code,
+            PlatformCalendarORM.tenant_id == ctx.tenant_id,
         )
-        if _tid is not None:
-            stmt = stmt.where(PlatformCalendarORM.tenant_id == _tid)
         obj = self._session.execute(stmt).scalars().first()
         return platform_calendar_from_orm(obj) if obj else None
 
     def get_global(self, organization_id: str) -> PlatformCalendar | None:
-        _tid = self._get_active_tid()
-        stmt = select(PlatformCalendarORM).where(
-            PlatformCalendarORM.organization_id == organization_id,
-            PlatformCalendarORM.calendar_type == "GLOBAL",
-            PlatformCalendarORM.is_active.is_(True),
+        ctx = self._context(operation_label="access platform calendars")
+        stmt = (
+            select(PlatformCalendarORM)
+            .where(
+                PlatformCalendarORM.organization_id == ctx.organization_id,
+                PlatformCalendarORM.calendar_type == "GLOBAL",
+                PlatformCalendarORM.is_active.is_(True),
+                PlatformCalendarORM.tenant_id == ctx.tenant_id,
+            )
+            .order_by(PlatformCalendarORM.priority.desc())
         )
-        if _tid is not None:
-            stmt = stmt.where(PlatformCalendarORM.tenant_id == _tid)
-        stmt = stmt.order_by(PlatformCalendarORM.priority.desc())
         obj = self._session.execute(stmt).scalars().first()
         return platform_calendar_from_orm(obj) if obj else None
 
@@ -108,12 +209,11 @@ class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
         calendar_type: str | None = None,
         active_only: bool | None = None,
     ) -> list[PlatformCalendar]:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="access platform calendars")
         stmt = select(PlatformCalendarORM).where(
-            PlatformCalendarORM.organization_id == organization_id
+            PlatformCalendarORM.organization_id == ctx.organization_id,
+            PlatformCalendarORM.tenant_id == ctx.tenant_id,
         )
-        if _tid is not None:
-            stmt = stmt.where(PlatformCalendarORM.tenant_id == _tid)
         if calendar_type is not None:
             stmt = stmt.where(PlatformCalendarORM.calendar_type == calendar_type)
         if active_only is not None:
@@ -127,13 +227,21 @@ class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
         return [platform_calendar_from_orm(r) for r in rows]
 
     def add(self, calendar: PlatformCalendar) -> None:
+        ctx = self._context(operation_label="access platform calendars")
         orm = platform_calendar_to_orm(calendar)
-        if orm.tenant_id is None:
-            orm.tenant_id = self._get_active_tid()
+        orm.tenant_id = ctx.tenant_id
+        orm.organization_id = ctx.organization_id
         self._session.add(orm)
 
     def update(self, calendar: PlatformCalendar) -> None:
-        obj = self._session.get(PlatformCalendarORM, calendar.id)
+        ctx = self._context(operation_label="access platform calendars")
+        obj = self._session.execute(
+            select(PlatformCalendarORM).where(
+                PlatformCalendarORM.id == calendar.id,
+                PlatformCalendarORM.tenant_id == ctx.tenant_id,
+                PlatformCalendarORM.organization_id == ctx.organization_id,
+            )
+        ).scalar_one_or_none()
         if obj is None:
             return
         obj.code = calendar.code
@@ -155,30 +263,53 @@ class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
         obj.updated_at = calendar.updated_at
 
     def delete(self, calendar_id: str) -> None:
-        self._session.query(PlatformCalendarORM).filter_by(id=calendar_id).delete()
+        ctx = self._context(operation_label="access platform calendars")
+        obj = self._session.execute(
+            select(PlatformCalendarORM).where(
+                PlatformCalendarORM.id == calendar_id,
+                PlatformCalendarORM.tenant_id == ctx.tenant_id,
+                PlatformCalendarORM.organization_id == ctx.organization_id,
+            )
+        ).scalar_one_or_none()
+        if obj is not None:
+            self._session.delete(obj)
 
 
-class SqlAlchemyCalendarWorkingRuleRepository(CalendarWorkingRuleRepository):
+class SqlAlchemyCalendarWorkingRuleRepository(
+    TenantScopedRepositorySupport, CalendarWorkingRuleRepository
+):
+    _repository_label = "CalendarWorkingRuleRepository"
     _session: Session
 
     def __init__(self, session: Session) -> None:
         self._session = session
+        self._tenant_context_service = None
 
     def list_for_calendar(self, calendar_id: str) -> list[CalendarWorkingRule]:
-        stmt = select(CalendarWorkingRuleORM).where(
-            CalendarWorkingRuleORM.calendar_id == calendar_id
-        ).order_by(CalendarWorkingRuleORM.weekday)
+        ctx = self._context(operation_label="access calendar working rules")
+        stmt = _scoped_calendar_stmt(
+            select(CalendarWorkingRuleORM), CalendarWorkingRuleORM, ctx
+        ).where(CalendarWorkingRuleORM.calendar_id == calendar_id).order_by(
+            CalendarWorkingRuleORM.weekday
+        )
         rows = self._session.execute(stmt).scalars().all()
         return [working_rule_from_orm(r) for r in rows]
 
     def get(self, rule_id: str) -> CalendarWorkingRule | None:
-        obj = self._session.get(CalendarWorkingRuleORM, rule_id)
+        ctx = self._context(operation_label="access calendar working rules")
+        stmt = _scoped_calendar_stmt(
+            select(CalendarWorkingRuleORM), CalendarWorkingRuleORM, ctx
+        ).where(CalendarWorkingRuleORM.id == rule_id)
+        obj = self._session.execute(stmt).scalar_one_or_none()
         return working_rule_from_orm(obj) if obj else None
 
     def get_for_weekday(
         self, calendar_id: str, weekday: int
     ) -> CalendarWorkingRule | None:
-        stmt = select(CalendarWorkingRuleORM).where(
+        ctx = self._context(operation_label="access calendar working rules")
+        stmt = _scoped_calendar_stmt(
+            select(CalendarWorkingRuleORM), CalendarWorkingRuleORM, ctx
+        ).where(
             CalendarWorkingRuleORM.calendar_id == calendar_id,
             CalendarWorkingRuleORM.weekday == weekday,
         )
@@ -186,8 +317,13 @@ class SqlAlchemyCalendarWorkingRuleRepository(CalendarWorkingRuleRepository):
         return working_rule_from_orm(obj) if obj else None
 
     def save(self, rule: CalendarWorkingRule) -> None:
-        existing = self._session.get(CalendarWorkingRuleORM, rule.id)
-        if existing:
+        ctx = self._context(operation_label="access calendar working rules")
+        existing = self._session.execute(
+            _scoped_calendar_stmt(
+                select(CalendarWorkingRuleORM), CalendarWorkingRuleORM, ctx
+            ).where(CalendarWorkingRuleORM.id == rule.id)
+        ).scalar_one_or_none()
+        if existing is not None:
             existing.is_working_day = rule.is_working_day
             existing.start_time = rule.start_time
             existing.end_time = rule.end_time
@@ -199,23 +335,40 @@ class SqlAlchemyCalendarWorkingRuleRepository(CalendarWorkingRuleRepository):
             existing.effective_from = rule.effective_from
             existing.effective_to = rule.effective_to
             existing.priority = rule.priority
-        else:
-            self._session.add(working_rule_to_orm(rule))
+            return
+        _ensure_calendar_in_scope(self._session, ctx, rule.calendar_id)
+        self._session.add(working_rule_to_orm(rule))
 
     def delete(self, rule_id: str) -> None:
-        self._session.query(CalendarWorkingRuleORM).filter_by(id=rule_id).delete()
+        ctx = self._context(operation_label="access calendar working rules")
+        obj = self._session.execute(
+            _scoped_calendar_stmt(
+                select(CalendarWorkingRuleORM), CalendarWorkingRuleORM, ctx
+            ).where(CalendarWorkingRuleORM.id == rule_id)
+        ).scalar_one_or_none()
+        if obj is not None:
+            self._session.delete(obj)
 
     def delete_for_calendar(self, calendar_id: str) -> None:
-        self._session.query(CalendarWorkingRuleORM).filter_by(
-            calendar_id=calendar_id
-        ).delete()
+        ctx = self._context(operation_label="access calendar working rules")
+        rows = self._session.execute(
+            _scoped_calendar_stmt(
+                select(CalendarWorkingRuleORM), CalendarWorkingRuleORM, ctx
+            ).where(CalendarWorkingRuleORM.calendar_id == calendar_id)
+        ).scalars().all()
+        for row in rows:
+            self._session.delete(row)
 
 
-class SqlAlchemyCalendarExceptionRepository(CalendarExceptionRepository):
+class SqlAlchemyCalendarExceptionRepository(
+    TenantScopedRepositorySupport, CalendarExceptionRepository
+):
+    _repository_label = "CalendarExceptionRepository"
     _session: Session
 
     def __init__(self, session: Session) -> None:
         self._session = session
+        self._tenant_context_service = None
 
     def list_for_calendar(
         self,
@@ -224,9 +377,10 @@ class SqlAlchemyCalendarExceptionRepository(CalendarExceptionRepository):
         start: date | None = None,
         end: date | None = None,
     ) -> list[CalendarException]:
-        stmt = select(CalendarExceptionORM).where(
-            CalendarExceptionORM.calendar_id == calendar_id
-        )
+        ctx = self._context(operation_label="access calendar exceptions")
+        stmt = _scoped_calendar_stmt(
+            select(CalendarExceptionORM), CalendarExceptionORM, ctx
+        ).where(CalendarExceptionORM.calendar_id == calendar_id)
         if start is not None:
             stmt = stmt.where(CalendarExceptionORM.exception_date >= start)
         if end is not None:
@@ -241,7 +395,10 @@ class SqlAlchemyCalendarExceptionRepository(CalendarExceptionRepository):
     def list_for_date(
         self, calendar_id: str, target_date: date
     ) -> list[CalendarException]:
-        stmt = select(CalendarExceptionORM).where(
+        ctx = self._context(operation_label="access calendar exceptions")
+        stmt = _scoped_calendar_stmt(
+            select(CalendarExceptionORM), CalendarExceptionORM, ctx
+        ).where(
             CalendarExceptionORM.calendar_id == calendar_id,
             CalendarExceptionORM.exception_date == target_date,
         ).order_by(CalendarExceptionORM.priority.desc())
@@ -249,14 +406,25 @@ class SqlAlchemyCalendarExceptionRepository(CalendarExceptionRepository):
         return [calendar_exception_from_orm(r) for r in rows]
 
     def get(self, exception_id: str) -> CalendarException | None:
-        obj = self._session.get(CalendarExceptionORM, exception_id)
+        ctx = self._context(operation_label="access calendar exceptions")
+        stmt = _scoped_calendar_stmt(
+            select(CalendarExceptionORM), CalendarExceptionORM, ctx
+        ).where(CalendarExceptionORM.id == exception_id)
+        obj = self._session.execute(stmt).scalar_one_or_none()
         return calendar_exception_from_orm(obj) if obj else None
 
     def add(self, exc: CalendarException) -> None:
+        ctx = self._context(operation_label="access calendar exceptions")
+        _ensure_calendar_in_scope(self._session, ctx, exc.calendar_id)
         self._session.add(calendar_exception_to_orm(exc))
 
     def update(self, exc: CalendarException) -> None:
-        obj = self._session.get(CalendarExceptionORM, exc.id)
+        ctx = self._context(operation_label="access calendar exceptions")
+        obj = self._session.execute(
+            _scoped_calendar_stmt(
+                select(CalendarExceptionORM), CalendarExceptionORM, ctx
+            ).where(CalendarExceptionORM.id == exc.id)
+        ).scalar_one_or_none()
         if obj is None:
             return
         obj.exception_date = exc.exception_date
@@ -274,27 +442,42 @@ class SqlAlchemyCalendarExceptionRepository(CalendarExceptionRepository):
         obj.updated_at = exc.updated_at
 
     def delete(self, exception_id: str) -> None:
-        self._session.query(CalendarExceptionORM).filter_by(id=exception_id).delete()
+        ctx = self._context(operation_label="access calendar exceptions")
+        obj = self._session.execute(
+            _scoped_calendar_stmt(
+                select(CalendarExceptionORM), CalendarExceptionORM, ctx
+            ).where(CalendarExceptionORM.id == exception_id)
+        ).scalar_one_or_none()
+        if obj is not None:
+            self._session.delete(obj)
 
     def count_for_calendar(self, calendar_id: str) -> int:
-        stmt = select(func.count()).where(
-            CalendarExceptionORM.calendar_id == calendar_id
-        )
+        ctx = self._context(operation_label="access calendar exceptions")
+        stmt = _scoped_calendar_stmt(
+            select(func.count()),
+            CalendarExceptionORM,
+            ctx,
+        ).where(CalendarExceptionORM.calendar_id == calendar_id)
         return self._session.execute(stmt).scalar() or 0
 
 
-class SqlAlchemyCalendarRecurringEventRepository(CalendarRecurringEventRepository):
+class SqlAlchemyCalendarRecurringEventRepository(
+    TenantScopedRepositorySupport, CalendarRecurringEventRepository
+):
+    _repository_label = "CalendarRecurringEventRepository"
     _session: Session
 
     def __init__(self, session: Session) -> None:
         self._session = session
+        self._tenant_context_service = None
 
     def list_for_calendar(
         self, calendar_id: str, *, active_only: bool = True
     ) -> list[CalendarRecurringEvent]:
-        stmt = select(CalendarRecurringEventORM).where(
-            CalendarRecurringEventORM.calendar_id == calendar_id
-        )
+        ctx = self._context(operation_label="access recurring events")
+        stmt = _scoped_calendar_stmt(
+            select(CalendarRecurringEventORM), CalendarRecurringEventORM, ctx
+        ).where(CalendarRecurringEventORM.calendar_id == calendar_id)
         if active_only:
             stmt = stmt.where(CalendarRecurringEventORM.is_active.is_(True))
         stmt = stmt.order_by(
@@ -305,14 +488,25 @@ class SqlAlchemyCalendarRecurringEventRepository(CalendarRecurringEventRepositor
         return [recurring_event_from_orm(r) for r in rows]
 
     def get(self, event_id: str) -> CalendarRecurringEvent | None:
-        obj = self._session.get(CalendarRecurringEventORM, event_id)
+        ctx = self._context(operation_label="access recurring events")
+        stmt = _scoped_calendar_stmt(
+            select(CalendarRecurringEventORM), CalendarRecurringEventORM, ctx
+        ).where(CalendarRecurringEventORM.id == event_id)
+        obj = self._session.execute(stmt).scalar_one_or_none()
         return recurring_event_from_orm(obj) if obj else None
 
     def add(self, event: CalendarRecurringEvent) -> None:
+        ctx = self._context(operation_label="access recurring events")
+        _ensure_calendar_in_scope(self._session, ctx, event.calendar_id)
         self._session.add(recurring_event_to_orm(event))
 
     def update(self, event: CalendarRecurringEvent) -> None:
-        obj = self._session.get(CalendarRecurringEventORM, event.id)
+        ctx = self._context(operation_label="access recurring events")
+        obj = self._session.execute(
+            _scoped_calendar_stmt(
+                select(CalendarRecurringEventORM), CalendarRecurringEventORM, ctx
+            ).where(CalendarRecurringEventORM.id == event.id)
+        ).scalar_one_or_none()
         if obj is None:
             return
         obj.title = event.title
@@ -328,28 +522,34 @@ class SqlAlchemyCalendarRecurringEventRepository(CalendarRecurringEventRepositor
         obj.priority = event.priority
 
     def delete(self, event_id: str) -> None:
-        self._session.query(CalendarRecurringEventORM).filter_by(id=event_id).delete()
+        ctx = self._context(operation_label="access recurring events")
+        obj = self._session.execute(
+            _scoped_calendar_stmt(
+                select(CalendarRecurringEventORM), CalendarRecurringEventORM, ctx
+            ).where(CalendarRecurringEventORM.id == event_id)
+        ).scalar_one_or_none()
+        if obj is not None:
+            self._session.delete(obj)
 
 
-class SqlAlchemyShiftPatternRepository(ShiftPatternRepository):
+class SqlAlchemyShiftPatternRepository(
+    TenantScopedRepositorySupport, ShiftPatternRepository
+):
+    _repository_label = "ShiftPatternRepository"
     _session: Session
 
     def __init__(self, session: Session) -> None:
         self._session = session
         self._tenant_context_service = None
 
-    def _get_active_tid(self) -> str | None:
-        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
-
     def list_for_organization(
         self, organization_id: str, *, active_only: bool | None = None
     ) -> list[ShiftPattern]:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="access shift patterns")
         stmt = select(ShiftPatternORM).where(
-            ShiftPatternORM.organization_id == organization_id
+            ShiftPatternORM.organization_id == ctx.organization_id,
+            ShiftPatternORM.tenant_id == ctx.tenant_id,
         )
-        if _tid is not None:
-            stmt = stmt.where(ShiftPatternORM.tenant_id == _tid)
         if active_only is not None:
             stmt = stmt.where(ShiftPatternORM.is_active.is_(active_only))
         stmt = stmt.order_by(ShiftPatternORM.name)
@@ -357,32 +557,41 @@ class SqlAlchemyShiftPatternRepository(ShiftPatternRepository):
         return [shift_pattern_from_orm(r) for r in rows]
 
     def get(self, pattern_id: str) -> ShiftPattern | None:
-        _tid = self._get_active_tid()
-        stmt = select(ShiftPatternORM).where(ShiftPatternORM.id == pattern_id)
-        if _tid is not None:
-            stmt = stmt.where(ShiftPatternORM.tenant_id == _tid)
+        ctx = self._context(operation_label="access shift patterns")
+        stmt = select(ShiftPatternORM).where(
+            ShiftPatternORM.id == pattern_id,
+            ShiftPatternORM.tenant_id == ctx.tenant_id,
+            ShiftPatternORM.organization_id == ctx.organization_id,
+        )
         obj = self._session.execute(stmt).scalar_one_or_none()
         return shift_pattern_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, code: str) -> ShiftPattern | None:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="access shift patterns")
         stmt = select(ShiftPatternORM).where(
-            ShiftPatternORM.organization_id == organization_id,
+            ShiftPatternORM.organization_id == ctx.organization_id,
             ShiftPatternORM.code == code,
+            ShiftPatternORM.tenant_id == ctx.tenant_id,
         )
-        if _tid is not None:
-            stmt = stmt.where(ShiftPatternORM.tenant_id == _tid)
         obj = self._session.execute(stmt).scalars().first()
         return shift_pattern_from_orm(obj) if obj else None
 
     def add(self, pattern: ShiftPattern) -> None:
+        ctx = self._context(operation_label="access shift patterns")
         orm = shift_pattern_to_orm(pattern)
-        if orm.tenant_id is None:
-            orm.tenant_id = self._get_active_tid()
+        orm.tenant_id = ctx.tenant_id
+        orm.organization_id = ctx.organization_id
         self._session.add(orm)
 
     def update(self, pattern: ShiftPattern) -> None:
-        obj = self._session.get(ShiftPatternORM, pattern.id)
+        ctx = self._context(operation_label="access shift patterns")
+        obj = self._session.execute(
+            select(ShiftPatternORM).where(
+                ShiftPatternORM.id == pattern.id,
+                ShiftPatternORM.tenant_id == ctx.tenant_id,
+                ShiftPatternORM.organization_id == ctx.organization_id,
+            )
+        ).scalar_one_or_none()
         if obj is None:
             return
         obj.code = pattern.code
@@ -394,40 +603,72 @@ class SqlAlchemyShiftPatternRepository(ShiftPatternRepository):
         obj.is_active = pattern.is_active
 
     def delete(self, pattern_id: str) -> None:
-        self._session.query(ShiftPatternORM).filter_by(id=pattern_id).delete()
+        ctx = self._context(operation_label="access shift patterns")
+        obj = self._session.execute(
+            select(ShiftPatternORM).where(
+                ShiftPatternORM.id == pattern_id,
+                ShiftPatternORM.tenant_id == ctx.tenant_id,
+                ShiftPatternORM.organization_id == ctx.organization_id,
+            )
+        ).scalar_one_or_none()
+        if obj is not None:
+            self._session.delete(obj)
 
     def list_days(self, pattern_id: str) -> list[ShiftPatternDay]:
-        stmt = select(ShiftPatternDayORM).where(
-            ShiftPatternDayORM.shift_pattern_id == pattern_id
-        ).order_by(ShiftPatternDayORM.day_offset)
+        ctx = self._context(operation_label="access shift patterns")
+        stmt = _scoped_shift_pattern_day_stmt(
+            select(ShiftPatternDayORM), ctx
+        ).where(ShiftPatternDayORM.shift_pattern_id == pattern_id).order_by(
+            ShiftPatternDayORM.day_offset
+        )
         rows = self._session.execute(stmt).scalars().all()
         return [shift_pattern_day_from_orm(r) for r in rows]
 
     def save_day(self, day: ShiftPatternDay) -> None:
-        existing = self._session.get(ShiftPatternDayORM, day.id)
-        if existing:
+        ctx = self._context(operation_label="access shift patterns")
+        existing = self._session.execute(
+            _scoped_shift_pattern_day_stmt(select(ShiftPatternDayORM), ctx).where(
+                ShiftPatternDayORM.id == day.id
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
             existing.is_working_day = day.is_working_day
             existing.start_time = day.start_time
             existing.end_time = day.end_time
             existing.break_minutes = day.break_minutes
             existing.hours = day.hours
             existing.shift_label = day.shift_label
-        else:
-            self._session.add(shift_pattern_day_to_orm(day))
+            return
+        _ensure_shift_pattern_in_scope(self._session, ctx, day.shift_pattern_id)
+        self._session.add(shift_pattern_day_to_orm(day))
 
     def delete_day(self, day_id: str) -> None:
-        self._session.query(ShiftPatternDayORM).filter_by(id=day_id).delete()
+        ctx = self._context(operation_label="access shift patterns")
+        obj = self._session.execute(
+            _scoped_shift_pattern_day_stmt(select(ShiftPatternDayORM), ctx).where(
+                ShiftPatternDayORM.id == day_id
+            )
+        ).scalar_one_or_none()
+        if obj is not None:
+            self._session.delete(obj)
 
 
-class SqlAlchemyCalendarAssignmentRepository(CalendarAssignmentRepository):
+class SqlAlchemyCalendarAssignmentRepository(
+    TenantScopedRepositorySupport, CalendarAssignmentRepository
+):
+    _repository_label = "CalendarAssignmentRepository"
     _session: Session
 
     def __init__(self, session: Session) -> None:
         self._session = session
+        self._tenant_context_service = None
 
-    # --- Site ---
-
-    def _is_effective(self, effective_from: date | None, effective_to: date | None, at_date: date | None) -> bool:
+    def _is_effective(
+        self,
+        effective_from: date | None,
+        effective_to: date | None,
+        at_date: date | None,
+    ) -> bool:
         if at_date is None:
             return True
         if effective_from is not None and at_date < effective_from:
@@ -439,9 +680,14 @@ class SqlAlchemyCalendarAssignmentRepository(CalendarAssignmentRepository):
     def get_site_assignment(
         self, site_id: str, *, at_date: date | None = None
     ) -> SiteCalendarAssignment | None:
-        stmt = select(SiteCalendarAssignmentORM).where(
-            SiteCalendarAssignmentORM.site_id == site_id
-        ).order_by(
+        ctx = self._context(operation_label="access calendar assignments")
+        stmt = _scoped_assignment_stmt(
+            select(SiteCalendarAssignmentORM),
+            SiteCalendarAssignmentORM,
+            SiteORM,
+            SiteCalendarAssignmentORM.site_id,
+            ctx,
+        ).where(SiteCalendarAssignmentORM.site_id == site_id).order_by(
             SiteCalendarAssignmentORM.priority.desc(),
             SiteCalendarAssignmentORM.is_default.desc(),
         )
@@ -452,36 +698,65 @@ class SqlAlchemyCalendarAssignmentRepository(CalendarAssignmentRepository):
         return None
 
     def list_site_assignments(self, site_id: str) -> list[SiteCalendarAssignment]:
-        stmt = select(SiteCalendarAssignmentORM).where(
-            SiteCalendarAssignmentORM.site_id == site_id
-        ).order_by(SiteCalendarAssignmentORM.priority.desc())
+        ctx = self._context(operation_label="access calendar assignments")
+        stmt = _scoped_assignment_stmt(
+            select(SiteCalendarAssignmentORM),
+            SiteCalendarAssignmentORM,
+            SiteORM,
+            SiteCalendarAssignmentORM.site_id,
+            ctx,
+        ).where(SiteCalendarAssignmentORM.site_id == site_id).order_by(
+            SiteCalendarAssignmentORM.priority.desc()
+        )
         rows = self._session.execute(stmt).scalars().all()
         return [site_assignment_from_orm(r) for r in rows]
 
     def save_site_assignment(self, assignment: SiteCalendarAssignment) -> None:
-        existing = self._session.get(SiteCalendarAssignmentORM, assignment.id)
-        if existing:
+        ctx = self._context(operation_label="access calendar assignments")
+        existing = self._session.execute(
+            _scoped_assignment_stmt(
+                select(SiteCalendarAssignmentORM),
+                SiteCalendarAssignmentORM,
+                SiteORM,
+                SiteCalendarAssignmentORM.site_id,
+                ctx,
+            ).where(SiteCalendarAssignmentORM.id == assignment.id)
+        ).scalar_one_or_none()
+        if existing is not None:
             existing.calendar_id = assignment.calendar_id
             existing.effective_from = assignment.effective_from
             existing.effective_to = assignment.effective_to
             existing.is_default = assignment.is_default
             existing.priority = assignment.priority
-        else:
-            self._session.add(site_assignment_to_orm(assignment))
+            return
+        _ensure_calendar_in_scope(self._session, ctx, assignment.calendar_id)
+        self._session.add(site_assignment_to_orm(assignment))
 
     def delete_site_assignment(self, assignment_id: str) -> None:
-        self._session.query(SiteCalendarAssignmentORM).filter_by(
-            id=assignment_id
-        ).delete()
-
-    # --- Department ---
+        ctx = self._context(operation_label="access calendar assignments")
+        obj = self._session.execute(
+            _scoped_assignment_stmt(
+                select(SiteCalendarAssignmentORM),
+                SiteCalendarAssignmentORM,
+                SiteORM,
+                SiteCalendarAssignmentORM.site_id,
+                ctx,
+            ).where(SiteCalendarAssignmentORM.id == assignment_id)
+        ).scalar_one_or_none()
+        if obj is not None:
+            self._session.delete(obj)
 
     def get_department_assignment(
         self, department_id: str, *, at_date: date | None = None
     ) -> DepartmentCalendarAssignment | None:
-        stmt = select(DepartmentCalendarAssignmentORM).where(
-            DepartmentCalendarAssignmentORM.department_id == department_id
-        ).order_by(
+        ctx = self._context(operation_label="access calendar assignments")
+        stmt = _scoped_assignment_stmt(
+            select(DepartmentCalendarAssignmentORM),
+            DepartmentCalendarAssignmentORM,
+            DepartmentORM,
+            DepartmentCalendarAssignmentORM.department_id,
+            ctx,
+        ).where(DepartmentCalendarAssignmentORM.department_id == department_id).order_by(
             DepartmentCalendarAssignmentORM.priority.desc(),
             DepartmentCalendarAssignmentORM.is_default.desc(),
         )
@@ -494,38 +769,67 @@ class SqlAlchemyCalendarAssignmentRepository(CalendarAssignmentRepository):
     def list_department_assignments(
         self, department_id: str
     ) -> list[DepartmentCalendarAssignment]:
-        stmt = select(DepartmentCalendarAssignmentORM).where(
-            DepartmentCalendarAssignmentORM.department_id == department_id
-        ).order_by(DepartmentCalendarAssignmentORM.priority.desc())
+        ctx = self._context(operation_label="access calendar assignments")
+        stmt = _scoped_assignment_stmt(
+            select(DepartmentCalendarAssignmentORM),
+            DepartmentCalendarAssignmentORM,
+            DepartmentORM,
+            DepartmentCalendarAssignmentORM.department_id,
+            ctx,
+        ).where(DepartmentCalendarAssignmentORM.department_id == department_id).order_by(
+            DepartmentCalendarAssignmentORM.priority.desc()
+        )
         rows = self._session.execute(stmt).scalars().all()
         return [dept_assignment_from_orm(r) for r in rows]
 
     def save_department_assignment(
         self, assignment: DepartmentCalendarAssignment
     ) -> None:
-        existing = self._session.get(DepartmentCalendarAssignmentORM, assignment.id)
-        if existing:
+        ctx = self._context(operation_label="access calendar assignments")
+        existing = self._session.execute(
+            _scoped_assignment_stmt(
+                select(DepartmentCalendarAssignmentORM),
+                DepartmentCalendarAssignmentORM,
+                DepartmentORM,
+                DepartmentCalendarAssignmentORM.department_id,
+                ctx,
+            ).where(DepartmentCalendarAssignmentORM.id == assignment.id)
+        ).scalar_one_or_none()
+        if existing is not None:
             existing.calendar_id = assignment.calendar_id
             existing.effective_from = assignment.effective_from
             existing.effective_to = assignment.effective_to
             existing.is_default = assignment.is_default
             existing.priority = assignment.priority
-        else:
-            self._session.add(dept_assignment_to_orm(assignment))
+            return
+        _ensure_calendar_in_scope(self._session, ctx, assignment.calendar_id)
+        self._session.add(dept_assignment_to_orm(assignment))
 
     def delete_department_assignment(self, assignment_id: str) -> None:
-        self._session.query(DepartmentCalendarAssignmentORM).filter_by(
-            id=assignment_id
-        ).delete()
-
-    # --- Employee ---
+        ctx = self._context(operation_label="access calendar assignments")
+        obj = self._session.execute(
+            _scoped_assignment_stmt(
+                select(DepartmentCalendarAssignmentORM),
+                DepartmentCalendarAssignmentORM,
+                DepartmentORM,
+                DepartmentCalendarAssignmentORM.department_id,
+                ctx,
+            ).where(DepartmentCalendarAssignmentORM.id == assignment_id)
+        ).scalar_one_or_none()
+        if obj is not None:
+            self._session.delete(obj)
 
     def get_employee_assignment(
         self, employee_id: str, *, at_date: date | None = None
     ) -> EmployeeCalendarAssignment | None:
-        stmt = select(EmployeeCalendarAssignmentORM).where(
-            EmployeeCalendarAssignmentORM.employee_id == employee_id
-        ).order_by(
+        ctx = self._context(operation_label="access calendar assignments")
+        stmt = _scoped_assignment_stmt(
+            select(EmployeeCalendarAssignmentORM),
+            EmployeeCalendarAssignmentORM,
+            EmployeeORM,
+            EmployeeCalendarAssignmentORM.employee_id,
+            ctx,
+        ).where(EmployeeCalendarAssignmentORM.employee_id == employee_id).order_by(
             EmployeeCalendarAssignmentORM.priority.desc(),
             EmployeeCalendarAssignmentORM.is_default.desc(),
         )
@@ -538,54 +842,91 @@ class SqlAlchemyCalendarAssignmentRepository(CalendarAssignmentRepository):
     def list_employee_assignments(
         self, employee_id: str
     ) -> list[EmployeeCalendarAssignment]:
-        stmt = select(EmployeeCalendarAssignmentORM).where(
-            EmployeeCalendarAssignmentORM.employee_id == employee_id
-        ).order_by(EmployeeCalendarAssignmentORM.priority.desc())
+        ctx = self._context(operation_label="access calendar assignments")
+        stmt = _scoped_assignment_stmt(
+            select(EmployeeCalendarAssignmentORM),
+            EmployeeCalendarAssignmentORM,
+            EmployeeORM,
+            EmployeeCalendarAssignmentORM.employee_id,
+            ctx,
+        ).where(EmployeeCalendarAssignmentORM.employee_id == employee_id).order_by(
+            EmployeeCalendarAssignmentORM.priority.desc()
+        )
         rows = self._session.execute(stmt).scalars().all()
         return [employee_assignment_from_orm(r) for r in rows]
 
     def save_employee_assignment(
         self, assignment: EmployeeCalendarAssignment
     ) -> None:
-        existing = self._session.get(EmployeeCalendarAssignmentORM, assignment.id)
-        if existing:
+        ctx = self._context(operation_label="access calendar assignments")
+        existing = self._session.execute(
+            _scoped_assignment_stmt(
+                select(EmployeeCalendarAssignmentORM),
+                EmployeeCalendarAssignmentORM,
+                EmployeeORM,
+                EmployeeCalendarAssignmentORM.employee_id,
+                ctx,
+            ).where(EmployeeCalendarAssignmentORM.id == assignment.id)
+        ).scalar_one_or_none()
+        if existing is not None:
             existing.calendar_id = assignment.calendar_id
             existing.effective_from = assignment.effective_from
             existing.effective_to = assignment.effective_to
             existing.is_default = assignment.is_default
             existing.priority = assignment.priority
-        else:
-            self._session.add(employee_assignment_to_orm(assignment))
+            return
+        _ensure_calendar_in_scope(self._session, ctx, assignment.calendar_id)
+        self._session.add(employee_assignment_to_orm(assignment))
 
     def delete_employee_assignment(self, assignment_id: str) -> None:
-        self._session.query(EmployeeCalendarAssignmentORM).filter_by(
-            id=assignment_id
-        ).delete()
-
-    # --- Count + list by calendar ---
+        ctx = self._context(operation_label="access calendar assignments")
+        obj = self._session.execute(
+            _scoped_assignment_stmt(
+                select(EmployeeCalendarAssignmentORM),
+                EmployeeCalendarAssignmentORM,
+                EmployeeORM,
+                EmployeeCalendarAssignmentORM.employee_id,
+                ctx,
+            ).where(EmployeeCalendarAssignmentORM.id == assignment_id)
+        ).scalar_one_or_none()
+        if obj is not None:
+            self._session.delete(obj)
 
     def count_active_assignments_for_calendar(self, calendar_id: str) -> int:
+        ctx = self._context(operation_label="access calendar assignments")
         site_count = (
             self._session.execute(
-                select(func.count()).where(
-                    SiteCalendarAssignmentORM.calendar_id == calendar_id
-                )
+                _scoped_assignment_stmt(
+                    select(func.count()),
+                    SiteCalendarAssignmentORM,
+                    SiteORM,
+                    SiteCalendarAssignmentORM.site_id,
+                    ctx,
+                ).where(SiteCalendarAssignmentORM.calendar_id == calendar_id)
             ).scalar()
             or 0
         )
         dept_count = (
             self._session.execute(
-                select(func.count()).where(
-                    DepartmentCalendarAssignmentORM.calendar_id == calendar_id
-                )
+                _scoped_assignment_stmt(
+                    select(func.count()),
+                    DepartmentCalendarAssignmentORM,
+                    DepartmentORM,
+                    DepartmentCalendarAssignmentORM.department_id,
+                    ctx,
+                ).where(DepartmentCalendarAssignmentORM.calendar_id == calendar_id)
             ).scalar()
             or 0
         )
         emp_count = (
             self._session.execute(
-                select(func.count()).where(
-                    EmployeeCalendarAssignmentORM.calendar_id == calendar_id
-                )
+                _scoped_assignment_stmt(
+                    select(func.count()),
+                    EmployeeCalendarAssignmentORM,
+                    EmployeeORM,
+                    EmployeeCalendarAssignmentORM.employee_id,
+                    ctx,
+                ).where(EmployeeCalendarAssignmentORM.calendar_id == calendar_id)
             ).scalar()
             or 0
         )
@@ -594,27 +935,42 @@ class SqlAlchemyCalendarAssignmentRepository(CalendarAssignmentRepository):
     def list_sites_using_calendar(
         self, calendar_id: str
     ) -> list[SiteCalendarAssignment]:
-        stmt = select(SiteCalendarAssignmentORM).where(
-            SiteCalendarAssignmentORM.calendar_id == calendar_id
-        )
+        ctx = self._context(operation_label="access calendar assignments")
+        stmt = _scoped_assignment_stmt(
+            select(SiteCalendarAssignmentORM),
+            SiteCalendarAssignmentORM,
+            SiteORM,
+            SiteCalendarAssignmentORM.site_id,
+            ctx,
+        ).where(SiteCalendarAssignmentORM.calendar_id == calendar_id)
         rows = self._session.execute(stmt).scalars().all()
         return [site_assignment_from_orm(r) for r in rows]
 
     def list_departments_using_calendar(
         self, calendar_id: str
     ) -> list[DepartmentCalendarAssignment]:
-        stmt = select(DepartmentCalendarAssignmentORM).where(
-            DepartmentCalendarAssignmentORM.calendar_id == calendar_id
-        )
+        ctx = self._context(operation_label="access calendar assignments")
+        stmt = _scoped_assignment_stmt(
+            select(DepartmentCalendarAssignmentORM),
+            DepartmentCalendarAssignmentORM,
+            DepartmentORM,
+            DepartmentCalendarAssignmentORM.department_id,
+            ctx,
+        ).where(DepartmentCalendarAssignmentORM.calendar_id == calendar_id)
         rows = self._session.execute(stmt).scalars().all()
         return [dept_assignment_from_orm(r) for r in rows]
 
     def list_employees_using_calendar(
         self, calendar_id: str
     ) -> list[EmployeeCalendarAssignment]:
-        stmt = select(EmployeeCalendarAssignmentORM).where(
-            EmployeeCalendarAssignmentORM.calendar_id == calendar_id
-        )
+        ctx = self._context(operation_label="access calendar assignments")
+        stmt = _scoped_assignment_stmt(
+            select(EmployeeCalendarAssignmentORM),
+            EmployeeCalendarAssignmentORM,
+            EmployeeORM,
+            EmployeeCalendarAssignmentORM.employee_id,
+            ctx,
+        ).where(EmployeeCalendarAssignmentORM.calendar_id == calendar_id)
         rows = self._session.execute(stmt).scalars().all()
         return [employee_assignment_from_orm(r) for r in rows]
 
