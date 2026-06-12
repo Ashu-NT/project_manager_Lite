@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Optional
 
 
 # ── Finance snapshot DTOs ─────────────────────────────────────────────────────
@@ -109,7 +108,7 @@ class LaborAssignmentRow:
     task_name: str
     hours: float
     hourly_rate: float
-    currency_code: Optional[str]
+    currency_code: str | None
     cost: float
 
 
@@ -119,9 +118,9 @@ class LaborResourceRow:
     resource_name: str
     total_hours: float
     hourly_rate: float
-    currency_code: Optional[str]
+    currency_code: str | None
     total_cost: float
-    assignments: List[LaborAssignmentRow]
+    assignments: list[LaborAssignmentRow]
 
 
 @dataclass
@@ -130,10 +129,10 @@ class LaborPlanActualRow:
     resource_name: str
     planned_hours: float
     planned_hourly_rate: float
-    planned_currency_code: Optional[str]
+    planned_currency_code: str | None
     planned_cost: float
     actual_hours: float
-    actual_currency_code: Optional[str]
+    actual_currency_code: str | None
     actual_cost: float
     variance_cost: float
 
@@ -161,14 +160,14 @@ class EarnedValueMetrics:
     EV: float
     AC: float
 
-    CPI: Optional[float]
-    SPI: Optional[float]
-    EAC: Optional[float]
-    ETC: Optional[float]
-    VAC: Optional[float]
-    TCPI_to_BAC: Optional[float] = None
-    TCPI_to_EAC: Optional[float] = None
-    notes: Optional[str] = None
+    CPI: float | None
+    SPI: float | None
+    EAC: float | None
+    ETC: float | None
+    VAC: float | None
+    TCPI_to_BAC: float | None = None
+    TCPI_to_EAC: float | None = None
+    notes: str | None = None
 
 
 __all__ = [

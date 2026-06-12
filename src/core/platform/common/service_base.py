@@ -7,7 +7,7 @@ class ServiceBase:
     def __init__(self, session: Session):
         self._session: Session = session
 
-    def commit(self):
+    def commit(self) -> None:
         try:
             self._session.commit()
         except Exception as exc:

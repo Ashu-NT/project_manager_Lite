@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional
 
 from src.core.modules.project_management.domain.tasks.task import Task
 
@@ -11,14 +10,14 @@ from src.core.modules.project_management.domain.tasks.task import Task
 @dataclass
 class CPMTaskInfo:
     task: Task
-    earliest_start: Optional[date]
-    earliest_finish: Optional[date]
-    latest_start: Optional[date]
-    latest_finish: Optional[date]
-    total_float_days: Optional[int]
+    earliest_start: date | None
+    earliest_finish: date | None
+    latest_start: date | None
+    latest_finish: date | None
+    total_float_days: int | None
     is_critical: bool
-    deadline: Optional[date] = None
-    late_by_days: Optional[int] = None
+    deadline: date | None = None
+    late_by_days: int | None = None
 
 
 __all__ = ["CPMTaskInfo"]

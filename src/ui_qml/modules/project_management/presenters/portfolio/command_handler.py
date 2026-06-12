@@ -19,7 +19,6 @@ from .validation import (
     require_text,
 )
 
-
 def create_template(
     desktop_api: ProjectManagementPortfolioDesktopApi,
     payload: dict[str, Any],
@@ -35,7 +34,6 @@ def create_template(
     )
     desktop_api.create_scoring_template(command)
 
-
 def activate_template(
     desktop_api: ProjectManagementPortfolioDesktopApi,
     template_id: str,
@@ -44,7 +42,6 @@ def activate_template(
     if not normalized_id:
         raise ValueError("Choose a scoring template to activate.")
     desktop_api.activate_scoring_template(normalized_id)
-
 
 def create_intake_item(
     desktop_api: ProjectManagementPortfolioDesktopApi,
@@ -66,7 +63,6 @@ def create_intake_item(
     )
     desktop_api.create_intake_item(command)
 
-
 def create_scenario(
     desktop_api: ProjectManagementPortfolioDesktopApi,
     payload: dict[str, Any],
@@ -80,7 +76,6 @@ def create_scenario(
         notes=optional_text(payload, "notes") or "",
     )
     desktop_api.create_scenario(command)
-
 
 def create_dependency(
     desktop_api: ProjectManagementPortfolioDesktopApi,
@@ -102,7 +97,6 @@ def create_dependency(
     )
     desktop_api.create_project_dependency(command)
 
-
 def remove_dependency(
     desktop_api: ProjectManagementPortfolioDesktopApi,
     dependency_id: str,
@@ -111,7 +105,6 @@ def remove_dependency(
     if not normalized_id:
         raise ValueError("Choose a dependency to remove.")
     desktop_api.remove_project_dependency(normalized_id)
-
 
 def update_intake_item_status(
     desktop_api: ProjectManagementPortfolioDesktopApi,

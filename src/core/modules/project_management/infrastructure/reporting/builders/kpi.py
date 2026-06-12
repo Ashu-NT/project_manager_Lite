@@ -3,7 +3,6 @@ from __future__ import annotations
 from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 
 from datetime import date, timedelta
-from typing import Dict, List, Tuple
 
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.modules.project_management.contracts.repositories.project import (
@@ -27,7 +26,6 @@ from src.core.modules.project_management.infrastructure.reporting.models.report_
     ResourceLoadRow,
 )
 
-
 class ReportingKpiMixin(ReportingCostPolicyMixin):
     _project_repo: ProjectRepository
     _task_repo: TaskRepository
@@ -38,7 +36,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
     _resource_repo: ResourceRepository
     _assignment_repo: AssignmentRepository
 
-    def get_gantt_data(self, project_id: str) -> List[GanttTaskBar]:
+    def get_gantt_data(self, project_id: str) -> list[GanttTaskBar]:
         self._require_view("view gantt report", project_id=project_id)
         """
         Returns a list of GanttTaskBars, ensuring schedule is up to date (CPM).
@@ -48,8 +46,8 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 
         cpm_result = self._scheduling_engine.recalculate_project_schedule(project_id, persist=False)
-        # cpm_result: Dict[task_id, CPMTaskInfo]
-        bars: List[GanttTaskBar] = []
+        # cpm_result: dict[task_id, CPMTaskInfo]
+        bars: list[GanttTaskBar] = []
 
         for tid, info in cpm_result.items():
             t = info.task
@@ -85,7 +83,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         self,
         project_id: str,
         *,
-        schedule: Dict[str, CPMTaskInfo] | None = None,
+        schedule: dict[str, CPMTaskInfo] | None = None,
     ) -> ProjectKPI:
         self._require_view("view project kpis", project_id=project_id)
         project = self._project_repo.get(project_id)
@@ -100,7 +98,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         tasks_not_started = tasks_total - tasks_completed - tasks_in_progress- task_blocked
 
         # Reuse CPM data for critical & late tasks
-        cpm_result: Dict[str, CPMTaskInfo] = (
+        cpm_result: dict[str, CPMTaskInfo] = (
             schedule
             if schedule is not None
             else self._scheduling_engine.recalculate_project_schedule(
@@ -161,7 +159,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
             committment_variance= committed_variance,
         )
 
-    def get_critical_path(self, project_id: str) -> List[CPMTaskInfo]:
+    def get_critical_path(self, project_id: str) -> list[CPMTaskInfo]:
         self._require_view("view critical path report", project_id=project_id)
         """
         Return critical tasks in topological order (approximate critical path).
@@ -172,7 +170,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         critical.sort(key=lambda info: (info.earliest_start or date.min))
         return critical
 
-    def get_resource_load_summary(self, project_id: str) -> List[ResourceLoadRow]:
+    def get_resource_load_summary(self, project_id: str) -> list[ResourceLoadRow]:
         self._require_view("view resource load report", project_id=project_id)
         """
         Capacity-aware load summary by resource using peak concurrent allocation.
@@ -185,8 +183,8 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         assignments = self._assignment_repo.list_by_tasks(task_ids)
         tasks_by_id = {t.id: t for t in tasks}
         # group by resource
-        load_by_res: Dict[str, Tuple[float, int, float]] = {}
-        daily_by_res: Dict[str, Dict[date, float]] = {}
+        load_by_res: dict[str, tuple[float, int, float]] = {}
+        daily_by_res: dict[str, dict[date, float]] = {}
         for a in assignments:
             rid = a.resource_id
             _peak, count, unscheduled = load_by_res.get(rid, (0.0, 0, 0.0))
@@ -204,7 +202,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
                 unscheduled += alloc
             load_by_res[rid] = (0.0, count, unscheduled)
 
-        rows: List[ResourceLoadRow] = []
+        rows: list[ResourceLoadRow] = []
         for res_id, (_unused_peak, count, unscheduled_alloc) in load_by_res.items():
             peak_daily_alloc = max(daily_by_res.get(res_id, {}).values(), default=0.0)
             total_alloc = float(peak_daily_alloc + unscheduled_alloc)

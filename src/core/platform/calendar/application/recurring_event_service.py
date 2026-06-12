@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, time
-from typing import Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -40,7 +40,7 @@ class RecurringEventService:
         session: Session,
         calendar_repo: PlatformCalendarRepository,
         event_repo: CalendarRecurringEventRepository,
-        user_session=None,
+        user_session: Any = None,
     ) -> None:
         self._session = session
         self._calendar_repo = calendar_repo
@@ -67,10 +67,10 @@ class RecurringEventService:
         end_time: time,
         impact_type: str,
         effective_from: date,
-        scope_type: Optional[str] = None,
-        scope_id: Optional[str] = None,
-        capacity_impact_percent: Optional[float] = None,
-        effective_to: Optional[date] = None,
+        scope_type: str | None = None,
+        scope_id: str | None = None,
+        capacity_impact_percent: float | None = None,
+        effective_to: date | None = None,
         priority: int = 0,
     ) -> CalendarRecurringEvent:
         require_permission(
@@ -104,17 +104,17 @@ class RecurringEventService:
         self,
         event_id: str,
         *,
-        title: Optional[str] = None,
-        event_type: Optional[str] = None,
-        recurrence_rule: Optional[str] = None,
-        start_time: Optional[time] = None,
-        end_time: Optional[time] = None,
-        impact_type: Optional[str] = None,
-        capacity_impact_percent: Optional[float] = None,
-        effective_from: Optional[date] = None,
-        effective_to: Optional[date] = None,
-        is_active: Optional[bool] = None,
-        priority: Optional[int] = None,
+        title: str | None = None,
+        event_type: str | None = None,
+        recurrence_rule: str | None = None,
+        start_time: time | None = None,
+        end_time: time | None = None,
+        impact_type: str | None = None,
+        capacity_impact_percent: float | None = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
+        is_active: bool | None = None,
+        priority: int | None = None,
     ) -> CalendarRecurringEvent:
         require_permission(
             self._user_session, "task.manage", operation_label="update recurring event"

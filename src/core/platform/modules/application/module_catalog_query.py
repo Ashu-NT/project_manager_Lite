@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.modules.domain.defaults import default_lifecycle_status
 from src.core.platform.modules.domain.module_codes import normalize_module_code
+from src.core.platform.modules.domain.module_definition import EnterpriseModule
 from src.core.platform.modules.domain.module_entitlement import (
     ModuleCatalogSnapshot,
     ModuleEntitlement,
@@ -13,7 +16,7 @@ class ModuleCatalogQueryMixin:
     def bootstrap_defaults(self) -> None:
         self._ensure_context_defaults()
 
-    def list_modules(self) -> list:
+    def list_modules(self) -> list[EnterpriseModule]:
         return list(self._modules)
 
     def list_platform_capabilities(self) -> list:
@@ -22,15 +25,15 @@ class ModuleCatalogQueryMixin:
     def list_entitlements(self) -> list[ModuleEntitlement]:
         return [self._build_entitlement(module) for module in self._modules]
 
-    def list_licensed_modules(self) -> list:
+    def list_licensed_modules(self) -> list[EnterpriseModule]:
         licensed_codes, _enabled_codes = self._effective_codes()
         return [module for module in self._modules if module.code in licensed_codes]
 
-    def list_enabled_modules(self) -> list:
+    def list_enabled_modules(self) -> list[EnterpriseModule]:
         _licensed_codes, enabled_codes = self._effective_codes()
         return [module for module in self._modules if module.code in enabled_codes]
 
-    def list_available_modules(self) -> list:
+    def list_available_modules(self) -> list[EnterpriseModule]:
         licensed_codes, _enabled_codes = self._effective_codes()
         return [
             module
@@ -38,7 +41,7 @@ class ModuleCatalogQueryMixin:
             if module.stage != "planned" and module.code not in licensed_codes
         ]
 
-    def list_planned_modules(self) -> list:
+    def list_planned_modules(self) -> list[EnterpriseModule]:
         return [module for module in self._modules if module.stage == "planned"]
 
     def enabled_capability_codes(self) -> tuple[str, ...]:
@@ -93,7 +96,7 @@ class ModuleCatalogQueryMixin:
             f"Lifecycle alerts: {lifecycle_alerts}."
         )
 
-    def _build_entitlement(self, module) -> ModuleEntitlement:
+    def _build_entitlement(self, module: EnterpriseModule) -> ModuleEntitlement:
         records_by_code = {
             record.module_code: record
             for record in self._effective_records()
@@ -114,14 +117,14 @@ class ModuleCatalogQueryMixin:
             lifecycle_status=lifecycle_status,
         )
 
-    def _require_module(self, module_code: str):
+    def _require_module(self, module_code: str) -> EnterpriseModule:
         target_code = normalize_module_code(module_code)
         for module in self._modules:
             if module.code == target_code:
                 return module
         raise NotFoundError("Module not found.", code="MODULE_NOT_FOUND")
 
-    def _normalize_selected_module_codes(self, module_codes) -> set[str]:
+    def _normalize_selected_module_codes(self, module_codes: object) -> set[str]:
         normalized_codes = {
             normalize_module_code(code)
             for code in (module_codes or ())

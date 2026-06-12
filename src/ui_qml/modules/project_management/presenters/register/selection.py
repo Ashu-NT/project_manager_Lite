@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from typing import Any
 
-def resolve_selected_entry_id(selected_entry_id: str | None, filtered_entries) -> str:
+def resolve_selected_entry_id(selected_entry_id: str | None, filtered_entries: Any) -> str:
     normalized_id = (selected_entry_id or "").strip()
     if normalized_id and any(entry.id == normalized_id for entry in filtered_entries):
         return normalized_id

@@ -6,7 +6,6 @@ Business logic lives in financials/costs/cost_breakdown_engine.py.
 from __future__ import annotations
 
 from datetime import date
-from typing import List, Optional
 
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
@@ -20,7 +19,6 @@ from src.core.modules.project_management.infrastructure.reporting.models.report_
     CostBreakdownRow,
 )
 
-
 class ReportingCostBreakdownMixin(ReportingCostPolicyMixin):
     _project_repo: ProjectRepository
     _baseline_repo: BaselineRepository
@@ -28,9 +26,9 @@ class ReportingCostBreakdownMixin(ReportingCostPolicyMixin):
     def get_cost_breakdown(
         self,
         project_id: str,
-        as_of: Optional[date] = None,
-        baseline_id: Optional[str] = None,
-    ) -> List[CostBreakdownRow]:
+        as_of: date | None = None,
+        baseline_id: str | None = None,
+    ) -> list[CostBreakdownRow]:
         self._require_view("view cost breakdown report", project_id=project_id)
         engine = CostBreakdownEngine(
             baseline_repo=self._baseline_repo,

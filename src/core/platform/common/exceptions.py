@@ -1,7 +1,10 @@
+from __future__ import annotations
+
+
 class DomainError(Exception):
     """Base class for domain-level errors."""
 
-    def __init__(self, message: str, *, code: str | None = None):
+    def __init__(self, message: str, *, code: str | None = None) -> None:
         super().__init__(message)
         self.code = code or self.__class__.__name__
 

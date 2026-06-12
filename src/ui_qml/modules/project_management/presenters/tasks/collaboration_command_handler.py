@@ -8,7 +8,6 @@ from src.core.modules.project_management.api.desktop import (
 
 from .validation import coerce_string_list, require_text
 
-
 def post_task_comment(collaboration_desktop_api, payload: dict[str, Any]) -> None:
     command = TaskCollaborationPostCommand(
         task_id=require_text(
@@ -24,7 +23,6 @@ def post_task_comment(collaboration_desktop_api, payload: dict[str, Any]) -> Non
     )
     collaboration_desktop_api.post_task_comment(command)
 
-
 def mark_task_collaboration_read(collaboration_desktop_api, task_id: str) -> None:
     normalized_task_id = (task_id or "").strip()
     if not normalized_task_id:
@@ -32,7 +30,6 @@ def mark_task_collaboration_read(collaboration_desktop_api, task_id: str) -> Non
             "Select a task before marking collaboration updates as read."
         )
     collaboration_desktop_api.mark_task_mentions_read(normalized_task_id)
-
 
 def touch_task_collaboration_presence(
     collaboration_desktop_api,
@@ -48,7 +45,6 @@ def touch_task_collaboration_presence(
         normalized_task_id,
         activity=normalized_activity,
     )
-
 
 def clear_task_collaboration_presence(
     collaboration_desktop_api,

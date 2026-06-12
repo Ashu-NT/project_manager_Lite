@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskSelectorOptionViewModel,
 )
@@ -12,8 +14,7 @@ from .task_filters import (
 )
 from .utils import NormalizedTaskFilters, TaskFilterOptions
 
-
-def build_task_filter_options(desktop_api) -> TaskFilterOptions:
+def build_task_filter_options(desktop_api: Any) -> TaskFilterOptions:
     project_options = (
         TaskSelectorOptionViewModel(value="", label="All Projects"),
         *(
@@ -41,7 +42,6 @@ def build_task_filter_options(desktop_api) -> TaskFilterOptions:
         schedule_options=build_task_schedule_options(),
     )
 
-
 def normalize_status_filter(
     status_filter: str,
     status_options: tuple[TaskSelectorOptionViewModel, ...],
@@ -52,7 +52,6 @@ def normalize_status_filter(
         for option in status_options
     }
     return available_values.get(normalized_value, "all")
-
 
 def normalize_workspace_filters(
     *,
@@ -71,8 +70,7 @@ def normalize_workspace_filters(
         schedule_filter=normalize_task_filter(schedule_filter, schedule_options),
     )
 
-
-def filter_tasks(all_tasks, filters: NormalizedTaskFilters):
+def filter_tasks(all_tasks: Any, filters: NormalizedTaskFilters) -> tuple[Any, ...]:
     return tuple(
         task
         for task in all_tasks
@@ -85,12 +83,11 @@ def filter_tasks(all_tasks, filters: NormalizedTaskFilters):
         )
     )
 
-
 def build_empty_state(
     *,
-    project_options,
-    all_tasks,
-    filtered_tasks,
+    project_options: Any,
+    all_tasks: Any,
+    filtered_tasks: Any,
     search_text: str,
     status_filter: str,
     priority_filter: str,

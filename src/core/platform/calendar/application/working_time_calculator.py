@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, time
-from typing import Optional
 
 from src.core.platform.calendar.domain.enterprise_calendar import (
     CalendarException,
@@ -48,8 +47,8 @@ class DayCapacity:
     base_hours: float
     available_hours: float
     assigned_hours: float = 0.0
-    effective_start: Optional[time] = None
-    effective_end: Optional[time] = None
+    effective_start: time | None = None
+    effective_end: time | None = None
     active_overrides: list[str] = field(default_factory=list)
 
     @property
@@ -189,7 +188,7 @@ class WorkingTimeCalculator:
         recurring_events: list[CalendarRecurringEvent],
         start: date,
         end: date,
-        assigned_hours_by_date: Optional[dict[date, float]] = None,
+        assigned_hours_by_date: dict[date, float] | None = None,
     ) -> list[DayCapacity]:
         from datetime import timedelta
 

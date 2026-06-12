@@ -14,7 +14,6 @@ from .validation import (
     require_text,
 )
 
-
 def suggest_storeroom_code(desktop_api, payload: dict[str, Any]) -> str:
     from src.core.platform.common.code_generation import CodeGenerator
 
@@ -29,7 +28,6 @@ def suggest_storeroom_code(desktop_api, payload: dict[str, Any]) -> str:
         name=name or None,
         use_year=not bool(name),
     )
-
 
 def create_storeroom(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryStoreroomCreateCommand(
@@ -54,7 +52,6 @@ def create_storeroom(desktop_api, payload: dict[str, Any]) -> None:
         notes=optional_text(payload, "notes") or "",
     )
     desktop_api.create_storeroom(command)
-
 
 def update_storeroom(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryStoreroomUpdateCommand(
@@ -83,7 +80,6 @@ def update_storeroom(desktop_api, payload: dict[str, Any]) -> None:
         expected_version=optional_int(payload, "expectedVersion"),
     )
     desktop_api.update_storeroom(command)
-
 
 def toggle_storeroom_active(
     desktop_api,

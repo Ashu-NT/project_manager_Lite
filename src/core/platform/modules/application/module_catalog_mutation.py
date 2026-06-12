@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Iterable
+
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
@@ -10,6 +12,7 @@ from src.core.platform.modules.domain.defaults import (
     default_lifecycle_status,
     normalize_lifecycle_status,
 )
+from src.core.platform.modules.domain.module_entitlement import ModuleEntitlement
 from src.core.platform.modules.domain.subscription import ModuleEntitlementRecord
 
 
@@ -21,7 +24,7 @@ class ModuleCatalogMutationMixin:
         licensed: bool | None = None,
         enabled: bool | None = None,
         lifecycle_status: str | None = None,
-    ):
+    ) -> ModuleEntitlement:
         require_permission(
             self._user_session,
             "settings.manage",
@@ -105,8 +108,8 @@ class ModuleCatalogMutationMixin:
         self,
         organization_id: str,
         *,
-        licensed_module_codes,
-        enabled_module_codes=None,
+        licensed_module_codes: Iterable[str],
+        enabled_module_codes: Iterable[str] | None = None,
     ) -> list[ModuleEntitlementRecord]:
         require_permission(
             self._user_session,

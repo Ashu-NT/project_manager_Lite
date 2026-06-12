@@ -28,7 +28,6 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionListViewModel,
 )
 
-
 _OBJECT_SCOPE_CHOICES = (
     "GENERAL",
     "ASSET",
@@ -43,7 +42,6 @@ _OBJECT_SCOPE_CHOICES = (
     "SITE",
     "DEPARTMENT",
 )
-
 
 class PlatformDocumentManagementPresenter:
     def __init__(self, *, document_api: PlatformDocumentDesktopApi | None = None) -> None:
@@ -515,6 +513,5 @@ class PlatformDocumentManagementPresenter:
             "objectScopeOptions": [],
             "defaultTypeOptions": [],
         }
-
 
 __all__ = ["PlatformDocumentManagementPresenter"]

@@ -8,7 +8,6 @@ from src.core.modules.inventory_procurement.api.desktop import (
 
 from .validation import optional_bool, optional_float, optional_int, optional_text, require_text
 
-
 def upsert_reorder_policy(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryReorderPolicyUpsertCommand(
         stock_item_id=require_text(

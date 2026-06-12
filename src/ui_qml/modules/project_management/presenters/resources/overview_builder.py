@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.core.modules.project_management.domain.enums import WorkerType
 from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceCatalogMetricViewModel,
     ResourceCatalogOverviewViewModel,
 )
 
-
-def build_overview(*, all_resources, filtered_resources) -> ResourceCatalogOverviewViewModel:
+def build_overview(*, all_resources: Any, filtered_resources: Any) -> ResourceCatalogOverviewViewModel:
     total_capacity = sum(float(resource.capacity_percent or 0.0) for resource in all_resources)
     average_capacity = total_capacity / len(all_resources) if all_resources else 0.0
     employee_count = sum(

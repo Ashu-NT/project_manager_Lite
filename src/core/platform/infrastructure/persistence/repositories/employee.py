@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Any
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -18,7 +18,9 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyEmployeeRepository(EmployeeRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, employee: Employee) -> None:
@@ -47,22 +49,22 @@ class SqlAlchemyEmployeeRepository(EmployeeRepository):
             stale_message="Employee was updated by another user.",
         )
 
-    def get(self, employee_id: str) -> Optional[Employee]:
+    def get(self, employee_id: str) -> Employee | None:
         obj = self.session.get(EmployeeORM, employee_id)
         return employee_from_orm(obj) if obj else None
 
-    def get_by_code(self, employee_code: str) -> Optional[Employee]:
+    def get_by_code(self, employee_code: str) -> Employee | None:
         stmt = select(EmployeeORM).where(EmployeeORM.employee_code == employee_code)
         obj = self.session.execute(stmt).scalars().first()
         return employee_from_orm(obj) if obj else None
 
-    def _organization_scope_predicate(self, organization_id: str):
+    def _organization_scope_predicate(self, organization_id: str) -> Any:
         return or_(
             SiteORM.organization_id == organization_id,
             DepartmentORM.organization_id == organization_id,
         )
 
-    def _scoped_statement(self, organization_id: str):
+    def _scoped_statement(self, organization_id: str) -> Any:
         return (
             select(EmployeeORM)
             .outerjoin(SiteORM, SiteORM.id == EmployeeORM.site_id)
@@ -70,12 +72,12 @@ class SqlAlchemyEmployeeRepository(EmployeeRepository):
             .where(self._organization_scope_predicate(organization_id))
         )
 
-    def get_for_organization(self, employee_id: str, organization_id: str) -> Optional[Employee]:
+    def get_for_organization(self, employee_id: str, organization_id: str) -> Employee | None:
         stmt = self._scoped_statement(organization_id).where(EmployeeORM.id == employee_id)
         obj = self.session.execute(stmt).scalars().first()
         return employee_from_orm(obj) if obj else None
 
-    def get_by_code_for_organization(self, employee_code: str, organization_id: str) -> Optional[Employee]:
+    def get_by_code_for_organization(self, employee_code: str, organization_id: str) -> Employee | None:
         stmt = self._scoped_statement(organization_id).where(EmployeeORM.employee_code == employee_code)
         obj = self.session.execute(stmt).scalars().first()
         return employee_from_orm(obj) if obj else None
@@ -85,7 +87,7 @@ class SqlAlchemyEmployeeRepository(EmployeeRepository):
         organization_id: str,
         *,
         active_only: bool | None = None,
-    ) -> List[Employee]:
+    ) -> list[Employee]:
         stmt = self._scoped_statement(organization_id)
         if active_only is not None:
             stmt = stmt.where(EmployeeORM.is_active == bool(active_only))

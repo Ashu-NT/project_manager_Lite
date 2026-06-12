@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Optional
-
 from sqlalchemy import desc, or_, select
 from sqlalchemy.orm import Session
 
@@ -13,7 +11,9 @@ from src.core.platform.infrastructure.persistence.orm.approval import ApprovalRe
 
 
 class SqlAlchemyApprovalRepository(ApprovalRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, request: ApprovalRequest) -> None:
@@ -39,7 +39,7 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         obj.decided_at = request.decided_at
         obj.decision_note = request.decision_note
 
-    def get(self, request_id: str) -> Optional[ApprovalRequest]:
+    def get(self, request_id: str) -> ApprovalRequest | None:
         obj = self.session.get(ApprovalRequestORM, request_id)
         return approval_from_orm(obj) if obj else None
 
@@ -51,7 +51,7 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         project_id: str | None = None,
         entity_type: str | list[str] | None = None,
         entity_id: str | None = None,
-    ) -> List[ApprovalRequest]:
+    ) -> list[ApprovalRequest]:
         stmt = select(ApprovalRequestORM)
         if status is not None:
             stmt = stmt.where(ApprovalRequestORM.status == status.value)
@@ -84,7 +84,7 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         project_id: str | None = None,
         entity_type: str | list[str] | None = None,
         entity_id: str | None = None,
-    ) -> List[ApprovalRequest]:
+    ) -> list[ApprovalRequest]:
         stmt = (
             select(ApprovalRequestORM)
             .outerjoin(ProjectORM, ProjectORM.id == ApprovalRequestORM.project_id)

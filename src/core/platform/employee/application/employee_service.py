@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -28,6 +30,10 @@ from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
 from src.core.platform.tenancy.tenant_context import TenantContextService
 
+if TYPE_CHECKING:
+    from src.core.platform.audit.application.audit_service import AuditService
+    from src.core.platform.auth.domain.session import UserSessionContext
+
 
 class EmployeeService:
     def __init__(
@@ -40,8 +46,8 @@ class EmployeeService:
         department_repo: DepartmentRepository | None = None,
         organization_repo: OrganizationRepository | None = None,
         tenant_context_service: TenantContextService | None = None,
-        user_session=None,
-        audit_service=None,
+        user_session: UserSessionContext | None = None,
+        audit_service: AuditService | None = None,
     ):
         self._session = session
         self._employee_repo = employee_repo

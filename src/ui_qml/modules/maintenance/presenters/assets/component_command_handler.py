@@ -16,7 +16,6 @@ from .validation import (
     require_text,
 )
 
-
 def create_component(desktop_api, payload: dict[str, Any]) -> None:
     command = MaintenanceComponentCreateCommand(
         asset_id=require_text(payload, "assetId", "Choose an asset before saving."),
@@ -41,7 +40,6 @@ def create_component(desktop_api, payload: dict[str, Any]) -> None:
         notes=optional_text(payload, "notes") or "",
     )
     desktop_api.create_component(command)
-
 
 def update_component(desktop_api, payload: dict[str, Any]) -> None:
     command = MaintenanceComponentUpdateCommand(
@@ -71,7 +69,6 @@ def update_component(desktop_api, payload: dict[str, Any]) -> None:
         ),
     )
     desktop_api.update_component(command)
-
 
 def toggle_component_active(desktop_api, component_id: str, *, expected_version: int) -> None:
     desktop_api.toggle_component_active(

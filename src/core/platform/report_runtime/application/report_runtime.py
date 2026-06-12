@@ -79,7 +79,7 @@ class ReportRuntime:
         return str(value or "").strip().replace("_", " ") or "report"
 
     @staticmethod
-    def _extract_artifact(rendered: object):
+    def _extract_artifact(rendered: object) -> ExportArtifact | None:
         if isinstance(rendered, (ExportArtifact, ExportArtifactDraft, str, Path)):
             return finalize_artifact(rendered)
         return None

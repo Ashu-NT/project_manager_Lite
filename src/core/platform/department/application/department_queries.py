@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.department.domain import Department
@@ -10,15 +12,18 @@ from .department_access import require_department_read_access
 from .department_context import active_organization
 from .department_utils import normalize_optional_text
 
+if TYPE_CHECKING:
+    from .department_service import DepartmentService
 
-def list_departments(service, *, active_only: bool | None = None) -> list[Department]:
+
+def list_departments(service: DepartmentService, *, active_only: bool | None = None) -> list[Department]:
     require_department_read_access(service, "list departments")
     organization = active_organization(service)
     return service._department_repo.list_for_organization(organization.id, active_only=active_only)
 
 
 def search_departments(
-    service,
+    service: DepartmentService,
     *,
     search_text: str = "",
     active_only: bool | None = True,
@@ -48,7 +53,7 @@ def search_departments(
     ]
 
 
-def get_department(service, department_id: str) -> Department:
+def get_department(service: DepartmentService, department_id: str) -> Department:
     require_department_read_access(service, "view department")
     organization = active_organization(service)
     department = service._department_repo.get(department_id)
@@ -60,13 +65,13 @@ def get_department(service, department_id: str) -> Department:
     return department
 
 
-def find_department_by_code(service, department_code: str) -> Department | None:
+def find_department_by_code(service: DepartmentService, department_code: str) -> Department | None:
     require_department_read_access(service, "resolve department")
     normalized_code = normalize_code(department_code, label="Department code")
     return service._department_repo.get_by_code(active_organization(service).id, normalized_code)
 
 
-def get_context_organization(service) -> Organization:
+def get_context_organization(service: DepartmentService) -> Organization:
     require_permission(
         service._user_session, "settings.manage", operation_label="view department context"
     )

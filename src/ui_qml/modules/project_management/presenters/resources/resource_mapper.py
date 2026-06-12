@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceRecordViewModel,
 )
 
 from .detail_builder import build_resource_state
 
-
-def to_resource_record_view_model(resource) -> ResourceRecordViewModel:
+def to_resource_record_view_model(resource: Any) -> ResourceRecordViewModel:
     state = build_resource_state(resource)
     subtitle_parts = [state["role"], state["workerTypeLabel"]]
     subtitle_values = [part for part in subtitle_parts if part]

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectDetailFieldViewModel,
     ProjectDetailViewModel,
@@ -7,8 +9,7 @@ from src.ui_qml.modules.project_management.view_models.projects import (
 
 from .project_mapper import build_project_state
 
-
-def build_detail_view_model(project) -> ProjectDetailViewModel:
+def build_detail_view_model(project: Any) -> ProjectDetailViewModel:
     if project is None:
         return ProjectDetailViewModel(
             title="No project selected",

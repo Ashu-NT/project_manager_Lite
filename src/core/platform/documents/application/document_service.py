@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from typing import Any
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -62,10 +63,10 @@ class DocumentService:
         structure_repo: DocumentStructureRepository,
         *,
         organization_repo: OrganizationRepository,
-        user_session=None,
-        audit_service=None,
+        user_session: Any = None,
+        audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
-    ):
+    ) -> None:
         self._session = session
         self._document_repo = document_repo
         self._link_repo = link_repo

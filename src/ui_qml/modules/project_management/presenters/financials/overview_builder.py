@@ -1,18 +1,19 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsMetricViewModel,
     FinancialsOverviewViewModel,
 )
 
-
 def build_overview(
     *,
-    project_options,
+    project_options: Any,
     selected_project_id: str,
-    snapshot,
-    all_costs,
-    filtered_costs,
+    snapshot: Any,
+    all_costs: Any,
+    filtered_costs: Any,
 ) -> FinancialsOverviewViewModel:
     project_label = next(
         (option.label for option in project_options if option.value == selected_project_id),

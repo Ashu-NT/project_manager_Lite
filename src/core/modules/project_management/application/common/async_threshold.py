@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class WorkloadScale(str, Enum):
@@ -61,7 +60,7 @@ class AsyncThresholdGuard:
     to decide whether to run inline or enqueue.
     """
 
-    def __init__(self, thresholds: Optional[AsyncThresholds] = None) -> None:
+    def __init__(self, thresholds: AsyncThresholds | None = None) -> None:
         self._t: AsyncThresholds = thresholds if thresholds is not None else DEFAULT_ASYNC_THRESHOLDS
 
     def classify_schedule(self, task_count: int) -> WorkloadScale:

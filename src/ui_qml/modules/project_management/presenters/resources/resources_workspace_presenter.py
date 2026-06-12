@@ -29,7 +29,6 @@ from .command_handler import (
 from .skills_builder import add_skill, build_skills_state, remove_skill
 from .workspace_builder import build_workspace_state
 
-
 class ProjectResourcesWorkspacePresenter:
     def __init__(
         self,
@@ -99,6 +98,5 @@ class ProjectResourcesWorkspacePresenter:
 
     def remove_certification(self, cert_id: str) -> None:
         remove_certification(self._desktop_api, cert_id)
-
 
 __all__ = ["ProjectResourcesWorkspacePresenter"]

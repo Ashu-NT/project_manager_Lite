@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import List
 
 from src.core.modules.project_management.application.dashboard.models.dashboard_models import BurndownPoint
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
@@ -12,7 +11,7 @@ class DashboardBurndownMixin:
     _reporting: ReportingService
     _tasks: TaskService
 
-    def _build_burndown(self, project_id: str) -> List[BurndownPoint]:
+    def _build_burndown(self, project_id: str) -> list[BurndownPoint]:
         """
         Simple logical burndown: count of remaining (not completed) tasks per day between
         project start and end. For visualization in the dashboard.
@@ -28,7 +27,7 @@ class DashboardBurndownMixin:
         if start > end:
             start, end = end, start
 
-        points: List[BurndownPoint] = []
+        points: list[BurndownPoint] = []
         current = start
         while current <= end:
             remaining = 0

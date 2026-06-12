@@ -9,7 +9,6 @@ from src.core.modules.maintenance.api.desktop import (
 
 from .validation import bool_value, optional_text, require_identifier, require_int, require_text
 
-
 def create_location(desktop_api, payload: dict[str, Any]) -> None:
     command = MaintenanceLocationCreateCommand(
         site_id=require_text(payload, "siteId", "Choose a site before saving."),
@@ -24,7 +23,6 @@ def create_location(desktop_api, payload: dict[str, Any]) -> None:
         notes=optional_text(payload, "notes") or "",
     )
     desktop_api.create_location(command)
-
 
 def update_location(desktop_api, payload: dict[str, Any]) -> None:
     command = MaintenanceLocationUpdateCommand(
@@ -44,7 +42,6 @@ def update_location(desktop_api, payload: dict[str, Any]) -> None:
         ),
     )
     desktop_api.update_location(command)
-
 
 def toggle_location_active(desktop_api, location_id: str, *, expected_version: int) -> None:
     desktop_api.toggle_location_active(

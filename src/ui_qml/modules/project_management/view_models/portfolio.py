@@ -3,13 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-
 @dataclass(frozen=True)
 class PortfolioMetricViewModel:
     label: str
     value: str
     supporting_text: str
-
 
 @dataclass(frozen=True)
 class PortfolioOverviewViewModel:
@@ -17,12 +15,10 @@ class PortfolioOverviewViewModel:
     subtitle: str
     metrics: tuple[PortfolioMetricViewModel, ...]
 
-
 @dataclass(frozen=True)
 class PortfolioSelectorOptionViewModel:
     value: str
     label: str
-
 
 @dataclass(frozen=True)
 class PortfolioRecordViewModel:
@@ -37,7 +33,6 @@ class PortfolioRecordViewModel:
     can_tertiary_action: bool = False
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class PortfolioCollectionViewModel:
     title: str
@@ -45,13 +40,11 @@ class PortfolioCollectionViewModel:
     empty_state: str
     items: tuple[PortfolioRecordViewModel, ...] = field(default_factory=tuple)
 
-
 @dataclass(frozen=True)
 class PortfolioSummaryFieldViewModel:
     label: str
     value: str
     supporting_text: str = ""
-
 
 @dataclass(frozen=True)
 class PortfolioSummaryViewModel:
@@ -59,7 +52,6 @@ class PortfolioSummaryViewModel:
     subtitle: str = ""
     empty_state: str = ""
     fields: tuple[PortfolioSummaryFieldViewModel, ...] = field(default_factory=tuple)
-
 
 @dataclass(frozen=True)
 class PortfolioWorkspaceViewModel:
@@ -84,7 +76,6 @@ class PortfolioWorkspaceViewModel:
     capacity_pool: PortfolioCollectionViewModel = field(default_factory=lambda: PortfolioCollectionViewModel("", "", ""))
     active_template_summary: str = ""
     empty_state: str = ""
-
 
 __all__ = [
     "PortfolioCollectionViewModel",

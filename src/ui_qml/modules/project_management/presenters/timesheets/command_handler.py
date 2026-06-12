@@ -10,7 +10,6 @@ from src.core.modules.project_management.api.desktop import (
 
 from .validation import optional_text, require_date, require_float, require_text
 
-
 def add_time_entry(
     desktop_api: ProjectManagementTimesheetsDesktopApi,
     payload: dict[str, Any],
@@ -22,7 +21,6 @@ def add_time_entry(
         note=optional_text(payload, "note") or "",
     )
     desktop_api.add_time_entry(command)
-
 
 def update_time_entry(
     desktop_api: ProjectManagementTimesheetsDesktopApi,
@@ -36,7 +34,6 @@ def update_time_entry(
     )
     desktop_api.update_time_entry(command)
 
-
 def delete_time_entry(
     desktop_api: ProjectManagementTimesheetsDesktopApi,
     entry_id: str,
@@ -45,7 +42,6 @@ def delete_time_entry(
     if not normalized_entry_id:
         raise ValueError("Choose an entry to delete.")
     desktop_api.delete_time_entry(normalized_entry_id)
-
 
 def submit_period(
     desktop_api: ProjectManagementTimesheetsDesktopApi,
@@ -57,7 +53,6 @@ def submit_period(
         note=optional_text(payload, "note") or "",
     )
 
-
 def approve_period(
     desktop_api: ProjectManagementTimesheetsDesktopApi,
     payload: dict[str, Any],
@@ -66,7 +61,6 @@ def approve_period(
         require_text(payload, "periodId", "Choose a period to approve."),
         note=optional_text(payload, "note") or "",
     )
-
 
 def reject_period(
     desktop_api: ProjectManagementTimesheetsDesktopApi,
@@ -77,7 +71,6 @@ def reject_period(
         note=optional_text(payload, "note") or "",
     )
 
-
 def lock_period(
     desktop_api: ProjectManagementTimesheetsDesktopApi,
     payload: dict[str, Any],
@@ -87,7 +80,6 @@ def lock_period(
         period_start=require_date(payload, "periodStart", "Period start is required."),
         note=optional_text(payload, "note") or "",
     )
-
 
 def unlock_period(
     desktop_api: ProjectManagementTimesheetsDesktopApi,

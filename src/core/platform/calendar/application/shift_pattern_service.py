@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import time
-from typing import Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -26,8 +26,8 @@ class ShiftPatternService:
         self,
         session: Session,
         pattern_repo: ShiftPatternRepository,
-        organization_repo,
-        user_session=None,
+        organization_repo: Any,
+        user_session: Any = None,
         tenant_context_service: TenantContextService | None = None,
     ) -> None:
         self._session = session
@@ -47,7 +47,7 @@ class ShiftPatternService:
         )
 
     def list_shift_patterns(
-        self, *, active_only: Optional[bool] = None
+        self, *, active_only: bool | None = None
     ) -> list[ShiftPattern]:
         require_permission(
             self._user_session, "task.read", operation_label="list shift patterns"
@@ -68,8 +68,8 @@ class ShiftPatternService:
         name: str,
         pattern_type: str,
         timezone: str = "UTC",
-        description: Optional[str] = None,
-        rotation_cycle_days: Optional[int] = None,
+        description: str | None = None,
+        rotation_cycle_days: int | None = None,
     ) -> ShiftPattern:
         require_permission(
             self._user_session, "task.manage", operation_label="create shift pattern"
@@ -100,12 +100,12 @@ class ShiftPatternService:
         self,
         pattern_id: str,
         *,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        pattern_type: Optional[str] = None,
-        timezone: Optional[str] = None,
-        rotation_cycle_days: Optional[int] = None,
-        is_active: Optional[bool] = None,
+        name: str | None = None,
+        description: str | None = None,
+        pattern_type: str | None = None,
+        timezone: str | None = None,
+        rotation_cycle_days: int | None = None,
+        is_active: bool | None = None,
     ) -> ShiftPattern:
         require_permission(
             self._user_session, "task.manage", operation_label="update shift pattern"
@@ -152,11 +152,11 @@ class ShiftPatternService:
         day_offset: int,
         *,
         is_working_day: bool = True,
-        start_time: Optional[time] = None,
-        end_time: Optional[time] = None,
+        start_time: time | None = None,
+        end_time: time | None = None,
         break_minutes: int = 0,
-        hours: Optional[float] = None,
-        shift_label: Optional[str] = None,
+        hours: float | None = None,
+        shift_label: str | None = None,
     ) -> ShiftPatternDay:
         require_permission(
             self._user_session, "task.manage", operation_label="set shift pattern day"

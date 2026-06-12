@@ -7,7 +7,7 @@ Reporting delegates here; this owns the algorithm.
 from __future__ import annotations
 
 from datetime import date
-from typing import Callable, Dict, Optional
+from typing import Callable
 
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
@@ -42,7 +42,7 @@ class EarnedValueCalculator:
         task_repo: TaskRepository,
         project_repo: ProjectRepository,
         calendar: CalendarProtocol,
-        get_actual_cost: Optional[Callable[[str, date], float]] = None,
+        get_actual_cost: Callable[[str, date], float] | None = None,
     ) -> None:
         self._baseline_repo = baseline_repo
         self._task_repo = task_repo
@@ -54,8 +54,8 @@ class EarnedValueCalculator:
         self,
         project_id: str,
         *,
-        as_of: Optional[date] = None,
-        baseline_id: Optional[str] = None,
+        as_of: date | None = None,
+        baseline_id: str | None = None,
     ) -> EarnedValueMetrics:
         """
         Compute EVM metrics for the project.
@@ -104,7 +104,7 @@ class EarnedValueCalculator:
         )
         has_cost_loaded_baseline = sum_task_costs > 0.0
 
-        durations: Dict[str, int] = {}
+        durations: dict[str, int] = {}
         for bt in b_tasks:
             dur = int(bt.baseline_duration_days or 0)
             if dur <= 0 and bt.baseline_start and bt.baseline_finish:

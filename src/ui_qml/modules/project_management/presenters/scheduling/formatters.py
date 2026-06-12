@@ -1,24 +1,21 @@
 from __future__ import annotations
 
 from datetime import date
-
+from typing import Any
 
 def format_date(value: date | None) -> str:
     return value.isoformat() if value else "-"
 
-
 def int_label(value: int | None) -> str:
     return "-" if value is None else str(int(value))
-
 
 def shift_label(value: int | None) -> str:
     if value is None:
         return "-"
     return f"{int(value):+d}d"
 
-
 def calendar_label(
-    calendar_options: tuple,
+    calendar_options: Any,
     selected_calendar_id: str,
 ) -> str:
     for option in calendar_options:
@@ -26,15 +23,13 @@ def calendar_label(
             return option.label
     return "Default Calendar"
 
-
-def label_for_option(option_value: str, options: tuple) -> str:
+def label_for_option(option_value: str, options: Any) -> str:
     for option in options:
         if option.value == option_value:
             return option.label
     return option_value
 
-
-def timeline_bounds(items: tuple) -> tuple[date | None, date | None]:
+def timeline_bounds(items: Any) -> tuple[date | None, date | None]:
     starts = [item.start_date for item in items if item.start_date]
     finishes = [item.finish_date for item in items if item.finish_date]
     if not starts and not finishes:
@@ -43,14 +38,12 @@ def timeline_bounds(items: tuple) -> tuple[date | None, date | None]:
     maximum = max(finishes or starts)
     return minimum, maximum
 
-
 def days_between(origin: date | None, target: date | None) -> int | None:
     if origin is None or target is None:
         return None
     return (target - origin).days
 
-
-def constraint_label_for_activity(item) -> str:
+def constraint_label_for_activity(item: Any) -> str:
     if item.actual_end:
         return "Actual finish locked"
     if item.actual_start:
@@ -61,18 +54,16 @@ def constraint_label_for_activity(item) -> str:
         return "Planned start anchor"
     return "Open"
 
-
 def build_schedule_empty_state(
     *,
     resolved_project_id: str,
-    schedule_items,
+    schedule_items: Any,
 ) -> str:
     if not resolved_project_id:
         return "Select a project to review the current schedule."
     if schedule_items:
         return ""
     return "No scheduled activities are available for the selected project."
-
 
 __all__ = [
     "format_date",

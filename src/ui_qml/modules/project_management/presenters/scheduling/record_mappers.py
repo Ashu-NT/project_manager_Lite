@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
 from src.core.modules.project_management.api.desktop import SchedulingConstraintViolationDto
 from src.ui_qml.modules.project_management.view_models.scheduling import SchedulingRecordViewModel
@@ -14,9 +15,8 @@ from .formatters import (
     timeline_bounds,
 )
 
-
 def to_schedule_record(
-    item,
+    item: Any,
     *,
     row_index: int,
     calendar_label: str,
@@ -68,8 +68,7 @@ def to_schedule_record(
         },
     )
 
-
-def to_timeline_record(item, *, timeline_items) -> SchedulingRecordViewModel:
+def to_timeline_record(item: Any, *, timeline_items: Any) -> SchedulingRecordViewModel:
     bounds = timeline_bounds(timeline_items)
     start_offset = days_between(bounds[0], item.start_date)
     finish_offset = days_between(bounds[0], item.finish_date)
@@ -114,8 +113,7 @@ def to_timeline_record(item, *, timeline_items) -> SchedulingRecordViewModel:
         },
     )
 
-
-def to_critical_path_record(item) -> SchedulingRecordViewModel:
+def to_critical_path_record(item: Any) -> SchedulingRecordViewModel:
     return SchedulingRecordViewModel(
         id=item.id,
         title=item.name,
@@ -126,8 +124,7 @@ def to_critical_path_record(item) -> SchedulingRecordViewModel:
         state={"activityId": item.id},
     )
 
-
-def to_delayed_activity_record(item) -> SchedulingRecordViewModel:
+def to_delayed_activity_record(item: Any) -> SchedulingRecordViewModel:
     return SchedulingRecordViewModel(
         id=item.id,
         title=item.name,
@@ -138,8 +135,7 @@ def to_delayed_activity_record(item) -> SchedulingRecordViewModel:
         state={"activityId": item.id},
     )
 
-
-def to_baseline_compare_record(item) -> SchedulingRecordViewModel:
+def to_baseline_compare_record(item: Any) -> SchedulingRecordViewModel:
     return SchedulingRecordViewModel(
         id=item.task_id,
         title=item.task_name,
@@ -163,8 +159,7 @@ def to_baseline_compare_record(item) -> SchedulingRecordViewModel:
         },
     )
 
-
-def to_baseline_register_record(item) -> SchedulingRecordViewModel:
+def to_baseline_register_record(item: Any) -> SchedulingRecordViewModel:
     return SchedulingRecordViewModel(
         id=item.id,
         title=item.name,
@@ -189,8 +184,7 @@ def to_baseline_register_record(item) -> SchedulingRecordViewModel:
         },
     )
 
-
-def to_dependency_record(item) -> SchedulingRecordViewModel:
+def to_dependency_record(item: Any) -> SchedulingRecordViewModel:
     return SchedulingRecordViewModel(
         id=item.id,
         title=item.related_activity_name,
@@ -214,8 +208,7 @@ def to_dependency_record(item) -> SchedulingRecordViewModel:
         },
     )
 
-
-def to_resource_load_record(item) -> SchedulingRecordViewModel:
+def to_resource_load_record(item: Any) -> SchedulingRecordViewModel:
     return SchedulingRecordViewModel(
         id=item.resource_id,
         title=item.resource_name,
@@ -233,7 +226,6 @@ def to_resource_load_record(item) -> SchedulingRecordViewModel:
             "statusLabel": item.status_label,
         },
     )
-
 
 def to_constraint_violation_record(
     item: SchedulingConstraintViolationDto,
@@ -258,8 +250,7 @@ def to_constraint_violation_record(
         },
     )
 
-
-def to_baseline_variance_record(rec) -> SchedulingRecordViewModel:
+def to_baseline_variance_record(rec: Any) -> SchedulingRecordViewModel:
     task_name = str(
         getattr(rec, "task_name", "") or getattr(rec, "task_id", "") or "Unknown"
     )
@@ -292,7 +283,6 @@ def to_baseline_variance_record(rec) -> SchedulingRecordViewModel:
             "createdLabel": format_date(created) if created else "-",
         },
     )
-
 
 __all__ = [
     "to_schedule_record",

@@ -3,13 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-
 @dataclass(frozen=True)
 class ResourceCatalogMetricViewModel:
     label: str
     value: str
     supporting_text: str
-
 
 @dataclass(frozen=True)
 class ResourceCatalogOverviewViewModel:
@@ -17,12 +15,10 @@ class ResourceCatalogOverviewViewModel:
     subtitle: str
     metrics: tuple[ResourceCatalogMetricViewModel, ...]
 
-
 @dataclass(frozen=True)
 class ResourceSelectorOptionViewModel:
     value: str
     label: str
-
 
 @dataclass(frozen=True)
 class ResourceEmployeeOptionViewModel:
@@ -33,7 +29,6 @@ class ResourceEmployeeOptionViewModel:
     contact: str
     context: str
     is_active: bool
-
 
 @dataclass(frozen=True)
 class ResourceRecordViewModel:
@@ -48,13 +43,11 @@ class ResourceRecordViewModel:
     can_tertiary_action: bool = True
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class ResourceDetailFieldViewModel:
     label: str
     value: str
     supporting_text: str = ""
-
 
 @dataclass(frozen=True)
 class ResourceDetailViewModel:
@@ -67,7 +60,6 @@ class ResourceDetailViewModel:
     fields: tuple[ResourceDetailFieldViewModel, ...] = field(default_factory=tuple)
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class ResourceSkillViewModel:
     id: str
@@ -76,7 +68,6 @@ class ResourceSkillViewModel:
     proficiency: str
     proficiency_label: str
     notes: str
-
 
 @dataclass(frozen=True)
 class ResourceCertificationViewModel:
@@ -90,14 +81,12 @@ class ResourceCertificationViewModel:
     cert_status: str
     cert_status_label: str
 
-
 @dataclass(frozen=True)
 class ResourceAvailabilityDayViewModel:
     date_label: str
     allocation_percent: float
     allocation_label: str
     overloaded: bool
-
 
 @dataclass(frozen=True)
 class ResourceAvailabilityViewModel:
@@ -110,7 +99,6 @@ class ResourceAvailabilityViewModel:
     from_date_label: str = ""
     to_date_label: str = ""
     days: tuple[ResourceAvailabilityDayViewModel, ...] = field(default_factory=tuple)
-
 
 @dataclass(frozen=True)
 class ResourceCatalogWorkspaceViewModel:
@@ -129,7 +117,6 @@ class ResourceCatalogWorkspaceViewModel:
     total_count: int = 0
     page: int = 1
     page_size: int = 25
-
 
 __all__ = [
     "ResourceAvailabilityDayViewModel",

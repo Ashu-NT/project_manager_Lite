@@ -14,7 +14,6 @@ from .validation import (
     require_text,
 )
 
-
 def create_reservation(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryReservationCreateCommand(
         stock_item_id=require_text(payload, "stockItemId", "Choose an item before saving."),
@@ -28,7 +27,6 @@ def create_reservation(desktop_api, payload: dict[str, Any]) -> None:
         notes=optional_text(payload, "notes") or "",
     )
     desktop_api.create_reservation(command)
-
 
 def issue_reservation(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryReservationIssueCommand(
@@ -44,13 +42,11 @@ def issue_reservation(desktop_api, payload: dict[str, Any]) -> None:
     )
     desktop_api.issue_reserved_stock(command)
 
-
 def release_reservation(desktop_api, reservation_id: str, note: str = "") -> None:
     normalized_id = (reservation_id or "").strip()
     if not normalized_id:
         raise ValueError("Reservation ID is required before releasing stock.")
     desktop_api.release_reservation(normalized_id, note=note)
-
 
 def cancel_reservation(desktop_api, reservation_id: str, note: str = "") -> None:
     normalized_id = (reservation_id or "").strip()

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.tasks import TaskRecordViewModel
 
 from .formatting import format_date, format_date_label
 
-
-def build_task_state(task) -> dict[str, object]:
+def build_task_state(task: Any) -> dict[str, object]:
     duration_value = task.duration_days if task.duration_days is not None else ""
     priority_value = task.priority if task.priority is not None else ""
     return {
@@ -40,8 +41,7 @@ def build_task_state(task) -> dict[str, object]:
         "version": task.version,
     }
 
-
-def to_task_record_view_model(task) -> TaskRecordViewModel:
+def to_task_record_view_model(task: Any) -> TaskRecordViewModel:
     state = build_task_state(task)
     return TaskRecordViewModel(
         id=task.id,

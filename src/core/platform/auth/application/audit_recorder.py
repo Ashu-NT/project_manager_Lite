@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .auth_service import AuthService
 
 logger = logging.getLogger(__name__)
 
 
 def record_auth_event(
-    service,
+    service: AuthService,
     *,
     action: str,
     username: str,

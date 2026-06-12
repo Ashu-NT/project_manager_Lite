@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import List
 
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.domain.projects.project import Project
@@ -12,7 +11,7 @@ from src.core.modules.project_management.domain.enums import ProjectStatus
 class ProjectQueryMixin:
     _project_repo: ProjectRepository
 
-    def list_projects(self) -> List[Project]:
+    def list_projects(self) -> list[Project]:
         require_permission(self._user_session, "project.read", operation_label="list projects")
         organization_id = self._active_organization_id(operation_label="list projects")
         project_rows = self._project_repo.list_for_organization(organization_id)
@@ -38,11 +37,11 @@ class ProjectQueryMixin:
         )
         return project
 
-    def list_projects_by_status(self, status: ProjectStatus) -> List[Project]:
+    def list_projects_by_status(self, status: ProjectStatus) -> list[Project]:
         require_permission(self._user_session, "project.read", operation_label="list projects by status")
         return [project for project in self.list_projects() if project.status == status]
 
-    def search_projects_by_name(self, query: str) -> List[Project]:
+    def search_projects_by_name(self, query: str) -> list[Project]:
         require_permission(self._user_session, "project.read", operation_label="search projects")
         normalized = query.strip().lower()
         return [project for project in self.list_projects() if normalized in project.name.lower()]

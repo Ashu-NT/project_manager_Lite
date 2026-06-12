@@ -4,7 +4,6 @@ from src.core.platform.calendar.application.calendar_protocol import CalendarPro
 
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Dict, List, Optional
 
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.task import (
@@ -28,8 +27,8 @@ class ResourceDemandEntry:
     resource_name: str
     project_id: str
     project_name: str
-    from_date: Optional[date]
-    to_date: Optional[date]
+    from_date: date | None
+    to_date: date | None
     total_allocation_percent: float
 
 
@@ -41,7 +40,7 @@ class ResourcePoolSummary:
     resource_id: str
     resource_name: str
     capacity_percent: float
-    demands: List[ResourceDemandEntry]
+    demands: list[ResourceDemandEntry]
     peak_load_percent: float
     average_load_percent: float
     overloaded: bool
@@ -58,14 +57,14 @@ class PortfolioResourcePoolReport:
     """
     from_date: date
     to_date: date
-    pool: List[ResourcePoolSummary]
+    pool: list[ResourcePoolSummary]
 
     @property
-    def overloaded_resources(self) -> List[ResourcePoolSummary]:
+    def overloaded_resources(self) -> list[ResourcePoolSummary]:
         return [r for r in self.pool if r.overloaded]
 
     @property
-    def utilization_by_resource(self) -> Dict[str, float]:
+    def utilization_by_resource(self) -> dict[str, float]:
         return {r.resource_id: r.average_load_percent for r in self.pool}
 
 
@@ -106,7 +105,7 @@ class PortfolioResourcePoolService:
         self,
         from_date: date,
         to_date: date,
-        resource_ids: Optional[List[str]] = None,
+        resource_ids: list[str] | None = None,
     ) -> PortfolioResourcePoolReport:
         """
         Build a portfolio resource pool report for the given date range.
@@ -124,7 +123,7 @@ class PortfolioResourcePoolService:
             }
             resource_ids = [resource_id for resource_id in resource_ids if resource_id in scoped_resource_ids]
 
-        summaries: List[ResourcePoolSummary] = []
+        summaries: list[ResourcePoolSummary] = []
         for rid in resource_ids:
             summary = self._build_summary(rid, from_date, to_date)
             if summary is not None:
@@ -141,7 +140,7 @@ class PortfolioResourcePoolService:
         resource_id: str,
         from_date: date,
         to_date: date,
-    ) -> List[ResourceDemandEntry]:
+    ) -> list[ResourceDemandEntry]:
         """Return per-project demand breakdown for a single resource."""
         return self._build_demands(resource_id, from_date, to_date)
 
@@ -152,7 +151,7 @@ class PortfolioResourcePoolService:
         resource_id: str,
         from_date: date,
         to_date: date,
-    ) -> Optional[ResourcePoolSummary]:
+    ) -> ResourcePoolSummary | None:
         resource = self._resources.get(resource_id)
         if resource is None:
             return None
@@ -184,10 +183,10 @@ class PortfolioResourcePoolService:
         resource_id: str,
         from_date: date,
         to_date: date,
-    ) -> List[ResourceDemandEntry]:
+    ) -> list[ResourceDemandEntry]:
         assignments = self._assignments.list_by_resource(resource_id)
-        demands: List[ResourceDemandEntry] = []
-        seen_projects: Dict[str, str] = {}  # project_id → project_name
+        demands: list[ResourceDemandEntry] = []
+        seen_projects: dict[str, str] = {}  # project_id → project_name
 
         for asgn in assignments:
             task = self._tasks.get(asgn.task_id)

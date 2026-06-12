@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional
 
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.modules.project_management.domain.identifiers import generate_id
@@ -14,17 +13,17 @@ class Project:
     name: str
     code: str = ""
     description: str = ""
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
+    start_date: date | None = None
+    end_date: date | None = None
     status: ProjectStatus = ProjectStatus.PLANNED
-    client_name: Optional[str] = None
-    client_contact: Optional[str] = None
-    planned_budget: Optional[float] = None
-    currency: Optional[str] = None
-    organization_id: Optional[str] = None
-    site_id: Optional[str] = None
-    client_party_id: Optional[str] = None
-    manager_user_id: Optional[str] = None
+    client_name: str | None = None
+    client_contact: str | None = None
+    planned_budget: float | None = None
+    currency: str | None = None
+    organization_id: str | None = None
+    site_id: str | None = None
+    client_party_id: str | None = None
+    manager_user_id: str | None = None
     version: int = 1
 
     @staticmethod
@@ -42,8 +41,8 @@ class ProjectResource:
     id: str
     project_id: str
     resource_id: str
-    hourly_rate: Optional[float] = None
-    currency_code: Optional[str] = None
+    hourly_rate: float | None = None
+    currency_code: str | None = None
     planned_hours: float = 0.0
     is_active: bool = True
 
@@ -51,8 +50,8 @@ class ProjectResource:
     def create(
         project_id: str,
         resource_id: str,
-        hourly_rate: Optional[float] = None,
-        currency_code: Optional[str] = None,
+        hourly_rate: float | None = None,
+        currency_code: str | None = None,
         planned_hours: float = 0.0,
         is_active: bool = True,
     ) -> "ProjectResource":

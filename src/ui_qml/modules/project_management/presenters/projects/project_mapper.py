@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectRecordViewModel,
 )
 
 from .formatting import format_date, format_date_label
 
-
-def build_project_state(project) -> dict[str, object]:
+def build_project_state(project: Any) -> dict[str, object]:
     return {
         "projectId": project.id,
         "name": project.name,
@@ -29,8 +30,7 @@ def build_project_state(project) -> dict[str, object]:
         "version": project.version,
     }
 
-
-def to_project_record(project) -> ProjectRecordViewModel:
+def to_project_record(project: Any) -> ProjectRecordViewModel:
     state = build_project_state(project)
     client_text = state["clientName"] or "No client assigned"
     contact_text = state["clientContact"] or "No client contact recorded"

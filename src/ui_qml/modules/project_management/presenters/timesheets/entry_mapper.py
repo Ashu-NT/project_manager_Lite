@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.timesheets import (
     TimesheetRecordViewModel,
 )
 
-
-def to_entry_record(entry) -> TimesheetRecordViewModel:
+def to_entry_record(entry: Any) -> TimesheetRecordViewModel:
     return TimesheetRecordViewModel(
         id=entry.entry_id,
         title=entry.entry_date_label,

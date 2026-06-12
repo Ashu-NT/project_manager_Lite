@@ -6,7 +6,6 @@ Reporting delegates here; this class is the authoritative source for labor figur
 
 from __future__ import annotations
 
-from typing import List
 
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.modules.project_management.contracts.repositories.project import (
@@ -50,7 +49,7 @@ class LaborCostEngine:
         self._resource_repo = resource_repo
         self._project_resource_repo = project_resource_repo
 
-    def get_project_labor_details(self, project_id: str) -> List[LaborResourceRow]:
+    def get_project_labor_details(self, project_id: str) -> list[LaborResourceRow]:
         """Return labor cost details grouped by resource for the given project."""
         project = self._project_repo.get(project_id)
         if not project:
@@ -64,19 +63,19 @@ class LaborCostEngine:
 
         assignments = self._assignment_repo.list_by_tasks(task_ids)
 
-        by_res: dict[str, List[TaskAssignment]] = {}
+        by_res: dict[str, list[TaskAssignment]] = {}
         for a in assignments:
             lst = by_res.get(a.resource_id, [])
             lst.append(a)
             by_res[a.resource_id] = lst
 
-        result: List[LaborResourceRow] = []
+        result: list[LaborResourceRow] = []
         for res_id, assigns in by_res.items():
             res = self._resource_repo.get(res_id)
             res_name = res.name if res else "<unknown>"
             total_hours = 0.0
             total_cost = 0.0
-            as_rows: List[LaborAssignmentRow] = []
+            as_rows: list[LaborAssignmentRow] = []
             hourly_rate: float = 0.0
             currency: str | None = None
             for a in assigns:

@@ -4,7 +4,6 @@ from typing import Callable
 
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
-
 class HeatmapTableController:
     def __init__(self) -> None:
         self.search_text = ""
@@ -51,6 +50,5 @@ class HeatmapTableController:
         if visible_row_ids != self.visible_row_ids:
             self.visible_row_ids = visible_row_ids
             emit_visible_ids_changed()
-
 
 __all__ = ["HeatmapTableController"]

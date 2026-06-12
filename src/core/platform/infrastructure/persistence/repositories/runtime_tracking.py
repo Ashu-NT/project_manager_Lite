@@ -71,7 +71,9 @@ def _to_orm(execution: RuntimeExecution) -> RuntimeExecutionORM:
 
 
 class SqlAlchemyRuntimeExecutionRepository(RuntimeExecutionRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, execution: RuntimeExecution) -> None:

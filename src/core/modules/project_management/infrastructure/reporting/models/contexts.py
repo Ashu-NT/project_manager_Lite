@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Optional
 
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     CostSourceBreakdown,
@@ -12,7 +13,7 @@ from src.core.modules.project_management.application.financials import FinanceSn
 
 @dataclass
 class GanttContext:
-    bars: List[GanttTaskBar]
+    bars: list[GanttTaskBar]
     today: date
 
 @dataclass
@@ -23,18 +24,18 @@ class EvmContext:
 @dataclass
 class ReportExportContext:
     kpi: ProjectKPI
-    resources: List[ResourceLoadRow]
-    evm: Optional[object]
-    evm_series: Optional[list]
-    baseline_variance: Optional[list]
-    cost_breakdown: Optional[list]
-    cost_sources: Optional[CostSourceBreakdown]
-    finance_snapshot: Optional[FinanceSnapshot]
+    resources: list[ResourceLoadRow]
+    evm: object | None
+    evm_series: list | None
+    baseline_variance: list | None
+    cost_breakdown: list | None
+    cost_sources: CostSourceBreakdown | None
+    finance_snapshot: FinanceSnapshot | None
     as_of: date
 
 @dataclass
 class ExcelReportContext(ReportExportContext):
-    gantt: List[GanttTaskBar]
+    gantt: list[GanttTaskBar]
 
 @dataclass
 class PdfReportContext(ReportExportContext):

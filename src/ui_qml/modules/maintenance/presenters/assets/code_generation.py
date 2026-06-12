@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 def _suggest_code(entity_type: str, code_attr: str, rows: Any, payload: dict[str, Any]) -> str:
     from src.core.platform.common.code_generation import CodeGenerator
 
@@ -15,7 +14,6 @@ def _suggest_code(entity_type: str, code_attr: str, rows: Any, payload: dict[str
         use_year=not bool(name),
     )
 
-
 def suggest_location_code(desktop_api, payload: dict[str, Any]) -> str:
     return _suggest_code(
         "location",
@@ -23,7 +21,6 @@ def suggest_location_code(desktop_api, payload: dict[str, Any]) -> str:
         desktop_api.list_locations(active_only=None),
         dict(payload),
     )
-
 
 def suggest_system_code(desktop_api, payload: dict[str, Any]) -> str:
     return _suggest_code(
@@ -33,7 +30,6 @@ def suggest_system_code(desktop_api, payload: dict[str, Any]) -> str:
         dict(payload),
     )
 
-
 def suggest_asset_code(desktop_api, payload: dict[str, Any]) -> str:
     return _suggest_code(
         "asset",
@@ -41,7 +37,6 @@ def suggest_asset_code(desktop_api, payload: dict[str, Any]) -> str:
         desktop_api.list_assets(active_only=None),
         dict(payload),
     )
-
 
 def suggest_component_code(desktop_api, payload: dict[str, Any]) -> str:
     return _suggest_code(

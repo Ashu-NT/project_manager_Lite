@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -16,6 +17,10 @@ from src.core.platform.org.support import normalize_code, normalize_name
 from src.core.platform.site.contracts import SiteRepository
 from src.core.platform.site.domain import Site
 from src.core.platform.tenancy import TenantContextService
+
+if TYPE_CHECKING:
+    from src.core.platform.audit.application.audit_service import AuditService
+    from src.core.platform.auth.domain.session import UserSessionContext
 
 
 def _normalize_optional_text(value: str | None) -> str:
@@ -40,8 +45,8 @@ class SiteService:
         site_repo: SiteRepository,
         *,
         organization_repo: OrganizationRepository,
-        user_session=None,
-        audit_service=None,
+        user_session: UserSessionContext | None = None,
+        audit_service: AuditService | None = None,
         tenant_context_service: TenantContextService | None = None,
     ):
         self._session = session

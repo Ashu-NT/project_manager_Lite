@@ -48,19 +48,19 @@ class ProcurementService(
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
-    ):
-        self._session = session
-        self._requisition_repo = requisition_repo
-        self._requisition_line_repo = requisition_line_repo
-        self._organization_repo = organization_repo
-        self._tenant_context_service = tenant_context_service or TenantContextService(
+    ) -> None:
+        self._session: Session = session
+        self._requisition_repo: PurchaseRequisitionRepository = requisition_repo
+        self._requisition_line_repo: PurchaseRequisitionLineRepository = requisition_line_repo
+        self._organization_repo: OrganizationRepository = organization_repo
+        self._tenant_context_service: TenantContextService = tenant_context_service or TenantContextService(
             organization_repo=organization_repo,
             user_session=user_session,
         )
-        self._inventory_service = inventory_service
-        self._item_service = item_service
-        self._party_service = party_service
-        self._approval_service = approval_service
+        self._inventory_service: InventoryService = inventory_service
+        self._item_service: ItemMasterService = item_service
+        self._party_service: PartyService = party_service
+        self._approval_service: ApprovalService = approval_service
         self._user_session = user_session
         self._audit_service = audit_service
 

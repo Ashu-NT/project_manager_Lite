@@ -8,7 +8,6 @@ External resources use PM resource calendar assignment.
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
 
 from src.core.platform.calendar.application.enterprise_calendar_resolver import (
     EnterpriseCalendarResolver,
@@ -43,9 +42,9 @@ class EnterpriseResourceAvailabilityService:
         self,
         resource_id: str,
         *,
-        project_id: Optional[str] = None,
-        site_id: Optional[str] = None,
-        department_id: Optional[str] = None,
+        project_id: str | None = None,
+        site_id: str | None = None,
+        department_id: str | None = None,
         target_date: date,
         assigned_hours: float = 0.0,
     ) -> ResolvedCalendarContext:
@@ -70,12 +69,12 @@ class EnterpriseResourceAvailabilityService:
         self,
         resource_id: str,
         *,
-        project_id: Optional[str] = None,
-        site_id: Optional[str] = None,
-        department_id: Optional[str] = None,
+        project_id: str | None = None,
+        site_id: str | None = None,
+        department_id: str | None = None,
         start: date,
         end: date,
-        assigned_hours_by_date: Optional[dict[date, float]] = None,
+        assigned_hours_by_date: dict[date, float] | None = None,
     ) -> list[ResolvedCalendarContext]:
         resource = self._resource_repo.get(resource_id)
         if resource is None:
@@ -112,7 +111,7 @@ class EnterpriseResourceAvailabilityService:
 
     def _classify(
         self, resource, resource_id: str
-    ) -> tuple[str, Optional[str], Optional[str]]:
+    ) -> tuple[str, str | None, str | None]:
         wt = resource.worker_type
         worker_type = wt.value if wt else "EXTERNAL"
         if worker_type == "EMPLOYEE" and resource.employee_id:

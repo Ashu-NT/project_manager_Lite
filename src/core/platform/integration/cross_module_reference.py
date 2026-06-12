@@ -11,7 +11,6 @@ readable even when the target module is off.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -26,7 +25,7 @@ class CrossModuleReference:
     title_snapshot: str = ""
     status_snapshot: str = ""
 
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, object]:
         return {
             "moduleId": self.module_id,
             "entityType": self.entity_type,
@@ -55,13 +54,13 @@ class ResolvedReference:
 
     can_open: bool
     disabled_reason: str
-    route: Optional[str]
+    route: str | None
 
     display_title: str
     display_subtitle: str
     display_status: str
 
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, object]:
         return {
             "moduleId": self.module_id,
             "entityType": self.entity_type,

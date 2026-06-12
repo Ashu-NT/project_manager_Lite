@@ -14,7 +14,6 @@ from .validation import (
     require_text,
 )
 
-
 def post_receipt(desktop_api, payload: dict[str, Any]) -> None:
     purchase_order_id = require_text(
         payload,

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Optional
 
 from src.core.platform.calendar.application.enterprise_calendar_resolver import (
     ResolvedCalendarContext,
@@ -58,10 +57,10 @@ class ResourceCapacityCalculator:
         start: date,
         end: date,
         *,
-        project_id: Optional[str] = None,
-        site_id: Optional[str] = None,
-        department_id: Optional[str] = None,
-        assigned_hours_by_date: Optional[dict[date, float]] = None,
+        project_id: str | None = None,
+        site_id: str | None = None,
+        department_id: str | None = None,
+        assigned_hours_by_date: dict[date, float] | None = None,
     ) -> ResourceCapacitySummary:
         days = self._availability.get_availability_range(
             resource_id,

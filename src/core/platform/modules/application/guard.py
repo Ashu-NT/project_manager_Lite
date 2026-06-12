@@ -13,7 +13,7 @@ class ModuleGuardedServiceMixin:
     _module_guard_code: str | None = None
     _module_guard_exempt_methods: frozenset[str] = frozenset()
 
-    def __getattribute__(self, name: str):
+    def __getattribute__(self, name: str) -> object:
         attr = super().__getattribute__(name)
         if name.startswith("_"):
             return attr

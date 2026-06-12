@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.register import RegisterOverviewViewModel
 
 from .filtering import matches_project
@@ -7,11 +9,10 @@ from .register_builder import build_register_overview
 from .risk_builder import build_risk_overview
 from .utils import WorkspaceMode
 
-
 def build_overview(
     *,
-    all_entries,
-    filtered_entries,
+    all_entries: Any,
+    filtered_entries: Any,
     project_id: str,
     workspace_mode: WorkspaceMode,
 ) -> RegisterOverviewViewModel:

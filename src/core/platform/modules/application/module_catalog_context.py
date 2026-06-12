@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from src.core.platform.modules.contracts import ModuleEntitlementRepository
+
+if TYPE_CHECKING:
+    from src.core.platform.org.domain import Organization
 from src.core.platform.modules.domain.defaults import (
     MODULE_RUNTIME_ACCESS_STATUSES,
     default_lifecycle_status,
@@ -87,7 +92,7 @@ class ModuleCatalogContextMixin:
         }
         return licensed_codes, enabled_codes
 
-    def _current_organization(self):
+    def _current_organization(self) -> Organization | None:
         if self._organization_context_provider is None:
             return None
         return self._organization_context_provider()

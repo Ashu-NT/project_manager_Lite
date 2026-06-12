@@ -5,8 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timezone as dt_timezone
 from enum import Enum
-from typing import Optional
-
 from src.core.platform.common.ids import generate_id
 
 
@@ -78,21 +76,21 @@ class PlatformCalendar:
     name: str
     calendar_type: str
     timezone: str = "UTC"
-    description: Optional[str] = None
-    base_calendar_id: Optional[str] = None
-    scope_type: Optional[str] = None
-    scope_id: Optional[str] = None
-    locale: Optional[str] = None
+    description: str | None = None
+    base_calendar_id: str | None = None
+    scope_type: str | None = None
+    scope_id: str | None = None
+    locale: str | None = None
     is_default: bool = False
     is_active: bool = True
-    effective_from: Optional[date] = None
-    effective_to: Optional[date] = None
+    effective_from: date | None = None
+    effective_to: date | None = None
     priority: int = 0
     version: int = 1
-    created_by: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_by: Optional[str] = None
-    updated_at: Optional[datetime] = None
+    created_by: str | None = None
+    created_at: datetime | None = None
+    updated_by: str | None = None
+    updated_at: datetime | None = None
 
     @staticmethod
     def create(
@@ -102,16 +100,16 @@ class PlatformCalendar:
         calendar_type: str,
         *,
         timezone: str = "UTC",
-        description: Optional[str] = None,
-        base_calendar_id: Optional[str] = None,
-        scope_type: Optional[str] = None,
-        scope_id: Optional[str] = None,
-        locale: Optional[str] = None,
+        description: str | None = None,
+        base_calendar_id: str | None = None,
+        scope_type: str | None = None,
+        scope_id: str | None = None,
+        locale: str | None = None,
         is_default: bool = False,
-        effective_from: Optional[date] = None,
-        effective_to: Optional[date] = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
         priority: int = 0,
-        created_by: Optional[str] = None,
+        created_by: str | None = None,
     ) -> "PlatformCalendar":
         now = datetime.now(dt_timezone.utc)
         return PlatformCalendar(
@@ -145,15 +143,15 @@ class CalendarWorkingRule:
     calendar_id: str
     weekday: int
     is_working_day: bool = True
-    start_time: Optional[time] = None
-    end_time: Optional[time] = None
-    break_start_time: Optional[time] = None
-    break_end_time: Optional[time] = None
+    start_time: time | None = None
+    end_time: time | None = None
+    break_start_time: time | None = None
+    break_end_time: time | None = None
     break_minutes: int = 0
-    hours_override: Optional[float] = None
-    shift_code: Optional[str] = None
-    effective_from: Optional[date] = None
-    effective_to: Optional[date] = None
+    hours_override: float | None = None
+    shift_code: str | None = None
+    effective_from: date | None = None
+    effective_to: date | None = None
     priority: int = 0
 
     @staticmethod
@@ -162,15 +160,15 @@ class CalendarWorkingRule:
         weekday: int,
         *,
         is_working_day: bool = True,
-        start_time: Optional[time] = None,
-        end_time: Optional[time] = None,
-        break_start_time: Optional[time] = None,
-        break_end_time: Optional[time] = None,
+        start_time: time | None = None,
+        end_time: time | None = None,
+        break_start_time: time | None = None,
+        break_end_time: time | None = None,
         break_minutes: int = 0,
-        hours_override: Optional[float] = None,
-        shift_code: Optional[str] = None,
-        effective_from: Optional[date] = None,
-        effective_to: Optional[date] = None,
+        hours_override: float | None = None,
+        shift_code: str | None = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
         priority: int = 0,
     ) -> "CalendarWorkingRule":
         return CalendarWorkingRule(
@@ -211,19 +209,19 @@ class CalendarException:
     exception_type: str
     name: str
     impact_type: str
-    scope_type: Optional[str] = None
-    scope_id: Optional[str] = None
-    description: Optional[str] = None
-    start_time: Optional[time] = None
-    end_time: Optional[time] = None
-    hours_override: Optional[float] = None
+    scope_type: str | None = None
+    scope_id: str | None = None
+    description: str | None = None
+    start_time: time | None = None
+    end_time: time | None = None
+    hours_override: float | None = None
     priority: int = 0
     approval_status: str = "APPROVED"
-    approved_by: Optional[str] = None
-    created_by: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_by: Optional[str] = None
-    updated_at: Optional[datetime] = None
+    approved_by: str | None = None
+    created_by: str | None = None
+    created_at: datetime | None = None
+    updated_by: str | None = None
+    updated_at: datetime | None = None
 
     @staticmethod
     def create(
@@ -233,15 +231,15 @@ class CalendarException:
         name: str,
         impact_type: str,
         *,
-        scope_type: Optional[str] = None,
-        scope_id: Optional[str] = None,
-        description: Optional[str] = None,
-        start_time: Optional[time] = None,
-        end_time: Optional[time] = None,
-        hours_override: Optional[float] = None,
+        scope_type: str | None = None,
+        scope_id: str | None = None,
+        description: str | None = None,
+        start_time: time | None = None,
+        end_time: time | None = None,
+        hours_override: float | None = None,
         priority: int = 0,
         approval_status: str = "APPROVED",
-        created_by: Optional[str] = None,
+        created_by: str | None = None,
     ) -> "CalendarException":
         now = datetime.utcnow()
         return CalendarException(
@@ -286,10 +284,10 @@ class CalendarRecurringEvent:
     end_time: time
     impact_type: str
     effective_from: date
-    scope_type: Optional[str] = None
-    scope_id: Optional[str] = None
-    capacity_impact_percent: Optional[float] = None
-    effective_to: Optional[date] = None
+    scope_type: str | None = None
+    scope_id: str | None = None
+    capacity_impact_percent: float | None = None
+    effective_to: date | None = None
     is_active: bool = True
     priority: int = 0
 
@@ -304,10 +302,10 @@ class CalendarRecurringEvent:
         impact_type: str,
         effective_from: date,
         *,
-        scope_type: Optional[str] = None,
-        scope_id: Optional[str] = None,
-        capacity_impact_percent: Optional[float] = None,
-        effective_to: Optional[date] = None,
+        scope_type: str | None = None,
+        scope_id: str | None = None,
+        capacity_impact_percent: float | None = None,
+        effective_to: date | None = None,
         priority: int = 0,
     ) -> "CalendarRecurringEvent":
         return CalendarRecurringEvent(
@@ -342,8 +340,8 @@ class ShiftPattern:
     name: str
     pattern_type: str
     timezone: str = "UTC"
-    description: Optional[str] = None
-    rotation_cycle_days: Optional[int] = None
+    description: str | None = None
+    rotation_cycle_days: int | None = None
     is_active: bool = True
 
     @staticmethod
@@ -354,8 +352,8 @@ class ShiftPattern:
         pattern_type: str,
         *,
         timezone: str = "UTC",
-        description: Optional[str] = None,
-        rotation_cycle_days: Optional[int] = None,
+        description: str | None = None,
+        rotation_cycle_days: int | None = None,
     ) -> "ShiftPattern":
         return ShiftPattern(
             id=generate_id(),
@@ -376,11 +374,11 @@ class ShiftPatternDay:
     shift_pattern_id: str
     day_offset: int
     is_working_day: bool = True
-    start_time: Optional[time] = None
-    end_time: Optional[time] = None
+    start_time: time | None = None
+    end_time: time | None = None
     break_minutes: int = 0
-    hours: Optional[float] = None
-    shift_label: Optional[str] = None
+    hours: float | None = None
+    shift_label: str | None = None
 
     @staticmethod
     def create(
@@ -388,11 +386,11 @@ class ShiftPatternDay:
         day_offset: int,
         *,
         is_working_day: bool = True,
-        start_time: Optional[time] = None,
-        end_time: Optional[time] = None,
+        start_time: time | None = None,
+        end_time: time | None = None,
         break_minutes: int = 0,
-        hours: Optional[float] = None,
-        shift_label: Optional[str] = None,
+        hours: float | None = None,
+        shift_label: str | None = None,
     ) -> "ShiftPatternDay":
         return ShiftPatternDay(
             id=generate_id(),
@@ -412,8 +410,8 @@ class SiteCalendarAssignment:
     id: str
     site_id: str
     calendar_id: str
-    effective_from: Optional[date] = None
-    effective_to: Optional[date] = None
+    effective_from: date | None = None
+    effective_to: date | None = None
     is_default: bool = False
     priority: int = 0
 
@@ -422,8 +420,8 @@ class SiteCalendarAssignment:
         site_id: str,
         calendar_id: str,
         *,
-        effective_from: Optional[date] = None,
-        effective_to: Optional[date] = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
         is_default: bool = False,
         priority: int = 0,
     ) -> "SiteCalendarAssignment":
@@ -443,8 +441,8 @@ class DepartmentCalendarAssignment:
     id: str
     department_id: str
     calendar_id: str
-    effective_from: Optional[date] = None
-    effective_to: Optional[date] = None
+    effective_from: date | None = None
+    effective_to: date | None = None
     is_default: bool = False
     priority: int = 0
 
@@ -453,8 +451,8 @@ class DepartmentCalendarAssignment:
         department_id: str,
         calendar_id: str,
         *,
-        effective_from: Optional[date] = None,
-        effective_to: Optional[date] = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
         is_default: bool = False,
         priority: int = 0,
     ) -> "DepartmentCalendarAssignment":
@@ -474,8 +472,8 @@ class EmployeeCalendarAssignment:
     id: str
     employee_id: str
     calendar_id: str
-    effective_from: Optional[date] = None
-    effective_to: Optional[date] = None
+    effective_from: date | None = None
+    effective_to: date | None = None
     is_default: bool = False
     priority: int = 0
 
@@ -484,8 +482,8 @@ class EmployeeCalendarAssignment:
         employee_id: str,
         calendar_id: str,
         *,
-        effective_from: Optional[date] = None,
-        effective_to: Optional[date] = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
         is_default: bool = False,
         priority: int = 0,
     ) -> "EmployeeCalendarAssignment":

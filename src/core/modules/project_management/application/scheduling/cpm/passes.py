@@ -3,7 +3,7 @@ from __future__ import annotations
 from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 
 from datetime import date
-from typing import Callable, Dict, List, Optional
+from typing import Callable
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.domain.enums import DependencyType
@@ -11,19 +11,19 @@ from src.core.modules.project_management.domain.tasks.task import Task, TaskDepe
 
 
 ForwardComputeFn = Callable[
-    [Task, List[TaskDependency], Dict[str, Optional[date]], Dict[str, Optional[date]]],
-    tuple[Optional[date], Optional[date]],
+    [Task, list[TaskDependency], dict[str, date | None], dict[str, date | None]],
+    tuple[date | None, date | None],
 ]
 
 
 def run_forward_pass(
-    tasks_by_id: Dict[str, Task],
-    topo_order: List[str],
-    deps_by_successor: Dict[str, List[TaskDependency]],
+    tasks_by_id: dict[str, Task],
+    topo_order: list[str],
+    deps_by_successor: dict[str, list[TaskDependency]],
     compute_task_dates: ForwardComputeFn,
-) -> tuple[Dict[str, Optional[date]], Dict[str, Optional[date]], date]:
-    es: Dict[str, Optional[date]] = {task_id: None for task_id in tasks_by_id}
-    ef: Dict[str, Optional[date]] = {task_id: None for task_id in tasks_by_id}
+) -> tuple[dict[str, date | None], dict[str, date | None], date]:
+    es: dict[str, date | None] = {task_id: None for task_id in tasks_by_id}
+    ef: dict[str, date | None] = {task_id: None for task_id in tasks_by_id}
 
     for task_id in topo_order:
         task = tasks_by_id[task_id]
@@ -46,7 +46,7 @@ def run_forward_pass(
         default_start: date = min(known_starts) if known_starts else date.today()
 
         # Patch root tasks that have no start_date
-        patched: Dict[str, Task] = {}
+        patched: dict[str, Task] = {}
         for task_id, task in tasks_by_id.items():
             incoming = deps_by_successor.get(task_id, [])
             if not incoming and not getattr(task, "start_date", None):
@@ -81,16 +81,16 @@ def _task_with_default_start(task: Task, default_start: date) -> Task:
 
 
 def run_backward_pass(
-    tasks_by_id: Dict[str, Task],
-    topo_order: List[str],
-    deps_by_predecessor: Dict[str, List[TaskDependency]],
-    es: Dict[str, Optional[date]],
-    ef: Dict[str, Optional[date]],
+    tasks_by_id: dict[str, Task],
+    topo_order: list[str],
+    deps_by_predecessor: dict[str, list[TaskDependency]],
+    es: dict[str, date | None],
+    ef: dict[str, date | None],
     project_early_finish: date,
     calendar: CalendarProtocol,
-) -> tuple[Dict[str, Optional[date]], Dict[str, Optional[date]]]:
-    ls: Dict[str, Optional[date]] = {task_id: None for task_id in tasks_by_id}
-    lf: Dict[str, Optional[date]] = {task_id: None for task_id in tasks_by_id}
+) -> tuple[dict[str, date | None], dict[str, date | None]]:
+    ls: dict[str, date | None] = {task_id: None for task_id in tasks_by_id}
+    lf: dict[str, date | None] = {task_id: None for task_id in tasks_by_id}
 
     end_tasks = [task_id for task_id in tasks_by_id if task_id not in deps_by_predecessor]
     for task_id in end_tasks:
@@ -109,8 +109,8 @@ def run_backward_pass(
                 lf[task_id] = ef[task_id]
             continue
 
-        cand_ls_dates: List[date] = []
-        cand_lf_dates: List[date] = []
+        cand_ls_dates: list[date] = []
+        cand_lf_dates: list[date] = []
         duration = tasks_by_id[task_id].duration_days or 0
 
         for dep in outgoing:

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
@@ -11,8 +13,7 @@ from src.ui_qml.modules.project_management.view_models.register import (
 
 from .utils import is_active
 
-
-def build_register_overview(*, scope_entries, filtered_entries) -> RegisterOverviewViewModel:
+def build_register_overview(*, scope_entries: Any, filtered_entries: Any) -> RegisterOverviewViewModel:
     return RegisterOverviewViewModel(
         title="Register",
         subtitle="Cross-project risks, issues, changes, and governance review queue.",

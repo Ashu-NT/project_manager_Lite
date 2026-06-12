@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.timesheets import (
     TimesheetMetricViewModel,
     TimesheetOverviewViewModel,
 )
 
-
 def build_overview(
     *,
-    assignment_options,
-    snapshot,
-    review_queue_rows,
+    assignment_options: Any,
+    snapshot: Any,
+    review_queue_rows: Any,
 ) -> TimesheetOverviewViewModel:
     return TimesheetOverviewViewModel(
         title="Timesheets",

@@ -3,13 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-
 @dataclass(frozen=True)
 class ProjectDashboardMetricViewModel:
     label: str
     value: str
     supporting_text: str
-
 
 @dataclass(frozen=True)
 class ProjectDashboardOverviewViewModel:
@@ -17,12 +15,10 @@ class ProjectDashboardOverviewViewModel:
     subtitle: str
     metrics: tuple[ProjectDashboardMetricViewModel, ...]
 
-
 @dataclass(frozen=True)
 class ProjectDashboardSelectorOptionViewModel:
     value: str
     label: str
-
 
 @dataclass(frozen=True)
 class ProjectDashboardPanelRowViewModel:
@@ -30,7 +26,6 @@ class ProjectDashboardPanelRowViewModel:
     value: str
     supporting_text: str = ""
     tone: str = "default"
-
 
 @dataclass(frozen=True)
 class ProjectDashboardPanelViewModel:
@@ -41,7 +36,6 @@ class ProjectDashboardPanelViewModel:
     rows: tuple["ProjectDashboardPanelRowViewModel", ...] = field(default_factory=tuple)
     metrics: tuple["ProjectDashboardMetricViewModel", ...] = field(default_factory=tuple)
 
-
 @dataclass(frozen=True)
 class ProjectDashboardChartPointViewModel:
     label: str
@@ -51,7 +45,6 @@ class ProjectDashboardChartPointViewModel:
     target_value: float | None = None
     tone: str = "accent"
 
-
 @dataclass(frozen=True)
 class ProjectDashboardChartViewModel:
     title: str
@@ -59,7 +52,6 @@ class ProjectDashboardChartViewModel:
     chart_type: str = "bar"
     empty_state: str = ""
     points: tuple["ProjectDashboardChartPointViewModel", ...] = field(default_factory=tuple)
-
 
 @dataclass(frozen=True)
 class ProjectDashboardSectionItemViewModel:
@@ -71,14 +63,12 @@ class ProjectDashboardSectionItemViewModel:
     meta_text: str = ""
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class ProjectDashboardSectionViewModel:
     title: str
     subtitle: str = ""
     empty_state: str = ""
     items: tuple[ProjectDashboardSectionItemViewModel, ...] = field(default_factory=tuple)
-
 
 @dataclass(frozen=True)
 class ProjectDashboardHealthCardViewModel:
@@ -92,7 +82,6 @@ class ProjectDashboardHealthCardViewModel:
     tone: str = "default"
     route_id: str = ""
 
-
 @dataclass(frozen=True)
 class ProjectDashboardTableColumnViewModel:
     key: str
@@ -103,7 +92,6 @@ class ProjectDashboardTableColumnViewModel:
     visible: bool = True
     column_type: str = "text"
 
-
 @dataclass(frozen=True)
 class ProjectDashboardTableRowViewModel:
     id: str
@@ -111,14 +99,12 @@ class ProjectDashboardTableRowViewModel:
     route_id: str = ""
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class ProjectDashboardOperationalTabViewModel:
     id: str
     label: str
     count: int = 0
     route_id: str = ""
-
 
 @dataclass(frozen=True)
 class ProjectDashboardOperationalTableViewModel:
@@ -131,7 +117,6 @@ class ProjectDashboardOperationalTableViewModel:
     )
     rows: tuple[ProjectDashboardTableRowViewModel, ...] = field(default_factory=tuple)
 
-
 @dataclass(frozen=True)
 class ProjectDashboardActivityItemViewModel:
     id: str
@@ -141,7 +126,6 @@ class ProjectDashboardActivityItemViewModel:
     route_id: str = ""
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class ProjectDashboardActivityFeedViewModel:
     title: str
@@ -150,7 +134,6 @@ class ProjectDashboardActivityFeedViewModel:
     items: tuple[ProjectDashboardActivityItemViewModel, ...] = field(
         default_factory=tuple
     )
-
 
 @dataclass(frozen=True)
 class ProjectDashboardWorkspaceViewModel:
@@ -185,7 +168,6 @@ class ProjectDashboardWorkspaceViewModel:
     charts: tuple[ProjectDashboardChartViewModel, ...] = field(default_factory=tuple)
     sections: tuple[ProjectDashboardSectionViewModel, ...] = field(default_factory=tuple)
     empty_state: str = ""
-
 
 __all__ = [
     "ProjectDashboardChartPointViewModel",

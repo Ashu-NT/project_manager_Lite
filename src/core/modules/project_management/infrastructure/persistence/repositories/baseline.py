@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Optional
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -52,11 +51,11 @@ class SqlAlchemyBaselineRepository(BaselineRepository):
         row.approved_at = baseline.approved_at
         row.notes = baseline.notes or None
 
-    def get_baseline(self, baseline_id: str) -> Optional[ProjectBaseline]:
+    def get_baseline(self, baseline_id: str) -> ProjectBaseline | None:
         row = self.session.get(ProjectBaselineORM, baseline_id)
         return baseline_from_orm(row) if row else None
 
-    def get_latest_for_project(self, project_id: str) -> Optional[ProjectBaseline]:
+    def get_latest_for_project(self, project_id: str) -> ProjectBaseline | None:
         stmt = (
             select(ProjectBaselineORM)
             .where(ProjectBaselineORM.project_id == project_id)
@@ -65,7 +64,7 @@ class SqlAlchemyBaselineRepository(BaselineRepository):
         row = self.session.execute(stmt).scalars().first()
         return baseline_from_orm(row) if row else None
 
-    def get_approved_baseline(self, project_id: str) -> Optional[ProjectBaseline]:
+    def get_approved_baseline(self, project_id: str) -> ProjectBaseline | None:
         stmt = (
             select(ProjectBaselineORM)
             .where(ProjectBaselineORM.project_id == project_id)
@@ -75,7 +74,7 @@ class SqlAlchemyBaselineRepository(BaselineRepository):
         row = self.session.execute(stmt).scalars().first()
         return baseline_from_orm(row) if row else None
 
-    def list_for_project(self, project_id: str) -> List[ProjectBaseline]:
+    def list_for_project(self, project_id: str) -> list[ProjectBaseline]:
         stmt = (
             select(ProjectBaselineORM)
             .where(ProjectBaselineORM.project_id == project_id)
@@ -89,10 +88,10 @@ class SqlAlchemyBaselineRepository(BaselineRepository):
         if row:
             self.session.delete(row)
 
-    def add_baseline_tasks(self, tasks: List[BaselineTask]) -> None:
+    def add_baseline_tasks(self, tasks: list[BaselineTask]) -> None:
         self.session.add_all([baseline_task_to_orm(task) for task in tasks])
 
-    def list_tasks(self, baseline_id: str) -> List[BaselineTask]:
+    def list_tasks(self, baseline_id: str) -> list[BaselineTask]:
         stmt = select(BaselineTaskORM).where(BaselineTaskORM.baseline_id == baseline_id)
         rows = self.session.execute(stmt).scalars().all()
         return [baseline_task_from_orm(row) for row in rows]
@@ -101,10 +100,10 @@ class SqlAlchemyBaselineRepository(BaselineRepository):
         stmt = delete(BaselineTaskORM).where(BaselineTaskORM.baseline_id == baseline_id)
         self.session.execute(stmt)
 
-    def add_variance_records(self, records: List[BaselineVarianceRecord]) -> None:
+    def add_variance_records(self, records: list[BaselineVarianceRecord]) -> None:
         self.session.add_all([variance_record_to_orm(record) for record in records])
 
-    def list_variance_records(self, new_baseline_id: str) -> List[BaselineVarianceRecord]:
+    def list_variance_records(self, new_baseline_id: str) -> list[BaselineVarianceRecord]:
         stmt = (
             select(BaselineVarianceRecordORM)
             .where(BaselineVarianceRecordORM.new_baseline_id == new_baseline_id)

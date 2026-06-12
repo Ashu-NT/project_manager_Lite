@@ -2,18 +2,14 @@ from __future__ import annotations
 
 from typing import TypeAlias
 
-
 FinancialsMap: TypeAlias = dict[str, object]
 FinancialsObjectList: TypeAlias = list[dict[str, object]]
-
 
 def default_overview() -> FinancialsMap:
     return {"title": "", "subtitle": "", "metrics": []}
 
-
 def default_collection() -> FinancialsMap:
     return {"title": "", "subtitle": "", "emptyState": "", "items": []}
-
 
 def default_selected_cost() -> FinancialsMap:
     return {
@@ -26,7 +22,6 @@ def default_selected_cost() -> FinancialsMap:
         "fields": [],
         "state": {},
     }
-
 
 def default_forecast() -> FinancialsMap:
     return {
@@ -46,7 +41,6 @@ def default_forecast() -> FinancialsMap:
         "metrics": [],
     }
 
-
 def default_commitment_summary() -> FinancialsMap:
     return {
         "plannedLabel": "",
@@ -57,7 +51,6 @@ def default_commitment_summary() -> FinancialsMap:
         "exposureLabel": "",
         "commitmentRatePct": 0.0,
     }
-
 
 __all__ = [
     "FinancialsMap",

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from typing import Any
 
-def matches_search(resource, search_text: str) -> bool:
+def matches_search(resource: Any, search_text: str) -> bool:
     if not search_text:
         return True
     normalized_search = search_text.casefold()
@@ -17,8 +18,7 @@ def matches_search(resource, search_text: str) -> bool:
     )
     return any(normalized_search in value.casefold() for value in haystacks)
 
-
-def matches_active(resource, active_filter: str) -> bool:
+def matches_active(resource: Any, active_filter: str) -> bool:
     if active_filter == "all":
         return True
     if active_filter == "active":
@@ -27,12 +27,10 @@ def matches_active(resource, active_filter: str) -> bool:
         return not bool(resource.is_active)
     return True
 
-
-def matches_category(resource, category_filter: str) -> bool:
+def matches_category(resource: Any, category_filter: str) -> bool:
     if category_filter == "all":
         return True
     return resource.cost_type == category_filter
-
 
 def normalize_active_filter(active_filter: str) -> str:
     normalized_value = (active_filter or "all").strip().lower()
@@ -40,17 +38,15 @@ def normalize_active_filter(active_filter: str) -> str:
         return normalized_value
     return "all"
 
-
-def normalize_category_filter(category_filter: str, category_options) -> str:
+def normalize_category_filter(category_filter: str, category_options: Any) -> str:
     normalized_value = (category_filter or "all").strip().upper()
     available_values = {option.value.upper(): option.value for option in category_options}
     return available_values.get(normalized_value, "all")
 
-
 def build_empty_state(
     *,
-    all_resources,
-    filtered_resources,
+    all_resources: Any,
+    filtered_resources: Any,
     search_text: str,
     active_filter: str,
     category_filter: str,

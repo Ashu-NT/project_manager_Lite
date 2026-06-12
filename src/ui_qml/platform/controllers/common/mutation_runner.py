@@ -7,7 +7,6 @@ from .serializers import serialize_operation_result
 
 logger = logging.getLogger(__name__)
 
-
 def run_mutation(
     *,
     operation: Callable[[], object],
@@ -43,6 +42,5 @@ def run_mutation(
     finally:
         set_is_busy(False)
     return dict(payload)
-
 
 __all__ = ["run_mutation"]

@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import date, time
 from time import perf_counter
-from typing import Optional
+from typing import Any
 
 from src.core.platform.calendar.contracts import (
     CalendarAssignmentRepository,
@@ -42,8 +42,8 @@ class ResolvedCalendarContext:
     source_chain: list[str]
     overrides: list[str]
     timezone: str
-    working_start: Optional[time]
-    working_end: Optional[time]
+    working_start: time | None
+    working_end: time | None
     exceptions: list[dict]
 
     @staticmethod
@@ -106,8 +106,8 @@ class EnterpriseCalendarResolver:
         exception_repo: CalendarExceptionRepository,
         recurring_repo: CalendarRecurringEventRepository,
         assignment_repo: CalendarAssignmentRepository,
-        project_assignment_repo,
-        resource_assignment_repo,
+        project_assignment_repo: Any,
+        resource_assignment_repo: Any,
         calculator: WorkingTimeCalculator,
     ) -> None:
         self._org_id = organization_id
@@ -146,12 +146,12 @@ class EnterpriseCalendarResolver:
     def resolve_calendar_context(
         self,
         *,
-        site_id: Optional[str] = None,
-        department_id: Optional[str] = None,
-        employee_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        resource_id: Optional[str] = None,
-        worker_type: Optional[str] = None,
+        site_id: str | None = None,
+        department_id: str | None = None,
+        employee_id: str | None = None,
+        project_id: str | None = None,
+        resource_id: str | None = None,
+        worker_type: str | None = None,
         target_date: date,
         assigned_hours: float = 0.0,
     ) -> ResolvedCalendarContext:
@@ -219,15 +219,15 @@ class EnterpriseCalendarResolver:
     def resolve_range(
         self,
         *,
-        site_id: Optional[str] = None,
-        department_id: Optional[str] = None,
-        employee_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        resource_id: Optional[str] = None,
-        worker_type: Optional[str] = None,
+        site_id: str | None = None,
+        department_id: str | None = None,
+        employee_id: str | None = None,
+        project_id: str | None = None,
+        resource_id: str | None = None,
+        worker_type: str | None = None,
         start: date,
         end: date,
-        assigned_hours_by_date: Optional[dict[date, float]] = None,
+        assigned_hours_by_date: dict[date, float] | None = None,
     ) -> list[ResolvedCalendarContext]:
         """
         Efficient range resolution: builds the chain once and bulk-fetches all
@@ -384,13 +384,13 @@ class EnterpriseCalendarResolver:
     def get_source_chain(
         self,
         *,
-        site_id: Optional[str] = None,
-        department_id: Optional[str] = None,
-        employee_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        resource_id: Optional[str] = None,
-        worker_type: Optional[str] = None,
-        at_date: Optional[date] = None,
+        site_id: str | None = None,
+        department_id: str | None = None,
+        employee_id: str | None = None,
+        project_id: str | None = None,
+        resource_id: str | None = None,
+        worker_type: str | None = None,
+        at_date: date | None = None,
     ) -> list[str]:
         chain = self._build_chain(
             site_id=site_id,
@@ -410,13 +410,13 @@ class EnterpriseCalendarResolver:
     def _build_chain(
         self,
         *,
-        site_id: Optional[str],
-        department_id: Optional[str],
-        employee_id: Optional[str],
-        project_id: Optional[str],
-        resource_id: Optional[str],
-        worker_type: Optional[str],
-        at_date: Optional[date],
+        site_id: str | None,
+        department_id: str | None,
+        employee_id: str | None,
+        project_id: str | None,
+        resource_id: str | None,
+        worker_type: str | None,
+        at_date: date | None,
     ) -> list[tuple[str, str]]:
         chain: list[tuple[str, str]] = []
 
@@ -486,8 +486,8 @@ class EnterpriseCalendarResolver:
 
     def _resolve_working_rule(
         self, chain: list[tuple[str, str]], weekday: int
-    ) -> Optional[CalendarWorkingRule]:
-        effective: Optional[CalendarWorkingRule] = None
+    ) -> CalendarWorkingRule | None:
+        effective: CalendarWorkingRule | None = None
         for _label, cal_id in chain:
             # Use cached rules if available — avoids N DB queries per weekday lookup
             if cal_id not in self._rules_cache:

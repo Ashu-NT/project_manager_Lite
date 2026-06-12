@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
-from typing import List, Optional
 
 from src.core.modules.project_management.application.dashboard.models.portfolio_models import (
     DashboardPortfolio,
@@ -24,13 +23,13 @@ class DashboardEVM:
     PV: float
     EV: float
     AC: float
-    CPI: Optional[float]
-    SPI: Optional[float]
-    EAC: Optional[float]
-    VAC: Optional[float]
+    CPI: float | None
+    SPI: float | None
+    EAC: float | None
+    VAC: float | None
     status_text: str
-    TCPI_to_BAC: Optional[float]
-    TCPI_to_EAC: Optional[float]
+    TCPI_to_BAC: float | None
+    TCPI_to_EAC: float | None
 
 
 @dataclass
@@ -75,15 +74,15 @@ class CriticalPathRow:
 @dataclass
 class DashboardData:
     kpi: ProjectKPI
-    resource_load: List[ResourceLoadRow]
-    alerts: List[str]
-    upcoming_tasks: List[UpcomingTask]
-    burndown: List[BurndownPoint]
+    resource_load: list[ResourceLoadRow]
+    alerts: list[str]
+    upcoming_tasks: list[UpcomingTask]
+    burndown: list[BurndownPoint]
     milestone_health: list[MilestoneHealthRow] = field(default_factory=list)
     critical_watchlist: list[CriticalPathRow] = field(default_factory=list)
     register_summary: RegisterProjectSummary | None = None
     cost_sources: CostSourceBreakdown | None = None
-    evm: Optional[DashboardEVM] = None
+    evm: DashboardEVM | None = None
     portfolio: DashboardPortfolio | None = None
 
 

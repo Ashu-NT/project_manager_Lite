@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from typing import Any
 
-def resolve_selected_id(selected_id: str | None, options) -> str:
+def resolve_selected_id(selected_id: str | None, options: Any) -> str:
     normalized_id = (selected_id or "").strip()
     available_values = [str(option.value or "") for option in options]
     if normalized_id and normalized_id in available_values:

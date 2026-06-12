@@ -17,7 +17,6 @@ from .validation import (
     require_text,
 )
 
-
 def create_asset(desktop_api, payload: dict[str, Any]) -> None:
     command = MaintenanceAssetCreateCommand(
         site_id=require_text(payload, "siteId", "Choose a site before saving."),
@@ -49,7 +48,6 @@ def create_asset(desktop_api, payload: dict[str, Any]) -> None:
         notes=optional_text(payload, "notes") or "",
     )
     desktop_api.create_asset(command)
-
 
 def update_asset(desktop_api, payload: dict[str, Any]) -> None:
     command = MaintenanceAssetUpdateCommand(
@@ -86,7 +84,6 @@ def update_asset(desktop_api, payload: dict[str, Any]) -> None:
         ),
     )
     desktop_api.update_asset(command)
-
 
 def toggle_asset_active(desktop_api, asset_id: str, *, expected_version: int) -> None:
     desktop_api.toggle_asset_active(

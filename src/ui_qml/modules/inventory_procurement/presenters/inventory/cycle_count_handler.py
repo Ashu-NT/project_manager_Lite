@@ -9,7 +9,6 @@ from src.core.modules.inventory_procurement.api.desktop import (
 
 from .validation import optional_float, optional_int, optional_text, require_text
 
-
 def schedule_cycle_count(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryCycleCountCreateCommand(
         stock_item_id=require_text(
@@ -23,7 +22,6 @@ def schedule_cycle_count(desktop_api, payload: dict[str, Any]) -> None:
         notes=optional_text(payload, "notes") or "",
     )
     desktop_api.schedule_cycle_count(command)
-
 
 def complete_cycle_count(desktop_api, payload: dict[str, Any]) -> None:
     counted_qty = optional_float(payload, "countedQty", "Counted quantity must be a valid number.")

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -42,7 +41,7 @@ def _resource_from_orm(obj: ResourceCalendarAssignmentORM) -> ResourceCalendarAs
     )
 
 
-def _is_effective(effective_from, effective_to, at_date: Optional[date]) -> bool:
+def _is_effective(effective_from, effective_to, at_date: date | None) -> bool:
     if at_date is None:
         return True
     if effective_from is not None and at_date < effective_from:
@@ -57,8 +56,8 @@ class SqlAlchemyProjectCalendarAssignmentRepository:
         self._session = session
 
     def get(
-        self, project_id: str, *, at_date: Optional[date] = None
-    ) -> Optional[ProjectCalendarAssignment]:
+        self, project_id: str, *, at_date: date | None = None
+    ) -> ProjectCalendarAssignment | None:
         stmt = select(ProjectCalendarAssignmentORM).where(
             ProjectCalendarAssignmentORM.project_id == project_id
         ).order_by(
@@ -117,8 +116,8 @@ class SqlAlchemyResourceCalendarAssignmentRepository:
         self._session = session
 
     def get(
-        self, resource_id: str, *, at_date: Optional[date] = None
-    ) -> Optional[ResourceCalendarAssignment]:
+        self, resource_id: str, *, at_date: date | None = None
+    ) -> ResourceCalendarAssignment | None:
         stmt = select(ResourceCalendarAssignmentORM).where(
             ResourceCalendarAssignmentORM.resource_id == resource_id
         ).order_by(

@@ -15,6 +15,5 @@ _ACTIVE_STATUSES = {
     RegisterEntryStatus.MITIGATED,
 }
 
-
 def is_active(status: str | RegisterEntryStatus) -> bool:
     return as_register_entry_status(status) in _ACTIVE_STATUSES

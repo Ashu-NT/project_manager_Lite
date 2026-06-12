@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+from typing import Any
 
-def matches_cost_type(cost, selected_cost_type: str) -> bool:
+def matches_cost_type(cost: Any, selected_cost_type: str) -> bool:
     if selected_cost_type == "all":
         return True
     return cost.cost_type == selected_cost_type
 
-
-def matches_search(cost, search_text: str) -> bool:
+def matches_search(cost: Any, search_text: str) -> bool:
     if not search_text:
         return True
     normalized_search = search_text.casefold()
@@ -19,12 +19,11 @@ def matches_search(cost, search_text: str) -> bool:
     )
     return any(normalized_search in value.casefold() for value in haystacks)
 
-
 def build_empty_state(
     *,
-    project_options,
-    all_costs,
-    filtered_costs,
+    project_options: Any,
+    all_costs: Any,
+    filtered_costs: Any,
     selected_project_id: str,
     search_text: str,
     selected_cost_type: str,

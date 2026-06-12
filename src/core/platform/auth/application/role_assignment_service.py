@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.domain import UserRoleBinding
@@ -7,8 +9,11 @@ from src.core.platform.auth.domain import UserRoleBinding
 from .session_service import refresh_current_session_if_user
 from .sod_enforcer import enforce_separation_of_duties
 
+if TYPE_CHECKING:
+    from .auth_service import AuthService
 
-def assign_role(service, user_id: str, role_name: str) -> None:
+
+def assign_role(service: AuthService, user_id: str, role_name: str) -> None:
     require_permission(service._user_session, "auth.manage", operation_label="assign role")
     user = service._require_user(user_id)
     existing_role_names = service.get_user_role_names(user.id)
@@ -21,7 +26,7 @@ def assign_role(service, user_id: str, role_name: str) -> None:
     refresh_current_session_if_user(service, user.id)
 
 
-def revoke_role(service, user_id: str, role_name: str) -> None:
+def revoke_role(service: AuthService, user_id: str, role_name: str) -> None:
     require_permission(service._user_session, "auth.manage", operation_label="revoke role")
     user = service._require_user(user_id)
     role = service._require_role_by_name(role_name)

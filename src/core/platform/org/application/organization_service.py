@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -18,6 +20,10 @@ from src.core.platform.org.support import (
     normalize_name,
 )
 
+if TYPE_CHECKING:
+    from src.core.platform.audit.application.audit_service import AuditService
+    from src.core.platform.auth.domain.session import UserSessionContext
+
 
 class OrganizationService:
     def __init__(
@@ -25,8 +31,8 @@ class OrganizationService:
         session: Session,
         organization_repo: OrganizationRepository,
         *,
-        user_session=None,
-        audit_service=None,
+        user_session: UserSessionContext | None = None,
+        audit_service: AuditService | None = None,
     ):
         self._session = session
         self._organization_repo = organization_repo

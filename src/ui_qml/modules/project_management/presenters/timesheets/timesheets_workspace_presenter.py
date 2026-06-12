@@ -24,7 +24,6 @@ from .command_handler import (
 from .review_builder import build_review_detail
 from .workspace_builder import build_workspace_state
 
-
 class ProjectTimesheetsWorkspacePresenter:
     def __init__(
         self,
@@ -79,6 +78,5 @@ class ProjectTimesheetsWorkspacePresenter:
 
     def unlock_period(self, payload: dict[str, Any]) -> None:
         unlock_period(self._desktop_api, payload)
-
 
 __all__ = ["ProjectTimesheetsWorkspacePresenter"]

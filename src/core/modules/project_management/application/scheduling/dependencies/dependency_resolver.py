@@ -4,7 +4,6 @@ from src.core.platform.calendar.application.calendar_protocol import CalendarPro
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Dict, List, Optional
 
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 from src.core.modules.project_management.domain.enums import DependencyType
@@ -14,9 +13,9 @@ from src.core.modules.project_management.domain.enums import DependencyType
 class DependencyDateResult:
     """Resolved earliest start/finish for a task given its incoming dependencies."""
     task_id: str
-    earliest_start: Optional[date]
-    earliest_finish: Optional[date]
-    resolved_from: List[str]  # predecessor task IDs that drove this result
+    earliest_start: date | None
+    earliest_finish: date | None
+    resolved_from: list[str]  # predecessor task IDs that drove this result
 
 
 class DependencyResolver:
@@ -39,9 +38,9 @@ class DependencyResolver:
     def resolve_early_dates(
         self,
         task: Task,
-        incoming_deps: List[TaskDependency],
-        es: Dict[str, Optional[date]],
-        ef: Dict[str, Optional[date]],
+        incoming_deps: list[TaskDependency],
+        es: dict[str, date | None],
+        ef: dict[str, date | None],
     ) -> DependencyDateResult:
         """
         Compute the earliest start / finish for *task* given its predecessor dates.
@@ -54,8 +53,8 @@ class DependencyResolver:
         if not incoming_deps:
             return self._anchor_from_task(task, duration, is_milestone)
 
-        candidate_es: List[date] = []
-        drivers: List[str] = []
+        candidate_es: list[date] = []
+        drivers: list[str] = []
 
         for dep in incoming_deps:
             cand = self._candidate_start(dep, es, ef, duration)
@@ -75,16 +74,16 @@ class DependencyResolver:
     def resolve_late_dates_contribution(
         self,
         dep: TaskDependency,
-        succ_ls: Optional[date],
-        succ_lf: Optional[date],
+        succ_ls: date | None,
+        succ_lf: date | None,
         pred_duration: int,
-    ) -> tuple[Optional[date], Optional[date]]:
+    ) -> tuple[date | None, date | None]:
         """
         Return (candidate_lf, candidate_ls) that a single dependency contributes
         to the predecessor's latest dates during the backward pass.
         """
-        cand_lf: Optional[date] = None
-        cand_ls: Optional[date] = None
+        cand_lf: date | None = None
+        cand_ls: date | None = None
 
         if dep.dependency_type == DependencyType.FINISH_TO_START:
             if succ_ls is not None:
@@ -106,10 +105,10 @@ class DependencyResolver:
     def _candidate_start(
         self,
         dep: TaskDependency,
-        es: Dict[str, Optional[date]],
-        ef: Dict[str, Optional[date]],
+        es: dict[str, date | None],
+        ef: dict[str, date | None],
         duration: int,
-    ) -> Optional[date]:
+    ) -> date | None:
         pred_es = es.get(dep.predecessor_task_id)
         pred_ef = ef.get(dep.predecessor_task_id)
 

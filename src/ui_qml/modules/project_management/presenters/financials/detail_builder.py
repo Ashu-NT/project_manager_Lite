@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsDetailFieldViewModel,
     FinancialsDetailViewModel,
@@ -7,8 +9,7 @@ from src.ui_qml.modules.project_management.view_models.financials import (
 
 from .record_mappers import build_cost_state
 
-
-def build_detail_view_model(cost) -> FinancialsDetailViewModel:
+def build_detail_view_model(cost: Any) -> FinancialsDetailViewModel:
     if cost is None:
         return FinancialsDetailViewModel(
             title="No cost item selected",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
 from src.core.modules.project_management.domain.risk.register import RegisterEntrySeverity
 from src.ui_qml.modules.project_management.view_models.register import RegisterCollectionViewModel
@@ -8,9 +9,8 @@ from src.ui_qml.modules.project_management.view_models.register import RegisterC
 from .entry_mapper import to_record_view_model
 from .utils import WorkspaceMode, is_active
 
-
-def urgent_entries(filtered_entries) -> list[object]:
-    def sort_key(entry) -> tuple[int, int, date, str]:
+def urgent_entries(filtered_entries: Any) -> list[Any]:
+    def sort_key(entry: Any) -> tuple[int, int, date, str]:
         severity_order = {
             RegisterEntrySeverity.CRITICAL.value: 0,
             RegisterEntrySeverity.HIGH.value: 1,
@@ -30,9 +30,8 @@ def urgent_entries(filtered_entries) -> list[object]:
         key=sort_key,
     )
 
-
 def build_urgent_collection(
-    filtered_entries,
+    filtered_entries: Any,
     *,
     workspace_mode: WorkspaceMode,
 ) -> RegisterCollectionViewModel:

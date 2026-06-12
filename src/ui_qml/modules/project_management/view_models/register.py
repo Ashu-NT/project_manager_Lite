@@ -3,13 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-
 @dataclass(frozen=True)
 class RegisterMetricViewModel:
     label: str
     value: str
     supporting_text: str
-
 
 @dataclass(frozen=True)
 class RegisterOverviewViewModel:
@@ -17,12 +15,10 @@ class RegisterOverviewViewModel:
     subtitle: str
     metrics: tuple[RegisterMetricViewModel, ...]
 
-
 @dataclass(frozen=True)
 class RegisterSelectorOptionViewModel:
     value: str
     label: str
-
 
 @dataclass(frozen=True)
 class RegisterRecordViewModel:
@@ -37,13 +33,11 @@ class RegisterRecordViewModel:
     can_tertiary_action: bool = False
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class RegisterDetailFieldViewModel:
     label: str
     value: str
     supporting_text: str = ""
-
 
 @dataclass(frozen=True)
 class RegisterDetailViewModel:
@@ -56,14 +50,12 @@ class RegisterDetailViewModel:
     fields: tuple[RegisterDetailFieldViewModel, ...] = field(default_factory=tuple)
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class RegisterCollectionViewModel:
     title: str
     subtitle: str
     empty_state: str
     items: tuple[RegisterRecordViewModel, ...] = field(default_factory=tuple)
-
 
 @dataclass(frozen=True)
 class RegisterWorkspaceViewModel:
@@ -82,7 +74,6 @@ class RegisterWorkspaceViewModel:
     selected_entry_detail: RegisterDetailViewModel = field(default_factory=RegisterDetailViewModel)
     urgent_entries: RegisterCollectionViewModel = field(default_factory=lambda: RegisterCollectionViewModel("", "", ""))
     empty_state: str = ""
-
 
 __all__ = [
     "RegisterCollectionViewModel",

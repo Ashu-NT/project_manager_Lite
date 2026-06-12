@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import heapq
-from typing import Callable, Dict, List
+from typing import Callable
 
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
@@ -9,7 +9,7 @@ from src.core.modules.project_management.domain.tasks.task import Task, TaskDepe
 
 def build_project_dependency_graph(
     tasks_by_id: Dict[str, Task],
-    deps: List[TaskDependency],
+    deps: list[TaskDependency],
     priority_value: Callable[[Task], int],
 ) -> tuple[list[str], dict[str, list[TaskDependency]], dict[str, list[TaskDependency]]]:
     filtered_deps = [
@@ -18,8 +18,8 @@ def build_project_dependency_graph(
         if d.predecessor_task_id in tasks_by_id and d.successor_task_id in tasks_by_id
     ]
 
-    graph_succ: Dict[str, List[TaskDependency]] = {}
-    indegree: Dict[str, int] = {task_id: 0 for task_id in tasks_by_id}
+    graph_succ: dict[str, list[TaskDependency]] = {}
+    indegree: dict[str, int] = {task_id: 0 for task_id in tasks_by_id}
 
     for dep in filtered_deps:
         graph_succ.setdefault(dep.predecessor_task_id, []).append(dep)
@@ -58,8 +58,8 @@ def build_project_dependency_graph(
             code="SCHEDULE_CYCLE",
         )
 
-    deps_by_successor: Dict[str, List[TaskDependency]] = {}
-    deps_by_predecessor: Dict[str, List[TaskDependency]] = {}
+    deps_by_successor: dict[str, list[TaskDependency]] = {}
+    deps_by_predecessor: dict[str, list[TaskDependency]] = {}
     for dep in filtered_deps:
         deps_by_successor.setdefault(dep.successor_task_id, []).append(dep)
         deps_by_predecessor.setdefault(dep.predecessor_task_id, []).append(dep)

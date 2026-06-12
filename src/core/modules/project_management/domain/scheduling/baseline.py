@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
-from typing import Optional
 
 from src.core.modules.project_management.domain.identifiers import generate_id
 
@@ -24,10 +23,10 @@ class ProjectBaseline:
     created_at: date
     status: BaselineStatus = BaselineStatus.DRAFT
     version: int = 1
-    submitted_by: Optional[str] = None
-    submitted_at: Optional[date] = None
-    approved_by: Optional[str] = None
-    approved_at: Optional[date] = None
+    submitted_by: str | None = None
+    submitted_at: date | None = None
+    approved_by: str | None = None
+    approved_at: date | None = None
     notes: str = ""
 
     @staticmethod
@@ -78,8 +77,8 @@ class BaselineTask:
     baseline_id: str
     task_id: str
     task_name: str | None
-    baseline_start: Optional[date]
-    baseline_finish: Optional[date]
+    baseline_start: date | None
+    baseline_finish: date | None
     baseline_duration_days: int
     baseline_planned_cost: float = 0.0
 
@@ -88,8 +87,8 @@ class BaselineTask:
         baseline_id: str,
         task_id: str,
         task_name: str | None,
-        baseline_start: Optional[date],
-        baseline_finish: Optional[date],
+        baseline_start: date | None,
+        baseline_finish: date | None,
         baseline_duration_days: int,
         baseline_planned_cost: float,
     ) -> "BaselineTask":
@@ -119,7 +118,7 @@ class BaselineVarianceRecord:
     new_baseline_id: str
     superseded_baseline_id: str
     task_id: str
-    task_name: Optional[str]
+    task_name: str | None
     start_variance_days: int    # (new_start - old_start).days; positive = later
     finish_variance_days: int   # (new_finish - old_finish).days
     cost_variance: float        # new_planned_cost - old_planned_cost
@@ -131,7 +130,7 @@ class BaselineVarianceRecord:
         new_baseline_id: str,
         superseded_baseline_id: str,
         task_id: str,
-        task_name: Optional[str],
+        task_name: str | None,
         start_variance_days: int,
         finish_variance_days: int,
         cost_variance: float,

@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectCatalogMetricViewModel,
     ProjectCatalogOverviewViewModel,
 )
 
-
 def build_overview(
     *,
-    all_projects,
-    filtered_projects,
+    all_projects: Any,
+    filtered_projects: Any,
 ) -> ProjectCatalogOverviewViewModel:
     def count_by_status(status: str) -> int:
         return sum(1 for project in all_projects if project.status == status)
@@ -45,7 +46,6 @@ def build_overview(
             ),
         ),
     )
-
 
 def build_empty_overview() -> ProjectCatalogOverviewViewModel:
     return ProjectCatalogOverviewViewModel(

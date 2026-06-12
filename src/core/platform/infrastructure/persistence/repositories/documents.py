@@ -22,7 +22,9 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyDocumentStructureRepository(DocumentStructureRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, structure: DocumentStructure) -> None:
@@ -83,7 +85,9 @@ class SqlAlchemyDocumentStructureRepository(DocumentStructureRepository):
 
 
 class SqlAlchemyDocumentRepository(DocumentRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, document: Document) -> None:
@@ -146,7 +150,9 @@ class SqlAlchemyDocumentRepository(DocumentRepository):
 
 
 class SqlAlchemyDocumentLinkRepository(DocumentLinkRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, link: DocumentLink) -> None:

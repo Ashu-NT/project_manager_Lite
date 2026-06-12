@@ -28,7 +28,6 @@ from .storeroom_command_handler import (
 )
 from .workspace_builder import build_workspace_state
 
-
 class InventoryInventoryWorkspacePresenter:
     def __init__(
         self,

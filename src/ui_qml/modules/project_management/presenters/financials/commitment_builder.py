@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsCommitmentSummaryViewModel,
 )
 
-
-def build_commitment_summary(summary_dto) -> FinancialsCommitmentSummaryViewModel:
+def build_commitment_summary(summary_dto: Any) -> FinancialsCommitmentSummaryViewModel:
     return FinancialsCommitmentSummaryViewModel(
         planned_label=summary_dto.planned_label,
         uncommitted_label=summary_dto.uncommitted_label,

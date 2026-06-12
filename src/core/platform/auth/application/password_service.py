@@ -14,8 +14,10 @@ from .session_utils import next_session_expiry, rotate_session_revision
 if TYPE_CHECKING:
     from src.core.platform.auth.domain import UserAccount
 
+    from .auth_service import AuthService
 
-def change_password(service, user_id: str, current_password: str, new_password: str) -> None:
+
+def change_password(service: AuthService, user_id: str, current_password: str, new_password: str) -> None:
     user = service._require_user(user_id)
     if not verify_password(current_password, user.password_hash):
         raise ValidationError("Current password is incorrect.", code="AUTH_FAILED")
@@ -33,7 +35,7 @@ def change_password(service, user_id: str, current_password: str, new_password: 
     refresh_current_session_if_user(service, user.id)
 
 
-def force_user_password_reset(service, user_id: str) -> None:
+def force_user_password_reset(service: AuthService, user_id: str) -> None:
     require_permission(service._user_session, "auth.manage", operation_label="force password reset")
     user = service._require_user(user_id)
     user.must_change_password = True
@@ -45,7 +47,7 @@ def force_user_password_reset(service, user_id: str) -> None:
     domain_events.auth_changed.emit(user.id)
 
 
-def reset_user_password(service, user_id: str, new_password: str) -> None:
+def reset_user_password(service: AuthService, user_id: str, new_password: str) -> None:
     require_permission(service._user_session, "auth.manage", operation_label="reset user password")
     user = service._require_user(user_id)
     service._validate_password(new_password)

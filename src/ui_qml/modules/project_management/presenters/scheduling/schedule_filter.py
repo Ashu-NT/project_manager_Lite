@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from typing import Any
+
 from .formatters import format_date
 
-
 def matches_schedule_filters(
-    item,
+    item: Any,
     *,
     status_filter: str,
     search_text: str,
@@ -29,6 +30,5 @@ def matches_schedule_filters(
         format_date(item.finish_date),
     )
     return any(normalized_search in str(value or "").casefold() for value in haystacks)
-
 
 __all__ = ["matches_schedule_filters"]

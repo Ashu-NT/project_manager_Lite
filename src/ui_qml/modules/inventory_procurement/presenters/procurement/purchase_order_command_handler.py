@@ -18,7 +18,6 @@ from .validation import (
     require_text,
 )
 
-
 def create_purchase_order(desktop_api, payload: dict[str, Any]) -> None:
     desktop_api.create_purchase_order(
         InventoryPurchaseOrderCreateCommand(
@@ -39,7 +38,6 @@ def create_purchase_order(desktop_api, payload: dict[str, Any]) -> None:
             notes=optional_text(payload, "notes") or "",
         )
     )
-
 
 def update_purchase_order(desktop_api, payload: dict[str, Any]) -> None:
     desktop_api.update_purchase_order(
@@ -67,7 +65,6 @@ def update_purchase_order(desktop_api, payload: dict[str, Any]) -> None:
             expected_version=optional_int(payload, "expectedVersion"),
         )
     )
-
 
 def add_purchase_order_line(desktop_api, payload: dict[str, Any]) -> None:
     desktop_api.add_purchase_order_line(
@@ -100,24 +97,20 @@ def add_purchase_order_line(desktop_api, payload: dict[str, Any]) -> None:
         )
     )
 
-
 def submit_purchase_order(desktop_api, purchase_order_id: str) -> None:
     desktop_api.submit_purchase_order(
         require_identifier(purchase_order_id, "Select a purchase order before submitting it.")
     )
-
 
 def send_purchase_order(desktop_api, purchase_order_id: str) -> None:
     desktop_api.send_purchase_order(
         require_identifier(purchase_order_id, "Select a purchase order before sending it.")
     )
 
-
 def cancel_purchase_order(desktop_api, purchase_order_id: str) -> None:
     desktop_api.cancel_purchase_order(
         require_identifier(purchase_order_id, "Select a purchase order before cancelling it.")
     )
-
 
 def close_purchase_order(desktop_api, purchase_order_id: str) -> None:
     desktop_api.close_purchase_order(

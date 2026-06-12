@@ -14,7 +14,6 @@ from .command_handler import create_entry, delete_entry, suggest_code, update_en
 from .utils import WorkspaceMode
 from .workspace_builder import build_workspace_state
 
-
 class ProjectRegisterWorkspacePresenter:
     def __init__(
         self,
@@ -57,6 +56,5 @@ class ProjectRegisterWorkspacePresenter:
 
     def delete_entry(self, entry_id: str) -> None:
         delete_entry(self._desktop_api, entry_id)
-
 
 __all__ = ["ProjectRegisterWorkspacePresenter"]

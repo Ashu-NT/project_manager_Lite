@@ -5,7 +5,6 @@ from src.core.platform.calendar.application.calendar_protocol import CalendarPro
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import Dict, List, Optional
 
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
@@ -34,14 +33,14 @@ class ConstraintViolation:
 
 @dataclass
 class ConstraintValidationResult:
-    violations: List[ConstraintViolation]
+    violations: list[ConstraintViolation]
 
     @property
     def is_valid(self) -> bool:
         return len(self.violations) == 0
 
     @property
-    def hard_violations(self) -> List[ConstraintViolation]:
+    def hard_violations(self) -> list[ConstraintViolation]:
         """Violations that represent firm date mismatches (MSO / MFO / hard limits)."""
         hard = {
             ConstraintType.MUST_START_ON,
@@ -53,7 +52,7 @@ class ConstraintValidationResult:
         return [v for v in self.violations if v.constraint_type in hard]
 
     @property
-    def soft_violations(self) -> List[ConstraintViolation]:
+    def soft_violations(self) -> list[ConstraintViolation]:
         soft = {
             ConstraintType.START_NO_EARLIER_THAN,
             ConstraintType.FINISH_NO_EARLIER_THAN,
@@ -80,10 +79,10 @@ class ConstraintValidator:
 
     def validate(
         self,
-        tasks_by_id: Dict[str, Task],
-        cpm_result: Dict[str, CPMTaskInfo],
+        tasks_by_id: dict[str, Task],
+        cpm_result: dict[str, CPMTaskInfo],
     ) -> ConstraintValidationResult:
-        violations: List[ConstraintViolation] = []
+        violations: list[ConstraintViolation] = []
         for task_id, task in tasks_by_id.items():
             info = cpm_result.get(task_id)
             if info is None:
@@ -93,8 +92,8 @@ class ConstraintValidator:
 
     # ── per-task checks ─────────────────────────────────────────────────────
 
-    def _check_task(self, task: Task, info: CPMTaskInfo) -> List[ConstraintViolation]:
-        violations: List[ConstraintViolation] = []
+    def _check_task(self, task: Task, info: CPMTaskInfo) -> list[ConstraintViolation]:
+        violations: list[ConstraintViolation] = []
         ct = self._constraint_type(task)
         cd = self._constraint_date(task)
 
@@ -152,7 +151,7 @@ class ConstraintValidator:
 
     # ── duck-typed attribute readers ────────────────────────────────────────
 
-    def _constraint_type(self, task: Task) -> Optional[ConstraintType]:
+    def _constraint_type(self, task: Task) -> ConstraintType | None:
         raw = getattr(task, "constraint_type", None)
         if raw is None:
             return None
@@ -163,7 +162,7 @@ class ConstraintValidator:
         except ValueError:
             return None
 
-    def _constraint_date(self, task: Task) -> Optional[date]:
+    def _constraint_date(self, task: Task) -> date | None:
         return getattr(task, "constraint_date", None)
 
 

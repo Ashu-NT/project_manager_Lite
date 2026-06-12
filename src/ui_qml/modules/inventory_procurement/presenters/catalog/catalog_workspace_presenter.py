@@ -26,7 +26,6 @@ from .item_command_handler import (
 )
 from .workspace_builder import build_workspace_state as _build_workspace_state
 
-
 class InventoryCatalogWorkspacePresenter:
     def __init__(
         self,
@@ -97,6 +96,5 @@ class InventoryCatalogWorkspacePresenter:
 
     def unlink_document(self, item_id: str, document_id: str) -> None:
         unlink_document(self._desktop_api, item_id, document_id)
-
 
 __all__ = ["InventoryCatalogWorkspacePresenter"]

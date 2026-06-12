@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingCollectionViewModel,
     SchedulingRecordViewModel,
@@ -7,13 +9,12 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
 
 from .overview_builder import count_open_ends
 
-
 def build_diagnostics_collection(
     *,
-    schedule_items,
-    filtered_schedule,
-    dependency_rows,
-    resource_load,
+    schedule_items: Any,
+    filtered_schedule: Any,
+    dependency_rows: Any,
+    resource_load: Any,
 ) -> SchedulingCollectionViewModel:
     open_ends = count_open_ends(schedule_items, dependency_rows)
     negative_float = sum(
@@ -84,6 +85,5 @@ def build_diagnostics_collection(
         items=rows,
         empty_state="No diagnostics are available yet.",
     )
-
 
 __all__ = ["build_diagnostics_collection"]

@@ -15,7 +15,6 @@ from src.core.modules.project_management.api.desktop import (
 
 from .validation import optional_text, require_date, require_int, require_text
 
-
 def create_baseline(
     desktop_api: ProjectManagementSchedulingDesktopApi,
     payload: dict[str, Any],
@@ -31,7 +30,6 @@ def create_baseline(
         )
     )
 
-
 def delete_baseline(
     desktop_api: ProjectManagementSchedulingDesktopApi,
     baseline_id: str,
@@ -40,7 +38,6 @@ def delete_baseline(
     if not normalized_id:
         raise ValueError("Select a baseline before deleting it.")
     desktop_api.delete_baseline(normalized_id)
-
 
 def submit_baseline(
     desktop_api: ProjectManagementSchedulingDesktopApi,
@@ -53,7 +50,6 @@ def submit_baseline(
         SchedulingBaselineSubmitCommand(baseline_id=normalized_id)
     )
 
-
 def approve_baseline(
     desktop_api: ProjectManagementSchedulingDesktopApi,
     baseline_id: str,
@@ -64,7 +60,6 @@ def approve_baseline(
     desktop_api.approve_baseline(
         SchedulingBaselineApproveCommand(baseline_id=normalized_id)
     )
-
 
 def reject_baseline(
     desktop_api: ProjectManagementSchedulingDesktopApi,
@@ -77,7 +72,6 @@ def reject_baseline(
         SchedulingBaselineRejectCommand(baseline_id=normalized_id)
     )
 
-
 def recalculate_schedule(
     desktop_api: ProjectManagementSchedulingDesktopApi,
     project_id: str,
@@ -86,7 +80,6 @@ def recalculate_schedule(
     if not normalized_id:
         raise ValueError("Select a project before recalculating the schedule.")
     desktop_api.recalculate_schedule(normalized_id)
-
 
 def create_dependency(
     desktop_api: ProjectManagementSchedulingDesktopApi,
@@ -110,7 +103,6 @@ def create_dependency(
         )
     )
 
-
 def update_dependency(
     desktop_api: ProjectManagementSchedulingDesktopApi,
     payload: dict[str, Any],
@@ -129,7 +121,6 @@ def update_dependency(
         current_task_id=current_task_id,
     )
 
-
 def delete_dependency(
     desktop_api: ProjectManagementSchedulingDesktopApi,
     dependency_id: str,
@@ -138,7 +129,6 @@ def delete_dependency(
     if not normalized_id:
         raise ValueError("Select a dependency before deleting it.")
     desktop_api.delete_dependency(normalized_id)
-
 
 def calculate_working_days(
     desktop_api: ProjectManagementSchedulingDesktopApi,
@@ -165,7 +155,6 @@ def calculate_working_days(
         f"(skipped {calculation.skipped_non_working_days} non-working days)."
     )
 
-
 def export_schedule(project_id: str) -> str:
     if not str(project_id or "").strip():
         raise ValueError("Select a project before exporting the schedule.")
@@ -173,7 +162,6 @@ def export_schedule(project_id: str) -> str:
         "Export is not available here. Open the Reports section to generate schedule reports, "
         "Gantt exports, and baseline comparisons."
     )
-
 
 __all__ = [
     "create_baseline",

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.register import (
     RegisterDetailFieldViewModel,
     RegisterDetailViewModel,
@@ -8,8 +10,7 @@ from src.ui_qml.modules.project_management.view_models.register import (
 from .entry_mapper import build_entry_state
 from .utils import WorkspaceMode
 
-
-def build_detail_view_model(entry, *, workspace_mode: WorkspaceMode) -> RegisterDetailViewModel:
+def build_detail_view_model(entry: Any, *, workspace_mode: WorkspaceMode) -> RegisterDetailViewModel:
     if entry is None:
         return RegisterDetailViewModel(
             title="No entry selected",

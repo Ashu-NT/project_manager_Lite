@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable
 
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.modules.project_management.contracts.repositories.project import (
@@ -24,7 +24,7 @@ from src.core.modules.project_management.application.financials.models.finance_m
     CostSourceRow,
 )
 
-CostBucketKey = Tuple[CostType, str]
+CostBucketKey = tuple[CostType, str]
 
 
 @dataclass
@@ -33,9 +33,9 @@ class CostPolicySnapshot:
     project_id: str
     project_currency: str | None
     budget: float
-    planned_map: Dict[CostBucketKey, float]
-    committed_map: Dict[CostBucketKey, float]
-    actual_map: Dict[CostBucketKey, float]
+    planned_map: dict[CostBucketKey, float]
+    committed_map: dict[CostBucketKey, float]
+    actual_map: dict[CostBucketKey, float]
     planned_labor_total: float
     actual_labor_total: float
     include_manual_labor_planned: bool
@@ -78,7 +78,7 @@ class CostPolicyEngine:
         cost_repo: CostRepository,
         project_resource_repo: ProjectResourceRepository,
         resource_repo: ResourceRepository,
-        get_labor_details: Optional[Callable] = None,
+        get_labor_details: Callable | None = None,
     ) -> None:
         self._project_repo = project_repo
         self._cost_repo = cost_repo
@@ -116,9 +116,9 @@ class CostPolicyEngine:
             include_manual_labor_planned and include_manual_labor_actual
         )
 
-        planned_map: Dict[CostBucketKey, float] = {}
-        committed_map: Dict[CostBucketKey, float] = {}
-        actual_map: Dict[CostBucketKey, float] = {}
+        planned_map: dict[CostBucketKey, float] = {}
+        committed_map: dict[CostBucketKey, float] = {}
+        actual_map: dict[CostBucketKey, float] = {}
 
         for item in self._cost_repo.list_by_project(project_id):
             cost_type = getattr(item, "cost_type", None) or CostType.OTHER
@@ -344,7 +344,7 @@ class CostPolicyEngine:
 
     def _add_bucket(
         self,
-        target: Dict[CostBucketKey, float],
+        target: dict[CostBucketKey, float],
         *,
         cost_type: CostType,
         currency: str,
@@ -362,7 +362,7 @@ class CostPolicyEngine:
 
     def _sum_bucket_map(
         self,
-        values: Dict[CostBucketKey, float],
+        values: dict[CostBucketKey, float],
         project_currency: str | None,
     ) -> float:
         if not project_currency:
@@ -374,7 +374,7 @@ class CostPolicyEngine:
 
     def _sum_bucket_for_type(
         self,
-        values: Dict[CostBucketKey, float],
+        values: dict[CostBucketKey, float],
         *,
         cost_type: CostType,
         project_currency: str | None,
@@ -390,7 +390,7 @@ class CostPolicyEngine:
 
     def _sum_bucket_excluding_type(
         self,
-        values: Dict[CostBucketKey, float],
+        values: dict[CostBucketKey, float],
         *,
         excluded_type: CostType,
         project_currency: str | None,
@@ -406,8 +406,8 @@ class CostPolicyEngine:
 
     def _resolve_planned_labor_map(
         self, project_id: str, project_currency: str | None
-    ) -> Dict[str, float]:
-        planned_labor_by_currency: Dict[str, float] = {}
+    ) -> dict[str, float]:
+        planned_labor_by_currency: dict[str, float] = {}
         prs = self._project_resource_repo.list_by_project(project_id) or []
         for pr in prs:
             if not getattr(pr, "is_active", True):
@@ -434,8 +434,8 @@ class CostPolicyEngine:
 
     def _resolve_actual_labor_map(
         self, project_id: str, project_currency: str | None
-    ) -> Dict[str, float]:
-        actual_labor_by_currency: Dict[str, float] = {}
+    ) -> dict[str, float]:
+        actual_labor_by_currency: dict[str, float] = {}
         if self._get_labor_details is None:
             return actual_labor_by_currency
         for row in self._get_labor_details(project_id):

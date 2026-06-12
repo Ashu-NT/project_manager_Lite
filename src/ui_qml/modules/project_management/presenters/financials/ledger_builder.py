@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsCollectionViewModel,
     FinancialsRecordViewModel,
 )
 
-
-def build_ledger_collection(snapshot) -> FinancialsCollectionViewModel:
+def build_ledger_collection(snapshot: Any) -> FinancialsCollectionViewModel:
     return FinancialsCollectionViewModel(
         title="Ledger Trail",
         subtitle="Recent entries that feed the selected project's finance view.",

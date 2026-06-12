@@ -24,7 +24,7 @@ from src.core.platform.documents import DocumentIntegrationService, DocumentServ
 from src.core.platform.data_exchange import MasterDataExchangeService
 from src.core.platform.department import DepartmentService
 from src.core.platform.employee import EmployeeService
-from src.core.platform.org import OrganizationRepository, OrganizationService
+from src.core.platform.org import Organization, OrganizationRepository, OrganizationService
 from src.core.platform.site import SiteRepository, SiteService
 from src.core.platform.site.access_policy import (
     SITE_SCOPE_ROLE_CHOICES,
@@ -205,7 +205,7 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
     )
 
-    def _active_organization():
+    def _active_organization() -> Organization | None:
         return tenant_context_service.get_active_organization()
 
     def _active_organization_id() -> str | None:
@@ -338,7 +338,7 @@ def build_platform_service_bundle(
         user_session=user_session,
     )
 
-    def _get_active_org_id():
+    def _get_active_org_id() -> str:
         return tenant_context_service.get_active_organization_id() or ""
 
     enterprise_calendar_resolver = EnterpriseCalendarResolver(

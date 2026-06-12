@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -42,10 +43,10 @@ class TimeService(
         timesheet_period_repo: TimesheetPeriodRepository | None,
         user_session: UserSessionContext | None = None,
         audit_service: AuditService | None = None,
-        module_catalog_service=None,
+        module_catalog_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
         scope_organization_resolver: Callable[[str, str], str | None] | None = None,
-    ):
+    ) -> None:
         self._session: Session = session
         self._work_allocation_repo: WorkAllocationRepository = assignment_repo
         self._assignment_repo: WorkAllocationRepository = assignment_repo

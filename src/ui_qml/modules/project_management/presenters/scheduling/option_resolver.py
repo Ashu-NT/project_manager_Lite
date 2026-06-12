@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingSelectorOptionViewModel,
 )
-
 
 def resolve_project_id(
     project_id: str | None,
@@ -17,7 +18,6 @@ def resolve_project_id(
         return project_options[0].value
     return ""
 
-
 def resolve_selected_option(
     selected_value: str | None,
     options: tuple[SchedulingSelectorOptionViewModel, ...],
@@ -30,7 +30,6 @@ def resolve_selected_option(
     if options:
         return options[0].value
     return default_value
-
 
 def resolve_baseline_ids(
     *,
@@ -49,9 +48,8 @@ def resolve_baseline_ids(
         normalized_b = option_values[0]
     return normalized_a, normalized_b
 
-
 def build_status_options(
-    schedule_items,
+    schedule_items: Any,
 ) -> tuple[SchedulingSelectorOptionViewModel, ...]:
     labels = sorted(
         {
@@ -71,12 +69,11 @@ def build_status_options(
         ),
     )
 
-
 def resolve_selected_activity_id(
     selected_activity_id: str | None,
     *,
-    filtered_schedule,
-    paged_schedule,
+    filtered_schedule: Any,
+    paged_schedule: Any,
 ) -> str:
     normalized_id = (selected_activity_id or "").strip()
     filtered_ids = {item.id for item in filtered_schedule}
@@ -85,7 +82,6 @@ def resolve_selected_activity_id(
     if paged_schedule:
         return paged_schedule[0].id
     return ""
-
 
 __all__ = [
     "resolve_project_id",

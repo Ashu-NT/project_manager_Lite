@@ -17,8 +17,10 @@ from .session_utils import next_session_expiry, rotate_session_revision, validat
 if TYPE_CHECKING:
     from src.core.platform.auth.domain import UserAccount
 
+    from .auth_service import AuthService
 
-def revoke_all_persisted_sessions(service, user: UserAccount, *, revoked_at: datetime) -> None:
+
+def revoke_all_persisted_sessions(service: AuthService, user: UserAccount, *, revoked_at: datetime) -> None:
     if service._auth_session_repo is None:
         return
     for auth_session in service._auth_session_repo.list_by_user(user.id):
@@ -29,7 +31,7 @@ def revoke_all_persisted_sessions(service, user: UserAccount, *, revoked_at: dat
         service._auth_session_repo.update(auth_session)
 
 
-def resolve_current_principal_session_id(service, user_id: str) -> str | None:
+def resolve_current_principal_session_id(service: AuthService, user_id: str) -> str | None:
     if service._user_session is None:
         return None
     principal = service._user_session.principal
@@ -44,7 +46,7 @@ def resolve_current_principal_session_id(service, user_id: str) -> str | None:
     return session_id
 
 
-def refresh_current_session_if_user(service, user_id: str) -> None:
+def refresh_current_session_if_user(service: AuthService, user_id: str) -> None:
     if service._user_session is None:
         return
     principal = service._user_session.principal
@@ -62,7 +64,7 @@ def refresh_current_session_if_user(service, user_id: str) -> None:
 
 
 def set_user_session_policy(
-    service,
+    service: AuthService,
     user_id: str,
     *,
     session_timeout_minutes_override: int | None,
@@ -85,7 +87,7 @@ def set_user_session_policy(
     return user
 
 
-def revoke_user_sessions(service, user_id: str, *, note: str = "") -> UserAccount:
+def revoke_user_sessions(service: AuthService, user_id: str, *, note: str = "") -> UserAccount:
     require_any_permission(
         service._user_session,
         ("auth.manage", "security.manage"),
@@ -110,7 +112,7 @@ def revoke_user_sessions(service, user_id: str, *, note: str = "") -> UserAccoun
     return user
 
 
-def list_user_sessions(service, user_id: str) -> list[AuthSession]:
+def list_user_sessions(service: AuthService, user_id: str) -> list[AuthSession]:
     require_any_permission(
         service._user_session,
         ("auth.read", "auth.manage", "security.manage"),
@@ -122,7 +124,7 @@ def list_user_sessions(service, user_id: str) -> list[AuthSession]:
     return service._auth_session_repo.list_by_user(user.id)
 
 
-def revoke_session(service, session_id: str, *, note: str = "") -> AuthSession:
+def revoke_session(service: AuthService, session_id: str, *, note: str = "") -> AuthSession:
     require_any_permission(
         service._user_session,
         ("auth.manage", "security.manage"),
@@ -152,7 +154,7 @@ def revoke_session(service, session_id: str, *, note: str = "") -> AuthSession:
     return auth_session
 
 
-def validate_session_principal(service, principal: UserSessionPrincipal) -> UserSessionPrincipal | None:
+def validate_session_principal(service: AuthService, principal: UserSessionPrincipal) -> UserSessionPrincipal | None:
     user = service._user_repo.get(principal.user_id)
     if user is None or not user.is_active:
         return None

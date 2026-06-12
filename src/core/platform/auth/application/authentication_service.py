@@ -23,11 +23,13 @@ from .session_utils import next_session_expiry, normalize_device_label
 if TYPE_CHECKING:
     from src.core.platform.auth.domain import UserAccount
 
+    from .auth_service import AuthService
+
 logger = logging.getLogger(__name__)
 
 
 def complete_successful_authentication(
-    service,
+    service: AuthService,
     user: UserAccount,
     *,
     occurred_at: datetime,
@@ -73,7 +75,7 @@ def complete_successful_authentication(
 
 
 def register_failed_login(
-    service,
+    service: AuthService,
     user: UserAccount,
     *,
     username: str,
@@ -96,7 +98,7 @@ def register_failed_login(
 
 
 def authenticate(
-    service,
+    service: AuthService,
     username: str,
     raw_password: str,
     *,
@@ -176,7 +178,7 @@ def authenticate(
 
 
 def authenticate_federated(
-    service,
+    service: AuthService,
     *,
     identity_provider: str,
     federated_subject: str,

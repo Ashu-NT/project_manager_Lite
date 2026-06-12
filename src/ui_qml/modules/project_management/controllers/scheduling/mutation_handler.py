@@ -6,7 +6,6 @@ from src.ui_qml.modules.project_management.controllers.common import run_mutatio
 
 from .activity_log_service import ActivityLogService
 
-
 class SchedulingMutationHandler:
     def __init__(
         self,
@@ -142,6 +141,5 @@ class SchedulingMutationHandler:
             "Warning",
             str(dependency_id or ""),
         )
-
 
 __all__ = ["SchedulingMutationHandler"]

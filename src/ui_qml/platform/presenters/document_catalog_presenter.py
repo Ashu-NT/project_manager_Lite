@@ -25,7 +25,6 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionListViewModel,
 )
 
-
 class PlatformDocumentCatalogPresenter:
     def __init__(self, *, document_api: PlatformDocumentDesktopApi | None = None) -> None:
         self._document_api = document_api
@@ -239,6 +238,5 @@ class PlatformDocumentCatalogPresenter:
                 "version": row.version,
             },
         )
-
 
 __all__ = ["PlatformDocumentCatalogPresenter"]

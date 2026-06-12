@@ -21,7 +21,6 @@ from .command_handler import (
 )
 from .workspace_builder import build_workspace_state
 
-
 class ProjectPortfolioWorkspacePresenter:
     def __init__(
         self,
@@ -66,6 +65,5 @@ class ProjectPortfolioWorkspacePresenter:
 
     def update_intake_item_status(self, item_id: str, status: str) -> None:
         update_intake_item_status(self._desktop_api, item_id, status)
-
 
 __all__ = ["ProjectPortfolioWorkspacePresenter"]

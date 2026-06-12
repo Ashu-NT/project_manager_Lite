@@ -5,8 +5,6 @@ Business logic lives in financials/costs/labor_cost.py.
 
 from __future__ import annotations
 
-from typing import List
-
 from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
     ProjectResourceRepository,
@@ -25,7 +23,6 @@ from src.core.modules.project_management.infrastructure.reporting.models.report_
     LaborResourceRow,
 )
 
-
 class ReportingLaborMixin:
     _project_repo: ProjectRepository
     _task_repo: TaskRepository
@@ -42,7 +39,7 @@ class ReportingLaborMixin:
             project_resource_repo=self._project_resource_repo,
         )
 
-    def get_project_labor_details(self, project_id: str) -> List[LaborResourceRow]:
+    def get_project_labor_details(self, project_id: str) -> list[LaborResourceRow]:
         self._require_view("view labor details", project_id=project_id)
         return self._make_labor_engine().get_project_labor_details(project_id)
 

@@ -20,7 +20,6 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionListViewModel,
 )
 
-
 class PlatformSupportWorkspacePresenter:
     def __init__(self, *, support_api: PlatformSupportDesktopApi | None = None) -> None:
         self._support_api = support_api
@@ -274,6 +273,5 @@ class PlatformSupportWorkspacePresenter:
     def _event_label(value: str) -> str:
         text = str(value or "").replace(".", " ").replace("_", " ").strip()
         return text.title() or "Support Event"
-
 
 __all__ = ["PlatformSupportWorkspacePresenter"]

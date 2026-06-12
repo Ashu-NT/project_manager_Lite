@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, aliased
@@ -74,11 +73,11 @@ class SqlAlchemyPortfolioIntakeRepository(PortfolioIntakeRepository):
             stale_message="Portfolio intake item was updated by another user.",
         )
 
-    def get(self, item_id: str) -> Optional[PortfolioIntakeItem]:
+    def get(self, item_id: str) -> PortfolioIntakeItem | None:
         obj = self.session.get(PortfolioIntakeItemORM, item_id)
         return portfolio_intake_from_orm(obj) if obj else None
 
-    def get_for_organization(self, item_id: str, organization_id: str) -> Optional[PortfolioIntakeItem]:
+    def get_for_organization(self, item_id: str, organization_id: str) -> PortfolioIntakeItem | None:
         stmt = select(PortfolioIntakeItemORM).where(
             PortfolioIntakeItemORM.id == item_id,
             PortfolioIntakeItemORM.organization_id == organization_id,
@@ -86,7 +85,7 @@ class SqlAlchemyPortfolioIntakeRepository(PortfolioIntakeRepository):
         obj = self.session.execute(stmt).scalars().first()
         return portfolio_intake_from_orm(obj) if obj else None
 
-    def list_for_organization(self, organization_id: str) -> List[PortfolioIntakeItem]:
+    def list_for_organization(self, organization_id: str) -> list[PortfolioIntakeItem]:
         stmt = (
             select(PortfolioIntakeItemORM)
             .where(PortfolioIntakeItemORM.organization_id == organization_id)
@@ -111,11 +110,11 @@ class SqlAlchemyPortfolioScenarioRepository(PortfolioScenarioRepository):
     def update(self, scenario: PortfolioScenario) -> None:
         self.session.merge(portfolio_scenario_to_orm(scenario))
 
-    def get(self, scenario_id: str) -> Optional[PortfolioScenario]:
+    def get(self, scenario_id: str) -> PortfolioScenario | None:
         obj = self.session.get(PortfolioScenarioORM, scenario_id)
         return portfolio_scenario_from_orm(obj) if obj else None
 
-    def get_for_organization(self, scenario_id: str, organization_id: str) -> Optional[PortfolioScenario]:
+    def get_for_organization(self, scenario_id: str, organization_id: str) -> PortfolioScenario | None:
         stmt = select(PortfolioScenarioORM).where(
             PortfolioScenarioORM.id == scenario_id,
             PortfolioScenarioORM.organization_id == organization_id,
@@ -123,7 +122,7 @@ class SqlAlchemyPortfolioScenarioRepository(PortfolioScenarioRepository):
         obj = self.session.execute(stmt).scalars().first()
         return portfolio_scenario_from_orm(obj) if obj else None
 
-    def list_for_organization(self, organization_id: str) -> List[PortfolioScenario]:
+    def list_for_organization(self, organization_id: str) -> list[PortfolioScenario]:
         stmt = (
             select(PortfolioScenarioORM)
             .where(PortfolioScenarioORM.organization_id == organization_id)
@@ -149,7 +148,7 @@ class SqlAlchemyPortfolioProjectDependencyRepository(PortfolioProjectDependencyR
         self,
         dependency_id: str,
         organization_id: str,
-    ) -> Optional[PortfolioProjectDependency]:
+    ) -> PortfolioProjectDependency | None:
         predecessor = aliased(ProjectORM)
         successor = aliased(ProjectORM)
         stmt = (
@@ -165,7 +164,7 @@ class SqlAlchemyPortfolioProjectDependencyRepository(PortfolioProjectDependencyR
         obj = self.session.execute(stmt).scalars().first()
         return portfolio_project_dependency_from_orm(obj) if obj else None
 
-    def list_for_organization(self, organization_id: str) -> List[PortfolioProjectDependency]:
+    def list_for_organization(self, organization_id: str) -> list[PortfolioProjectDependency]:
         predecessor = aliased(ProjectORM)
         successor = aliased(ProjectORM)
         stmt = (
@@ -212,11 +211,11 @@ class SqlAlchemyPortfolioScoringTemplateRepository(PortfolioScoringTemplateRepos
     def update(self, template: PortfolioScoringTemplate) -> None:
         self.session.merge(portfolio_scoring_template_to_orm(template))
 
-    def get(self, template_id: str) -> Optional[PortfolioScoringTemplate]:
+    def get(self, template_id: str) -> PortfolioScoringTemplate | None:
         obj = self.session.get(PortfolioScoringTemplateORM, template_id)
         return portfolio_scoring_template_from_orm(obj) if obj else None
 
-    def get_for_organization(self, template_id: str, organization_id: str) -> Optional[PortfolioScoringTemplate]:
+    def get_for_organization(self, template_id: str, organization_id: str) -> PortfolioScoringTemplate | None:
         stmt = select(PortfolioScoringTemplateORM).where(
             PortfolioScoringTemplateORM.id == template_id,
             PortfolioScoringTemplateORM.organization_id == organization_id,
@@ -224,7 +223,7 @@ class SqlAlchemyPortfolioScoringTemplateRepository(PortfolioScoringTemplateRepos
         obj = self.session.execute(stmt).scalars().first()
         return portfolio_scoring_template_from_orm(obj) if obj else None
 
-    def list_for_organization(self, organization_id: str) -> List[PortfolioScoringTemplate]:
+    def list_for_organization(self, organization_id: str) -> list[PortfolioScoringTemplate]:
         stmt = (
             select(PortfolioScoringTemplateORM)
             .where(PortfolioScoringTemplateORM.organization_id == organization_id)

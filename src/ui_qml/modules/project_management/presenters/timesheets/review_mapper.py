@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.timesheets import (
     TimesheetRecordViewModel,
 )
 
-
-def to_review_queue_record(row) -> TimesheetRecordViewModel:
+def to_review_queue_record(row: Any) -> TimesheetRecordViewModel:
     return TimesheetRecordViewModel(
         id=row.period_id,
         title=f"{row.resource_name} | {row.period_start_label}",

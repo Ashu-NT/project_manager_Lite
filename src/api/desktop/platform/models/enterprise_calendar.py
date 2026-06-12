@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, time
-from typing import Optional
 
 
 # ---------------------------------------------------------------------------
@@ -57,11 +56,11 @@ class CalendarUpdateCommand:
     description: str = ""
     timezone: str = ""
     locale: str = ""
-    is_default: Optional[bool] = None
-    is_active: Optional[bool] = None
+    is_default: bool | None = None
+    is_active: bool | None = None
     effective_from: str = ""
     effective_to: str = ""
-    priority: Optional[int] = None
+    priority: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -148,7 +147,7 @@ class ExceptionUpdateCommand:
     exception_type: str = ""
     impact_type: str = ""
     hours_override: float = 0.0
-    priority: Optional[int] = None
+    priority: int | None = None
     approval_status: str = ""
     approved_by: str = ""
 
@@ -206,8 +205,8 @@ class RecurringEventUpdateCommand:
     capacity_impact_percent: float = 0.0
     effective_from: str = ""
     effective_to: str = ""
-    is_active: Optional[bool] = None
-    priority: Optional[int] = None
+    is_active: bool | None = None
+    priority: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -259,7 +258,7 @@ class ShiftPatternUpdateCommand:
     pattern_type: str = ""
     timezone: str = ""
     rotation_cycle_days: int = 0
-    is_active: Optional[bool] = None
+    is_active: bool | None = None
 
 
 # ---------------------------------------------------------------------------

@@ -17,7 +17,6 @@ from .validation import (
     require_text,
 )
 
-
 def suggest_code(
     desktop_api: ProjectManagementResourcesDesktopApi,
     payload: dict[str, Any],
@@ -35,7 +34,6 @@ def suggest_code(
         name=name or None,
         use_year=not bool(name),
     )
-
 
 def create_resource(
     desktop_api: ProjectManagementResourcesDesktopApi,
@@ -56,7 +54,6 @@ def create_resource(
         employee_id=optional_text(payload, "employeeId"),
     )
     desktop_api.create_resource(command)
-
 
 def update_resource(
     desktop_api: ProjectManagementResourcesDesktopApi,
@@ -80,7 +77,6 @@ def update_resource(
     )
     desktop_api.update_resource(command)
 
-
 def toggle_resource_active(
     desktop_api: ProjectManagementResourcesDesktopApi,
     resource_id: str,
@@ -90,7 +86,6 @@ def toggle_resource_active(
     if not normalized_resource_id:
         raise ValueError("Resource ID is required to update availability.")
     desktop_api.toggle_resource_active(normalized_resource_id, expected_version=expected_version)
-
 
 def delete_resource(
     desktop_api: ProjectManagementResourcesDesktopApi,

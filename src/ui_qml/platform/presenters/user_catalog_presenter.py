@@ -23,7 +23,6 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionListViewModel,
 )
 
-
 class PlatformUserCatalogPresenter:
     def __init__(self, *, user_api: PlatformUserDesktopApi | None = None) -> None:
         self._user_api = user_api
@@ -199,6 +198,5 @@ class PlatformUserCatalogPresenter:
             for item in value
             if (role_name := str(item).strip())
         )
-
 
 __all__ = ["PlatformUserCatalogPresenter"]

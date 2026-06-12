@@ -4,7 +4,6 @@ from typing import Callable
 
 from src.ui_qml.platform.controllers.common import serialize_operation_result
 
-
 def run_admin_action(
     controller,
     *,
@@ -25,7 +24,6 @@ def run_admin_action(
         return result
     finally:
         controller._set_is_busy(False)
-
 
 def run_admin_result_action(
     controller,
@@ -49,6 +47,5 @@ def run_admin_result_action(
         return dict(payload)
     finally:
         controller._set_is_busy(False)
-
 
 __all__ = ["run_admin_action", "run_admin_result_action"]

@@ -4,7 +4,6 @@ from src.core.platform.calendar.application.calendar_protocol import CalendarPro
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Dict, List, Optional
 
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask, ProjectBaseline
@@ -16,14 +15,14 @@ from src.core.platform.common.exceptions import NotFoundError
 class TaskVariance:
     task_id: str
     task_name: str
-    baseline_start: Optional[date]
-    baseline_finish: Optional[date]
-    current_start: Optional[date]
-    current_finish: Optional[date]
-    start_variance_days: Optional[int]     # positive = delayed, negative = early
-    finish_variance_days: Optional[int]
-    duration_variance_days: Optional[int]
-    cost_variance: Optional[float]         # current_cost - baseline_cost
+    baseline_start: date | None
+    baseline_finish: date | None
+    current_start: date | None
+    current_finish: date | None
+    start_variance_days: int | None     # positive = delayed, negative = early
+    finish_variance_days: int | None
+    duration_variance_days: int | None
+    cost_variance: float | None         # current_cost - baseline_cost
     is_delayed: bool
     is_critical: bool
 
@@ -34,7 +33,7 @@ class BaselineComparisonReport:
     baseline_name: str
     project_id: str
     compared_at: date
-    task_variances: List[TaskVariance]
+    task_variances: list[TaskVariance]
     total_schedule_slippage_days: int      # max finish variance across all tasks
     tasks_delayed: int
     tasks_on_time: int
@@ -62,9 +61,9 @@ class BaselineComparisonService:
     def compare(
         self,
         project_id: str,
-        cpm_result: Dict[str, CPMTaskInfo],
-        baseline_id: Optional[str] = None,
-        current_costs_by_task: Optional[Dict[str, float]] = None,
+        cpm_result: dict[str, CPMTaskInfo],
+        baseline_id: str | None = None,
+        current_costs_by_task: Optional[dict[str, float]] = None,
     ) -> BaselineComparisonReport:
         """
         Compare cpm_result against the specified baseline (latest if None).
@@ -72,7 +71,7 @@ class BaselineComparisonService:
         current_costs_by_task: optional dict of task_id → actual/committed cost;
         if not supplied, cost variance is omitted from the report.
         """
-        baseline: Optional[ProjectBaseline] = (
+        baseline: ProjectBaseline | None = (
             self._baselines.get_baseline(baseline_id)
             if baseline_id
             else self._baselines.get_latest_for_project(project_id)
@@ -80,10 +79,10 @@ class BaselineComparisonService:
         if baseline is None:
             raise NotFoundError("No baseline found for comparison.", code="BASELINE_NOT_FOUND")
 
-        baseline_tasks: List[BaselineTask] = self._baselines.list_tasks(baseline.id)
-        baseline_by_task: Dict[str, BaselineTask] = {bt.task_id: bt for bt in baseline_tasks}
+        baseline_tasks: list[BaselineTask] = self._baselines.list_tasks(baseline.id)
+        baseline_by_task: dict[str, BaselineTask] = {bt.task_id: bt for bt in baseline_tasks}
 
-        variances: List[TaskVariance] = []
+        variances: list[TaskVariance] = []
         costs = current_costs_by_task or {}
 
         for task_id, info in cpm_result.items():
@@ -143,9 +142,9 @@ class BaselineComparisonService:
 
     def _working_variance(
         self,
-        baseline_date: Optional[date],
-        current_date: Optional[date],
-    ) -> Optional[int]:
+        baseline_date: date | None,
+        current_date: date | None,
+    ) -> int | None:
         """Positive = delayed, negative = early, 0 = on time."""
         if baseline_date is None or current_date is None:
             return None

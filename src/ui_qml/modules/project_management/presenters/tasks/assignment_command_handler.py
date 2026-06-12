@@ -11,7 +11,6 @@ from src.core.modules.project_management.api.desktop import (
 
 from .validation import require_float, require_text
 
-
 def create_assignment(desktop_api, payload: dict[str, Any]) -> None:
     command = TaskAssignmentCreateCommand(
         task_id=require_text(
@@ -26,7 +25,6 @@ def create_assignment(desktop_api, payload: dict[str, Any]) -> None:
     )
     desktop_api.create_assignment(command)
 
-
 def update_assignment_allocation(desktop_api, payload: dict[str, Any]) -> None:
     command = TaskAssignmentAllocationCommand(
         assignment_id=require_text(
@@ -40,7 +38,6 @@ def update_assignment_allocation(desktop_api, payload: dict[str, Any]) -> None:
     )
     desktop_api.update_assignment_allocation(command)
 
-
 def set_assignment_hours(desktop_api, payload: dict[str, Any]) -> None:
     command = TaskAssignmentHoursCommand(
         assignment_id=require_text(
@@ -52,13 +49,11 @@ def set_assignment_hours(desktop_api, payload: dict[str, Any]) -> None:
     )
     desktop_api.set_assignment_hours(command)
 
-
 def delete_assignment(desktop_api, assignment_id: str) -> None:
     normalized_assignment_id = (assignment_id or "").strip()
     if not normalized_assignment_id:
         raise ValueError("Assignment ID is required to remove an assignment.")
     desktop_api.delete_assignment(normalized_assignment_id)
-
 
 def preview_assignment(desktop_api, payload: dict[str, Any]) -> dict[str, object]:
     from src.core.modules.project_management.api.desktop.tasks import (
@@ -93,7 +88,6 @@ def preview_assignment(desktop_api, payload: dict[str, Any]) -> dict[str, object
         "isBlocked": dto.is_blocked,
         "blockMessages": list(dto.block_messages),
     }
-
 
 def validate_assignment(desktop_api, payload: dict[str, Any]) -> dict[str, object]:
     task_id = str(payload.get("taskId") or "").strip()

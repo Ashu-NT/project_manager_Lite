@@ -12,6 +12,7 @@ from src.core.platform.approval.contracts import ApprovalRepository
 from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from src.core.platform.auth.authorization import require_any_permission, require_permission
 from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.tenancy import TenantContextService
 
 ApplyHandler = Callable[[ApprovalRequest], None]
 
@@ -23,7 +24,7 @@ class ApprovalService:
         approval_repo: ApprovalRepository,
         user_session: UserSessionContext | None = None,
         audit_service: AuditService | None = None,
-        tenant_context_service=None,
+        tenant_context_service: TenantContextService | None = None,
     ):
         self._session = session
         self._approval_repo = approval_repo

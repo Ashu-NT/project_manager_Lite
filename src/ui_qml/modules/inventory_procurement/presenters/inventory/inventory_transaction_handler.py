@@ -17,7 +17,6 @@ from .validation import (
     require_text,
 )
 
-
 def post_opening_balance(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryOpeningBalanceCommand(
         stock_item_id=require_text(
@@ -36,7 +35,6 @@ def post_opening_balance(desktop_api, payload: dict[str, Any]) -> None:
         notes=optional_text(payload, "notes") or "",
     )
     desktop_api.post_opening_balance(command)
-
 
 def post_adjustment(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryAdjustmentCommand(
@@ -62,7 +60,6 @@ def post_adjustment(desktop_api, payload: dict[str, Any]) -> None:
     )
     desktop_api.post_adjustment(command)
 
-
 def issue_stock(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryIssueCommand(
         stock_item_id=require_text(
@@ -85,7 +82,6 @@ def issue_stock(desktop_api, payload: dict[str, Any]) -> None:
     )
     desktop_api.issue_stock(command)
 
-
 def return_stock(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryReturnCommand(
         stock_item_id=require_text(
@@ -104,7 +100,6 @@ def return_stock(desktop_api, payload: dict[str, Any]) -> None:
         notes=optional_text(payload, "notes") or "",
     )
     desktop_api.return_stock(command)
-
 
 def transfer_stock(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryTransferCommand(

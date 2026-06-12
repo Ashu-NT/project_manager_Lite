@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time
-from typing import Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -31,7 +31,7 @@ class CalendarExceptionService:
         session: Session,
         calendar_repo: PlatformCalendarRepository,
         exception_repo: CalendarExceptionRepository,
-        user_session=None,
+        user_session: Any = None,
     ) -> None:
         self._session = session
         self._calendar_repo = calendar_repo
@@ -42,8 +42,8 @@ class CalendarExceptionService:
         self,
         calendar_id: str,
         *,
-        start: Optional[date] = None,
-        end: Optional[date] = None,
+        start: date | None = None,
+        end: date | None = None,
     ) -> list[CalendarException]:
         require_permission(self._user_session, "task.read", operation_label="list exceptions")
         self._require_calendar(calendar_id)
@@ -57,12 +57,12 @@ class CalendarExceptionService:
         exception_type: str,
         name: str,
         impact_type: str,
-        scope_type: Optional[str] = None,
-        scope_id: Optional[str] = None,
-        description: Optional[str] = None,
-        start_time: Optional[time] = None,
-        end_time: Optional[time] = None,
-        hours_override: Optional[float] = None,
+        scope_type: str | None = None,
+        scope_id: str | None = None,
+        description: str | None = None,
+        start_time: time | None = None,
+        end_time: time | None = None,
+        hours_override: float | None = None,
         priority: int = 0,
         approval_status: str = "APPROVED",
     ) -> CalendarException:
@@ -101,16 +101,16 @@ class CalendarExceptionService:
         self,
         exception_id: str,
         *,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        exception_type: Optional[str] = None,
-        impact_type: Optional[str] = None,
-        start_time: Optional[time] = None,
-        end_time: Optional[time] = None,
-        hours_override: Optional[float] = None,
-        priority: Optional[int] = None,
-        approval_status: Optional[str] = None,
-        approved_by: Optional[str] = None,
+        name: str | None = None,
+        description: str | None = None,
+        exception_type: str | None = None,
+        impact_type: str | None = None,
+        start_time: time | None = None,
+        end_time: time | None = None,
+        hours_override: float | None = None,
+        priority: int | None = None,
+        approval_status: str | None = None,
+        approved_by: str | None = None,
     ) -> CalendarException:
         require_permission(
             self._user_session, "task.manage", operation_label="update calendar exception"
@@ -162,28 +162,28 @@ class CalendarExceptionService:
     # --- Entity-scoped helpers ---
 
     def add_site_exception(
-        self, site_id: str, calendar_id: str, **kwargs
+        self, site_id: str, calendar_id: str, **kwargs: Any
     ) -> CalendarException:
         return self.add_exception(
             calendar_id, scope_type="site", scope_id=site_id, **kwargs
         )
 
     def add_department_exception(
-        self, department_id: str, calendar_id: str, **kwargs
+        self, department_id: str, calendar_id: str, **kwargs: Any
     ) -> CalendarException:
         return self.add_exception(
             calendar_id, scope_type="department", scope_id=department_id, **kwargs
         )
 
     def add_employee_exception(
-        self, employee_id: str, calendar_id: str, **kwargs
+        self, employee_id: str, calendar_id: str, **kwargs: Any
     ) -> CalendarException:
         return self.add_exception(
             calendar_id, scope_type="employee", scope_id=employee_id, **kwargs
         )
 
     def add_resource_exception(
-        self, resource_id: str, calendar_id: str, **kwargs
+        self, resource_id: str, calendar_id: str, **kwargs: Any
     ) -> CalendarException:
         return self.add_exception(
             calendar_id, scope_type="resource", scope_id=resource_id, **kwargs

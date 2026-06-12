@@ -16,7 +16,6 @@ from .validation import (
     require_text,
 )
 
-
 def suggest_code(
     desktop_api: ProjectManagementProjectsDesktopApi,
     payload: dict[str, Any],
@@ -35,7 +34,6 @@ def suggest_code(
         use_year=not bool(name),
     )
 
-
 def create_project(
     desktop_api: ProjectManagementProjectsDesktopApi,
     payload: dict[str, Any],
@@ -53,7 +51,6 @@ def create_project(
         end_date=optional_date(payload, "endDate"),
     )
     desktop_api.create_project(command)
-
 
 def update_project(
     desktop_api: ProjectManagementProjectsDesktopApi,
@@ -75,7 +72,6 @@ def update_project(
     )
     desktop_api.update_project(command)
 
-
 def set_project_status(
     desktop_api: ProjectManagementProjectsDesktopApi,
     project_id: str,
@@ -88,7 +84,6 @@ def set_project_status(
     if not normalized_status:
         raise ValueError("Choose a project status before saving.")
     desktop_api.set_project_status(normalized_project_id, normalized_status)
-
 
 def delete_project(
     desktop_api: ProjectManagementProjectsDesktopApi,

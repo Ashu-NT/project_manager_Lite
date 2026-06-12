@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingCollectionViewModel,
     SchedulingDetailFieldViewModel,
@@ -9,8 +11,7 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
 
 from .formatters import constraint_label_for_activity, format_date, int_label
 
-
-def build_constraints_collection(selected_activity) -> SchedulingCollectionViewModel:
+def build_constraints_collection(selected_activity: Any) -> SchedulingCollectionViewModel:
     if selected_activity is None:
         return SchedulingCollectionViewModel(
             title="Constraints",
@@ -79,14 +80,13 @@ def build_constraints_collection(selected_activity) -> SchedulingCollectionViewM
         empty_state="No explicit schedule controls are recorded for the selected activity.",
     )
 
-
 def build_detail_view_model(
     *,
-    selected_activity,
+    selected_activity: Any,
     calendar_label: str,
-    dependency_rows,
-    resource_load,
-    baseline_rows,
+    dependency_rows: Any,
+    resource_load: Any,
+    baseline_rows: Any,
 ) -> SchedulingDetailViewModel:
     if selected_activity is None:
         return SchedulingDetailViewModel(
@@ -178,6 +178,5 @@ def build_detail_view_model(
             "progressPercent": float(selected_activity.percent_complete or 0.0),
         },
     )
-
 
 __all__ = ["build_constraints_collection", "build_detail_view_model"]

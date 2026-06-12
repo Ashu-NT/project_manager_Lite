@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsRecordViewModel,
 )
 
 from .formatters import format_amount, format_date_iso
 
-
-def build_cost_state(cost) -> dict[str, object]:
+def build_cost_state(cost: Any) -> dict[str, object]:
     return {
         "costId": cost.id,
         "projectId": cost.project_id,
@@ -33,8 +34,7 @@ def build_cost_state(cost) -> dict[str, object]:
         "version": cost.version,
     }
 
-
-def to_cost_record(cost) -> FinancialsRecordViewModel:
+def to_cost_record(cost: Any) -> FinancialsRecordViewModel:
     return FinancialsRecordViewModel(
         id=cost.id,
         title=cost.description,

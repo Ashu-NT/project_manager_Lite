@@ -4,7 +4,6 @@ from __future__ import annotations
 from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 
 from datetime import date
-from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -76,7 +75,7 @@ class SchedulingEngine(ResourceLevelingMixin):
         self._resource_repo: ResourceRepository | None = resource_repo
         self._calendar_resolver: CalendarResolver | None = calendar_resolver
         self._resource_calendar_map: dict[str, CalendarProtocol] = resource_calendar_map or {}
-        self._task_primary_resource: Dict[str, str] = {}  # task_id → resource_id, pre-loaded per run
+        self._task_primary_resource: dict[str, str] = {}  # task_id → resource_id, pre-loaded per run
         self._project_calendar_adapter: ProjectCalendarAdapter | None = project_calendar_adapter
 
     def recalculate_project_schedule(
@@ -84,7 +83,7 @@ class SchedulingEngine(ResourceLevelingMixin):
         project_id: str,
         *,
         persist: bool = True,
-    ) -> Dict[str, CPMTaskInfo]:
+    ) -> dict[str, CPMTaskInfo]:
         """
         Full CPM calculation for a project:
         - computes ES/EF (forward) and LS/LF (backward)
@@ -108,8 +107,8 @@ class SchedulingEngine(ResourceLevelingMixin):
             except Exception:
                 pass  # fall back to default WorkCalendarEngine
 
-        tasks_by_id: Dict[str, Task] = {t.id: t for t in tasks}
-        deps: List[TaskDependency] = self._dependency_repo.list_by_project(project_id)
+        tasks_by_id: dict[str, Task] = {t.id: t for t in tasks}
+        deps: list[TaskDependency] = self._dependency_repo.list_by_project(project_id)
 
         # Pre-load task→primary_resource for per-task calendar resolution
         if self._calendar_resolver and self._assignment_repo and self._resource_calendar_map:
@@ -170,10 +169,10 @@ class SchedulingEngine(ResourceLevelingMixin):
     def _compute_task_dates(
         self,
         task: Task,
-        incoming_deps: List[TaskDependency],
-        es: Dict[str, Optional[date]],
-        ef: Dict[str, Optional[date]],
-    ) -> tuple[Optional[date], Optional[date]]:
+        incoming_deps: list[TaskDependency],
+        es: dict[str, date | None],
+        ef: dict[str, date | None],
+    ) -> tuple[date | None, date | None]:
         self._task_calendar = self._resolve_task_calendar(task.id)
         est, eft = compute_task_dates_common(
             task=task,
@@ -202,9 +201,9 @@ class SchedulingEngine(ResourceLevelingMixin):
     def _apply_scheduling_constraints(
         self,
         task: Task,
-        est: Optional[date],
-        eft: Optional[date],
-    ) -> tuple[Optional[date], Optional[date]]:
+        est: date | None,
+        eft: date | None,
+    ) -> tuple[date | None, date | None]:
         """
         Apply forward-pass scheduling constraints (MSO, MFO, SNET, FNET).
 
@@ -216,7 +215,7 @@ class SchedulingEngine(ResourceLevelingMixin):
             return est, eft
 
         raw_ct = getattr(task, "constraint_type", None)
-        cd: Optional[date] = getattr(task, "constraint_date", None)
+        cd: date | None = getattr(task, "constraint_date", None)
         if raw_ct is None or cd is None:
             return est, eft
 
@@ -251,10 +250,10 @@ class SchedulingEngine(ResourceLevelingMixin):
     def _compute_dates_milestone(
         self,
         task: Task,
-        incoming_deps: List[TaskDependency],
-        es: Dict[str, Optional[date]],
-        ef: Dict[str, Optional[date]],
-    ) -> tuple[Optional[date], Optional[date]]:
+        incoming_deps: list[TaskDependency],
+        es: dict[str, date | None],
+        ef: dict[str, date | None],
+    ) -> tuple[date | None, date | None]:
         """
         Milestone or 0-duration task: ES = EF.
         """
@@ -263,7 +262,7 @@ class SchedulingEngine(ResourceLevelingMixin):
                 return task.start_date, task.start_date
             return None, None
 
-        candidates: List[date] = []
+        candidates: list[date] = []
 
         for dep in incoming_deps:
             pred_es = es.get(dep.predecessor_task_id)
@@ -295,11 +294,11 @@ class SchedulingEngine(ResourceLevelingMixin):
     def _compute_dates_with_duration(
         self,
         task: Task,
-        incoming_deps: List[TaskDependency],
-        es: Dict[str, Optional[date]],
-        ef: Dict[str, Optional[date]],
+        incoming_deps: list[TaskDependency],
+        es: dict[str, date | None],
+        ef: dict[str, date | None],
         duration: int,
-    ) -> tuple[Optional[date], Optional[date]]:
+    ) -> tuple[date | None, date | None]:
         """
         Normal task with duration > 0.
         """
@@ -310,7 +309,7 @@ class SchedulingEngine(ResourceLevelingMixin):
                 return est, eft
             return None, None
 
-        candidate_es: List[date] = []
+        candidate_es: list[date] = []
 
         for dep in incoming_deps:
             pred_es = es.get(dep.predecessor_task_id)
@@ -358,10 +357,10 @@ class SchedulingEngine(ResourceLevelingMixin):
     def _apply_actual_constraints(
         self,
         task: Task,
-        est: Optional[date],
-        eft: Optional[date],
+        est: date | None,
+        eft: date | None,
         duration_days: int,
-    ) -> tuple[Optional[date], Optional[date]]:
+    ) -> tuple[date | None, date | None]:
         """
         Enforce actual_start/actual_end onto computed ES/EF.
 

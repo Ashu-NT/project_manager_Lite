@@ -3,10 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.core.modules.project_management.domain.identifiers import generate_id
-
 
 class ColumnDataType(str, Enum):
     TEXT = "text"
@@ -18,7 +17,6 @@ class ColumnDataType(str, Enum):
     PERCENT = "percent"
     DURATION = "duration"
     STATUS = "status"
-
 
 class FilterOperator(str, Enum):
     EQUALS = "eq"
@@ -35,7 +33,6 @@ class FilterOperator(str, Enum):
     IS_NOT_NULL = "is_not_null"
     BETWEEN = "between"
 
-
 class GroupingFunction(str, Enum):
     NONE = "none"
     SUM = "sum"
@@ -45,17 +42,14 @@ class GroupingFunction(str, Enum):
     COUNT = "count"
     COUNT_DISTINCT = "count_distinct"
 
-
 class SortDirection(str, Enum):
     ASC = "asc"
     DESC = "desc"
-
 
 class ReportVisibility(str, Enum):
     PRIVATE = "private"       # only visible to owner
     SHARED = "shared"         # visible to org members with report access
     PUBLIC = "public"         # visible to all org members
-
 
 @dataclass
 class ReportColumn:
@@ -74,7 +68,7 @@ class ReportColumn:
     width_hint: int = 150        # display width hint in pixels
     grouping_fn: GroupingFunction = GroupingFunction.NONE
     format_pattern: str = ""     # e.g. "0.00", "YYYY-MM-DD"
-    sort_direction: Optional[SortDirection] = None
+    sort_direction: SortDirection | None = None
     sort_priority: int = 0       # lower = higher sort priority when multi-sort
 
     @staticmethod
@@ -85,7 +79,6 @@ class ReportColumn:
         **kwargs: Any,
     ) -> "ReportColumn":
         return ReportColumn(id=generate_id(), field_key=field_key, display_label=display_label, data_type=data_type, **kwargs)
-
 
 @dataclass
 class ReportFilter:
@@ -111,7 +104,6 @@ class ReportFilter:
     ) -> "ReportFilter":
         return ReportFilter(id=generate_id(), field_key=field_key, operator=operator, value=value, **kwargs)
 
-
 @dataclass
 class ReportGrouping:
     """
@@ -129,7 +121,6 @@ class ReportGrouping:
     @staticmethod
     def create(field_key: str, display_label: str, **kwargs: Any) -> "ReportGrouping":
         return ReportGrouping(id=generate_id(), field_key=field_key, display_label=display_label, **kwargs)
-
 
 @dataclass
 class ReportDefinition:
@@ -154,12 +145,12 @@ class ReportDefinition:
     module_code: str = "project_management"
     permission_code: str = "report.view"
     visibility: ReportVisibility = ReportVisibility.PRIVATE
-    owner_id: Optional[str] = None
-    columns: List[ReportColumn] = field(default_factory=list)
-    filters: List[ReportFilter] = field(default_factory=list)
-    groupings: List[ReportGrouping] = field(default_factory=list)
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    owner_id: str | None = None
+    columns: list[ReportColumn] = field(default_factory=list)
+    filters: list[ReportFilter] = field(default_factory=list)
+    groupings: list[ReportGrouping] = field(default_factory=list)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
     version: int = 1
 
     @staticmethod
@@ -170,7 +161,7 @@ class ReportDefinition:
         module_code: str = "project_management",
         permission_code: str = "report.view",
         visibility: ReportVisibility = ReportVisibility.PRIVATE,
-        owner_id: Optional[str] = None,
+        owner_id: str | None = None,
     ) -> "ReportDefinition":
         now = datetime.utcnow()
         return ReportDefinition(
@@ -199,13 +190,12 @@ class ReportDefinition:
         return self
 
     @property
-    def visible_columns(self) -> List[ReportColumn]:
+    def visible_columns(self) -> list[ReportColumn]:
         return [c for c in self.columns if c.visible]
 
     @property
-    def required_filters(self) -> List[ReportFilter]:
+    def required_filters(self) -> list[ReportFilter]:
         return [f for f in self.filters if f.is_required]
-
 
 @dataclass
 class SavedReportView:
@@ -220,11 +210,11 @@ class SavedReportView:
     name: str
     owner_id: str
     visibility: ReportVisibility = ReportVisibility.PRIVATE
-    column_overrides: List[ReportColumn] = field(default_factory=list)   # ordered visible columns
-    filter_overrides: List[ReportFilter] = field(default_factory=list)
-    grouping_overrides: List[ReportGrouping] = field(default_factory=list)
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    column_overrides: list[ReportColumn] = field(default_factory=list)   # ordered visible columns
+    filter_overrides: list[ReportFilter] = field(default_factory=list)
+    grouping_overrides: list[ReportGrouping] = field(default_factory=list)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
     version: int = 1
 
     @staticmethod
@@ -244,7 +234,6 @@ class SavedReportView:
             created_at=now,
             updated_at=now,
         )
-
 
 __all__ = [
     "ColumnDataType",

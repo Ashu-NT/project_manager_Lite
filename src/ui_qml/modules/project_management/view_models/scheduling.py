@@ -3,13 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-
 @dataclass(frozen=True)
 class SchedulingMetricViewModel:
     label: str
     value: str
     supporting_text: str
-
 
 @dataclass(frozen=True)
 class SchedulingOverviewViewModel:
@@ -17,20 +15,17 @@ class SchedulingOverviewViewModel:
     subtitle: str
     metrics: tuple[SchedulingMetricViewModel, ...]
 
-
 @dataclass(frozen=True)
 class SchedulingSelectorOptionViewModel:
     value: str
     label: str
     supporting_text: str = ""
 
-
 @dataclass(frozen=True)
 class SchedulingDayOptionViewModel:
     index: int
     label: str
     checked: bool
-
 
 @dataclass(frozen=True)
 class SchedulingRecordViewModel:
@@ -45,7 +40,6 @@ class SchedulingRecordViewModel:
     can_tertiary_action: bool = False
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class SchedulingCollectionViewModel:
     title: str
@@ -53,13 +47,11 @@ class SchedulingCollectionViewModel:
     items: tuple[SchedulingRecordViewModel, ...] = field(default_factory=tuple)
     empty_state: str = ""
 
-
 @dataclass(frozen=True)
 class SchedulingDetailFieldViewModel:
     label: str
     value: str
     supporting_text: str = ""
-
 
 @dataclass(frozen=True)
 class SchedulingDetailViewModel:
@@ -72,7 +64,6 @@ class SchedulingDetailViewModel:
     fields: tuple[SchedulingDetailFieldViewModel, ...] = field(default_factory=tuple)
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class SchedulingCalendarViewModel:
     summary_text: str
@@ -83,7 +74,6 @@ class SchedulingCalendarViewModel:
     holidays: tuple[SchedulingRecordViewModel, ...] = field(default_factory=tuple)
     empty_state: str = ""
 
-
 @dataclass(frozen=True)
 class SchedulingBaselineCompareViewModel:
     options: tuple[SchedulingSelectorOptionViewModel, ...] = field(default_factory=tuple)
@@ -93,7 +83,6 @@ class SchedulingBaselineCompareViewModel:
     summary_text: str = ""
     rows: tuple[SchedulingRecordViewModel, ...] = field(default_factory=tuple)
     empty_state: str = ""
-
 
 @dataclass(frozen=True)
 class SchedulingWorkspaceViewModel:
@@ -202,7 +191,6 @@ class SchedulingWorkspaceViewModel:
     selected_activity_detail: SchedulingDetailViewModel = field(
         default_factory=SchedulingDetailViewModel
     )
-
 
 __all__ = [
     "SchedulingBaselineCompareViewModel",

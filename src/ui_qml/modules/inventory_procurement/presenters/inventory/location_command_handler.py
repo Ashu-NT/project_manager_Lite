@@ -9,7 +9,6 @@ from src.core.modules.inventory_procurement.api.desktop import (
 
 from .validation import optional_bool, optional_int, optional_text, require_text
 
-
 def create_location(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryLocationCreateCommand(
         storeroom_id=require_text(
@@ -28,7 +27,6 @@ def create_location(desktop_api, payload: dict[str, Any]) -> None:
         notes=optional_text(payload, "notes") or "",
     )
     desktop_api.create_storage_location(command)
-
 
 def update_location(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryLocationUpdateCommand(

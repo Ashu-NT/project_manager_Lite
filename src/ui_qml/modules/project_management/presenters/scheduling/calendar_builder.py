@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingCalendarViewModel,
     SchedulingDayOptionViewModel,
     SchedulingRecordViewModel,
 )
 
-
-def build_calendar_view_model(calendar_snapshot) -> SchedulingCalendarViewModel:
+def build_calendar_view_model(calendar_snapshot: Any) -> SchedulingCalendarViewModel:
     holidays = tuple(
         SchedulingRecordViewModel(
             id=holiday.id,
@@ -48,6 +49,5 @@ def build_calendar_view_model(calendar_snapshot) -> SchedulingCalendarViewModel:
         holidays=holidays,
         empty_state="No non-working day exceptions have been configured yet.",
     )
-
 
 __all__ = ["build_calendar_view_model"]

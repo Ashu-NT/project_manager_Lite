@@ -12,7 +12,6 @@ from src.ui_qml.modules.project_management.view_models.resources import (
 
 from .validation import optional_text, require_text
 
-
 def build_certifications_state(
     desktop_api: ProjectManagementResourcesDesktopApi,
     resource_id: str,
@@ -38,7 +37,6 @@ def build_certifications_state(
         for c in certs
     )
 
-
 def add_certification(
     desktop_api: ProjectManagementResourcesDesktopApi,
     resource_id: str,
@@ -54,7 +52,6 @@ def add_certification(
         notes=optional_text(payload, "notes") or "",
     )
     desktop_api.add_resource_certification(command)
-
 
 def remove_certification(
     desktop_api: ProjectManagementResourcesDesktopApi,

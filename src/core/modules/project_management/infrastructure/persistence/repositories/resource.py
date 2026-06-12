@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -45,11 +44,11 @@ class SqlAlchemyResourceRepository(ResourceRepository):
     def delete(self, resource_id: str) -> None:
         self.session.query(ResourceORM).filter_by(id=resource_id).delete()
 
-    def get(self, resource_id: str) -> Optional[Resource]:
+    def get(self, resource_id: str) -> Resource | None:
         obj = self.session.get(ResourceORM, resource_id)
         return resource_from_orm(obj) if obj else None
 
-    def get_for_organization(self, resource_id: str, organization_id: str) -> Optional[Resource]:
+    def get_for_organization(self, resource_id: str, organization_id: str) -> Resource | None:
         stmt = (
             select(ResourceORM)
             .where(ResourceORM.id == resource_id)
@@ -58,12 +57,12 @@ class SqlAlchemyResourceRepository(ResourceRepository):
         obj = self.session.execute(stmt).scalars().first()
         return resource_from_orm(obj) if obj else None
 
-    def list_for_organization(self, organization_id: str) -> List[Resource]:
+    def list_for_organization(self, organization_id: str) -> list[Resource]:
         stmt = select(ResourceORM).where(ResourceORM.organization_id == organization_id)
         rows = self.session.execute(stmt).scalars().all()
         return [resource_from_orm(row) for row in rows]
 
-    def list_by_employee(self, employee_id: str) -> List[Resource]:
+    def list_by_employee(self, employee_id: str) -> list[Resource]:
         stmt = select(ResourceORM).where(ResourceORM.employee_id == employee_id)
         rows = self.session.execute(stmt).scalars().all()
         return [resource_from_orm(row) for row in rows]

@@ -3,21 +3,20 @@ from __future__ import annotations
 from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 
 from datetime import date
-from typing import Dict, Optional
 
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
 
 
 def build_schedule_result(
-    tasks_by_id: Dict[str, Task],
-    es: Dict[str, Optional[date]],
-    ef: Dict[str, Optional[date]],
-    ls: Dict[str, Optional[date]],
-    lf: Dict[str, Optional[date]],
+    tasks_by_id: dict[str, Task],
+    es: dict[str, date | None],
+    ef: dict[str, date | None],
+    ls: dict[str, date | None],
+    lf: dict[str, date | None],
     calendar: CalendarProtocol,
-) -> Dict[str, CPMTaskInfo]:
-    result: Dict[str, CPMTaskInfo] = {}
+) -> dict[str, CPMTaskInfo]:
+    result: dict[str, CPMTaskInfo] = {}
 
     for task_id, task in tasks_by_id.items():
         est = es[task_id]

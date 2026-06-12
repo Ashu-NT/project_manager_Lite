@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from src.core.platform.auth.policy import DEFAULT_ROLE_PERMISSIONS
 from src.core.platform.common.exceptions import ValidationError
 
+if TYPE_CHECKING:
+    from .auth_service import AuthService
 
-def enforce_separation_of_duties(service, role_names: Iterable[str]) -> None:
+
+def enforce_separation_of_duties(service: AuthService, role_names: Iterable[str]) -> None:
     normalized = tuple(
         str(r or "").strip().lower()
         for r in role_names

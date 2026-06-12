@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsCollectionViewModel,
     FinancialsRecordViewModel,
 )
 
-
 def build_analytics_collection(
     *,
     title: str,
     subtitle: str,
-    rows,
+    rows: Any,
 ) -> FinancialsCollectionViewModel:
     return FinancialsCollectionViewModel(
         title=title,

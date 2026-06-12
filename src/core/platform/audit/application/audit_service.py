@@ -16,8 +16,8 @@ class AuditService:
         session: Session,
         audit_repo: AuditLogRepository,
         user_session: UserSessionContext | None = None,
-        tenant_context_service=None,
-    ):
+        tenant_context_service: Any = None,
+    ) -> None:
         self._session = session
         self._audit_repo = audit_repo
         self._user_session = user_session

@@ -18,7 +18,6 @@ from .validation import (
     require_text,
 )
 
-
 def suggest_code(desktop_api, payload: dict[str, Any]) -> str:
     from src.core.platform.common.code_generation import CodeGenerator
 
@@ -34,7 +33,6 @@ def suggest_code(desktop_api, payload: dict[str, Any]) -> str:
         name=name or None,
         use_year=not bool(name),
     )
-
 
 def create_task(desktop_api, payload: dict[str, Any]) -> None:
     command = TaskCreateCommand(
@@ -52,7 +50,6 @@ def create_task(desktop_api, payload: dict[str, Any]) -> None:
     )
     desktop_api.create_task(command)
 
-
 def update_task(desktop_api, payload: dict[str, Any]) -> None:
     command = TaskUpdateCommand(
         task_id=require_text(payload, "taskId", "Task ID is required for updates."),
@@ -68,7 +65,6 @@ def update_task(desktop_api, payload: dict[str, Any]) -> None:
     )
     desktop_api.update_task(command)
 
-
 def update_progress(desktop_api, payload: dict[str, Any]) -> None:
     command = TaskProgressCommand(
         task_id=require_text(
@@ -81,7 +77,6 @@ def update_progress(desktop_api, payload: dict[str, Any]) -> None:
         expected_version=optional_int(payload, "expectedVersion"),
     )
     desktop_api.update_progress(command)
-
 
 def apply_bulk_status(desktop_api, payload: dict[str, Any]) -> None:
     task_ids = tuple(coerce_string_list(payload.get("taskIds")))
@@ -100,7 +95,6 @@ def apply_bulk_status(desktop_api, payload: dict[str, Any]) -> None:
     )
     if not changed_tasks:
         raise ValueError("Selected tasks already have this status.")
-
 
 def bulk_delete_tasks(desktop_api, task_ids: Any) -> None:
     normalized_ids = tuple(coerce_string_list(task_ids))

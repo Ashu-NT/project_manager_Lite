@@ -13,7 +13,6 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionListViewModel,
 )
 
-
 class PlatformCalendarCatalogPresenter:
     """
     Builds the calendar catalog for the admin console.
@@ -121,6 +120,5 @@ class PlatformCalendarCatalogPresenter:
         working_days = getattr(result, "working_days", "?")
         start = getattr(result, "start_date", "?")
         return f"{working_days} working day(s) from {start} lands on {end_date}."
-
 
 __all__ = ["PlatformCalendarCatalogPresenter"]

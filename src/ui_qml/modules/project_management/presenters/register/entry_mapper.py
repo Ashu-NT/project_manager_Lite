@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.register import (
     RegisterRecordViewModel,
 )
@@ -7,8 +9,7 @@ from src.ui_qml.modules.project_management.view_models.register import (
 from .formatting import preview_text
 from .utils import WorkspaceMode
 
-
-def build_entry_state(entry) -> dict[str, object]:
+def build_entry_state(entry: Any) -> dict[str, object]:
     return {
         "entryId": entry.id,
         "projectId": entry.project_id,
@@ -31,8 +32,7 @@ def build_entry_state(entry) -> dict[str, object]:
         "version": entry.version,
     }
 
-
-def to_record_view_model(entry, *, workspace_mode: WorkspaceMode) -> RegisterRecordViewModel:
+def to_record_view_model(entry: Any, *, workspace_mode: WorkspaceMode) -> RegisterRecordViewModel:
     state = build_entry_state(entry)
     subtitle_parts = [
         state["typeLabel"],

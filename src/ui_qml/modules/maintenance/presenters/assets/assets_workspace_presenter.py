@@ -30,7 +30,6 @@ from .location_command_handler import (
 from .system_command_handler import create_system, toggle_system_active, update_system
 from .workspace_builder import build_workspace_state
 
-
 class MaintenanceAssetsWorkspacePresenter:
     def __init__(
         self,

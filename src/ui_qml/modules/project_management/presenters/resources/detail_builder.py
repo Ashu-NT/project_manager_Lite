@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementResourcesDesktopApi,
 )
@@ -9,8 +11,7 @@ from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceDetailViewModel,
 )
 
-
-def build_resource_state(resource) -> dict[str, object]:
+def build_resource_state(resource: Any) -> dict[str, object]:
     return {
         "resourceId": resource.id,
         "name": resource.name,
@@ -34,10 +35,9 @@ def build_resource_state(resource) -> dict[str, object]:
         "version": resource.version,
     }
 
-
 def build_detail_view_model(
     desktop_api: ProjectManagementResourcesDesktopApi,
-    resource,
+    resource: Any,
 ) -> ResourceDetailViewModel:
     if resource is None:
         return ResourceDetailViewModel(

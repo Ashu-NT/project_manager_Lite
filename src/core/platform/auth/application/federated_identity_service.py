@@ -10,6 +10,8 @@ from src.core.platform.common.exceptions import ValidationError
 if TYPE_CHECKING:
     from src.core.platform.auth.domain import UserAccount
 
+    from .auth_service import AuthService
+
 
 def normalize_identity_provider(identity_provider: str | None) -> str | None:
     value = str(identity_provider or "").strip().lower()
@@ -35,7 +37,7 @@ def validate_federated_identity(
 
 
 def link_federated_identity(
-    service,
+    service: AuthService,
     user_id: str,
     *,
     identity_provider: str,

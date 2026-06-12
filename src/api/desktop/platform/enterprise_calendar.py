@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from datetime import date, time
-from typing import Optional
-
 from src.api.desktop.platform._support import execute_desktop_operation
 from src.api.desktop.platform.models import DesktopApiResult
 from src.api.desktop.platform.models.enterprise_calendar import (
@@ -63,7 +61,7 @@ from src.core.platform.calendar.domain.enterprise_calendar import (
 )
 
 
-def _parse_date(value: str) -> Optional[date]:
+def _parse_date(value: str) -> date | None:
     if not value:
         return None
     try:
@@ -72,7 +70,7 @@ def _parse_date(value: str) -> Optional[date]:
         return None
 
 
-def _parse_time(value: str) -> Optional[time]:
+def _parse_time(value: str) -> time | None:
     if not value:
         return None
     try:
@@ -226,7 +224,7 @@ class EnterpriseCalendarDesktopApi:
     # --- Calendars ---
 
     def list_calendars(
-        self, *, calendar_type: str = "", active_only: Optional[bool] = None
+        self, *, calendar_type: str = "", active_only: bool | None = None
     ) -> DesktopApiResult:
         return execute_desktop_operation(
             lambda: tuple(
@@ -443,7 +441,7 @@ class EnterpriseCalendarDesktopApi:
 
     # --- Shift Patterns ---
 
-    def list_shift_patterns(self, *, active_only: Optional[bool] = None) -> DesktopApiResult:
+    def list_shift_patterns(self, *, active_only: bool | None = None) -> DesktopApiResult:
         return execute_desktop_operation(
             lambda: tuple(
                 _serialize_shift_pattern(p)

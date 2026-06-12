@@ -5,7 +5,17 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.maintenance.domain import MaintenanceAsset
+from datetime import date
+
+from decimal import Decimal
+
+from src.core.modules.maintenance.domain import (
+    MaintenanceAsset,
+    MaintenanceCriticality,
+    MaintenanceLifecycleStatus,
+    MaintenanceLocation,
+    MaintenanceSystem,
+)
 from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetRepository,
     MaintenanceLocationRepository,
@@ -31,7 +41,7 @@ from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org.domain import Organization
 from src.core.platform.site.domain import Site
-from src.core.platform.party.domain import PartyType
+from src.core.platform.party.domain import Party, PartyType
 from src.core.platform.party.contracts import PartyRepository
 
 _MANUFACTURER_PARTY_TYPES = {
@@ -63,17 +73,17 @@ class MaintenanceAssetService:
         user_session=None,
         audit_service=None,
     ) -> None:
-        self._session = session
-        self._asset_repo = asset_repo
-        self._organization_repo = organization_repo
-        self._tenant_context_service = tenant_context_service or TenantContextService(
+        self._session: Session = session
+        self._asset_repo: MaintenanceAssetRepository = asset_repo
+        self._organization_repo: OrganizationRepository = organization_repo
+        self._tenant_context_service: TenantContextService = tenant_context_service or TenantContextService(
             organization_repo=organization_repo,
             user_session=user_session,
         )
-        self._site_repo = site_repo
-        self._location_repo = location_repo
-        self._system_repo = system_repo
-        self._party_repo = party_repo
+        self._site_repo: SiteRepository = site_repo
+        self._location_repo: MaintenanceLocationRepository = location_repo
+        self._system_repo: MaintenanceSystemRepository = system_repo
+        self._party_repo: PartyRepository = party_repo
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -200,19 +210,19 @@ class MaintenanceAssetService:
         parent_asset_id: str | None = None,
         asset_type: str = "",
         asset_category: str = "",
-        criticality=None,
-        status=None,
+        criticality: MaintenanceCriticality | str | None = None,
+        status: MaintenanceLifecycleStatus | str | None = None,
         manufacturer_party_id: str | None = None,
         supplier_party_id: str | None = None,
         model_number: str = "",
         serial_number: str = "",
         barcode: str = "",
-        install_date=None,
-        commission_date=None,
-        warranty_start=None,
-        warranty_end=None,
-        expected_life_years=None,
-        replacement_cost=None,
+        install_date: date | str | None = None,
+        commission_date: date | str | None = None,
+        warranty_start: date | str | None = None,
+        warranty_end: date | str | None = None,
+        expected_life_years: int | str | None = None,
+        replacement_cost: Decimal | int | float | str | None = None,
         maintenance_strategy: str = "",
         service_level: str = "",
         requires_shutdown_for_major_work: bool = False,
@@ -315,19 +325,19 @@ class MaintenanceAssetService:
         parent_asset_id: str | None = None,
         asset_type: str | None = None,
         asset_category: str | None = None,
-        criticality=None,
-        status=None,
+        criticality: MaintenanceCriticality | str | None = None,
+        status: MaintenanceLifecycleStatus | str | None = None,
         manufacturer_party_id: str | None = None,
         supplier_party_id: str | None = None,
         model_number: str | None = None,
         serial_number: str | None = None,
         barcode: str | None = None,
-        install_date=None,
-        commission_date=None,
-        warranty_start=None,
-        warranty_end=None,
-        expected_life_years=None,
-        replacement_cost=None,
+        install_date: date | str | None = None,
+        commission_date: date | str | None = None,
+        warranty_start: date | str | None = None,
+        warranty_end: date | str | None = None,
+        expected_life_years: int | str | None = None,
+        replacement_cost: Decimal | int | float | str | None = None,
         maintenance_strategy: str | None = None,
         service_level: str | None = None,
         requires_shutdown_for_major_work: bool | None = None,
@@ -462,7 +472,7 @@ class MaintenanceAssetService:
         *,
         site_id: str,
         organization: Organization,
-    ):
+    ) -> MaintenanceLocation:
         location = self._get_location(location_id, organization=organization)
         if location.site_id != site_id:
             raise ValidationError("Maintenance asset location must belong to the same site.", code="MAINTENANCE_ASSET_SITE_MISMATCH")
@@ -475,7 +485,7 @@ class MaintenanceAssetService:
         site_id: str,
         organization: Organization,
         location_id: str,
-    ):
+    ) -> MaintenanceSystem | None:
         if system_id in (None, ""):
             return None
         system = self._get_system(system_id, organization=organization)
@@ -517,7 +527,7 @@ class MaintenanceAssetService:
         not_found_code: str,
         invalid_code: str,
         label: str,
-    ):
+    ) -> Party | None:
         if party_id in (None, ""):
             return None
         party = self._party_repo.get(party_id)
@@ -533,10 +543,10 @@ class MaintenanceAssetService:
     @staticmethod
     def _validate_date_sequence(
         *,
-        install_date,
-        commission_date,
-        warranty_start,
-        warranty_end,
+        install_date: date | None,
+        commission_date: date | None,
+        warranty_start: date | None,
+        warranty_end: date | None,
     ) -> None:
         if install_date is not None and commission_date is not None and commission_date < install_date:
             raise ValidationError("Commission date cannot be earlier than install date.", code="MAINTENANCE_ASSET_DATE_SEQUENCE_INVALID")
@@ -554,13 +564,13 @@ class MaintenanceAssetService:
             raise NotFoundError("Site not found in the active organization.", code="SITE_NOT_FOUND")
         return site
 
-    def _get_location(self, location_id: str, *, organization: Organization):
+    def _get_location(self, location_id: str, *, organization: Organization) -> MaintenanceLocation:
         location = self._location_repo.get(location_id)
         if location is None or location.organization_id != organization.id:
             raise NotFoundError("Maintenance location not found in the active organization.", code="MAINTENANCE_LOCATION_NOT_FOUND")
         return location
 
-    def _get_system(self, system_id: str, *, organization: Organization):
+    def _get_system(self, system_id: str, *, organization: Organization) -> MaintenanceSystem:
         system = self._system_repo.get(system_id)
         if system is None or system.organization_id != organization.id:
             raise NotFoundError("Maintenance system not found in the active organization.", code="MAINTENANCE_SYSTEM_NOT_FOUND")

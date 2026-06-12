@@ -18,7 +18,6 @@ from .validation import (
     require_text,
 )
 
-
 def create_requisition(desktop_api, payload: dict[str, Any]) -> None:
     desktop_api.create_requisition(
         InventoryRequisitionCreateCommand(
@@ -38,7 +37,6 @@ def create_requisition(desktop_api, payload: dict[str, Any]) -> None:
             notes=optional_text(payload, "notes") or "",
         )
     )
-
 
 def update_requisition(desktop_api, payload: dict[str, Any]) -> None:
     desktop_api.update_requisition(
@@ -66,7 +64,6 @@ def update_requisition(desktop_api, payload: dict[str, Any]) -> None:
         )
     )
 
-
 def add_requisition_line(desktop_api, payload: dict[str, Any]) -> None:
     desktop_api.add_requisition_line(
         InventoryRequisitionLineCreateCommand(
@@ -93,12 +90,10 @@ def add_requisition_line(desktop_api, payload: dict[str, Any]) -> None:
         )
     )
 
-
 def submit_requisition(desktop_api, requisition_id: str) -> None:
     desktop_api.submit_requisition(
         require_identifier(requisition_id, "Select a requisition before submitting it.")
     )
-
 
 def cancel_requisition(desktop_api, requisition_id: str) -> None:
     desktop_api.cancel_requisition(

@@ -14,7 +14,6 @@ from .validation import (
     require_text,
 )
 
-
 def suggest_category_code(desktop_api, payload: dict[str, Any]) -> str:
     from src.core.platform.common.code_generation import CodeGenerator
 
@@ -29,7 +28,6 @@ def suggest_category_code(desktop_api, payload: dict[str, Any]) -> str:
         name=name or None,
         use_year=not bool(name),
     )
-
 
 def create_category(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryCategoryCreateCommand(
@@ -51,7 +49,6 @@ def create_category(desktop_api, payload: dict[str, Any]) -> None:
         is_active=optional_bool(payload, "isActive", default=True),
     )
     desktop_api.create_category(command)
-
 
 def update_category(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryCategoryUpdateCommand(
@@ -77,7 +74,6 @@ def update_category(desktop_api, payload: dict[str, Any]) -> None:
         expected_version=optional_int(payload, "expectedVersion"),
     )
     desktop_api.update_category(command)
-
 
 def toggle_category_active(
     desktop_api,

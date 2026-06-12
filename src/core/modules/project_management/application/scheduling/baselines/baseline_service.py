@@ -1,6 +1,5 @@
 # src/core/modules/project_management/application/scheduling/baseline_service.py
 from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
-from typing import Optional, Dict, List
 
 from sqlalchemy.orm import Session
 
@@ -176,7 +175,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         costs = self._costs.list_by_project(project_id)
         include_manual_labor_items = planned_labor_total <= 0.0
 
-        planned_by_task: Dict[str, float] = {}
+        planned_by_task: dict[str, float] = {}
         planned_unassigned = 0.0
 
         for c in costs:
@@ -206,7 +205,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         # Build baseline task dates + durations (working days)
         # -------------------------
         task_infos = []
-        durations: Dict[str, int] = {}
+        durations: dict[str, int] = {}
 
         for t in tasks:
             info = schedule.get(t.id)
@@ -226,7 +225,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         # -------------------------
         # Allocate unassigned planned budget across tasks (duration-weighted, else equal)
         # -------------------------
-        alloc_unassigned: Dict[str, float] = {}
+        alloc_unassigned: dict[str, float] = {}
         if planned_unassigned > 0 and tasks:
             if total_dur > 0:
                 for tid in durations:
@@ -240,7 +239,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         # -------------------------
         # Allocate planned labor across tasks (duration-weighted, else equal)
         # -------------------------
-        alloc_labor: Dict[str, float] = {}
+        alloc_labor: dict[str, float] = {}
         if planned_labor_total > 0 and tasks:
             if total_dur > 0:
                 for tid in durations:
@@ -251,7 +250,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                 for tid in durations:
                     alloc_labor[tid] = per
 
-        baseline_tasks: List[BaselineTask] = []
+        baseline_tasks: list[BaselineTask] = []
         for tid, bs, bf in task_infos:
             dur = durations.get(tid, 0)
 
@@ -295,7 +294,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
 
         return baseline
 
-    def get_latest_baseline(self, project_id: str) -> Optional[ProjectBaseline]:
+    def get_latest_baseline(self, project_id: str) -> ProjectBaseline | None:
         require_permission(self._user_session, "project.read", operation_label="view latest baseline")
         require_project_permission(
             self._user_session,
@@ -408,7 +407,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
 
         baseline.approve(approved_by=approved_by, notes=notes)
 
-        variance_records: List[BaselineVarianceRecord] = []
+        variance_records: list[BaselineVarianceRecord] = []
         if previous_approved is not None and previous_approved.id != baseline_id:
             variance_records = self._build_variance_records(
                 new_baseline=baseline,
@@ -476,7 +475,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
             raise
         return baseline
 
-    def get_approved_baseline(self, project_id: str) -> Optional[ProjectBaseline]:
+    def get_approved_baseline(self, project_id: str) -> ProjectBaseline | None:
         """Return the currently approved baseline for the project, or None."""
         require_permission(
             self._user_session, "project.read", operation_label="view approved baseline"
@@ -492,7 +491,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
     def list_variance_records(
         self,
         baseline_id: str,
-    ) -> List[BaselineVarianceRecord]:
+    ) -> list[BaselineVarianceRecord]:
         """Return variance records created when this baseline was approved."""
         require_permission(
             self._user_session, "project.read", operation_label="list baseline variance"
@@ -514,7 +513,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         self,
         new_baseline: ProjectBaseline,
         previous_baseline: ProjectBaseline,
-    ) -> List[BaselineVarianceRecord]:
+    ) -> list[BaselineVarianceRecord]:
         """
         Build per-task variance records comparing new vs previous baseline tasks.
         Only creates records for tasks present in both baselines.
@@ -522,7 +521,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         new_tasks = {bt.task_id: bt for bt in self._baselines.list_tasks(new_baseline.id)}
         prev_tasks = {bt.task_id: bt for bt in self._baselines.list_tasks(previous_baseline.id)}
 
-        records: List[BaselineVarianceRecord] = []
+        records: list[BaselineVarianceRecord] = []
         for task_id, new_bt in new_tasks.items():
             prev_bt = prev_tasks.get(task_id)
             if prev_bt is None:

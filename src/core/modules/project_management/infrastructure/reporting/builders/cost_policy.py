@@ -7,7 +7,6 @@ so that all cost-policy calculations use a single authoritative implementation.
 
 from __future__ import annotations
 
-from typing import Dict, Tuple
 
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
@@ -22,7 +21,7 @@ from src.core.modules.project_management.infrastructure.reporting.models.report_
     CostSourceRow,
 )
 
-CostBucketKey = Tuple[CostType, str]
+CostBucketKey = tuple[CostType, str]
 
 
 class ReportingCostPolicyMixin:
@@ -72,7 +71,7 @@ class ReportingCostPolicyMixin:
 
     def _add_bucket(
         self,
-        target: Dict[CostBucketKey, float],
+        target: dict[CostBucketKey, float],
         *,
         cost_type: CostType,
         currency: str,
@@ -84,14 +83,14 @@ class ReportingCostPolicyMixin:
 
     def _sum_bucket_map(
         self,
-        values: Dict[CostBucketKey, float],
+        values: dict[CostBucketKey, float],
         project_currency: str | None,
     ) -> float:
         return self._make_cost_policy_engine()._sum_bucket_map(values, project_currency)
 
     def _sum_bucket_for_type(
         self,
-        values: Dict[CostBucketKey, float],
+        values: dict[CostBucketKey, float],
         *,
         cost_type: CostType,
         project_currency: str | None,
@@ -102,7 +101,7 @@ class ReportingCostPolicyMixin:
 
     def _sum_bucket_excluding_type(
         self,
-        values: Dict[CostBucketKey, float],
+        values: dict[CostBucketKey, float],
         *,
         excluded_type: CostType,
         project_currency: str | None,

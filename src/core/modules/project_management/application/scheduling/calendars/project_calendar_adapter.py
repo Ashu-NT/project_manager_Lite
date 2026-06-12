@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 from datetime import date, timedelta
-from typing import Optional
 
 from src.core.platform.calendar.application.enterprise_calendar_resolver import (
     EnterpriseCalendarResolver,
@@ -65,7 +64,7 @@ class ProjectCalendarAdapter:
         self._resolver = resolver
         self._assignment_service = assignment_service
 
-    def _get_site_id_for_project(self, project_id: str) -> Optional[str]:
+    def _get_site_id_for_project(self, project_id: str) -> str | None:
         return None
 
     def get_context(
@@ -159,7 +158,7 @@ class ProjectCalendarAdapter:
     def get_source_chain(self, project_id: str) -> list[str]:
         return self._resolver.get_source_chain(project_id=project_id)
 
-    def bind_for_project(self, project_id: str) -> Optional["BoundProjectCalendar"]:
+    def bind_for_project(self, project_id: str) -> "BoundProjectCalendar" | None:
         """
         Always returns a BoundProjectCalendar so the SchedulingEngine uses the enterprise
         calendar hierarchy for every project.

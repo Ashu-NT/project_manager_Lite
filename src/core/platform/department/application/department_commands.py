@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
@@ -20,9 +21,12 @@ from .department_validation import (
     validate_site_id,
 )
 
+if TYPE_CHECKING:
+    from .department_service import DepartmentService
+
 
 def create_department(
-    service,
+    service: DepartmentService,
     *,
     department_code: str,
     name: str | None = None,
@@ -89,7 +93,7 @@ def create_department(
 
 
 def update_department(
-    service,
+    service: DepartmentService,
     department_id: str,
     *,
     department_code: str | None = None,

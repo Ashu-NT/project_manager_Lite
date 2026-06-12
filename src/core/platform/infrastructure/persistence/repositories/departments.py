@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Optional
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,7 +14,9 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyDepartmentRepository(DepartmentRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, department: Department) -> None:
@@ -47,11 +47,11 @@ class SqlAlchemyDepartmentRepository(DepartmentRepository):
             stale_message="Department was updated by another user.",
         )
 
-    def get(self, department_id: str) -> Optional[Department]:
+    def get(self, department_id: str) -> Department | None:
         obj = self.session.get(DepartmentORM, department_id)
         return department_from_orm(obj) if obj else None
 
-    def get_by_code(self, organization_id: str, department_code: str) -> Optional[Department]:
+    def get_by_code(self, organization_id: str, department_code: str) -> Department | None:
         stmt = select(DepartmentORM).where(
             DepartmentORM.organization_id == organization_id,
             DepartmentORM.department_code == department_code,
@@ -64,7 +64,7 @@ class SqlAlchemyDepartmentRepository(DepartmentRepository):
         organization_id: str,
         *,
         active_only: bool | None = None,
-    ) -> List[Department]:
+    ) -> list[Department]:
         stmt = select(DepartmentORM).where(DepartmentORM.organization_id == organization_id)
         if active_only is not None:
             stmt = stmt.where(DepartmentORM.is_active == bool(active_only))

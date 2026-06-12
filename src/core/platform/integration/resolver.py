@@ -11,8 +11,6 @@ by each workspace's controller using the entity_id from the resolved reference.
 
 from __future__ import annotations
 
-from typing import Optional
-
 from src.core.platform.integration.cross_module_reference import (
     CrossModuleReference,
     ResolvedReference,
@@ -52,7 +50,7 @@ class IntegrationResolver:
         module_id: str,
         entity_type: str,
         entity_id: str,  # noqa: ARG002 — reserved for future deep-link support
-    ) -> Optional[str]:
+    ) -> str | None:
         return _ROUTE_TEMPLATES.get((module_id, entity_type))
 
     def resolve_reference(self, ref: CrossModuleReference) -> ResolvedReference:
@@ -90,7 +88,7 @@ class IntegrationResolver:
             display_status=display_status,
         )
 
-    def display_reference(self, ref: CrossModuleReference) -> dict:
+    def display_reference(self, ref: CrossModuleReference) -> dict[str, object]:
         return self.resolve_reference(ref).as_dict()
 
     def resolve_missing_source(
@@ -128,13 +126,13 @@ class IntegrationResolver:
 
     @staticmethod
     def from_soft_reference(
-        source_module: Optional[str],
-        source_entity_type: Optional[str],
-        source_entity_id: Optional[str],
-        source_code_snapshot: Optional[str] = None,
-        source_title_snapshot: Optional[str] = None,
-        source_status_snapshot: Optional[str] = None,
-    ) -> Optional[CrossModuleReference]:
+        source_module: str | None,
+        source_entity_type: str | None,
+        source_entity_id: str | None,
+        source_code_snapshot: str | None = None,
+        source_title_snapshot: str | None = None,
+        source_status_snapshot: str | None = None,
+    ) -> CrossModuleReference | None:
         """Build a CrossModuleReference from ORM soft-reference columns.
 
         Returns None if any of the three identity fields are blank —

@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from datetime import date
 from pathlib import Path
-from typing import List
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -10,7 +11,6 @@ from matplotlib.dates import date2num
 from matplotlib import ticker
 
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import GanttTaskBar
-
 
 class GanttPngRenderer:
     _STATUS_COLORS = {
@@ -68,7 +68,7 @@ class GanttPngRenderer:
         ax.xaxis.set_minor_formatter(ticker.NullFormatter())
         ax.tick_params(axis="x", labelsize=9, rotation=25)
 
-    def render(self, bars: List[GanttTaskBar], output_path: Path) -> Path:
+    def render(self, bars: list[GanttTaskBar], output_path: Path) -> Path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         bars = [b for b in bars if b.start and b.end]
         if not bars:

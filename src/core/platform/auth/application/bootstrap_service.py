@@ -15,8 +15,10 @@ from .default_seed_service import (
 if TYPE_CHECKING:
     from src.core.platform.auth.domain import UserAccount
 
+    from .auth_service import AuthService
 
-def bootstrap_defaults(service) -> UserAccount:
+
+def bootstrap_defaults(service: AuthService) -> UserAccount:
     ensure_default_permissions(service)
     service._session.flush()
     role_map = ensure_default_roles(service)

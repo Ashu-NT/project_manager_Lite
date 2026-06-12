@@ -10,6 +10,9 @@ from src.core.platform.auth.domain import UserAccount, UserRoleBinding
 from src.core.platform.auth.passwords import hash_password
 from src.core.platform.common.exceptions import ValidationError
 
+if TYPE_CHECKING:
+    from .auth_service import AuthService
+
 from .federated_identity_service import (
     normalize_federated_subject,
     normalize_identity_provider,
@@ -19,7 +22,7 @@ from .session_utils import validate_session_timeout_override
 from .sod_enforcer import enforce_separation_of_duties
 
 
-def assign_roles_for_user(service, user_id: str, role_names: Iterable[str]) -> None:
+def assign_roles_for_user(service: AuthService, user_id: str, role_names: Iterable[str]) -> None:
     for role_name in role_names:
         role = service._require_role_by_name(role_name)
         if not service._user_role_repo.exists(user_id, role.id):
@@ -27,7 +30,7 @@ def assign_roles_for_user(service, user_id: str, role_names: Iterable[str]) -> N
 
 
 def register_user(
-    service,
+    service: AuthService,
     username: str,
     raw_password: str,
     display_name: str | None = None,

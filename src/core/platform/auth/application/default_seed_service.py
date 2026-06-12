@@ -8,7 +8,7 @@ from src.core.platform.auth.domain import Permission, Role, RolePermissionBindin
 from src.core.platform.auth.policy import DEFAULT_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS
 
 if TYPE_CHECKING:
-    pass
+    from .auth_service import AuthService
 
 logger = logging.getLogger(__name__)
 
@@ -35,13 +35,13 @@ def resolve_bootstrap_admin_password() -> str:
     return default_password
 
 
-def ensure_default_permissions(service) -> None:
+def ensure_default_permissions(service: AuthService) -> None:
     for code, description in DEFAULT_PERMISSIONS.items():
         if service._permission_repo.get_by_code(code) is None:
             service._permission_repo.add(Permission.create(code=code, description=description))
 
 
-def ensure_default_roles(service) -> dict[str, Role]:
+def ensure_default_roles(service: AuthService) -> dict[str, Role]:
     roles: dict[str, Role] = {}
     for role_name in DEFAULT_ROLE_PERMISSIONS:
         role = service._role_repo.get_by_name(role_name)
@@ -52,7 +52,7 @@ def ensure_default_roles(service) -> dict[str, Role]:
     return roles
 
 
-def ensure_role_permissions(service, role_map: dict[str, Role]) -> None:
+def ensure_role_permissions(service: AuthService, role_map: dict[str, Role]) -> None:
     permission_map = {p.code: p.id for p in service._permission_repo.list_all()}
     for role_name, permission_codes in DEFAULT_ROLE_PERMISSIONS.items():
         role = role_map.get(role_name)

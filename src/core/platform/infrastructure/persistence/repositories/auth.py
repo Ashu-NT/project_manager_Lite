@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Optional
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -38,7 +36,9 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyUserRepository(UserRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, user: UserAccount) -> None:
@@ -76,11 +76,11 @@ class SqlAlchemyUserRepository(UserRepository):
             stale_message="User account was updated by another user.",
         )
 
-    def get(self, user_id: str) -> Optional[UserAccount]:
+    def get(self, user_id: str) -> UserAccount | None:
         obj = self.session.get(UserORM, user_id)
         return user_from_orm(obj) if obj else None
 
-    def get_by_username(self, username: str) -> Optional[UserAccount]:
+    def get_by_username(self, username: str) -> UserAccount | None:
         stmt = select(UserORM).where(UserORM.username == username)
         obj = self.session.execute(stmt).scalars().first()
         return user_from_orm(obj) if obj else None
@@ -89,7 +89,7 @@ class SqlAlchemyUserRepository(UserRepository):
         self,
         identity_provider: str,
         federated_subject: str,
-    ) -> Optional[UserAccount]:
+    ) -> UserAccount | None:
         stmt = select(UserORM).where(
             UserORM.identity_provider == identity_provider,
             UserORM.federated_subject == federated_subject,
@@ -97,13 +97,15 @@ class SqlAlchemyUserRepository(UserRepository):
         obj = self.session.execute(stmt).scalars().first()
         return user_from_orm(obj) if obj else None
 
-    def list_all(self) -> List[UserAccount]:
+    def list_all(self) -> list[UserAccount]:
         rows = self.session.execute(select(UserORM)).scalars().all()
         return [user_from_orm(row) for row in rows]
 
 
 class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, auth_session: AuthSession) -> None:
@@ -124,60 +126,66 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
         obj.created_at = auth_session.created_at
         obj.updated_at = auth_session.updated_at
 
-    def get(self, session_id: str) -> Optional[AuthSession]:
+    def get(self, session_id: str) -> AuthSession | None:
         obj = self.session.get(AuthSessionORM, session_id)
         return auth_session_from_orm(obj) if obj else None
 
-    def list_by_user(self, user_id: str) -> List[AuthSession]:
+    def list_by_user(self, user_id: str) -> list[AuthSession]:
         stmt = select(AuthSessionORM).where(AuthSessionORM.user_id == user_id)
         rows = self.session.execute(stmt.order_by(AuthSessionORM.issued_at.desc())).scalars().all()
         return [auth_session_from_orm(row) for row in rows]
 
 
 class SqlAlchemyRoleRepository(RoleRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, role: Role) -> None:
         self.session.add(role_to_orm(role))
 
-    def get(self, role_id: str) -> Optional[Role]:
+    def get(self, role_id: str) -> Role | None:
         obj = self.session.get(RoleORM, role_id)
         return role_from_orm(obj) if obj else None
 
-    def get_by_name(self, name: str) -> Optional[Role]:
+    def get_by_name(self, name: str) -> Role | None:
         stmt = select(RoleORM).where(RoleORM.name == name)
         obj = self.session.execute(stmt).scalars().first()
         return role_from_orm(obj) if obj else None
 
-    def list_all(self) -> List[Role]:
+    def list_all(self) -> list[Role]:
         rows = self.session.execute(select(RoleORM)).scalars().all()
         return [role_from_orm(row) for row in rows]
 
 
 class SqlAlchemyPermissionRepository(PermissionRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, permission: Permission) -> None:
         self.session.add(permission_to_orm(permission))
 
-    def get(self, permission_id: str) -> Optional[Permission]:
+    def get(self, permission_id: str) -> Permission | None:
         obj = self.session.get(PermissionORM, permission_id)
         return permission_from_orm(obj) if obj else None
 
-    def get_by_code(self, code: str) -> Optional[Permission]:
+    def get_by_code(self, code: str) -> Permission | None:
         stmt = select(PermissionORM).where(PermissionORM.code == code)
         obj = self.session.execute(stmt).scalars().first()
         return permission_from_orm(obj) if obj else None
 
-    def list_all(self) -> List[Permission]:
+    def list_all(self) -> list[Permission]:
         rows = self.session.execute(select(PermissionORM)).scalars().all()
         return [permission_from_orm(row) for row in rows]
 
 
 class SqlAlchemyUserRoleRepository(UserRoleRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, binding: UserRoleBinding) -> None:
@@ -195,13 +203,15 @@ class SqlAlchemyUserRoleRepository(UserRoleRepository):
         )
         return self.session.execute(stmt).first() is not None
 
-    def list_role_ids(self, user_id: str) -> List[str]:
+    def list_role_ids(self, user_id: str) -> list[str]:
         stmt = select(UserRoleORM.role_id).where(UserRoleORM.user_id == user_id)
         return list(self.session.execute(stmt).scalars().all())
 
 
 class SqlAlchemyRolePermissionRepository(RolePermissionRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, binding: RolePermissionBinding) -> None:
@@ -222,7 +232,7 @@ class SqlAlchemyRolePermissionRepository(RolePermissionRepository):
         )
         return self.session.execute(stmt).first() is not None
 
-    def list_permission_ids(self, role_id: str) -> List[str]:
+    def list_permission_ids(self, role_id: str) -> list[str]:
         stmt = select(RolePermissionORM.permission_id).where(RolePermissionORM.role_id == role_id)
         return list(self.session.execute(stmt).scalars().all())
 

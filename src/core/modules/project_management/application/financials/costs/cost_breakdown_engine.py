@@ -7,7 +7,6 @@ Reporting delegates here rather than owning cost breakdown logic.
 from __future__ import annotations
 
 from datetime import date
-from typing import List, Optional
 
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.modules.project_management.domain.enums import CostType
@@ -41,9 +40,9 @@ class CostBreakdownEngine:
         self,
         project_id: str,
         *,
-        as_of: Optional[date] = None,
-        baseline_id: Optional[str] = None,
-    ) -> List[CostBreakdownRow]:
+        as_of: date | None = None,
+        baseline_id: str | None = None,
+    ) -> list[CostBreakdownRow]:
         as_of = as_of or date.today()
         snapshot = self._engine.build_snapshot(project_id, as_of=as_of)
 
@@ -71,7 +70,7 @@ class CostBreakdownEngine:
                     amount=baseline_total,
                 )
 
-        rows: List[CostBreakdownRow] = []
+        rows: list[CostBreakdownRow] = []
         keys = set(planned_map.keys()) | set(actual_map.keys())
         for (cost_type, currency) in sorted(
             keys,

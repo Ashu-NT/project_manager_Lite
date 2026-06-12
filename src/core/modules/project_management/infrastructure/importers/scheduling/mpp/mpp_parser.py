@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.core.modules.project_management.infrastructure.importers.models.import_models import (
     ImportFieldMapping,
@@ -10,7 +10,6 @@ from src.core.modules.project_management.infrastructure.importers.models.import_
     ImportParser,
     ImportRow,
 )
-
 
 class MSProjectXmlParser(ImportParser):
     """
@@ -27,7 +26,7 @@ class MSProjectXmlParser(ImportParser):
 
     _NS = "http://schemas.microsoft.com/project"
 
-    _DEFAULT_MAP: Dict[str, str] = {
+    _DEFAULT_MAP: dict[str, str] = {
         "UID": "uid",
         "ID": "id",
         "Name": "name",
@@ -58,8 +57,8 @@ class MSProjectXmlParser(ImportParser):
     def parse(
         self,
         source: bytes | str,
-        mapping: Optional[ImportMappingProfile] = None,
-    ) -> List[ImportRow]:
+        mapping: ImportMappingProfile | None = None,
+    ) -> list[ImportRow]:
         import xml.etree.ElementTree as ET
 
         text = source if isinstance(source, str) else source.decode("utf-8-sig")
@@ -73,7 +72,7 @@ class MSProjectXmlParser(ImportParser):
         if tasks_el is None:
             return []
 
-        rows: List[ImportRow] = []
+        rows: list[ImportRow] = []
         row_number = 0
 
         for task_el in tasks_el.findall("p:Task", ns):
@@ -84,7 +83,7 @@ class MSProjectXmlParser(ImportParser):
                 continue
 
             row_number += 1
-            source_data: Dict[str, Any] = {}
+            source_data: dict[str, Any] = {}
 
             for child in task_el:
                 local = child.tag.split("}")[-1] if "}" in child.tag else child.tag
@@ -92,7 +91,7 @@ class MSProjectXmlParser(ImportParser):
                     continue
                 source_data[local] = (child.text or "").strip()
 
-            pred_tokens: List[str] = []
+            pred_tokens: list[str] = []
             for link in task_el.findall("p:PredecessorLink", ns):
                 pred_uid = link.findtext("p:PredecessorUID", default="", namespaces=ns) or ""
                 link_type = link.findtext("p:Type", default="0", namespaces=ns) or "0"
@@ -106,7 +105,7 @@ class MSProjectXmlParser(ImportParser):
 
         return rows
 
-    def detect_headers(self, source: bytes | str) -> List[str]:
+    def detect_headers(self, source: bytes | str) -> list[str]:
         import xml.etree.ElementTree as ET
 
         text = source if isinstance(source, str) else source.decode("utf-8-sig")
@@ -120,7 +119,7 @@ class MSProjectXmlParser(ImportParser):
         if tasks_el is None:
             return list(self._DEFAULT_MAP)
 
-        seen: List[str] = []
+        seen: list[str] = []
         for task_el in tasks_el.findall("p:Task", ns):
             for child in task_el:
                 local = child.tag.split("}")[-1] if "}" in child.tag else child.tag
@@ -131,11 +130,11 @@ class MSProjectXmlParser(ImportParser):
 
     def _apply_mapping(
         self,
-        source_data: Dict[str, Any],
-        mapping: Optional[ImportMappingProfile],
-    ) -> Dict[str, Any]:
+        source_data: dict[str, Any],
+        mapping: ImportMappingProfile | None,
+    ) -> dict[str, Any]:
         if mapping is not None:
-            result: Dict[str, Any] = {}
+            result: dict[str, Any] = {}
             for fm in mapping.field_mappings:
                 result[fm.target_field] = source_data.get(fm.source_field, fm.default_value)
             return result
@@ -144,6 +143,5 @@ class MSProjectXmlParser(ImportParser):
             target = self._DEFAULT_MAP.get(src_key, src_key.lower())
             result[target] = value
         return result
-
 
 __all__ = ["MSProjectXmlParser"]

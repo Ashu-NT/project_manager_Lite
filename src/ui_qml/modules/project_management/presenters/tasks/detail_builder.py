@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskCatalogWorkspaceViewModel,
     TaskDetailFieldViewModel,
@@ -10,8 +12,7 @@ from .overview_builder import build_empty_overview
 from .task_mapper import build_task_state
 from .utils import resolve_selected_task
 
-
-def build_material_demand_state(desktop_api, task_id: str) -> dict[str, object]:
+def build_material_demand_state(desktop_api: Any, task_id: str) -> dict[str, object]:
     normalized_task_id = str(task_id or "").strip()
     if not normalized_task_id:
         return {
@@ -48,10 +49,9 @@ def build_material_demand_state(desktop_api, task_id: str) -> dict[str, object]:
         "materialDemandCancelled": str(cancelled_count),
     }
 
-
 def build_detail_view_model(
-    desktop_api,
-    task,
+    desktop_api: Any,
+    task: Any,
     *,
     assignment_count: int,
     dependency_count: int,
@@ -109,9 +109,8 @@ def build_detail_view_model(
         state=state,
     )
 
-
 def build_empty_task_detail_state(
-    desktop_api,
+    desktop_api: Any,
     *,
     project_id: str | None,
 ) -> TaskCatalogWorkspaceViewModel:
@@ -127,9 +126,8 @@ def build_empty_task_detail_state(
         ),
     )
 
-
 def build_task_basic_detail_state(
-    desktop_api,
+    desktop_api: Any,
     *,
     task_id: str,
     project_id: str | None = None,
@@ -154,9 +152,8 @@ def build_task_basic_detail_state(
         ),
     )
 
-
 def build_task_detail_state(
-    desktop_api,
+    desktop_api: Any,
     *,
     task_id: str,
     project_id: str | None = None,

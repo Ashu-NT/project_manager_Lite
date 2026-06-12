@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.core.modules.project_management.domain.identifiers import generate_id
@@ -16,7 +15,7 @@ class Resource:
     hourly_rate: float = 0.0
     is_active: bool = True
     cost_type: CostType = CostType.LABOR
-    currency_code: Optional[str] = None
+    currency_code: str | None = None
     version: int = 1
     capacity_percent: float = 100.0
     address: str = ""
@@ -32,7 +31,7 @@ class Resource:
         hourly_rate: float = 0.0,
         is_active: bool = True,
         cost_type: CostType = CostType.LABOR,
-        currency_code: Optional[str] = None,
+        currency_code: str | None = None,
         capacity_percent: float = 100.0,
         address: str = "",
         contact: str = "",

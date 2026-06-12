@@ -6,7 +6,6 @@ Business logic lives in financials/earned_value/evm_calculator.py.
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
 
 from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
@@ -25,7 +24,6 @@ from src.core.modules.project_management.infrastructure.reporting.builders.cost_
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     EarnedValueMetrics,
 )
-
 
 class ReportingEvmCoreMixin(ReportingCostPolicyMixin):
     _baseline_repo: BaselineRepository
@@ -47,8 +45,8 @@ class ReportingEvmCoreMixin(ReportingCostPolicyMixin):
     def get_earned_value(
         self,
         project_id: str,
-        as_of: Optional[date] = None,
-        baseline_id: Optional[str] = None,
+        as_of: date | None = None,
+        baseline_id: str | None = None,
     ) -> EarnedValueMetrics:
         self._require_view("view earned value report", project_id=project_id)
         return self._make_evm_calculator().calculate(

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.site.contracts import LocationReferenceRepository
@@ -8,16 +10,19 @@ from .department_context import active_organization
 from .department_validation import validate_site_id
 from .department_utils import normalize_optional_text
 
+if TYPE_CHECKING:
+    from .department_service import DepartmentService
+
 
 def register_location_reference_repository(
-    service,
+    service: DepartmentService,
     location_reference_repo: LocationReferenceRepository | None,
 ) -> None:
     service._location_reference_repo = location_reference_repo
 
 
 def validate_default_location_id(
-    service,
+    service: DepartmentService,
     default_location_id: str | None,
     *,
     organization_id: str,
@@ -46,7 +51,7 @@ def validate_default_location_id(
 
 
 def list_available_location_references(
-    service,
+    service: DepartmentService,
     *,
     site_id: str | None = None,
     active_only: bool | None = True,

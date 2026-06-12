@@ -8,8 +8,10 @@ from src.core.platform.auth.domain.session import UserSessionPrincipal
 if TYPE_CHECKING:
     from src.core.platform.auth.domain import UserAccount
 
+    from .auth_service import AuthService
 
-def build_principal(service, user: UserAccount, *, session_id: str | None = None) -> UserSessionPrincipal:
+
+def build_principal(service: AuthService, user: UserAccount, *, session_id: str | None = None) -> UserSessionPrincipal:
     scoped_access: dict[str, dict[str, frozenset[str]]] = {}
     if service._scoped_access_repo is not None:
         for grant in service._scoped_access_repo.list_by_user(user.id):

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingCollectionViewModel,
     SchedulingRecordViewModel,
@@ -7,12 +9,11 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
 
 from .formatters import format_date, int_label
 
-
 def build_activity_feed_collection(
     *,
-    schedule_items,
-    delayed_items,
-    resource_load,
+    schedule_items: Any,
+    delayed_items: Any,
+    resource_load: Any,
     activity_log: tuple[dict[str, str], ...],
 ) -> SchedulingCollectionViewModel:
     rows: list[SchedulingRecordViewModel] = [
@@ -71,6 +72,5 @@ def build_activity_feed_collection(
         items=tuple(rows[:12]),
         empty_state="No planning activity has been recorded in this session.",
     )
-
 
 __all__ = ["build_activity_feed_collection"]

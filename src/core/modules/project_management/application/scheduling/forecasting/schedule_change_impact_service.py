@@ -4,7 +4,6 @@ from src.core.platform.calendar.application.calendar_protocol import CalendarPro
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Dict, List, Optional, Set
 
 from src.core.modules.project_management.contracts.repositories.task import (
     DependencyRepository,
@@ -21,12 +20,12 @@ from src.core.modules.project_management.application.scheduling.cpm.cpm_calculat
 class TaskImpact:
     task_id: str
     task_name: str
-    original_start: Optional[date]
-    original_finish: Optional[date]
-    proposed_start: Optional[date]
-    proposed_finish: Optional[date]
-    start_shift_days: Optional[int]   # positive = later, negative = earlier
-    finish_shift_days: Optional[int]
+    original_start: date | None
+    original_finish: date | None
+    proposed_start: date | None
+    proposed_finish: date | None
+    start_shift_days: int | None   # positive = later, negative = earlier
+    finish_shift_days: int | None
     is_critical: bool
 
 
@@ -39,12 +38,12 @@ class ScheduleChangeImpactReport:
     and which tasks would join or leave the critical path.
     """
     changed_task_id: str
-    proposed_start: Optional[date]
-    proposed_finish: Optional[date]
-    proposed_duration_days: Optional[int]
-    affected_tasks: List[TaskImpact]          # tasks that shift (including the changed task)
-    newly_critical_task_ids: List[str]        # tasks entering critical path
-    no_longer_critical_task_ids: List[str]    # tasks leaving critical path
+    proposed_start: date | None
+    proposed_finish: date | None
+    proposed_duration_days: int | None
+    affected_tasks: list[TaskImpact]          # tasks that shift (including the changed task)
+    newly_critical_task_ids: list[str]        # tasks entering critical path
+    no_longer_critical_task_ids: list[str]    # tasks leaving critical path
     max_project_finish_shift_days: int        # positive = project end delayed
     requires_approval: bool                   # true if approved baseline exists and shift > threshold
 
@@ -81,9 +80,9 @@ class ScheduleChangeImpactService:
         self,
         project_id: str,
         changed_task_id: str,
-        proposed_start: Optional[date] = None,
-        proposed_finish: Optional[date] = None,
-        proposed_duration_days: Optional[int] = None,
+        proposed_start: date | None = None,
+        proposed_finish: date | None = None,
+        proposed_duration_days: int | None = None,
         has_approved_baseline: bool = False,
     ) -> ScheduleChangeImpactReport:
         """
@@ -95,14 +94,14 @@ class ScheduleChangeImpactService:
         tasks = self._task_repo.list_by_project(project_id)
         deps = self._dependency_repo.list_by_project(project_id)
 
-        tasks_by_id: Dict[str, Task] = {t.id: t for t in tasks}
+        tasks_by_id: dict[str, Task] = {t.id: t for t in tasks}
 
         # ── original pass ────────────────────────────────────────────────
         original: CPMResult = self._cpm.calculate(tasks_by_id, deps)
 
         # ── proposed pass (copy with the change applied) ─────────────────
         from dataclasses import replace
-        proposed_tasks: Dict[str, Task] = {tid: replace(t) for tid, t in tasks_by_id.items()}
+        proposed_tasks: dict[str, Task] = {tid: replace(t) for tid, t in tasks_by_id.items()}
         changed = proposed_tasks.get(changed_task_id)
         if changed is None:
             return ScheduleChangeImpactReport(
@@ -126,9 +125,9 @@ class ScheduleChangeImpactService:
         proposed: CPMResult = self._cpm.calculate(proposed_tasks, deps)
 
         # ── diff ─────────────────────────────────────────────────────────
-        affected: List[TaskImpact] = []
-        orig_critical: Set[str] = set(original.critical_path_task_ids)
-        prop_critical: Set[str] = set(proposed.critical_path_task_ids)
+        affected: list[TaskImpact] = []
+        orig_critical: set[str] = set(original.critical_path_task_ids)
+        prop_critical: set[str] = set(proposed.critical_path_task_ids)
 
         for task_id in tasks_by_id:
             orig_info = original.schedule.get(task_id)
@@ -185,7 +184,7 @@ class ScheduleChangeImpactService:
 
     # ── internal ─────────────────────────────────────────────────────────────
 
-    def _day_shift(self, original: Optional[date], proposed: Optional[date]) -> int:
+    def _day_shift(self, original: date | None, proposed: date | None) -> int:
         if original is None or proposed is None:
             return 0
         if proposed == original:

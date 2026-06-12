@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
 
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
@@ -49,12 +48,12 @@ class CommitmentSummary:
 class MaterialRollup:
     """Aggregated material cost figures for a project or specific task."""
     project_id: str
-    task_id: Optional[str]
+    task_id: str | None
     planned: float
     committed: float
     actual: float
     forecast: float
-    items: List[CostItem] = field(default_factory=list)
+    items: list[CostItem] = field(default_factory=list)
 
     @property
     def variance(self) -> float:
@@ -111,7 +110,7 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
     def get_material_rollup(
         self,
         project_id: str,
-        task_id: Optional[str] = None,
+        task_id: str | None = None,
     ) -> MaterialRollup:
         require_permission(self._user_session, "report.view", operation_label="view material rollup")
         require_project_permission(
@@ -198,7 +197,7 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
         return forecast_eac > bac * (1.0 + threshold_percent / 100.0)
 
     def _build_commitment_summary(
-        self, project_id: str, items: List[CostItem]
+        self, project_id: str, items: list[CostItem]
     ) -> CommitmentSummary:
         uncommitted = sum(
             c.planned_amount for c in items
@@ -235,7 +234,7 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
         ac: float,
         ev: float,
         cpi: float,
-        items: List[CostItem],
+        items: list[CostItem],
     ) -> tuple[float, float]:
         if method == EACMethod.MANUAL:
             etc = max(0.0, sum(c.effective_forecast - c.actual_amount for c in items))

@@ -62,7 +62,6 @@ from .time_command_handler import (
 )
 from .workspace_builder import build_workspace_state
 
-
 class ProjectTasksWorkspacePresenter:
     def __init__(
         self,
@@ -306,6 +305,5 @@ class ProjectTasksWorkspacePresenter:
 
     def validate_assignment(self, payload: dict[str, Any]) -> dict[str, object]:
         return validate_assignment(self._desktop_api, payload)
-
 
 __all__ = ["ProjectTasksWorkspacePresenter"]

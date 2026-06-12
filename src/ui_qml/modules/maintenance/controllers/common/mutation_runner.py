@@ -5,7 +5,6 @@ from typing import Callable
 
 logger = logging.getLogger(__name__)
 
-
 def run_mutation(
     *,
     operation: Callable[[], None],
@@ -37,6 +36,5 @@ def run_mutation(
     finally:
         set_is_busy(False)
     return payload
-
 
 __all__ = ["run_mutation"]

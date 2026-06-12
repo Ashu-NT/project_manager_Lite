@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingMetricViewModel,
     SchedulingOverviewViewModel,
 )
 
-
-def count_open_ends(schedule_items, dependency_rows) -> int:
+def count_open_ends(schedule_items: Any, dependency_rows: Any) -> int:
     if not schedule_items:
         return 0
     predecessor_count: dict[str, int] = {}
@@ -24,18 +25,17 @@ def count_open_ends(schedule_items, dependency_rows) -> int:
             open_ends += 1
     return open_ends
 
-
 def build_overview(
     *,
     resolved_project_id: str,
-    schedule_items,
-    filtered_schedule,
-    critical_items,
-    delayed_items,
-    dependency_rows,
-    baseline_rows,
-    calendar_snapshot,
-    resource_load,
+    schedule_items: Any,
+    filtered_schedule: Any,
+    critical_items: Any,
+    delayed_items: Any,
+    dependency_rows: Any,
+    baseline_rows: Any,
+    calendar_snapshot: Any,
+    resource_load: Any,
 ) -> SchedulingOverviewViewModel:
     open_ends = count_open_ends(schedule_items, dependency_rows)
     negative_float = sum(
@@ -94,6 +94,5 @@ def build_overview(
             ),
         ),
     )
-
 
 __all__ = ["count_open_ends", "build_overview"]

@@ -17,7 +17,9 @@ from src.core.platform.infrastructure.persistence.mappers.time import (
 
 
 class SqlAlchemyTimeEntryRepository(TimeEntryRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, entry: TimeEntry) -> None:
@@ -47,7 +49,9 @@ class SqlAlchemyTimeEntryRepository(TimeEntryRepository):
 
 
 class SqlAlchemyTimesheetPeriodRepository(TimesheetPeriodRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, period: TimesheetPeriod) -> None:

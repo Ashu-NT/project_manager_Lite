@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.timesheets import (
     TimesheetDetailFieldViewModel,
     TimesheetDetailViewModel,
 )
 
-
-def build_assignment_summary(snapshot) -> TimesheetDetailViewModel:
+def build_assignment_summary(snapshot: Any) -> TimesheetDetailViewModel:
     if snapshot is None:
         return TimesheetDetailViewModel(
             title="No assignment selected",

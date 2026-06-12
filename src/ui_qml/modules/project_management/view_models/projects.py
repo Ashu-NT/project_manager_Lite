@@ -3,13 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-
 @dataclass(frozen=True)
 class ProjectCatalogMetricViewModel:
     label: str
     value: str
     supporting_text: str
-
 
 @dataclass(frozen=True)
 class ProjectCatalogOverviewViewModel:
@@ -17,12 +15,10 @@ class ProjectCatalogOverviewViewModel:
     subtitle: str
     metrics: tuple[ProjectCatalogMetricViewModel, ...]
 
-
 @dataclass(frozen=True)
 class ProjectStatusOptionViewModel:
     value: str
     label: str
-
 
 @dataclass(frozen=True)
 class ProjectRecordViewModel:
@@ -37,13 +33,11 @@ class ProjectRecordViewModel:
     can_tertiary_action: bool = True
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class ProjectDetailFieldViewModel:
     label: str
     value: str
     supporting_text: str = ""
-
 
 @dataclass(frozen=True)
 class ProjectDetailViewModel:
@@ -126,7 +120,6 @@ class ProjectCatalogWorkspaceViewModel:
             empty_state="Open this section to load project activity.",
         )
     )
-
 
 __all__ = [
     "ProjectCatalogMetricViewModel",

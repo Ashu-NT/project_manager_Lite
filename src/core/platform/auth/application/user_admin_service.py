@@ -12,8 +12,11 @@ from src.core.platform.common.exceptions import ValidationError
 
 from .session_service import refresh_current_session_if_user
 
+if TYPE_CHECKING:
+    from .auth_service import AuthService
 
-def list_users(service) -> list[UserAccount]:
+
+def list_users(service: AuthService) -> list[UserAccount]:
     require_any_permission(
         service._user_session,
         ("auth.manage", "auth.read", "access.manage", "security.manage"),
@@ -22,7 +25,7 @@ def list_users(service) -> list[UserAccount]:
     return service._user_repo.list_all()
 
 
-def list_roles(service) -> list[Role]:
+def list_roles(service: AuthService) -> list[Role]:
     require_any_permission(
         service._user_session,
         ("auth.manage", "auth.read"),
@@ -31,7 +34,7 @@ def list_roles(service) -> list[Role]:
     return service._role_repo.list_all()
 
 
-def set_user_active(service, user_id: str, is_active: bool) -> UserAccount:
+def set_user_active(service: AuthService, user_id: str, is_active: bool) -> UserAccount:
     require_permission(service._user_session, "auth.manage", operation_label="set user active")
     user = service._require_user(user_id)
     user.is_active = bool(is_active)
@@ -44,7 +47,7 @@ def set_user_active(service, user_id: str, is_active: bool) -> UserAccount:
 
 
 def update_user_profile(
-    service,
+    service: AuthService,
     user_id: str,
     *,
     username: str | None = None,
@@ -87,7 +90,7 @@ def update_user_profile(
     return user
 
 
-def unlock_user_account(service, user_id: str) -> UserAccount:
+def unlock_user_account(service: AuthService, user_id: str) -> UserAccount:
     require_any_permission(
         service._user_session,
         ("auth.manage", "security.manage"),

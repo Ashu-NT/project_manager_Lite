@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from typing import Any
 
-def notification_route_id(notification) -> str:
+def notification_route_id(notification: Any) -> str:
     entity_type = str(getattr(notification, "entity_type", "") or "")
     notification_type = str(getattr(notification, "notification_type", "") or "")
     if entity_type == "approval_request":

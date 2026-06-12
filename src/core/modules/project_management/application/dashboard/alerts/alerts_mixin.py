@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import List
 
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.tasks import TaskService
@@ -19,9 +18,9 @@ class DashboardAlertsMixin:
         self,
         project_id: str,
         kpi: ProjectKPI,
-        resource_load: List[ResourceLoadRow],
-    ) -> List[str]:
-        alerts: List[str] = []
+        resource_load: list[ResourceLoadRow],
+    ) -> list[str]:
+        alerts: list[str] = []
         today = date.today()
         project = self._projects.get_project(project_id)
         budget = float(getattr(project, "planned_budget", 0.0) or 0.0)

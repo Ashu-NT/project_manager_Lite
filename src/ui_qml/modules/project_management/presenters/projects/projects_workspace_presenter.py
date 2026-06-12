@@ -39,7 +39,6 @@ from .risks_builder import build_project_risks_state
 from .tasks_builder import build_project_tasks_state
 from .workspace_builder import build_project_detail_state, build_workspace_state
 
-
 class ProjectProjectsWorkspacePresenter:
     def __init__(
         self,
@@ -152,6 +151,5 @@ class ProjectProjectsWorkspacePresenter:
 
     def execute_import(self, *, session_id: str) -> dict[str, object]:
         return execute_import(self._import_sessions, session_id=session_id)
-
 
 __all__ = ["ProjectProjectsWorkspacePresenter"]

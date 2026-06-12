@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
-from typing import Optional
+from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -28,7 +28,7 @@ _VALID_GRANULARITIES = {5, 10, 15, 30, 60}
 logger = logging.getLogger(__name__)
 
 
-def _resolve_username(user_session) -> str | None:
+def _resolve_username(user_session: Any) -> str | None:
     if user_session is None:
         return None
     direct = getattr(user_session, "username", None)
@@ -50,11 +50,11 @@ class EnterpriseCalendarService:
         session: Session,
         calendar_repo: PlatformCalendarRepository,
         assignment_repo: CalendarAssignmentRepository,
-        organization_repo,
+        organization_repo: Any,
         rule_repo: CalendarWorkingRuleRepository | None = None,
         exception_repo: CalendarExceptionRepository | None = None,
-        user_session=None,
-        audit_service=None,
+        user_session: Any = None,
+        audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
     ) -> None:
         self._session = session
@@ -80,8 +80,8 @@ class EnterpriseCalendarService:
     def list_calendars(
         self,
         *,
-        calendar_type: Optional[str] = None,
-        active_only: Optional[bool] = None,
+        calendar_type: str | None = None,
+        active_only: bool | None = None,
     ) -> list[PlatformCalendar]:
         require_permission(self._user_session, "task.read", operation_label="list calendars")
         org_id = self._active_org_id()
@@ -100,14 +100,14 @@ class EnterpriseCalendarService:
         name: str,
         calendar_type: str,
         timezone: str = "UTC",
-        description: Optional[str] = None,
-        base_calendar_id: Optional[str] = None,
-        scope_type: Optional[str] = None,
-        scope_id: Optional[str] = None,
-        locale: Optional[str] = None,
+        description: str | None = None,
+        base_calendar_id: str | None = None,
+        scope_type: str | None = None,
+        scope_id: str | None = None,
+        locale: str | None = None,
         is_default: bool = False,
-        effective_from=None,
-        effective_to=None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
         priority: int = 0,
     ) -> PlatformCalendar:
         require_permission(
@@ -147,15 +147,15 @@ class EnterpriseCalendarService:
         self,
         calendar_id: str,
         *,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        timezone: Optional[str] = None,
-        locale: Optional[str] = None,
-        is_default: Optional[bool] = None,
-        is_active: Optional[bool] = None,
-        effective_from=None,
-        effective_to=None,
-        priority: Optional[int] = None,
+        name: str | None = None,
+        description: str | None = None,
+        timezone: str | None = None,
+        locale: str | None = None,
+        is_default: bool | None = None,
+        is_active: bool | None = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
+        priority: int | None = None,
     ) -> PlatformCalendar:
         require_permission(
             self._user_session, "task.manage", operation_label="update calendar"
@@ -212,7 +212,7 @@ class EnterpriseCalendarService:
     def ensure_global_calendar(
         self,
         organization_id: str,
-        working_calendar_repo=None,
+        working_calendar_repo: Any = None,
     ) -> PlatformCalendar:
         """
         Bootstrap: create the GLOBAL enterprise calendar for an org if it doesn't exist.
@@ -254,7 +254,7 @@ class EnterpriseCalendarService:
         self._session.commit()
         return cal
 
-    def _ensure_working_rules(self, enterprise_cal_id: str, working_calendar_repo) -> None:
+    def _ensure_working_rules(self, enterprise_cal_id: str, working_calendar_repo: Any) -> None:
         if self._rule_repo is None:
             logger.warning(
                 "Cannot verify global calendar working rules because rule repository is unavailable calendar_id=%s",
@@ -270,7 +270,7 @@ class EnterpriseCalendarService:
         )
         self._migrate_legacy_calendar(enterprise_cal_id, working_calendar_repo)
 
-    def _migrate_legacy_calendar(self, enterprise_cal_id: str, working_calendar_repo) -> None:
+    def _migrate_legacy_calendar(self, enterprise_cal_id: str, working_calendar_repo: Any) -> None:
         """
         Migrate legacy working_calendars + holidays into enterprise tables.
         Falls back to Mon-Fri 08:00-17:00 defaults when no legacy data exists.
@@ -366,7 +366,7 @@ class EnterpriseCalendarService:
             raise NotFoundError(f"Calendar '{calendar_id}' not found.")
         return cal
 
-    def _validate_effective_dates(self, effective_from, effective_to) -> None:
+    def _validate_effective_dates(self, effective_from: date | None, effective_to: date | None) -> None:
         if effective_from and effective_to and effective_from > effective_to:
             raise ValidationError("effective_from must be before effective_to.")
 

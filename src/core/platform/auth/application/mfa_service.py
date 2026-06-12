@@ -13,8 +13,10 @@ from .session_service import refresh_current_session_if_user
 if TYPE_CHECKING:
     from src.core.platform.auth.domain import UserAccount
 
+    from .auth_service import AuthService
 
-def provision_mfa_secret(service, user_id: str) -> str:
+
+def provision_mfa_secret(service: AuthService, user_id: str) -> str:
     require_any_permission(
         service._user_session,
         ("auth.manage", "security.manage"),
@@ -31,7 +33,7 @@ def provision_mfa_secret(service, user_id: str) -> str:
     return str(user.mfa_secret or "")
 
 
-def enable_user_mfa(service, user_id: str, verification_code: str) -> UserAccount:
+def enable_user_mfa(service: AuthService, user_id: str, verification_code: str) -> UserAccount:
     require_any_permission(
         service._user_session,
         ("auth.manage", "security.manage"),
@@ -52,7 +54,7 @@ def enable_user_mfa(service, user_id: str, verification_code: str) -> UserAccoun
     return user
 
 
-def disable_user_mfa(service, user_id: str) -> UserAccount:
+def disable_user_mfa(service: AuthService, user_id: str) -> UserAccount:
     require_any_permission(
         service._user_session,
         ("auth.manage", "security.manage"),

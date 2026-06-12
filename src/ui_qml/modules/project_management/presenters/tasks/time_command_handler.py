@@ -9,7 +9,6 @@ from src.core.modules.project_management.api.desktop import (
 
 from .validation import optional_text, require_date, require_float, require_text
 
-
 def add_task_time_entry(timesheets_desktop_api, payload: dict[str, Any]) -> None:
     command = TimesheetEntryCreateCommand(
         assignment_id=require_text(
@@ -21,7 +20,6 @@ def add_task_time_entry(timesheets_desktop_api, payload: dict[str, Any]) -> None
     )
     timesheets_desktop_api.add_time_entry(command)
 
-
 def update_task_time_entry(timesheets_desktop_api, payload: dict[str, Any]) -> None:
     command = TimesheetEntryUpdateCommand(
         entry_id=require_text(payload, "entryId", "Choose an entry to update."),
@@ -31,13 +29,11 @@ def update_task_time_entry(timesheets_desktop_api, payload: dict[str, Any]) -> N
     )
     timesheets_desktop_api.update_time_entry(command)
 
-
 def delete_task_time_entry(timesheets_desktop_api, entry_id: str) -> None:
     normalized_entry_id = (entry_id or "").strip()
     if not normalized_entry_id:
         raise ValueError("Choose an entry to delete.")
     timesheets_desktop_api.delete_time_entry(normalized_entry_id)
-
 
 def submit_task_period(timesheets_desktop_api, payload: dict[str, Any]) -> None:
     timesheets_desktop_api.submit_period(
@@ -48,7 +44,6 @@ def submit_task_period(timesheets_desktop_api, payload: dict[str, Any]) -> None:
         note=optional_text(payload, "note") or "",
     )
 
-
 def lock_task_period(timesheets_desktop_api, payload: dict[str, Any]) -> None:
     timesheets_desktop_api.lock_period(
         resource_id=require_text(
@@ -57,7 +52,6 @@ def lock_task_period(timesheets_desktop_api, payload: dict[str, Any]) -> None:
         period_start=require_date(payload, "periodStart", "Period start is required."),
         note=optional_text(payload, "note") or "",
     )
-
 
 def unlock_task_period(timesheets_desktop_api, payload: dict[str, Any]) -> None:
     timesheets_desktop_api.unlock_period(

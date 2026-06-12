@@ -8,8 +8,10 @@ if TYPE_CHECKING:
     from src.core.platform.department.domain import Department
     from src.core.platform.org.domain import Organization
 
+    from .department_service import DepartmentService
 
-def record_department_create(service, department: Department, organization: Organization) -> None:
+
+def record_department_create(service: DepartmentService, department: Department, organization: Organization) -> None:
     record_audit(
         service,
         action="department.create",
@@ -27,7 +29,7 @@ def record_department_create(service, department: Department, organization: Orga
     )
 
 
-def record_department_update(service, department: Department, organization: Organization) -> None:
+def record_department_update(service: DepartmentService, department: Department, organization: Organization) -> None:
     record_audit(
         service,
         action="department.update",

@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from src.core.platform.common.exceptions import ValidationError
 
 from .department_utils import normalize_optional_text
 
+if TYPE_CHECKING:
+    from .department_service import DepartmentService
 
-def validate_site_id(service, site_id: str | None, *, organization_id: str) -> str | None:
+
+def validate_site_id(service: DepartmentService, site_id: str | None, *, organization_id: str) -> str | None:
     normalized = normalize_optional_text(site_id) or None
     if normalized is None or service._site_repo is None:
         return normalized
@@ -19,7 +24,7 @@ def validate_site_id(service, site_id: str | None, *, organization_id: str) -> s
 
 
 def validate_parent_department_id(
-    service,
+    service: DepartmentService,
     parent_department_id: str | None,
     *,
     organization_id: str,
@@ -39,7 +44,7 @@ def validate_parent_department_id(
     return normalized
 
 
-def validate_manager_employee_id(service, manager_employee_id: str | None) -> str | None:
+def validate_manager_employee_id(service: DepartmentService, manager_employee_id: str | None) -> str | None:
     normalized = normalize_optional_text(manager_employee_id) or None
     if normalized is None or service._employee_repo is None:
         return normalized

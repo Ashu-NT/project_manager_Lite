@@ -45,16 +45,16 @@ class InventoryService:
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
-    ):
-        self._session = session
-        self._storeroom_repo = storeroom_repo
-        self._organization_repo = organization_repo
-        self._tenant_context_service = tenant_context_service or TenantContextService(
+    ) -> None:
+        self._session: Session = session
+        self._storeroom_repo: StoreroomRepository = storeroom_repo
+        self._organization_repo: OrganizationRepository = organization_repo
+        self._tenant_context_service: TenantContextService = tenant_context_service or TenantContextService(
             organization_repo=organization_repo,
             user_session=user_session,
         )
-        self._site_service = site_service
-        self._party_service = party_service
+        self._site_service: SiteService = site_service
+        self._party_service: PartyService = party_service
         self._user_session = user_session
         self._audit_service = audit_service
 

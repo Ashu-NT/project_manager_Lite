@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Callable, Iterable
+from typing import Any, Callable, Iterable
 
 from sqlalchemy.orm import Session
 
@@ -49,8 +49,8 @@ class ModuleCatalogService(
         platform_capabilities: Iterable[PlatformCapability] | None = None,
         entitlement_repo: ModuleEntitlementRepository | None = None,
         session: Session | None = None,
-        user_session=None,
-        audit_service=None,
+        user_session: Any = None,
+        audit_service: Any = None,
         organization_context_provider: Callable[[], Organization | None] | None = None,
     ) -> None:
         known_modules = tuple(modules)

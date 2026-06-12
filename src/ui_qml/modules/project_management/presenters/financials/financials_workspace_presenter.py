@@ -14,7 +14,6 @@ from src.ui_qml.modules.project_management.view_models.financials import (
 from .command_handler import create_cost_item, delete_cost_item, suggest_code, update_cost_item
 from .workspace_builder import build_workspace_state, compute_forecast
 
-
 class ProjectFinancialsWorkspacePresenter:
     def __init__(
         self,
@@ -58,6 +57,5 @@ class ProjectFinancialsWorkspacePresenter:
         method: str = "bac_over_cpi",
     ) -> FinancialsForecastViewModel:
         return compute_forecast(self._desktop_api, selected_project_id, method=method)
-
 
 __all__ = ["ProjectFinancialsWorkspacePresenter"]

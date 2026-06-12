@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsForecastMetricViewModel,
     FinancialsForecastViewModel,
@@ -12,8 +14,7 @@ _METHOD_LABELS = {
     "manual": "Manual (sum of forecast amounts)",
 }
 
-
-def build_forecast_view_model(forecast_dto) -> FinancialsForecastViewModel:
+def build_forecast_view_model(forecast_dto: Any) -> FinancialsForecastViewModel:
     method_label = _METHOD_LABELS.get(forecast_dto.method, forecast_dto.method)
     alert = ""
     if forecast_dto.exceeds_threshold:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 from datetime import date
-from typing import List
 from src.core.modules.project_management.domain.scheduling.calendar import CalendarEvent
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
@@ -89,11 +88,11 @@ class CalendarService(ProjectManagementModuleGuardMixin):
             raise e
         return event
 
-    def list_events_for_project(self, project_id: str) -> List[CalendarEvent]:
+    def list_events_for_project(self, project_id: str) -> list[CalendarEvent]:
         require_permission(self._user_session, "task.read", operation_label="list calendar events")
         return self._calendar_repo.list_for_project(project_id)
 
-    def list_events_in_range(self, start: date, end: date) -> List[CalendarEvent]:
+    def list_events_in_range(self, start: date, end: date) -> list[CalendarEvent]:
         require_permission(self._user_session, "task.read", operation_label="list calendar events in range")
         return self._calendar_repo.list_range(start, end)
 

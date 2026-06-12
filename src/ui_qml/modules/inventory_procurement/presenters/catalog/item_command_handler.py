@@ -15,7 +15,6 @@ from .validation import (
     require_text,
 )
 
-
 def suggest_item_code(desktop_api, payload: dict[str, Any]) -> str:
     from src.core.platform.common.code_generation import CodeGenerator
 
@@ -30,7 +29,6 @@ def suggest_item_code(desktop_api, payload: dict[str, Any]) -> str:
         name=name or None,
         use_year=not bool(name),
     )
-
 
 def create_item(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryItemCreateCommand(
@@ -61,7 +59,6 @@ def create_item(desktop_api, payload: dict[str, Any]) -> None:
         notes=optional_text(payload, "notes") or "",
     )
     desktop_api.create_item(command)
-
 
 def update_item(desktop_api, payload: dict[str, Any]) -> None:
     command = InventoryItemUpdateCommand(
@@ -95,7 +92,6 @@ def update_item(desktop_api, payload: dict[str, Any]) -> None:
     )
     desktop_api.update_item(command)
 
-
 def apply_bulk_status(desktop_api, payload: dict[str, Any]) -> None:
     selected_ids = [
         str(item_id or "").strip()
@@ -109,7 +105,6 @@ def apply_bulk_status(desktop_api, payload: dict[str, Any]) -> None:
     )
     for item_id in selected_ids:
         desktop_api.change_item_status(item_id, status=next_status)
-
 
 def toggle_item_active(
     desktop_api,

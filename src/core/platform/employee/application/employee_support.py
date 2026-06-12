@@ -3,6 +3,7 @@ from __future__ import annotations
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.department.contracts import DepartmentRepository
+from src.core.platform.department.domain import Department
 from src.core.platform.employee.contracts import (
     LinkedEmployeeResource,
     LinkedEmployeeResourceRepository,
@@ -11,6 +12,7 @@ from src.core.platform.employee.domain import Employee
 from src.core.platform.employee.support import employee_contact
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.site.domain import Site
 
 
 def build_employee_audit_details(employee: Employee) -> dict[str, str]:
@@ -108,7 +110,7 @@ def _load_site(
     site_repo: SiteRepository | None,
     active_organization_id: str | None,
     site_id: str | None,
-):
+) -> Site | None:
     if site_id is None or site_repo is None:
         return None
     site = site_repo.get(site_id)
@@ -125,7 +127,7 @@ def _load_department(
     department_repo: DepartmentRepository | None,
     active_organization_id: str | None,
     department_id: str | None,
-):
+) -> Department | None:
     if department_id is None or department_repo is None:
         return None
     department = department_repo.get(department_id)
@@ -145,7 +147,7 @@ def _match_site_by_name(
     site_repo: SiteRepository | None,
     active_organization_id: str | None,
     site_name: str,
-):
+) -> Site | None:
     normalized = (site_name or "").strip().lower()
     if not normalized or active_organization_id is None or site_repo is None:
         return None
@@ -162,7 +164,7 @@ def _match_department_by_name(
     department_repo: DepartmentRepository | None,
     active_organization_id: str | None,
     department_name: str,
-):
+) -> Department | None:
     normalized = (department_name or "").strip().lower()
     if not normalized or active_organization_id is None or department_repo is None:
         return None

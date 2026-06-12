@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Optional
 
 # Financial domain DTOs live in financials/models/ — re-exported here for backward compat.
 from src.core.modules.project_management.application.financials.models.finance_models import (
@@ -16,27 +15,25 @@ from src.core.modules.project_management.application.financials.models.finance_m
     LaborResourceRow,
 )
 
-
 # ── Reporting-specific DTOs (schedule, Gantt, KPI, resource load) ─────────────
 
 @dataclass
 class GanttTaskBar:
     task_id: str
     name: str
-    start: Optional[date]
-    end: Optional[date]
+    start: date | None
+    end: date | None
     is_critical: bool
     percent_complete: float
     status: str
-
 
 @dataclass
 class ProjectKPI:
     project_id: str
     name: str
-    start_date: Optional[date]
-    end_date: Optional[date]
-    duration_working_days: Optional[int]
+    start_date: date | None
+    end_date: date | None
+    duration_working_days: int | None
     tasks_total: int
     tasks_completed: int
     tasks_in_progress: int
@@ -50,7 +47,6 @@ class ProjectKPI:
     total_committed_cost: float
     committment_variance: float
 
-
 @dataclass
 class ResourceLoadRow:
     resource_id: str
@@ -59,7 +55,6 @@ class ResourceLoadRow:
     tasks_count: int
     capacity_percent: float = 100.0
     utilization_percent: float = 0.0
-
 
 @dataclass
 class TaskVarianceRow:
@@ -72,7 +67,6 @@ class TaskVarianceRow:
     start_variance_days: int | None
     finish_variance_days: int | None
     is_critical: bool
-
 
 @dataclass
 class BaselineComparisonRow:
@@ -91,7 +85,6 @@ class BaselineComparisonRow:
     duration_delta_days: int | None
     planned_cost_delta: float
     change_type: str
-
 
 @dataclass
 class BaselineComparisonResult:

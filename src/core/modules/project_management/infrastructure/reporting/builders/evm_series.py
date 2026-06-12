@@ -6,7 +6,6 @@ Business logic lives in financials/earned_value/evm_series.py.
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
 
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
@@ -16,7 +15,6 @@ from src.core.modules.project_management.application.financials.earned_value.evm
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     EvmSeriesPoint,
 )
-
 
 class ReportingEvmSeriesMixin:
     _project_repo: ProjectRepository
@@ -32,8 +30,8 @@ class ReportingEvmSeriesMixin:
     def get_evm_series(
         self,
         project_id: str,
-        baseline_id: Optional[str] = None,
-        as_of: Optional[date] = None,
+        baseline_id: str | None = None,
+        as_of: date | None = None,
         freq: str = "M",
     ) -> list[EvmSeriesPoint]:
         self._require_view("view earned value trend", project_id=project_id)

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from src.core.platform.common.ids import generate_id
 
@@ -24,8 +23,8 @@ class Employee:
     site_name: str = ""
     title: str = ""
     employment_type: EmploymentType = EmploymentType.FULL_TIME
-    email: Optional[str] = None
-    phone: Optional[str] = None
+    email: str | None = None
+    phone: str | None = None
     is_active: bool = True
     version: int = 1
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional
 
 from src.core.modules.project_management.domain.identifiers import generate_id
 
@@ -14,8 +13,8 @@ class ProjectCalendarAssignment:
     id: str
     project_id: str
     calendar_id: str
-    effective_from: Optional[date] = None
-    effective_to: Optional[date] = None
+    effective_from: date | None = None
+    effective_to: date | None = None
     is_default: bool = False
     priority: int = 0
 
@@ -24,8 +23,8 @@ class ProjectCalendarAssignment:
         project_id: str,
         calendar_id: str,
         *,
-        effective_from: Optional[date] = None,
-        effective_to: Optional[date] = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
         is_default: bool = False,
         priority: int = 0,
     ) -> "ProjectCalendarAssignment":
@@ -45,8 +44,8 @@ class ResourceCalendarAssignment:
     id: str
     resource_id: str
     calendar_id: str
-    effective_from: Optional[date] = None
-    effective_to: Optional[date] = None
+    effective_from: date | None = None
+    effective_to: date | None = None
     is_default: bool = False
     priority: int = 0
 
@@ -55,8 +54,8 @@ class ResourceCalendarAssignment:
         resource_id: str,
         calendar_id: str,
         *,
-        effective_from: Optional[date] = None,
-        effective_to: Optional[date] = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
         is_default: bool = False,
         priority: int = 0,
     ) -> "ResourceCalendarAssignment":

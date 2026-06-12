@@ -6,10 +6,10 @@ from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.org.domain import Organization
 
 if TYPE_CHECKING:
-    pass
+    from .department_service import DepartmentService
 
 
-def active_organization(service) -> Organization:
+def active_organization(service: DepartmentService) -> Organization:
     if service._tenant_context_service is None:
         raise BusinessRuleError(
             "Active organization context is required.",

@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-
 @dataclass(frozen=True)
 class PagedTaskResult:
     items: tuple[Any, ...]
@@ -11,8 +10,7 @@ class PagedTaskResult:
     page: int
     page_size: int
 
-
-def paginate_tasks(tasks, *, page: int, page_size: int) -> PagedTaskResult:
+def paginate_tasks(tasks: Any, *, page: int, page_size: int) -> PagedTaskResult:
     total_count = len(tasks)
     resolved_page = max(1, page)
     resolved_page_size = max(1, page_size)

@@ -16,12 +16,10 @@ from src.core.modules.project_management.domain.risk.register import (
 from .utils import WorkspaceMode
 from .validation import optional_date, optional_int, optional_text, require_text
 
-
 def resolve_entry_type(payload: dict[str, Any], *, workspace_mode: WorkspaceMode) -> str:
     if workspace_mode == "risk":
         return RegisterEntryType.RISK.value
     return optional_text(payload, "entryType") or RegisterEntryType.RISK.value
-
 
 def suggest_code(
     desktop_api: ProjectManagementRegisterDesktopApi,
@@ -43,7 +41,6 @@ def suggest_code(
         name=name or None,
         use_year=not bool(name),
     )
-
 
 def create_entry(
     desktop_api: ProjectManagementRegisterDesktopApi,
@@ -69,7 +66,6 @@ def create_entry(
         code=optional_text(payload, "entryCode") or "",
     )
     desktop_api.create_entry(command)
-
 
 def update_entry(
     desktop_api: ProjectManagementRegisterDesktopApi,
@@ -101,7 +97,6 @@ def update_entry(
         code=optional_text(payload, "entryCode") or "",
     )
     desktop_api.update_entry(command)
-
 
 def delete_entry(
     desktop_api: ProjectManagementRegisterDesktopApi,

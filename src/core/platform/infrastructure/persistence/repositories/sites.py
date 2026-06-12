@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Optional
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,7 +11,9 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemySiteRepository(SiteRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, site: Site) -> None:
@@ -52,11 +52,11 @@ class SqlAlchemySiteRepository(SiteRepository):
             stale_message="Site was updated by another user.",
         )
 
-    def get(self, site_id: str) -> Optional[Site]:
+    def get(self, site_id: str) -> Site | None:
         obj = self.session.get(SiteORM, site_id)
         return site_from_orm(obj) if obj else None
 
-    def get_by_code(self, organization_id: str, site_code: str) -> Optional[Site]:
+    def get_by_code(self, organization_id: str, site_code: str) -> Site | None:
         stmt = select(SiteORM).where(
             SiteORM.organization_id == organization_id,
             SiteORM.site_code == site_code,
@@ -69,7 +69,7 @@ class SqlAlchemySiteRepository(SiteRepository):
         organization_id: str,
         *,
         active_only: bool | None = None,
-    ) -> List[Site]:
+    ) -> list[Site]:
         stmt = select(SiteORM).where(SiteORM.organization_id == organization_id)
         if active_only is not None:
             stmt = stmt.where(SiteORM.is_active == bool(active_only))

@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.core.modules.project_management.infrastructure.importers.models.import_models import (
     ImportMappingProfile,
     ImportParser,
     ImportRow,
 )
-
 
 class P6Parser(ImportParser):
     """
@@ -40,15 +39,15 @@ class P6Parser(ImportParser):
     def parse(
         self,
         source: bytes | str,
-        mapping: Optional[ImportMappingProfile] = None,
-    ) -> List[ImportRow]:
+        mapping: ImportMappingProfile | None = None,
+    ) -> list[ImportRow]:
         text = source.decode("latin-1") if isinstance(source, bytes) else source
         tables = self._parse_xer_tables(text)
 
         task_rows = tables.get("TASK", [])
         pred_rows = tables.get("TASKPRED", [])
 
-        pred_map: Dict[str, List[str]] = {}
+        pred_map: dict[str, list[str]] = {}
         for pr in pred_rows:
             tid = pr.get("task_id", "")
             pred_id = pr.get("pred_task_id", "")
@@ -57,7 +56,7 @@ class P6Parser(ImportParser):
             if tid:
                 pred_map.setdefault(tid, []).append(f"{pred_id}:{link_type}:{lag}")
 
-        rows: List[ImportRow] = []
+        rows: list[ImportRow] = []
         for i, record in enumerate(task_rows, start=1):
             source_data = dict(record)
             task_id = source_data.get("task_id", "")
@@ -68,7 +67,7 @@ class P6Parser(ImportParser):
 
         return rows
 
-    def detect_headers(self, source: bytes | str) -> List[str]:
+    def detect_headers(self, source: bytes | str) -> list[str]:
         text = source.decode("latin-1") if isinstance(source, bytes) else source
         tables = self._parse_xer_tables(text)
         task_rows = tables.get("TASK", [])
@@ -82,10 +81,10 @@ class P6Parser(ImportParser):
         ]
 
     @staticmethod
-    def _parse_xer_tables(text: str) -> Dict[str, List[Dict[str, str]]]:
-        tables: Dict[str, List[Dict[str, str]]] = {}
-        current_table: Optional[str] = None
-        current_headers: List[str] = []
+    def _parse_xer_tables(text: str) -> dict[str, list[dict[str, str]]]:
+        tables: dict[str, list[dict[str, str]]] = {}
+        current_table: str | None = None
+        current_headers: list[str] = []
 
         for raw_line in text.splitlines():
             line = raw_line.rstrip("\r")
@@ -112,15 +111,14 @@ class P6Parser(ImportParser):
 
     def _apply_mapping(
         self,
-        source_data: Dict[str, Any],
-        mapping: Optional[ImportMappingProfile],
-    ) -> Dict[str, Any]:
+        source_data: dict[str, Any],
+        mapping: ImportMappingProfile | None,
+    ) -> dict[str, Any]:
         if mapping is None:
             return dict(source_data)
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
         for fm in mapping.field_mappings:
             result[fm.target_field] = source_data.get(fm.source_field, fm.default_value)
         return result
-
 
 __all__ = ["P6Parser"]

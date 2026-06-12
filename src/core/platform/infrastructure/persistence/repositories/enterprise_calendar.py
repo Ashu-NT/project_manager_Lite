@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -61,14 +60,16 @@ from src.core.platform.infrastructure.persistence.orm.enterprise_calendar import
 
 
 class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
+    _session: Session
+
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def get(self, calendar_id: str) -> Optional[PlatformCalendar]:
+    def get(self, calendar_id: str) -> PlatformCalendar | None:
         obj = self._session.get(PlatformCalendarORM, calendar_id)
         return platform_calendar_from_orm(obj) if obj else None
 
-    def get_by_code(self, organization_id: str, code: str) -> Optional[PlatformCalendar]:
+    def get_by_code(self, organization_id: str, code: str) -> PlatformCalendar | None:
         stmt = select(PlatformCalendarORM).where(
             PlatformCalendarORM.organization_id == organization_id,
             PlatformCalendarORM.code == code,
@@ -76,7 +77,7 @@ class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
         obj = self._session.execute(stmt).scalars().first()
         return platform_calendar_from_orm(obj) if obj else None
 
-    def get_global(self, organization_id: str) -> Optional[PlatformCalendar]:
+    def get_global(self, organization_id: str) -> PlatformCalendar | None:
         stmt = select(PlatformCalendarORM).where(
             PlatformCalendarORM.organization_id == organization_id,
             PlatformCalendarORM.calendar_type == "GLOBAL",
@@ -89,8 +90,8 @@ class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
         self,
         organization_id: str,
         *,
-        calendar_type: Optional[str] = None,
-        active_only: Optional[bool] = None,
+        calendar_type: str | None = None,
+        active_only: bool | None = None,
     ) -> list[PlatformCalendar]:
         stmt = select(PlatformCalendarORM).where(
             PlatformCalendarORM.organization_id == organization_id
@@ -137,6 +138,8 @@ class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
 
 
 class SqlAlchemyCalendarWorkingRuleRepository(CalendarWorkingRuleRepository):
+    _session: Session
+
     def __init__(self, session: Session) -> None:
         self._session = session
 
@@ -147,13 +150,13 @@ class SqlAlchemyCalendarWorkingRuleRepository(CalendarWorkingRuleRepository):
         rows = self._session.execute(stmt).scalars().all()
         return [working_rule_from_orm(r) for r in rows]
 
-    def get(self, rule_id: str) -> Optional[CalendarWorkingRule]:
+    def get(self, rule_id: str) -> CalendarWorkingRule | None:
         obj = self._session.get(CalendarWorkingRuleORM, rule_id)
         return working_rule_from_orm(obj) if obj else None
 
     def get_for_weekday(
         self, calendar_id: str, weekday: int
-    ) -> Optional[CalendarWorkingRule]:
+    ) -> CalendarWorkingRule | None:
         stmt = select(CalendarWorkingRuleORM).where(
             CalendarWorkingRuleORM.calendar_id == calendar_id,
             CalendarWorkingRuleORM.weekday == weekday,
@@ -188,6 +191,8 @@ class SqlAlchemyCalendarWorkingRuleRepository(CalendarWorkingRuleRepository):
 
 
 class SqlAlchemyCalendarExceptionRepository(CalendarExceptionRepository):
+    _session: Session
+
     def __init__(self, session: Session) -> None:
         self._session = session
 
@@ -195,8 +200,8 @@ class SqlAlchemyCalendarExceptionRepository(CalendarExceptionRepository):
         self,
         calendar_id: str,
         *,
-        start: Optional[date] = None,
-        end: Optional[date] = None,
+        start: date | None = None,
+        end: date | None = None,
     ) -> list[CalendarException]:
         stmt = select(CalendarExceptionORM).where(
             CalendarExceptionORM.calendar_id == calendar_id
@@ -222,7 +227,7 @@ class SqlAlchemyCalendarExceptionRepository(CalendarExceptionRepository):
         rows = self._session.execute(stmt).scalars().all()
         return [calendar_exception_from_orm(r) for r in rows]
 
-    def get(self, exception_id: str) -> Optional[CalendarException]:
+    def get(self, exception_id: str) -> CalendarException | None:
         obj = self._session.get(CalendarExceptionORM, exception_id)
         return calendar_exception_from_orm(obj) if obj else None
 
@@ -258,6 +263,8 @@ class SqlAlchemyCalendarExceptionRepository(CalendarExceptionRepository):
 
 
 class SqlAlchemyCalendarRecurringEventRepository(CalendarRecurringEventRepository):
+    _session: Session
+
     def __init__(self, session: Session) -> None:
         self._session = session
 
@@ -276,7 +283,7 @@ class SqlAlchemyCalendarRecurringEventRepository(CalendarRecurringEventRepositor
         rows = self._session.execute(stmt).scalars().all()
         return [recurring_event_from_orm(r) for r in rows]
 
-    def get(self, event_id: str) -> Optional[CalendarRecurringEvent]:
+    def get(self, event_id: str) -> CalendarRecurringEvent | None:
         obj = self._session.get(CalendarRecurringEventORM, event_id)
         return recurring_event_from_orm(obj) if obj else None
 
@@ -304,11 +311,13 @@ class SqlAlchemyCalendarRecurringEventRepository(CalendarRecurringEventRepositor
 
 
 class SqlAlchemyShiftPatternRepository(ShiftPatternRepository):
+    _session: Session
+
     def __init__(self, session: Session) -> None:
         self._session = session
 
     def list_for_organization(
-        self, organization_id: str, *, active_only: Optional[bool] = None
+        self, organization_id: str, *, active_only: bool | None = None
     ) -> list[ShiftPattern]:
         stmt = select(ShiftPatternORM).where(
             ShiftPatternORM.organization_id == organization_id
@@ -319,11 +328,11 @@ class SqlAlchemyShiftPatternRepository(ShiftPatternRepository):
         rows = self._session.execute(stmt).scalars().all()
         return [shift_pattern_from_orm(r) for r in rows]
 
-    def get(self, pattern_id: str) -> Optional[ShiftPattern]:
+    def get(self, pattern_id: str) -> ShiftPattern | None:
         obj = self._session.get(ShiftPatternORM, pattern_id)
         return shift_pattern_from_orm(obj) if obj else None
 
-    def get_by_code(self, organization_id: str, code: str) -> Optional[ShiftPattern]:
+    def get_by_code(self, organization_id: str, code: str) -> ShiftPattern | None:
         stmt = select(ShiftPatternORM).where(
             ShiftPatternORM.organization_id == organization_id,
             ShiftPatternORM.code == code,
@@ -373,12 +382,14 @@ class SqlAlchemyShiftPatternRepository(ShiftPatternRepository):
 
 
 class SqlAlchemyCalendarAssignmentRepository(CalendarAssignmentRepository):
+    _session: Session
+
     def __init__(self, session: Session) -> None:
         self._session = session
 
     # --- Site ---
 
-    def _is_effective(self, effective_from, effective_to, at_date: Optional[date]) -> bool:
+    def _is_effective(self, effective_from: date | None, effective_to: date | None, at_date: date | None) -> bool:
         if at_date is None:
             return True
         if effective_from is not None and at_date < effective_from:
@@ -388,8 +399,8 @@ class SqlAlchemyCalendarAssignmentRepository(CalendarAssignmentRepository):
         return True
 
     def get_site_assignment(
-        self, site_id: str, *, at_date: Optional[date] = None
-    ) -> Optional[SiteCalendarAssignment]:
+        self, site_id: str, *, at_date: date | None = None
+    ) -> SiteCalendarAssignment | None:
         stmt = select(SiteCalendarAssignmentORM).where(
             SiteCalendarAssignmentORM.site_id == site_id
         ).order_by(
@@ -428,8 +439,8 @@ class SqlAlchemyCalendarAssignmentRepository(CalendarAssignmentRepository):
     # --- Department ---
 
     def get_department_assignment(
-        self, department_id: str, *, at_date: Optional[date] = None
-    ) -> Optional[DepartmentCalendarAssignment]:
+        self, department_id: str, *, at_date: date | None = None
+    ) -> DepartmentCalendarAssignment | None:
         stmt = select(DepartmentCalendarAssignmentORM).where(
             DepartmentCalendarAssignmentORM.department_id == department_id
         ).order_by(
@@ -472,8 +483,8 @@ class SqlAlchemyCalendarAssignmentRepository(CalendarAssignmentRepository):
     # --- Employee ---
 
     def get_employee_assignment(
-        self, employee_id: str, *, at_date: Optional[date] = None
-    ) -> Optional[EmployeeCalendarAssignment]:
+        self, employee_id: str, *, at_date: date | None = None
+    ) -> EmployeeCalendarAssignment | None:
         stmt = select(EmployeeCalendarAssignmentORM).where(
             EmployeeCalendarAssignmentORM.employee_id == employee_id
         ).order_by(

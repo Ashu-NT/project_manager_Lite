@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import calendar
 from datetime import date
-from typing import Callable, Optional
 
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
@@ -41,8 +40,8 @@ class EarnedValueSeriesCalculator:
         self,
         project_id: str,
         *,
-        baseline_id: Optional[str] = None,
-        as_of: Optional[date] = None,
+        baseline_id: str | None = None,
+        as_of: date | None = None,
         freq: str = "M",
     ) -> list[EvmSeriesPoint]:
         """Return cumulative PV/EV/AC at each month-end up to as_of."""

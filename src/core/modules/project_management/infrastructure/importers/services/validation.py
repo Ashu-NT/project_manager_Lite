@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
 
 from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.modules.project_management.infrastructure.importers.models.import_models import (
@@ -15,16 +14,15 @@ from src.core.modules.project_management.infrastructure.importers.models.import_
     ImportValidationSeverity,
 )
 
-
 class ImportValidationService:
     """Validates parsed ImportRows against PM business rules before commit."""
 
     def validate(
         self,
-        rows: List[ImportRow],
-        required_fields: Optional[List[str]] = None,
-    ) -> List[ImportValidationIssue]:
-        issues: List[ImportValidationIssue] = []
+        rows: list[ImportRow],
+        required_fields: list[str] | None = None,
+    ) -> list[ImportValidationIssue]:
+        issues: list[ImportValidationIssue] = []
         required = required_fields or []
 
         for row in rows:
@@ -60,8 +58,8 @@ class ImportValidationService:
 
     def build_preview(
         self,
-        rows: List[ImportRow],
-        issues: List[ImportValidationIssue],
+        rows: list[ImportRow],
+        issues: list[ImportValidationIssue],
     ) -> ImportPreviewModel:
         error_rows = sum(
             1 for r in rows
@@ -88,21 +86,20 @@ class ImportValidationService:
             created_at=datetime.now(timezone.utc),
         )
 
-
 class ImportMappingService:
     """Manages saved ImportMappingProfile objects."""
 
     def __init__(self) -> None:
-        self._profiles: Dict[str, ImportMappingProfile] = {}
+        self._profiles: dict[str, ImportMappingProfile] = {}
 
     def save_profile(self, profile: ImportMappingProfile) -> ImportMappingProfile:
         self._profiles[profile.id] = profile
         return profile
 
-    def get_profile(self, profile_id: str) -> Optional[ImportMappingProfile]:
+    def get_profile(self, profile_id: str) -> ImportMappingProfile | None:
         return self._profiles.get(profile_id)
 
-    def list_profiles(self, source_format: Optional[str] = None) -> List[ImportMappingProfile]:
+    def list_profiles(self, source_format: str | None = None) -> list[ImportMappingProfile]:
         if source_format:
             return [p for p in self._profiles.values() if p.source_format == source_format]
         return list(self._profiles.values())
@@ -112,8 +109,8 @@ class ImportMappingService:
 
     def auto_map(
         self,
-        source_headers: List[str],
-        target_fields: List[str],
+        source_headers: list[str],
+        target_fields: list[str],
         source_format: str = "csv",
     ) -> ImportMappingProfile:
         profile = ImportMappingProfile.create(
@@ -129,6 +126,5 @@ class ImportMappingService:
                     target_field=target_lower[normalized],
                 ))
         return profile
-
 
 __all__ = ["ImportMappingService", "ImportValidationService"]

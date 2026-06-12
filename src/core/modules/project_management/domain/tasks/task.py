@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional
 
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
 from src.core.modules.project_management.domain.identifiers import generate_id
@@ -15,17 +14,17 @@ class Task:
     name: str
     code: str = ""
     description: str = ""
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    duration_days: Optional[int] = None
+    start_date: date | None = None
+    end_date: date | None = None
+    duration_days: int | None = None
     status: TaskStatus = TaskStatus.TODO
     priority: int = 0
     percent_complete: float = 0.0
-    actual_start: Optional[date] = None
-    actual_end: Optional[date] = None
+    actual_start: date | None = None
+    actual_end: date | None = None
     deadline: date | None = None
-    constraint_type: Optional[str] = None
-    constraint_date: Optional[date] = None
+    constraint_type: str | None = None
+    constraint_date: date | None = None
     version: int = 1
 
     @staticmethod
@@ -46,7 +45,7 @@ class TaskAssignment:
     resource_id: str
     allocation_percent: float = 100.0
     hours_logged: float = 0.0
-    project_resource_id: Optional[str] = None
+    project_resource_id: str | None = None
 
     @staticmethod
     def create(

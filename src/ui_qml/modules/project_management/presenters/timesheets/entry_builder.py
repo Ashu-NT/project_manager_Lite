@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.ui_qml.modules.project_management.view_models.timesheets import (
     TimesheetDetailFieldViewModel,
     TimesheetDetailViewModel,
 )
 
-
-def build_selected_entry_detail(selected_entry) -> TimesheetDetailViewModel:
+def build_selected_entry_detail(selected_entry: Any) -> TimesheetDetailViewModel:
     if selected_entry is None:
         return TimesheetDetailViewModel(
             title="No entry selected",

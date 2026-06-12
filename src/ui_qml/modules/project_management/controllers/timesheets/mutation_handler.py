@@ -4,7 +4,6 @@ from typing import Callable
 
 from src.ui_qml.modules.project_management.controllers.common import run_mutation
 
-
 class TimesheetsMutationHandler:
     def __init__(
         self,
@@ -95,6 +94,5 @@ class TimesheetsMutationHandler:
             lambda: [self._presenter.reject_period({"periodId": i}) for i in ids],
             f"{len(ids)} period(s) rejected.",
         )
-
 
 __all__ = ["TimesheetsMutationHandler"]

@@ -18,7 +18,6 @@ from .reservation_command_handler import (
 )
 from .workspace_builder import build_workspace_state
 
-
 class InventoryReservationsWorkspacePresenter:
     def __init__(
         self,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -57,7 +56,7 @@ class SqlAlchemyCostRepository(CostRepository):
     def delete(self, cost_id: str) -> None:
         self.session.query(CostItemORM).filter_by(id=cost_id).delete()
 
-    def list_by_project(self, project_id: str) -> List[CostItem]:
+    def list_by_project(self, project_id: str) -> list[CostItem]:
         stmt = select(CostItemORM).where(CostItemORM.project_id == project_id)
         rows = self.session.execute(stmt).scalars().all()
         return [cost_from_orm(row) for row in rows]
@@ -65,7 +64,7 @@ class SqlAlchemyCostRepository(CostRepository):
     def delete_by_project(self, project_id: str) -> None:
         self.session.query(CostItemORM).filter_by(project_id=project_id).delete()
 
-    def get(self, cost_id: str) -> Optional[CostItem]:
+    def get(self, cost_id: str) -> CostItem | None:
         obj = self.session.get(CostItemORM, cost_id)
         return cost_from_orm(obj) if obj else None
 
@@ -83,16 +82,16 @@ class SqlAlchemyCalendarEventRepository(CalendarEventRepository):
     def delete(self, event_id: str) -> None:
         self.session.query(CalendarEventORM).filter_by(id=event_id).delete()
 
-    def get(self, event_id: str) -> Optional[CalendarEvent]:
+    def get(self, event_id: str) -> CalendarEvent | None:
         obj = self.session.get(CalendarEventORM, event_id)
         return event_from_orm(obj) if obj else None
 
-    def list_for_project(self, project_id: str) -> List[CalendarEvent]:
+    def list_for_project(self, project_id: str) -> list[CalendarEvent]:
         stmt = select(CalendarEventORM).where(CalendarEventORM.project_id == project_id)
         rows = self.session.execute(stmt).scalars().all()
         return [event_from_orm(row) for row in rows]
 
-    def list_range(self, start_date: date, end_date: date) -> List[CalendarEvent]:
+    def list_range(self, start_date: date, end_date: date) -> list[CalendarEvent]:
         stmt = select(CalendarEventORM).where(
             CalendarEventORM.end_date >= start_date,
             CalendarEventORM.start_date <= end_date,

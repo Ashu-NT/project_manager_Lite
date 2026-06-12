@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
 
 from src.core.modules.project_management.contracts.repositories.skills import (
     ResourceCertificationRepository,
@@ -57,8 +56,8 @@ class SkillCommandMixin:
         resource_id: str,
         certification_code: str,
         certification_name: str,
-        issued_date: Optional[date] = None,
-        expiry_date: Optional[date] = None,
+        issued_date: date | None = None,
+        expiry_date: date | None = None,
         issuing_body: str = "",
         notes: str = "",
     ) -> ResourceCertification:

@@ -1,1 +1,0 @@
-"""Application pagination target module."""

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import List
 
 from src.core.modules.project_management.application.dashboard.models.dashboard_models import UpcomingTask
 from src.core.modules.project_management.application.resources import ResourceService
@@ -12,13 +11,13 @@ class DashboardUpcomingMixin:
     _tasks: TaskService
     _resources: ResourceService
 
-    def _build_upcoming_tasks(self, project_id: str) -> List[UpcomingTask]:
+    def _build_upcoming_tasks(self, project_id: str) -> list[UpcomingTask]:
         today = date.today()
         horizon = today + timedelta(days=14)
 
         tasks = self._tasks.list_tasks_for_project(project_id)
         resources_by_id = {r.id: r for r in self._resources.list_resources()}
-        upcoming: List[UpcomingTask] = []
+        upcoming: list[UpcomingTask] = []
 
         for task in tasks:
             if task.start_date is None:

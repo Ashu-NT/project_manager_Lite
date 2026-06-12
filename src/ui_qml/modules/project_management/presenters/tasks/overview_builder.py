@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskCatalogMetricViewModel,
     TaskCatalogOverviewViewModel,
 )
-
 
 def build_empty_overview() -> TaskCatalogOverviewViewModel:
     return TaskCatalogOverviewViewModel(
@@ -18,13 +18,12 @@ def build_empty_overview() -> TaskCatalogOverviewViewModel:
         metrics=(),
     )
 
-
 def build_overview(
     *,
-    all_tasks,
-    filtered_tasks,
-    collaboration_workspace_snapshot,
-    collaboration_snapshot,
+    all_tasks: Any,
+    filtered_tasks: Any,
+    collaboration_workspace_snapshot: Any,
+    collaboration_snapshot: Any,
     has_selected_task: bool,
 ) -> TaskCatalogOverviewViewModel:
     today = date.today()

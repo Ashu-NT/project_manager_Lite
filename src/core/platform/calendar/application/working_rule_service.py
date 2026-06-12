@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import time
-from typing import Optional
+from datetime import date, time
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -22,7 +22,7 @@ class WorkingRuleService:
         session: Session,
         calendar_repo: PlatformCalendarRepository,
         rule_repo: CalendarWorkingRuleRepository,
-        user_session=None,
+        user_session: Any = None,
     ) -> None:
         self._session = session
         self._calendar_repo = calendar_repo
@@ -40,15 +40,15 @@ class WorkingRuleService:
         weekday: int,
         *,
         is_working_day: bool = True,
-        start_time: Optional[time] = None,
-        end_time: Optional[time] = None,
-        break_start_time: Optional[time] = None,
-        break_end_time: Optional[time] = None,
+        start_time: time | None = None,
+        end_time: time | None = None,
+        break_start_time: time | None = None,
+        break_end_time: time | None = None,
         break_minutes: int = 0,
-        hours_override: Optional[float] = None,
-        shift_code: Optional[str] = None,
-        effective_from=None,
-        effective_to=None,
+        hours_override: float | None = None,
+        shift_code: str | None = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
         priority: int = 0,
     ) -> CalendarWorkingRule:
         require_permission(

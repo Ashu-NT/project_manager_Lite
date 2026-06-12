@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from typing import Any
 
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
@@ -13,8 +14,7 @@ from src.ui_qml.modules.project_management.view_models.register import (
 
 from .utils import is_active
 
-
-def build_risk_overview(*, scope_entries, filtered_entries) -> RegisterOverviewViewModel:
+def build_risk_overview(*, scope_entries: Any, filtered_entries: Any) -> RegisterOverviewViewModel:
     risk_entries = tuple(
         entry for entry in scope_entries if entry.entry_type == RegisterEntryType.RISK.value
     )

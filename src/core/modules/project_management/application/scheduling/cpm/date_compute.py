@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
 
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 
@@ -9,12 +8,12 @@ from src.core.modules.project_management.domain.tasks.task import Task, TaskDepe
 def compute_task_dates_common(
     task: Task,
     incoming_deps: list[TaskDependency],
-    es: dict[str, Optional[date]],
-    ef: dict[str, Optional[date]],
+    es: dict[str, date | None],
+    ef: dict[str, date | None],
     compute_milestone,
     compute_with_duration,
     apply_actual_constraints,
-) -> tuple[Optional[date], Optional[date]]:
+) -> tuple[date | None, date | None]:
     duration = int(task.duration_days or 0)
     if duration <= 0:
         est, eft = compute_milestone(task, incoming_deps, es, ef)

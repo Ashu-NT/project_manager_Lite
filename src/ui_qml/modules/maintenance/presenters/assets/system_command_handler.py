@@ -9,7 +9,6 @@ from src.core.modules.maintenance.api.desktop import (
 
 from .validation import bool_value, optional_text, require_identifier, require_int, require_text
 
-
 def create_system(desktop_api, payload: dict[str, Any]) -> None:
     command = MaintenanceSystemCreateCommand(
         site_id=require_text(payload, "siteId", "Choose a site before saving."),
@@ -25,7 +24,6 @@ def create_system(desktop_api, payload: dict[str, Any]) -> None:
         notes=optional_text(payload, "notes") or "",
     )
     desktop_api.create_system(command)
-
 
 def update_system(desktop_api, payload: dict[str, Any]) -> None:
     command = MaintenanceSystemUpdateCommand(
@@ -46,7 +44,6 @@ def update_system(desktop_api, payload: dict[str, Any]) -> None:
         ),
     )
     desktop_api.update_system(command)
-
 
 def toggle_system_active(desktop_api, system_id: str, *, expected_version: int) -> None:
     desktop_api.toggle_system_active(

@@ -17,7 +17,6 @@ from .validation import (
     require_text,
 )
 
-
 def suggest_code(
     desktop_api: ProjectManagementFinancialsDesktopApi,
     payload: dict[str, Any],
@@ -37,7 +36,6 @@ def suggest_code(
         use_year=not bool(name),
     )
 
-
 def create_cost_item(
     desktop_api: ProjectManagementFinancialsDesktopApi,
     payload: dict[str, Any],
@@ -55,7 +53,6 @@ def create_cost_item(
         code=optional_text(payload, "costCode"),
     )
     desktop_api.create_cost_item(command)
-
 
 def update_cost_item(
     desktop_api: ProjectManagementFinancialsDesktopApi,
@@ -75,7 +72,6 @@ def update_cost_item(
         code=optional_text(payload, "costCode"),
     )
     desktop_api.update_cost_item(command)
-
 
 def delete_cost_item(
     desktop_api: ProjectManagementFinancialsDesktopApi,

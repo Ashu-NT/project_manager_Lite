@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -28,9 +28,9 @@ class CalendarAssignmentService:
         session: Session,
         calendar_repo: PlatformCalendarRepository,
         assignment_repo: CalendarAssignmentRepository,
-        project_assignment_repo,
-        resource_assignment_repo,
-        user_session=None,
+        project_assignment_repo: Any,
+        resource_assignment_repo: Any,
+        user_session: Any = None,
     ) -> None:
         self._session = session
         self._calendar_repo = calendar_repo
@@ -46,7 +46,7 @@ class CalendarAssignmentService:
         if not cal.is_active:
             raise ValidationError(f"Calendar '{cal.name}' is not active.")
 
-    def _validate_dates(self, effective_from, effective_to) -> None:
+    def _validate_dates(self, effective_from: date | None, effective_to: date | None) -> None:
         if effective_from and effective_to and effective_from > effective_to:
             raise ValidationError("effective_from must be before effective_to.")
 
@@ -57,8 +57,8 @@ class CalendarAssignmentService:
         site_id: str,
         calendar_id: str,
         *,
-        effective_from: Optional[date] = None,
-        effective_to: Optional[date] = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
         is_default: bool = True,
         priority: int = 0,
     ) -> SiteCalendarAssignment:
@@ -80,8 +80,8 @@ class CalendarAssignmentService:
         return assignment
 
     def get_site_calendar(
-        self, site_id: str, *, at_date: Optional[date] = None
-    ) -> Optional[SiteCalendarAssignment]:
+        self, site_id: str, *, at_date: date | None = None
+    ) -> SiteCalendarAssignment | None:
         return self._assignment_repo.get_site_assignment(site_id, at_date=at_date)
 
     def list_site_assignments(self, site_id: str) -> list[SiteCalendarAssignment]:
@@ -101,8 +101,8 @@ class CalendarAssignmentService:
         department_id: str,
         calendar_id: str,
         *,
-        effective_from: Optional[date] = None,
-        effective_to: Optional[date] = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
         is_default: bool = True,
         priority: int = 0,
     ) -> DepartmentCalendarAssignment:
@@ -124,8 +124,8 @@ class CalendarAssignmentService:
         return assignment
 
     def get_department_calendar(
-        self, department_id: str, *, at_date: Optional[date] = None
-    ) -> Optional[DepartmentCalendarAssignment]:
+        self, department_id: str, *, at_date: date | None = None
+    ) -> DepartmentCalendarAssignment | None:
         return self._assignment_repo.get_department_assignment(
             department_id, at_date=at_date
         )
@@ -151,8 +151,8 @@ class CalendarAssignmentService:
         employee_id: str,
         calendar_id: str,
         *,
-        effective_from: Optional[date] = None,
-        effective_to: Optional[date] = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
         is_default: bool = True,
         priority: int = 0,
     ) -> EmployeeCalendarAssignment:
@@ -174,8 +174,8 @@ class CalendarAssignmentService:
         return assignment
 
     def get_employee_calendar(
-        self, employee_id: str, *, at_date: Optional[date] = None
-    ) -> Optional[EmployeeCalendarAssignment]:
+        self, employee_id: str, *, at_date: date | None = None
+    ) -> EmployeeCalendarAssignment | None:
         return self._assignment_repo.get_employee_assignment(
             employee_id, at_date=at_date
         )
@@ -201,11 +201,11 @@ class CalendarAssignmentService:
         project_id: str,
         calendar_id: str,
         *,
-        effective_from: Optional[date] = None,
-        effective_to: Optional[date] = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
         is_default: bool = True,
         priority: int = 0,
-    ):
+    ) -> Any:
         require_permission(
             self._user_session, "task.manage", operation_label="assign project calendar"
         )
@@ -226,7 +226,7 @@ class CalendarAssignmentService:
         self._session.commit()
         return assignment
 
-    def get_project_calendar(self, project_id: str, *, at_date: Optional[date] = None):
+    def get_project_calendar(self, project_id: str, *, at_date: date | None = None) -> Any:
         return self._project_assignment_repo.get(project_id, at_date=at_date)
 
     def remove_project_assignment(self, assignment_id: str) -> None:
@@ -245,11 +245,11 @@ class CalendarAssignmentService:
         resource_id: str,
         calendar_id: str,
         *,
-        effective_from: Optional[date] = None,
-        effective_to: Optional[date] = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
         is_default: bool = True,
         priority: int = 0,
-    ):
+    ) -> Any:
         require_permission(
             self._user_session, "task.manage", operation_label="assign resource calendar"
         )
@@ -270,7 +270,7 @@ class CalendarAssignmentService:
         self._session.commit()
         return assignment
 
-    def get_resource_calendar(self, resource_id: str, *, at_date: Optional[date] = None):
+    def get_resource_calendar(self, resource_id: str, *, at_date: date | None = None) -> Any:
         return self._resource_assignment_repo.get(resource_id, at_date=at_date)
 
     def remove_resource_assignment(self, assignment_id: str) -> None:
@@ -284,7 +284,7 @@ class CalendarAssignmentService:
 
     # --- Usage summary ---
 
-    def list_calendar_assignments(self, calendar_id: str) -> dict:
+    def list_calendar_assignments(self, calendar_id: str) -> dict[str, Any]:
         return {
             "sites": self._assignment_repo.list_sites_using_calendar(calendar_id),
             "departments": self._assignment_repo.list_departments_using_calendar(calendar_id),

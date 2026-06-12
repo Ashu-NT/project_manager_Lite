@@ -27,7 +27,6 @@ from .command_handler import (
 )
 from .workspace_builder import build_workspace_state
 
-
 class ProjectSchedulingWorkspacePresenter:
     def __init__(
         self,
@@ -111,6 +110,5 @@ class ProjectSchedulingWorkspacePresenter:
     @staticmethod
     def export_schedule(project_id: str) -> str:
         return export_schedule(project_id)
-
 
 __all__ = ["ProjectSchedulingWorkspacePresenter"]

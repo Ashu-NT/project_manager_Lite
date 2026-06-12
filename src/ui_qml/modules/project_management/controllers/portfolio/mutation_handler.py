@@ -7,7 +7,6 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectPortfolioWorkspacePresenter,
 )
 
-
 class PortfolioMutationHandler:
     def __init__(
         self,
@@ -74,6 +73,5 @@ class PortfolioMutationHandler:
             lambda: self._presenter.update_intake_item_status(item_id, status),
             "Intake item status updated.",
         )
-
 
 __all__ = ["PortfolioMutationHandler"]

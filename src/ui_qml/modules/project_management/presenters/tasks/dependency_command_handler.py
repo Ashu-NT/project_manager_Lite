@@ -9,7 +9,6 @@ from src.core.modules.project_management.api.desktop import (
 
 from .validation import optional_int, optional_text, require_text
 
-
 def create_dependency(desktop_api, payload: dict[str, Any]) -> None:
     command = TaskDependencyCreateCommand(
         task_id=require_text(
@@ -28,7 +27,6 @@ def create_dependency(desktop_api, payload: dict[str, Any]) -> None:
     )
     desktop_api.create_dependency(command)
 
-
 def update_dependency(desktop_api, payload: dict[str, Any]) -> None:
     dependency_id = (payload.get("dependencyId") or "").strip()
     if not dependency_id:
@@ -42,7 +40,6 @@ def update_dependency(desktop_api, payload: dict[str, Any]) -> None:
             lag_days=lag_days,
         )
     )
-
 
 def delete_dependency(desktop_api, dependency_id: str) -> None:
     normalized_dependency_id = (dependency_id or "").strip()

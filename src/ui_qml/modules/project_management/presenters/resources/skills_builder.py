@@ -12,7 +12,6 @@ from src.ui_qml.modules.project_management.view_models.resources import (
 
 from .validation import optional_text, require_text
 
-
 def build_skills_state(
     desktop_api: ProjectManagementResourcesDesktopApi,
     resource_id: str,
@@ -35,7 +34,6 @@ def build_skills_state(
         for s in skills
     )
 
-
 def add_skill(
     desktop_api: ProjectManagementResourcesDesktopApi,
     resource_id: str,
@@ -49,7 +47,6 @@ def add_skill(
         notes=optional_text(payload, "notes") or "",
     )
     desktop_api.add_resource_skill(command)
-
 
 def remove_skill(
     desktop_api: ProjectManagementResourcesDesktopApi,
