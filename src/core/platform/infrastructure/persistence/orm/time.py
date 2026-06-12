@@ -28,6 +28,11 @@ class TimeEntryORM(Base):
     __tablename__ = "time_entries"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[Optional[str]] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="SET NULL"),
@@ -70,6 +75,7 @@ class TimeEntryORM(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+Index("idx_time_entries_tenant", TimeEntryORM.tenant_id)
 Index("idx_time_entries_organization", TimeEntryORM.organization_id)
 Index("idx_time_entries_work_allocation", TimeEntryORM.work_allocation_id)
 Index("idx_time_entries_assignment", TimeEntryORM.assignment_id)
@@ -85,6 +91,11 @@ class TimesheetPeriodORM(Base):
     __tablename__ = "timesheet_periods"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[Optional[str]] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="SET NULL"),
@@ -113,5 +124,6 @@ class TimesheetPeriodORM(Base):
     locked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
+Index("idx_timesheet_periods_tenant", TimesheetPeriodORM.tenant_id)
 Index("idx_timesheet_periods_organization", TimesheetPeriodORM.organization_id)
 Index("idx_timesheet_periods_resource", TimesheetPeriodORM.resource_id)

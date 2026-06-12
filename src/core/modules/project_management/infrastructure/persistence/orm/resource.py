@@ -15,6 +15,11 @@ class ResourceORM(Base):
     __tablename__ = "resources"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     resource_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, default="")
@@ -58,6 +63,7 @@ class ResourceORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_resources_tenant", ResourceORM.tenant_id)
 Index("idx_resources_employee", ResourceORM.employee_id)
 Index("ux_resources_code", ResourceORM.resource_code, unique=True)
 Index("idx_resources_organization", ResourceORM.organization_id)

@@ -24,6 +24,11 @@ class StoreroomORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -80,6 +85,11 @@ class StockBalanceORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -116,6 +126,11 @@ class StockTransactionORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -159,6 +174,11 @@ class StockReservationORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -357,16 +377,20 @@ class CycleCountORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_inventory_storerooms_tenant", StoreroomORM.tenant_id)
 Index("idx_inventory_storerooms_org", StoreroomORM.organization_id)
 Index("idx_inventory_storerooms_site", StoreroomORM.site_id)
 Index("idx_inventory_storerooms_active", StoreroomORM.is_active)
+Index("idx_inventory_stock_balances_tenant", StockBalanceORM.tenant_id)
 Index("idx_inventory_stock_balances_org", StockBalanceORM.organization_id)
 Index("idx_inventory_stock_balances_item", StockBalanceORM.stock_item_id)
 Index("idx_inventory_stock_balances_storeroom", StockBalanceORM.storeroom_id)
+Index("idx_inventory_stock_transactions_tenant", StockTransactionORM.tenant_id)
 Index("idx_inventory_stock_transactions_org", StockTransactionORM.organization_id)
 Index("idx_inventory_stock_transactions_item", StockTransactionORM.stock_item_id)
 Index("idx_inventory_stock_transactions_storeroom", StockTransactionORM.storeroom_id)
 Index("idx_inventory_stock_transactions_at", StockTransactionORM.transaction_at)
+Index("idx_inventory_stock_reservations_tenant", StockReservationORM.tenant_id)
 Index("idx_inventory_stock_reservations_org", StockReservationORM.organization_id)
 Index("idx_inventory_stock_reservations_item", StockReservationORM.stock_item_id)
 Index("idx_inventory_stock_reservations_storeroom", StockReservationORM.storeroom_id)

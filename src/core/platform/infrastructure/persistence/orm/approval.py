@@ -28,6 +28,11 @@ class ApprovalRequestORM(Base):
     __tablename__ = "approval_requests"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     request_type: Mapped[str] = mapped_column(String(64), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
     entity_id: Mapped[str] = mapped_column(String, nullable=False)
@@ -48,5 +53,6 @@ class ApprovalRequestORM(Base):
     decision_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
+Index("idx_approval_tenant", ApprovalRequestORM.tenant_id)
 Index("idx_approval_status", ApprovalRequestORM.status)
 Index("idx_approval_organization_status", ApprovalRequestORM.organization_id, ApprovalRequestORM.status)

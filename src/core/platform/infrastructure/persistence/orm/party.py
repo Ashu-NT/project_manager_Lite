@@ -31,6 +31,11 @@ class PartyORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -58,5 +63,6 @@ class PartyORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_parties_tenant", PartyORM.tenant_id)
 Index("idx_parties_organization", PartyORM.organization_id)
 Index("idx_parties_active", PartyORM.organization_id, PartyORM.is_active)

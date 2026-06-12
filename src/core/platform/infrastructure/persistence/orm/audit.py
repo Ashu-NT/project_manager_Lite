@@ -28,6 +28,11 @@ class AuditLogORM(Base):
     __tablename__ = "audit_logs"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     actor_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     actor_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
@@ -43,5 +48,6 @@ class AuditLogORM(Base):
     details_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
 
 
+Index("idx_audit_logs_tenant", AuditLogORM.tenant_id)
 Index("idx_audit_logs_occurred_at", AuditLogORM.occurred_at)
 Index("idx_audit_logs_organization_occurred", AuditLogORM.organization_id, AuditLogORM.occurred_at)

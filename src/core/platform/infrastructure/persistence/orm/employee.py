@@ -15,6 +15,11 @@ class EmployeeORM(Base):
     __tablename__ = "employees"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     employee_code: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     full_name: Mapped[str] = mapped_column(String(256), nullable=False)
     organization_id: Mapped[Optional[str]] = mapped_column(
@@ -47,6 +52,7 @@ class EmployeeORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_employees_tenant", EmployeeORM.tenant_id)
 Index("idx_employees_organization", EmployeeORM.organization_id)
 Index("idx_employees_department", EmployeeORM.department_id)
 Index("idx_employees_site", EmployeeORM.site_id)

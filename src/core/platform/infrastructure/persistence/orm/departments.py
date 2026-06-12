@@ -18,6 +18,11 @@ class DepartmentORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -55,6 +60,7 @@ class DepartmentORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_departments_tenant", DepartmentORM.tenant_id)
 Index("idx_departments_organization", DepartmentORM.organization_id)
 Index("idx_departments_active", DepartmentORM.organization_id, DepartmentORM.is_active)
 Index("idx_departments_site", DepartmentORM.site_id)

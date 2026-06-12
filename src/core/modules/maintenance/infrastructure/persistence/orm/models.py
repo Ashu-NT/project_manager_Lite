@@ -55,6 +55,11 @@ class MaintenanceLocationORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -100,6 +105,11 @@ class MaintenanceSystemORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -150,6 +160,11 @@ class MaintenanceAssetORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -296,6 +311,11 @@ class MaintenanceSensorORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -587,6 +607,11 @@ class MaintenanceWorkRequestORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -668,6 +693,11 @@ class MaintenanceWorkOrderORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -1012,6 +1042,11 @@ class MaintenancePreventivePlanORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -1167,15 +1202,18 @@ class MaintenancePreventivePlanTaskORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_maintenance_locations_tenant", MaintenanceLocationORM.tenant_id)
 Index("idx_maintenance_locations_org", MaintenanceLocationORM.organization_id)
 Index("idx_maintenance_locations_site", MaintenanceLocationORM.site_id)
 Index("idx_maintenance_locations_parent", MaintenanceLocationORM.parent_location_id)
 Index("idx_maintenance_locations_active", MaintenanceLocationORM.is_active)
+Index("idx_maintenance_systems_tenant", MaintenanceSystemORM.tenant_id)
 Index("idx_maintenance_systems_org", MaintenanceSystemORM.organization_id)
 Index("idx_maintenance_systems_site", MaintenanceSystemORM.site_id)
 Index("idx_maintenance_systems_location", MaintenanceSystemORM.location_id)
 Index("idx_maintenance_systems_parent", MaintenanceSystemORM.parent_system_id)
 Index("idx_maintenance_systems_active", MaintenanceSystemORM.is_active)
+Index("idx_maintenance_assets_tenant", MaintenanceAssetORM.tenant_id)
 Index("idx_maintenance_assets_org", MaintenanceAssetORM.organization_id)
 Index("idx_maintenance_assets_site", MaintenanceAssetORM.site_id)
 Index("idx_maintenance_assets_location", MaintenanceAssetORM.location_id)
@@ -1190,7 +1228,9 @@ Index("idx_maintenance_components_parent", MaintenanceAssetComponentORM.parent_c
 Index("idx_maintenance_components_manufacturer", MaintenanceAssetComponentORM.manufacturer_party_id)
 Index("idx_maintenance_components_supplier", MaintenanceAssetComponentORM.supplier_party_id)
 Index("idx_maintenance_components_active", MaintenanceAssetComponentORM.is_active)
+Index("idx_maintenance_sensors_tenant", MaintenanceSensorORM.tenant_id)
 Index("idx_maintenance_work_requests_org", MaintenanceWorkRequestORM.organization_id)
+Index("idx_maintenance_work_requests_tenant", MaintenanceWorkRequestORM.tenant_id)
 Index("idx_maintenance_work_requests_site", MaintenanceWorkRequestORM.site_id)
 Index("idx_maintenance_work_requests_asset", MaintenanceWorkRequestORM.asset_id)
 Index("idx_maintenance_work_requests_component", MaintenanceWorkRequestORM.component_id)
@@ -1200,6 +1240,7 @@ Index("idx_maintenance_work_requests_status", MaintenanceWorkRequestORM.status)
 Index("idx_maintenance_work_requests_priority", MaintenanceWorkRequestORM.priority)
 Index("idx_maintenance_work_requests_requested_by", MaintenanceWorkRequestORM.requested_by_user_id)
 Index("idx_maintenance_work_requests_triaged_by", MaintenanceWorkRequestORM.triaged_by_user_id)
+Index("idx_maintenance_work_orders_tenant", MaintenanceWorkOrderORM.tenant_id)
 Index("idx_maintenance_work_orders_org", MaintenanceWorkOrderORM.organization_id)
 Index("idx_maintenance_work_orders_site", MaintenanceWorkOrderORM.site_id)
 Index("idx_maintenance_work_orders_asset", MaintenanceWorkOrderORM.asset_id)
@@ -1248,6 +1289,7 @@ Index("idx_maintenance_task_step_templates_org", MaintenanceTaskStepTemplateORM.
 Index("idx_maintenance_task_step_templates_task", MaintenanceTaskStepTemplateORM.task_template_id)
 Index("idx_maintenance_task_step_templates_active", MaintenanceTaskStepTemplateORM.is_active)
 Index("idx_maintenance_task_step_templates_sort", MaintenanceTaskStepTemplateORM.sort_order)
+Index("idx_maintenance_preventive_plans_tenant", MaintenancePreventivePlanORM.tenant_id)
 Index("idx_maintenance_preventive_plans_org", MaintenancePreventivePlanORM.organization_id)
 Index("idx_maintenance_preventive_plans_site", MaintenancePreventivePlanORM.site_id)
 Index("idx_maintenance_preventive_plans_asset", MaintenancePreventivePlanORM.asset_id)
