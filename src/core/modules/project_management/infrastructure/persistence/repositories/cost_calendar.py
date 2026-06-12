@@ -19,9 +19,10 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.cost
     event_to_orm,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.cost_calendar import CalendarEventORM, CostItemORM
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
+from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
 
 
 class SqlAlchemyCostRepository(CostRepository):
@@ -50,12 +51,44 @@ class SqlAlchemyCostRepository(CostRepository):
             )
         )
 
+    def _ensure_project_in_scope(self, project_id: str) -> None:
+        ctx = self._context()
+        project = self.session.execute(
+            select(ProjectORM.id).where(
+                ProjectORM.id == project_id,
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        ).scalar_one_or_none()
+        if project is None:
+            raise NotFoundError("Project not found.")
+
+    def _ensure_task_in_scope(self, task_id: str | None) -> None:
+        if not task_id:
+            return
+        ctx = self._context()
+        task = self.session.execute(
+            select(TaskORM.id)
+            .join(ProjectORM, TaskORM.project_id == ProjectORM.id)
+            .where(
+                TaskORM.id == task_id,
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        ).scalar_one_or_none()
+        if task is None:
+            raise NotFoundError("Task not found.")
+
     def add(self, cost_item: CostItem) -> None:
+        self._ensure_project_in_scope(cost_item.project_id)
+        self._ensure_task_in_scope(cost_item.task_id)
         self.session.add(cost_to_orm(cost_item))
 
     def update(self, cost_item: CostItem) -> None:
         if self.get(cost_item.id) is None:
             raise BusinessRuleError("Cost item not found.")
+        self._ensure_project_in_scope(cost_item.project_id)
+        self._ensure_task_in_scope(cost_item.task_id)
         cost_item.version = update_with_version_check(
             self.session,
             CostItemORM,
@@ -76,12 +109,19 @@ class SqlAlchemyCostRepository(CostRepository):
                 "actual_amount": cost_item.actual_amount,
                 "incurred_date": cost_item.incurred_date,
             },
+            extra_filters={"project_id": cost_item.project_id},
             not_found_message="Cost item not found.",
             stale_message="Cost item was updated by another user.",
         )
 
     def delete(self, cost_id: str) -> None:
-        self.session.query(CostItemORM).filter_by(id=cost_id).delete()
+        self.session.execute(
+            CostItemORM.__table__.delete().where(
+                CostItemORM.id.in_(
+                    self._project_scoped_stmt().where(CostItemORM.id == cost_id).with_only_columns(CostItemORM.id)
+                )
+            )
+        )
 
     def list_by_project(self, project_id: str) -> list[CostItem]:
         stmt = self._project_scoped_stmt().where(CostItemORM.project_id == project_id)
@@ -89,7 +129,15 @@ class SqlAlchemyCostRepository(CostRepository):
         return [cost_from_orm(row) for row in rows]
 
     def delete_by_project(self, project_id: str) -> None:
-        self.session.query(CostItemORM).filter_by(project_id=project_id).delete()
+        self.session.execute(
+            CostItemORM.__table__.delete().where(
+                CostItemORM.id.in_(
+                    self._project_scoped_stmt()
+                    .where(CostItemORM.project_id == project_id)
+                    .with_only_columns(CostItemORM.id)
+                )
+            )
+        )
 
     def get(self, cost_id: str) -> CostItem | None:
         stmt = self._project_scoped_stmt().where(CostItemORM.id == cost_id)
@@ -124,14 +172,75 @@ class SqlAlchemyCalendarEventRepository(CalendarEventRepository):
             )
         )
 
+    def _require_project_id(self, project_id: str | None) -> str:
+        normalized = str(project_id or "").strip()
+        if not normalized:
+            raise BusinessRuleError("Calendar event must belong to a project.")
+        return normalized
+
+    def _ensure_project_in_scope(self, project_id: str) -> None:
+        ctx = self._context()
+        project = self.session.execute(
+            select(ProjectORM.id).where(
+                ProjectORM.id == project_id,
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        ).scalar_one_or_none()
+        if project is None:
+            raise NotFoundError("Project not found.")
+
+    def _ensure_task_in_scope(self, task_id: str | None) -> None:
+        if not task_id:
+            return
+        ctx = self._context()
+        task = self.session.execute(
+            select(TaskORM.id)
+            .join(ProjectORM, TaskORM.project_id == ProjectORM.id)
+            .where(
+                TaskORM.id == task_id,
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        ).scalar_one_or_none()
+        if task is None:
+            raise NotFoundError("Task not found.")
+
     def add(self, event: CalendarEvent) -> None:
+        project_id = self._require_project_id(event.project_id)
+        self._ensure_project_in_scope(project_id)
+        self._ensure_task_in_scope(event.task_id)
         self.session.add(event_to_orm(event))
 
     def update(self, event: CalendarEvent) -> None:
-        self.session.merge(event_to_orm(event))
+        row = (
+            self.session.execute(
+                self._project_scoped_stmt().where(CalendarEventORM.id == event.id)
+            ).scalar_one_or_none()
+        )
+        if row is None:
+            raise NotFoundError("Calendar event not found.")
+        project_id = self._require_project_id(event.project_id)
+        self._ensure_project_in_scope(project_id)
+        self._ensure_task_in_scope(event.task_id)
+        row.title = event.title
+        row.start_date = event.start_date
+        row.end_date = event.end_date
+        row.project_id = project_id
+        row.task_id = event.task_id
+        row.all_day = event.all_day
+        row.description = event.description
 
     def delete(self, event_id: str) -> None:
-        self.session.query(CalendarEventORM).filter_by(id=event_id).delete()
+        self.session.execute(
+            CalendarEventORM.__table__.delete().where(
+                CalendarEventORM.id.in_(
+                    self._project_scoped_stmt()
+                    .where(CalendarEventORM.id == event_id)
+                    .with_only_columns(CalendarEventORM.id)
+                )
+            )
+        )
 
     def get(self, event_id: str) -> CalendarEvent | None:
         stmt = self._project_scoped_stmt().where(CalendarEventORM.id == event_id)
@@ -160,10 +269,26 @@ class SqlAlchemyCalendarEventRepository(CalendarEventRepository):
         return [event_from_orm(row) for row in rows]
 
     def delete_for_task(self, task_id: str) -> None:
-        self.session.query(CalendarEventORM).filter_by(task_id=task_id).delete()
+        self.session.execute(
+            CalendarEventORM.__table__.delete().where(
+                CalendarEventORM.id.in_(
+                    self._project_scoped_stmt()
+                    .where(CalendarEventORM.task_id == task_id)
+                    .with_only_columns(CalendarEventORM.id)
+                )
+            )
+        )
 
     def delete_for_project(self, project_id: str) -> None:
-        self.session.query(CalendarEventORM).filter_by(project_id=project_id).delete()
+        self.session.execute(
+            CalendarEventORM.__table__.delete().where(
+                CalendarEventORM.id.in_(
+                    self._project_scoped_stmt()
+                    .where(CalendarEventORM.project_id == project_id)
+                    .with_only_columns(CalendarEventORM.id)
+                )
+            )
+        )
 
 __all__ = [
     "SqlAlchemyCostRepository",

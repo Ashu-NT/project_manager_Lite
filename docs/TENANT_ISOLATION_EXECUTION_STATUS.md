@@ -5,6 +5,9 @@ This document tracks implementation progress against the architecture defined in
 here before starting any isolation-related work to know what has been done and what
 is still open.
 
+For the current repository-focused follow-up stream, also check
+`docs/tenant_repository_hardening/README.md`.
+
 Architectural specification is in the audit README. This document covers execution
 only — what was changed, what file, what is next.
 

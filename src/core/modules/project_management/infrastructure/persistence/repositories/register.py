@@ -12,7 +12,7 @@ from src.core.modules.project_management.domain.risk.register import (
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.modules.project_management.infrastructure.persistence.orm.register import RegisterEntryORM
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
 from src.core.modules.project_management.infrastructure.persistence.mappers.register import register_entry_from_orm, register_entry_to_orm
@@ -44,12 +44,26 @@ class SqlAlchemyRegisterEntryRepository(RegisterEntryRepository):
             )
         )
 
+    def _ensure_project_in_scope(self, project_id: str) -> None:
+        ctx = self._context()
+        project = self.session.execute(
+            select(ProjectORM.id).where(
+                ProjectORM.id == project_id,
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        ).scalar_one_or_none()
+        if project is None:
+            raise NotFoundError("Project not found.")
+
     def add(self, entry: RegisterEntry) -> None:
+        self._ensure_project_in_scope(entry.project_id)
         self.session.add(register_entry_to_orm(entry))
 
     def update(self, entry: RegisterEntry) -> None:
         if self.get(entry.id) is None:
             raise BusinessRuleError("Register entry not found.")
+        self._ensure_project_in_scope(entry.project_id)
         entry.version = update_with_version_check(
             self.session,
             RegisterEntryORM,
@@ -69,12 +83,21 @@ class SqlAlchemyRegisterEntryRepository(RegisterEntryRepository):
                 "created_at": entry.created_at,
                 "updated_at": entry.updated_at,
             },
+            extra_filters={"project_id": entry.project_id},
             not_found_message="Register entry not found.",
             stale_message="Register entry was updated by another user.",
         )
 
     def delete(self, entry_id: str) -> None:
-        self.session.query(RegisterEntryORM).filter_by(id=entry_id).delete()
+        self.session.execute(
+            RegisterEntryORM.__table__.delete().where(
+                RegisterEntryORM.id.in_(
+                    self._project_scoped_stmt()
+                    .where(RegisterEntryORM.id == entry_id)
+                    .with_only_columns(RegisterEntryORM.id)
+                )
+            )
+        )
 
     def get(self, entry_id: str) -> RegisterEntry | None:
         stmt = self._project_scoped_stmt().where(RegisterEntryORM.id == entry_id)

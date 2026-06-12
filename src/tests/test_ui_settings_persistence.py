@@ -65,6 +65,16 @@ def test_app_settings_store_scopes_cached_ui_state_by_organization(repo_workspac
     assert store.load_table_column_state("tasks", organization_id="org-b") == {"columns": ["budget"]}
 
 
+def test_app_settings_store_namespaces_unscoped_tenant_state(repo_workspace):
+    store, settings = _store_with_ini(repo_workspace)
+
+    store.save_task_saved_views({"Shared": {"query": "status:open"}})
+
+    all_keys = set(settings.allKeys())
+    assert "tenant/__no_organization__/task/saved_views" in all_keys
+    assert "task/saved_views" not in all_keys
+
+
 def test_app_settings_store_normalizes_invalid_values(repo_workspace):
     store, settings = _store_with_ini(repo_workspace)
     settings.setValue("ui/theme_mode", "INVALID")
