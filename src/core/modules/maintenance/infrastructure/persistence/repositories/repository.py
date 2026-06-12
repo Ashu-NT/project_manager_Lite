@@ -107,14 +107,17 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyMaintenanceLocationRepository(MaintenanceLocationRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, location: MaintenanceLocation) -> None:
         orm = maintenance_location_to_orm(location)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, location: MaintenanceLocation) -> None:
@@ -145,7 +148,7 @@ class SqlAlchemyMaintenanceLocationRepository(MaintenanceLocationRepository):
         obj = self.session.get(MaintenanceLocationORM, location_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return maintenance_location_from_orm(obj)
@@ -155,7 +158,7 @@ class SqlAlchemyMaintenanceLocationRepository(MaintenanceLocationRepository):
         organization_id: str,
         location_code: str,
     ) -> MaintenanceLocation | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(MaintenanceLocationORM).where(
             MaintenanceLocationORM.organization_id == organization_id,
             MaintenanceLocationORM.location_code == location_code,
@@ -173,7 +176,7 @@ class SqlAlchemyMaintenanceLocationRepository(MaintenanceLocationRepository):
         site_id: str | None = None,
         parent_location_id: str | None = None,
     ) -> list[MaintenanceLocation]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(MaintenanceLocationORM).where(MaintenanceLocationORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(MaintenanceLocationORM.tenant_id == _tid)
@@ -190,14 +193,17 @@ class SqlAlchemyMaintenanceLocationRepository(MaintenanceLocationRepository):
 
 
 class SqlAlchemyMaintenanceSystemRepository(MaintenanceSystemRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, system: MaintenanceSystem) -> None:
         orm = maintenance_system_to_orm(system)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, system: MaintenanceSystem) -> None:
@@ -229,7 +235,7 @@ class SqlAlchemyMaintenanceSystemRepository(MaintenanceSystemRepository):
         obj = self.session.get(MaintenanceSystemORM, system_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return maintenance_system_from_orm(obj)
@@ -239,7 +245,7 @@ class SqlAlchemyMaintenanceSystemRepository(MaintenanceSystemRepository):
         organization_id: str,
         system_code: str,
     ) -> MaintenanceSystem | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(MaintenanceSystemORM).where(
             MaintenanceSystemORM.organization_id == organization_id,
             MaintenanceSystemORM.system_code == system_code,
@@ -258,7 +264,7 @@ class SqlAlchemyMaintenanceSystemRepository(MaintenanceSystemRepository):
         location_id: str | None = None,
         parent_system_id: str | None = None,
     ) -> list[MaintenanceSystem]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(MaintenanceSystemORM).where(MaintenanceSystemORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(MaintenanceSystemORM.tenant_id == _tid)
@@ -277,14 +283,17 @@ class SqlAlchemyMaintenanceSystemRepository(MaintenanceSystemRepository):
 
 
 class SqlAlchemyMaintenanceAssetRepository(MaintenanceAssetRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, asset: MaintenanceAsset) -> None:
         orm = maintenance_asset_to_orm(asset)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, asset: MaintenanceAsset) -> None:
@@ -332,7 +341,7 @@ class SqlAlchemyMaintenanceAssetRepository(MaintenanceAssetRepository):
         obj = self.session.get(MaintenanceAssetORM, asset_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return maintenance_asset_from_orm(obj)
@@ -342,7 +351,7 @@ class SqlAlchemyMaintenanceAssetRepository(MaintenanceAssetRepository):
         organization_id: str,
         asset_code: str,
     ) -> MaintenanceAsset | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(MaintenanceAssetORM).where(
             MaintenanceAssetORM.organization_id == organization_id,
             MaintenanceAssetORM.asset_code == asset_code,
@@ -363,7 +372,7 @@ class SqlAlchemyMaintenanceAssetRepository(MaintenanceAssetRepository):
         parent_asset_id: str | None = None,
         asset_category: str | None = None,
     ) -> list[MaintenanceAsset]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(MaintenanceAssetORM).where(MaintenanceAssetORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(MaintenanceAssetORM.tenant_id == _tid)
@@ -469,14 +478,17 @@ class SqlAlchemyMaintenanceAssetComponentRepository(MaintenanceAssetComponentRep
 
 
 class SqlAlchemyMaintenanceSensorRepository(MaintenanceSensorRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, sensor: MaintenanceSensor) -> None:
         orm = maintenance_sensor_to_orm(sensor)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, sensor: MaintenanceSensor) -> None:
@@ -514,7 +526,7 @@ class SqlAlchemyMaintenanceSensorRepository(MaintenanceSensorRepository):
         obj = self.session.get(MaintenanceSensorORM, sensor_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return maintenance_sensor_from_orm(obj)
@@ -524,7 +536,7 @@ class SqlAlchemyMaintenanceSensorRepository(MaintenanceSensorRepository):
         organization_id: str,
         sensor_code: str,
     ) -> MaintenanceSensor | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(MaintenanceSensorORM).where(
             MaintenanceSensorORM.organization_id == organization_id,
             MaintenanceSensorORM.sensor_code == sensor_code,
@@ -546,7 +558,7 @@ class SqlAlchemyMaintenanceSensorRepository(MaintenanceSensorRepository):
         sensor_type: str | None = None,
         source_type: str | None = None,
     ) -> list[MaintenanceSensor]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(MaintenanceSensorORM).where(MaintenanceSensorORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(MaintenanceSensorORM.tenant_id == _tid)
@@ -815,14 +827,17 @@ class SqlAlchemyMaintenanceSensorExceptionRepository(MaintenanceSensorExceptionR
 
 
 class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, work_request: MaintenanceWorkRequest) -> None:
         orm = maintenance_work_request_to_orm(work_request)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, work_request: MaintenanceWorkRequest) -> None:
@@ -868,7 +883,7 @@ class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepositor
         obj = self.session.get(MaintenanceWorkRequestORM, work_request_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return maintenance_work_request_from_orm(obj)
@@ -878,7 +893,7 @@ class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepositor
         organization_id: str,
         work_request_code: str,
     ) -> MaintenanceWorkRequest | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(MaintenanceWorkRequestORM).where(
             MaintenanceWorkRequestORM.organization_id == organization_id,
             MaintenanceWorkRequestORM.work_request_code == work_request_code,
@@ -902,7 +917,7 @@ class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepositor
         requested_by_user_id: str | None = None,
         triaged_by_user_id: str | None = None,
     ) -> list[MaintenanceWorkRequest]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(MaintenanceWorkRequestORM).where(MaintenanceWorkRequestORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(MaintenanceWorkRequestORM.tenant_id == _tid)
@@ -931,14 +946,17 @@ class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepositor
 
 
 class SqlAlchemyMaintenanceWorkOrderRepository(MaintenanceWorkOrderRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, work_order: MaintenanceWorkOrder) -> None:
         orm = maintenance_work_order_to_orm(work_order)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, work_order: MaintenanceWorkOrder) -> None:
@@ -995,7 +1013,7 @@ class SqlAlchemyMaintenanceWorkOrderRepository(MaintenanceWorkOrderRepository):
         obj = self.session.get(MaintenanceWorkOrderORM, work_order_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return maintenance_work_order_from_orm(obj)
@@ -1005,7 +1023,7 @@ class SqlAlchemyMaintenanceWorkOrderRepository(MaintenanceWorkOrderRepository):
         organization_id: str,
         work_order_code: str,
     ) -> MaintenanceWorkOrder | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(MaintenanceWorkOrderORM).where(
             MaintenanceWorkOrderORM.organization_id == organization_id,
             MaintenanceWorkOrderORM.work_order_code == work_order_code,
@@ -1034,7 +1052,7 @@ class SqlAlchemyMaintenanceWorkOrderRepository(MaintenanceWorkOrderRepository):
         is_preventive: bool | None = None,
         is_emergency: bool | None = None,
     ) -> list[MaintenanceWorkOrder]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(MaintenanceWorkOrderORM).where(MaintenanceWorkOrderORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(MaintenanceWorkOrderORM.tenant_id == _tid)
@@ -1393,14 +1411,17 @@ class SqlAlchemyMaintenanceTaskStepTemplateRepository(MaintenanceTaskStepTemplat
         ).scalars().all()
         return [maintenance_task_step_template_from_orm(row) for row in rows]
 class SqlAlchemyMaintenancePreventivePlanRepository(MaintenancePreventivePlanRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, preventive_plan: MaintenancePreventivePlan) -> None:
         orm = maintenance_preventive_plan_to_orm(preventive_plan)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, preventive_plan: MaintenancePreventivePlan) -> None:
@@ -1450,13 +1471,13 @@ class SqlAlchemyMaintenancePreventivePlanRepository(MaintenancePreventivePlanRep
         obj = self.session.get(MaintenancePreventivePlanORM, preventive_plan_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return maintenance_preventive_plan_from_orm(obj)
 
     def get_by_code(self, organization_id: str, plan_code: str) -> MaintenancePreventivePlan | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(MaintenancePreventivePlanORM).where(
             MaintenancePreventivePlanORM.organization_id == organization_id,
             MaintenancePreventivePlanORM.plan_code == plan_code,
@@ -1480,7 +1501,7 @@ class SqlAlchemyMaintenancePreventivePlanRepository(MaintenancePreventivePlanRep
         trigger_mode: str | None = None,
         sensor_id: str | None = None,
     ) -> list[MaintenancePreventivePlan]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(MaintenancePreventivePlanORM).where(
             MaintenancePreventivePlanORM.organization_id == organization_id
         )

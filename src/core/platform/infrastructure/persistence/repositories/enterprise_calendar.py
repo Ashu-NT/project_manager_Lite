@@ -62,21 +62,23 @@ from src.core.platform.infrastructure.persistence.orm.enterprise_calendar import
 class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
     _session: Session
 
-    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
+    def __init__(self, session: Session) -> None:
         self._session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def get(self, calendar_id: str) -> PlatformCalendar | None:
-        obj = self._session.get(PlatformCalendarORM, calendar_id)
-        if obj is None:
-            return None
-        _tid = self._tenant_id_provider()
-        if _tid is not None and obj.tenant_id != _tid:
-            return None
-        return platform_calendar_from_orm(obj)
+        _tid = self._get_active_tid()
+        stmt = select(PlatformCalendarORM).where(PlatformCalendarORM.id == calendar_id)
+        if _tid is not None:
+            stmt = stmt.where(PlatformCalendarORM.tenant_id == _tid)
+        obj = self._session.execute(stmt).scalar_one_or_none()
+        return platform_calendar_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, code: str) -> PlatformCalendar | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(PlatformCalendarORM).where(
             PlatformCalendarORM.organization_id == organization_id,
             PlatformCalendarORM.code == code,
@@ -87,7 +89,7 @@ class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
         return platform_calendar_from_orm(obj) if obj else None
 
     def get_global(self, organization_id: str) -> PlatformCalendar | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(PlatformCalendarORM).where(
             PlatformCalendarORM.organization_id == organization_id,
             PlatformCalendarORM.calendar_type == "GLOBAL",
@@ -106,7 +108,7 @@ class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
         calendar_type: str | None = None,
         active_only: bool | None = None,
     ) -> list[PlatformCalendar]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(PlatformCalendarORM).where(
             PlatformCalendarORM.organization_id == organization_id
         )
@@ -127,7 +129,7 @@ class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
     def add(self, calendar: PlatformCalendar) -> None:
         orm = platform_calendar_to_orm(calendar)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self._session.add(orm)
 
     def update(self, calendar: PlatformCalendar) -> None:
@@ -332,14 +334,17 @@ class SqlAlchemyCalendarRecurringEventRepository(CalendarRecurringEventRepositor
 class SqlAlchemyShiftPatternRepository(ShiftPatternRepository):
     _session: Session
 
-    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
+    def __init__(self, session: Session) -> None:
         self._session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def list_for_organization(
         self, organization_id: str, *, active_only: bool | None = None
     ) -> list[ShiftPattern]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(ShiftPatternORM).where(
             ShiftPatternORM.organization_id == organization_id
         )
@@ -352,16 +357,15 @@ class SqlAlchemyShiftPatternRepository(ShiftPatternRepository):
         return [shift_pattern_from_orm(r) for r in rows]
 
     def get(self, pattern_id: str) -> ShiftPattern | None:
-        obj = self._session.get(ShiftPatternORM, pattern_id)
-        if obj is None:
-            return None
-        _tid = self._tenant_id_provider()
-        if _tid is not None and obj.tenant_id != _tid:
-            return None
-        return shift_pattern_from_orm(obj)
+        _tid = self._get_active_tid()
+        stmt = select(ShiftPatternORM).where(ShiftPatternORM.id == pattern_id)
+        if _tid is not None:
+            stmt = stmt.where(ShiftPatternORM.tenant_id == _tid)
+        obj = self._session.execute(stmt).scalar_one_or_none()
+        return shift_pattern_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, code: str) -> ShiftPattern | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(ShiftPatternORM).where(
             ShiftPatternORM.organization_id == organization_id,
             ShiftPatternORM.code == code,
@@ -374,7 +378,7 @@ class SqlAlchemyShiftPatternRepository(ShiftPatternRepository):
     def add(self, pattern: ShiftPattern) -> None:
         orm = shift_pattern_to_orm(pattern)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self._session.add(orm)
 
     def update(self, pattern: ShiftPattern) -> None:

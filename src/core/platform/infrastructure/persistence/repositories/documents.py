@@ -24,14 +24,17 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 class SqlAlchemyDocumentStructureRepository(DocumentStructureRepository):
     session: Session
 
-    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, structure: DocumentStructure) -> None:
         orm = document_structure_to_orm(structure)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, structure: DocumentStructure) -> None:
@@ -56,16 +59,15 @@ class SqlAlchemyDocumentStructureRepository(DocumentStructureRepository):
         )
 
     def get(self, structure_id: str) -> DocumentStructure | None:
-        obj = self.session.get(DocumentStructureORM, structure_id)
-        if obj is None:
-            return None
-        _tid = self._tenant_id_provider()
-        if _tid is not None and obj.tenant_id != _tid:
-            return None
-        return document_structure_from_orm(obj)
+        _tid = self._get_active_tid()
+        stmt = select(DocumentStructureORM).where(DocumentStructureORM.id == structure_id)
+        if _tid is not None:
+            stmt = stmt.where(DocumentStructureORM.tenant_id == _tid)
+        obj = self.session.execute(stmt).scalar_one_or_none()
+        return document_structure_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, structure_code: str) -> DocumentStructure | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(DocumentStructureORM).where(
             DocumentStructureORM.organization_id == organization_id,
             DocumentStructureORM.structure_code == structure_code,
@@ -82,7 +84,7 @@ class SqlAlchemyDocumentStructureRepository(DocumentStructureRepository):
         active_only: bool | None = None,
         object_scope: str | None = None,
     ) -> list[DocumentStructure]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(DocumentStructureORM).where(DocumentStructureORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(DocumentStructureORM.tenant_id == _tid)
@@ -102,14 +104,17 @@ class SqlAlchemyDocumentStructureRepository(DocumentStructureRepository):
 class SqlAlchemyDocumentRepository(DocumentRepository):
     session: Session
 
-    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, document: Document) -> None:
         orm = document_to_orm(document)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, document: Document) -> None:
@@ -144,16 +149,15 @@ class SqlAlchemyDocumentRepository(DocumentRepository):
         )
 
     def get(self, document_id: str) -> Document | None:
-        obj = self.session.get(DocumentORM, document_id)
-        if obj is None:
-            return None
-        _tid = self._tenant_id_provider()
-        if _tid is not None and obj.tenant_id != _tid:
-            return None
-        return document_from_orm(obj)
+        _tid = self._get_active_tid()
+        stmt = select(DocumentORM).where(DocumentORM.id == document_id)
+        if _tid is not None:
+            stmt = stmt.where(DocumentORM.tenant_id == _tid)
+        obj = self.session.execute(stmt).scalar_one_or_none()
+        return document_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, document_code: str) -> Document | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(DocumentORM).where(
             DocumentORM.organization_id == organization_id,
             DocumentORM.document_code == document_code,
@@ -169,7 +173,7 @@ class SqlAlchemyDocumentRepository(DocumentRepository):
         *,
         active_only: bool | None = None,
     ) -> list[Document]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(DocumentORM).where(DocumentORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(DocumentORM.tenant_id == _tid)

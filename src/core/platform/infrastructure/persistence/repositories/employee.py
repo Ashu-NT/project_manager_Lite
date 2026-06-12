@@ -16,14 +16,17 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 class SqlAlchemyEmployeeRepository(EmployeeRepository):
     session: Session
 
-    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, employee: Employee) -> None:
         orm = employee_to_orm(employee)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, employee: Employee) -> None:
@@ -51,16 +54,15 @@ class SqlAlchemyEmployeeRepository(EmployeeRepository):
         )
 
     def get(self, employee_id: str) -> Employee | None:
-        obj = self.session.get(EmployeeORM, employee_id)
-        if obj is None:
-            return None
-        _tid = self._tenant_id_provider()
-        if _tid is not None and obj.tenant_id != _tid:
-            return None
-        return employee_from_orm(obj)
+        _tid = self._get_active_tid()
+        stmt = select(EmployeeORM).where(EmployeeORM.id == employee_id)
+        if _tid is not None:
+            stmt = stmt.where(EmployeeORM.tenant_id == _tid)
+        obj = self.session.execute(stmt).scalar_one_or_none()
+        return employee_from_orm(obj) if obj else None
 
     def get_by_code(self, employee_code: str) -> Employee | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(EmployeeORM).where(EmployeeORM.employee_code == employee_code)
         if _tid is not None:
             stmt = stmt.where(EmployeeORM.tenant_id == _tid)
@@ -68,7 +70,7 @@ class SqlAlchemyEmployeeRepository(EmployeeRepository):
         return employee_from_orm(obj) if obj else None
 
     def get_for_organization(self, employee_id: str, organization_id: str) -> Employee | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(EmployeeORM).where(
             EmployeeORM.id == employee_id,
             EmployeeORM.organization_id == organization_id,
@@ -79,7 +81,7 @@ class SqlAlchemyEmployeeRepository(EmployeeRepository):
         return employee_from_orm(obj) if obj else None
 
     def get_by_code_for_organization(self, employee_code: str, organization_id: str) -> Employee | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(EmployeeORM).where(
             EmployeeORM.employee_code == employee_code,
             EmployeeORM.organization_id == organization_id,
@@ -95,7 +97,7 @@ class SqlAlchemyEmployeeRepository(EmployeeRepository):
         *,
         active_only: bool | None = None,
     ) -> list[Employee]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(EmployeeORM).where(EmployeeORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(EmployeeORM.tenant_id == _tid)

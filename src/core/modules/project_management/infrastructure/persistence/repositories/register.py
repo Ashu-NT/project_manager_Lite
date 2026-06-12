@@ -10,7 +10,10 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.modules.project_management.infrastructure.persistence.orm.register import RegisterEntryORM
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
 from src.core.modules.project_management.infrastructure.persistence.mappers.register import register_entry_from_orm, register_entry_to_orm
 
@@ -18,11 +21,35 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.regi
 class SqlAlchemyRegisterEntryRepository(RegisterEntryRepository):
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service: TenantContextService | None = None
+
+    def _context(self) -> TenantContext:
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "RegisterEntryRepository requires TenantContextService.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_organization_context(
+            operation_label="access register entries"
+        )
+
+    def _project_scoped_stmt(self):
+        ctx = self._context()
+        return (
+            select(RegisterEntryORM)
+            .join(ProjectORM, RegisterEntryORM.project_id == ProjectORM.id)
+            .where(
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        )
 
     def add(self, entry: RegisterEntry) -> None:
         self.session.add(register_entry_to_orm(entry))
 
     def update(self, entry: RegisterEntry) -> None:
+        if self.get(entry.id) is None:
+            raise BusinessRuleError("Register entry not found.")
         entry.version = update_with_version_check(
             self.session,
             RegisterEntryORM,
@@ -50,8 +77,9 @@ class SqlAlchemyRegisterEntryRepository(RegisterEntryRepository):
         self.session.query(RegisterEntryORM).filter_by(id=entry_id).delete()
 
     def get(self, entry_id: str) -> RegisterEntry | None:
-        obj = self.session.get(RegisterEntryORM, entry_id)
-        return register_entry_from_orm(obj) if obj else None
+        stmt = self._project_scoped_stmt().where(RegisterEntryORM.id == entry_id)
+        row = self.session.execute(stmt).scalar_one_or_none()
+        return register_entry_from_orm(row) if row else None
 
     def list_entries(
         self,
@@ -61,7 +89,7 @@ class SqlAlchemyRegisterEntryRepository(RegisterEntryRepository):
         status: RegisterEntryStatus | None = None,
         severity: RegisterEntrySeverity | None = None,
     ) -> list[RegisterEntry]:
-        stmt = select(RegisterEntryORM)
+        stmt = self._project_scoped_stmt()
         if project_id:
             stmt = stmt.where(RegisterEntryORM.project_id == project_id)
         if entry_type is not None:

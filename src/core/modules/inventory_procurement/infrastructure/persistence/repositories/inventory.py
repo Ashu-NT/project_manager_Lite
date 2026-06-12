@@ -52,14 +52,17 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyStoreroomRepository(StoreroomRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, storeroom: Storeroom) -> None:
         orm = storeroom_to_orm(storeroom)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, storeroom: Storeroom) -> None:
@@ -96,13 +99,13 @@ class SqlAlchemyStoreroomRepository(StoreroomRepository):
         obj = self.session.get(StoreroomORM, storeroom_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return storeroom_from_orm(obj)
 
     def get_by_code(self, organization_id: str, storeroom_code: str) -> Storeroom | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(StoreroomORM).where(
             StoreroomORM.organization_id == organization_id,
             StoreroomORM.storeroom_code == storeroom_code,
@@ -119,7 +122,7 @@ class SqlAlchemyStoreroomRepository(StoreroomRepository):
         active_only: bool | None = None,
         site_id: str | None = None,
     ) -> list[Storeroom]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(StoreroomORM).where(StoreroomORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(StoreroomORM.tenant_id == _tid)
@@ -132,14 +135,17 @@ class SqlAlchemyStoreroomRepository(StoreroomRepository):
 
 
 class SqlAlchemyStockBalanceRepository(StockBalanceRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, balance: StockBalance) -> None:
         orm = stock_balance_to_orm(balance)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, balance: StockBalance) -> None:
@@ -169,7 +175,7 @@ class SqlAlchemyStockBalanceRepository(StockBalanceRepository):
         obj = self.session.get(StockBalanceORM, balance_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return stock_balance_from_orm(obj)
@@ -180,7 +186,7 @@ class SqlAlchemyStockBalanceRepository(StockBalanceRepository):
         stock_item_id: str,
         storeroom_id: str,
     ) -> StockBalance | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(StockBalanceORM).where(
             StockBalanceORM.organization_id == organization_id,
             StockBalanceORM.stock_item_id == stock_item_id,
@@ -198,7 +204,7 @@ class SqlAlchemyStockBalanceRepository(StockBalanceRepository):
         stock_item_id: str | None = None,
         storeroom_id: str | None = None,
     ) -> list[StockBalance]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(StockBalanceORM).where(StockBalanceORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(StockBalanceORM.tenant_id == _tid)
@@ -211,27 +217,30 @@ class SqlAlchemyStockBalanceRepository(StockBalanceRepository):
 
 
 class SqlAlchemyStockTransactionRepository(StockTransactionRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, transaction: StockTransaction) -> None:
         orm = stock_transaction_to_orm(transaction)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def get(self, transaction_id: str) -> StockTransaction | None:
         obj = self.session.get(StockTransactionORM, transaction_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return stock_transaction_from_orm(obj)
 
     def get_by_number(self, organization_id: str, transaction_number: str) -> StockTransaction | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(StockTransactionORM).where(
             StockTransactionORM.organization_id == organization_id,
             StockTransactionORM.transaction_number == transaction_number,
@@ -249,7 +258,7 @@ class SqlAlchemyStockTransactionRepository(StockTransactionRepository):
         storeroom_id: str | None = None,
         limit: int = 200,
     ) -> list[StockTransaction]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(StockTransactionORM).where(StockTransactionORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(StockTransactionORM.tenant_id == _tid)
@@ -264,14 +273,17 @@ class SqlAlchemyStockTransactionRepository(StockTransactionRepository):
 
 
 class SqlAlchemyStockReservationRepository(StockReservationRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, reservation: StockReservation) -> None:
         orm = stock_reservation_to_orm(reservation)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, reservation: StockReservation) -> None:
@@ -307,13 +319,13 @@ class SqlAlchemyStockReservationRepository(StockReservationRepository):
         obj = self.session.get(StockReservationORM, reservation_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return stock_reservation_from_orm(obj)
 
     def get_by_number(self, organization_id: str, reservation_number: str) -> StockReservation | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(StockReservationORM).where(
             StockReservationORM.organization_id == organization_id,
             StockReservationORM.reservation_number == reservation_number,
@@ -332,7 +344,7 @@ class SqlAlchemyStockReservationRepository(StockReservationRepository):
         status: str | None = None,
         limit: int = 200,
     ) -> list[StockReservation]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(StockReservationORM).where(StockReservationORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(StockReservationORM.tenant_id == _tid)

@@ -25,14 +25,17 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyInventoryItemCategoryRepository(InventoryItemCategoryRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, category: InventoryItemCategory) -> None:
         orm = inventory_item_category_to_orm(category)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, category: InventoryItemCategory) -> None:
@@ -61,13 +64,13 @@ class SqlAlchemyInventoryItemCategoryRepository(InventoryItemCategoryRepository)
         obj = self.session.get(InventoryItemCategoryORM, category_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return inventory_item_category_from_orm(obj)
 
     def get_by_code(self, organization_id: str, category_code: str) -> InventoryItemCategory | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(InventoryItemCategoryORM).where(
             InventoryItemCategoryORM.organization_id == organization_id,
             InventoryItemCategoryORM.category_code == category_code,
@@ -84,7 +87,7 @@ class SqlAlchemyInventoryItemCategoryRepository(InventoryItemCategoryRepository)
         active_only: bool | None = None,
         category_type: str | None = None,
     ) -> list[InventoryItemCategory]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(InventoryItemCategoryORM).where(InventoryItemCategoryORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(InventoryItemCategoryORM.tenant_id == _tid)
@@ -99,14 +102,17 @@ class SqlAlchemyInventoryItemCategoryRepository(InventoryItemCategoryRepository)
 
 
 class SqlAlchemyStockItemRepository(StockItemRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, item: StockItem) -> None:
         orm = stock_item_to_orm(item)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, item: StockItem) -> None:
@@ -153,13 +159,13 @@ class SqlAlchemyStockItemRepository(StockItemRepository):
         obj = self.session.get(StockItemORM, item_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return stock_item_from_orm(obj)
 
     def get_by_code(self, organization_id: str, item_code: str) -> StockItem | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(StockItemORM).where(
             StockItemORM.organization_id == organization_id,
             StockItemORM.item_code == item_code,
@@ -175,7 +181,7 @@ class SqlAlchemyStockItemRepository(StockItemRepository):
         *,
         active_only: bool | None = None,
     ) -> list[StockItem]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(StockItemORM).where(StockItemORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(StockItemORM.tenant_id == _tid)

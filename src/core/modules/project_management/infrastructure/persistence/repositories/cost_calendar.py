@@ -11,6 +11,7 @@ from src.core.modules.project_management.contracts.repositories.cost_calendar im
 )
 from src.core.modules.project_management.domain.scheduling.calendar import CalendarEvent
 from src.core.modules.project_management.domain.financials.cost import CostItem
+from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.modules.project_management.infrastructure.persistence.mappers.cost_calendar import (
     cost_from_orm,
     cost_to_orm,
@@ -18,17 +19,43 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.cost
     event_to_orm,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.cost_calendar import CalendarEventORM, CostItemORM
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyCostRepository(CostRepository):
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service: TenantContextService | None = None
+
+    def _context(self) -> TenantContext:
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "CostRepository requires TenantContextService.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_organization_context(
+            operation_label="access costs"
+        )
+
+    def _project_scoped_stmt(self):
+        ctx = self._context()
+        return (
+            select(CostItemORM)
+            .join(ProjectORM, CostItemORM.project_id == ProjectORM.id)
+            .where(
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        )
 
     def add(self, cost_item: CostItem) -> None:
         self.session.add(cost_to_orm(cost_item))
 
     def update(self, cost_item: CostItem) -> None:
+        if self.get(cost_item.id) is None:
+            raise BusinessRuleError("Cost item not found.")
         cost_item.version = update_with_version_check(
             self.session,
             CostItemORM,
@@ -57,7 +84,7 @@ class SqlAlchemyCostRepository(CostRepository):
         self.session.query(CostItemORM).filter_by(id=cost_id).delete()
 
     def list_by_project(self, project_id: str) -> list[CostItem]:
-        stmt = select(CostItemORM).where(CostItemORM.project_id == project_id)
+        stmt = self._project_scoped_stmt().where(CostItemORM.project_id == project_id)
         rows = self.session.execute(stmt).scalars().all()
         return [cost_from_orm(row) for row in rows]
 
@@ -65,13 +92,37 @@ class SqlAlchemyCostRepository(CostRepository):
         self.session.query(CostItemORM).filter_by(project_id=project_id).delete()
 
     def get(self, cost_id: str) -> CostItem | None:
-        obj = self.session.get(CostItemORM, cost_id)
-        return cost_from_orm(obj) if obj else None
+        stmt = self._project_scoped_stmt().where(CostItemORM.id == cost_id)
+        row = self.session.execute(stmt).scalar_one_or_none()
+        return cost_from_orm(row) if row else None
 
 
 class SqlAlchemyCalendarEventRepository(CalendarEventRepository):
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service: TenantContextService | None = None
+
+    def _context(self) -> TenantContext:
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "CalendarEventRepository requires TenantContextService.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_organization_context(
+            operation_label="access calendar events"
+        )
+
+    def _project_scoped_stmt(self):
+        ctx = self._context()
+        return (
+            select(CalendarEventORM)
+            .join(ProjectORM, CalendarEventORM.project_id == ProjectORM.id)
+            .where(
+                CalendarEventORM.project_id.isnot(None),
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        )
 
     def add(self, event: CalendarEvent) -> None:
         self.session.add(event_to_orm(event))
@@ -83,18 +134,27 @@ class SqlAlchemyCalendarEventRepository(CalendarEventRepository):
         self.session.query(CalendarEventORM).filter_by(id=event_id).delete()
 
     def get(self, event_id: str) -> CalendarEvent | None:
-        obj = self.session.get(CalendarEventORM, event_id)
-        return event_from_orm(obj) if obj else None
+        stmt = self._project_scoped_stmt().where(CalendarEventORM.id == event_id)
+        row = self.session.execute(stmt).scalar_one_or_none()
+        return event_from_orm(row) if row else None
 
     def list_for_project(self, project_id: str) -> list[CalendarEvent]:
-        stmt = select(CalendarEventORM).where(CalendarEventORM.project_id == project_id)
+        stmt = self._project_scoped_stmt().where(CalendarEventORM.project_id == project_id)
         rows = self.session.execute(stmt).scalars().all()
         return [event_from_orm(row) for row in rows]
 
     def list_range(self, start_date: date, end_date: date) -> list[CalendarEvent]:
-        stmt = select(CalendarEventORM).where(
-            CalendarEventORM.end_date >= start_date,
-            CalendarEventORM.start_date <= end_date,
+        ctx = self._context()
+        stmt = (
+            select(CalendarEventORM)
+            .join(ProjectORM, CalendarEventORM.project_id == ProjectORM.id)
+            .where(
+                CalendarEventORM.project_id.isnot(None),
+                CalendarEventORM.end_date >= start_date,
+                CalendarEventORM.start_date <= end_date,
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
         )
         rows = self.session.execute(stmt).scalars().all()
         return [event_from_orm(row) for row in rows]

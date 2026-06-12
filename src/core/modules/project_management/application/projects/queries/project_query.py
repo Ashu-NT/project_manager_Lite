@@ -13,8 +13,7 @@ class ProjectQueryMixin:
 
     def list_projects(self) -> list[Project]:
         require_permission(self._user_session, "project.read", operation_label="list projects")
-        organization_id = self._active_organization_id(operation_label="list projects")
-        project_rows = self._project_repo.list_for_organization(organization_id)
+        project_rows = self._project_repo.list()
         return filter_project_rows(
             project_rows,
             self._user_session,
@@ -24,12 +23,8 @@ class ProjectQueryMixin:
 
     def get_project(self, project_id: str) -> Project | None:
         require_permission(self._user_session, "project.read", operation_label="view project")
-        organization_id = self._active_organization_id(operation_label="view project")
         project = self._project_repo.get(project_id)
         if project is None:
-            return None
-        project_org = str(getattr(project, "organization_id", "") or "").strip()
-        if not project_org or project_org != organization_id:
             return None
         require_project_permission(
             self._user_session,
@@ -47,16 +42,6 @@ class ProjectQueryMixin:
         require_permission(self._user_session, "project.read", operation_label="search projects")
         normalized = query.strip().lower()
         return [project for project in self.list_projects() if normalized in project.name.lower()]
-
-    def _active_organization_id(self, *, operation_label: str) -> str | None:
-        tenant_context = getattr(self, "_tenant_context_service", None)
-        if tenant_context is None:
-            from src.core.platform.common.exceptions import BusinessRuleError
-            raise BusinessRuleError(
-                f"Active organization context is required for {operation_label}.",
-                code="TENANT_CONTEXT_REQUIRED",
-            )
-        return tenant_context.require_active_organization_id(operation_label=operation_label)
 
 
 __all__ = ["ProjectQueryMixin"]

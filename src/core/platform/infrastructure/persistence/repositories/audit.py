@@ -12,14 +12,17 @@ from src.core.platform.infrastructure.persistence.orm.audit import AuditLogORM
 class SqlAlchemyAuditLogRepository(AuditLogRepository):
     session: Session
 
-    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, entry: AuditLogEntry) -> None:
         orm = audit_to_orm(entry)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def list_recent(
@@ -29,7 +32,7 @@ class SqlAlchemyAuditLogRepository(AuditLogRepository):
         project_id: str | None = None,
         entity_type: str | None = None,
     ) -> list[AuditLogEntry]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(AuditLogORM)
         if _tid is not None:
             stmt = stmt.where(AuditLogORM.tenant_id == _tid)
@@ -49,7 +52,7 @@ class SqlAlchemyAuditLogRepository(AuditLogRepository):
         project_id: str | None = None,
         entity_type: str | None = None,
     ) -> list[AuditLogEntry]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(AuditLogORM).where(AuditLogORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(AuditLogORM.tenant_id == _tid)

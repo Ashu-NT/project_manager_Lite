@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-
-from sqlalchemy import or_, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.task import (
@@ -10,7 +9,10 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
+from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskAssignmentORM, TaskDependencyORM, TaskORM
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
 from src.core.modules.project_management.infrastructure.persistence.mappers.task import (
     assignment_from_orm,
@@ -25,11 +27,35 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.task
 class SqlAlchemyTaskRepository(TaskRepository):
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service: TenantContextService | None = None
+
+    def _context(self) -> TenantContext:
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "TaskRepository requires TenantContextService.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_organization_context(
+            operation_label="access tasks"
+        )
+
+    def _project_scoped_stmt(self):
+        ctx = self._context()
+        return (
+            select(TaskORM)
+            .join(ProjectORM, TaskORM.project_id == ProjectORM.id)
+            .where(
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        )
 
     def add(self, task: Task) -> None:
         self.session.add(task_to_orm(task))
 
     def update(self, task: Task) -> None:
+        if self.get(task.id) is None:
+            raise NotFoundError("Task not found.")
         task.version = update_with_version_check(
             self.session,
             TaskORM,
@@ -54,14 +80,26 @@ class SqlAlchemyTaskRepository(TaskRepository):
         )
 
     def delete(self, task_id: str) -> None:
-        self.session.query(TaskORM).filter_by(id=task_id).delete()
+        ctx = self._context()
+        in_scope = (
+            select(TaskORM.id)
+            .join(ProjectORM, TaskORM.project_id == ProjectORM.id)
+            .where(
+                TaskORM.id == task_id,
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+            .scalar_subquery()
+        )
+        self.session.execute(delete(TaskORM).where(TaskORM.id == in_scope))
 
     def get(self, task_id: str) -> Task | None:
-        obj = self.session.get(TaskORM, task_id)
-        return task_from_orm(obj) if obj else None
+        stmt = self._project_scoped_stmt().where(TaskORM.id == task_id)
+        row = self.session.execute(stmt).scalar_one_or_none()
+        return task_from_orm(row) if row else None
 
     def list_by_project(self, project_id: str) -> list[Task]:
-        stmt = select(TaskORM).where(TaskORM.project_id == project_id)
+        stmt = self._project_scoped_stmt().where(TaskORM.project_id == project_id)
         rows = self.session.execute(stmt).scalars().all()
         return [task_from_orm(row) for row in rows]
 
@@ -69,21 +107,45 @@ class SqlAlchemyTaskRepository(TaskRepository):
 class SqlAlchemyAssignmentRepository(AssignmentRepository):
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service: TenantContextService | None = None
+
+    def _context(self) -> TenantContext:
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "AssignmentRepository requires TenantContextService.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_organization_context(
+            operation_label="access assignments"
+        )
+
+    def _project_scoped_stmt(self):
+        ctx = self._context()
+        return (
+            select(TaskAssignmentORM)
+            .join(TaskORM, TaskAssignmentORM.task_id == TaskORM.id)
+            .join(ProjectORM, TaskORM.project_id == ProjectORM.id)
+            .where(
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        )
 
     def add(self, assignment: TaskAssignment) -> None:
         self.session.add(assignment_to_orm(assignment))
 
     def get(self, assignment_id: str) -> TaskAssignment | None:
-        obj = self.session.get(TaskAssignmentORM, assignment_id)
-        return assignment_from_orm(obj) if obj else None
+        stmt = self._project_scoped_stmt().where(TaskAssignmentORM.id == assignment_id)
+        row = self.session.execute(stmt).scalar_one_or_none()
+        return assignment_from_orm(row) if row else None
 
     def list_by_task(self, task_id: str) -> list[TaskAssignment]:
-        stmt = select(TaskAssignmentORM).where(TaskAssignmentORM.task_id == task_id)
+        stmt = self._project_scoped_stmt().where(TaskAssignmentORM.task_id == task_id)
         rows = self.session.execute(stmt).scalars().all()
         return [assignment_from_orm(row) for row in rows]
 
     def list_by_resource(self, resource_id: str) -> list[TaskAssignment]:
-        stmt = select(TaskAssignmentORM).where(TaskAssignmentORM.resource_id == resource_id)
+        stmt = self._project_scoped_stmt().where(TaskAssignmentORM.resource_id == resource_id)
         rows = self.session.execute(stmt).scalars().all()
         return [assignment_from_orm(row) for row in rows]
 
@@ -102,7 +164,17 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
     def list_by_tasks(self, task_ids: list[str]) -> list[TaskAssignment]:
         if not task_ids:
             return []
-        stmt = select(TaskAssignmentORM).where(TaskAssignmentORM.task_id.in_(task_ids))
+        ctx = self._context()
+        stmt = (
+            select(TaskAssignmentORM)
+            .join(TaskORM, TaskAssignmentORM.task_id == TaskORM.id)
+            .join(ProjectORM, TaskORM.project_id == ProjectORM.id)
+            .where(
+                TaskAssignmentORM.task_id.in_(task_ids),
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        )
         rows = self.session.execute(stmt).scalars().all()
         return [assignment_from_orm(row) for row in rows]
 

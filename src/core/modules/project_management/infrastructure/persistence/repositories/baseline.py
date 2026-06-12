@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -11,6 +10,7 @@ from src.core.modules.project_management.domain.scheduling.baseline import (
     BaselineVarianceRecord,
     ProjectBaseline,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.modules.project_management.infrastructure.persistence.mappers.baseline import (
     baseline_from_orm,
     baseline_task_from_orm,
@@ -24,18 +24,43 @@ from src.core.modules.project_management.infrastructure.persistence.orm.baseline
     BaselineVarianceRecordORM,
     ProjectBaselineORM,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
 
 
 class SqlAlchemyBaselineRepository(BaselineRepository):
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service: TenantContextService | None = None
+
+    def _context(self) -> TenantContext:
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "BaselineRepository requires TenantContextService.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_organization_context(
+            operation_label="access baselines"
+        )
+
+    def _project_scoped_stmt(self):
+        ctx = self._context()
+        return (
+            select(ProjectBaselineORM)
+            .join(ProjectORM, ProjectBaselineORM.project_id == ProjectORM.id)
+            .where(
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        )
 
     def add_baseline(self, baseline: ProjectBaseline) -> ProjectBaseline:
         self.session.add(baseline_to_orm(baseline))
         return baseline
 
     def update_baseline(self, baseline: ProjectBaseline) -> None:
-        row = self.session.get(ProjectBaselineORM, baseline.id)
+        stmt = self._project_scoped_stmt().where(ProjectBaselineORM.id == baseline.id)
+        row = self.session.execute(stmt).scalar_one_or_none()
         if row is None:
             self.session.add(baseline_to_orm(baseline))
             return
@@ -52,12 +77,13 @@ class SqlAlchemyBaselineRepository(BaselineRepository):
         row.notes = baseline.notes or None
 
     def get_baseline(self, baseline_id: str) -> ProjectBaseline | None:
-        row = self.session.get(ProjectBaselineORM, baseline_id)
+        stmt = self._project_scoped_stmt().where(ProjectBaselineORM.id == baseline_id)
+        row = self.session.execute(stmt).scalar_one_or_none()
         return baseline_from_orm(row) if row else None
 
     def get_latest_for_project(self, project_id: str) -> ProjectBaseline | None:
         stmt = (
-            select(ProjectBaselineORM)
+            self._project_scoped_stmt()
             .where(ProjectBaselineORM.project_id == project_id)
             .order_by(ProjectBaselineORM.created_at.desc())
         )
@@ -66,7 +92,7 @@ class SqlAlchemyBaselineRepository(BaselineRepository):
 
     def get_approved_baseline(self, project_id: str) -> ProjectBaseline | None:
         stmt = (
-            select(ProjectBaselineORM)
+            self._project_scoped_stmt()
             .where(ProjectBaselineORM.project_id == project_id)
             .where(ProjectBaselineORM.status == BaselineStatus.APPROVED.value)
             .order_by(ProjectBaselineORM.approved_at.desc(), ProjectBaselineORM.created_at.desc())
@@ -76,7 +102,7 @@ class SqlAlchemyBaselineRepository(BaselineRepository):
 
     def list_for_project(self, project_id: str) -> list[ProjectBaseline]:
         stmt = (
-            select(ProjectBaselineORM)
+            self._project_scoped_stmt()
             .where(ProjectBaselineORM.project_id == project_id)
             .order_by(ProjectBaselineORM.created_at.desc())
         )
@@ -84,9 +110,17 @@ class SqlAlchemyBaselineRepository(BaselineRepository):
         return [baseline_from_orm(row) for row in rows]
 
     def delete_baseline(self, baseline_id: str) -> None:
-        row = self.session.get(ProjectBaselineORM, baseline_id)
-        if row:
-            self.session.delete(row)
+        ctx = self._context()
+        stmt = delete(ProjectBaselineORM).where(
+            ProjectBaselineORM.id == baseline_id,
+            ProjectBaselineORM.project_id.in_(
+                select(ProjectORM.id).where(
+                    ProjectORM.tenant_id == ctx.tenant_id,
+                    ProjectORM.organization_id == ctx.organization_id,
+                )
+            ),
+        )
+        self.session.execute(stmt)
 
     def add_baseline_tasks(self, tasks: list[BaselineTask]) -> None:
         self.session.add_all([baseline_task_to_orm(task) for task in tasks])

@@ -11,17 +11,44 @@ from src.core.modules.project_management.contracts.repositories.collaboration im
     TaskPresenceRepository,
 )
 from src.core.modules.project_management.domain.collaboration import TaskComment, TaskPresence
+from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
 from src.core.modules.project_management.infrastructure.persistence.mappers.collaboration import (
     task_comment_from_orm,
     task_comment_to_orm,
     task_presence_from_orm,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import TaskCommentORM, TaskPresenceORM
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
 
 
 class SqlAlchemyTaskCommentRepository(TaskCommentRepository):
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service: TenantContextService | None = None
+
+    def _context(self) -> TenantContext:
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "TaskCommentRepository requires TenantContextService.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_organization_context(
+            operation_label="access task comments"
+        )
+
+    def _project_scoped_stmt(self):
+        ctx = self._context()
+        return (
+            select(TaskCommentORM)
+            .join(TaskORM, TaskCommentORM.task_id == TaskORM.id)
+            .join(ProjectORM, TaskORM.project_id == ProjectORM.id)
+            .where(
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        )
 
     def add(self, comment: TaskComment) -> None:
         self.session.add(task_comment_to_orm(comment))
@@ -30,12 +57,13 @@ class SqlAlchemyTaskCommentRepository(TaskCommentRepository):
         self.session.merge(task_comment_to_orm(comment))
 
     def get(self, comment_id: str) -> TaskComment | None:
-        obj = self.session.get(TaskCommentORM, comment_id)
-        return task_comment_from_orm(obj) if obj else None
+        stmt = self._project_scoped_stmt().where(TaskCommentORM.id == comment_id)
+        row = self.session.execute(stmt).scalar_one_or_none()
+        return task_comment_from_orm(row) if row else None
 
     def list_by_task(self, task_id: str) -> list[TaskComment]:
         stmt = (
-            select(TaskCommentORM)
+            self._project_scoped_stmt()
             .where(TaskCommentORM.task_id == task_id)
             .order_by(TaskCommentORM.created_at.asc())
         )
@@ -45,9 +73,16 @@ class SqlAlchemyTaskCommentRepository(TaskCommentRepository):
     def list_recent_for_tasks(self, task_ids: list[str], limit: int = 200) -> list[TaskComment]:
         if not task_ids:
             return []
+        ctx = self._context()
         stmt = (
             select(TaskCommentORM)
-            .where(TaskCommentORM.task_id.in_(task_ids))
+            .join(TaskORM, TaskCommentORM.task_id == TaskORM.id)
+            .join(ProjectORM, TaskORM.project_id == ProjectORM.id)
+            .where(
+                TaskCommentORM.task_id.in_(task_ids),
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
             .order_by(TaskCommentORM.created_at.desc())
             .limit(limit)
         )

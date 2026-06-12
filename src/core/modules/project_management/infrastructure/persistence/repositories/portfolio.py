@@ -37,14 +37,17 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.port
 
 
 class SqlAlchemyPortfolioIntakeRepository(PortfolioIntakeRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, item: PortfolioIntakeItem) -> None:
         orm = portfolio_intake_to_orm(item)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, item: PortfolioIntakeItem) -> None:
@@ -81,13 +84,13 @@ class SqlAlchemyPortfolioIntakeRepository(PortfolioIntakeRepository):
         obj = self.session.get(PortfolioIntakeItemORM, item_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return portfolio_intake_from_orm(obj)
 
     def get_for_organization(self, item_id: str, organization_id: str) -> PortfolioIntakeItem | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(PortfolioIntakeItemORM).where(
             PortfolioIntakeItemORM.id == item_id,
             PortfolioIntakeItemORM.organization_id == organization_id,
@@ -98,7 +101,7 @@ class SqlAlchemyPortfolioIntakeRepository(PortfolioIntakeRepository):
         return portfolio_intake_from_orm(obj) if obj else None
 
     def list_for_organization(self, organization_id: str) -> list[PortfolioIntakeItem]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = (
             select(PortfolioIntakeItemORM)
             .where(PortfolioIntakeItemORM.organization_id == organization_id)
@@ -116,34 +119,37 @@ class SqlAlchemyPortfolioIntakeRepository(PortfolioIntakeRepository):
 
 
 class SqlAlchemyPortfolioScenarioRepository(PortfolioScenarioRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, scenario: PortfolioScenario) -> None:
         orm = portfolio_scenario_to_orm(scenario)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, scenario: PortfolioScenario) -> None:
         orm = portfolio_scenario_to_orm(scenario)
         if orm.tenant_id is None:
             existing = self.session.get(PortfolioScenarioORM, scenario.id)
-            orm.tenant_id = (existing.tenant_id if existing is not None else None) or self._tenant_id_provider()
+            orm.tenant_id = (existing.tenant_id if existing is not None else None) or self._get_active_tid()
         self.session.merge(orm)
 
     def get(self, scenario_id: str) -> PortfolioScenario | None:
         obj = self.session.get(PortfolioScenarioORM, scenario_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return portfolio_scenario_from_orm(obj)
 
     def get_for_organization(self, scenario_id: str, organization_id: str) -> PortfolioScenario | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(PortfolioScenarioORM).where(
             PortfolioScenarioORM.id == scenario_id,
             PortfolioScenarioORM.organization_id == organization_id,
@@ -154,7 +160,7 @@ class SqlAlchemyPortfolioScenarioRepository(PortfolioScenarioRepository):
         return portfolio_scenario_from_orm(obj) if obj else None
 
     def list_for_organization(self, organization_id: str) -> list[PortfolioScenario]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = (
             select(PortfolioScenarioORM)
             .where(PortfolioScenarioORM.organization_id == organization_id)
@@ -236,34 +242,37 @@ class SqlAlchemyPortfolioProjectDependencyRepository(PortfolioProjectDependencyR
 
 
 class SqlAlchemyPortfolioScoringTemplateRepository(PortfolioScoringTemplateRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, template: PortfolioScoringTemplate) -> None:
         orm = portfolio_scoring_template_to_orm(template)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, template: PortfolioScoringTemplate) -> None:
         orm = portfolio_scoring_template_to_orm(template)
         if orm.tenant_id is None:
             existing = self.session.get(PortfolioScoringTemplateORM, template.id)
-            orm.tenant_id = (existing.tenant_id if existing is not None else None) or self._tenant_id_provider()
+            orm.tenant_id = (existing.tenant_id if existing is not None else None) or self._get_active_tid()
         self.session.merge(orm)
 
     def get(self, template_id: str) -> PortfolioScoringTemplate | None:
         obj = self.session.get(PortfolioScoringTemplateORM, template_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return portfolio_scoring_template_from_orm(obj)
 
     def get_for_organization(self, template_id: str, organization_id: str) -> PortfolioScoringTemplate | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(PortfolioScoringTemplateORM).where(
             PortfolioScoringTemplateORM.id == template_id,
             PortfolioScoringTemplateORM.organization_id == organization_id,
@@ -274,7 +283,7 @@ class SqlAlchemyPortfolioScoringTemplateRepository(PortfolioScoringTemplateRepos
         return portfolio_scoring_template_from_orm(obj) if obj else None
 
     def list_for_organization(self, organization_id: str) -> list[PortfolioScoringTemplate]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = (
             select(PortfolioScoringTemplateORM)
             .where(PortfolioScoringTemplateORM.organization_id == organization_id)

@@ -43,14 +43,17 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyPurchaseRequisitionRepository(PurchaseRequisitionRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, requisition) -> None:
         orm = purchase_requisition_to_orm(requisition)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, requisition) -> None:
@@ -87,13 +90,13 @@ class SqlAlchemyPurchaseRequisitionRepository(PurchaseRequisitionRepository):
         obj = self.session.get(PurchaseRequisitionORM, requisition_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return purchase_requisition_from_orm(obj)
 
     def get_by_number(self, organization_id: str, requisition_number: str):
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(PurchaseRequisitionORM).where(
             PurchaseRequisitionORM.organization_id == organization_id,
             PurchaseRequisitionORM.requisition_number == requisition_number,
@@ -112,7 +115,7 @@ class SqlAlchemyPurchaseRequisitionRepository(PurchaseRequisitionRepository):
         storeroom_id: str | None = None,
         limit: int = 200,
     ):
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(PurchaseRequisitionORM).where(PurchaseRequisitionORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(PurchaseRequisitionORM.tenant_id == _tid)
@@ -164,14 +167,17 @@ class SqlAlchemyPurchaseRequisitionLineRepository(PurchaseRequisitionLineReposit
 
 
 class SqlAlchemyPurchaseOrderRepository(PurchaseOrderRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, purchase_order: PurchaseOrder) -> None:
         orm = purchase_order_to_orm(purchase_order)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, purchase_order: PurchaseOrder) -> None:
@@ -208,13 +214,13 @@ class SqlAlchemyPurchaseOrderRepository(PurchaseOrderRepository):
         obj = self.session.get(PurchaseOrderORM, purchase_order_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return purchase_order_from_orm(obj)
 
     def get_by_number(self, organization_id: str, po_number: str) -> PurchaseOrder | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(PurchaseOrderORM).where(
             PurchaseOrderORM.organization_id == organization_id,
             PurchaseOrderORM.po_number == po_number,
@@ -233,7 +239,7 @@ class SqlAlchemyPurchaseOrderRepository(PurchaseOrderRepository):
         supplier_party_id: str | None = None,
         limit: int = 200,
     ) -> list[PurchaseOrder]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(PurchaseOrderORM).where(PurchaseOrderORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(PurchaseOrderORM.tenant_id == _tid)
@@ -290,27 +296,30 @@ class SqlAlchemyPurchaseOrderLineRepository(PurchaseOrderLineRepository):
 
 
 class SqlAlchemyReceiptHeaderRepository(ReceiptHeaderRepository):
-    def __init__(self, session: Session, *, tenant_id_provider=None):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, receipt: ReceiptHeader) -> None:
         orm = receipt_header_to_orm(receipt)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def get(self, receipt_id: str) -> ReceiptHeader | None:
         obj = self.session.get(ReceiptHeaderORM, receipt_id)
         if obj is None:
             return None
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         if _tid is not None and obj.tenant_id != _tid:
             return None
         return receipt_header_from_orm(obj)
 
     def get_by_number(self, organization_id: str, receipt_number: str) -> ReceiptHeader | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(ReceiptHeaderORM).where(
             ReceiptHeaderORM.organization_id == organization_id,
             ReceiptHeaderORM.receipt_number == receipt_number,
@@ -327,7 +336,7 @@ class SqlAlchemyReceiptHeaderRepository(ReceiptHeaderRepository):
         purchase_order_id: str | None = None,
         limit: int = 200,
     ) -> list[ReceiptHeader]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(ReceiptHeaderORM).where(ReceiptHeaderORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(ReceiptHeaderORM.tenant_id == _tid)

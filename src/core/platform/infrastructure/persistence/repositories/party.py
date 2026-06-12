@@ -13,14 +13,17 @@ from src.core.platform.infrastructure.persistence.mappers.party import party_fro
 class SqlAlchemyPartyRepository(PartyRepository):
     session: Session
 
-    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, party: Party) -> None:
         orm = party_to_orm(party)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, party: Party) -> None:
@@ -55,16 +58,15 @@ class SqlAlchemyPartyRepository(PartyRepository):
         )
 
     def get(self, party_id: str) -> Party | None:
-        obj = self.session.get(PartyORM, party_id)
-        if obj is None:
-            return None
-        _tid = self._tenant_id_provider()
-        if _tid is not None and obj.tenant_id != _tid:
-            return None
-        return party_from_orm(obj)
+        _tid = self._get_active_tid()
+        stmt = select(PartyORM).where(PartyORM.id == party_id)
+        if _tid is not None:
+            stmt = stmt.where(PartyORM.tenant_id == _tid)
+        obj = self.session.execute(stmt).scalar_one_or_none()
+        return party_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, party_code: str) -> Party | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(PartyORM).where(
             PartyORM.organization_id == organization_id,
             PartyORM.party_code == party_code,
@@ -80,7 +82,7 @@ class SqlAlchemyPartyRepository(PartyRepository):
         *,
         active_only: bool | None = None,
     ) -> list[Party]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(PartyORM).where(PartyORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(PartyORM.tenant_id == _tid)

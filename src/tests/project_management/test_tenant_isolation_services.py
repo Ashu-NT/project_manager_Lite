@@ -21,6 +21,14 @@ from src.core.platform.site.domain import Site
 from src.core.platform.tenancy import TenantContextService
 
 
+class _TenantRepo:
+    def get(self, tenant_id: str):
+        return None
+
+    def get_default(self):
+        return None
+
+
 class _OrgRepo:
     def __init__(self) -> None:
         self.rows = {
@@ -49,17 +57,35 @@ class _ProjectRepo:
             Project(id="project-a", name="A Project", organization_id="org-a"),
             Project(id="project-b", name="B Project", organization_id="org-b"),
         ]
-        self.list_for_organization_calls: list[str] = []
+        self.list_calls: int = 0
+        self._tenant_context_service = None
 
     def get(self, project_id: str):
-        return next((row for row in self.rows if row.id == project_id), None)
+        row = next((r for r in self.rows if r.id == project_id), None)
+        if row is None:
+            return None
+        if self._tenant_context_service is not None:
+            try:
+                org_id = self._tenant_context_service.get_active_organization_id()
+                if org_id and getattr(row, "organization_id", None) != org_id:
+                    return None
+            except Exception:
+                pass
+        return row
+
+    def list(self):
+        self.list_calls += 1
+        if self._tenant_context_service is not None:
+            try:
+                org_id = self._tenant_context_service.get_active_organization_id()
+                if org_id:
+                    return [r for r in self.rows if r.organization_id == org_id]
+            except Exception:
+                pass
+        return list(self.rows)
 
     def list_all(self):
         return list(self.rows)
-
-    def list_for_organization(self, organization_id: str):
-        self.list_for_organization_calls.append(organization_id)
-        return [row for row in self.rows if row.organization_id == organization_id]
 
 
 class _ResourceRepo:
@@ -68,26 +94,35 @@ class _ResourceRepo:
             Resource(id="resource-a", name="A Resource", organization_id="org-a"),
             Resource(id="resource-b", name="B Resource", organization_id="org-b"),
         ]
-        self.list_for_organization_calls: list[str] = []
+        self.list_calls: int = 0
+        self._tenant_context_service = None
 
     def get(self, resource_id: str):
-        return next((row for row in self.rows if row.id == resource_id), None)
+        row = next((r for r in self.rows if r.id == resource_id), None)
+        if row is None:
+            return None
+        if self._tenant_context_service is not None:
+            try:
+                org_id = self._tenant_context_service.get_active_organization_id()
+                if org_id and getattr(row, "organization_id", None) != org_id:
+                    return None
+            except Exception:
+                pass
+        return row
 
-    def get_for_organization(self, resource_id: str, organization_id: str):
-        return next(
-            (
-                row for row in self.rows
-                if row.id == resource_id and getattr(row, "organization_id", None) == organization_id
-            ),
-            None,
-        )
+    def list(self):
+        self.list_calls += 1
+        if self._tenant_context_service is not None:
+            try:
+                org_id = self._tenant_context_service.get_active_organization_id()
+                if org_id:
+                    return [r for r in self.rows if getattr(r, "organization_id", None) == org_id]
+            except Exception:
+                pass
+        return list(self.rows)
 
     def list_all(self):
         return list(self.rows)
-
-    def list_for_organization(self, organization_id: str):
-        self.list_for_organization_calls.append(organization_id)
-        return [row for row in self.rows if getattr(row, "organization_id", None) == organization_id]
 
 
 class _PlatformScopedRepo:
@@ -149,12 +184,17 @@ def _tenant_context(
         )
     )
     session.set_active_organization_id(active_organization_id)
-    return session, TenantContextService(organization_repo=_OrgRepo(), user_session=session)
+    return session, TenantContextService(
+        tenant_repo=_TenantRepo(),
+        organization_repo=_OrgRepo(),
+        user_session=session,
+    )
 
 
 def test_project_service_lists_only_active_tenant_projects() -> None:
     user_session, tenant_context = _tenant_context("org-a")
     project_repo = _ProjectRepo()
+    project_repo._tenant_context_service = tenant_context
     service = ProjectService(
         session=object(),
         project_repo=project_repo,
@@ -171,13 +211,14 @@ def test_project_service_lists_only_active_tenant_projects() -> None:
     rows = service.list_projects()
 
     assert [row.id for row in rows] == ["project-a"]
-    assert project_repo.list_for_organization_calls == ["org-a"]
+    assert project_repo.list_calls == 1
     assert service.get_project("project-b") is None
 
 
 def test_resource_service_lists_only_active_tenant_resources() -> None:
     user_session, tenant_context = _tenant_context("org-b")
     resource_repo = _ResourceRepo()
+    resource_repo._tenant_context_service = tenant_context
     service = ResourceService(
         session=object(),
         resource_repo=resource_repo,
@@ -189,7 +230,7 @@ def test_resource_service_lists_only_active_tenant_resources() -> None:
     rows = service.list_resources()
 
     assert [row.id for row in rows] == ["resource-b"]
-    assert resource_repo.list_for_organization_calls == ["org-b"]
+    assert resource_repo.list_calls == 1
 
 
 def test_platform_master_data_services_use_runtime_tenant_context() -> None:

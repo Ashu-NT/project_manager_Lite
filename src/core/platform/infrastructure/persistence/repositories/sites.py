@@ -13,14 +13,17 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 class SqlAlchemySiteRepository(SiteRepository):
     session: Session
 
-    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
+        self._tenant_context_service = None
+
+    def _get_active_tid(self) -> str | None:
+        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
 
     def add(self, site: Site) -> None:
         orm = site_to_orm(site)
         if orm.tenant_id is None:
-            orm.tenant_id = self._tenant_id_provider()
+            orm.tenant_id = self._get_active_tid()
         self.session.add(orm)
 
     def update(self, site: Site) -> None:
@@ -57,16 +60,15 @@ class SqlAlchemySiteRepository(SiteRepository):
         )
 
     def get(self, site_id: str) -> Site | None:
-        obj = self.session.get(SiteORM, site_id)
-        if obj is None:
-            return None
-        _tid = self._tenant_id_provider()
-        if _tid is not None and obj.tenant_id != _tid:
-            return None
-        return site_from_orm(obj)
+        _tid = self._get_active_tid()
+        stmt = select(SiteORM).where(SiteORM.id == site_id)
+        if _tid is not None:
+            stmt = stmt.where(SiteORM.tenant_id == _tid)
+        obj = self.session.execute(stmt).scalar_one_or_none()
+        return site_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, site_code: str) -> Site | None:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(SiteORM).where(
             SiteORM.organization_id == organization_id,
             SiteORM.site_code == site_code,
@@ -82,7 +84,7 @@ class SqlAlchemySiteRepository(SiteRepository):
         *,
         active_only: bool | None = None,
     ) -> list[Site]:
-        _tid = self._tenant_id_provider()
+        _tid = self._get_active_tid()
         stmt = select(SiteORM).where(SiteORM.organization_id == organization_id)
         if _tid is not None:
             stmt = stmt.where(SiteORM.tenant_id == _tid)

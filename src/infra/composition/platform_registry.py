@@ -104,12 +104,11 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
     )
-    # Wire tenant_id_provider on all repos that support it (added in Phase D).
-    _tid_provider = tenant_context_service.get_active_tenant_id
+    # Wire _tenant_context_service on all repos that support it.
     for _field_name in repositories.__dataclass_fields__:
         _repo = getattr(repositories, _field_name)
-        if hasattr(_repo, "_tenant_id_provider"):
-            _repo._tenant_id_provider = _tid_provider
+        if hasattr(_repo, "_tenant_context_service"):
+            _repo._tenant_context_service = tenant_context_service
     audit_service = AuditService(
         session=session,
         audit_repo=repositories.audit_repo,

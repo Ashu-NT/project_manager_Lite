@@ -19,7 +19,7 @@ class ProjectValidationMixin:
         if len(name.strip()) < 3:
             raise ValidationError("Project name must be at least 3 characters.", code="PROJECT_NAME_TOO_SHORT")
 
-        for project in self._project_repo.list_for_organization(organization_id):
+        for project in self._project_repo.list():
             if exclude_id is not None and project.id == exclude_id:
                 continue
             if project.name.strip().lower() == name.strip().lower():
