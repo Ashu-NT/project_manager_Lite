@@ -73,6 +73,8 @@ class SqlAlchemyDepartmentRepository(TenantScopedRepositorySupport, DepartmentRe
 
     def get_by_code(self, organization_id: str, department_code: str) -> Department | None:
         ctx = self._context(operation_label="access departments")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(DepartmentORM).where(
             DepartmentORM.organization_id == ctx.organization_id,
             DepartmentORM.department_code == department_code,
@@ -88,6 +90,8 @@ class SqlAlchemyDepartmentRepository(TenantScopedRepositorySupport, DepartmentRe
         active_only: bool | None = None,
     ) -> list[Department]:
         ctx = self._context(operation_label="access departments")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(DepartmentORM).where(
             DepartmentORM.organization_id == ctx.organization_id,
             DepartmentORM.tenant_id == ctx.tenant_id,

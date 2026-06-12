@@ -68,7 +68,10 @@ from src.core.platform.infrastructure.persistence.repositories._tenant_scope imp
 
 def _scoped_calendar_stmt(base_stmt, child_orm, ctx):
     return (
-        base_stmt.join(PlatformCalendarORM, child_orm.calendar_id == PlatformCalendarORM.id)
+        base_stmt.select_from(child_orm).join(
+            PlatformCalendarORM,
+            child_orm.calendar_id == PlatformCalendarORM.id,
+        )
         .where(
             PlatformCalendarORM.tenant_id == ctx.tenant_id,
             PlatformCalendarORM.organization_id == ctx.organization_id,
@@ -78,7 +81,7 @@ def _scoped_calendar_stmt(base_stmt, child_orm, ctx):
 
 def _scoped_shift_pattern_day_stmt(base_stmt, ctx):
     return (
-        base_stmt.join(
+        base_stmt.select_from(ShiftPatternDayORM).join(
             ShiftPatternORM,
             ShiftPatternDayORM.shift_pattern_id == ShiftPatternORM.id,
         ).where(
@@ -90,7 +93,10 @@ def _scoped_shift_pattern_day_stmt(base_stmt, ctx):
 
 def _scoped_assignment_stmt(base_stmt, assignment_orm, entity_orm, entity_id_col, ctx):
     return (
-        base_stmt.join(PlatformCalendarORM, assignment_orm.calendar_id == PlatformCalendarORM.id).where(
+        base_stmt.select_from(assignment_orm).join(
+            PlatformCalendarORM,
+            assignment_orm.calendar_id == PlatformCalendarORM.id,
+        ).where(
             PlatformCalendarORM.tenant_id == ctx.tenant_id,
             PlatformCalendarORM.organization_id == ctx.organization_id,
         )
@@ -179,6 +185,8 @@ class SqlAlchemyPlatformCalendarRepository(
 
     def get_by_code(self, organization_id: str, code: str) -> PlatformCalendar | None:
         ctx = self._context(operation_label="access platform calendars")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(PlatformCalendarORM).where(
             PlatformCalendarORM.organization_id == ctx.organization_id,
             PlatformCalendarORM.code == code,
@@ -189,6 +197,8 @@ class SqlAlchemyPlatformCalendarRepository(
 
     def get_global(self, organization_id: str) -> PlatformCalendar | None:
         ctx = self._context(operation_label="access platform calendars")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = (
             select(PlatformCalendarORM)
             .where(
@@ -210,6 +220,8 @@ class SqlAlchemyPlatformCalendarRepository(
         active_only: bool | None = None,
     ) -> list[PlatformCalendar]:
         ctx = self._context(operation_label="access platform calendars")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(PlatformCalendarORM).where(
             PlatformCalendarORM.organization_id == ctx.organization_id,
             PlatformCalendarORM.tenant_id == ctx.tenant_id,
@@ -546,6 +558,8 @@ class SqlAlchemyShiftPatternRepository(
         self, organization_id: str, *, active_only: bool | None = None
     ) -> list[ShiftPattern]:
         ctx = self._context(operation_label="access shift patterns")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(ShiftPatternORM).where(
             ShiftPatternORM.organization_id == ctx.organization_id,
             ShiftPatternORM.tenant_id == ctx.tenant_id,
@@ -568,6 +582,8 @@ class SqlAlchemyShiftPatternRepository(
 
     def get_by_code(self, organization_id: str, code: str) -> ShiftPattern | None:
         ctx = self._context(operation_label="access shift patterns")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(ShiftPatternORM).where(
             ShiftPatternORM.organization_id == ctx.organization_id,
             ShiftPatternORM.code == code,

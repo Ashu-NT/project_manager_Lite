@@ -79,6 +79,8 @@ class SqlAlchemyDocumentStructureRepository(
 
     def get_by_code(self, organization_id: str, structure_code: str) -> DocumentStructure | None:
         ctx = self._context(operation_label="access document structures")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(DocumentStructureORM).where(
             DocumentStructureORM.organization_id == ctx.organization_id,
             DocumentStructureORM.structure_code == structure_code,
@@ -95,6 +97,8 @@ class SqlAlchemyDocumentStructureRepository(
         object_scope: str | None = None,
     ) -> list[DocumentStructure]:
         ctx = self._context(operation_label="access document structures")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(DocumentStructureORM).where(
             DocumentStructureORM.organization_id == ctx.organization_id,
             DocumentStructureORM.tenant_id == ctx.tenant_id,
@@ -175,6 +179,8 @@ class SqlAlchemyDocumentRepository(TenantScopedRepositorySupport, DocumentReposi
 
     def get_by_code(self, organization_id: str, document_code: str) -> Document | None:
         ctx = self._context(operation_label="access documents")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(DocumentORM).where(
             DocumentORM.organization_id == ctx.organization_id,
             DocumentORM.document_code == document_code,
@@ -190,6 +196,8 @@ class SqlAlchemyDocumentRepository(TenantScopedRepositorySupport, DocumentReposi
         active_only: bool | None = None,
     ) -> list[Document]:
         ctx = self._context(operation_label="access documents")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(DocumentORM).where(
             DocumentORM.organization_id == ctx.organization_id,
             DocumentORM.tenant_id == ctx.tenant_id,
@@ -241,6 +249,8 @@ class SqlAlchemyDocumentLinkRepository(TenantScopedRepositorySupport, DocumentLi
 
     def list_for_entity(self, organization_id: str, module_code: str, entity_type: str, entity_id: str) -> list[DocumentLink]:
         ctx = self._context(operation_label="access document links")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(DocumentLinkORM).where(
             DocumentLinkORM.organization_id == ctx.organization_id,
             DocumentLinkORM.module_code == module_code,
@@ -258,6 +268,8 @@ class SqlAlchemyDocumentLinkRepository(TenantScopedRepositorySupport, DocumentLi
         entity_type: str | None = None,
     ) -> list[DocumentLink]:
         ctx = self._context(operation_label="access document links")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(DocumentLinkORM).where(
             DocumentLinkORM.organization_id == ctx.organization_id,
             DocumentLinkORM.module_code == module_code,

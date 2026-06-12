@@ -82,6 +82,8 @@ class SqlAlchemyEmployeeRepository(TenantScopedRepositorySupport, EmployeeReposi
 
     def get_for_organization(self, employee_id: str, organization_id: str) -> Employee | None:
         ctx = self._context(operation_label="access employees")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(EmployeeORM).where(
             EmployeeORM.id == employee_id,
             EmployeeORM.organization_id == ctx.organization_id,
@@ -92,6 +94,8 @@ class SqlAlchemyEmployeeRepository(TenantScopedRepositorySupport, EmployeeReposi
 
     def get_by_code_for_organization(self, employee_code: str, organization_id: str) -> Employee | None:
         ctx = self._context(operation_label="access employees")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(EmployeeORM).where(
             EmployeeORM.employee_code == employee_code,
             EmployeeORM.organization_id == ctx.organization_id,
@@ -107,6 +111,8 @@ class SqlAlchemyEmployeeRepository(TenantScopedRepositorySupport, EmployeeReposi
         active_only: bool | None = None,
     ) -> list[Employee]:
         ctx = self._context(operation_label="access employees")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(EmployeeORM).where(
             EmployeeORM.organization_id == ctx.organization_id,
             EmployeeORM.tenant_id == ctx.tenant_id,

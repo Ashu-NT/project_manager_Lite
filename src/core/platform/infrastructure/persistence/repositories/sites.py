@@ -78,6 +78,8 @@ class SqlAlchemySiteRepository(TenantScopedRepositorySupport, SiteRepository):
 
     def get_by_code(self, organization_id: str, site_code: str) -> Site | None:
         ctx = self._context(operation_label="access sites")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(SiteORM).where(
             SiteORM.organization_id == ctx.organization_id,
             SiteORM.site_code == site_code,
@@ -93,6 +95,8 @@ class SqlAlchemySiteRepository(TenantScopedRepositorySupport, SiteRepository):
         active_only: bool | None = None,
     ) -> list[Site]:
         ctx = self._context(operation_label="access sites")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(SiteORM).where(
             SiteORM.organization_id == ctx.organization_id,
             SiteORM.tenant_id == ctx.tenant_id,

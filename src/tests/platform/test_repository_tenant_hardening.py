@@ -214,7 +214,7 @@ def _seed_platform_scope_rows(services) -> dict[str, str]:
         document_code="DOC-CUR",
         title="Current Document",
         document_type="GENERAL",
-        document_structure_id=current_structure.id,
+        document_structure_id=None,
         storage_kind="FILE_PATH",
         storage_uri="/tmp/current.pdf",
         uploaded_at=now,
@@ -229,7 +229,7 @@ def _seed_platform_scope_rows(services) -> dict[str, str]:
         document_code="DOC-OTH",
         title="Other Document",
         document_type="GENERAL",
-        document_structure_id=other_structure.id,
+        document_structure_id=None,
         storage_kind="FILE_PATH",
         storage_uri="/tmp/other.pdf",
         uploaded_at=now,
@@ -566,18 +566,31 @@ def _seed_platform_scope_rows(services) -> dict[str, str]:
             other_structure,
             current_document,
             other_document,
-            current_link,
-            other_link,
             current_calendar,
             other_calendar,
+            current_shift,
+            other_shift,
+            current_resource,
+            other_resource,
+            current_time_entry,
+            other_time_entry,
+            current_approval,
+            other_approval,
+            current_audit,
+            other_audit,
+        ]
+    )
+    session.flush()
+    session.add_all(
+        [
+            current_link,
+            other_link,
             current_rule,
             other_rule,
             current_exception,
             other_exception,
             current_event,
             other_event,
-            current_shift,
-            other_shift,
             current_day,
             other_day,
             current_site_assignment,
@@ -586,16 +599,8 @@ def _seed_platform_scope_rows(services) -> dict[str, str]:
             other_department_assignment,
             current_employee_assignment,
             other_employee_assignment,
-            current_resource,
-            other_resource,
-            current_time_entry,
-            other_time_entry,
             current_period,
             other_period,
-            current_approval,
-            other_approval,
-            current_audit,
-            other_audit,
         ]
     )
     session.flush()
@@ -693,6 +698,19 @@ def test_platform_root_repositories_hide_cross_organization_rows(services) -> No
     assert structure_repo.get(seeded["structure_other"]) is None
     assert document_repo.get(seeded["document_other"]) is None
     assert link_repo.get(seeded["link_other"]) is None
+    assert site_repo.get_by_code(seeded["other_org_id"], "SITE-CUR") is None
+    assert department_repo.get_by_code(seeded["other_org_id"], "DEPT-CUR") is None
+    assert employee_repo.get_for_organization(
+        seeded["employee_current"],
+        seeded["other_org_id"],
+    ) is None
+    assert employee_repo.get_by_code_for_organization(
+        "EMP-CUR",
+        seeded["other_org_id"],
+    ) is None
+    assert party_repo.get_by_code(seeded["other_org_id"], "PARTY-CUR") is None
+    assert structure_repo.get_by_code(seeded["other_org_id"], "STR-CUR") is None
+    assert document_repo.get_by_code(seeded["other_org_id"], "DOC-CUR") is None
 
     site_ids = {
         row.id
@@ -715,6 +733,47 @@ def test_platform_root_repositories_hide_cross_organization_rows(services) -> No
             "asset-current",
         )
     }
+
+    assert site_repo.list_for_organization(seeded["other_org_id"], active_only=None) == []
+    assert (
+        department_repo.list_for_organization(
+            seeded["other_org_id"],
+            active_only=None,
+        )
+        == []
+    )
+    assert (
+        employee_repo.list_for_organization(
+            seeded["other_org_id"],
+            active_only=None,
+        )
+        == []
+    )
+    assert party_repo.list_for_organization(seeded["other_org_id"], active_only=None) == []
+    assert (
+        structure_repo.list_for_organization(
+            seeded["other_org_id"],
+            active_only=None,
+        )
+        == []
+    )
+    assert (
+        document_repo.list_for_organization(
+            seeded["other_org_id"],
+            active_only=None,
+        )
+        == []
+    )
+    assert (
+        link_repo.list_for_entity(
+            seeded["other_org_id"],
+            "maintenance",
+            "asset",
+            "asset-current",
+        )
+        == []
+    )
+    assert link_repo.list_for_module(seeded["other_org_id"], "maintenance") == []
 
     assert seeded["site_current"] in site_ids
     assert seeded["site_other"] not in site_ids
@@ -747,6 +806,9 @@ def test_calendar_repositories_scope_cross_organization_access(services) -> None
     assert assignment_repo.get_site_assignment(seeded["site_other"]) is None
     assert assignment_repo.get_department_assignment(seeded["department_other"]) is None
     assert assignment_repo.get_employee_assignment(seeded["employee_other"]) is None
+    assert calendar_repo.get_by_code(seeded["other_org_id"], "CAL-CUR") is None
+    assert calendar_repo.get_global(seeded["other_org_id"]) is None
+    assert shift_repo.get_by_code(seeded["other_org_id"], "SHIFT-CUR") is None
 
     rule_ids = {row.id for row in rule_repo.list_for_calendar(seeded["calendar_current"])}
     shift_day_ids = {row.id for row in shift_repo.list_days(seeded["shift_current"])}
@@ -754,6 +816,14 @@ def test_calendar_repositories_scope_cross_organization_access(services) -> None
         seeded["calendar_other"]
     )
 
+    assert (
+        calendar_repo.list_for_organization(
+            seeded["other_org_id"],
+            active_only=None,
+        )
+        == []
+    )
+    assert shift_repo.list_for_organization(seeded["other_org_id"], active_only=None) == []
     assert seeded["rule_current"] in rule_ids
     assert seeded["rule_other"] not in rule_ids
     assert seeded["day_current"] in shift_day_ids
@@ -819,6 +889,9 @@ def test_time_and_governance_repositories_scope_cross_organization_data(
         row.id for row in timesheet_period_repo.list_review_candidates(limit=200)
     }
 
+    assert approval_repo.list_by_status_for_organization(seeded["other_org_id"], limit=200) == []
+    assert audit_repo.list_recent_for_organization(seeded["other_org_id"], limit=200) == []
+    assert time_entry_repo.list_for_organization(seeded["other_org_id"]) == []
     assert seeded["approval_current"] in approval_ids
     assert seeded["approval_other"] not in approval_ids
     assert seeded["audit_current"] in audit_ids

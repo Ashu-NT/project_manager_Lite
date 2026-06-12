@@ -18,5 +18,12 @@ class TenantScopedRepositorySupport:
             operation_label=operation_label
         )
 
+    @staticmethod
+    def _organization_in_scope(
+        ctx: TenantContext,
+        organization_id: str | None,
+    ) -> bool:
+        return organization_id is None or organization_id == ctx.organization_id
+
 
 __all__ = ["TenantScopedRepositorySupport"]

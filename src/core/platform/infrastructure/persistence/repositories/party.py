@@ -76,6 +76,8 @@ class SqlAlchemyPartyRepository(TenantScopedRepositorySupport, PartyRepository):
 
     def get_by_code(self, organization_id: str, party_code: str) -> Party | None:
         ctx = self._context(operation_label="access parties")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(PartyORM).where(
             PartyORM.organization_id == ctx.organization_id,
             PartyORM.party_code == party_code,
@@ -91,6 +93,8 @@ class SqlAlchemyPartyRepository(TenantScopedRepositorySupport, PartyRepository):
         active_only: bool | None = None,
     ) -> list[Party]:
         ctx = self._context(operation_label="access parties")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(PartyORM).where(
             PartyORM.organization_id == ctx.organization_id,
             PartyORM.tenant_id == ctx.tenant_id,

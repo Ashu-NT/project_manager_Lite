@@ -56,6 +56,8 @@ class SqlAlchemyAuditLogRepository(TenantScopedRepositorySupport, AuditLogReposi
         entity_type: str | None = None,
     ) -> list[AuditLogEntry]:
         ctx = self._context(operation_label="access audit log")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(AuditLogORM).where(
             AuditLogORM.organization_id == ctx.organization_id,
             AuditLogORM.tenant_id == ctx.tenant_id,

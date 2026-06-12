@@ -108,6 +108,8 @@ class SqlAlchemyTimeEntryRepository(TenantScopedRepositorySupport, TimeEntryRepo
 
     def list_for_organization(self, organization_id: str) -> list[TimeEntry]:
         ctx = self._context(operation_label="access time entries")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = (
             select(TimeEntryORM)
             .where(
