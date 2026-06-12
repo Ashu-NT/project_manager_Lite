@@ -21,6 +21,9 @@ class ProjectRepository(ABC):
     @abstractmethod
     def list(self) -> list[Project]: ...
 
+    def list_for_organization(self, organization_id: str) -> list[Project]:
+        return self.list()
+
 
 class ProjectResourceRepository(ABC):
     @abstractmethod

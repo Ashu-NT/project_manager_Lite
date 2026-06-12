@@ -29,6 +29,9 @@ The codebase is in a mixed state.
   joins.
 - Many Platform, Inventory, and Maintenance repositories still use the older
   optional `_tenant_context_service` + `_get_active_tid()` pattern.
+- Access-control repositories sat in a gray area between auth bootstrap and
+  business-data scoping; they needed a narrower hardening pass than the rest of
+  the platform repos.
 - `update_with_version_check()` is already better than the legacy brief assumed:
   its existence check now respects `extra_filters` instead of falling back to an
   unsafe plain `session.get()`.
@@ -81,6 +84,9 @@ the brief.
 - Delete paths now execute only against ids proven to belong to the active
   tenant and organization scope.
 - Baseline child-table reads and deletes now respect scoped baseline ownership.
+- Access-control repositories now scope project memberships through project
+  ownership, scope generic grants by active tenant, and stamp
+  `organization_id` / `tenant_id` on writes.
 
 ### Tenant-aware settings
 
@@ -101,6 +107,8 @@ New or expanded coverage now checks:
 - priority PM repository updates reject cross-organization objects
 - newly hardened dependency and task-presence repositories require
   `TenantContextService`
+- access-control repositories do not return or delete foreign-scope rows
+- access-control writes stamp scope metadata and reject foreign projects
 - unscoped tenant UI state is written to a namespaced key instead of a bare key
 
 ## Progress tracker
@@ -110,26 +118,26 @@ New or expanded coverage now checks:
 - Audit existing docs versus live code
 - Scan repository classes and tenant-scoping patterns across modules
 - Harden the priority PM repository tranche
+- Harden access-control repositories and add focused repo tests
 - Add repository-focused regression tests
 - Add this follow-up README
+- Add tranche notes:
+  - `docs/tenant_repository_hardening/platform_repository_hardening_round_2.md`
+  - `docs/tenant_repository_hardening/access_control_repository_hardening.md`
 
 ### Next recommended batches
 
-1. Platform tenant-root repositories
-   - move from optional `_get_active_tid()` helpers to required context methods
-   - stamp `tenant_id` and `organization_id` unconditionally on writes
-   - scope updates with `extra_filters`
-
-2. Inventory and Maintenance tenant-root repositories
+1. Inventory and Maintenance tenant-root repositories
    - replace conditional tenant stamping
    - remove `session.get()` + post-filter patterns
    - convert delete/update paths to scoped statements
 
-3. Portfolio and PM secondary repositories
-   - remove residual legacy compatibility methods
+2. Portfolio and PM secondary repositories
+   - remove residual legacy compatibility methods once all callers have moved
+     to the scoped `list()` and `get()` contract
    - harden `ProjectResourceRepository` and portfolio dependency flows
 
-4. Controller and settings follow-up
+3. Controller and settings follow-up
    - review organization switching permissions end-to-end
    - audit any remaining organization-scoped settings or caches
 

@@ -184,7 +184,14 @@ class TenantContextService:
         if not normalized_organization_id:
             return False
         organization_scopes = dict((principal.scoped_access or {}).get("organization", {}))
-        return bool(organization_scopes) and normalized_organization_id in organization_scopes
+        if organization_scopes:
+            return normalized_organization_id in organization_scopes
+        session_organization_id = str(
+            getattr(self._user_session, "_active_organization_id", "") or ""
+        ).strip()
+        return bool(session_organization_id) and (
+            session_organization_id == normalized_organization_id
+        )
 
 
 __all__ = ["TenantContext", "TenantContextService"]

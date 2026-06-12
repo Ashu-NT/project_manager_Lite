@@ -21,5 +21,8 @@ class ResourceRepository(ABC):
     @abstractmethod
     def list(self) -> list[Resource]: ...
 
+    def list_for_organization(self, organization_id: str) -> list[Resource]:
+        return self.list()
+
     @abstractmethod
     def list_by_employee(self, employee_id: str) -> list[Resource]: ...

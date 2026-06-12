@@ -94,6 +94,12 @@ class SqlAlchemyProjectRepository(ProjectRepository):
         rows = self.session.execute(self._base_stmt()).scalars().all()
         return [project_from_orm(row) for row in rows]
 
+    def list_for_organization(self, organization_id: str) -> list[Project]:
+        ctx = self._context()
+        if organization_id != ctx.organization_id:
+            return []
+        return self.list()
+
 
 class SqlAlchemyProjectResourceRepository(ProjectResourceRepository):
     def __init__(self, session: Session) -> None:

@@ -88,6 +88,12 @@ class SqlAlchemyResourceRepository(ResourceRepository):
         rows = self.session.execute(self._base_stmt()).scalars().all()
         return [resource_from_orm(row) for row in rows]
 
+    def list_for_organization(self, organization_id: str) -> list[Resource]:
+        ctx = self._context()
+        if organization_id != ctx.organization_id:
+            return []
+        return self.list()
+
     def list_by_employee(self, employee_id: str) -> list[Resource]:
         stmt = self._base_stmt().where(ResourceORM.employee_id == employee_id)
         rows = self.session.execute(stmt).scalars().all()

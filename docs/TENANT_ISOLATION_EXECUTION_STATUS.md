@@ -271,19 +271,23 @@ The following test scenarios are not yet covered by automated tests:
 
 ## Remaining Gaps
 
-### Access Control Repositories (deferred)
+### Access Control Repositories
 
-`SqlAlchemyProjectMembershipRepository` and `SqlAlchemyScopedAccessGrantRepository`
-in `platform/repositories/access.py` use unscoped `session.get()`. These are the
-access control layer (not business data) and are queried during request
-authentication before tenant context is fully established. Lower risk than business
-repos, but not ideal.
+`SqlAlchemyProjectMembershipRepository` and
+`SqlAlchemyScopedAccessGrantRepository` in
+`platform/repositories/access.py` are now hardened for active-scope reads,
+deletes, and write stamping.
 
-`ScopedAccessGrantORM` has a `tenant_id` column — the `get()` and `delete()` paths
-should be scoped.
+- Project memberships scope through `ProjectORM` so cross-org rows are not
+  returned or deleted by id alone.
+- Generic scoped-access grants scope by active tenant.
+- Writes now stamp `organization_id` or `tenant_id` instead of relying on
+  nullable transitional columns.
 
-**Decision required:** Decide whether to treat these as a Phase I item or accept the
-current risk level with a documented exception.
+Because these repositories participate in principal rebuilds, they use the
+session-pinned tenant and organization ids rather than the stricter
+business-repo `require_organization_context()` pattern. This keeps auth flows
+stable while still enforcing active-scope isolation in normal runtime use.
 
 ### Auth Repositories (intentionally unscoped)
 
@@ -339,7 +343,6 @@ These failures existed before this work and are not regressions:
 | Test file | Count | Root cause |
 |-----------|-------|-----------|
 | `test_data_integrity.py` | 6 | Tests insert `organization_id=None` without wiring `TenantContextService`; hits NOT NULL constraint |
-| `test_enterprise_pm_foundation.py` | 7 | Enterprise features require integration setup not present in unit test fixtures |
 | `test_shared_collaboration_import_and_timesheets.py` | 1 | Missing live-session setup |
 | Architecture guardrails (`test_architecture_guardrails.py`, `test_qml_architecture_guardrails.py`) | 9 | QML structure, scheduling engine split, legacy widget UI root — pre-existing policy violations in the codebase |
 
@@ -357,30 +360,25 @@ In priority order:
    - Write and run migration to add NOT NULL constraint
    - Re-key `organization_module_entitlements` PK
 
-2. **Access control repo scoping**
-   - Scope `ScopedAccessGrantRepository.get()` and `delete()` by `tenant_id`
-   - Scope `ProjectMembershipRepository.get()` and `delete()` by `organization_id` via project JOIN
-   - Decide on final posture for auth repos (document the exception if left unscoped)
-
-3. **Cross-tenant isolation test coverage**
+2. **Cross-tenant isolation test coverage**
    - Write `test_repo_cross_tenant_isolation.py` with direct SQL test scenarios (see Remaining test scenarios above)
    - These tests require a real SQLite session, not fake repos
 
-4. **Fix pre-existing test failures in `test_data_integrity.py`**
+3. **Fix pre-existing test failures in `test_data_integrity.py`**
    - Wire `TenantContextService` into the test fixtures so inserts pass `tenant_id` + `organization_id`
    - These tests were written against the old schema; they need a proper fixture update
 
-5. **Phase 5 — Cache, Dashboard, Export hardening**
+4. **Phase 5 — Cache, Dashboard, Export hardening**
    - Tenant-key all QSettings cache entries
    - Add `organization_id` to export audit records
    - Add snapshot-level tenant tagging to dashboard aggregation paths
 
-6. **Phase 7 — Background worker tenant propagation**
+5. **Phase 7 — Background worker tenant propagation**
    - Audit all `QThreadPool` job payloads for tenant metadata
    - Add `organization_id` + `user_id` to background job constructors
    - Verify notification and import workers carry context through retries
 
-7. **Phase 8 — Tenant penetration test**
+6. **Phase 8 — Tenant penetration test**
    - Two-organization smoke test: create projects/tasks/resources in org A, log in as org B user, confirm zero cross-tenant rows in every surface (list, get, dashboard, export, approval queue, audit log)
 
 ---
@@ -396,6 +394,7 @@ src/core/platform/tenancy/
 src/core/platform/infrastructure/persistence/
   orm/tenant.py                       Phase B — TenantORM
   repositories/tenant.py              Phase B — SqlAlchemyTenantRepository
+  repositories/access.py              Access-control repo hardening follow-up
   repositories/sites.py               Phase F
   repositories/departments.py         Phase F
   repositories/employee.py            Phase F
