@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import date
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.projects.commands.validation import (
@@ -82,6 +83,26 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             use_year=not bool((name or "").strip()),
         )
 
+    @staticmethod
+    def _is_project_code_integrity_error(exc: IntegrityError) -> bool:
+        message = " ".join(
+            part
+            for part in [
+                str(getattr(exc, "orig", "") or ""),
+                str(getattr(exc, "statement", "") or ""),
+                str(exc),
+            ]
+            if part
+        ).lower()
+        return "ux_projects_code" in message or "projects.project_code" in message
+
+    @staticmethod
+    def _raise_project_code_duplicate(code: str, exc: IntegrityError) -> None:
+        raise ValidationError(
+            f"Project code '{code}' already exists.",
+            code="CODE_DUPLICATE",
+        ) from exc
+
     def create_project(
         self,
         name: str,
@@ -140,6 +161,12 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             logger.info("Created project %s - %s", project.id, project.name)
             domain_events.project_changed.emit(project.id)
             return project
+        except IntegrityError as exc:
+            self._session.rollback()
+            if self._is_project_code_integrity_error(exc):
+                self._raise_project_code_duplicate(resolved_code, exc)
+            logger.error("Error creating project: %s", exc)
+            raise
         except Exception as exc:
             self._session.rollback()
             logger.error("Error creating project: %s", exc)
@@ -289,6 +316,11 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
                 project_id=project.id,
                 details={"name": project.name, "status": project.status.value},
             )
+        except IntegrityError as exc:
+            self._session.rollback()
+            if self._is_project_code_integrity_error(exc):
+                self._raise_project_code_duplicate(project.code, exc)
+            raise
         except Exception:
             self._session.rollback()
             raise
