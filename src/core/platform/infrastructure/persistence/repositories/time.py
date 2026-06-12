@@ -19,18 +19,26 @@ from src.core.platform.infrastructure.persistence.mappers.time import (
 class SqlAlchemyTimeEntryRepository(TimeEntryRepository):
     session: Session
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, entry: TimeEntry) -> None:
-        self.session.add(time_entry_to_orm(entry))
+        orm = time_entry_to_orm(entry)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def get(self, entry_id: str) -> TimeEntry | None:
         obj = self.session.get(TimeEntryORM, entry_id)
         return time_entry_from_orm(obj) if obj else None
 
     def update(self, entry: TimeEntry) -> None:
-        self.session.merge(time_entry_to_orm(entry))
+        orm = time_entry_to_orm(entry)
+        if orm.tenant_id is None:
+            existing = self.session.get(TimeEntryORM, entry.id)
+            orm.tenant_id = (existing.tenant_id if existing is not None else None) or self._tenant_id_provider()
+        self.session.merge(orm)
 
     def delete(self, entry_id: str) -> None:
         self.session.query(TimeEntryORM).filter_by(id=entry_id).delete()
@@ -60,18 +68,26 @@ class SqlAlchemyTimeEntryRepository(TimeEntryRepository):
 class SqlAlchemyTimesheetPeriodRepository(TimesheetPeriodRepository):
     session: Session
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, period: TimesheetPeriod) -> None:
-        self.session.add(timesheet_period_to_orm(period))
+        orm = timesheet_period_to_orm(period)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def get(self, period_id: str) -> TimesheetPeriod | None:
         obj = self.session.get(TimesheetPeriodORM, period_id)
         return timesheet_period_from_orm(obj) if obj else None
 
     def update(self, period: TimesheetPeriod) -> None:
-        self.session.merge(timesheet_period_to_orm(period))
+        orm = timesheet_period_to_orm(period)
+        if orm.tenant_id is None:
+            existing = self.session.get(TimesheetPeriodORM, period.id)
+            orm.tenant_id = (existing.tenant_id if existing is not None else None) or self._tenant_id_provider()
+        self.session.merge(orm)
 
     def get_by_resource_period(self, resource_id: str, period_start: date) -> TimesheetPeriod | None:
         stmt = select(TimesheetPeriodORM).where(

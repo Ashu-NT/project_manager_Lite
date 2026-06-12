@@ -25,11 +25,15 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyInventoryItemCategoryRepository(InventoryItemCategoryRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, category: InventoryItemCategory) -> None:
-        self.session.add(inventory_item_category_to_orm(category))
+        orm = inventory_item_category_to_orm(category)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, category: InventoryItemCategory) -> None:
         category.version = update_with_version_check(
@@ -84,11 +88,15 @@ class SqlAlchemyInventoryItemCategoryRepository(InventoryItemCategoryRepository)
 
 
 class SqlAlchemyStockItemRepository(StockItemRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, item: StockItem) -> None:
-        self.session.add(stock_item_to_orm(item))
+        orm = stock_item_to_orm(item)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, item: StockItem) -> None:
         item.version = update_with_version_check(

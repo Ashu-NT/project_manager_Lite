@@ -12,11 +12,15 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.reso
 
 
 class SqlAlchemyResourceRepository(ResourceRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, resource: Resource) -> None:
-        self.session.add(resource_to_orm(resource))
+        orm = resource_to_orm(resource)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, resource: Resource) -> None:
         resource.version = update_with_version_check(

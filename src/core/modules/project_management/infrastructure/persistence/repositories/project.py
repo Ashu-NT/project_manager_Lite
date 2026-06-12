@@ -20,11 +20,15 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.proj
 
 
 class SqlAlchemyProjectRepository(ProjectRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, project: Project) -> None:
-        self.session.add(project_to_orm(project))
+        orm = project_to_orm(project)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, project: Project) -> None:
         project.version = update_with_version_check(

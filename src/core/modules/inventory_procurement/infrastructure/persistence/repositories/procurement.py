@@ -43,11 +43,15 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyPurchaseRequisitionRepository(PurchaseRequisitionRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, requisition) -> None:
-        self.session.add(purchase_requisition_to_orm(requisition))
+        orm = purchase_requisition_to_orm(requisition)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, requisition) -> None:
         requisition.version = update_with_version_check(
@@ -149,11 +153,15 @@ class SqlAlchemyPurchaseRequisitionLineRepository(PurchaseRequisitionLineReposit
 
 
 class SqlAlchemyPurchaseOrderRepository(PurchaseOrderRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, purchase_order: PurchaseOrder) -> None:
-        self.session.add(purchase_order_to_orm(purchase_order))
+        orm = purchase_order_to_orm(purchase_order)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, purchase_order: PurchaseOrder) -> None:
         purchase_order.version = update_with_version_check(
@@ -260,11 +268,15 @@ class SqlAlchemyPurchaseOrderLineRepository(PurchaseOrderLineRepository):
 
 
 class SqlAlchemyReceiptHeaderRepository(ReceiptHeaderRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, receipt: ReceiptHeader) -> None:
-        self.session.add(receipt_header_to_orm(receipt))
+        orm = receipt_header_to_orm(receipt)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def get(self, receipt_id: str) -> ReceiptHeader | None:
         obj = self.session.get(ReceiptHeaderORM, receipt_id)

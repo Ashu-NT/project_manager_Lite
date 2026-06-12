@@ -52,11 +52,15 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyStoreroomRepository(StoreroomRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, storeroom: Storeroom) -> None:
-        self.session.add(storeroom_to_orm(storeroom))
+        orm = storeroom_to_orm(storeroom)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, storeroom: Storeroom) -> None:
         storeroom.version = update_with_version_check(
@@ -117,11 +121,15 @@ class SqlAlchemyStoreroomRepository(StoreroomRepository):
 
 
 class SqlAlchemyStockBalanceRepository(StockBalanceRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, balance: StockBalance) -> None:
-        self.session.add(stock_balance_to_orm(balance))
+        orm = stock_balance_to_orm(balance)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, balance: StockBalance) -> None:
         balance.version = update_with_version_check(
@@ -181,11 +189,15 @@ class SqlAlchemyStockBalanceRepository(StockBalanceRepository):
 
 
 class SqlAlchemyStockTransactionRepository(StockTransactionRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, transaction: StockTransaction) -> None:
-        self.session.add(stock_transaction_to_orm(transaction))
+        orm = stock_transaction_to_orm(transaction)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def get(self, transaction_id: str) -> StockTransaction | None:
         obj = self.session.get(StockTransactionORM, transaction_id)
@@ -219,11 +231,15 @@ class SqlAlchemyStockTransactionRepository(StockTransactionRepository):
 
 
 class SqlAlchemyStockReservationRepository(StockReservationRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, reservation: StockReservation) -> None:
-        self.session.add(stock_reservation_to_orm(reservation))
+        orm = stock_reservation_to_orm(reservation)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, reservation: StockReservation) -> None:
         reservation.version = update_with_version_check(

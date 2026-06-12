@@ -62,8 +62,9 @@ from src.core.platform.infrastructure.persistence.orm.enterprise_calendar import
 class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
     _session: Session
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
         self._session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def get(self, calendar_id: str) -> PlatformCalendar | None:
         obj = self._session.get(PlatformCalendarORM, calendar_id)
@@ -109,7 +110,10 @@ class SqlAlchemyPlatformCalendarRepository(PlatformCalendarRepository):
         return [platform_calendar_from_orm(r) for r in rows]
 
     def add(self, calendar: PlatformCalendar) -> None:
-        self._session.add(platform_calendar_to_orm(calendar))
+        orm = platform_calendar_to_orm(calendar)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self._session.add(orm)
 
     def update(self, calendar: PlatformCalendar) -> None:
         obj = self._session.get(PlatformCalendarORM, calendar.id)
@@ -313,8 +317,9 @@ class SqlAlchemyCalendarRecurringEventRepository(CalendarRecurringEventRepositor
 class SqlAlchemyShiftPatternRepository(ShiftPatternRepository):
     _session: Session
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
         self._session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def list_for_organization(
         self, organization_id: str, *, active_only: bool | None = None
@@ -341,7 +346,10 @@ class SqlAlchemyShiftPatternRepository(ShiftPatternRepository):
         return shift_pattern_from_orm(obj) if obj else None
 
     def add(self, pattern: ShiftPattern) -> None:
-        self._session.add(shift_pattern_to_orm(pattern))
+        orm = shift_pattern_to_orm(pattern)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self._session.add(orm)
 
     def update(self, pattern: ShiftPattern) -> None:
         obj = self._session.get(ShiftPatternORM, pattern.id)

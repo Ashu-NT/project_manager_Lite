@@ -16,11 +16,15 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 class SqlAlchemyDepartmentRepository(DepartmentRepository):
     session: Session
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, department: Department) -> None:
-        self.session.add(department_to_orm(department))
+        orm = department_to_orm(department)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, department: Department) -> None:
         department.version = update_with_version_check(

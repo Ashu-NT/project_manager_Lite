@@ -12,11 +12,15 @@ from src.core.platform.infrastructure.persistence.orm.audit import AuditLogORM
 class SqlAlchemyAuditLogRepository(AuditLogRepository):
     session: Session
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, entry: AuditLogEntry) -> None:
-        self.session.add(audit_to_orm(entry))
+        orm = audit_to_orm(entry)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def list_recent(
         self,

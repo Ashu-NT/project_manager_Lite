@@ -13,11 +13,15 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 class SqlAlchemySiteRepository(SiteRepository):
     session: Session
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, site: Site) -> None:
-        self.session.add(site_to_orm(site))
+        orm = site_to_orm(site)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, site: Site) -> None:
         site.version = update_with_version_check(

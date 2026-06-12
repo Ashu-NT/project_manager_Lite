@@ -24,10 +24,12 @@ class ProjectQueryMixin:
 
     def get_project(self, project_id: str) -> Project | None:
         require_permission(self._user_session, "project.read", operation_label="view project")
+        organization_id = self._active_organization_id(operation_label="view project")
         project = self._project_repo.get(project_id)
         if project is None:
             return None
-        if not self._is_project_in_active_organization(project):
+        project_org = str(getattr(project, "organization_id", "") or "").strip()
+        if not project_org or project_org != organization_id:
             return None
         require_project_permission(
             self._user_session,
@@ -55,11 +57,6 @@ class ProjectQueryMixin:
                 code="TENANT_CONTEXT_REQUIRED",
             )
         return tenant_context.require_active_organization_id(operation_label=operation_label)
-
-    def _is_project_in_active_organization(self, project: Project) -> bool:
-        organization_id = self._active_organization_id(operation_label="view project")
-        project_organization_id = str(getattr(project, "organization_id", "") or "").strip()
-        return bool(project_organization_id and project_organization_id == organization_id)
 
 
 __all__ = ["ProjectQueryMixin"]

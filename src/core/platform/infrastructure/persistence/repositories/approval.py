@@ -13,16 +13,23 @@ from src.core.platform.infrastructure.persistence.orm.approval import ApprovalRe
 class SqlAlchemyApprovalRepository(ApprovalRepository):
     session: Session
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, request: ApprovalRequest) -> None:
-        self.session.add(approval_to_orm(request))
+        orm = approval_to_orm(request)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, request: ApprovalRequest) -> None:
         obj = self.session.get(ApprovalRequestORM, request.id)
         if obj is None:
-            self.session.add(approval_to_orm(request))
+            orm = approval_to_orm(request)
+            if orm.tenant_id is None:
+                orm.tenant_id = self._tenant_id_provider()
+            self.session.add(orm)
             return
         obj.request_type = request.request_type
         obj.entity_type = request.entity_type

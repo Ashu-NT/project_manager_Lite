@@ -24,11 +24,15 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 class SqlAlchemyDocumentStructureRepository(DocumentStructureRepository):
     session: Session
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, structure: DocumentStructure) -> None:
-        self.session.add(document_structure_to_orm(structure))
+        orm = document_structure_to_orm(structure)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, structure: DocumentStructure) -> None:
         structure.version = update_with_version_check(
@@ -87,11 +91,15 @@ class SqlAlchemyDocumentStructureRepository(DocumentStructureRepository):
 class SqlAlchemyDocumentRepository(DocumentRepository):
     session: Session
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, document: Document) -> None:
-        self.session.add(document_to_orm(document))
+        orm = document_to_orm(document)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, document: Document) -> None:
         document.version = update_with_version_check(

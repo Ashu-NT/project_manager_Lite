@@ -37,11 +37,15 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.port
 
 
 class SqlAlchemyPortfolioIntakeRepository(PortfolioIntakeRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, item: PortfolioIntakeItem) -> None:
-        self.session.add(portfolio_intake_to_orm(item))
+        orm = portfolio_intake_to_orm(item)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, item: PortfolioIntakeItem) -> None:
         item.version = update_with_version_check(
@@ -101,14 +105,22 @@ class SqlAlchemyPortfolioIntakeRepository(PortfolioIntakeRepository):
 
 
 class SqlAlchemyPortfolioScenarioRepository(PortfolioScenarioRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, scenario: PortfolioScenario) -> None:
-        self.session.add(portfolio_scenario_to_orm(scenario))
+        orm = portfolio_scenario_to_orm(scenario)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, scenario: PortfolioScenario) -> None:
-        self.session.merge(portfolio_scenario_to_orm(scenario))
+        orm = portfolio_scenario_to_orm(scenario)
+        if orm.tenant_id is None:
+            existing = self.session.get(PortfolioScenarioORM, scenario.id)
+            orm.tenant_id = (existing.tenant_id if existing is not None else None) or self._tenant_id_provider()
+        self.session.merge(orm)
 
     def get(self, scenario_id: str) -> PortfolioScenario | None:
         obj = self.session.get(PortfolioScenarioORM, scenario_id)
@@ -202,14 +214,22 @@ class SqlAlchemyPortfolioProjectDependencyRepository(PortfolioProjectDependencyR
 
 
 class SqlAlchemyPortfolioScoringTemplateRepository(PortfolioScoringTemplateRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, template: PortfolioScoringTemplate) -> None:
-        self.session.add(portfolio_scoring_template_to_orm(template))
+        orm = portfolio_scoring_template_to_orm(template)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, template: PortfolioScoringTemplate) -> None:
-        self.session.merge(portfolio_scoring_template_to_orm(template))
+        orm = portfolio_scoring_template_to_orm(template)
+        if orm.tenant_id is None:
+            existing = self.session.get(PortfolioScoringTemplateORM, template.id)
+            orm.tenant_id = (existing.tenant_id if existing is not None else None) or self._tenant_id_provider()
+        self.session.merge(orm)
 
     def get(self, template_id: str) -> PortfolioScoringTemplate | None:
         obj = self.session.get(PortfolioScoringTemplateORM, template_id)

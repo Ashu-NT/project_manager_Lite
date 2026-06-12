@@ -107,11 +107,15 @@ from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyMaintenanceLocationRepository(MaintenanceLocationRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, location: MaintenanceLocation) -> None:
-        self.session.add(maintenance_location_to_orm(location))
+        orm = maintenance_location_to_orm(location)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, location: MaintenanceLocation) -> None:
         location.version = update_with_version_check(
@@ -175,11 +179,15 @@ class SqlAlchemyMaintenanceLocationRepository(MaintenanceLocationRepository):
 
 
 class SqlAlchemyMaintenanceSystemRepository(MaintenanceSystemRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, system: MaintenanceSystem) -> None:
-        self.session.add(maintenance_system_to_orm(system))
+        orm = maintenance_system_to_orm(system)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, system: MaintenanceSystem) -> None:
         system.version = update_with_version_check(
@@ -247,11 +255,15 @@ class SqlAlchemyMaintenanceSystemRepository(MaintenanceSystemRepository):
 
 
 class SqlAlchemyMaintenanceAssetRepository(MaintenanceAssetRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, asset: MaintenanceAsset) -> None:
-        self.session.add(maintenance_asset_to_orm(asset))
+        orm = maintenance_asset_to_orm(asset)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, asset: MaintenanceAsset) -> None:
         asset.version = update_with_version_check(
@@ -424,11 +436,15 @@ class SqlAlchemyMaintenanceAssetComponentRepository(MaintenanceAssetComponentRep
 
 
 class SqlAlchemyMaintenanceSensorRepository(MaintenanceSensorRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, sensor: MaintenanceSensor) -> None:
-        self.session.add(maintenance_sensor_to_orm(sensor))
+        orm = maintenance_sensor_to_orm(sensor)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, sensor: MaintenanceSensor) -> None:
         sensor.version = update_with_version_check(
@@ -755,11 +771,15 @@ class SqlAlchemyMaintenanceSensorExceptionRepository(MaintenanceSensorExceptionR
 
 
 class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, work_request: MaintenanceWorkRequest) -> None:
-        self.session.add(maintenance_work_request_to_orm(work_request))
+        orm = maintenance_work_request_to_orm(work_request)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, work_request: MaintenanceWorkRequest) -> None:
         work_request.version = update_with_version_check(
@@ -856,11 +876,15 @@ class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepositor
 
 
 class SqlAlchemyMaintenanceWorkOrderRepository(MaintenanceWorkOrderRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, work_order: MaintenanceWorkOrder) -> None:
-        self.session.add(maintenance_work_order_to_orm(work_order))
+        orm = maintenance_work_order_to_orm(work_order)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, work_order: MaintenanceWorkOrder) -> None:
         work_order.version = update_with_version_check(
@@ -1303,11 +1327,15 @@ class SqlAlchemyMaintenanceTaskStepTemplateRepository(MaintenanceTaskStepTemplat
         ).scalars().all()
         return [maintenance_task_step_template_from_orm(row) for row in rows]
 class SqlAlchemyMaintenancePreventivePlanRepository(MaintenancePreventivePlanRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, *, tenant_id_provider=None):
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, preventive_plan: MaintenancePreventivePlan) -> None:
-        self.session.add(maintenance_preventive_plan_to_orm(preventive_plan))
+        orm = maintenance_preventive_plan_to_orm(preventive_plan)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, preventive_plan: MaintenancePreventivePlan) -> None:
         preventive_plan.version = update_with_version_check(

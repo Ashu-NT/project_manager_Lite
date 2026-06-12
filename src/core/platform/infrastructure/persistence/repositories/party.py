@@ -13,11 +13,15 @@ from src.core.platform.infrastructure.persistence.mappers.party import party_fro
 class SqlAlchemyPartyRepository(PartyRepository):
     session: Session
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, *, tenant_id_provider=None) -> None:
         self.session = session
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def add(self, party: Party) -> None:
-        self.session.add(party_to_orm(party))
+        orm = party_to_orm(party)
+        if orm.tenant_id is None:
+            orm.tenant_id = self._tenant_id_provider()
+        self.session.add(orm)
 
     def update(self, party: Party) -> None:
         party.version = update_with_version_check(
