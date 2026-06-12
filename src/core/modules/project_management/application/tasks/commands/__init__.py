@@ -9,12 +9,6 @@ from src.core.modules.project_management.application.tasks.commands.assignment_a
 from src.core.modules.project_management.application.tasks.commands.assignment_bridge import (
     TaskAssignmentBridgeMixin,
 )
-from src.core.modules.project_management.application.tasks.commands.collaboration_comments import (
-    CollaborationCommentCommandMixin,
-)
-from src.core.modules.project_management.application.tasks.commands.collaboration_presence import (
-    CollaborationPresenceCommandMixin,
-)
 from src.core.modules.project_management.application.tasks.commands.dependency import (
     TaskDependencyMixin,
 )
@@ -32,8 +26,6 @@ from src.core.modules.project_management.application.tasks.commands.validation i
 )
 
 __all__ = [
-    "CollaborationCommentCommandMixin",
-    "CollaborationPresenceCommandMixin",
     "TaskAssignmentBridgeMixin",
     "TaskAssignmentMixin",
     "TaskDependencyMixin",

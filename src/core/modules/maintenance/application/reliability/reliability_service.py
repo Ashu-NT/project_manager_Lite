@@ -3,8 +3,14 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy.orm import Session
+
 from src.core.modules.maintenance.domain import (
+    MaintenanceAsset,
+    MaintenanceDowntimeEvent,
+    MaintenanceLocation,
     MaintenancePriority,
+    MaintenanceSystem,
     MaintenanceWorkOrder,
     MaintenanceWorkOrderStatus,
 )
@@ -28,8 +34,11 @@ from src.core.modules.maintenance.application.common.support import normalize_ma
 from src.core.platform.access.authorization import filter_scope_rows
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
-from src.core.platform.org.domain import Organization, Site
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.org.domain import Organization
+from src.core.platform.site.domain import Site
 
 _TERMINAL_WORK_ORDER_STATUSES = {
     MaintenanceWorkOrderStatus.COMPLETED,
@@ -42,7 +51,7 @@ _TERMINAL_WORK_ORDER_STATUSES = {
 class MaintenanceReliabilityService:
     def __init__(
         self,
-        session,
+        session: Session,
         *,
         organization_repo: OrganizationRepository,
         site_repo: SiteRepository,
@@ -53,18 +62,23 @@ class MaintenanceReliabilityService:
         work_order_repo: MaintenanceWorkOrderRepository,
         failure_code_repo: MaintenanceFailureCodeRepository,
         downtime_event_repo: MaintenanceDowntimeEventRepository,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
     ) -> None:
-        self._session = session
-        self._organization_repo = organization_repo
-        self._site_repo = site_repo
-        self._asset_repo = asset_repo
-        self._component_repo = component_repo
-        self._location_repo = location_repo
-        self._system_repo = system_repo
-        self._work_order_repo = work_order_repo
-        self._failure_code_repo = failure_code_repo
-        self._downtime_event_repo = downtime_event_repo
+        self._session: Session = session
+        self._organization_repo: OrganizationRepository = organization_repo
+        self._tenant_context_service: TenantContextService = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
+        self._site_repo: SiteRepository = site_repo
+        self._asset_repo: MaintenanceAssetRepository = asset_repo
+        self._component_repo: MaintenanceAssetComponentRepository = component_repo
+        self._location_repo: MaintenanceLocationRepository = location_repo
+        self._system_repo: MaintenanceSystemRepository = system_repo
+        self._work_order_repo: MaintenanceWorkOrderRepository = work_order_repo
+        self._failure_code_repo: MaintenanceFailureCodeRepository = failure_code_repo
+        self._downtime_event_repo: MaintenanceDowntimeEventRepository = downtime_event_repo
         self._user_session = user_session
 
     def build_reliability_dashboard(
@@ -414,10 +428,9 @@ class MaintenanceReliabilityService:
         return patterns[:limit]
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="maintenance reliability analytics"
+        ).organization
 
     def _validate_scope_filters(
         self,
@@ -484,7 +497,7 @@ class MaintenanceReliabilityService:
         system_id: str | None = None,
         location_id: str | None = None,
         started_from: datetime | None = None,
-    ):
+    ) -> list[MaintenanceDowntimeEvent]:
         filtered_work_orders = self._list_work_orders(
             organization=organization,
             site_id=site_id,
@@ -662,25 +675,25 @@ class MaintenanceReliabilityService:
             return None
         return round(sum(intervals) / len(intervals), 2)
 
-    def _get_site(self, site_id: str, *, organization: Organization):
+    def _get_site(self, site_id: str, *, organization: Organization) -> Site:
         site = self._site_repo.get(site_id)
         if site is None or site.organization_id != organization.id:
             raise NotFoundError("Site not found in the active organization.", code="SITE_NOT_FOUND")
         return site
 
-    def _get_asset(self, asset_id: str, *, organization: Organization):
+    def _get_asset(self, asset_id: str, *, organization: Organization) -> MaintenanceAsset:
         asset = self._asset_repo.get(asset_id)
         if asset is None or asset.organization_id != organization.id:
             raise NotFoundError("Maintenance asset not found in the active organization.", code="MAINTENANCE_ASSET_NOT_FOUND")
         return asset
 
-    def _get_system(self, system_id: str, *, organization: Organization):
+    def _get_system(self, system_id: str, *, organization: Organization) -> MaintenanceSystem:
         system = self._system_repo.get(system_id)
         if system is None or system.organization_id != organization.id:
             raise NotFoundError("Maintenance system not found in the active organization.", code="MAINTENANCE_SYSTEM_NOT_FOUND")
         return system
 
-    def _get_location(self, location_id: str, *, organization: Organization):
+    def _get_location(self, location_id: str, *, organization: Organization) -> MaintenanceLocation:
         location = self._location_repo.get(location_id)
         if location is None or location.organization_id != organization.id:
             raise NotFoundError("Maintenance location not found in the active organization.", code="MAINTENANCE_LOCATION_NOT_FOUND")

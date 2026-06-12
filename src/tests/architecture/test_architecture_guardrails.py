@@ -10,14 +10,10 @@ ROOT = REPO_ROOT
 _LARGE_MODULE_BUDGETS = {
     "src/core/modules/maintenance/infrastructure/persistence/mappers/mapper.py": 1203,
     "src/core/modules/maintenance/infrastructure/persistence/repositories/repository.py": 1489,
-    "src/infra/persistence/orm/maintenance/models.py": 1283,
+    "src/core/modules/maintenance/infrastructure/persistence/orm/models.py": 1283,
     "src/core/modules/project_management/api/desktop/dashboard.py": 2709,
-    "src/ui_qml/modules/project_management/presenters/scheduling_workspace_presenter.py": 1356,
     "src/ui_qml/modules/project_management/controllers/scheduling/scheduling_workspace_controller.py": 1338,
-    "src/ui_qml/modules/project_management/presenters/tasks_workspace_presenter.py": 1603,
     "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": 1600,
-    "src/ui_qml/modules/maintenance/presenters/assets_workspace_presenter.py": 1300,
-    "src/ui_qml/modules/maintenance/presenters/preventive_workspace_presenter.py": 1500,
     "src/tests/project_management/test_project_management_desktop_api.py": 3212,
     "src/tests/project_management/test_qml_project_management_presenters.py": 2235,
     "src/tests/architecture/test_architecture_guardrails.py": 1500,
@@ -307,7 +303,10 @@ def test_composition_imports_focused_persistence_adapters():
     assert "from infra.platform.db.mappers import" not in text
     assert "from src.core.modules.project_management.infrastructure.persistence.repositories.task import" in text
     assert "from src.core.platform.infrastructure.persistence.repositories.auth import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.departments import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.employee import" in text
     assert "from src.core.platform.infrastructure.persistence.repositories.org import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.sites import" in text
     assert "from src.core.platform.infrastructure.persistence.repositories.time import" in text
 
 
@@ -366,9 +365,23 @@ def test_orm_package_root_loads_all_model_packages():
 
     assert not (ROOT / "src" / "infra" / "persistence" / "orm" / "platform").exists()
     assert "from src.infra.persistence.orm.base import Base" in package_text
-    assert "import src.infra.persistence.orm.maintenance.models" in package_text
-    assert "import src.infra.persistence.orm.maintenance.preventive_runtime_models" in package_text
-    platform_orm_modules = ("org", "documents", "party", "modules", "time", "auth", "access", "audit", "approval", "runtime_tracking")
+    assert "import src.core.modules.maintenance.infrastructure.persistence.orm.models" in package_text
+    assert "import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models" in package_text
+    platform_orm_modules = (
+        "org",
+        "employee",
+        "sites",
+        "departments",
+        "documents",
+        "party",
+        "modules",
+        "time",
+        "auth",
+        "access",
+        "audit",
+        "approval",
+        "runtime_tracking",
+    )
     for module in platform_orm_modules:
         assert f"import src.core.platform.infrastructure.persistence.orm.{module}" in package_text
     for module in ("project", "resource", "task", "cost_calendar", "baseline", "register", "collaboration", "portfolio"):
@@ -567,13 +580,14 @@ def test_cost_service_is_orchestrator_only():
         / "project_management"
         / "application"
         / "financials"
+        / "services"
         / "cost_service.py"
     )
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from src.core.modules.project_management.application.financials.commands.cost_lifecycle import (" in text
-    assert "from src.core.modules.project_management.application.financials.queries.cost_query import (" in text
-    assert "from src.core.modules.project_management.application.financials.cost_support import (" in text
+    assert "from src.core.modules.project_management.application.financials.costs.commands.cost_lifecycle import (" in text
+    assert "from src.core.modules.project_management.application.financials.costs.queries.cost_query import (" in text
+    assert "from src.core.modules.project_management.application.financials.costs.cost_support import (" in text
     assert "class CostService(" in text
     assert "def add_cost_item" not in text
     assert "def update_cost_item" not in text
@@ -635,12 +649,12 @@ def test_scheduling_engine_is_orchestrator_only():
     )
     text = engine_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from src.core.modules.project_management.application.scheduling.graph import (" in text
+    assert "from src.core.modules.project_management.application.scheduling.cpm.graph import (" in text
     assert "build_project_dependency_graph," in text
-    assert "from src.core.modules.project_management.application.scheduling.passes import (" in text
+    assert "from src.core.modules.project_management.application.scheduling.cpm.passes import (" in text
     assert "run_backward_pass," in text
     assert "run_forward_pass," in text
-    assert "from src.core.modules.project_management.application.scheduling.results import (" in text
+    assert "from src.core.modules.project_management.application.scheduling.cpm.results import (" in text
     assert "build_schedule_result," in text
     assert "import heapq" not in text
 
@@ -658,7 +672,7 @@ def test_scheduling_leveling_is_split_from_engine():
     )
     text = engine_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from src.core.modules.project_management.application.scheduling.leveling_service import (" in text
+    assert "from src.core.modules.project_management.application.scheduling.leveling.leveling_mixin import (" in text
     assert "ResourceLevelingMixin," in text
     assert "class SchedulingEngine(ResourceLevelingMixin)" in text
 

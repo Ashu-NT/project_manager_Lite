@@ -8,7 +8,9 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceWorkOrderRepository,
     MaintenanceWorkOrderTaskRepository,
 )
-from src.core.platform.org.contracts import EmployeeRepository, OrganizationRepository
+from src.core.platform.employee.contracts import EmployeeRepository
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.tenancy.tenant_context import TenantContextService
 
 
 @dataclass
@@ -48,8 +50,12 @@ class MaintenanceTaskWorkAllocationRepository:
         organization_repo: OrganizationRepository,
         work_order_task_repo: MaintenanceWorkOrderTaskRepository,
         work_order_repo: MaintenanceWorkOrderRepository,
+        tenant_context_service: TenantContextService | None = None,
     ) -> None:
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+        )
         self._work_order_task_repo = work_order_task_repo
         self._work_order_repo = work_order_repo
 
@@ -63,12 +69,12 @@ class MaintenanceTaskWorkAllocationRepository:
         return self._build_allocation(task, work_order)
 
     def list_by_resource(self, resource_id: str) -> list[MaintenanceTaskWorkAllocationRecord]:
-        organization = self._organization_repo.get_active()
-        if organization is None:
+        organization_id = self._tenant_context_service.get_active_organization_id()
+        if organization_id is None:
             return []
         rows: list[MaintenanceTaskWorkAllocationRecord] = []
         for task in self._work_order_task_repo.list_for_organization(
-            organization.id,
+            organization_id,
             assigned_employee_id=resource_id,
         ):
             work_order = self._work_order_repo.get(task.work_order_id)

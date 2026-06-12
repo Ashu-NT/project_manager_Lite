@@ -21,6 +21,7 @@ from src.core.modules.project_management.domain.enums import DependencyType
 def portfolio_intake_to_orm(item: PortfolioIntakeItem) -> PortfolioIntakeItemORM:
     return PortfolioIntakeItemORM(
         id=item.id,
+        organization_id=getattr(item, "organization_id", "") or "",
         title=item.title,
         sponsor_name=item.sponsor_name,
         summary=item.summary,
@@ -47,6 +48,7 @@ def portfolio_intake_to_orm(item: PortfolioIntakeItem) -> PortfolioIntakeItemORM
 def portfolio_intake_from_orm(obj: PortfolioIntakeItemORM) -> PortfolioIntakeItem:
     return PortfolioIntakeItem(
         id=obj.id,
+        organization_id=getattr(obj, "organization_id", "") or "",
         title=obj.title,
         sponsor_name=obj.sponsor_name,
         summary=obj.summary,
@@ -73,6 +75,7 @@ def portfolio_intake_from_orm(obj: PortfolioIntakeItemORM) -> PortfolioIntakeIte
 def portfolio_scoring_template_to_orm(item: PortfolioScoringTemplate) -> PortfolioScoringTemplateORM:
     return PortfolioScoringTemplateORM(
         id=item.id,
+        organization_id=getattr(item, "organization_id", "") or "",
         name=item.name,
         summary=item.summary,
         strategic_weight=item.strategic_weight,
@@ -88,6 +91,7 @@ def portfolio_scoring_template_to_orm(item: PortfolioScoringTemplate) -> Portfol
 def portfolio_scoring_template_from_orm(obj: PortfolioScoringTemplateORM) -> PortfolioScoringTemplate:
     return PortfolioScoringTemplate(
         id=obj.id,
+        organization_id=getattr(obj, "organization_id", "") or "",
         name=obj.name,
         summary=obj.summary,
         strategic_weight=obj.strategic_weight,
@@ -103,6 +107,7 @@ def portfolio_scoring_template_from_orm(obj: PortfolioScoringTemplateORM) -> Por
 def portfolio_scenario_to_orm(item: PortfolioScenario) -> PortfolioScenarioORM:
     return PortfolioScenarioORM(
         id=item.id,
+        organization_id=getattr(item, "organization_id", "") or "",
         name=item.name,
         budget_limit=item.budget_limit,
         capacity_limit_percent=item.capacity_limit_percent,
@@ -126,6 +131,7 @@ def portfolio_scenario_from_orm(obj: PortfolioScenarioORM) -> PortfolioScenario:
 
     return PortfolioScenario(
         id=obj.id,
+        organization_id=getattr(obj, "organization_id", "") or "",
         name=obj.name,
         budget_limit=obj.budget_limit,
         capacity_limit_percent=obj.capacity_limit_percent,

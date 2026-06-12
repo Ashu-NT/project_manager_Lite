@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.ui_qml.modules.maintenance.presenters.assets_workspace_presenter import (
+from src.ui_qml.modules.maintenance.presenters.assets import (
     MaintenanceAssetsWorkspacePresenter,
 )
 

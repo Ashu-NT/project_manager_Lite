@@ -60,7 +60,7 @@ from src.api.desktop.platform.models import (
     UserPasswordResetCommand,
     UserUpdateCommand,
 )
-from src.api.desktop.platform.calendar import PlatformCalendarDesktopApi
+# PlatformCalendarDesktopApi removed — use EnterpriseCalendarDesktopApi instead
 from src.api.desktop.platform.access import PlatformAccessDesktopApi
 from src.api.desktop.platform.approval import PlatformApprovalDesktopApi
 from src.api.desktop.platform.audit import PlatformAuditDesktopApi
@@ -118,7 +118,7 @@ __all__ = [
     "PlatformAccessDesktopApi",
     "PlatformApprovalDesktopApi",
     "PlatformAuditDesktopApi",
-    "PlatformCalendarDesktopApi",
+    # "PlatformCalendarDesktopApi",  # removed — use EnterpriseCalendarDesktopApi
     "PlatformDocumentDesktopApi",
     "PlatformPartyDesktopApi",
     "PlatformRuntimeContextDto",

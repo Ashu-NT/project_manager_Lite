@@ -246,6 +246,11 @@ def install_global_exception_hooks(support: OperationalSupport | None = None) ->
                 exc_traceback=exc_tb,
                 context="main-thread",
             )
+            logging.getLogger("app.exceptions").critical(
+                "Unhandled Python exception context=main-thread type=%s",
+                getattr(exc_type, "__name__", str(exc_type)),
+                exc_info=(exc_type, exc_value, exc_tb),
+            )
         except Exception:
             pass
         previous_sys_hook(exc_type, exc_value, exc_tb)
@@ -263,6 +268,12 @@ def install_global_exception_hooks(support: OperationalSupport | None = None) ->
                     exc_value=args.exc_value,
                     exc_traceback=args.exc_traceback,
                     context=f"thread:{thread_name}",
+                )
+                logging.getLogger("app.exceptions").critical(
+                    "Unhandled worker-thread exception thread=%s type=%s",
+                    thread_name,
+                    getattr(args.exc_type, "__name__", str(args.exc_type)),
+                    exc_info=(args.exc_type, args.exc_value, args.exc_traceback),
                 )
             except Exception:
                 pass

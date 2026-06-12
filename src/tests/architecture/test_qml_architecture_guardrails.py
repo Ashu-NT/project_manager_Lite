@@ -659,3 +659,97 @@ def test_legacy_widget_ui_roots_are_removed() -> None:
     assert not LEGACY_SRC_UI_ROOT.exists()
     assert not LEGACY_TOPLEVEL_UI_ROOT.exists()
 
+
+def test_project_management_portfolio_heatmap_search_and_paging_are_controller_owned() -> None:
+    page_path = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "portfolio"
+        / "PortfolioWorkspacePage.qml"
+    )
+    state_path = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "portfolio"
+        / "PortfolioWorkspaceState.qml"
+    )
+    page_text = page_path.read_text(encoding="utf-8", errors="ignore")
+    state_text = state_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "setHeatmapSearchText" in page_text
+    assert "setHeatmapPage(" in page_text
+    assert "setHeatmapPageSize(" in page_text
+    assert "pagedHeatmapRows" not in page_text
+    assert "heatmapAllRows" not in state_text
+    assert "pagedHeatmapRows" not in state_text
+
+
+def test_platform_admin_console_clears_workspace_messages_on_context_switch() -> None:
+    page_path = (
+        UI_QML_ROOT
+        / "platform"
+        / "qml"
+        / "workspaces"
+        / "admin"
+        / "AdminConsolePage.qml"
+    )
+    text = page_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "function _clearWorkspaceMessages()" in text
+    assert "root.workspaceController.clearMessages()" in text
+    assert text.count("root._clearWorkspaceMessages()") >= 4
+
+
+def test_project_management_dashboard_load_is_qml_driven_and_selector_sync_is_guarded() -> None:
+    controller_path = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "controllers"
+        / "dashboard"
+        / "dashboard_workspace_controller.py"
+    )
+    refresh_mixin_path = controller_path.with_name("dashboard_refresh_mixin.py")
+    page_path = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "dashboard"
+        / "DashboardWorkspacePage.qml"
+    )
+    selection_bar_path = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "dashboard"
+        / "sections"
+        / "DashboardSelectionBar.qml"
+    )
+
+    controller_text = controller_path.read_text(encoding="utf-8", errors="ignore")
+    refresh_mixin_text = refresh_mixin_path.read_text(encoding="utf-8", errors="ignore")
+    page_text = page_path.read_text(encoding="utf-8", errors="ignore")
+    selection_bar_text = selection_bar_path.read_text(encoding="utf-8", errors="ignore")
+    init_block = controller_text.split("def __init__", 1)[1].split("@Property", 1)[0]
+
+    assert "self.refresh()" not in init_block
+    assert "def load(self) -> None:" in controller_text
+    assert "self._has_loaded = False" in controller_text
+    assert "self._is_refreshing = False" in controller_text
+    assert "def _request_domain_refresh(self) -> None:" in refresh_mixin_text
+    assert "Component.onCompleted: root.ensureLoaded()" in page_text
+    assert "root.workspaceController.load()" in page_text
+    assert "property bool syncingSelection: false" in selection_bar_text
+    assert "currentIndex: root.indexForValue" not in selection_bar_text
+    assert "if (projectCombo.syncingSelection)" in selection_bar_text
+

@@ -4,7 +4,7 @@ from src.core.modules.maintenance.domain import MaintenanceIntegrationSource
 from src.core.modules.maintenance.contracts.repositories import MaintenanceIntegrationSourceRepository
 from src.core.modules.maintenance import MaintenanceIntegrationSourceService
 from src.core.platform.org.domain import Organization
-from .test_maintenance_foundation import _OrgRepo, _user_session
+from .test_maintenance_foundation import _OrgRepo, _TenantContext, _user_session
 
 
 class _IntegrationSourceRepo(MaintenanceIntegrationSourceRepository):
@@ -43,6 +43,7 @@ def test_maintenance_integration_source_service_tracks_sync_status(session) -> N
         session,
         repo,
         organization_repo=_OrgRepo(organization),
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
 

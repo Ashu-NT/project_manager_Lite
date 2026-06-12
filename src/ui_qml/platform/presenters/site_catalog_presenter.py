@@ -20,7 +20,6 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionListViewModel,
 )
 
-
 class PlatformSiteCatalogPresenter:
     def __init__(
         self,
@@ -161,6 +160,5 @@ class PlatformSiteCatalogPresenter:
                 "version": row.version,
             },
         )
-
 
 __all__ = ["PlatformSiteCatalogPresenter"]

@@ -3,20 +3,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-
 @dataclass(frozen=True)
 class CollaborationMetricViewModel:
     label: str
     value: str
     supporting_text: str
 
-
 @dataclass(frozen=True)
 class CollaborationOverviewViewModel:
     title: str
     subtitle: str
     metrics: tuple[CollaborationMetricViewModel, ...]
-
 
 @dataclass(frozen=True)
 class CollaborationRecordViewModel:
@@ -31,7 +28,6 @@ class CollaborationRecordViewModel:
     can_tertiary_action: bool = False
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class CollaborationCollectionViewModel:
     title: str
@@ -39,12 +35,10 @@ class CollaborationCollectionViewModel:
     empty_state: str
     items: tuple[CollaborationRecordViewModel, ...] = field(default_factory=tuple)
 
-
 @dataclass(frozen=True)
 class CollaborationOptionViewModel:
     value: str
     label: str
-
 
 @dataclass(frozen=True)
 class CollaborationContextViewModel:
@@ -53,19 +47,16 @@ class CollaborationContextViewModel:
     period_options: tuple[CollaborationOptionViewModel, ...] = field(default_factory=tuple)
     unread_options: tuple[CollaborationOptionViewModel, ...] = field(default_factory=tuple)
 
-
 @dataclass(frozen=True)
 class CollaborationPanelTabViewModel:
     id: str
     label: str
     count: int = 0
 
-
 @dataclass(frozen=True)
 class CollaborationDetailFieldViewModel:
     label: str
     value: str
-
 
 @dataclass(frozen=True)
 class CollaborationDetailViewModel:
@@ -85,7 +76,6 @@ class CollaborationDetailViewModel:
     audit: CollaborationCollectionViewModel = field(
         default_factory=lambda: CollaborationCollectionViewModel("", "", "", ())
     )
-
 
 @dataclass(frozen=True)
 class CollaborationWorkspaceViewModel:
@@ -112,7 +102,6 @@ class CollaborationWorkspaceViewModel:
         default_factory=lambda: CollaborationCollectionViewModel("", "", "", ())
     )
     empty_state: str = ""
-
 
 __all__ = [
     "CollaborationCollectionViewModel",

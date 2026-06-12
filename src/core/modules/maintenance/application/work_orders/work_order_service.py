@@ -7,11 +7,18 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.modules.maintenance.domain import (
+    MaintenanceAssetComponent,
     MaintenanceCalendarFrequencyUnit,
     MaintenanceFailureCodeType,
+    MaintenanceLocation,
+    MaintenancePriority,
     MaintenancePreventiveInstanceStatus,
     MaintenanceSchedulePolicy,
+    MaintenanceSystem,
     MaintenanceTriggerMode,
+    MaintenanceWorkOrderStatus,
+    MaintenanceWorkOrderType,
+    MaintenanceWorkRequest,
     MaintenanceWorkRequestStatus,
     MaintenanceWorkOrder,
 )
@@ -29,7 +36,7 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceWorkOrderRepository,
     MaintenanceWorkRequestRepository,
 )
-from src.core.modules.maintenance.application.preventive.work_package import (
+from src.core.modules.maintenance.application.preventive.services.work_package import (
     MaintenancePreventiveWorkPackageBuilder,
 )
 from src.core.modules.maintenance.application.work_orders.work_order_task_service import (
@@ -53,9 +60,12 @@ from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.contracts import UserRepository
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
-from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
-from src.core.platform.org.domain import Organization, Site
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
+from src.core.platform.org.domain import Organization
+from src.core.platform.site.domain import Site
 
 
 class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
@@ -80,28 +90,33 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         task_step_template_repo: MaintenanceTaskStepTemplateRepository | None = None,
         work_order_task_service: MaintenanceWorkOrderTaskService | None = None,
         work_order_task_step_service: MaintenanceWorkOrderTaskStepService | None = None,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
-        self._session = session
-        self._work_order_repo = work_order_repo
-        self._organization_repo = organization_repo
-        self._site_repo = site_repo
-        self._user_repo = user_repo
-        self._asset_repo = asset_repo
-        self._component_repo = component_repo
-        self._location_repo = location_repo
-        self._system_repo = system_repo
-        self._work_request_repo = work_request_repo
-        self._failure_code_repo = failure_code_repo
-        self._preventive_plan_repo = preventive_plan_repo
-        self._preventive_plan_instance_repo = preventive_plan_instance_repo
-        self._preventive_plan_task_repo = preventive_plan_task_repo
-        self._task_template_repo = task_template_repo
-        self._task_step_template_repo = task_step_template_repo
-        self._work_order_task_service = work_order_task_service
-        self._work_order_task_step_service = work_order_task_step_service
-        self._work_package_builder = None
+        self._session: Session = session
+        self._work_order_repo: MaintenanceWorkOrderRepository = work_order_repo
+        self._organization_repo: OrganizationRepository = organization_repo
+        self._tenant_context_service: TenantContextService = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
+        self._site_repo: SiteRepository = site_repo
+        self._user_repo: UserRepository = user_repo
+        self._asset_repo: MaintenanceAssetRepository = asset_repo
+        self._component_repo: MaintenanceAssetComponentRepository = component_repo
+        self._location_repo: MaintenanceLocationRepository = location_repo
+        self._system_repo: MaintenanceSystemRepository = system_repo
+        self._work_request_repo: MaintenanceWorkRequestRepository = work_request_repo
+        self._failure_code_repo: MaintenanceFailureCodeRepository | None = failure_code_repo
+        self._preventive_plan_repo: MaintenancePreventivePlanRepository | None = preventive_plan_repo
+        self._preventive_plan_instance_repo: MaintenancePreventivePlanInstanceRepository | None = preventive_plan_instance_repo
+        self._preventive_plan_task_repo: MaintenancePreventivePlanTaskRepository | None = preventive_plan_task_repo
+        self._task_template_repo: MaintenanceTaskTemplateRepository | None = task_template_repo
+        self._task_step_template_repo: MaintenanceTaskStepTemplateRepository | None = task_step_template_repo
+        self._work_order_task_service: MaintenanceWorkOrderTaskService | None = work_order_task_service
+        self._work_order_task_step_service: MaintenanceWorkOrderTaskStepService | None = work_order_task_step_service
+        self._work_package_builder: MaintenancePreventiveWorkPackageBuilder | None = None
         if (
             preventive_plan_task_repo is not None
             and task_template_repo is not None
@@ -250,7 +265,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         location_id: str | None = None,
         title: str = "",
         description: str = "",
-        priority=None,
+        priority: MaintenancePriority | str | None = None,
         assigned_team_id: str | None = None,
         requires_shutdown: bool = False,
         permit_required: bool = False,
@@ -365,22 +380,22 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         location_id: str | None = None,
         title: str | None = None,
         description: str | None = None,
-        priority=None,
-        status=None,
+        priority: MaintenancePriority | str | None = None,
+        status: MaintenanceWorkOrderStatus | str | None = None,
         planner_user_id: str | None = None,
         supervisor_user_id: str | None = None,
         assigned_team_id: str | None = None,
         assigned_employee_id: str | None = None,
-        planned_start=None,
-        planned_end=None,
+        planned_start: datetime | None = None,
+        planned_end: datetime | None = None,
         requires_shutdown: bool | None = None,
         permit_required: bool | None = None,
         approval_required: bool | None = None,
         failure_code: str | None = None,
         root_cause_code: str | None = None,
         downtime_minutes: int | None = None,
-        parts_cost=None,
-        labor_cost=None,
+        parts_cost: float | None = None,
+        labor_cost: float | None = None,
         vendor_party_id: str | None = None,
         is_preventive: bool | None = None,
         is_emergency: bool | None = None,
@@ -532,31 +547,31 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         self._record_change("maintenance_work_order.update", work_order)
         return work_order
 
-    def _get_asset(self, asset_id: str, *, organization: Organization):
+    def _get_asset(self, asset_id: str, *, organization: Organization) -> MaintenanceAsset:
         asset = self._asset_repo.get(asset_id)
         if asset is None or asset.organization_id != organization.id:
             raise NotFoundError("Maintenance asset not found in the active organization.", code="MAINTENANCE_ASSET_NOT_FOUND")
         return asset
 
-    def _get_component(self, component_id: str, *, organization: Organization):
+    def _get_component(self, component_id: str, *, organization: Organization) -> MaintenanceAssetComponent:
         component = self._component_repo.get(component_id)
         if component is None or component.organization_id != organization.id:
             raise NotFoundError("Maintenance asset component not found in the active organization.", code="MAINTENANCE_COMPONENT_NOT_FOUND")
         return component
 
-    def _get_system(self, system_id: str, *, organization: Organization):
+    def _get_system(self, system_id: str, *, organization: Organization) -> MaintenanceSystem:
         system = self._system_repo.get(system_id)
         if system is None or system.organization_id != organization.id:
             raise NotFoundError("Maintenance system not found in the active organization.", code="MAINTENANCE_SYSTEM_NOT_FOUND")
         return system
 
-    def _get_location(self, location_id: str, *, organization: Organization):
+    def _get_location(self, location_id: str, *, organization: Organization) -> MaintenanceLocation:
         location = self._location_repo.get(location_id)
         if location is None or location.organization_id != organization.id:
             raise NotFoundError("Maintenance location not found in the active organization.", code="MAINTENANCE_LOCATION_NOT_FOUND")
         return location
 
-    def _get_work_request(self, work_request_id: str, *, organization: Organization):
+    def _get_work_request(self, work_request_id: str, *, organization: Organization) -> MaintenanceWorkRequest:
         work_request = self._work_request_repo.get(work_request_id)
         if work_request is None or work_request.organization_id != organization.id:
             raise NotFoundError(
@@ -566,10 +581,9 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         return work_request
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="maintenance work orders"
+        ).organization
 
     def _sync_source_request_conversion(
         self,
@@ -577,7 +591,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         *,
         source_id: str | None,
         organization: Organization,
-    ):
+    ) -> MaintenanceWorkRequest | None:
         if normalized_source_type != "WORK_REQUEST" or not source_id:
             return None
         source_request = self._get_work_request(source_id, organization=organization)
@@ -602,7 +616,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
     def _apply_request_source_work_package(
         self,
         work_order: MaintenanceWorkOrder,
-        source_request,
+        source_request: MaintenanceWorkRequest,
         *,
         organization: Organization,
     ) -> None:
@@ -642,7 +656,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         *,
         preventive_plan_id: str,
         organization: Organization,
-        source_request,
+        source_request: MaintenanceWorkRequest,
     ) -> list:
         if self._preventive_plan_task_repo is None:
             return []
@@ -801,7 +815,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
             )
         )
 
-    def _record_source_request_conversion(self, work_request) -> None:
+    def _record_source_request_conversion(self, work_request: MaintenanceWorkRequest) -> None:
         record_audit(
             self,
             action="maintenance_work_request.convert",

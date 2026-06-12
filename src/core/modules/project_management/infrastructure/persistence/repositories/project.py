@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -51,12 +50,12 @@ class SqlAlchemyProjectRepository(ProjectRepository):
     def delete(self, project_id: str) -> None:
         self.session.query(ProjectORM).filter_by(id=project_id).delete()
 
-    def get(self, project_id: str) -> Optional[Project]:
+    def get(self, project_id: str) -> Project | None:
         obj = self.session.get(ProjectORM, project_id)
         return project_from_orm(obj) if obj else None
 
-    def list_all(self) -> List[Project]:
-        stmt = select(ProjectORM)
+    def list_for_organization(self, organization_id: str) -> list[Project]:
+        stmt = select(ProjectORM).where(ProjectORM.organization_id == organization_id)
         rows = self.session.execute(stmt).scalars().all()
         return [project_from_orm(row) for row in rows]
 
@@ -68,16 +67,16 @@ class SqlAlchemyProjectResourceRepository(ProjectResourceRepository):
     def add(self, pr: ProjectResource) -> None:
         self.session.add(project_resource_to_orm(pr))
 
-    def get(self, pr_id: str) -> Optional[ProjectResource]:
+    def get(self, pr_id: str) -> ProjectResource | None:
         obj = self.session.get(ProjectResourceORM, pr_id)
         return project_resource_from_orm(obj) if obj else None
 
-    def list_by_project(self, project_id: str) -> List[ProjectResource]:
+    def list_by_project(self, project_id: str) -> list[ProjectResource]:
         stmt = select(ProjectResourceORM).where(ProjectResourceORM.project_id == project_id)
         rows = self.session.execute(stmt).scalars().all()
         return [project_resource_from_orm(row) for row in rows]
 
-    def get_for_project(self, project_id: str, resource_id: str) -> Optional[ProjectResource]:
+    def get_for_project(self, project_id: str, resource_id: str) -> ProjectResource | None:
         stmt = select(ProjectResourceORM).where(
             ProjectResourceORM.project_id == project_id,
             ProjectResourceORM.resource_id == resource_id,

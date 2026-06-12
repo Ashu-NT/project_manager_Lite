@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional
 
 from src.core.modules.project_management.domain.identifiers import generate_id
-from src.core.platform.calendar.domain import Holiday, WorkingCalendar
 
 
 @dataclass
@@ -16,8 +14,8 @@ class CalendarEvent:
     title: str
     start_date: date
     end_date: date
-    project_id: Optional[str] = None
-    task_id: Optional[str] = None
+    project_id: str | None = None
+    task_id: str | None = None
     all_day: bool = True
     description: str = ""
 
@@ -26,8 +24,8 @@ class CalendarEvent:
         title: str,
         start_date: date,
         end_date: date,
-        project_id: Optional[str] = None,
-        task_id: Optional[str] = None,
+        project_id: str | None = None,
+        task_id: str | None = None,
         all_day: bool = True,
         description: str = "",
     ) -> "CalendarEvent":
@@ -42,4 +40,4 @@ class CalendarEvent:
             description=description,
         )
 
-__all__ = ["CalendarEvent", "WorkingCalendar", "Holiday"]
+__all__ = ["CalendarEvent"]

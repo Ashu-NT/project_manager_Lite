@@ -11,7 +11,9 @@ from src.core.platform.infrastructure.persistence.mappers.party import party_fro
 
 
 class SqlAlchemyPartyRepository(PartyRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, party: Party) -> None:

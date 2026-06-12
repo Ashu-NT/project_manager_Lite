@@ -1,4 +1,3 @@
-"""Catalog use cases."""
 """Inventory catalog application services."""
 
 from src.core.modules.inventory_procurement.application.catalog.category_service import (

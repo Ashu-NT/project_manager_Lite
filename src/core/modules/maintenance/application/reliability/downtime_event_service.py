@@ -24,7 +24,8 @@ from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
+from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org.domain import Organization
 
 
@@ -39,12 +40,17 @@ class MaintenanceDowntimeEventService:
         asset_repo: MaintenanceAssetRepository,
         component_repo: MaintenanceAssetComponentRepository,
         system_repo: MaintenanceSystemRepository,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
         self._session = session
         self._downtime_event_repo = downtime_event_repo
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._work_order_repo = work_order_repo
         self._asset_repo = asset_repo
         self._component_repo = component_repo
@@ -347,10 +353,9 @@ class MaintenanceDowntimeEventService:
         self._work_order_repo.update(work_order)
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="maintenance downtime events"
+        ).organization
 
     def _get_work_order(self, work_order_id: str, *, organization: Organization) -> MaintenanceWorkOrder:
         work_order = self._work_order_repo.get(work_order_id)

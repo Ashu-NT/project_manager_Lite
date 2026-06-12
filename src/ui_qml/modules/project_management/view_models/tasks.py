@@ -11,13 +11,11 @@ from src.ui_qml.modules.project_management.view_models.timesheets import (
     TimesheetDetailViewModel,
 )
 
-
 @dataclass(frozen=True)
 class TaskCatalogMetricViewModel:
     label: str
     value: str
     supporting_text: str
-
 
 @dataclass(frozen=True)
 class TaskCatalogOverviewViewModel:
@@ -25,12 +23,10 @@ class TaskCatalogOverviewViewModel:
     subtitle: str
     metrics: tuple[TaskCatalogMetricViewModel, ...]
 
-
 @dataclass(frozen=True)
 class TaskSelectorOptionViewModel:
     value: str
     label: str
-
 
 @dataclass(frozen=True)
 class TaskRecordViewModel:
@@ -45,13 +41,11 @@ class TaskRecordViewModel:
     can_tertiary_action: bool = True
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class TaskDetailFieldViewModel:
     label: str
     value: str
     supporting_text: str = ""
-
 
 @dataclass(frozen=True)
 class TaskDetailViewModel:
@@ -64,14 +58,12 @@ class TaskDetailViewModel:
     fields: tuple[TaskDetailFieldViewModel, ...] = field(default_factory=tuple)
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class TaskExecutionCollectionViewModel:
     title: str
     subtitle: str
     empty_state: str = ""
     items: tuple[TaskRecordViewModel, ...] = field(default_factory=tuple)
-
 
 @dataclass(frozen=True)
 class TaskCatalogWorkspaceViewModel:
@@ -138,7 +130,6 @@ class TaskCatalogWorkspaceViewModel:
     total_count: int = 0
     page: int = 1
     page_size: int = 25
-
 
 __all__ = [
     "TaskCatalogMetricViewModel",

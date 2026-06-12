@@ -9,6 +9,7 @@ from src.core.platform.importing.application.import_definition_registry import (
     ImportDefinitionRegistry,
 )
 from src.core.platform.importing.domain import (
+    ImportDefinition,
     ImportFieldSpec,
     ImportPreview,
     ImportSourceRow,
@@ -131,7 +132,7 @@ class CsvImportRuntime:
 
     def _prepare_rows(
         self,
-        definition,
+        definition: ImportDefinition,
         file_path: str | Path,
         *,
         column_mapping: dict[str, str | None] | None,
@@ -152,7 +153,7 @@ class CsvImportRuntime:
 
     def _authorize(
         self,
-        definition,
+        definition: ImportDefinition,
         *,
         operation_label: str,
         user_session: UserSessionContext | None,

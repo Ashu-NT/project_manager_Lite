@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List
+from typing import TYPE_CHECKING
 
 from src.core.modules.project_management.domain.tasks.task import TaskDependency
 from src.core.platform.access.authorization import require_project_permission
@@ -8,11 +8,22 @@ from src.core.platform.approval.policy import is_governance_required
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import is_admin_session, require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.domain.enums import DependencyType
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from src.core.modules.project_management.contracts.repositories.task import (
+        DependencyRepository,
+        TaskRepository,
+    )
 
 
 class TaskDependencyMixin:
+    _session: Session
+    _task_repo: TaskRepository
+    _dependency_repo: DependencyRepository
     def get_dependency(self, dep_id: str) -> TaskDependency | None:
         require_permission(self._user_session, "task.read", operation_label="view dependency")
         dependency = self._dependency_repo.get(dep_id)
@@ -189,7 +200,7 @@ class TaskDependencyMixin:
         if project_id:
             domain_events.tasks_changed.emit(project_id)
 
-    def list_dependencies_for_task(self, task_id: str) -> List[TaskDependency]:
+    def list_dependencies_for_task(self, task_id: str) -> list[TaskDependency]:
         require_permission(self._user_session, "task.read", operation_label="list task dependencies")
         task = self._task_repo.get(task_id)
         if task is None:

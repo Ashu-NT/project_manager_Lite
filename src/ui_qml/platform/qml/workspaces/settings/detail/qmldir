@@ -1,1 +1,2 @@
-module Platform.SettingsDetail
+﻿module Platform.SettingsDetail
+SettingsModuleDetailPage 1.0 SettingsModuleDetailPage.qml

@@ -58,6 +58,16 @@ Module {
         Method { name: "addCalendarHoliday"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "deleteCalendarHoliday"; type: "QVariantMap"; Parameter { name: "holidayId"; type: "QString" } }
         Method { name: "calculateCalendarWorkingDays"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "createEnterpriseCalendar"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateEnterpriseCalendar"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "addCalendarException"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "addCalendarRecurringEvent"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "deleteCalendarException"; type: "QVariantMap"; Parameter { name: "exceptionId"; type: "QString" } }
+        Method { name: "deleteCalendarRecurringEvent"; type: "QVariantMap"; Parameter { name: "eventId"; type: "QString" } }
+        Method { name: "assignCalendar"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "removeCalendarAssignment"; type: "QVariantMap"; Parameter { name: "assignmentId"; type: "QString" } Parameter { name: "entityType"; type: "QString" } }
+        Method { name: "calendarDetailContext"; type: "QVariantMap"; Parameter { name: "calendarId"; type: "QString" } }
+        Method { name: "calendarAssignmentContext"; type: "QVariantMap"; Parameter { name: "entityType"; type: "QString" } Parameter { name: "entityId"; type: "QString" } Parameter { name: "siteId"; type: "QString" } Parameter { name: "departmentId"; type: "QString" } }
         Method { name: "createSite"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "updateSite"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "toggleSiteActive"; type: "QVariantMap"; Parameter { name: "siteId"; type: "QString" } }
@@ -193,6 +203,11 @@ Module {
         Method { name: "toggleModuleLicensed"; type: "QVariantMap"; Parameter { name: "moduleCode"; type: "QString" } }
         Method { name: "toggleModuleEnabled"; type: "QVariantMap"; Parameter { name: "moduleCode"; type: "QString" } }
         Method { name: "changeModuleLifecycleStatus"; type: "QVariantMap"; Parameter { name: "moduleCode"; type: "QString" } Parameter { name: "lifecycleStatus"; type: "QString" } }
+        Method { name: "isModuleEnabled"; type: "bool"; Parameter { name: "moduleCode"; type: "QString" } }
+        Method { name: "hasCapability"; type: "bool"; Parameter { name: "capabilityId"; type: "QString" } }
+        Method { name: "canUseIntegration"; type: "bool"; Parameter { name: "sourceModule"; type: "QString" } Parameter { name: "targetModule"; type: "QString" } Parameter { name: "capability"; type: "QString" } }
+        Method { name: "capabilitySnapshot"; type: "QVariantMap" }
+        Method { name: "resolveSoftReference"; type: "QVariantMap"; Parameter { name: "sourceModule"; type: "QString" } Parameter { name: "sourceEntityType"; type: "QString" } Parameter { name: "sourceEntityId"; type: "QString" } Parameter { name: "sourceCodeSnapshot"; type: "QString" } Parameter { name: "sourceTitleSnapshot"; type: "QString" } Parameter { name: "sourceStatusSnapshot"; type: "QString" } }
     }
 }
 

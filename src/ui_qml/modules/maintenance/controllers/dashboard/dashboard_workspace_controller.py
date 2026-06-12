@@ -5,13 +5,19 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.maintenance.controllers.common import (
     MaintenanceWorkspaceControllerBase,
-    serialize_dashboard_workspace_state,
-    serialize_workspace_view_model,
 )
 from src.ui_qml.modules.maintenance.presenters import (
     MaintenanceDashboardWorkspacePresenter,
     MaintenanceWorkspacePresenter,
 )
+from .dashboard_filter_actions import (
+    apply_asset_filter,
+    apply_days_filter,
+    apply_location_filter,
+    apply_site_filter,
+    apply_system_filter,
+)
+from .dashboard_state_loader import load_workspace_state
 
 QML_IMPORT_NAME = "Maintenance.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -65,6 +71,8 @@ class MaintenanceDashboardWorkspaceController(MaintenanceWorkspaceControllerBase
         self._recurring_rows: list[dict[str, object]] = []
         self._bind_domain_events()
         self.refresh()
+
+    # --- Qt Properties ---
 
     @Property("QVariantMap", notify=overviewChanged)
     def overview(self) -> dict[str, object]:
@@ -122,175 +130,37 @@ class MaintenanceDashboardWorkspaceController(MaintenanceWorkspaceControllerBase
     def recurringRows(self) -> list[dict[str, object]]:
         return self._recurring_rows
 
+    # --- Slots ---
+
     @Slot()
     def refresh(self) -> None:
-        self._set_is_loading(True)
-        try:
-            self._set_error_message("")
-            self._set_feedback_message("")
-            self._set_workspace(
-                serialize_workspace_view_model(
-                    self._workspace_presenter.build_view_model()
-                )
-            )
-            state = serialize_dashboard_workspace_state(
-                self._dashboard_workspace_presenter.build_workspace_state(
-                    site_id=self._normalized_filter(self._selected_site_filter),
-                    asset_id=self._normalized_filter(self._selected_asset_filter),
-                    system_id=self._normalized_filter(self._selected_system_filter),
-                    location_id=self._normalized_filter(self._selected_location_filter),
-                    days=self._int_filter(self._selected_days_filter, 90),
-                )
-            )
-            self._set_overview(state["overview"])
-            self._set_site_options(state["siteOptions"])
-            self._set_asset_options(state["assetOptions"])
-            self._set_system_options(state["systemOptions"])
-            self._set_location_options(state["locationOptions"])
-            self._set_window_options(state["windowOptions"])
-            self._set_selected_site_filter(str(state["selectedSiteFilter"]))
-            self._set_selected_asset_filter(str(state["selectedAssetFilter"]))
-            self._set_selected_system_filter(str(state["selectedSystemFilter"]))
-            self._set_selected_location_filter(str(state["selectedLocationFilter"]))
-            self._set_selected_days_filter(str(state["selectedDaysFilter"]))
-            self._set_backlog_rows(state["backlogRows"])
-            self._set_root_cause_rows(state["rootCauseRows"])
-            self._set_recurring_rows(state["recurringRows"])
-            self._set_empty_state(str(state["emptyState"]))
-        except Exception as exc:  # pragma: no cover - defensive fallback
-            self._set_error_message(str(exc))
-        finally:
-            self._set_is_loading(False)
+        load_workspace_state(self)
 
     @Slot(str)
     def setSiteFilter(self, site_id: str) -> None:
-        self._set_selected_site_filter(site_id or "all")
-        self.refresh()
+        apply_site_filter(self, site_id)
 
     @Slot(str)
     def setAssetFilter(self, asset_id: str) -> None:
-        self._set_selected_asset_filter(asset_id or "all")
-        self.refresh()
+        apply_asset_filter(self, asset_id)
 
     @Slot(str)
     def setSystemFilter(self, system_id: str) -> None:
-        self._set_selected_system_filter(system_id or "all")
-        self.refresh()
+        apply_system_filter(self, system_id)
 
     @Slot(str)
     def setLocationFilter(self, location_id: str) -> None:
-        self._set_selected_location_filter(location_id or "all")
-        self.refresh()
+        apply_location_filter(self, location_id)
 
     @Slot(int)
     def setDaysFilter(self, days: int) -> None:
-        self._set_selected_days_filter(str(days))
-        self.refresh()
+        apply_days_filter(self, days)
+
+    # --- Domain event wiring ---
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(scope_code="maintenance_management")
         self._subscribe_domain_change("site", scope_code="platform")
-
-    def _set_overview(self, overview: dict[str, object]) -> None:
-        if overview == self._overview:
-            return
-        self._overview = overview
-        self.overviewChanged.emit()
-
-    def _set_site_options(self, options: list[dict[str, object]]) -> None:
-        if options == self._site_options:
-            return
-        self._site_options = options
-        self.siteOptionsChanged.emit()
-
-    def _set_asset_options(self, options: list[dict[str, object]]) -> None:
-        if options == self._asset_options:
-            return
-        self._asset_options = options
-        self.assetOptionsChanged.emit()
-
-    def _set_system_options(self, options: list[dict[str, object]]) -> None:
-        if options == self._system_options:
-            return
-        self._system_options = options
-        self.systemOptionsChanged.emit()
-
-    def _set_location_options(self, options: list[dict[str, object]]) -> None:
-        if options == self._location_options:
-            return
-        self._location_options = options
-        self.locationOptionsChanged.emit()
-
-    def _set_window_options(self, options: list[dict[str, object]]) -> None:
-        if options == self._window_options:
-            return
-        self._window_options = options
-        self.windowOptionsChanged.emit()
-
-    def _set_selected_site_filter(self, value: str) -> None:
-        value = value or "all"
-        if value == self._selected_site_filter:
-            return
-        self._selected_site_filter = value
-        self.selectedSiteFilterChanged.emit()
-
-    def _set_selected_asset_filter(self, value: str) -> None:
-        value = value or "all"
-        if value == self._selected_asset_filter:
-            return
-        self._selected_asset_filter = value
-        self.selectedAssetFilterChanged.emit()
-
-    def _set_selected_system_filter(self, value: str) -> None:
-        value = value or "all"
-        if value == self._selected_system_filter:
-            return
-        self._selected_system_filter = value
-        self.selectedSystemFilterChanged.emit()
-
-    def _set_selected_location_filter(self, value: str) -> None:
-        value = value or "all"
-        if value == self._selected_location_filter:
-            return
-        self._selected_location_filter = value
-        self.selectedLocationFilterChanged.emit()
-
-    def _set_selected_days_filter(self, value: str) -> None:
-        value = value or "90"
-        if value == self._selected_days_filter:
-            return
-        self._selected_days_filter = value
-        self.selectedDaysFilterChanged.emit()
-
-    def _set_backlog_rows(self, rows: list[dict[str, object]]) -> None:
-        if rows == self._backlog_rows:
-            return
-        self._backlog_rows = rows
-        self.backlogRowsChanged.emit()
-
-    def _set_root_cause_rows(self, rows: list[dict[str, object]]) -> None:
-        if rows == self._root_cause_rows:
-            return
-        self._root_cause_rows = rows
-        self.rootCauseRowsChanged.emit()
-
-    def _set_recurring_rows(self, rows: list[dict[str, object]]) -> None:
-        if rows == self._recurring_rows:
-            return
-        self._recurring_rows = rows
-        self.recurringRowsChanged.emit()
-
-    @staticmethod
-    def _normalized_filter(value: str) -> str | None:
-        normalized = str(value or "").strip()
-        return "" if normalized in {"", "all"} else normalized
-
-    @staticmethod
-    def _int_filter(value: str, default: int) -> int:
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return default
 
 
 __all__ = ["MaintenanceDashboardWorkspaceController"]

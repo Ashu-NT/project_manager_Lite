@@ -1,11 +1,6 @@
-from src.core.platform.calendar.application import WorkCalendarEngine, WorkCalendarService
-from src.core.platform.calendar.contracts import WorkingCalendarRepository
-from src.core.platform.calendar.domain import Holiday, WorkingCalendar
+from src.core.platform.calendar.application import CalendarProtocol, GlobalCalendarShim
 
 __all__ = [
-    "Holiday",
-    "WorkCalendarEngine",
-    "WorkCalendarService",
-    "WorkingCalendar",
-    "WorkingCalendarRepository",
+    "CalendarProtocol",
+    "GlobalCalendarShim",
 ]

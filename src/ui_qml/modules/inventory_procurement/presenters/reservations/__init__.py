@@ -1,0 +1,3 @@
+from .reservations_workspace_presenter import InventoryReservationsWorkspacePresenter
+
+__all__ = ["InventoryReservationsWorkspacePresenter"]

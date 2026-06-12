@@ -83,7 +83,7 @@ from src.core.modules.maintenance.infrastructure.persistence.mappers import (
     maintenance_work_request_from_orm,
     maintenance_work_request_to_orm,
 )
-from src.infra.persistence.orm.maintenance.models import (
+from src.core.modules.maintenance.infrastructure.persistence.orm.models import (
     MaintenanceAssetComponentORM,
     MaintenanceAssetORM,
     MaintenanceIntegrationSourceORM,

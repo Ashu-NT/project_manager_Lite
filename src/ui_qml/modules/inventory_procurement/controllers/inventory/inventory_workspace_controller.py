@@ -3,22 +3,102 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
     InventoryProcurementWorkspaceControllerBase,
-    run_mutation,
-    serialize_audit_entries_for_activity,
-    serialize_catalog_detail_view_model,
-    serialize_catalog_overview_view_model,
-    serialize_foundation_view_model,
-    serialize_record_view_models,
-    serialize_selector_options,
-    serialize_workspace_view_model,
 )
 from src.ui_qml.modules.inventory_procurement.presenters import (
     InventoryInventoryWorkspacePresenter,
     InventoryProcurementWorkspacePresenter,
 )
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
+from .inventory_activity_handler import load_detail_activity
+from .inventory_bulk_handler import (
+    clear_balance_bulk_selection,
+    select_visible_balances,
+    set_balance_bulk_selection,
+)
+from .inventory_domain_event_binder import bind_domain_events
+from .inventory_export_handler import export_table, is_balances_view
+from .inventory_filter_handler import (
+    clear_filters,
+    set_active_filter,
+    set_item_filter,
+    set_search_text,
+    set_site_filter,
+    set_storeroom_filter,
+    set_transaction_type_filter,
+)
+from .inventory_foundation_handler import (
+    complete_cycle_count,
+    create_location,
+    schedule_cycle_count,
+    update_location,
+    upsert_reorder_policy,
+)
+from .inventory_mutation_handler import (
+    create_storeroom,
+    generate_entity_code,
+    toggle_storeroom_active,
+    update_storeroom,
+)
+from .inventory_refresh_service import refresh as _do_refresh
+from .inventory_selection_handler import (
+    select_balance,
+    select_location,
+    select_storeroom,
+    set_active_view,
+    set_balance_page,
+    set_balance_page_size,
+    set_location_page,
+    set_location_page_size,
+    set_movement_page,
+    set_movement_page_size,
+    set_storeroom_page,
+    set_storeroom_page_size,
+)
+from .inventory_state import (
+    default_collection,
+    default_detail,
+    default_foundation,
+    default_overview,
+)
+from .inventory_state_setters import (
+    set_active_options,
+    set_balances,
+    set_detail_activity_items,
+    set_foundation,
+    set_item_options,
+    set_manager_party_options,
+    set_overview,
+    set_search_text as _set_search_text_setter,
+    set_selected_active_filter,
+    set_selected_balance,
+    set_selected_balance_id,
+    set_selected_balance_ids,
+    set_selected_item_filter,
+    set_selected_location_id,
+    set_selected_site_filter,
+    set_selected_storeroom,
+    set_selected_storeroom_filter,
+    set_selected_storeroom_id,
+    set_selected_storeroom_ids,
+    set_selected_transaction_type_filter,
+    set_site_options,
+    set_storeroom_options,
+    set_storeroom_status_options,
+    set_storerooms,
+    set_transaction_type_options,
+    set_transactions,
+)
+from .inventory_stock_movement_handler import (
+    issue_stock,
+    post_adjustment,
+    post_opening_balance,
+    return_stock,
+    transfer_stock,
+)
+from .inventory_table_models import create_inventory_table_models
 
 QML_IMPORT_NAME = "InventoryProcurement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -51,7 +131,6 @@ class InventoryProcurementInventoryWorkspaceController(
     selectedBalanceIdChanged = Signal()
     transactionsChanged = Signal()
     foundationChanged = Signal()
-    # pagination + bulk + view
     balancePageChanged = Signal()
     balancePageSizeChanged = Signal()
     selectedBalanceIdsChanged = Signal()
@@ -75,13 +154,14 @@ class InventoryProcurementInventoryWorkspaceController(
         parent=None,
     ) -> None:
         super().__init__(parent)
-        self._workspace_presenter = workspace_presenter or InventoryProcurementWorkspacePresenter(
-            "inventory_procurement.inventory"
+        self._workspace_presenter = (
+            workspace_presenter
+            or InventoryProcurementWorkspacePresenter("inventory_procurement.inventory")
         )
         self._inventory_workspace_presenter = (
             inventory_workspace_presenter or InventoryInventoryWorkspacePresenter()
         )
-        self._overview: dict[str, object] = {"title": "", "subtitle": "", "metrics": []}
+        self._overview: dict[str, object] = default_overview()
         self._site_options: list[dict[str, str]] = []
         self._active_options: list[dict[str, str]] = []
         self._storeroom_status_options: list[dict[str, str]] = []
@@ -95,67 +175,20 @@ class InventoryProcurementInventoryWorkspaceController(
         self._selected_item_filter = "all"
         self._selected_transaction_type_filter = "all"
         self._search_text = ""
-        self._storerooms_table_model = DynamicTableModel(self)
-        self._balances_table_model = DynamicTableModel(self)
-        self._transactions_table_model = DynamicTableModel(self)
-        self._foundation_table_model = DynamicTableModel(self)
-        self._storerooms: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._selected_storeroom: dict[str, object] = {
-            "id": "",
-            "title": "",
-            "statusLabel": "",
-            "subtitle": "",
-            "description": "",
-            "emptyState": "",
-            "fields": [],
-            "linkedDocuments": [],
-            "state": {},
-        }
+        (
+            self._storerooms_table_model,
+            self._balances_table_model,
+            self._transactions_table_model,
+            self._foundation_table_model,
+        ) = create_inventory_table_models(self)
+        self._storerooms: dict[str, object] = default_collection()
+        self._selected_storeroom: dict[str, object] = default_detail()
         self._selected_storeroom_id = ""
-        self._balances: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._selected_balance: dict[str, object] = {
-            "id": "",
-            "title": "",
-            "statusLabel": "",
-            "subtitle": "",
-            "description": "",
-            "emptyState": "",
-            "fields": [],
-            "linkedDocuments": [],
-            "state": {},
-        }
+        self._balances: dict[str, object] = default_collection()
+        self._selected_balance: dict[str, object] = default_detail()
         self._selected_balance_id = ""
-        self._transactions: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._foundation: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "metrics": [],
-            "moduleLinks": [],
-            "locationTypeOptions": [],
-            "cycleCountStatusOptions": [],
-            "locations": [],
-            "reorderPolicies": [],
-            "cycleCounts": [],
-            "valuationSignals": [],
-            "trackingSignals": [],
-            "activitySignals": [],
-        }
-        # pagination + bulk + view state
+        self._transactions: dict[str, object] = default_collection()
+        self._foundation: dict[str, object] = default_foundation()
         self._balance_page = 1
         self._balance_page_size = 25
         self._selected_balance_ids: list[str] = []
@@ -170,8 +203,10 @@ class InventoryProcurementInventoryWorkspaceController(
         self._selected_location_id = ""
         self._platform_audit = platform_audit
         self._detail_activity_items: list[dict[str, object]] = []
-        self._bind_domain_events()
+        bind_domain_events(self)
         self.refresh()
+
+    # ── Properties ───────────────────────────────────────────────────
 
     @Property("QVariantMap", notify=overviewChanged)
     def overview(self) -> dict[str, object]:
@@ -253,16 +288,6 @@ class InventoryProcurementInventoryWorkspaceController(
     def balancesTableModel(self) -> DynamicTableModel:
         return self._balances_table_model
 
-    @Slot("QVariantList", str, result="QVariantMap")
-    def exportTable(self, columns: list, file_path: str) -> dict[str, object]:
-        from src.ui_qml.modules.project_management.utils.table_exporter import export_to_file
-        model = self._balances_table_model if self._is_balances_view else self._storerooms_table_model
-        return export_to_file(list(model._rows), list(columns), (file_path or "").strip())
-
-    @property
-    def _is_balances_view(self) -> bool:
-        return getattr(self, "_active_view", "balances") != "storerooms"
-
     @Property("QVariantMap", notify=selectedBalanceChanged)
     def selectedBalance(self) -> dict[str, object]:
         return self._selected_balance
@@ -286,356 +311,6 @@ class InventoryProcurementInventoryWorkspaceController(
     @Property(QObject, constant=True)
     def foundationTableModel(self) -> DynamicTableModel:
         return self._foundation_table_model
-
-    @Slot()
-    def refresh(self) -> None:
-        self._set_is_loading(True)
-        try:
-            self._set_error_message("")
-            self._set_feedback_message("")
-            self._set_workspace(
-                serialize_workspace_view_model(
-                    self._workspace_presenter.build_view_model()
-                )
-            )
-            workspace_state = self._inventory_workspace_presenter.build_workspace_state(
-                search_text=self._search_text,
-                site_filter=self._selected_site_filter,
-                active_filter=self._selected_active_filter,
-                storeroom_filter=self._selected_storeroom_filter,
-                item_filter=self._selected_item_filter,
-                transaction_type_filter=self._selected_transaction_type_filter,
-                selected_storeroom_id=self._selected_storeroom_id or None,
-                selected_balance_id=self._selected_balance_id or None,
-            )
-            self._set_overview(
-                serialize_catalog_overview_view_model(workspace_state.overview)
-            )
-            self._set_site_options(serialize_selector_options(workspace_state.site_options))
-            self._set_active_options(
-                serialize_selector_options(workspace_state.active_options)
-            )
-            self._set_storeroom_status_options(
-                serialize_selector_options(workspace_state.storeroom_status_options)
-            )
-            self._set_transaction_type_options(
-                serialize_selector_options(workspace_state.transaction_type_options)
-            )
-            self._set_storeroom_options(
-                serialize_selector_options(workspace_state.storeroom_options)
-            )
-            self._set_item_options(
-                serialize_selector_options(workspace_state.item_options)
-            )
-            self._set_manager_party_options(
-                serialize_selector_options(workspace_state.manager_party_options)
-            )
-            self._set_selected_site_filter(workspace_state.selected_site_filter)
-            self._set_selected_active_filter(workspace_state.selected_active_filter)
-            self._set_selected_storeroom_filter(
-                workspace_state.selected_storeroom_filter
-            )
-            self._set_selected_item_filter(workspace_state.selected_item_filter)
-            self._set_selected_transaction_type_filter(
-                workspace_state.selected_transaction_type_filter
-            )
-            self._set_search_text(workspace_state.search_text)
-            self._set_storerooms(
-                {
-                    "title": "Storerooms",
-                    "subtitle": "Govern stock locations, operational permissions, and manager ownership.",
-                    "emptyState": workspace_state.empty_state,
-                    "items": serialize_record_view_models(workspace_state.storerooms),
-                }
-            )
-            self._set_selected_storeroom_id(workspace_state.selected_storeroom_id)
-            self._set_selected_storeroom(
-                serialize_catalog_detail_view_model(
-                    workspace_state.selected_storeroom_detail
-                )
-            )
-            self._set_balances(
-                {
-                    "title": "Stock Balances",
-                    "subtitle": "Inspect on-hand, reserved, available, and on-order positions by storeroom.",
-                    "emptyState": workspace_state.empty_state,
-                    "items": serialize_record_view_models(workspace_state.balances),
-                }
-            )
-            self._set_selected_balance_id(workspace_state.selected_balance_id)
-            self._set_selected_balance(
-                serialize_catalog_detail_view_model(
-                    workspace_state.selected_balance_detail
-                )
-            )
-            self._set_transactions(
-                {
-                    "title": "Recent Movements",
-                    "subtitle": "Opening balances, adjustments, issues, returns, and transfer history.",
-                    "emptyState": workspace_state.empty_state,
-                    "items": serialize_record_view_models(workspace_state.transactions),
-                }
-            )
-            self._set_foundation(
-                serialize_foundation_view_model(workspace_state.foundation)
-            )
-            self._set_empty_state(workspace_state.empty_state)
-        except Exception as exc:  # pragma: no cover - defensive fallback
-            self._set_error_message(str(exc))
-        finally:
-            self._set_is_loading(False)
-
-    @Slot(str)
-    def setSearchText(self, search_text: str) -> None:
-        normalized = (search_text or "").strip()
-        if normalized == self._search_text:
-            return
-        self._set_search_text(normalized)
-        self.refresh()
-
-    @Slot(str)
-    def setSiteFilter(self, site_id: str) -> None:
-        normalized = (site_id or "").strip() or "all"
-        if normalized == self._selected_site_filter:
-            return
-        self._set_selected_site_filter(normalized)
-        self.refresh()
-
-    @Slot(str)
-    def setActiveFilter(self, active_filter: str) -> None:
-        normalized = (active_filter or "").strip().lower() or "all"
-        if normalized == self._selected_active_filter:
-            return
-        self._set_selected_active_filter(normalized)
-        self.refresh()
-
-    @Slot(str)
-    def setStoreroomFilter(self, storeroom_id: str) -> None:
-        normalized = (storeroom_id or "").strip() or "all"
-        if normalized == self._selected_storeroom_filter:
-            return
-        self._set_selected_storeroom_filter(normalized)
-        self.refresh()
-
-    @Slot(str)
-    def setItemFilter(self, item_id: str) -> None:
-        normalized = (item_id or "").strip() or "all"
-        if normalized == self._selected_item_filter:
-            return
-        self._set_selected_item_filter(normalized)
-        self.refresh()
-
-    @Slot(str)
-    def setTransactionTypeFilter(self, transaction_type: str) -> None:
-        normalized = (transaction_type or "").strip() or "all"
-        if normalized == self._selected_transaction_type_filter:
-            return
-        self._set_selected_transaction_type_filter(normalized)
-        self.refresh()
-
-    @Slot(str)
-    def selectStoreroom(self, storeroom_id: str) -> None:
-        normalized = (storeroom_id or "").strip()
-        if normalized == self._selected_storeroom_id:
-            return
-        self._set_selected_storeroom_id(normalized)
-        self.refresh()
-
-    @Slot(str)
-    def selectBalance(self, balance_id: str) -> None:
-        normalized = (balance_id or "").strip()
-        if normalized == self._selected_balance_id:
-            return
-        self._set_selected_balance_id(normalized)
-        self.refresh()
-
-    @Slot(str, "QVariantMap", result=str)
-    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
-        """Suggest a unique inventory code (storeroom) for an editor dialog."""
-        key = (entity_type or "").strip().lower()
-        try:
-            if key == "storeroom":
-                return self._inventory_workspace_presenter.suggest_storeroom_code(dict(payload))
-        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
-            self._set_error_message(str(exc))
-        return ""
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def createStoreroom(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._inventory_workspace_presenter.create_storeroom(
-                dict(payload)
-            ),
-            success_message="Storeroom created.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def updateStoreroom(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._inventory_workspace_presenter.update_storeroom(
-                dict(payload)
-            ),
-            success_message="Storeroom updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot(str, int, result="QVariantMap")
-    def toggleStoreroomActive(
-        self,
-        storeroom_id: str,
-        expected_version: int = 0,
-    ) -> dict[str, object]:
-        resolved_version = expected_version or None
-        return run_mutation(
-            operation=lambda: self._inventory_workspace_presenter.toggle_storeroom_active(
-                storeroom_id,
-                resolved_version,
-            ),
-            success_message="Storeroom availability updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def postOpeningBalance(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._inventory_workspace_presenter.post_opening_balance(
-                dict(payload)
-            ),
-            success_message="Opening balance posted.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def postAdjustment(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._inventory_workspace_presenter.post_adjustment(
-                dict(payload)
-            ),
-            success_message="Adjustment posted.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def issueStock(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._inventory_workspace_presenter.issue_stock(
-                dict(payload)
-            ),
-            success_message="Stock issued.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def returnStock(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._inventory_workspace_presenter.return_stock(
-                dict(payload)
-            ),
-            success_message="Stock returned.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def transferStock(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._inventory_workspace_presenter.transfer_stock(
-                dict(payload)
-            ),
-            success_message="Stock transfer posted.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def createLocation(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._inventory_workspace_presenter.create_location(
-                dict(payload)
-            ),
-            success_message="Storage location created.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def updateLocation(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._inventory_workspace_presenter.update_location(
-                dict(payload)
-            ),
-            success_message="Storage location updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def upsertReorderPolicy(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._inventory_workspace_presenter.upsert_reorder_policy(
-                dict(payload)
-            ),
-            success_message="Reorder policy saved.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def scheduleCycleCount(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._inventory_workspace_presenter.schedule_cycle_count(
-                dict(payload)
-            ),
-            success_message="Cycle count scheduled.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def completeCycleCount(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._inventory_workspace_presenter.complete_cycle_count(
-                dict(payload)
-            ),
-            success_message="Cycle count completed.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    # ── pagination + bulk + view ─────────────────────────────────────
 
     @Property(int, notify=balancePageChanged)
     def balancePage(self) -> int:
@@ -709,310 +384,267 @@ class InventoryProcurementInventoryWorkspaceController(
     def selectedLocationId(self) -> str:
         return self._selected_location_id
 
-    @Slot(str)
-    def activateBalance(self, balance_id: str) -> None:
-        self.selectBalance(balance_id)
-
-    @Slot(str)
-    def activateStoreroom(self, storeroom_id: str) -> None:
-        self.selectStoreroom(storeroom_id)
-
-    @Slot(str)
-    def setActiveView(self, view: str) -> None:
-        normalized = view if view in ("balances", "storerooms") else "balances"
-        if normalized == self._active_view:
-            return
-        self._active_view = normalized
-        self.activeViewChanged.emit()
-
-    @Slot(int)
-    def setBalancePage(self, page: int) -> None:
-        self._balance_page = max(1, int(page))
-        self.balancePageChanged.emit()
-
-    @Slot(int)
-    def setBalancePageSize(self, size: int) -> None:
-        self._balance_page_size = max(10, min(200, int(size)))
-        self._balance_page = 1
-        self.balancePageSizeChanged.emit()
-        self.balancePageChanged.emit()
-
-    @Slot(int)
-    def setStoreroomPage(self, page: int) -> None:
-        self._storeroom_page = max(1, int(page))
-        self.storeroomPageChanged.emit()
-
-    @Slot(int)
-    def setStoreroomPageSize(self, size: int) -> None:
-        self._storeroom_page_size = max(10, min(200, int(size)))
-        self._storeroom_page = 1
-        self.storeroomPageSizeChanged.emit()
-        self.storeroomPageChanged.emit()
-
-    @Slot(int)
-    def setMovementPage(self, page: int) -> None:
-        self._movement_page = max(1, int(page))
-        self.movementPageChanged.emit()
-
-    @Slot(int)
-    def setMovementPageSize(self, size: int) -> None:
-        self._movement_page_size = max(10, min(200, int(size)))
-        self._movement_page = 1
-        self.movementPageSizeChanged.emit()
-        self.movementPageChanged.emit()
-
-    @Slot(int)
-    def setLocationPage(self, page: int) -> None:
-        self._location_page = max(1, int(page))
-        self.locationPageChanged.emit()
-
-    @Slot(int)
-    def setLocationPageSize(self, size: int) -> None:
-        self._location_page_size = max(10, min(200, int(size)))
-        self._location_page = 1
-        self.locationPageSizeChanged.emit()
-        self.locationPageChanged.emit()
-
-    @Slot(str)
-    def selectLocation(self, location_id: str) -> None:
-        normalized = (location_id or "").strip()
-        if normalized == self._selected_location_id:
-            return
-        self._selected_location_id = normalized
-        self.selectedLocationIdChanged.emit()
-
-    @Slot(str)
-    def activateLocation(self, location_id: str) -> None:
-        self.selectLocation(location_id)
-
-    @Slot(str, bool)
-    def setBalanceBulkSelection(self, row_id: str, selected: bool) -> None:
-        ids = list(self._selected_balance_ids)
-        if selected and row_id not in ids:
-            ids.append(row_id)
-        elif not selected and row_id in ids:
-            ids.remove(row_id)
-        self._set_selected_balance_ids(ids)
-
-    @Slot()
-    def clearBalanceBulkSelection(self) -> None:
-        self._set_selected_balance_ids([])
-
-    @Slot()
-    def selectVisibleBalances(self) -> None:
-        all_ids = [
-            str(r.get("id", ""))
-            for r in self._balances.get("items", [])
-            if r.get("id")
-        ]
-        self._set_selected_balance_ids(all_ids)
-
-    @Slot()
-    def clearFilters(self) -> None:
-        self._set_selected_site_filter("all")
-        self._set_selected_active_filter("all")
-        self._set_selected_storeroom_filter("all")
-        self._set_selected_item_filter("all")
-        self._set_selected_transaction_type_filter("all")
-        self._set_search_text("")
-        self.refresh()
-
-    def _set_selected_balance_ids(self, ids: list[str]) -> None:
-        if ids == self._selected_balance_ids:
-            return
-        self._selected_balance_ids = ids
-        self.selectedBalanceIdsChanged.emit()
-
-    def _set_selected_storeroom_ids(self, ids: list[str]) -> None:
-        if ids == self._selected_storeroom_ids:
-            return
-        self._selected_storeroom_ids = ids
-        self.selectedStoreroomIdsChanged.emit()
-
     @Property("QVariantList", notify=detailActivityItemsChanged)
     def detailActivityItems(self) -> list[dict[str, object]]:
         return self._detail_activity_items
 
+    # ── Internal view helper ──────────────────────────────────────────
+
+    @property
+    def _is_balances_view(self) -> bool:
+        return is_balances_view(self)
+
+    # ── Slots ─────────────────────────────────────────────────────────
+
+    @Slot()
+    def refresh(self) -> None:
+        _do_refresh(self)
+
+    @Slot(str)
+    def setSearchText(self, search_text: str) -> None:
+        set_search_text(self, search_text)
+
+    @Slot(str)
+    def setSiteFilter(self, site_id: str) -> None:
+        set_site_filter(self, site_id)
+
+    @Slot(str)
+    def setActiveFilter(self, active_filter: str) -> None:
+        set_active_filter(self, active_filter)
+
+    @Slot(str)
+    def setStoreroomFilter(self, storeroom_id: str) -> None:
+        set_storeroom_filter(self, storeroom_id)
+
+    @Slot(str)
+    def setItemFilter(self, item_id: str) -> None:
+        set_item_filter(self, item_id)
+
+    @Slot(str)
+    def setTransactionTypeFilter(self, transaction_type: str) -> None:
+        set_transaction_type_filter(self, transaction_type)
+
+    @Slot()
+    def clearFilters(self) -> None:
+        clear_filters(self)
+
+    @Slot(str)
+    def selectStoreroom(self, storeroom_id: str) -> None:
+        select_storeroom(self, storeroom_id)
+
+    @Slot(str)
+    def activateStoreroom(self, storeroom_id: str) -> None:
+        select_storeroom(self, storeroom_id)
+
+    @Slot(str)
+    def selectBalance(self, balance_id: str) -> None:
+        select_balance(self, balance_id)
+
+    @Slot(str)
+    def activateBalance(self, balance_id: str) -> None:
+        select_balance(self, balance_id)
+
+    @Slot(str)
+    def selectLocation(self, location_id: str) -> None:
+        select_location(self, location_id)
+
+    @Slot(str)
+    def activateLocation(self, location_id: str) -> None:
+        select_location(self, location_id)
+
+    @Slot(str)
+    def setActiveView(self, view: str) -> None:
+        set_active_view(self, view)
+
+    @Slot(int)
+    def setBalancePage(self, page: int) -> None:
+        set_balance_page(self, page)
+
+    @Slot(int)
+    def setBalancePageSize(self, size: int) -> None:
+        set_balance_page_size(self, size)
+
+    @Slot(int)
+    def setStoreroomPage(self, page: int) -> None:
+        set_storeroom_page(self, page)
+
+    @Slot(int)
+    def setStoreroomPageSize(self, size: int) -> None:
+        set_storeroom_page_size(self, size)
+
+    @Slot(int)
+    def setMovementPage(self, page: int) -> None:
+        set_movement_page(self, page)
+
+    @Slot(int)
+    def setMovementPageSize(self, size: int) -> None:
+        set_movement_page_size(self, size)
+
+    @Slot(int)
+    def setLocationPage(self, page: int) -> None:
+        set_location_page(self, page)
+
+    @Slot(int)
+    def setLocationPageSize(self, size: int) -> None:
+        set_location_page_size(self, size)
+
+    @Slot(str, bool)
+    def setBalanceBulkSelection(self, row_id: str, selected: bool) -> None:
+        set_balance_bulk_selection(self, row_id, selected)
+
+    @Slot()
+    def clearBalanceBulkSelection(self) -> None:
+        clear_balance_bulk_selection(self)
+
+    @Slot()
+    def selectVisibleBalances(self) -> None:
+        select_visible_balances(self)
+
+    @Slot(str, "QVariantMap", result=str)
+    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
+        return generate_entity_code(self, entity_type, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def createStoreroom(self, payload: dict[str, object]) -> dict[str, object]:
+        return create_storeroom(self, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateStoreroom(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_storeroom(self, dict(payload))
+
+    @Slot(str, int, result="QVariantMap")
+    def toggleStoreroomActive(
+        self, storeroom_id: str, expected_version: int = 0
+    ) -> dict[str, object]:
+        return toggle_storeroom_active(self, storeroom_id, expected_version)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def postOpeningBalance(self, payload: dict[str, object]) -> dict[str, object]:
+        return post_opening_balance(self, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def postAdjustment(self, payload: dict[str, object]) -> dict[str, object]:
+        return post_adjustment(self, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def issueStock(self, payload: dict[str, object]) -> dict[str, object]:
+        return issue_stock(self, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def returnStock(self, payload: dict[str, object]) -> dict[str, object]:
+        return return_stock(self, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def transferStock(self, payload: dict[str, object]) -> dict[str, object]:
+        return transfer_stock(self, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def createLocation(self, payload: dict[str, object]) -> dict[str, object]:
+        return create_location(self, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateLocation(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_location(self, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def upsertReorderPolicy(self, payload: dict[str, object]) -> dict[str, object]:
+        return upsert_reorder_policy(self, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def scheduleCycleCount(self, payload: dict[str, object]) -> dict[str, object]:
+        return schedule_cycle_count(self, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def completeCycleCount(self, payload: dict[str, object]) -> dict[str, object]:
+        return complete_cycle_count(self, dict(payload))
+
+    @Slot("QVariantList", str, result="QVariantMap")
+    def exportTable(self, columns: list, file_path: str) -> dict[str, object]:
+        return export_table(self, columns, file_path)
+
     @Slot(str, str)
     def loadDetailActivity(self, entity_id: str, entity_type: str) -> None:
-        if self._platform_audit is None or not entity_id:
-            self._set_detail_activity_items([])
-            return
-        try:
-            result = self._platform_audit.list_recent(entity_type=entity_type, limit=200)
-            items = (
-                serialize_audit_entries_for_activity(result.data, entity_id)
-                if result.ok and result.data is not None
-                else []
-            )
-        except Exception:  # pragma: no cover - defensive fallback
-            items = []
-        self._set_detail_activity_items(items)
+        load_detail_activity(self, entity_id, entity_type)
 
-    def _set_detail_activity_items(self, items: list[dict[str, object]]) -> None:
-        if items == self._detail_activity_items:
-            return
-        self._detail_activity_items = items
-        self.detailActivityItemsChanged.emit()
+    # ── Private state setters (called by handlers and refresh service) ─
 
-    def _bind_domain_events(self) -> None:
-        self._subscribe_domain_change(scope_code="inventory_procurement")
-        self._subscribe_domain_change("party", scope_code="platform")
-        self._subscribe_domain_change("site", scope_code="platform")
+    def _set_overview(self, v: dict[str, object]) -> None:
+        set_overview(self, v)
 
-    def _set_overview(self, overview: dict[str, object]) -> None:
-        if overview == self._overview:
-            return
-        self._overview = overview
-        self.overviewChanged.emit()
+    def _set_site_options(self, v: list[dict[str, str]]) -> None:
+        set_site_options(self, v)
 
-    def _set_site_options(self, site_options: list[dict[str, str]]) -> None:
-        if site_options == self._site_options:
-            return
-        self._site_options = site_options
-        self.siteOptionsChanged.emit()
+    def _set_active_options(self, v: list[dict[str, str]]) -> None:
+        set_active_options(self, v)
 
-    def _set_active_options(self, active_options: list[dict[str, str]]) -> None:
-        if active_options == self._active_options:
-            return
-        self._active_options = active_options
-        self.activeOptionsChanged.emit()
+    def _set_storeroom_status_options(self, v: list[dict[str, str]]) -> None:
+        set_storeroom_status_options(self, v)
 
-    def _set_storeroom_status_options(
-        self,
-        storeroom_status_options: list[dict[str, str]],
-    ) -> None:
-        if storeroom_status_options == self._storeroom_status_options:
-            return
-        self._storeroom_status_options = storeroom_status_options
-        self.storeroomStatusOptionsChanged.emit()
+    def _set_transaction_type_options(self, v: list[dict[str, str]]) -> None:
+        set_transaction_type_options(self, v)
 
-    def _set_transaction_type_options(
-        self,
-        transaction_type_options: list[dict[str, str]],
-    ) -> None:
-        if transaction_type_options == self._transaction_type_options:
-            return
-        self._transaction_type_options = transaction_type_options
-        self.transactionTypeOptionsChanged.emit()
+    def _set_storeroom_options(self, v: list[dict[str, str]]) -> None:
+        set_storeroom_options(self, v)
 
-    def _set_storeroom_options(self, storeroom_options: list[dict[str, str]]) -> None:
-        if storeroom_options == self._storeroom_options:
-            return
-        self._storeroom_options = storeroom_options
-        self.storeroomOptionsChanged.emit()
+    def _set_item_options(self, v: list[dict[str, str]]) -> None:
+        set_item_options(self, v)
 
-    def _set_item_options(self, item_options: list[dict[str, str]]) -> None:
-        if item_options == self._item_options:
-            return
-        self._item_options = item_options
-        self.itemOptionsChanged.emit()
+    def _set_manager_party_options(self, v: list[dict[str, str]]) -> None:
+        set_manager_party_options(self, v)
 
-    def _set_manager_party_options(
-        self,
-        manager_party_options: list[dict[str, str]],
-    ) -> None:
-        if manager_party_options == self._manager_party_options:
-            return
-        self._manager_party_options = manager_party_options
-        self.managerPartyOptionsChanged.emit()
+    def _set_selected_site_filter(self, v: str) -> None:
+        set_selected_site_filter(self, v)
 
-    def _set_selected_site_filter(self, selected_site_filter: str) -> None:
-        if selected_site_filter == self._selected_site_filter:
-            return
-        self._selected_site_filter = selected_site_filter
-        self.selectedSiteFilterChanged.emit()
+    def _set_selected_active_filter(self, v: str) -> None:
+        set_selected_active_filter(self, v)
 
-    def _set_selected_active_filter(self, selected_active_filter: str) -> None:
-        if selected_active_filter == self._selected_active_filter:
-            return
-        self._selected_active_filter = selected_active_filter
-        self.selectedActiveFilterChanged.emit()
+    def _set_selected_storeroom_filter(self, v: str) -> None:
+        set_selected_storeroom_filter(self, v)
 
-    def _set_selected_storeroom_filter(self, selected_storeroom_filter: str) -> None:
-        if selected_storeroom_filter == self._selected_storeroom_filter:
-            return
-        self._selected_storeroom_filter = selected_storeroom_filter
-        self.selectedStoreroomFilterChanged.emit()
+    def _set_selected_item_filter(self, v: str) -> None:
+        set_selected_item_filter(self, v)
 
-    def _set_selected_item_filter(self, selected_item_filter: str) -> None:
-        if selected_item_filter == self._selected_item_filter:
-            return
-        self._selected_item_filter = selected_item_filter
-        self.selectedItemFilterChanged.emit()
+    def _set_selected_transaction_type_filter(self, v: str) -> None:
+        set_selected_transaction_type_filter(self, v)
 
-    def _set_selected_transaction_type_filter(
-        self,
-        selected_transaction_type_filter: str,
-    ) -> None:
-        if selected_transaction_type_filter == self._selected_transaction_type_filter:
-            return
-        self._selected_transaction_type_filter = selected_transaction_type_filter
-        self.selectedTransactionTypeFilterChanged.emit()
+    def _set_search_text(self, v: str) -> None:
+        _set_search_text_setter(self, v)
 
-    def _set_search_text(self, search_text: str) -> None:
-        if search_text == self._search_text:
-            return
-        self._search_text = search_text
-        self.searchTextChanged.emit()
+    def _set_storerooms(self, v: dict[str, object]) -> None:
+        set_storerooms(self, v)
 
-    def _set_storerooms(self, storerooms: dict[str, object]) -> None:
-        if storerooms == self._storerooms:
-            return
-        self._storerooms = storerooms
-        self._storerooms_table_model.set_rows(storerooms.get("items", []))
-        self.storeroomsChanged.emit()
+    def _set_selected_storeroom(self, v: dict[str, object]) -> None:
+        set_selected_storeroom(self, v)
 
-    def _set_selected_storeroom(self, selected_storeroom: dict[str, object]) -> None:
-        if selected_storeroom == self._selected_storeroom:
-            return
-        self._selected_storeroom = selected_storeroom
-        self.selectedStoreroomChanged.emit()
+    def _set_selected_storeroom_id(self, v: str) -> None:
+        set_selected_storeroom_id(self, v)
 
-    def _set_selected_storeroom_id(self, selected_storeroom_id: str) -> None:
-        if selected_storeroom_id == self._selected_storeroom_id:
-            return
-        self._selected_storeroom_id = selected_storeroom_id
-        self.selectedStoreroomIdChanged.emit()
+    def _set_balances(self, v: dict[str, object]) -> None:
+        set_balances(self, v)
 
-    def _set_balances(self, balances: dict[str, object]) -> None:
-        if balances == self._balances:
-            return
-        self._balances = balances
-        self._balances_table_model.set_rows(balances.get("items", []))
-        self.balancesChanged.emit()
+    def _set_selected_balance(self, v: dict[str, object]) -> None:
+        set_selected_balance(self, v)
 
-    def _set_selected_balance(self, selected_balance: dict[str, object]) -> None:
-        if selected_balance == self._selected_balance:
-            return
-        self._selected_balance = selected_balance
-        self.selectedBalanceChanged.emit()
+    def _set_selected_balance_id(self, v: str) -> None:
+        set_selected_balance_id(self, v)
 
-    def _set_selected_balance_id(self, selected_balance_id: str) -> None:
-        if selected_balance_id == self._selected_balance_id:
-            return
-        self._selected_balance_id = selected_balance_id
-        self.selectedBalanceIdChanged.emit()
+    def _set_selected_location_id(self, v: str) -> None:
+        set_selected_location_id(self, v)
 
-    def _set_selected_location_id(self, selected_location_id: str) -> None:
-        if selected_location_id == self._selected_location_id:
-            return
-        self._selected_location_id = selected_location_id
-        self.selectedLocationIdChanged.emit()
+    def _set_transactions(self, v: dict[str, object]) -> None:
+        set_transactions(self, v)
 
-    def _set_transactions(self, transactions: dict[str, object]) -> None:
-        if transactions == self._transactions:
-            return
-        self._transactions = transactions
-        self._transactions_table_model.set_rows(transactions.get("items", []))
-        self.transactionsChanged.emit()
+    def _set_foundation(self, v: dict[str, object]) -> None:
+        set_foundation(self, v)
 
-    def _set_foundation(self, foundation: dict[str, object]) -> None:
-        if foundation == self._foundation:
-            return
-        self._foundation = foundation
-        self._foundation_table_model.set_rows(foundation.get("locations", []))
-        self.foundationChanged.emit()
+    def _set_selected_balance_ids(self, v: list[str]) -> None:
+        set_selected_balance_ids(self, v)
+
+    def _set_selected_storeroom_ids(self, v: list[str]) -> None:
+        set_selected_storeroom_ids(self, v)
+
+    def _set_detail_activity_items(self, v: list[dict[str, object]]) -> None:
+        set_detail_activity_items(self, v)
 
 
 __all__ = ["InventoryProcurementInventoryWorkspaceController"]

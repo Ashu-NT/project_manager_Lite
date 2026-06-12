@@ -18,8 +18,9 @@ from src.core.modules.maintenance.contracts.repositories import (
 )
 from src.core.modules.maintenance.application.reliability import MaintenanceReliabilityService
 from src.core.platform.access.authorization import filter_scope_rows
-from src.core.platform.common.exceptions import NotFoundError
-from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.core.platform.exporting import ensure_output_path, finalize_artifact
 from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
@@ -65,6 +66,7 @@ class MaintenanceReportingService:
         integration_source_repo: MaintenanceIntegrationSourceRepository,
         reliability_service: MaintenanceReliabilityService,
         sensor_exception_service=None,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         module_catalog_service=None,
         runtime_execution_service=None,
@@ -72,6 +74,10 @@ class MaintenanceReportingService:
         report_runtime: ReportRuntime | None = None,
     ) -> None:
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._site_repo = site_repo
         self._asset_repo = asset_repo
         self._component_repo = component_repo
@@ -406,10 +412,9 @@ class MaintenanceReportingService:
         )
 
     def _active_organization_id(self) -> str:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization.id
+        return self._tenant_context_service.require_active_organization_id(
+            operation_label="maintenance reporting"
+        )
 
     def _lookups(self, organization_id: str) -> MaintenanceReportLookups:
         return MaintenanceReportLookups(

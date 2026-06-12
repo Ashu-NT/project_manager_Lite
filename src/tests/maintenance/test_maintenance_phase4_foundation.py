@@ -18,8 +18,9 @@ from src.core.modules.maintenance import (
     MaintenanceSensorReadingService,
     MaintenanceSensorSourceMappingService,
 )
-from src.core.platform.org.domain import Organization, Site
-from .test_maintenance_foundation import _AssetRepo, _LocationRepo, _OrgRepo, _SiteRepo, _user_session
+from src.core.platform.org.domain import Organization
+from src.core.platform.site.domain import Site
+from .test_maintenance_foundation import _AssetRepo, _LocationRepo, _OrgRepo, _SiteRepo, _TenantContext, _user_session
 from .test_maintenance_integration_foundation import _IntegrationSourceRepo
 from .test_maintenance_sensor_foundation import _SensorReadingRepo, _SensorRepo
 from src.core.modules.maintenance.domain import MaintenanceAsset
@@ -143,6 +144,7 @@ def test_maintenance_sensor_source_mapping_service_creates_sensor_bindings(sessi
         organization_repo=_OrgRepo(organization),
         integration_source_repo=source_repo,
         sensor_repo=sensor_repo,
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
 
@@ -174,6 +176,7 @@ def test_phase4_services_raise_and_resolve_sensor_exceptions(session) -> None:
         sensor_repo=sensor_repo,
         integration_source_repo=source_repo,
         sensor_source_mapping_repo=mapping_repo,
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
     integration_service = MaintenanceIntegrationSourceService(
@@ -181,6 +184,7 @@ def test_phase4_services_raise_and_resolve_sensor_exceptions(session) -> None:
         source_repo,
         organization_repo=_OrgRepo(organization),
         sensor_exception_service=exception_service,
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
     reading_service = MaintenanceSensorReadingService(
@@ -190,6 +194,7 @@ def test_phase4_services_raise_and_resolve_sensor_exceptions(session) -> None:
         sensor_repo=sensor_repo,
         component_repo=_AssetRepo(),
         sensor_exception_service=exception_service,
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
 

@@ -19,7 +19,9 @@ from src.core.modules.maintenance.domain import (
 from src.core.modules.maintenance import MaintenanceReliabilityService
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.org.domain import Organization, Site
+from src.core.platform.org.domain import Organization
+from src.core.platform.site.domain import Site
+from .test_maintenance_foundation import _TenantContext
 
 
 class _OrgRepo:
@@ -286,6 +288,7 @@ def _build_service(*, report_view: bool = True) -> tuple[MaintenanceReliabilityS
         work_order_repo=_WorkOrderRepo(work_orders),
         failure_code_repo=_FailureCodeRepo([symptom, cause_a, cause_b]),
         downtime_event_repo=_DowntimeRepo([open_downtime, closed_downtime]),
+        tenant_context_service=_TenantContext(organization),
         user_session=_maintenance_session(report_view=report_view),
     )
     return service, asset

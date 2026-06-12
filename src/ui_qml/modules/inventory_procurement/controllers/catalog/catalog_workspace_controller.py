@@ -3,23 +3,81 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
-
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
     InventoryProcurementWorkspaceControllerBase,
-    run_mutation,
-    serialize_audit_entries_for_activity,
-    serialize_catalog_detail_view_model,
-    serialize_catalog_overview_view_model,
-    serialize_document_option_view_models,
-    serialize_record_view_models,
-    serialize_selector_options,
-    serialize_workspace_view_model,
 )
 from src.ui_qml.modules.inventory_procurement.presenters import (
     InventoryCatalogWorkspacePresenter,
     InventoryProcurementWorkspacePresenter,
 )
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+
+from .catalog_activity_handler import load_detail_activity
+from .catalog_bulk_handler import (
+    apply_bulk_status,
+    clear_category_bulk_selection,
+    clear_item_bulk_selection,
+    select_visible_categories,
+    select_visible_items,
+    set_category_bulk_selection,
+    set_item_bulk_selection,
+)
+from .catalog_document_handler import link_document, unlink_document
+from .catalog_domain_event_binder import bind_domain_events
+from .catalog_export_handler import export_table, is_items_view
+from .catalog_filter_handler import (
+    clear_filters,
+    set_active_filter,
+    set_category_filter,
+    set_category_type_filter,
+    set_search_text,
+    set_usage_filter,
+)
+from .catalog_mutation_handler import (
+    create_category,
+    create_item,
+    generate_entity_code,
+    toggle_category_active,
+    toggle_item_active,
+    update_category,
+    update_item,
+)
+from .catalog_refresh_service import refresh as _do_refresh
+from .catalog_selection_handler import (
+    select_category,
+    select_item,
+    set_active_view,
+    set_category_page,
+    set_category_page_size,
+    set_item_page,
+    set_item_page_size,
+)
+from .catalog_state import default_collection, default_detail, default_overview
+from .catalog_state_setters import (
+    set_active_options,
+    set_available_documents,
+    set_business_party_options,
+    set_categories,
+    set_category_options,
+    set_category_type_options,
+    set_detail_activity_items,
+    set_item_status_options,
+    set_items,
+    set_overview,
+    set_search_text as _set_search_text_setter,
+    set_selected_active_filter,
+    set_selected_category,
+    set_selected_category_filter,
+    set_selected_category_id,
+    set_selected_category_ids,
+    set_selected_category_type_filter,
+    set_selected_item,
+    set_selected_item_id,
+    set_selected_item_ids,
+    set_selected_usage_filter,
+    set_usage_options,
+)
+from .catalog_table_models import create_catalog_table_models
 
 QML_IMPORT_NAME = "InventoryProcurement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -49,7 +107,6 @@ class InventoryProcurementCatalogWorkspaceController(
     itemsChanged = Signal()
     selectedItemChanged = Signal()
     selectedItemIdChanged = Signal()
-    # pagination + bulk + view
     itemPageChanged = Signal()
     itemPageSizeChanged = Signal()
     selectedItemIdsChanged = Signal()
@@ -75,7 +132,7 @@ class InventoryProcurementCatalogWorkspaceController(
         self._catalog_workspace_presenter = (
             catalog_workspace_presenter or InventoryCatalogWorkspacePresenter()
         )
-        self._overview: dict[str, object] = {"title": "", "subtitle": "", "metrics": []}
+        self._overview: dict[str, object] = default_overview()
         self._active_options: list[dict[str, str]] = []
         self._usage_options: list[dict[str, str]] = []
         self._category_type_options: list[dict[str, str]] = []
@@ -88,45 +145,15 @@ class InventoryProcurementCatalogWorkspaceController(
         self._selected_category_type_filter = "all"
         self._selected_category_filter = "all"
         self._search_text = ""
-        self._categories_table_model = DynamicTableModel(self)
-        self._items_table_model = DynamicTableModel(self)
-        self._categories: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._selected_category: dict[str, object] = {
-            "id": "",
-            "title": "",
-            "statusLabel": "",
-            "subtitle": "",
-            "description": "",
-            "emptyState": "",
-            "fields": [],
-            "linkedDocuments": [],
-            "state": {},
-        }
+        self._categories_table_model, self._items_table_model = (
+            create_catalog_table_models(self)
+        )
+        self._categories: dict[str, object] = default_collection()
+        self._selected_category: dict[str, object] = default_detail()
         self._selected_category_id = ""
-        self._items: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._selected_item: dict[str, object] = {
-            "id": "",
-            "title": "",
-            "statusLabel": "",
-            "subtitle": "",
-            "description": "",
-            "emptyState": "",
-            "fields": [],
-            "linkedDocuments": [],
-            "state": {},
-        }
+        self._items: dict[str, object] = default_collection()
+        self._selected_item: dict[str, object] = default_detail()
         self._selected_item_id = ""
-        # pagination + bulk + view state
         self._item_page = 1
         self._item_page_size = 25
         self._selected_item_ids: list[str] = []
@@ -137,8 +164,10 @@ class InventoryProcurementCatalogWorkspaceController(
         self._bulk_status_options: list[dict[str, str]] = []
         self._platform_audit = platform_audit
         self._detail_activity_items: list[dict[str, object]] = []
-        self._bind_domain_events()
+        bind_domain_events(self)
         self.refresh()
+
+    # ── Properties ───────────────────────────────────────────────────
 
     @Property("QVariantMap", notify=overviewChanged)
     def overview(self) -> dict[str, object]:
@@ -216,16 +245,6 @@ class InventoryProcurementCatalogWorkspaceController(
     def itemsTableModel(self) -> DynamicTableModel:
         return self._items_table_model
 
-    @Slot("QVariantList", str, result="QVariantMap")
-    def exportTable(self, columns: list, file_path: str) -> dict[str, object]:
-        from src.ui_qml.modules.project_management.utils.table_exporter import export_to_file
-        model = self._items_table_model if self._is_items_view else self._categories_table_model
-        return export_to_file(list(model._rows), list(columns), (file_path or "").strip())
-
-    @property
-    def _is_items_view(self) -> bool:
-        return getattr(self, "_active_view", "items") != "categories"
-
     @Property("QVariantMap", notify=selectedItemChanged)
     def selectedItem(self) -> dict[str, object]:
         return self._selected_item
@@ -233,299 +252,6 @@ class InventoryProcurementCatalogWorkspaceController(
     @Property(str, notify=selectedItemIdChanged)
     def selectedItemId(self) -> str:
         return self._selected_item_id
-
-    @Slot()
-    def refresh(self) -> None:
-        self._set_is_loading(True)
-        try:
-            self._set_error_message("")
-            self._set_feedback_message("")
-            self._set_workspace(
-                serialize_workspace_view_model(
-                    self._workspace_presenter.build_view_model()
-                )
-            )
-            workspace_state = self._catalog_workspace_presenter.build_workspace_state(
-                search_text=self._search_text,
-                active_filter=self._selected_active_filter,
-                usage_filter=self._selected_usage_filter,
-                category_type_filter=self._selected_category_type_filter,
-                category_filter=self._selected_category_filter,
-                selected_category_id=self._selected_category_id or None,
-                selected_item_id=self._selected_item_id or None,
-            )
-            self._set_overview(
-                serialize_catalog_overview_view_model(workspace_state.overview)
-            )
-            self._set_active_options(
-                serialize_selector_options(workspace_state.active_options)
-            )
-            self._set_usage_options(
-                serialize_selector_options(workspace_state.usage_options)
-            )
-            self._set_category_type_options(
-                serialize_selector_options(workspace_state.category_type_options)
-            )
-            self._set_category_options(
-                serialize_selector_options(workspace_state.category_options)
-            )
-            self._set_item_status_options(
-                serialize_selector_options(workspace_state.item_status_options)
-            )
-            self._set_business_party_options(
-                serialize_selector_options(workspace_state.business_party_options)
-            )
-            self._set_available_documents(
-                serialize_document_option_view_models(
-                    workspace_state.available_documents
-                )
-            )
-            self._set_selected_active_filter(workspace_state.selected_active_filter)
-            self._set_selected_usage_filter(workspace_state.selected_usage_filter)
-            self._set_selected_category_type_filter(
-                workspace_state.selected_category_type_filter
-            )
-            self._set_selected_category_filter(
-                workspace_state.selected_category_filter
-            )
-            self._set_search_text(workspace_state.search_text)
-            self._set_categories(
-                {
-                    "title": "Category Catalog",
-                    "subtitle": "Govern category types, usage flags, and equipment grouping.",
-                    "emptyState": workspace_state.empty_state,
-                    "items": serialize_record_view_models(workspace_state.categories),
-                }
-            )
-            self._set_selected_category_id(workspace_state.selected_category_id)
-            self._set_selected_category(
-                serialize_catalog_detail_view_model(
-                    workspace_state.selected_category_detail
-                )
-            )
-            self._set_items(
-                {
-                    "title": "Item Catalog",
-                    "subtitle": "Manage reusable stock items, supplier context, and linked documents.",
-                    "emptyState": workspace_state.empty_state,
-                    "items": serialize_record_view_models(workspace_state.items),
-                }
-            )
-            self._set_selected_item_id(workspace_state.selected_item_id)
-            self._set_selected_item(
-                serialize_catalog_detail_view_model(
-                    workspace_state.selected_item_detail
-                )
-            )
-            self._set_empty_state(workspace_state.empty_state)
-        except Exception as exc:  # pragma: no cover - defensive fallback
-            self._set_error_message(str(exc))
-        finally:
-            self._set_is_loading(False)
-
-    @Slot(str)
-    def setSearchText(self, search_text: str) -> None:
-        normalized_value = (search_text or "").strip()
-        if normalized_value == self._search_text:
-            return
-        self._set_search_text(normalized_value)
-        self.refresh()
-
-    @Slot(str)
-    def setActiveFilter(self, active_filter: str) -> None:
-        normalized_value = (active_filter or "").strip().lower() or "all"
-        if normalized_value == self._selected_active_filter:
-            return
-        self._set_selected_active_filter(normalized_value)
-        self.refresh()
-
-    @Slot(str)
-    def setUsageFilter(self, usage_filter: str) -> None:
-        normalized_value = (usage_filter or "").strip().lower() or "all"
-        if normalized_value == self._selected_usage_filter:
-            return
-        self._set_selected_usage_filter(normalized_value)
-        self.refresh()
-
-    @Slot(str)
-    def setCategoryTypeFilter(self, category_type: str) -> None:
-        normalized_value = (category_type or "").strip() or "all"
-        if normalized_value == self._selected_category_type_filter:
-            return
-        self._set_selected_category_type_filter(normalized_value)
-        self.refresh()
-
-    @Slot(str)
-    def setCategoryFilter(self, category_code: str) -> None:
-        normalized_value = (category_code or "").strip() or "all"
-        if normalized_value == self._selected_category_filter:
-            return
-        self._set_selected_category_filter(normalized_value)
-        self.refresh()
-
-    @Slot(str)
-    def selectCategory(self, category_id: str) -> None:
-        normalized_value = (category_id or "").strip()
-        if normalized_value == self._selected_category_id:
-            return
-        self._set_selected_category_id(normalized_value)
-        self.refresh()
-
-    @Slot(str)
-    def selectItem(self, item_id: str) -> None:
-        normalized_value = (item_id or "").strip()
-        if normalized_value == self._selected_item_id:
-            return
-        self._set_selected_item_id(normalized_value)
-        self.refresh()
-
-    @Slot(str, "QVariantMap", result=str)
-    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
-        """Suggest a unique catalog code (category/item) for an editor dialog."""
-        key = (entity_type or "").strip().lower()
-        try:
-            if key == "category":
-                return self._catalog_workspace_presenter.suggest_category_code(dict(payload))
-            if key == "item":
-                return self._catalog_workspace_presenter.suggest_item_code(dict(payload))
-        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
-            self._set_error_message(str(exc))
-        return ""
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def createCategory(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._catalog_workspace_presenter.create_category(
-                dict(payload)
-            ),
-            success_message="Category created.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def updateCategory(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._catalog_workspace_presenter.update_category(
-                dict(payload)
-            ),
-            success_message="Category updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot(str, int, result="QVariantMap")
-    def toggleCategoryActive(
-        self,
-        category_id: str,
-        expected_version: int = 0,
-    ) -> dict[str, object]:
-        resolved_version = expected_version or None
-        return run_mutation(
-            operation=lambda: self._catalog_workspace_presenter.toggle_category_active(
-                category_id,
-                resolved_version,
-            ),
-            success_message="Category availability updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def createItem(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._catalog_workspace_presenter.create_item(
-                dict(payload)
-            ),
-            success_message="Item created.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def updateItem(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._catalog_workspace_presenter.update_item(
-                dict(payload)
-            ),
-            success_message="Item updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def applyBulkStatus(self, payload: dict[str, object]) -> dict[str, object]:
-        merged = dict(payload)
-        merged.setdefault("itemIds", list(self._selected_item_ids))
-        return run_mutation(
-            operation=lambda: self._catalog_workspace_presenter.apply_bulk_status(
-                merged
-            ),
-            success_message="Bulk item status applied.",
-            on_success=lambda: (self.clearItemBulkSelection(), self.refresh()),
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot(str, int, result="QVariantMap")
-    def toggleItemActive(
-        self,
-        item_id: str,
-        expected_version: int = 0,
-    ) -> dict[str, object]:
-        resolved_version = expected_version or None
-        return run_mutation(
-            operation=lambda: self._catalog_workspace_presenter.toggle_item_active(
-                item_id,
-                resolved_version,
-            ),
-            success_message="Item availability updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot(str, str, result="QVariantMap")
-    def linkDocument(self, item_id: str, document_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._catalog_workspace_presenter.link_document(
-                item_id,
-                document_id,
-            ),
-            success_message="Document linked.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot(str, str, result="QVariantMap")
-    def unlinkDocument(self, item_id: str, document_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._catalog_workspace_presenter.unlink_document(
-                item_id,
-                document_id,
-            ),
-            success_message="Document unlinked.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    # ── pagination + bulk + view ─────────────────────────────────────
 
     @Property(int, notify=itemPageChanged)
     def itemPage(self) -> int:
@@ -575,272 +301,225 @@ class InventoryProcurementCatalogWorkspaceController(
     def bulkStatusOptions(self) -> list[dict[str, str]]:
         return self._bulk_status_options
 
+    @Property("QVariantList", notify=detailActivityItemsChanged)
+    def detailActivityItems(self) -> list[dict[str, object]]:
+        return self._detail_activity_items
+
+    # ── Internal view helper ──────────────────────────────────────────
+
+    @property
+    def _is_items_view(self) -> bool:
+        return is_items_view(self)
+
+    # ── Slots ─────────────────────────────────────────────────────────
+
+    @Slot()
+    def refresh(self) -> None:
+        _do_refresh(self)
+
     @Slot(str)
-    def activateItem(self, item_id: str) -> None:
-        self.selectItem(item_id)
+    def setSearchText(self, search_text: str) -> None:
+        set_search_text(self, search_text)
+
+    @Slot(str)
+    def setActiveFilter(self, active_filter: str) -> None:
+        set_active_filter(self, active_filter)
+
+    @Slot(str)
+    def setUsageFilter(self, usage_filter: str) -> None:
+        set_usage_filter(self, usage_filter)
+
+    @Slot(str)
+    def setCategoryTypeFilter(self, category_type: str) -> None:
+        set_category_type_filter(self, category_type)
+
+    @Slot(str)
+    def setCategoryFilter(self, category_code: str) -> None:
+        set_category_filter(self, category_code)
+
+    @Slot()
+    def clearFilters(self) -> None:
+        clear_filters(self)
+
+    @Slot(str)
+    def selectCategory(self, category_id: str) -> None:
+        select_category(self, category_id)
+
+    @Slot(str)
+    def selectItem(self, item_id: str) -> None:
+        select_item(self, item_id)
 
     @Slot(str)
     def activateCategory(self, category_id: str) -> None:
         self.selectCategory(category_id)
 
     @Slot(str)
+    def activateItem(self, item_id: str) -> None:
+        self.selectItem(item_id)
+
+    @Slot(str)
     def setActiveView(self, view: str) -> None:
-        normalized = view if view in ("items", "categories") else "items"
-        if normalized == self._active_view:
-            return
-        self._active_view = normalized
-        self.activeViewChanged.emit()
+        set_active_view(self, view)
 
     @Slot(int)
     def setItemPage(self, page: int) -> None:
-        self._item_page = max(1, int(page))
-        self.itemPageChanged.emit()
+        set_item_page(self, page)
 
     @Slot(int)
     def setItemPageSize(self, size: int) -> None:
-        self._item_page_size = max(10, min(200, int(size)))
-        self._item_page = 1
-        self.itemPageSizeChanged.emit()
-        self.itemPageChanged.emit()
+        set_item_page_size(self, size)
 
     @Slot(int)
     def setCategoryPage(self, page: int) -> None:
-        self._category_page = max(1, int(page))
-        self.categoryPageChanged.emit()
+        set_category_page(self, page)
 
     @Slot(int)
     def setCategoryPageSize(self, size: int) -> None:
-        self._category_page_size = max(10, min(200, int(size)))
-        self._category_page = 1
-        self.categoryPageSizeChanged.emit()
-        self.categoryPageChanged.emit()
+        set_category_page_size(self, size)
 
     @Slot(str, bool)
     def setItemBulkSelection(self, row_id: str, selected: bool) -> None:
-        ids = list(self._selected_item_ids)
-        if selected and row_id not in ids:
-            ids.append(row_id)
-        elif not selected and row_id in ids:
-            ids.remove(row_id)
-        self._set_selected_item_ids(ids)
+        set_item_bulk_selection(self, row_id, selected)
 
     @Slot()
     def clearItemBulkSelection(self) -> None:
-        self._set_selected_item_ids([])
+        clear_item_bulk_selection(self)
 
     @Slot()
     def selectVisibleItems(self) -> None:
-        all_ids = [
-            str(r.get("id", ""))
-            for r in self._items.get("items", [])
-            if r.get("id")
-        ]
-        self._set_selected_item_ids(all_ids)
+        select_visible_items(self)
 
     @Slot(str, bool)
     def setCategoryBulkSelection(self, row_id: str, selected: bool) -> None:
-        ids = list(self._selected_category_ids)
-        if selected and row_id not in ids:
-            ids.append(row_id)
-        elif not selected and row_id in ids:
-            ids.remove(row_id)
-        self._set_selected_category_ids(ids)
+        set_category_bulk_selection(self, row_id, selected)
 
     @Slot()
     def clearCategoryBulkSelection(self) -> None:
-        self._set_selected_category_ids([])
+        clear_category_bulk_selection(self)
 
     @Slot()
     def selectVisibleCategories(self) -> None:
-        all_ids = [
-            str(r.get("id", ""))
-            for r in self._categories.get("items", [])
-            if r.get("id")
-        ]
-        self._set_selected_category_ids(all_ids)
+        select_visible_categories(self)
 
-    @Slot()
-    def clearFilters(self) -> None:
-        self._set_selected_active_filter("all")
-        self._set_selected_usage_filter("all")
-        self._set_selected_category_type_filter("all")
-        self._set_selected_category_filter("all")
-        self._set_search_text("")
-        self.refresh()
+    @Slot("QVariantMap", result="QVariantMap")
+    def applyBulkStatus(self, payload: dict[str, object]) -> dict[str, object]:
+        return apply_bulk_status(self, dict(payload))
 
-    def _set_selected_item_ids(self, ids: list[str]) -> None:
-        if ids == self._selected_item_ids:
-            return
-        self._selected_item_ids = ids
-        self.selectedItemIdsChanged.emit()
+    @Slot(str, "QVariantMap", result=str)
+    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
+        return generate_entity_code(self, entity_type, dict(payload))
 
-    def _set_selected_category_ids(self, ids: list[str]) -> None:
-        if ids == self._selected_category_ids:
-            return
-        self._selected_category_ids = ids
-        self.selectedCategoryIdsChanged.emit()
+    @Slot("QVariantMap", result="QVariantMap")
+    def createCategory(self, payload: dict[str, object]) -> dict[str, object]:
+        return create_category(self, dict(payload))
 
-    @Property("QVariantList", notify=detailActivityItemsChanged)
-    def detailActivityItems(self) -> list[dict[str, object]]:
-        return self._detail_activity_items
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateCategory(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_category(self, dict(payload))
+
+    @Slot(str, int, result="QVariantMap")
+    def toggleCategoryActive(
+        self, category_id: str, expected_version: int = 0
+    ) -> dict[str, object]:
+        return toggle_category_active(self, category_id, expected_version)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def createItem(self, payload: dict[str, object]) -> dict[str, object]:
+        return create_item(self, dict(payload))
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateItem(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_item(self, dict(payload))
+
+    @Slot(str, int, result="QVariantMap")
+    def toggleItemActive(
+        self, item_id: str, expected_version: int = 0
+    ) -> dict[str, object]:
+        return toggle_item_active(self, item_id, expected_version)
+
+    @Slot(str, str, result="QVariantMap")
+    def linkDocument(self, item_id: str, document_id: str) -> dict[str, object]:
+        return link_document(self, item_id, document_id)
+
+    @Slot(str, str, result="QVariantMap")
+    def unlinkDocument(self, item_id: str, document_id: str) -> dict[str, object]:
+        return unlink_document(self, item_id, document_id)
+
+    @Slot("QVariantList", str, result="QVariantMap")
+    def exportTable(self, columns: list, file_path: str) -> dict[str, object]:
+        return export_table(self, columns, file_path)
 
     @Slot(str, str)
     def loadDetailActivity(self, entity_id: str, entity_type: str) -> None:
-        if self._platform_audit is None or not entity_id:
-            self._set_detail_activity_items([])
-            return
-        try:
-            result = self._platform_audit.list_recent(entity_type=entity_type, limit=200)
-            items = (
-                serialize_audit_entries_for_activity(result.data, entity_id)
-                if result.ok and result.data is not None
-                else []
-            )
-        except Exception:  # pragma: no cover - defensive fallback
-            items = []
-        self._set_detail_activity_items(items)
+        load_detail_activity(self, entity_id, entity_type)
 
-    def _set_detail_activity_items(self, items: list[dict[str, object]]) -> None:
-        if items == self._detail_activity_items:
-            return
-        self._detail_activity_items = items
-        self.detailActivityItemsChanged.emit()
+    # ── Private state setters (called by handlers and refresh service) ─
 
-    def _bind_domain_events(self) -> None:
-        self._subscribe_domain_change(scope_code="inventory_procurement")
-        self._subscribe_domain_change("document", scope_code="platform")
-        self._subscribe_domain_change("party", scope_code="platform")
+    def _set_overview(self, v: dict[str, object]) -> None:
+        set_overview(self, v)
 
-    def _set_overview(self, overview: dict[str, object]) -> None:
-        if overview == self._overview:
-            return
-        self._overview = overview
-        self.overviewChanged.emit()
+    def _set_active_options(self, v: list[dict[str, str]]) -> None:
+        set_active_options(self, v)
 
-    def _set_active_options(self, active_options: list[dict[str, str]]) -> None:
-        if active_options == self._active_options:
-            return
-        self._active_options = active_options
-        self.activeOptionsChanged.emit()
+    def _set_usage_options(self, v: list[dict[str, str]]) -> None:
+        set_usage_options(self, v)
 
-    def _set_usage_options(self, usage_options: list[dict[str, str]]) -> None:
-        if usage_options == self._usage_options:
-            return
-        self._usage_options = usage_options
-        self.usageOptionsChanged.emit()
+    def _set_category_type_options(self, v: list[dict[str, str]]) -> None:
+        set_category_type_options(self, v)
 
-    def _set_category_type_options(
-        self,
-        category_type_options: list[dict[str, str]],
-    ) -> None:
-        if category_type_options == self._category_type_options:
-            return
-        self._category_type_options = category_type_options
-        self.categoryTypeOptionsChanged.emit()
+    def _set_category_options(self, v: list[dict[str, str]]) -> None:
+        set_category_options(self, v)
 
-    def _set_category_options(self, category_options: list[dict[str, str]]) -> None:
-        if category_options == self._category_options:
-            return
-        self._category_options = category_options
-        self.categoryOptionsChanged.emit()
+    def _set_item_status_options(self, v: list[dict[str, str]]) -> None:
+        set_item_status_options(self, v)
 
-    def _set_item_status_options(
-        self,
-        item_status_options: list[dict[str, str]],
-    ) -> None:
-        if item_status_options == self._item_status_options:
-            return
-        self._item_status_options = item_status_options
-        self.itemStatusOptionsChanged.emit()
+    def _set_business_party_options(self, v: list[dict[str, str]]) -> None:
+        set_business_party_options(self, v)
 
-    def _set_business_party_options(
-        self,
-        business_party_options: list[dict[str, str]],
-    ) -> None:
-        if business_party_options == self._business_party_options:
-            return
-        self._business_party_options = business_party_options
-        self.businessPartyOptionsChanged.emit()
+    def _set_available_documents(self, v: list[dict[str, object]]) -> None:
+        set_available_documents(self, v)
 
-    def _set_available_documents(
-        self,
-        available_documents: list[dict[str, object]],
-    ) -> None:
-        if available_documents == self._available_documents:
-            return
-        self._available_documents = available_documents
-        self.availableDocumentsChanged.emit()
+    def _set_selected_active_filter(self, v: str) -> None:
+        set_selected_active_filter(self, v)
 
-    def _set_selected_active_filter(self, selected_active_filter: str) -> None:
-        if selected_active_filter == self._selected_active_filter:
-            return
-        self._selected_active_filter = selected_active_filter
-        self.selectedActiveFilterChanged.emit()
+    def _set_selected_usage_filter(self, v: str) -> None:
+        set_selected_usage_filter(self, v)
 
-    def _set_selected_usage_filter(self, selected_usage_filter: str) -> None:
-        if selected_usage_filter == self._selected_usage_filter:
-            return
-        self._selected_usage_filter = selected_usage_filter
-        self.selectedUsageFilterChanged.emit()
+    def _set_selected_category_type_filter(self, v: str) -> None:
+        set_selected_category_type_filter(self, v)
 
-    def _set_selected_category_type_filter(
-        self,
-        selected_category_type_filter: str,
-    ) -> None:
-        if selected_category_type_filter == self._selected_category_type_filter:
-            return
-        self._selected_category_type_filter = selected_category_type_filter
-        self.selectedCategoryTypeFilterChanged.emit()
+    def _set_selected_category_filter(self, v: str) -> None:
+        set_selected_category_filter(self, v)
 
-    def _set_selected_category_filter(self, selected_category_filter: str) -> None:
-        if selected_category_filter == self._selected_category_filter:
-            return
-        self._selected_category_filter = selected_category_filter
-        self.selectedCategoryFilterChanged.emit()
+    def _set_search_text(self, v: str) -> None:
+        _set_search_text_setter(self, v)
 
-    def _set_search_text(self, search_text: str) -> None:
-        if search_text == self._search_text:
-            return
-        self._search_text = search_text
-        self.searchTextChanged.emit()
+    def _set_categories(self, v: dict[str, object]) -> None:
+        set_categories(self, v)
 
-    def _set_categories(self, categories: dict[str, object]) -> None:
-        if categories == self._categories:
-            return
-        self._categories = categories
-        self._categories_table_model.set_rows(categories.get("items", []))
-        self.categoriesChanged.emit()
+    def _set_selected_category(self, v: dict[str, object]) -> None:
+        set_selected_category(self, v)
 
-    def _set_selected_category(self, selected_category: dict[str, object]) -> None:
-        if selected_category == self._selected_category:
-            return
-        self._selected_category = selected_category
-        self.selectedCategoryChanged.emit()
+    def _set_selected_category_id(self, v: str) -> None:
+        set_selected_category_id(self, v)
 
-    def _set_selected_category_id(self, selected_category_id: str) -> None:
-        if selected_category_id == self._selected_category_id:
-            return
-        self._selected_category_id = selected_category_id
-        self.selectedCategoryIdChanged.emit()
+    def _set_items(self, v: dict[str, object]) -> None:
+        set_items(self, v)
 
-    def _set_items(self, items: dict[str, object]) -> None:
-        if items == self._items:
-            return
-        self._items = items
-        self._items_table_model.set_rows(items.get("items", []))
-        self.itemsChanged.emit()
+    def _set_selected_item(self, v: dict[str, object]) -> None:
+        set_selected_item(self, v)
 
-    def _set_selected_item(self, selected_item: dict[str, object]) -> None:
-        if selected_item == self._selected_item:
-            return
-        self._selected_item = selected_item
-        self.selectedItemChanged.emit()
+    def _set_selected_item_id(self, v: str) -> None:
+        set_selected_item_id(self, v)
 
-    def _set_selected_item_id(self, selected_item_id: str) -> None:
-        if selected_item_id == self._selected_item_id:
-            return
-        self._selected_item_id = selected_item_id
-        self.selectedItemIdChanged.emit()
+    def _set_selected_item_ids(self, v: list[str]) -> None:
+        set_selected_item_ids(self, v)
+
+    def _set_selected_category_ids(self, v: list[str]) -> None:
+        set_selected_category_ids(self, v)
+
+    def _set_detail_activity_items(self, v: list[dict[str, object]]) -> None:
+        set_detail_activity_items(self, v)
 
 
 __all__ = ["InventoryProcurementCatalogWorkspaceController"]

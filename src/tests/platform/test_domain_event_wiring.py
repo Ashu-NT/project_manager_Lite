@@ -4,7 +4,7 @@ import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 def _login_as(services, username: str, password: str) -> None:
     auth = services["auth_service"]
     user_session = services["user_session"]

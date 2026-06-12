@@ -5,10 +5,14 @@ import textwrap
 
 import pytest
 
-from src.core.modules.project_management.infrastructure.importers.import_parser import (
+from src.core.modules.project_management.infrastructure.importers.models.import_models import (
     ImportFieldMapping,
     ImportMappingProfile,
+)
+from src.core.modules.project_management.infrastructure.importers.scheduling.mpp.mpp_parser import (
     MSProjectXmlParser,
+)
+from src.core.modules.project_management.infrastructure.importers.scheduling.primavera.p6_parser import (
     P6Parser,
 )
 

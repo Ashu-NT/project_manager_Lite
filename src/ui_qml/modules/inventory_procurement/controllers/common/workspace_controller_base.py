@@ -1,19 +1,22 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from typing import Any
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.core.platform.notifications.domain_events import (
+from src.core.shared.events.domain_events import (
     DomainChangeEvent,
     domain_events,
 )
-from src.core.platform.notifications.signal import Signal as DomainSignal
+from src.core.shared.events.signal import Signal as DomainSignal
 
 QML_IMPORT_NAME = "InventoryProcurement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
+
+logger = logging.getLogger(__name__)
 
 
 @QmlElement
@@ -45,6 +48,13 @@ class InventoryProcurementWorkspaceControllerBase(QObject):
             tuple[DomainSignal[Any], Callable[[Any], None]]
         ] = []
         self.destroyed.connect(self._disconnect_domain_event_subscriptions)
+
+    def _diagnostic_context(self) -> dict[str, object]:
+        return {
+            "controller": type(self).__name__,
+            "route_id": str(self._workspace.get("routeId", "") or ""),
+            "title": str(self._workspace.get("title", "") or ""),
+        }
 
     @Property("QVariantMap", notify=workspaceChanged)
     def workspace(self) -> dict[str, object]:
@@ -102,12 +112,20 @@ class InventoryProcurementWorkspaceControllerBase(QObject):
             return
         self._error_message = value
         self.errorMessageChanged.emit()
+        if value:
+            logger.error("Inventory controller error message set context=%s message=%s", self._diagnostic_context(), value)
+        else:
+            logger.debug("Inventory controller error message cleared context=%s", self._diagnostic_context())
 
     def _set_feedback_message(self, value: str) -> None:
         if value == self._feedback_message:
             return
         self._feedback_message = value
         self.feedbackMessageChanged.emit()
+        if value:
+            logger.info("Inventory controller feedback message set context=%s message=%s", self._diagnostic_context(), value)
+        else:
+            logger.debug("Inventory controller feedback message cleared context=%s", self._diagnostic_context())
 
     def _set_empty_state(self, value: str) -> None:
         if value == self._empty_state:
@@ -122,6 +140,11 @@ class InventoryProcurementWorkspaceControllerBase(QObject):
     ) -> None:
         signal.connect(callback)
         self._domain_event_subscriptions.append((signal, callback))
+        logger.debug(
+            "Inventory domain signal subscribed context=%s subscription_count=%s",
+            self._diagnostic_context(),
+            len(self._domain_event_subscriptions),
+        )
 
     def _subscribe_domain_change(
         self,
@@ -142,16 +165,38 @@ class InventoryProcurementWorkspaceControllerBase(QObject):
                 return
             if allowed_entity_types and event.entity_type not in allowed_entity_types:
                 return
+            logger.debug(
+                "Inventory domain change matched context=%s entity_type=%s entity_id=%s scope=%s category=%s",
+                self._diagnostic_context(),
+                event.entity_type,
+                event.entity_id,
+                event.scope_code,
+                event.category,
+            )
             self._request_domain_refresh()
 
         self._subscribe_domain_signal(domain_events.domain_changed, _handler)
+        logger.debug(
+            "Inventory domain change filter registered context=%s entity_types=%s scope=%s category=%s",
+            self._diagnostic_context(),
+            sorted(allowed_entity_types),
+            scope_code or "-",
+            category or "-",
+        )
 
     def _request_domain_refresh(self) -> None:
         if self._is_loading or self._is_busy:
             self._pending_domain_refresh = True
+            logger.debug(
+                "Inventory domain refresh queued context=%s is_loading=%s is_busy=%s",
+                self._diagnostic_context(),
+                self._is_loading,
+                self._is_busy,
+            )
             return
         refresh = getattr(self, "refresh", None)
         if callable(refresh):
+            logger.debug("Inventory domain refresh executing context=%s", self._diagnostic_context())
             refresh()
 
     def _flush_pending_domain_refresh(self) -> None:
@@ -160,6 +205,7 @@ class InventoryProcurementWorkspaceControllerBase(QObject):
         self._pending_domain_refresh = False
         refresh = getattr(self, "refresh", None)
         if callable(refresh):
+            logger.debug("Inventory pending domain refresh executing context=%s", self._diagnostic_context())
             refresh()
 
     def _disconnect_domain_event_subscriptions(
@@ -167,8 +213,12 @@ class InventoryProcurementWorkspaceControllerBase(QObject):
         _object: QObject | None = None,
     ) -> None:
         for signal, callback in self._domain_event_subscriptions:
-            signal.disconnect(callback)
+            try:
+                signal.disconnect(callback)
+            except Exception:
+                logger.debug("Inventory domain signal disconnect failed context=%s", self._diagnostic_context(), exc_info=True)
         self._domain_event_subscriptions.clear()
+        logger.debug("Inventory domain signal subscriptions cleared context=%s", self._diagnostic_context())
 
 
 __all__ = ["InventoryProcurementWorkspaceControllerBase"]

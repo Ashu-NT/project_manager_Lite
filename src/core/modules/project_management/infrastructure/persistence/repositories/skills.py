@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -42,11 +41,11 @@ class SqlAlchemyResourceSkillRepository(ResourceSkillRepository):
         self._session.flush()
         return skill
 
-    def get(self, skill_id: str) -> Optional[ResourceSkill]:
+    def get(self, skill_id: str) -> ResourceSkill | None:
         obj = self._session.get(ResourceSkillORM, skill_id)
         return skill_from_orm(obj) if obj else None
 
-    def list_by_resource(self, resource_id: str) -> List[ResourceSkill]:
+    def list_by_resource(self, resource_id: str) -> list[ResourceSkill]:
         stmt = (
             select(ResourceSkillORM)
             .where(ResourceSkillORM.resource_id == resource_id)
@@ -69,11 +68,11 @@ class SqlAlchemyResourceCertificationRepository(ResourceCertificationRepository)
         self._session.flush()
         return cert
 
-    def get(self, cert_id: str) -> Optional[ResourceCertification]:
+    def get(self, cert_id: str) -> ResourceCertification | None:
         obj = self._session.get(ResourceCertificationORM, cert_id)
         return cert_from_orm(obj) if obj else None
 
-    def list_by_resource(self, resource_id: str) -> List[ResourceCertification]:
+    def list_by_resource(self, resource_id: str) -> list[ResourceCertification]:
         stmt = (
             select(ResourceCertificationORM)
             .where(ResourceCertificationORM.resource_id == resource_id)
@@ -96,11 +95,11 @@ class SqlAlchemyTaskSkillRequirementRepository(TaskSkillRequirementRepository):
         self._session.flush()
         return req
 
-    def get(self, req_id: str) -> Optional[TaskSkillRequirement]:
+    def get(self, req_id: str) -> TaskSkillRequirement | None:
         obj = self._session.get(TaskSkillRequirementORM, req_id)
         return task_req_from_orm(obj) if obj else None
 
-    def list_by_task(self, task_id: str) -> List[TaskSkillRequirement]:
+    def list_by_task(self, task_id: str) -> list[TaskSkillRequirement]:
         stmt = (
             select(TaskSkillRequirementORM)
             .where(TaskSkillRequirementORM.task_id == task_id)

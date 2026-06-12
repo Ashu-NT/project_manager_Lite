@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,7 +10,9 @@ from src.core.platform.infrastructure.persistence.orm.audit import AuditLogORM
 
 
 class SqlAlchemyAuditLogRepository(AuditLogRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, entry: AuditLogEntry) -> None:
@@ -24,8 +24,25 @@ class SqlAlchemyAuditLogRepository(AuditLogRepository):
         *,
         project_id: str | None = None,
         entity_type: str | None = None,
-    ) -> List[AuditLogEntry]:
+    ) -> list[AuditLogEntry]:
         stmt = select(AuditLogORM)
+        if project_id is not None:
+            stmt = stmt.where(AuditLogORM.project_id == project_id)
+        if entity_type is not None:
+            stmt = stmt.where(AuditLogORM.entity_type == entity_type)
+        stmt = stmt.order_by(AuditLogORM.occurred_at.desc()).limit(max(1, int(limit)))
+        rows = self.session.execute(stmt).scalars().all()
+        return [audit_from_orm(row) for row in rows]
+
+    def list_recent_for_organization(
+        self,
+        organization_id: str,
+        limit: int = 200,
+        *,
+        project_id: str | None = None,
+        entity_type: str | None = None,
+    ) -> list[AuditLogEntry]:
+        stmt = select(AuditLogORM).where(AuditLogORM.organization_id == organization_id)
         if project_id is not None:
             stmt = stmt.where(AuditLogORM.project_id == project_id)
         if entity_type is not None:

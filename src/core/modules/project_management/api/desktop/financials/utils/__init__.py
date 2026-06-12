@@ -1,0 +1,1 @@
+"""Financial desktop utilities."""

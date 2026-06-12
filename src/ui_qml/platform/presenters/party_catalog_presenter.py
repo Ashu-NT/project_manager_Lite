@@ -23,7 +23,6 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionListViewModel,
 )
 
-
 class PlatformPartyCatalogPresenter:
     def __init__(self, *, party_api: PlatformPartyDesktopApi | None = None) -> None:
         self._party_api = party_api
@@ -187,6 +186,5 @@ class PlatformPartyCatalogPresenter:
                 "version": row.version,
             },
         )
-
 
 __all__ = ["PlatformPartyCatalogPresenter"]

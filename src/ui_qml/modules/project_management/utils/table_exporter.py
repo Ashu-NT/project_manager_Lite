@@ -3,6 +3,8 @@ from __future__ import annotations
 import csv
 import os
 
+from src.ui_qml.modules.project_management.utils.file_paths import local_path_from_qml_file_url
+
 
 def export_to_file(
     rows: list[dict[str, object]],
@@ -14,7 +16,7 @@ def export_to_file(
         return {"ok": False, "error": "No records to export."}
     if not columns:
         return {"ok": False, "error": "No columns selected for export."}
-    resolved = (file_path or "").strip()
+    resolved = local_path_from_qml_file_url(file_path)
     if not resolved:
         return {"ok": False, "error": "No file path specified."}
     _, ext = os.path.splitext(resolved.lower())
@@ -22,8 +24,23 @@ def export_to_file(
         if ext == ".xlsx":
             return _write_xlsx(rows, columns, resolved)
         return _write_csv(rows, columns, resolved)
+    except PermissionError:
+        return {
+            "ok": False,
+            "error": _permission_error_message(resolved),
+            "errorCode": "permission_denied",
+            "path": resolved,
+        }
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
+
+
+def _permission_error_message(file_path: str) -> str:
+    file_name = os.path.basename(file_path) or file_path
+    return (
+        f"Cannot write to {file_name}. Close the file if it is open in Excel, "
+        "choose a different filename, or check folder permissions."
+    )
 
 
 def _write_xlsx(

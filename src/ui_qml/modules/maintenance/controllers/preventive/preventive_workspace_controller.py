@@ -5,13 +5,52 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.maintenance.controllers.common import (
     MaintenanceWorkspaceControllerBase,
-    run_mutation,
-    serialize_preventive_workspace_state,
-    serialize_workspace_view_model,
 )
 from src.ui_qml.modules.maintenance.presenters import (
     MaintenancePreventiveWorkspacePresenter,
     MaintenanceWorkspacePresenter,
+)
+from .preventive_generation_actions import (
+    generate_due_work,
+    regenerate_plan_schedule,
+)
+from .preventive_plan_actions import (
+    apply_plan_active_filter,
+    apply_plan_asset_filter,
+    apply_plan_search_text,
+    apply_plan_site_filter,
+    apply_plan_status_filter,
+    apply_plan_system_filter,
+    apply_plan_trigger_mode_filter,
+    apply_plan_type_filter,
+    apply_select_plan,
+    apply_select_plan_task,
+    create_plan,
+    create_plan_task,
+    toggle_plan_active,
+    update_plan,
+    update_plan_task,
+)
+from .preventive_queue_actions import (
+    apply_queue_due_state_filter,
+    apply_queue_search_text,
+    apply_queue_site_filter,
+    apply_select_queue_plan,
+)
+from .preventive_state_loader import load_workspace_state
+from .preventive_template_actions import (
+    apply_select_task_step,
+    apply_select_task_template,
+    apply_template_active_filter,
+    apply_template_maintenance_type_filter,
+    apply_template_search_text,
+    apply_template_status_filter,
+    create_task_step,
+    create_task_template,
+    toggle_task_step_active,
+    toggle_task_template_active,
+    update_task_step,
+    update_task_template,
 )
 
 QML_IMPORT_NAME = "Maintenance.Controllers"
@@ -76,6 +115,8 @@ class MaintenancePreventiveWorkspaceController(MaintenanceWorkspaceControllerBas
         self._bind_domain_events()
         self.refresh()
 
+    # --- Qt Properties ---
+
     @Property("QVariantMap", notify=overviewChanged)
     def overview(self) -> dict[str, object]:
         return self._overview
@@ -108,517 +149,159 @@ class MaintenancePreventiveWorkspaceController(MaintenanceWorkspaceControllerBas
     def stepFormOptions(self) -> dict[str, object]:
         return self._step_form_options
 
+    # --- Slots ---
+
     @Slot()
     def refresh(self) -> None:
-        self._set_is_loading(True)
-        try:
-            self._set_error_message("")
-            self._set_feedback_message("")
-            self._set_workspace(
-                serialize_workspace_view_model(
-                    self._workspace_presenter.build_view_model()
-                )
-            )
-            state = serialize_preventive_workspace_state(
-                self._preventive_workspace_presenter.build_workspace_state(
-                    queue_site_filter=self._queue_site_filter,
-                    queue_due_state_filter=self._queue_due_state_filter,
-                    queue_search_text=self._queue_search_text,
-                    selected_queue_plan_id=self._selected_queue_plan_id or None,
-                    plan_site_filter=self._plan_site_filter,
-                    plan_asset_filter=self._plan_asset_filter,
-                    plan_system_filter=self._plan_system_filter,
-                    plan_active_filter=self._plan_active_filter,
-                    plan_status_filter=self._plan_status_filter,
-                    plan_type_filter=self._plan_type_filter,
-                    plan_trigger_mode_filter=self._plan_trigger_mode_filter,
-                    plan_search_text=self._plan_search_text,
-                    selected_plan_id=self._selected_plan_id or None,
-                    selected_plan_task_id=self._selected_plan_task_id or None,
-                    template_active_filter=self._template_active_filter,
-                    template_maintenance_type_filter=self._template_maintenance_type_filter,
-                    template_status_filter=self._template_status_filter,
-                    template_search_text=self._template_search_text,
-                    selected_task_template_id=self._selected_task_template_id or None,
-                    selected_task_step_id=self._selected_task_step_id or None,
-                    generation_results=self._latest_generation_results,
-                )
-            )
-            self._set_overview(state["overview"])
-            self._set_queue_state(state["queueState"])
-            self._set_plan_library_state(state["planLibraryState"])
-            self._set_template_library_state(state["templateLibraryState"])
-            self._set_plan_form_options(state["planFormOptions"])
-            self._set_plan_task_form_options(state["planTaskFormOptions"])
-            self._set_template_form_options(state["templateFormOptions"])
-            self._set_step_form_options(state["stepFormOptions"])
-            self._sync_internal_state_from_maps()
-            self._set_empty_state("")
-        except Exception as exc:  # pragma: no cover - defensive fallback
-            self._set_error_message(str(exc))
-        finally:
-            self._set_is_loading(False)
+        load_workspace_state(self)
 
     @Slot(str)
     def setQueueSiteFilter(self, site_id: str) -> None:
-        normalized = (site_id or "").strip() or "all"
-        if normalized == self._queue_site_filter:
-            return
-        self._queue_site_filter = normalized
-        self._selected_queue_plan_id = ""
-        self._latest_generation_results = []
-        self.refresh()
+        apply_queue_site_filter(self, site_id)
 
     @Slot(str)
     def setQueueDueStateFilter(self, due_state: str) -> None:
-        normalized = (due_state or "").strip() or "all"
-        if normalized == self._queue_due_state_filter:
-            return
-        self._queue_due_state_filter = normalized
-        self._selected_queue_plan_id = ""
-        self._latest_generation_results = []
-        self.refresh()
+        apply_queue_due_state_filter(self, due_state)
 
     @Slot(str)
     def setQueueSearchText(self, search_text: str) -> None:
-        normalized = (search_text or "").strip()
-        if normalized == self._queue_search_text:
-            return
-        self._queue_search_text = normalized
-        self._selected_queue_plan_id = ""
-        self._latest_generation_results = []
-        self.refresh()
+        apply_queue_search_text(self, search_text)
 
     @Slot(str)
     def selectQueuePlan(self, plan_id: str) -> None:
-        normalized = (plan_id or "").strip()
-        if normalized == self._selected_queue_plan_id:
-            return
-        self._selected_queue_plan_id = normalized
-        self._latest_generation_results = []
-        self.refresh()
+        apply_select_queue_plan(self, plan_id)
 
     @Slot(str, result="QVariantMap")
     def regeneratePlanSchedule(self, plan_id: str) -> dict[str, object]:
-        normalized = (plan_id or "").strip()
-        if not normalized:
-            return {"ok": False, "message": "Select a preventive plan first."}
-        self._set_is_busy(True)
-        self._set_error_message("")
-        try:
-            self._preventive_workspace_presenter.regenerate_plan_schedule(plan_id=normalized)
-            self._latest_generation_results = []
-            self.refresh()
-            self._set_feedback_message("Preventive schedule regenerated.")
-            return {"ok": True, "message": "Preventive schedule regenerated."}
-        except Exception as exc:
-            self._set_feedback_message("")
-            self._set_error_message(str(exc))
-            return {"ok": False, "message": str(exc)}
-        finally:
-            self._set_is_busy(False)
+        return regenerate_plan_schedule(self, plan_id)
 
     @Slot(str, result="QVariantMap")
     def generateDueWork(self, plan_id: str) -> dict[str, object]:
-        normalized = (plan_id or "").strip()
-        if not normalized:
-            return {"ok": False, "message": "Select a preventive plan first."}
-        self._set_is_busy(True)
-        self._set_error_message("")
-        try:
-            self._latest_generation_results = (
-                self._preventive_workspace_presenter.generate_due_work(plan_id=normalized)
-            )
-            self.refresh()
-            self._set_feedback_message("Due work generated.")
-            return {"ok": True, "message": "Due work generated."}
-        except Exception as exc:
-            self._set_feedback_message("")
-            self._set_error_message(str(exc))
-            return {"ok": False, "message": str(exc)}
-        finally:
-            self._set_is_busy(False)
+        return generate_due_work(self, plan_id)
 
     @Slot(str)
     def setPlanSiteFilter(self, site_id: str) -> None:
-        normalized = (site_id or "").strip() or "all"
-        if normalized == self._plan_site_filter:
-            return
-        self._plan_site_filter = normalized
-        self._selected_plan_id = ""
-        self._selected_plan_task_id = ""
-        self.refresh()
+        apply_plan_site_filter(self, site_id)
 
     @Slot(str)
     def setPlanAssetFilter(self, asset_id: str) -> None:
-        normalized = (asset_id or "").strip() or "all"
-        if normalized == self._plan_asset_filter:
-            return
-        self._plan_asset_filter = normalized
-        self._selected_plan_id = ""
-        self._selected_plan_task_id = ""
-        self.refresh()
+        apply_plan_asset_filter(self, asset_id)
 
     @Slot(str)
     def setPlanSystemFilter(self, system_id: str) -> None:
-        normalized = (system_id or "").strip() or "all"
-        if normalized == self._plan_system_filter:
-            return
-        self._plan_system_filter = normalized
-        self._selected_plan_id = ""
-        self._selected_plan_task_id = ""
-        self.refresh()
+        apply_plan_system_filter(self, system_id)
 
     @Slot(str)
     def setPlanActiveFilter(self, active_filter: str) -> None:
-        normalized = (active_filter or "").strip() or "all"
-        if normalized == self._plan_active_filter:
-            return
-        self._plan_active_filter = normalized
-        self._selected_plan_id = ""
-        self._selected_plan_task_id = ""
-        self.refresh()
+        apply_plan_active_filter(self, active_filter)
 
     @Slot(str)
     def setPlanStatusFilter(self, status: str) -> None:
-        normalized = (status or "").strip() or "all"
-        if normalized == self._plan_status_filter:
-            return
-        self._plan_status_filter = normalized
-        self._selected_plan_id = ""
-        self._selected_plan_task_id = ""
-        self.refresh()
+        apply_plan_status_filter(self, status)
 
     @Slot(str)
     def setPlanTypeFilter(self, plan_type: str) -> None:
-        normalized = (plan_type or "").strip() or "all"
-        if normalized == self._plan_type_filter:
-            return
-        self._plan_type_filter = normalized
-        self._selected_plan_id = ""
-        self._selected_plan_task_id = ""
-        self.refresh()
+        apply_plan_type_filter(self, plan_type)
 
     @Slot(str)
     def setPlanTriggerModeFilter(self, trigger_mode: str) -> None:
-        normalized = (trigger_mode or "").strip() or "all"
-        if normalized == self._plan_trigger_mode_filter:
-            return
-        self._plan_trigger_mode_filter = normalized
-        self._selected_plan_id = ""
-        self._selected_plan_task_id = ""
-        self.refresh()
+        apply_plan_trigger_mode_filter(self, trigger_mode)
 
     @Slot(str)
     def setPlanSearchText(self, search_text: str) -> None:
-        normalized = (search_text or "").strip()
-        if normalized == self._plan_search_text:
-            return
-        self._plan_search_text = normalized
-        self._selected_plan_id = ""
-        self._selected_plan_task_id = ""
-        self.refresh()
+        apply_plan_search_text(self, search_text)
 
     @Slot(str)
     def selectPlan(self, plan_id: str) -> None:
-        normalized = (plan_id or "").strip()
-        if normalized == self._selected_plan_id:
-            return
-        self._selected_plan_id = normalized
-        self._selected_plan_task_id = ""
-        self.refresh()
+        apply_select_plan(self, plan_id)
 
     @Slot(str)
     def selectPlanTask(self, plan_task_id: str) -> None:
-        normalized = (plan_task_id or "").strip()
-        if normalized == self._selected_plan_task_id:
-            return
-        self._selected_plan_task_id = normalized
-        self.refresh()
+        apply_select_plan_task(self, plan_task_id)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createPlan(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._preventive_workspace_presenter.create_plan(dict(payload)),
-            success_message="Preventive plan created.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return create_plan(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def updatePlan(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._preventive_workspace_presenter.update_plan(dict(payload)),
-            success_message="Preventive plan updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return update_plan(self, payload)
 
     @Slot(str, bool, int, result="QVariantMap")
     def togglePlanActive(
-        self,
-        plan_id: str,
-        is_active: bool,
-        expected_version: int,
+        self, plan_id: str, is_active: bool, expected_version: int
     ) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._preventive_workspace_presenter.toggle_plan_active(
-                plan_id=plan_id,
-                is_active=is_active,
-                expected_version=expected_version,
-            ),
-            success_message="Preventive plan updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return toggle_plan_active(self, plan_id, is_active, expected_version)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createPlanTask(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._preventive_workspace_presenter.create_plan_task(dict(payload)),
-            success_message="Plan task created.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return create_plan_task(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def updatePlanTask(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._preventive_workspace_presenter.update_plan_task(dict(payload)),
-            success_message="Plan task updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return update_plan_task(self, payload)
 
     @Slot(str)
     def setTemplateActiveFilter(self, active_filter: str) -> None:
-        normalized = (active_filter or "").strip() or "all"
-        if normalized == self._template_active_filter:
-            return
-        self._template_active_filter = normalized
-        self._selected_task_template_id = ""
-        self._selected_task_step_id = ""
-        self.refresh()
+        apply_template_active_filter(self, active_filter)
 
     @Slot(str)
     def setTemplateMaintenanceTypeFilter(self, maintenance_type: str) -> None:
-        normalized = (maintenance_type or "").strip() or "all"
-        if normalized == self._template_maintenance_type_filter:
-            return
-        self._template_maintenance_type_filter = normalized
-        self._selected_task_template_id = ""
-        self._selected_task_step_id = ""
-        self.refresh()
+        apply_template_maintenance_type_filter(self, maintenance_type)
 
     @Slot(str)
     def setTemplateStatusFilter(self, template_status: str) -> None:
-        normalized = (template_status or "").strip() or "all"
-        if normalized == self._template_status_filter:
-            return
-        self._template_status_filter = normalized
-        self._selected_task_template_id = ""
-        self._selected_task_step_id = ""
-        self.refresh()
+        apply_template_status_filter(self, template_status)
 
     @Slot(str)
     def setTemplateSearchText(self, search_text: str) -> None:
-        normalized = (search_text or "").strip()
-        if normalized == self._template_search_text:
-            return
-        self._template_search_text = normalized
-        self._selected_task_template_id = ""
-        self._selected_task_step_id = ""
-        self.refresh()
+        apply_template_search_text(self, search_text)
 
     @Slot(str)
     def selectTaskTemplate(self, task_template_id: str) -> None:
-        normalized = (task_template_id or "").strip()
-        if normalized == self._selected_task_template_id:
-            return
-        self._selected_task_template_id = normalized
-        self._selected_task_step_id = ""
-        self.refresh()
+        apply_select_task_template(self, task_template_id)
 
     @Slot(str)
     def selectTaskStep(self, task_step_template_id: str) -> None:
-        normalized = (task_step_template_id or "").strip()
-        if normalized == self._selected_task_step_id:
-            return
-        self._selected_task_step_id = normalized
-        self.refresh()
+        apply_select_task_step(self, task_step_template_id)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createTaskTemplate(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._preventive_workspace_presenter.create_task_template(dict(payload)),
-            success_message="Task template created.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return create_task_template(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def updateTaskTemplate(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._preventive_workspace_presenter.update_task_template(dict(payload)),
-            success_message="Task template updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return update_task_template(self, payload)
 
     @Slot(str, bool, int, result="QVariantMap")
     def toggleTaskTemplateActive(
-        self,
-        task_template_id: str,
-        is_active: bool,
-        expected_version: int,
+        self, task_template_id: str, is_active: bool, expected_version: int
     ) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._preventive_workspace_presenter.toggle_task_template_active(
-                task_template_id=task_template_id,
-                is_active=is_active,
-                expected_version=expected_version,
-            ),
-            success_message="Task template updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
+        return toggle_task_template_active(
+            self, task_template_id, is_active, expected_version
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def createTaskStep(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._preventive_workspace_presenter.create_task_step(dict(payload)),
-            success_message="Task step created.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return create_task_step(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def updateTaskStep(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._preventive_workspace_presenter.update_task_step(dict(payload)),
-            success_message="Task step updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return update_task_step(self, payload)
 
     @Slot(str, bool, int, result="QVariantMap")
     def toggleTaskStepActive(
-        self,
-        task_step_template_id: str,
-        is_active: bool,
-        expected_version: int,
+        self, task_step_template_id: str, is_active: bool, expected_version: int
     ) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._preventive_workspace_presenter.toggle_task_step_active(
-                task_step_template_id=task_step_template_id,
-                is_active=is_active,
-                expected_version=expected_version,
-            ),
-            success_message="Task step updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
+        return toggle_task_step_active(
+            self, task_step_template_id, is_active, expected_version
         )
+
+    # --- Domain event wiring ---
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(scope_code="maintenance_management")
         self._subscribe_domain_change("site", scope_code="platform")
-
-    def _sync_internal_state_from_maps(self) -> None:
-        queue_state = self._queue_state or {}
-        plan_state = self._plan_library_state or {}
-        template_state = self._template_library_state or {}
-        self._queue_site_filter = str(queue_state.get("selectedSiteFilter", "all") or "all")
-        self._queue_due_state_filter = str(queue_state.get("selectedDueStateFilter", "all") or "all")
-        self._queue_search_text = str(queue_state.get("searchText", "") or "")
-        self._selected_queue_plan_id = str(queue_state.get("selectedPlanId", "") or "")
-        self._plan_site_filter = str(plan_state.get("selectedSiteFilter", "all") or "all")
-        self._plan_asset_filter = str(plan_state.get("selectedAssetFilter", "all") or "all")
-        self._plan_system_filter = str(plan_state.get("selectedSystemFilter", "all") or "all")
-        self._plan_active_filter = str(plan_state.get("selectedActiveFilter", "all") or "all")
-        self._plan_status_filter = str(plan_state.get("selectedStatusFilter", "all") or "all")
-        self._plan_type_filter = str(plan_state.get("selectedPlanTypeFilter", "all") or "all")
-        self._plan_trigger_mode_filter = str(plan_state.get("selectedTriggerModeFilter", "all") or "all")
-        self._plan_search_text = str(plan_state.get("searchText", "") or "")
-        self._selected_plan_id = str(plan_state.get("selectedPlanId", "") or "")
-        self._selected_plan_task_id = str(plan_state.get("selectedPlanTaskId", "") or "")
-        self._template_active_filter = str(template_state.get("selectedActiveFilter", "all") or "all")
-        self._template_maintenance_type_filter = str(
-            template_state.get("selectedMaintenanceTypeFilter", "all") or "all"
-        )
-        self._template_status_filter = str(template_state.get("selectedStatusFilter", "all") or "all")
-        self._template_search_text = str(template_state.get("searchText", "") or "")
-        self._selected_task_template_id = str(template_state.get("selectedTaskTemplateId", "") or "")
-        self._selected_task_step_id = str(template_state.get("selectedTaskStepId", "") or "")
-
-    def _set_overview(self, overview: dict[str, object]) -> None:
-        if overview == self._overview:
-            return
-        self._overview = overview
-        self.overviewChanged.emit()
-
-    def _set_queue_state(self, state: dict[str, object]) -> None:
-        if state == self._queue_state:
-            return
-        self._queue_state = state
-        self.queueStateChanged.emit()
-
-    def _set_plan_library_state(self, state: dict[str, object]) -> None:
-        if state == self._plan_library_state:
-            return
-        self._plan_library_state = state
-        self.planLibraryStateChanged.emit()
-
-    def _set_template_library_state(self, state: dict[str, object]) -> None:
-        if state == self._template_library_state:
-            return
-        self._template_library_state = state
-        self.templateLibraryStateChanged.emit()
-
-    def _set_plan_form_options(self, options: dict[str, object]) -> None:
-        if options == self._plan_form_options:
-            return
-        self._plan_form_options = options
-        self.planFormOptionsChanged.emit()
-
-    def _set_plan_task_form_options(self, options: dict[str, object]) -> None:
-        if options == self._plan_task_form_options:
-            return
-        self._plan_task_form_options = options
-        self.planTaskFormOptionsChanged.emit()
-
-    def _set_template_form_options(self, options: dict[str, object]) -> None:
-        if options == self._template_form_options:
-            return
-        self._template_form_options = options
-        self.templateFormOptionsChanged.emit()
-
-    def _set_step_form_options(self, options: dict[str, object]) -> None:
-        if options == self._step_form_options:
-            return
-        self._step_form_options = options
-        self.stepFormOptionsChanged.emit()
 
 
 __all__ = ["MaintenancePreventiveWorkspaceController"]

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
-from typing import List, Optional
 
 from src.core.modules.project_management.domain.resources.skills import (
     ResourceCertification,
@@ -26,11 +25,11 @@ class SkillViolation:
     task_id: str
     resource_id: str
     violation_type: str             # "missing_skill" | "insufficient_proficiency" | "expired_certification" | "missing_certification"
-    skill_code: Optional[str]
-    certification_code: Optional[str]
-    required_proficiency: Optional[SkillProficiencyLevel]
-    actual_proficiency: Optional[SkillProficiencyLevel]
-    expiry_date: Optional[date]
+    skill_code: str | None
+    certification_code: str | None
+    required_proficiency: SkillProficiencyLevel | None
+    actual_proficiency: SkillProficiencyLevel | None
+    expiry_date: date | None
     message: str
     validation_mode: SkillValidationMode
 
@@ -44,8 +43,8 @@ class AssignmentValidationResult:
     """
     task_id: str
     resource_id: str
-    violations: List[SkillViolation] = field(default_factory=list)
-    warnings: List[SkillViolation] = field(default_factory=list)
+    violations: list[SkillViolation] = field(default_factory=list)
+    warnings: list[SkillViolation] = field(default_factory=list)
 
     @property
     def is_valid(self) -> bool:
@@ -69,7 +68,7 @@ class AssignmentValidationResult:
         return any(v.validation_mode == SkillValidationMode.BLOCK for v in self.violations)
 
     def summary(self) -> str:
-        parts: List[str] = []
+        parts: list[str] = []
         if self.violations:
             parts.append(f"{len(self.violations)} violation(s)")
         if self.warnings:
@@ -109,8 +108,8 @@ class AssignmentSkillValidator:
         self,
         task: Task,
         resource_id: str,
-        planned_start: Optional[date] = None,
-        planned_finish: Optional[date] = None,
+        planned_start: date | None = None,
+        planned_finish: date | None = None,
     ) -> AssignmentValidationResult:
         """
         Check all skill/certification requirements for the task against the resource.

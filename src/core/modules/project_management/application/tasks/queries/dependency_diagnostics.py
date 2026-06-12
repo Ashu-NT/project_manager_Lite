@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from collections import deque
 from dataclasses import dataclass, replace
 from datetime import date
-from typing import Dict, List, Optional
 
 from src.core.modules.project_management.contracts.repositories.task import (
     DependencyRepository,
@@ -11,22 +12,19 @@ from src.core.modules.project_management.contracts.repositories.task import (
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.modules.project_management.application.scheduling.date_compute import (
+from src.core.modules.project_management.application.scheduling.cpm.date_compute import (
     compute_task_dates_common,
 )
-from src.core.modules.project_management.application.scheduling.graph import (
+from src.core.modules.project_management.application.scheduling.cpm.graph import (
     build_project_dependency_graph,
 )
-from src.core.modules.project_management.application.scheduling.models import CPMTaskInfo
-from src.core.modules.project_management.application.scheduling.passes import (
+from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
+from src.core.modules.project_management.application.scheduling.cpm.passes import (
     run_backward_pass,
     run_forward_pass,
 )
-from src.core.modules.project_management.application.scheduling.results import (
+from src.core.modules.project_management.application.scheduling.cpm.results import (
     build_schedule_result,
-)
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
 )
 
 
@@ -61,7 +59,7 @@ class DependencyDiagnostic:
 class TaskDependencyDiagnosticsMixin:
     _task_repo: TaskRepository
     _dependency_repo: DependencyRepository
-    _work_calendar_engine: WorkCalendarEngine
+    _work_calendar_engine: CalendarProtocol
 
     def get_dependency_diagnostics(
         self,
@@ -307,7 +305,7 @@ class TaskDependencyDiagnosticsMixin:
         tasks: list[Task],
         deps: list[TaskDependency],
     ) -> dict[str, CPMTaskInfo]:
-        tasks_by_id: Dict[str, Task] = {task.id: replace(task) for task in tasks}
+        tasks_by_id: dict[str, Task] = {task.id: replace(task) for task in tasks}
 
         topo_order, deps_by_successor, deps_by_predecessor = build_project_dependency_graph(
             tasks_by_id=tasks_by_id,
@@ -342,10 +340,10 @@ class TaskDependencyDiagnosticsMixin:
     def _compute_task_dates_for_preview(
         self,
         task: Task,
-        incoming_deps: List[TaskDependency],
-        es: Dict[str, Optional[date]],
-        ef: Dict[str, Optional[date]],
-    ) -> tuple[Optional[date], Optional[date]]:
+        incoming_deps: list[TaskDependency],
+        es: dict[str, date | None],
+        ef: dict[str, date | None],
+    ) -> tuple[date | None, date | None]:
         return compute_task_dates_common(
             task=task,
             incoming_deps=incoming_deps,
@@ -359,13 +357,13 @@ class TaskDependencyDiagnosticsMixin:
     def _compute_dates_milestone(
         self,
         task: Task,
-        incoming_deps: List[TaskDependency],
-        es: Dict[str, Optional[date]],
-        ef: Dict[str, Optional[date]],
-    ) -> tuple[Optional[date], Optional[date]]:
+        incoming_deps: list[TaskDependency],
+        es: dict[str, date | None],
+        ef: dict[str, date | None],
+    ) -> tuple[date | None, date | None]:
         if not incoming_deps:
             return (task.start_date, task.start_date) if task.start_date else (None, None)
-        candidates: List[date] = []
+        candidates: list[date] = []
         for dependency in incoming_deps:
             pred_es = es.get(dependency.predecessor_task_id)
             pred_ef = ef.get(dependency.predecessor_task_id)
@@ -387,11 +385,11 @@ class TaskDependencyDiagnosticsMixin:
     def _compute_dates_with_duration(
         self,
         task: Task,
-        incoming_deps: List[TaskDependency],
-        es: Dict[str, Optional[date]],
-        ef: Dict[str, Optional[date]],
+        incoming_deps: list[TaskDependency],
+        es: dict[str, date | None],
+        ef: dict[str, date | None],
         duration: int,
-    ) -> tuple[Optional[date], Optional[date]]:
+    ) -> tuple[date | None, date | None]:
         if not incoming_deps:
             if not task.start_date:
                 return None, None
@@ -399,7 +397,7 @@ class TaskDependencyDiagnosticsMixin:
             eft = self._work_calendar_engine.add_working_days(est, duration)
             return est, eft
 
-        candidate_es: List[date] = []
+        candidate_es: list[date] = []
         for dependency in incoming_deps:
             pred_es = es.get(dependency.predecessor_task_id)
             pred_ef = ef.get(dependency.predecessor_task_id)
@@ -430,10 +428,10 @@ class TaskDependencyDiagnosticsMixin:
     def _apply_actual_constraints(
         self,
         task: Task,
-        est: Optional[date],
-        eft: Optional[date],
+        est: date | None,
+        eft: date | None,
         duration_days: int,
-    ) -> tuple[Optional[date], Optional[date]]:
+    ) -> tuple[date | None, date | None]:
         actual_start = getattr(task, "actual_start", None)
         actual_end = getattr(task, "actual_end", None)
         if actual_end is not None:

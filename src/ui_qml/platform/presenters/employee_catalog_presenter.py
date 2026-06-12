@@ -24,7 +24,6 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionListViewModel,
 )
 
-
 class PlatformEmployeeCatalogPresenter:
     def __init__(
         self,
@@ -194,6 +193,5 @@ class PlatformEmployeeCatalogPresenter:
                 "version": row.version,
             },
         )
-
 
 __all__ = ["PlatformEmployeeCatalogPresenter"]

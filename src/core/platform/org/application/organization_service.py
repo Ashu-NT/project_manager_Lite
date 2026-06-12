@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
@@ -18,6 +20,10 @@ from src.core.platform.org.support import (
     normalize_name,
 )
 
+if TYPE_CHECKING:
+    from src.core.platform.audit.application.audit_service import AuditService
+    from src.core.platform.auth.domain.session import UserSessionContext
+
 
 class OrganizationService:
     def __init__(
@@ -25,8 +31,8 @@ class OrganizationService:
         session: Session,
         organization_repo: OrganizationRepository,
         *,
-        user_session=None,
-        audit_service=None,
+        user_session: UserSessionContext | None = None,
+        audit_service: AuditService | None = None,
     ):
         self._session = session
         self._organization_repo = organization_repo
@@ -199,6 +205,8 @@ class OrganizationService:
                 "display_name": organization.display_name,
             },
         )
+        if self._user_session is not None:
+            self._user_session.set_active_organization_id(organization.id)
         domain_events.organizations_changed.emit(organization.id)
         return organization
 

@@ -36,8 +36,9 @@ from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.core.modules.inventory_procurement.application.common.support import normalize_optional_text
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 
 
 class PurchasingService(
@@ -65,27 +66,32 @@ class PurchasingService(
         item_service: ItemMasterService,
         stock_service: StockControlService,
         approval_service: ApprovalService,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
         document_integration_service: DocumentIntegrationService | None = None,
-    ):
-        self._session = session
-        self._purchase_order_repo = purchase_order_repo
-        self._purchase_order_line_repo = purchase_order_line_repo
-        self._receipt_header_repo = receipt_header_repo
-        self._receipt_line_repo = receipt_line_repo
-        self._requisition_repo = requisition_repo
-        self._requisition_line_repo = requisition_line_repo
-        self._balance_repo = balance_repo
-        self._organization_repo = organization_repo
-        self._reference_service = reference_service
-        self._inventory_service = inventory_service
-        self._item_service = item_service
-        self._stock_service = stock_service
-        self._approval_service = approval_service
+    ) -> None:
+        self._session: Session = session
+        self._purchase_order_repo: PurchaseOrderRepository = purchase_order_repo
+        self._purchase_order_line_repo: PurchaseOrderLineRepository = purchase_order_line_repo
+        self._receipt_header_repo: ReceiptHeaderRepository = receipt_header_repo
+        self._receipt_line_repo: ReceiptLineRepository = receipt_line_repo
+        self._requisition_repo: PurchaseRequisitionRepository = requisition_repo
+        self._requisition_line_repo: PurchaseRequisitionLineRepository = requisition_line_repo
+        self._balance_repo: StockBalanceRepository = balance_repo
+        self._organization_repo: OrganizationRepository = organization_repo
+        self._tenant_context_service: TenantContextService = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
+        self._reference_service: InventoryReferenceService = reference_service
+        self._inventory_service: InventoryService = inventory_service
+        self._item_service: ItemMasterService = item_service
+        self._stock_service: StockControlService = stock_service
+        self._approval_service: ApprovalService = approval_service
         self._user_session = user_session
         self._audit_service = audit_service
-        self._document_integration_service = document_integration_service
+        self._document_integration_service: DocumentIntegrationService | None = document_integration_service
 
     def list_purchase_order_documents(
         self,

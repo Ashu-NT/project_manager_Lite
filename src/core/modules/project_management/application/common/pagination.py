@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Generic, List, Optional, TypeVar
+from typing import Generic, TypeVar
 
 T = TypeVar("T")
 
@@ -17,7 +17,7 @@ class PageRequest:
     """
     page: int = 1            # 1-indexed; ignored when cursor is set
     page_size: int = 50      # maximum rows per page; capped at MAX_PAGE_SIZE
-    cursor: Optional[str] = None  # opaque keyset cursor (id or encoded sort key)
+    cursor: str | None = None  # opaque keyset cursor (id or encoded sort key)
 
     MAX_PAGE_SIZE: int = field(default=500, init=False, repr=False, compare=False)
 
@@ -52,11 +52,11 @@ class PaginatedResult(Generic[T]):
     chose not to issue a COUNT query for performance reasons).
     next_cursor is set when cursor-based pagination is in use.
     """
-    items: List[T]
+    items: list[T]
     page: int
     page_size: int
-    total: Optional[int] = None
-    next_cursor: Optional[str] = None
+    total: int | None = None
+    next_cursor: str | None = None
 
     @property
     def has_more(self) -> bool:
@@ -67,13 +67,13 @@ class PaginatedResult(Generic[T]):
         return len(self.items) == self.page_size
 
     @property
-    def total_pages(self) -> Optional[int]:
+    def total_pages(self) -> int | None:
         if self.total is None:
             return None
         return max(1, -(-self.total // self.page_size))  # ceiling division
 
     @staticmethod
-    def single_page(items: List[T]) -> "PaginatedResult[T]":
+    def single_page(items: list[T]) -> "PaginatedResult[T]":
         """Convenience wrapper when pagination is not required."""
         return PaginatedResult(items=items, page=1, page_size=len(items), total=len(items))
 

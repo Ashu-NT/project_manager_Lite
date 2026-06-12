@@ -14,7 +14,7 @@ from src.core.modules.maintenance.infrastructure.persistence.mappers import (
     maintenance_failure_code_from_orm,
     maintenance_failure_code_to_orm,
 )
-from src.infra.persistence.orm.maintenance.models import MaintenanceDowntimeEventORM, MaintenanceFailureCodeORM
+from src.core.modules.maintenance.infrastructure.persistence.orm.models import MaintenanceDowntimeEventORM, MaintenanceFailureCodeORM
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 

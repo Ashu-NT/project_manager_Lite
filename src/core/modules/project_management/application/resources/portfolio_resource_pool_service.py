@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Dict, List, Optional
 
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.task import (
@@ -17,9 +18,7 @@ from src.core.modules.project_management.application.resources.resource_availabi
     ResourceAvailabilityService,
     ResourceAvailabilityWindow,
 )
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
-)
+from src.core.platform.common.exceptions import BusinessRuleError
 
 
 @dataclass
@@ -28,8 +27,8 @@ class ResourceDemandEntry:
     resource_name: str
     project_id: str
     project_name: str
-    from_date: Optional[date]
-    to_date: Optional[date]
+    from_date: date | None
+    to_date: date | None
     total_allocation_percent: float
 
 
@@ -41,7 +40,7 @@ class ResourcePoolSummary:
     resource_id: str
     resource_name: str
     capacity_percent: float
-    demands: List[ResourceDemandEntry]
+    demands: list[ResourceDemandEntry]
     peak_load_percent: float
     average_load_percent: float
     overloaded: bool
@@ -58,14 +57,14 @@ class PortfolioResourcePoolReport:
     """
     from_date: date
     to_date: date
-    pool: List[ResourcePoolSummary]
+    pool: list[ResourcePoolSummary]
 
     @property
-    def overloaded_resources(self) -> List[ResourcePoolSummary]:
+    def overloaded_resources(self) -> list[ResourcePoolSummary]:
         return [r for r in self.pool if r.overloaded]
 
     @property
-    def utilization_by_resource(self) -> Dict[str, float]:
+    def utilization_by_resource(self) -> dict[str, float]:
         return {r.resource_id: r.average_load_percent for r in self.pool}
 
 
@@ -86,13 +85,15 @@ class PortfolioResourcePoolService:
         assignment_repo: AssignmentRepository,
         task_repo: TaskRepository,
         project_repo: ProjectRepository,
-        calendar: WorkCalendarEngine,
+        calendar: CalendarProtocol,
+        tenant_context_service=None,
     ) -> None:
         self._resources = resource_repo
         self._assignments = assignment_repo
         self._tasks = task_repo
         self._projects = project_repo
         self._calendar = calendar
+        self._tenant_context_service = tenant_context_service
         self._availability = ResourceAvailabilityService(
             resource_repo=resource_repo,
             assignment_repo=assignment_repo,
@@ -104,18 +105,25 @@ class PortfolioResourcePoolService:
         self,
         from_date: date,
         to_date: date,
-        resource_ids: Optional[List[str]] = None,
+        resource_ids: list[str] | None = None,
     ) -> PortfolioResourcePoolReport:
         """
         Build a portfolio resource pool report for the given date range.
 
         If resource_ids is None, includes all active resources.
         """
+        organization_id = self._active_organization_id(operation_label="build portfolio resource pool")
         if resource_ids is None:
-            all_resources = self._resources.list_all()
+            all_resources = self._resources.list_for_organization(organization_id)
             resource_ids = [r.id for r in all_resources if getattr(r, "is_active", True)]
+        else:
+            scoped_resource_ids = {
+                resource.id
+                for resource in self._resources.list_for_organization(organization_id)
+            }
+            resource_ids = [resource_id for resource_id in resource_ids if resource_id in scoped_resource_ids]
 
-        summaries: List[ResourcePoolSummary] = []
+        summaries: list[ResourcePoolSummary] = []
         for rid in resource_ids:
             summary = self._build_summary(rid, from_date, to_date)
             if summary is not None:
@@ -132,7 +140,7 @@ class PortfolioResourcePoolService:
         resource_id: str,
         from_date: date,
         to_date: date,
-    ) -> List[ResourceDemandEntry]:
+    ) -> list[ResourceDemandEntry]:
         """Return per-project demand breakdown for a single resource."""
         return self._build_demands(resource_id, from_date, to_date)
 
@@ -143,7 +151,7 @@ class PortfolioResourcePoolService:
         resource_id: str,
         from_date: date,
         to_date: date,
-    ) -> Optional[ResourcePoolSummary]:
+    ) -> ResourcePoolSummary | None:
         resource = self._resources.get(resource_id)
         if resource is None:
             return None
@@ -175,10 +183,10 @@ class PortfolioResourcePoolService:
         resource_id: str,
         from_date: date,
         to_date: date,
-    ) -> List[ResourceDemandEntry]:
+    ) -> list[ResourceDemandEntry]:
         assignments = self._assignments.list_by_resource(resource_id)
-        demands: List[ResourceDemandEntry] = []
-        seen_projects: Dict[str, str] = {}  # project_id → project_name
+        demands: list[ResourceDemandEntry] = []
+        seen_projects: dict[str, str] = {}  # project_id → project_name
 
         for asgn in assignments:
             task = self._tasks.get(asgn.task_id)
@@ -208,6 +216,15 @@ class PortfolioResourcePoolService:
             ))
 
         return demands
+
+    def _active_organization_id(self, *, operation_label: str) -> str:
+        tenant_context = self._tenant_context_service
+        if tenant_context is None:
+            raise BusinessRuleError(
+                f"Active organization context is required for {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return tenant_context.require_active_organization_id(operation_label=operation_label)
 
 
 __all__ = [

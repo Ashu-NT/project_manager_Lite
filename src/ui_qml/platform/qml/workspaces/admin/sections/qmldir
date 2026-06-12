@@ -1,1 +1,4 @@
-module Platform.AdminSections
+﻿module Platform.AdminSections
+AdminAuditSection 1.0 AdminAuditSection.qml
+AdminCalendarAssignmentSection 1.0 AdminCalendarAssignmentSection.qml
+AdminSupportSection 1.0 AdminSupportSection.qml

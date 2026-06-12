@@ -1,24 +1,24 @@
 """Maintenance QML presenters."""
 
-from src.ui_qml.modules.maintenance.presenters.assets_workspace_presenter import (
+from src.ui_qml.modules.maintenance.presenters.assets import (
     MaintenanceAssetsWorkspacePresenter,
 )
-from src.ui_qml.modules.maintenance.presenters.dashboard_workspace_presenter import (
+from src.ui_qml.modules.maintenance.presenters.dashboard import (
     MaintenanceDashboardWorkspacePresenter,
 )
-from src.ui_qml.modules.maintenance.presenters.planner_workspace_presenter import (
+from src.ui_qml.modules.maintenance.presenters.planner import (
     MaintenancePlannerWorkspacePresenter,
 )
-from src.ui_qml.modules.maintenance.presenters.preventive_workspace_presenter import (
+from src.ui_qml.modules.maintenance.presenters.preventive import (
     MaintenancePreventiveWorkspacePresenter,
 )
-from src.ui_qml.modules.maintenance.presenters.reliability_workspace_presenter import (
+from src.ui_qml.modules.maintenance.presenters.reliability import (
     MaintenanceReliabilityWorkspacePresenter,
 )
-from src.ui_qml.modules.maintenance.presenters.work_orders_workspace_presenter import (
+from src.ui_qml.modules.maintenance.presenters.work_orders import (
     MaintenanceWorkOrdersWorkspacePresenter,
 )
-from src.ui_qml.modules.maintenance.presenters.work_requests_workspace_presenter import (
+from src.ui_qml.modules.maintenance.presenters.work_requests import (
     MaintenanceWorkRequestsWorkspacePresenter,
 )
 from src.ui_qml.modules.maintenance.presenters.workspace_presenter import (

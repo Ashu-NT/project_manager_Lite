@@ -12,7 +12,7 @@ from src.core.modules.project_management.domain.risk.register import (
     as_register_entry_status,
     as_register_entry_type,
 )
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.register import RegisterEntryRepository

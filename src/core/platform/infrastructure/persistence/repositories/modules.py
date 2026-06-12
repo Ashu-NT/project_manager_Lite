@@ -20,19 +20,24 @@ def _utc_now_naive() -> datetime:
 
 
 class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
+    session: Session
+    _organization_id_provider: Callable[[], str | None]
+
     def __init__(
         self,
         session: Session,
         *,
         organization_id_provider: Callable[[], str | None],
-    ):
+    ) -> None:
         self.session = session
         self._organization_id_provider = organization_id_provider
 
     def _current_organization_id(self) -> str | None:
         return self._organization_id_provider()
 
-    def _preferred_record(self, rows: list[ModuleEntitlementORM], canonical_code: str) -> ModuleEntitlementORM | None:
+    def _preferred_record(
+        self, rows: list[ModuleEntitlementORM], canonical_code: str
+    ) -> ModuleEntitlementORM | None:
         if not rows:
             return None
         for row in rows:

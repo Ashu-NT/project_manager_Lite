@@ -11,6 +11,7 @@ from src.ui_qml.modules.project_management.controllers.common import (
 )
 from src.ui_qml.modules.project_management.presenters import (
     ProjectDashboardPresenter,
+    ProjectFinancialsWorkspacePresenter,
     build_project_management_workspace_presenters,
 )
 from src.ui_qml.modules.project_management.routes import build_project_management_routes
@@ -39,7 +40,7 @@ from src.core.modules.project_management.domain.risk.register import (
 )
 from src.core.platform.documents import DocumentStorageKind
 from src.tests.ui_runtime_helpers import wait_until
-from src.ui_qml.modules.project_management.presenters.collaboration_workspace_presenter import (
+from src.ui_qml.modules.project_management.presenters.collaboration import (
     ProjectCollaborationWorkspacePresenter,
 )
 
@@ -77,6 +78,7 @@ def test_project_management_workspace_catalog_exposes_typed_dashboard_controller
     catalog = ProjectManagementWorkspaceCatalog()
 
     controller = catalog.dashboardWorkspace
+    controller.load()
     workspace = controller.workspace
     overview = controller.overview
 
@@ -91,6 +93,28 @@ def test_project_management_workspace_catalog_exposes_typed_dashboard_controller
     assert controller.healthCards[0]["title"] == "Schedule Health"
     assert controller.operationalTable["id"] == "delayed_tasks"
     assert controller.activityFeed["title"] == "Recent Activity"
+
+
+def test_project_management_dashboard_controller_requires_explicit_load() -> None:
+    catalog = ProjectManagementWorkspaceCatalog()
+
+    controller = catalog.dashboardWorkspace
+
+    assert controller.hasLoaded is False
+    assert controller.projectOptions == []
+    assert controller.selectedProjectId == ""
+    assert controller.selectedViewKey == ""
+
+    controller.load()
+
+    assert controller.hasLoaded is True
+    assert controller.projectOptions[0]["label"] == "Portfolio Overview"
+    assert controller.selectedViewKey == "executive"
+
+    controller.load()
+
+    assert controller.hasLoaded is True
+    assert controller.selectedViewKey == "executive"
 
 
 def test_project_management_workspace_catalog_exposes_typed_collaboration_controller() -> None:
@@ -288,6 +312,16 @@ def test_project_management_workspace_catalog_exposes_typed_portfolio_controller
                     peak_utilization_label="118.0%",
                     cost_variance_label="-EUR 8,500.00",
                 ),
+                SimpleNamespace(
+                    project_id="proj-2",
+                    project_name="Warehouse Retrofit",
+                    pressure_label="Watch",
+                    project_status_label="Planned",
+                    late_tasks=0,
+                    critical_tasks=0,
+                    peak_utilization_label="82.0%",
+                    cost_variance_label="+EUR 1,200.00",
+                ),
             )
 
         def list_dependencies(self):
@@ -343,6 +377,26 @@ def test_project_management_workspace_catalog_exposes_typed_portfolio_controller
     assert [item["title"] for item in controller.intakeItems["items"]] == [
         "Warehouse HVAC Refresh"
     ]
+    assert controller.heatmapTotalCount == 2
+    assert controller.heatmapVisibleRowIds == ["proj-1", "proj-2"]
+
+    controller.setHeatmapSearchText("Warehouse")
+
+    assert controller.heatmapSearchText == "Warehouse"
+    assert controller.heatmapTotalCount == 1
+    assert controller.heatmapVisibleRowIds == ["proj-2"]
+
+    controller.setHeatmapSearchText("")
+    controller.setHeatmapPageSize(1)
+
+    assert controller.heatmapPageSize == 1
+    assert controller.heatmapPage == 1
+    assert controller.heatmapVisibleRowIds == ["proj-1"]
+
+    controller.setHeatmapPage(2)
+
+    assert controller.heatmapPage == 2
+    assert controller.heatmapVisibleRowIds == ["proj-2"]
 
 
 def test_project_management_workspace_catalog_exposes_typed_projects_controller() -> None:
@@ -556,6 +610,45 @@ def test_project_management_workspace_catalog_exposes_typed_financials_controlle
 
     assert controller.costs["items"] == []
     assert controller.emptyState == "No cost items match the current filters."
+
+
+def test_financials_presenter_computes_forecast_via_public_desktop_api() -> None:
+    class _FakeFinancialsDesktopApi:
+        def __init__(self) -> None:
+            self.forecast_calls: list[tuple[str | None, str]] = []
+
+        def get_cost_forecast(
+            self,
+            project_id: str | None,
+            *,
+            method: str = "bac_over_cpi",
+        ) -> SimpleNamespace:
+            self.forecast_calls.append((project_id, method))
+            return SimpleNamespace(
+                method=method,
+                bac_label="EUR 10,000.00",
+                ac_label="EUR 4,000.00",
+                ev_label="EUR 5,000.00",
+                etc_label="EUR 4,500.00",
+                eac_label="EUR 8,500.00",
+                vac_label="EUR 1,500.00",
+                cpi_label="1.25",
+                cpi=1.25,
+                vac=1500.0,
+                is_over_budget=False,
+                exceeds_threshold=False,
+                threshold_percent=10.0,
+            )
+
+    desktop_api = _FakeFinancialsDesktopApi()
+    presenter = ProjectFinancialsWorkspacePresenter(desktop_api=desktop_api)
+
+    forecast = presenter.compute_forecast("proj-1", method=" AC_ETC_CPI ")
+
+    assert desktop_api.forecast_calls == [("proj-1", "ac_etc_cpi")]
+    assert forecast.method == "ac_etc_cpi"
+    assert forecast.method_label == "AC + ETC at CPI rate"
+    assert forecast.eac_label == "EUR 8,500.00"
 
 
 def test_project_management_workspace_catalog_exposes_typed_resources_controller() -> None:
@@ -1581,6 +1674,7 @@ def test_project_management_workspace_catalog_exposes_real_dashboard_snapshot_st
     )
 
     controller = catalog.dashboardWorkspace
+    controller.load()
 
     assert controller.projectOptions[1]["label"] == "Plant Upgrade"
     assert controller.selectedProjectId == "proj-1"
@@ -1627,6 +1721,7 @@ def test_project_dashboard_presenter_exposes_empty_overview_view_model() -> None
 
 def test_project_management_workspace_catalog_exposes_dashboard_overview() -> None:
     catalog = ProjectManagementWorkspaceCatalog()
+    catalog.dashboardWorkspace.load()
 
     overview = catalog.dashboardOverview()
 

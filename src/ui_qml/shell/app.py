@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import sys
+import logging
+from time import perf_counter
 
 from PySide6.QtCore import QEventLoop
 from PySide6.QtGui import QFont, QGuiApplication, QIcon
@@ -32,12 +34,39 @@ from src.ui_qml.shell.qml_registry import build_qml_route_registry
 from src.ui_qml.shell.routes import shell_qml_path
 
 
+logger = logging.getLogger(__name__)
+
+
 def build_services() -> dict[str, object]:
-    run_migrations(db_url=get_db_url())
+    started = perf_counter()
+    db_url = get_db_url()
+    logger.info("Service build begin db_url=%s", db_url)
+    migration_started = perf_counter()
+    logger.info("Database migration step begin")
+    try:
+        run_migrations(db_url=db_url)
+    except Exception:
+        logger.exception("Database migration step failed")
+        raise
+    logger.info(
+        "Database migrations complete duration_ms=%.1f",
+        (perf_counter() - migration_started) * 1000,
+    )
     session = SessionLocal()
+    logger.debug("Database session created session_class=%s", type(session).__name__)
+    graph_started = perf_counter()
     services = build_service_dict(session)
+    logger.info(
+        "Service graph built service_count=%s duration_ms=%.1f",
+        len(services),
+        (perf_counter() - graph_started) * 1000,
+    )
     desktop_api_registry = build_desktop_api_registry(services)
     services["desktop_api_registry"] = desktop_api_registry
+    logger.info(
+        "Desktop API registry ready duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
     return services
 
 
@@ -85,27 +114,43 @@ def _prompt_for_login_qml(*, auth_service, user_session) -> bool:
 
 
 def main(argv: list[str] | None = None, desktop_api_registry: object | None = None) -> int:
-    setup_logging()
+    log_file = setup_logging()
+    logger.info("App startup begin argv_count=%s log_file=%s", len(argv or sys.argv), log_file)
     app = QGuiApplication(argv or sys.argv)
     settings_store = AppSettingsStore()
     startup_theme, _startup_governance = _configure_runtime_environment(
         app,
         settings_store=settings_store,
     )
+    logger.info("Runtime environment configured theme=%s", startup_theme)
     services: dict[str, object] | None = None
     if desktop_api_registry is None:
         services = build_services()
         desktop_api_registry = services["desktop_api_registry"]
         skip_login = os.getenv("PM_SKIP_LOGIN", "0").strip().lower() in {"1", "true"}
         preauthenticated = bool(services["user_session"].is_authenticated())
+        logger.debug(
+            "Authentication gate evaluated skip_login=%s preauthenticated=%s",
+            skip_login,
+            preauthenticated,
+        )
         if (not skip_login or not preauthenticated) and not _prompt_for_login_qml(
             auth_service=services["auth_service"],
             user_session=services["user_session"],
         ):
+            logger.info("Login rejected; exiting application before shell load.")
             return 0
 
     registry = build_qml_route_registry()
+    routes = registry.list_routes()
+    nav_routes = registry.list_navigation_routes()
+    logger.info(
+        "QML route registry built route_count=%s navigation_route_count=%s",
+        len(routes),
+        len(nav_routes),
+    )
     shell_context = build_shell_context(build_main_window_navigation(registry))
+    logger.info("Shell context created initial_route=%s", shell_context.currentRouteId)
     if services is not None:
         principal = services["user_session"].principal
         update_shell_runtime_state(
@@ -113,25 +158,43 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             theme_mode=startup_theme,
             user_display_name=principal.display_name or principal.username if principal else "",
         )
+        logger.info(
+            "Shell runtime state updated authenticated=%s user_present=%s",
+            services["user_session"].is_authenticated(),
+            principal is not None,
+        )
     else:
         update_shell_runtime_state(shell_context, theme_mode=startup_theme)
+    logger.debug("Creating workspace catalogs.")
+    if hasattr(app, "setProperty"):
+        app.setProperty(
+            "platformRuntimeApi",
+            getattr(desktop_api_registry, "platform_runtime", None)
+            if desktop_api_registry is not None else None,
+        )
     platform_workspace_catalog = PlatformWorkspaceCatalog(
         getattr(desktop_api_registry, "platform_runtime", None) if desktop_api_registry is not None else None,
         desktop_api_registry=desktop_api_registry,
     )
+    logger.debug("Platform workspace catalog created.")
     pm_workspace_catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=desktop_api_registry,
     )
+    logger.debug("Project Management workspace catalog created.")
     inventory_workspace_catalog = InventoryProcurementWorkspaceCatalog(
         desktop_api_registry=desktop_api_registry,
     )
+    logger.debug("Inventory/Procurement workspace catalog created.")
     maintenance_workspace_catalog = MaintenanceWorkspaceCatalog(
         desktop_api_registry=desktop_api_registry,
     )
+    logger.debug("Maintenance workspace catalog created.")
     engine = create_qml_engine()
+    shell_route = registry.get("shell.app")
+    logger.info("Loading shell QML path=%s", shell_route.qml_path)
     load_qml(
         engine,
-        registry.get("shell.app").qml_path,
+        shell_route.qml_path,
         initial_properties={
             "shellModel": shell_context,
             "platformCatalog": platform_workspace_catalog,
@@ -140,7 +203,14 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             "maintenanceCatalog": maintenance_workspace_catalog,
         },
     )
-    return app.exec()
+    logger.info("Shell QML loaded; entering Qt event loop.")
+    if hasattr(app, "setProperty"):
+        app.setProperty("pmEventLoopRunning", True)
+    try:
+        return app.exec()
+    finally:
+        if hasattr(app, "setProperty"):
+            app.setProperty("pmEventLoopRunning", False)
 
 
 __all__ = ["main"]

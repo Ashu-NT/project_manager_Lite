@@ -1,1 +1,0 @@
-"""Legacy core package marker."""

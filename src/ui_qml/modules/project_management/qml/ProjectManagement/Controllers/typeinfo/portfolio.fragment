@@ -22,12 +22,20 @@ Component {
     Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
     Property { name: "recentActions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "activeTemplateSummary"; type: "QString"; isReadonly: true }
+    Property { name: "heatmapSearchText"; type: "QString"; isReadonly: true }
+    Property { name: "heatmapPage"; type: "int"; isReadonly: true }
+    Property { name: "heatmapPageSize"; type: "int"; isReadonly: true }
+    Property { name: "heatmapTotalCount"; type: "int"; isReadonly: true }
+    Property { name: "heatmapVisibleRowIds"; type: "QVariantList"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "exportPortfolio" }
     Method { name: "setIntakeStatusFilter"; Parameter { name: "intakeStatusFilter"; type: "QString" } }
     Method { name: "selectScenario"; Parameter { name: "scenarioId"; type: "QString" } }
     Method { name: "selectCompareBase"; Parameter { name: "scenarioId"; type: "QString" } }
     Method { name: "selectCompareScenario"; Parameter { name: "scenarioId"; type: "QString" } }
+    Method { name: "setHeatmapSearchText"; Parameter { name: "searchText"; type: "QString" } }
+    Method { name: "setHeatmapPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setHeatmapPageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "createTemplate"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "activateTemplate"; type: "QVariantMap"; Parameter { name: "templateId"; type: "QString" } }
     Method { name: "createIntakeItem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }

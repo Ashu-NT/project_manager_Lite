@@ -25,10 +25,12 @@ from src.core.platform.access.authorization import filter_scope_rows, require_sc
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.org.domain import Organization, Site
-from src.core.platform.notifications.domain_events import domain_events
-from src.core.platform.org import SiteService
+from src.core.platform.org.domain import Organization
+from src.core.platform.site.domain import Site
+from src.core.shared.events.domain_events import domain_events
+from src.core.platform.site import SiteService
 from src.core.platform.party import PartyService
+from src.core.platform.tenancy.tenant_context import TenantContextService
 
 
 class InventoryService:
@@ -40,14 +42,19 @@ class InventoryService:
         organization_repo: OrganizationRepository,
         site_service: SiteService,
         party_service: PartyService,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
-    ):
-        self._session = session
-        self._storeroom_repo = storeroom_repo
-        self._organization_repo = organization_repo
-        self._site_service = site_service
-        self._party_service = party_service
+    ) -> None:
+        self._session: Session = session
+        self._storeroom_repo: StoreroomRepository = storeroom_repo
+        self._organization_repo: OrganizationRepository = organization_repo
+        self._tenant_context_service: TenantContextService = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
+        self._site_service: SiteService = site_service
+        self._party_service: PartyService = party_service
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -371,10 +378,9 @@ class InventoryService:
         return party.id
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="inventory storerooms"
+        ).organization
 
     def _require_read(self, operation_label: str) -> None:
         require_permission(self._user_session, "inventory.read", operation_label=operation_label)

@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import App.Widgets 1.0 as AppWidgets
+import "../sections"
 
 Item {
     id: root
@@ -58,6 +59,7 @@ Item {
             ResourcesOverviewSection {
                 width: parent ? parent.width : 0
                 resourceDetail: root.resourceDetail
+                isBusy: root.isBusy
             }
         }
     }
@@ -71,7 +73,7 @@ Item {
         sourceComponent: Component {
             ResourcesAssignmentsSection {
                 width: parent ? parent.width : 0
-                hasResource: root._hasResource
+                resourceDetail: root.resourceDetail
                 resourceAssignmentsTableModel: root.resourceAssignmentsTableModel
                 isBusy: root.isBusy
             }
@@ -88,6 +90,7 @@ Item {
             ResourcesCapacitySection {
                 width: parent ? parent.width : 0
                 resourceDetail: root.resourceDetail
+                isBusy: root.isBusy
             }
         }
     }
@@ -156,6 +159,7 @@ Item {
             ResourcesCostRatesSection {
                 width: parent ? parent.width : 0
                 resourceDetail: root.resourceDetail
+                isBusy: root.isBusy
             }
         }
     }

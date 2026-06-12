@@ -36,10 +36,11 @@ from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.common.ids import generate_id
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
 from src.core.platform.party import PartyService
+from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
 
 
@@ -57,6 +58,7 @@ class InventoryFoundationService:
         stock_service: StockControlService,
         party_service: PartyService,
         module_runtime_service: ModuleRuntimeService | None = None,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
@@ -65,6 +67,10 @@ class InventoryFoundationService:
         self._reorder_policy_repo = reorder_policy_repo
         self._cycle_count_repo = cycle_count_repo
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._inventory_service = inventory_service
         self._item_service = item_service
         self._stock_service = stock_service
@@ -670,10 +676,9 @@ class InventoryFoundationService:
         return cycle_count
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="inventory foundation"
+        ).organization
 
     def _get_location(self, location_id: str, organization_id: str) -> StorageLocation:
         location = self._location_repo.get(location_id)

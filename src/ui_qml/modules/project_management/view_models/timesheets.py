@@ -3,13 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-
 @dataclass(frozen=True)
 class TimesheetMetricViewModel:
     label: str
     value: str
     supporting_text: str
-
 
 @dataclass(frozen=True)
 class TimesheetOverviewViewModel:
@@ -17,12 +15,10 @@ class TimesheetOverviewViewModel:
     subtitle: str
     metrics: tuple[TimesheetMetricViewModel, ...]
 
-
 @dataclass(frozen=True)
 class TimesheetSelectorOptionViewModel:
     value: str
     label: str
-
 
 @dataclass(frozen=True)
 class TimesheetRecordViewModel:
@@ -37,7 +33,6 @@ class TimesheetRecordViewModel:
     can_tertiary_action: bool = False
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class TimesheetCollectionViewModel:
     title: str
@@ -45,13 +40,11 @@ class TimesheetCollectionViewModel:
     empty_state: str
     items: tuple[TimesheetRecordViewModel, ...] = field(default_factory=tuple)
 
-
 @dataclass(frozen=True)
 class TimesheetDetailFieldViewModel:
     label: str
     value: str
     supporting_text: str = ""
-
 
 @dataclass(frozen=True)
 class TimesheetDetailViewModel:
@@ -63,7 +56,6 @@ class TimesheetDetailViewModel:
     empty_state: str = ""
     fields: tuple[TimesheetDetailFieldViewModel, ...] = field(default_factory=tuple)
     state: dict[str, Any] = field(default_factory=dict)
-
 
 @dataclass(frozen=True)
 class TimesheetsWorkspaceViewModel:
@@ -84,7 +76,6 @@ class TimesheetsWorkspaceViewModel:
     review_queue: TimesheetCollectionViewModel = field(default_factory=lambda: TimesheetCollectionViewModel("", "", ""))
     review_detail: TimesheetDetailViewModel = field(default_factory=TimesheetDetailViewModel)
     empty_state: str = ""
-
 
 __all__ = [
     "TimesheetCollectionViewModel",

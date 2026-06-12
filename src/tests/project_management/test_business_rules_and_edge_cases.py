@@ -97,19 +97,27 @@ def test_query_tasks_requires_project_id(services):
 
 
 def test_work_calendar_next_and_negative_day_math(services):
-    wc_s = services["work_calendar_service"]
+    # wc is now GlobalCalendarShim backed by the enterprise calendar
     wc = services["work_calendar_engine"]
+    exc_svc = services["calendar_exception_service"]
+    cal_svc = services["enterprise_calendar_service"]
 
-    wc_s.set_working_days({0, 1, 2, 3, 4}, hours_per_day=8.0)
-
-    # Saturday -> next working day Monday
+    # Saturday 2023-11-04 -> next working day is Monday 2023-11-06
     assert wc.next_working_day(date(2023, 11, 4), include_today=True) == date(2023, 11, 6)
 
-    # One day backward from Monday -> previous Friday
+    # One working day backward from Monday 2023-11-06 -> Friday 2023-11-03
     assert wc.add_working_days(date(2023, 11, 6), -1) == date(2023, 11, 3)
 
-    # Holiday should be skipped
-    wc_s.add_holiday(date(2023, 11, 6), "Holiday Monday")
+    # Add enterprise holiday on Monday 2023-11-06 — should now skip to Tuesday
+    global_cals = cal_svc.list_calendars(calendar_type="GLOBAL")
+    assert global_cals, "Global enterprise calendar must exist"
+    exc_svc.add_exception(
+        global_cals[0].id,
+        exception_date=date(2023, 11, 6),
+        exception_type="HOLIDAY",
+        name="Holiday Monday",
+        impact_type="UNAVAILABLE",
+    )
     assert wc.next_working_day(date(2023, 11, 4), include_today=True) == date(2023, 11, 7)
 
 

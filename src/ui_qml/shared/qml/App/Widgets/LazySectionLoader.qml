@@ -44,6 +44,7 @@ Item {
 
     property bool _loadedOnce:            false
     property real _measuredImplicitHeight: 0
+    property int _lastLoggedStatus: Loader.Null
 
     width: parent ? parent.width : 0
 
@@ -83,9 +84,20 @@ Item {
 
         onLoaded: {
             root._loadedOnce = true
+            console.debug("LazySectionLoader loaded", root.loadingMessage || "<unnamed>")
             Qt.callLater(root._syncMeasuredHeight)
         }
-        onStatusChanged: Qt.callLater(root._syncMeasuredHeight)
+        onStatusChanged: {
+            if (_loader.status !== root._lastLoggedStatus) {
+                root._lastLoggedStatus = _loader.status
+                if (_loader.status === Loader.Loading) {
+                    console.debug("LazySectionLoader loading", root.loadingMessage || "<unnamed>")
+                } else if (_loader.status === Loader.Error) {
+                    console.warn("LazySectionLoader failed", root.loadingMessage || "<unnamed>")
+                }
+            }
+            Qt.callLater(root._syncMeasuredHeight)
+        }
     }
 
     Connections {

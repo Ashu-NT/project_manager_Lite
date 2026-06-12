@@ -24,8 +24,9 @@ from src.core.modules.maintenance import (
     MaintenanceTaskTemplateService,
 )
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.notifications.domain_events import domain_events
-from src.core.platform.org.domain import Organization, Site
+from src.core.shared.events.domain_events import domain_events
+from src.core.platform.org.domain import Organization
+from src.core.platform.site.domain import Site
 from .test_maintenance_foundation import (
     _AssetRepo,
     _ComponentRepo,
@@ -33,6 +34,7 @@ from .test_maintenance_foundation import (
     _OrgRepo,
     _SiteRepo,
     _SystemRepo,
+    _TenantContext,
     _user_session,
 )
 from .test_maintenance_sensor_foundation import _SensorRepo
@@ -177,6 +179,7 @@ def test_maintenance_task_template_service_creates_searches_and_emits_events(ses
         session,
         _TaskTemplateRepo(),
         organization_repo=_OrgRepo(organization),
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
     captured = []
@@ -215,6 +218,7 @@ def test_maintenance_task_step_template_service_rejects_duplicate_step_numbers(s
         _TaskStepTemplateRepo(),
         organization_repo=_OrgRepo(organization),
         task_template_repo=task_template_repo,
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
 
@@ -278,6 +282,7 @@ def test_maintenance_preventive_plan_service_creates_hybrid_asset_plan(session) 
         component_repo=_ComponentRepo(),
         system_repo=_SystemRepo(),
         sensor_repo=sensor_repo,
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
     captured = []
@@ -360,6 +365,7 @@ def test_maintenance_preventive_plan_task_service_validates_override_sequences(s
         task_template_repo=task_template_repo,
         sensor_repo=sensor_repo,
         component_repo=_ComponentRepo(),
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
 

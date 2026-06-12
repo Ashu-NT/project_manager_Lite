@@ -9,7 +9,10 @@ from src.core.platform.audit import AuditService
 from src.core.platform.audit.application.audit_service import AuditService as LegacyAuditService
 from src.core.platform.data_exchange import MasterDataExchangeService
 from src.core.platform.documents import DocumentService
-from src.core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
+from src.core.platform.department import DepartmentService
+from src.core.platform.employee import EmployeeService
+from src.core.platform.org import OrganizationService
+from src.core.platform.site import SiteService
 from src.core.platform.party import PartyService
 from src.application.runtime.entitlement_runtime import ModuleRuntimeService
 from src.core.platform.time.application import TimeService
@@ -63,28 +66,30 @@ from src.core.modules.maintenance.application.common import (
 from src.core.modules.maintenance.infrastructure.reporting import (
     MaintenanceReportingService,
 )
-from src.core.modules.project_management.application.scheduling.baseline_service import (
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.infrastructure.importers import DataImportService
 from src.core.modules.project_management.application.financials import CostService, FinanceService
-from src.core.modules.project_management.application.projects import PortfolioService, ProjectService
+from src.core.modules.project_management.application.portfolio import PortfolioService
+from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
-    TimesheetService,
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
     CPMTaskInfo,
     CalendarService,
+    CalendarProtocol,
+    GlobalCalendarShim,
     SchedulingEngine,
-    WorkCalendarEngine,
-    WorkCalendarService,
 )
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.modules.project_management.application.tasks import CollaborationService, TaskService
+from src.core.modules.project_management.application.collaboration import CollaborationService
+from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.infra.composition.app_container import ServiceGraph, build_service_graph
 from pathlib import Path
 
@@ -152,8 +157,9 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.calendar_service, CalendarService)
     assert isinstance(graph.cost_service, CostService)
     assert isinstance(graph.finance_service, FinanceService)
-    assert isinstance(graph.work_calendar_engine, WorkCalendarEngine)
-    assert isinstance(graph.work_calendar_service, WorkCalendarService)
+    # work_calendar_engine is now GlobalCalendarShim (enterprise-backed)
+    assert hasattr(graph, "work_calendar_engine") and graph.work_calendar_engine is not None
+    assert isinstance(graph.work_calendar_engine, CalendarProtocol)
     assert isinstance(graph.scheduling_engine, SchedulingEngine)
     assert isinstance(graph.reporting_service, ReportingService)
     assert isinstance(graph.baseline_service, BaselineService)

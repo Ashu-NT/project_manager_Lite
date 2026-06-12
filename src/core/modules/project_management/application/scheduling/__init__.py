@@ -1,81 +1,92 @@
-"""Scheduling use cases."""
+"""Scheduling use cases — re-exports all public API for backward compatibility."""
 
-from src.core.modules.project_management.application.scheduling.baseline_comparison_service import (
+from src.core.modules.project_management.application.scheduling.baselines import (
     BaselineComparisonReport,
     BaselineComparisonService,
+    BaselineService,
     TaskVariance,
 )
-from src.core.modules.project_management.application.scheduling.calendar_resolver import (
-    CalendarContext,
-    CalendarResolver,
-)
-from src.core.modules.project_management.application.scheduling.calendar_service import (
+from src.core.modules.project_management.application.scheduling.calendars import (
+    BoundProjectCalendar,
     CalendarService,
+    ProjectCalendarAdapter,
 )
-from src.core.modules.project_management.application.scheduling.constraint_validator import (
+from src.core.modules.project_management.application.scheduling.cpm import (
+    CPMCalculator,
+    CPMResult,
     ConstraintType,
     ConstraintValidationResult,
     ConstraintValidator,
     ConstraintViolation,
+    build_project_dependency_graph,
+    build_schedule_result,
+    run_backward_pass,
+    run_forward_pass,
 )
-from src.core.modules.project_management.application.scheduling.cpm_calculator import (
-    CPMCalculator,
-    CPMResult,
-)
-from src.core.modules.project_management.application.scheduling.dependency_resolver import (
+from src.core.modules.project_management.application.scheduling.dependencies import (
     DependencyDateResult,
     DependencyResolver,
 )
-from src.core.modules.project_management.application.scheduling.engine import SchedulingEngine
-from src.core.modules.project_management.application.scheduling.leveling_models import (
+from src.core.modules.project_management.application.scheduling.forecasting import (
+    ScheduleChangeImpactReport,
+    ScheduleChangeImpactService,
+    TaskImpact,
+)
+from src.core.modules.project_management.application.scheduling.leveling import (
+    ResourceLevelingEngine,
+    ResourceLevelingMixin,
+)
+from src.core.modules.project_management.application.scheduling.models import (
+    CPMTaskInfo,
     ResourceConflict,
     ResourceConflictEntry,
     ResourceLevelingAction,
     ResourceLevelingResult,
 )
-from src.core.modules.project_management.application.scheduling.models import CPMTaskInfo
-from src.core.modules.project_management.application.scheduling.resource_leveling_engine import (
-    ResourceLevelingEngine,
-)
-from src.core.modules.project_management.application.scheduling.schedule_change_impact_service import (
-    ScheduleChangeImpactReport,
-    ScheduleChangeImpactService,
-    TaskImpact,
-)
-from src.core.platform.calendar.application.work_calendar_engine import (
-    WorkCalendarEngine,
-)
-from src.core.platform.calendar.application.work_calendar_service import (
-    WorkCalendarService,
-)
+from src.core.modules.project_management.application.scheduling.services import SchedulingEngine
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.calendar.application.global_calendar_shim import GlobalCalendarShim
 
 __all__ = [
-    # existing
+    # Models
     "CPMTaskInfo",
-    "CalendarService",
     "ResourceConflict",
     "ResourceConflictEntry",
     "ResourceLevelingAction",
     "ResourceLevelingResult",
-    "SchedulingEngine",
-    "WorkCalendarEngine",
-    "WorkCalendarService",
-    # new — Step 2 scheduling decomposition
-    "BaselineComparisonReport",
-    "BaselineComparisonService",
-    "CalendarContext",
-    "CalendarResolver",
+    # CPM
+    "CPMCalculator",
+    "CPMResult",
     "ConstraintType",
     "ConstraintValidationResult",
     "ConstraintValidator",
     "ConstraintViolation",
-    "CPMCalculator",
-    "CPMResult",
+    "build_project_dependency_graph",
+    "build_schedule_result",
+    "run_backward_pass",
+    "run_forward_pass",
+    # Dependencies
     "DependencyDateResult",
     "DependencyResolver",
+    # Leveling
     "ResourceLevelingEngine",
+    "ResourceLevelingMixin",
+    # Calendars
+    "BoundProjectCalendar",
+    "CalendarService",
+    "ProjectCalendarAdapter",
+    # Baselines
+    "BaselineComparisonReport",
+    "BaselineComparisonService",
+    "BaselineService",
+    "TaskVariance",
+    # Forecasting
     "ScheduleChangeImpactReport",
     "ScheduleChangeImpactService",
     "TaskImpact",
-    "TaskVariance",
+    # Main service
+    "SchedulingEngine",
+    # Platform re-exports (kept for backward compat)
+    "CalendarProtocol",
+    "GlobalCalendarShim",
 ]

@@ -14,9 +14,20 @@ Item {
         "overloadedDays": 0, "availableDays": 0, "isAvailable": true,
         "fromDateLabel": "", "toDateLabel": "", "days": []
     })
+    property var enterpriseCapacity: ({})
     property bool isBusy: false
 
     readonly property bool _hasResource: String(root.resourceDetail.id || "").length > 0
+    readonly property bool _hasEnterpriseData: String(root.enterpriseCapacity && root.enterpriseCapacity.resourceId || "").length > 0
+    readonly property var _state: (root.resourceDetail && root.resourceDetail.state) ? root.resourceDetail.state : ({})
+    readonly property string _workerType: String(root._state.workerType || "EXTERNAL")
+    readonly property bool _isEmployeeBacked: root._workerType === "EMPLOYEE"
+    readonly property var _sourceChain: Array.isArray(root.enterpriseCapacity.sourceChain) ? root.enterpriseCapacity.sourceChain : []
+    readonly property string _calendarSource: {
+        if (root._isEmployeeBacked) return "Employee Calendar (Platform-owned)"
+        if (root._sourceChain.length > 0) return root._sourceChain[root._sourceChain.length - 1]
+        return "Global Calendar (inherited)"
+    }
     readonly property string _windowLabel: {
         const fromLabel = String(root.resourceAvailabilityModel.fromDateLabel || "")
         const toLabel = String(root.resourceAvailabilityModel.toDateLabel || "")
@@ -88,14 +99,21 @@ Item {
                 message: "Shared working calendars are managed in Platform Admin. PM Resources consumes that calendar for availability and allocation context, but does not manage local calendar CRUD."
             }
 
+            AppWidgets.InlineMessage {
+                Layout.fillWidth: true
+                visible: root._isEmployeeBacked
+                tone: "info"
+                message: "This resource is employee-backed. Calendar rules are inherited from the Platform Employee calendar and cannot be edited here. Use Platform Admin → Employee to manage this employee's calendar."
+            }
+
             AppWidgets.SectionCard {
                 Layout.fillWidth: true
-                implicitHeight: summaryGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
-                title: "Shared Calendar Context"
+                implicitHeight: sourceGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
+                title: "Calendar Source"
                 outlined: true
 
                 GridLayout {
-                    id: summaryGrid
+                    id: sourceGrid
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: parent.top
@@ -106,12 +124,10 @@ Item {
 
                     Repeater {
                         model: [
-                            { "label": "Calendar Source", "value": "Platform shared working calendar" },
+                            { "label": "Calendar Source", "value": root._calendarSource },
+                            { "label": "Source Type", "value": root._isEmployeeBacked ? "Employee" : "PM Resource / Global" },
                             { "label": "Availability Window", "value": root._windowLabel },
-                            { "label": "Peak Load", "value": String(root.resourceAvailabilityModel.peakLoadPercent || 0) + "%" },
-                            { "label": "Average Load", "value": String(root.resourceAvailabilityModel.averageLoadPercent || 0) + "%" },
-                            { "label": "Available Days", "value": String(root.resourceAvailabilityModel.availableDays || 0) },
-                            { "label": "Overloaded Days", "value": String(root.resourceAvailabilityModel.overloadedDays || 0) }
+                            { "label": "Inheritance Chain", "value": root._sourceChain.join(" → ") || "Global only" }
                         ]
 
                         delegate: ColumnLayout {
@@ -139,6 +155,107 @@ Item {
                 }
             }
 
+            AppWidgets.SectionCard {
+                Layout.fillWidth: true
+                visible: root._hasEnterpriseData
+                implicitHeight: capacityGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
+                title: "Derived Capacity"
+                outlined: true
+
+                GridLayout {
+                    id: capacityGrid
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: Theme.AppTheme.marginMd
+                    columns: 2
+                    columnSpacing: Theme.AppTheme.spacingLg
+                    rowSpacing: Theme.AppTheme.spacingSm
+
+                    Repeater {
+                        model: [
+                            { "label": "Base Hours", "value": String(root.enterpriseCapacity.baseHours || 0) + "h" },
+                            { "label": "Available Hours", "value": String(root.enterpriseCapacity.availableHours || 0) + "h" },
+                            { "label": "Assigned Hours", "value": String(root.enterpriseCapacity.assignedHours || 0) + "h" },
+                            { "label": "Remaining Hours", "value": String(root.enterpriseCapacity.remainingHours || 0) + "h" },
+                            { "label": "Capacity %", "value": String(root.enterpriseCapacity.capacityPercent || 0) + "%" },
+                            { "label": "Utilization %", "value": String(root.enterpriseCapacity.utilizationPercent || 0) + "%" }
+                        ]
+
+                        delegate: ColumnLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: String(modelData.label || "")
+                                color: Theme.AppTheme.textMuted
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.bold: true
+                            }
+
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: String(modelData.value || "-")
+                                color: Theme.AppTheme.textPrimary
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                font.bold: true
+                            }
+                        }
+                    }
+                }
+            }
+
+            AppWidgets.SectionCard {
+                Layout.fillWidth: true
+                visible: !root._hasEnterpriseData
+                implicitHeight: legacyGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
+                title: "Allocation Summary"
+                outlined: true
+
+                GridLayout {
+                    id: legacyGrid
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: Theme.AppTheme.marginMd
+                    columns: 2
+                    columnSpacing: Theme.AppTheme.spacingLg
+                    rowSpacing: Theme.AppTheme.spacingSm
+
+                    Repeater {
+                        model: [
+                            { "label": "Peak Load", "value": String(root.resourceAvailabilityModel.peakLoadPercent || 0) + "%" },
+                            { "label": "Average Load", "value": String(root.resourceAvailabilityModel.averageLoadPercent || 0) + "%" },
+                            { "label": "Available Days", "value": String(root.resourceAvailabilityModel.availableDays || 0) },
+                            { "label": "Overloaded Days", "value": String(root.resourceAvailabilityModel.overloadedDays || 0) }
+                        ]
+
+                        delegate: ColumnLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: String(modelData.label || "")
+                                color: Theme.AppTheme.textMuted
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.bold: true
+                            }
+
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: String(modelData.value || "-")
+                                color: Theme.AppTheme.textPrimary
+                                font.pixelSize: Theme.AppTheme.smallSize
+                            }
+                        }
+                    }
+                }
+            }
+
             AppWidgets.DataTable {
                 Layout.fillWidth: true
                 Layout.preferredHeight: root._tableHeight
@@ -156,7 +273,9 @@ Item {
             AppWidgets.InlineMessage {
                 Layout.fillWidth: true
                 tone: "info"
-                message: "Resource-specific leave, shift exceptions, and local overrides are not yet modeled in PM Resources. Use the shared Platform calendar as the source of truth for common working days."
+                message: root._isEmployeeBacked
+                    ? "Employee-backed resource: vacation, training, and exceptions are managed in Platform Admin → Employee. PM does not duplicate employee calendar rules."
+                    : "Capacity is derived from calendar rules — it is never stored as a fixed value. Assign a calendar to this resource in Platform Admin → Calendar Management to override the global defaults."
             }
         }
 

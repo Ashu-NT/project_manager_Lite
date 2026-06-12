@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
+from PySide6.QtWidgets import QApplication
+
+from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.ui_qml.modules.maintenance.context import MaintenanceWorkspaceCatalog
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,
@@ -51,16 +53,35 @@ def test_pm_collaboration_workspace_refreshes_on_collaboration_workflow_events(m
     assert refresh_calls == ["refresh", "refresh", "refresh"]
 
 
-def test_pm_portfolio_workspace_refreshes_on_portfolio_workflow_events(monkeypatch) -> None:
+def test_pm_portfolio_workspace_refreshes_on_portfolio_workflow_events(
+    monkeypatch, qapp
+) -> None:
     catalog = ProjectManagementWorkspaceCatalog()
     controller = catalog.portfolioWorkspace
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
-    domain_events.portfolio_changed.emit("portfolio-1")
-    domain_events.project_changed.emit("proj-1")
+    domain_events.domain_changed.emit(
+        DomainChangeEvent(
+            category="module",
+            scope_code="project_management",
+            entity_type="portfolio_entity",
+            entity_id="portfolio-1",
+            source_event="manual_test",
+        )
+    )
+    domain_events.domain_changed.emit(
+        DomainChangeEvent(
+            category="module",
+            scope_code="project_management",
+            entity_type="project",
+            entity_id="proj-1",
+            source_event="manual_test",
+        )
+    )
+    QApplication.processEvents()
 
-    assert refresh_calls == ["refresh", "refresh"]
+    assert refresh_calls == ["refresh"]
 
 
 def test_pm_timesheets_workspace_refreshes_on_timesheet_workflow_events(monkeypatch) -> None:
@@ -286,43 +307,66 @@ def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None
     controller_expectations = {
         "src/ui_qml/modules/project_management/controllers/dashboard/dashboard_workspace_controller.py": (
             "self._bind_domain_events()",
+        ),
+        "src/ui_qml/modules/project_management/controllers/dashboard/dashboard_refresh_mixin.py": (
             '_subscribe_domain_change(',
+            'scope_code="project_management"',
+            '"approval_request"',
         ),
         "src/ui_qml/modules/project_management/controllers/projects/projects_workspace_controller.py": (
-            "self._bind_domain_events()",
+            "bind_project_domain_events(self)",
+        ),
+        "src/ui_qml/modules/project_management/controllers/projects/project_domain_event_binder.py": (
             '_subscribe_domain_change(',
         ),
         "src/ui_qml/modules/project_management/controllers/collaboration/collaboration_workspace_controller.py": (
-            "self._bind_domain_events()",
+            "bind_collaboration_domain_events(self)",
+        ),
+        "src/ui_qml/modules/project_management/controllers/collaboration/domain_event_binder.py": (
             "domain_events.approvals_changed",
         ),
         "src/ui_qml/modules/project_management/controllers/portfolio/portfolio_workspace_controller.py": (
-            "self._bind_domain_events()",
+            "bind_portfolio_domain_events(self)",
+        ),
+        "src/ui_qml/modules/project_management/controllers/portfolio/domain_event_binder.py": (
             '_subscribe_domain_change(',
         ),
         "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": (
-            "self._bind_domain_events()",
+            "bind_task_domain_events(self)",
+        ),
+        "src/ui_qml/modules/project_management/controllers/tasks/task_domain_event_binder.py": (
             "timesheet_period",
             "task_collaboration",
         ),
         "src/ui_qml/modules/project_management/controllers/resources/resources_workspace_controller.py": (
-            "self._bind_domain_events()",
+            "bind_resource_domain_events(self)",
+        ),
+        "src/ui_qml/modules/project_management/controllers/resources/resource_domain_event_binder.py": (
             "domain_events.employees_changed",
         ),
         "src/ui_qml/modules/project_management/controllers/scheduling/scheduling_workspace_controller.py": (
-            "self._bind_domain_events()",
+            "bind_scheduling_domain_events(self)",
+        ),
+        "src/ui_qml/modules/project_management/controllers/scheduling/domain_event_binder.py": (
             '_subscribe_domain_change(',
         ),
         "src/ui_qml/modules/project_management/controllers/financials/financials_workspace_controller.py": (
             "self._bind_domain_events()",
+        ),
+        "src/ui_qml/modules/project_management/controllers/financials/financials_refresh_mixin.py": (
             '_subscribe_domain_change(',
+            'scope_code="project_management"',
         ),
         "src/ui_qml/modules/project_management/controllers/register/register_workspace_controller.py": (
-            "self._bind_domain_events()",
+            "bind_register_domain_events(self)",
+        ),
+        "src/ui_qml/modules/project_management/controllers/register/register_domain_event_binder.py": (
             '_subscribe_domain_change(',
         ),
         "src/ui_qml/modules/project_management/controllers/timesheets/timesheets_workspace_controller.py": (
-            "self._bind_domain_events()",
+            "bind_timesheets_domain_events(self)",
+        ),
+        "src/ui_qml/modules/project_management/controllers/timesheets/domain_event_binder.py": (
             '_subscribe_domain_change(',
         ),
         "src/ui_qml/platform/controllers/control/control_workspace_controller.py": (
@@ -339,6 +383,8 @@ def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None
         ),
         "src/ui_qml/platform/controllers/admin/admin_console_controller.py": (
             "self._bind_domain_events()",
+        ),
+        "src/ui_qml/platform/controllers/admin/admin_domain_event_binder.py": (
             "domain_events.organizations_changed",
         ),
         "src/ui_qml/modules/maintenance/controllers/dashboard/dashboard_workspace_controller.py": (

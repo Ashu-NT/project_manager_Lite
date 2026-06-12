@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import logging
 from typing import Callable
 
+logger = logging.getLogger(__name__)
 
 def run_mutation(
     *,
@@ -17,6 +19,7 @@ def run_mutation(
     try:
         operation()
     except Exception as exc:
+        logger.exception("Maintenance workspace mutation failed.")
         set_feedback_message("")
         set_error_message(str(exc))
         payload = {
@@ -33,6 +36,5 @@ def run_mutation(
     finally:
         set_is_busy(False)
     return payload
-
 
 __all__ = ["run_mutation"]

@@ -1,13 +1,14 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "ProjectsColumnConfig.js" as ColumnConfig
 
 Item {
     id: root
 
     // ── Injected dependencies ────────────────────────────────────────────
-    property var pmCatalog: null
+    property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog: null
     property var workspaceController: null
 
     // ── Column table ID ──────────────────────────────────────────────────

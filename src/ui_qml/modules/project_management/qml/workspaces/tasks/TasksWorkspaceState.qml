@@ -10,7 +10,7 @@ Item {
 
     // ── Injected dependencies ────────────────────────────────────────────
     property var shellModel: null
-    property var pmCatalog: null
+    property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog: null
     property var workspaceController: null
 
     // ── Column table ID ──────────────────────────────────────────────────

@@ -5,7 +5,15 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.maintenance.domain import MaintenanceFailureCodeType, MaintenanceWorkRequest
+from src.core.modules.maintenance.domain import (
+    MaintenanceAsset,
+    MaintenanceAssetComponent,
+    MaintenanceFailureCodeType,
+    MaintenanceLocation,
+    MaintenancePriority,
+    MaintenanceSystem,
+    MaintenanceWorkRequest,
+)
 from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetComponentRepository,
     MaintenanceAssetRepository,
@@ -30,9 +38,12 @@ from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.contracts import UserRepository
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
-from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
-from src.core.platform.org.domain import Organization, Site
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
+from src.core.platform.org.domain import Organization
+from src.core.platform.site.domain import Site
 
 
 class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
@@ -49,19 +60,24 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         location_repo: MaintenanceLocationRepository,
         system_repo: MaintenanceSystemRepository,
         failure_code_repo: MaintenanceFailureCodeRepository | None = None,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
-        self._session = session
-        self._work_request_repo = work_request_repo
-        self._organization_repo = organization_repo
-        self._site_repo = site_repo
-        self._user_repo = user_repo
-        self._asset_repo = asset_repo
-        self._component_repo = component_repo
-        self._location_repo = location_repo
-        self._system_repo = system_repo
-        self._failure_code_repo = failure_code_repo
+        self._session: Session = session
+        self._work_request_repo: MaintenanceWorkRequestRepository = work_request_repo
+        self._organization_repo: OrganizationRepository = organization_repo
+        self._tenant_context_service: TenantContextService = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
+        self._site_repo: SiteRepository = site_repo
+        self._user_repo: UserRepository = user_repo
+        self._asset_repo: MaintenanceAssetRepository = asset_repo
+        self._component_repo: MaintenanceAssetComponentRepository = component_repo
+        self._location_repo: MaintenanceLocationRepository = location_repo
+        self._system_repo: MaintenanceSystemRepository = system_repo
+        self._failure_code_repo: MaintenanceFailureCodeRepository | None = failure_code_repo
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -184,7 +200,7 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         location_id: str | None = None,
         title: str = "",
         description: str = "",
-        priority=None,
+        priority: MaintenancePriority | str | None = None,
         failure_symptom_code: str = "",
         safety_risk_level: str = "",
         production_impact_level: str = "",
@@ -271,8 +287,8 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         location_id: str | None = None,
         title: str | None = None,
         description: str | None = None,
-        priority=None,
-        status=None,
+        priority: MaintenancePriority | str | None = None,
+        status: str | None = None,
         failure_symptom_code: str | None = None,
         safety_risk_level: str | None = None,
         production_impact_level: str | None = None,
@@ -359,35 +375,34 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         self._record_change("maintenance_work_request.update", work_request)
         return work_request
 
-    def _get_asset(self, asset_id: str, *, organization: Organization):
+    def _get_asset(self, asset_id: str, *, organization: Organization) -> MaintenanceAsset:
         asset = self._asset_repo.get(asset_id)
         if asset is None or asset.organization_id != organization.id:
             raise NotFoundError("Maintenance asset not found in the active organization.", code="MAINTENANCE_ASSET_NOT_FOUND")
         return asset
 
-    def _get_component(self, component_id: str, *, organization: Organization):
+    def _get_component(self, component_id: str, *, organization: Organization) -> MaintenanceAssetComponent:
         component = self._component_repo.get(component_id)
         if component is None or component.organization_id != organization.id:
             raise NotFoundError("Maintenance asset component not found in the active organization.", code="MAINTENANCE_COMPONENT_NOT_FOUND")
         return component
 
-    def _get_system(self, system_id: str, *, organization: Organization):
+    def _get_system(self, system_id: str, *, organization: Organization) -> MaintenanceSystem:
         system = self._system_repo.get(system_id)
         if system is None or system.organization_id != organization.id:
             raise NotFoundError("Maintenance system not found in the active organization.", code="MAINTENANCE_SYSTEM_NOT_FOUND")
         return system
 
-    def _get_location(self, location_id: str, *, organization: Organization):
+    def _get_location(self, location_id: str, *, organization: Organization) -> MaintenanceLocation:
         location = self._location_repo.get(location_id)
         if location is None or location.organization_id != organization.id:
             raise NotFoundError("Maintenance location not found in the active organization.", code="MAINTENANCE_LOCATION_NOT_FOUND")
         return location
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="maintenance work requests"
+        ).organization
 
     def _normalize_failure_symptom_code(
         self,

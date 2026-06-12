@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from src.core.platform.auth.authorization import require_any_permission
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 
 
@@ -60,8 +61,15 @@ class TimesheetReviewMixin:
         )
         if self._timesheet_period_repo is None:
             return []
-        periods = self._timesheet_period_repo.list_all(status=status, limit=limit)
-        return [self._build_review_queue_item(period) for period in periods]
+        organization_id = self._require_review_organization_id()
+        periods = self._timesheet_period_repo.list_review_candidates(status=status, limit=limit)
+        rows: list[TimesheetReviewQueueItem] = []
+        for period in periods:
+            entries = self._visible_review_entries(period, organization_id=organization_id)
+            if not entries:
+                continue
+            rows.append(self._build_review_queue_item(period, entries=entries))
+        return rows
 
     def get_timesheet_review_detail(self, period_id: str) -> TimesheetReviewDetail:
         require_any_permission(
@@ -69,12 +77,68 @@ class TimesheetReviewMixin:
             ("timesheet.approve", "timesheet.lock"),
             operation_label="view timesheet review detail",
         )
+        organization_id = self._require_review_organization_id()
         period : TimesheetPeriod = self._require_timesheet_period(period_id)
-        entries = self.list_time_entries_for_resource_period(period.resource_id, period_start=period.period_start)
+        entries = self._visible_review_entries(period, organization_id=organization_id)
+        if not entries:
+            raise NotFoundError(
+                "Timesheet period not found in the active organization.",
+                code="TIMESHEET_PERIOD_NOT_FOUND",
+            )
         return TimesheetReviewDetail(
             summary=self._build_review_queue_item(period, entries=entries),
             entries=tuple(self._build_review_entries(entries)),
         )
+
+    def _require_review_organization_id(self) -> str:
+        tenant_context_service = getattr(self, "_tenant_context_service", None)
+        if tenant_context_service is None:
+            raise BusinessRuleError(
+                "Active organization context is required for timesheet review.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return tenant_context_service.require_active_organization_id(
+            operation_label="view timesheet review queue"
+        )
+
+    def _visible_review_entries(
+        self,
+        period: TimesheetPeriod,
+        *,
+        organization_id: str | None,
+    ) -> list[TimeEntry]:
+        entries = self.list_time_entries_for_resource_period(
+            period.resource_id,
+            period_start=period.period_start,
+        )
+        if organization_id is None:
+            return entries
+        return [
+            entry
+            for entry in entries
+            if self._time_entry_belongs_to_organization(entry, organization_id)
+        ]
+
+    def _time_entry_belongs_to_organization(
+        self,
+        entry: TimeEntry,
+        organization_id: str,
+    ) -> bool:
+        resolver = getattr(self, "_scope_organization_resolver", None)
+        if not callable(resolver):
+            return False
+        scope_type = str(entry.scope_type or "").strip().lower()
+        scope_id = str(entry.scope_id or "").strip()
+        if scope_type and scope_id:
+            resolved = resolver(scope_type, scope_id)
+            if resolved:
+                return resolved == organization_id
+        site_id = str(entry.site_id or "").strip()
+        if site_id:
+            resolved = resolver("site", site_id)
+            if resolved:
+                return resolved == organization_id
+        return False
 
     def _build_review_queue_item(
         self,

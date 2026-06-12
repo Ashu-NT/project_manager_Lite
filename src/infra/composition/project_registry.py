@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
+import logging
 from dataclasses import dataclass
 from datetime import date
+from time import perf_counter
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -14,16 +18,16 @@ from src.core.modules.project_management.access.policy import (
     resolve_project_scope_permissions,
 )
 from src.core.platform.time.application import TimeService
-from src.core.modules.project_management.application.scheduling.baseline_service import (
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import CostService, FinanceService
-from src.core.modules.project_management.application.projects import PortfolioService, ProjectService
+from src.core.modules.project_management.application.portfolio import PortfolioService
+from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
-    TimesheetService,
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
@@ -32,14 +36,21 @@ from src.core.modules.project_management.application.scheduling import (
 )
 from src.core.modules.project_management.infrastructure.importers import DataImportService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.modules.project_management.application.tasks import CollaborationService, TaskService
+from src.core.modules.project_management.application.collaboration import CollaborationService
+from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
 )
-from src.core.platform.calendar import WorkCalendarEngine, WorkCalendarService
+from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import ProjectCalendarAdapter
+from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
+from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
 from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle
+
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_date(value: Any) -> date | None:
@@ -75,8 +86,7 @@ class ProjectManagementServiceBundle:
     resource_service: ResourceService
     cost_service: CostService
     finance_service: FinanceService
-    work_calendar_engine: WorkCalendarEngine
-    work_calendar_service: WorkCalendarService
+    work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
     reporting_service: ReportingService
     baseline_service: BaselineService
@@ -87,6 +97,9 @@ class ProjectManagementServiceBundle:
     data_import_service: DataImportService
     task_collaboration_store: TaskCollaborationStore
     assignment_skill_validator: AssignmentSkillValidator
+    project_calendar_adapter: ProjectCalendarAdapter
+    enterprise_resource_availability: EnterpriseResourceAvailabilityService
+    resource_capacity_calculator: ResourceCapacityCalculator
 
 
 def build_project_management_service_bundle(
@@ -94,6 +107,9 @@ def build_project_management_service_bundle(
     repositories: RepositoryBundle,
     platform_services: PlatformServiceBundle,
 ) -> ProjectManagementServiceBundle:
+    started = perf_counter()
+    logger.debug("Project Management service bundle build begin")
+    logger.debug("Project Management platform registrations begin")
     platform_services.access_service.register_scope_policy(
         ScopedRolePolicy(
             scope_type="project",
@@ -106,7 +122,10 @@ def build_project_management_service_bundle(
         "project",
         lambda project_id: repositories.project_repo.get(project_id) is not None,
     )
-    work_calendar_engine = WorkCalendarEngine(repositories.work_calendar_repo, calendar_id="default")
+    logger.debug("Project Management platform registrations complete")
+    logger.debug("Project Management core services build begin")
+    # GlobalCalendarShim is the enterprise-backed calendar. Used everywhere WorkCalendarEngine was.
+    work_calendar_engine = platform_services.global_calendar_shim
     project_service = ProjectService(
         session,
         repositories.project_repo,
@@ -119,7 +138,22 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
         module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
     )
+
+    def _time_scope_organization_id(scope_type: str, scope_id: str) -> str | None:
+        normalized_scope_type = str(scope_type or "").strip().lower()
+        normalized_scope_id = str(scope_id or "").strip()
+        if not normalized_scope_id:
+            return None
+        if normalized_scope_type == "project":
+            project = repositories.project_repo.get(normalized_scope_id)
+            return getattr(project, "organization_id", None) if project is not None else None
+        if normalized_scope_type == "site":
+            site = platform_services.site_repo.get(normalized_scope_id)
+            return getattr(site, "organization_id", None) if site is not None else None
+        return None
+
     timesheet_service = TimesheetService(
         session=session,
         assignment_repo=repositories.assignment_repo,
@@ -131,6 +165,8 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
         module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        scope_organization_resolver=_time_scope_organization_id,
     )
     time_service: TimeService = timesheet_service
     project_resource_service = ProjectResourceService(
@@ -149,14 +185,22 @@ def build_project_management_service_bundle(
         audit_service=platform_services.audit_service,
         module_catalog_service=platform_services.module_runtime_service,
     )
+    # Build enterprise calendar adapter here so it can be injected into SchedulingEngine.
+    # Instantiated before scheduling_engine so we pass it in during construction.
+    _pre_project_calendar_adapter = ProjectCalendarAdapter(
+        resolver=platform_services.enterprise_calendar_resolver,
+        assignment_service=platform_services.calendar_assignment_service,
+    )
     scheduling_engine = SchedulingEngine(
         session,
         repositories.task_repo,
         repositories.dependency_repo,
-        work_calendar_engine,
+        platform_services.global_calendar_shim,  # enterprise global as base calendar
         assignment_repo=repositories.assignment_repo,
         resource_repo=repositories.resource_repo,
+        project_calendar_adapter=_pre_project_calendar_adapter,
     )
+    logger.debug("Project Management scheduling foundation built")
     task_service = TaskService(
         session,
         repositories.task_repo,
@@ -196,6 +240,7 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
         module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     cost_service = CostService(
         session,
@@ -207,13 +252,6 @@ def build_project_management_service_bundle(
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_runtime_service,
     )
-    work_calendar_service = WorkCalendarService(
-        session,
-        repositories.work_calendar_repo,
-        work_calendar_engine,
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
-    )
     reporting_service = ReportingService(
         session=session,
         project_repo=repositories.project_repo,
@@ -222,7 +260,7 @@ def build_project_management_service_bundle(
         assignment_repo=repositories.assignment_repo,
         cost_repo=repositories.cost_repo,
         scheduling_engine=scheduling_engine,
-        calendar=work_calendar_engine,
+        calendar=platform_services.global_calendar_shim,
         baseline_repo=repositories.baseline_repo,
         project_resource_repo=repositories.project_resource_repo,
         user_session=platform_services.user_session,
@@ -250,6 +288,7 @@ def build_project_management_service_bundle(
         document_integration_service=platform_services.document_integration_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     portfolio_service = PortfolioService(
         session=session,
@@ -264,6 +303,7 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
         module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     baseline_service = BaselineService(
         session=session,
@@ -272,7 +312,7 @@ def build_project_management_service_bundle(
         cost_repo=repositories.cost_repo,
         baseline_repo=repositories.baseline_repo,
         scheduling=scheduling_engine,
-        calendar=work_calendar_engine,
+        calendar=platform_services.global_calendar_shim,
         project_resource_repo=repositories.project_resource_repo,
         resource_repo=repositories.resource_repo,
         user_session=platform_services.user_session,
@@ -287,7 +327,7 @@ def build_project_management_service_bundle(
         resource_service=resource_service,
         register_service=register_service,
         scheduling_engine=scheduling_engine,
-        work_calendar_engine=work_calendar_engine,
+        work_calendar_engine=platform_services.global_calendar_shim,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
     )
@@ -305,11 +345,25 @@ def build_project_management_service_bundle(
         cert_repo=repositories.resource_cert_repo,
         requirement_repo=repositories.task_skill_req_repo,
     )
+    project_calendar_adapter = _pre_project_calendar_adapter  # reuse the instance wired into SchedulingEngine
+    enterprise_resource_availability = EnterpriseResourceAvailabilityService(
+        resolver=platform_services.enterprise_calendar_resolver,
+        resource_repo=repositories.resource_repo,
+    )
+    resource_capacity_calculator = ResourceCapacityCalculator(
+        availability_service=enterprise_resource_availability,
+    )
+    logger.debug("Project Management core services built")
     _register_project_management_approval_handlers(
         approval_service=platform_services.approval_service,
         baseline_service=baseline_service,
         task_service=task_service,
         cost_service=cost_service,
+    )
+    logger.debug("Project Management approval handlers registered")
+    logger.debug(
+        "Project Management service bundle build complete duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
     )
     return ProjectManagementServiceBundle(
         time_service=time_service,
@@ -322,7 +376,6 @@ def build_project_management_service_bundle(
         cost_service=cost_service,
         finance_service=finance_service,
         work_calendar_engine=work_calendar_engine,
-        work_calendar_service=work_calendar_service,
         scheduling_engine=scheduling_engine,
         reporting_service=reporting_service,
         baseline_service=baseline_service,
@@ -333,6 +386,9 @@ def build_project_management_service_bundle(
         data_import_service=data_import_service,
         task_collaboration_store=task_collaboration_store,
         assignment_skill_validator=assignment_skill_validator,
+        project_calendar_adapter=project_calendar_adapter,
+        enterprise_resource_availability=enterprise_resource_availability,
+        resource_capacity_calculator=resource_capacity_calculator,
     )
 
 

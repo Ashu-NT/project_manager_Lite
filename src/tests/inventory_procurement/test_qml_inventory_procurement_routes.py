@@ -11,6 +11,8 @@ EXPECTED_INVENTORY_ROUTE_IDS = [
     "inventory_procurement.reservations",
     "inventory_procurement.procurement",
     "inventory_procurement.pricing",
+    "inventory_procurement.movements",
+    "inventory_procurement.warehouses",
 ]
 
 

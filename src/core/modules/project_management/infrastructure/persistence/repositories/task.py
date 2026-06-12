@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Optional
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -57,11 +56,11 @@ class SqlAlchemyTaskRepository(TaskRepository):
     def delete(self, task_id: str) -> None:
         self.session.query(TaskORM).filter_by(id=task_id).delete()
 
-    def get(self, task_id: str) -> Optional[Task]:
+    def get(self, task_id: str) -> Task | None:
         obj = self.session.get(TaskORM, task_id)
         return task_from_orm(obj) if obj else None
 
-    def list_by_project(self, project_id: str) -> List[Task]:
+    def list_by_project(self, project_id: str) -> list[Task]:
         stmt = select(TaskORM).where(TaskORM.project_id == project_id)
         rows = self.session.execute(stmt).scalars().all()
         return [task_from_orm(row) for row in rows]
@@ -74,16 +73,16 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
     def add(self, assignment: TaskAssignment) -> None:
         self.session.add(assignment_to_orm(assignment))
 
-    def get(self, assignment_id: str) -> Optional[TaskAssignment]:
+    def get(self, assignment_id: str) -> TaskAssignment | None:
         obj = self.session.get(TaskAssignmentORM, assignment_id)
         return assignment_from_orm(obj) if obj else None
 
-    def list_by_task(self, task_id: str) -> List[TaskAssignment]:
+    def list_by_task(self, task_id: str) -> list[TaskAssignment]:
         stmt = select(TaskAssignmentORM).where(TaskAssignmentORM.task_id == task_id)
         rows = self.session.execute(stmt).scalars().all()
         return [assignment_from_orm(row) for row in rows]
 
-    def list_by_resource(self, resource_id: str) -> List[TaskAssignment]:
+    def list_by_resource(self, resource_id: str) -> list[TaskAssignment]:
         stmt = select(TaskAssignmentORM).where(TaskAssignmentORM.resource_id == resource_id)
         rows = self.session.execute(stmt).scalars().all()
         return [assignment_from_orm(row) for row in rows]
@@ -97,10 +96,10 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
     def delete_by_task(self, task_id: str) -> None:
         self.session.query(TaskAssignmentORM).filter_by(task_id=task_id).delete()
 
-    def list_by_assignment(self, task_id: str) -> List[TaskAssignment]:
+    def list_by_assignment(self, task_id: str) -> list[TaskAssignment]:
         return self.list_by_task(task_id)
 
-    def list_by_tasks(self, task_ids: List[str]) -> List[TaskAssignment]:
+    def list_by_tasks(self, task_ids: list[str]) -> list[TaskAssignment]:
         if not task_ids:
             return []
         stmt = select(TaskAssignmentORM).where(TaskAssignmentORM.task_id.in_(task_ids))
@@ -115,14 +114,14 @@ class SqlAlchemyDependencyRepository(DependencyRepository):
     def add(self, dependency: TaskDependency) -> None:
         self.session.add(dependency_to_orm(dependency))
 
-    def get(self, dependency_id: str) -> Optional[TaskDependency]:
+    def get(self, dependency_id: str) -> TaskDependency | None:
         obj = self.session.get(TaskDependencyORM, dependency_id)
         return dependency_from_orm(obj) if obj else None
 
     def update(self, dependency: TaskDependency) -> None:
         self.session.merge(dependency_to_orm(dependency))
 
-    def list_by_project(self, project_id: str) -> List[TaskDependency]:
+    def list_by_project(self, project_id: str) -> list[TaskDependency]:
         task_ids_subq = select(TaskORM.id).where(TaskORM.project_id == project_id)
         stmt = select(TaskDependencyORM).where(
             TaskDependencyORM.predecessor_task_id.in_(task_ids_subq),
@@ -142,7 +141,7 @@ class SqlAlchemyDependencyRepository(DependencyRepository):
             )
         ).delete(synchronize_session=False)
 
-    def list_by_task(self, task_id: str) -> List[TaskDependency]:
+    def list_by_task(self, task_id: str) -> list[TaskDependency]:
         stmt = select(TaskDependencyORM).where(
             or_(
                 TaskDependencyORM.predecessor_task_id == task_id,

@@ -1,21 +1,16 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
-
-from src.core.platform.notifications.domain_events import domain_events
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
-    run_mutation,
     serialize_resource_availability_view_model,
     serialize_resource_catalog_overview_view_model,
-    serialize_resource_certification_view_models,
     serialize_resource_detail_view_model,
     serialize_resource_employee_option_view_models,
     serialize_resource_record_view_models,
-    serialize_resource_skill_view_models,
     serialize_selector_options,
     serialize_workspace_view_model,
 )
@@ -24,6 +19,48 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectResourcesWorkspacePresenter,
 )
 
+from .resource_state import (
+    default_overview,
+    default_resource_availability,
+    default_resources,
+    default_selected_resource,
+)
+from .resource_table_models import ResourceTableModels, create_resource_table_models
+from .resource_state_setters import ResourceStateSettersMixin
+from .resource_domain_event_binder import bind_resource_domain_events
+from .resource_selection_handler import (
+    activate_resource,
+    select_resource,
+    set_active_filter,
+    set_category_filter,
+    set_resource_page,
+    set_resource_page_size,
+    set_search_text,
+)
+from .resource_bulk_handler import (
+    bulk_delete_resources,
+    clear_resource_bulk_selection,
+    select_visible_resources,
+    set_resource_bulk_selection,
+)
+from .resource_mutation_handler import (
+    create_resource,
+    delete_resource,
+    generate_entity_code,
+    toggle_resource_active,
+    update_resource,
+)
+from .resource_skills_handler import (
+    add_certification,
+    add_skill,
+    load_skills_and_certs,
+    reload_skills_and_certs,
+    remove_certification,
+    remove_skill,
+)
+from .resource_assignments_handler import load_resource_assignments
+from .resource_export_handler import export_resources
+
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
 
@@ -31,7 +68,7 @@ QML_IMPORT_MAJOR_VERSION = 1
 @QmlElement
 @QmlUncreatable("Project management workspace controllers are provided by the shell runtime.")
 class ProjectManagementResourcesWorkspaceController(
-    ProjectManagementWorkspaceControllerBase
+    ResourceStateSettersMixin, ProjectManagementWorkspaceControllerBase
 ):
     overviewChanged = Signal()
     workerTypeOptionsChanged = Signal()
@@ -67,49 +104,31 @@ class ProjectManagementResourcesWorkspaceController(
         self._resources_workspace_presenter = (
             resources_workspace_presenter or ProjectResourcesWorkspacePresenter()
         )
-        self._overview: dict[str, object] = {"title": "", "subtitle": "", "metrics": []}
+        self._overview: dict[str, object] = default_overview()
         self._worker_type_options: list[dict[str, object]] = []
         self._category_options: list[dict[str, object]] = []
         self._employee_options: list[dict[str, object]] = []
         self._selected_active_filter = "all"
         self._selected_category_filter = "all"
         self._search_text = ""
-        self._resources_table_model = DynamicTableModel(self)
-        self._resources: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._selected_resource: dict[str, object] = {
-            "id": "",
-            "title": "",
-            "statusLabel": "",
-            "subtitle": "",
-            "description": "",
-            "emptyState": "",
-            "fields": [],
-            "state": {},
-        }
+        self._table_models: ResourceTableModels = create_resource_table_models(self)
+        self._resources: dict[str, object] = default_resources()
+        self._selected_resource: dict[str, object] = default_selected_resource()
         self._selected_resource_id = ""
         self._resource_page = 1
         self._resource_page_size = 25
         self._resource_total_count = 0
         self._selected_resource_ids: list[str] = []
         self._selected_resource_count = 0
-        self._resource_skills_table_model = DynamicTableModel(self)
-        self._resource_certifications_table_model = DynamicTableModel(self)
-        self._resource_assignments_table_model = DynamicTableModel(self)
         self._resource_skills: list[dict[str, object]] = []
         self._resource_certifications: list[dict[str, object]] = []
         self._resource_assignments: list[dict[str, object]] = []
-        self._resource_availability: dict[str, object] = {
-            "resourceId": "", "peakLoadPercent": 0.0, "averageLoadPercent": 0.0,
-            "overloadedDays": 0, "availableDays": 0, "isAvailable": True,
-            "fromDateLabel": "", "toDateLabel": "", "days": [],
-        }
-        self._bind_domain_events()
+        self._resource_availability: dict[str, object] = default_resource_availability()
+
+        bind_resource_domain_events(self)
         self.refresh()
+
+    # ── Properties ───────────────────────────────────────────────────────
 
     @Property("QVariantMap", notify=overviewChanged)
     def overview(self) -> dict[str, object]:
@@ -145,7 +164,7 @@ class ProjectManagementResourcesWorkspaceController(
 
     @Property(QObject, constant=True)
     def resourcesTableModel(self) -> DynamicTableModel:
-        return self._resources_table_model
+        return self._table_models.resources
 
     @Property("QVariantMap", notify=selectedResourceChanged)
     def selectedResource(self) -> dict[str, object]:
@@ -185,15 +204,15 @@ class ProjectManagementResourcesWorkspaceController(
 
     @Property(QObject, constant=True)
     def resourceSkillsTableModel(self) -> DynamicTableModel:
-        return self._resource_skills_table_model
+        return self._table_models.resource_skills
 
     @Property(QObject, constant=True)
     def resourceCertificationsTableModel(self) -> DynamicTableModel:
-        return self._resource_certifications_table_model
+        return self._table_models.resource_certifications
 
     @Property(QObject, constant=True)
     def resourceAssignmentsTableModel(self) -> DynamicTableModel:
-        return self._resource_assignments_table_model
+        return self._table_models.resource_assignments
 
     @Property("QVariantList", notify=resourceAssignmentsChanged)
     def resourceAssignments(self) -> list[dict[str, object]]:
@@ -202,6 +221,8 @@ class ProjectManagementResourcesWorkspaceController(
     @Property("QVariantMap", notify=resourceAvailabilityChanged)
     def resourceAvailability(self) -> dict[str, object]:
         return self._resource_availability
+
+    # ── Core ─────────────────────────────────────────────────────────────
 
     @Slot()
     def refresh(self) -> None:
@@ -223,9 +244,7 @@ class ProjectManagementResourcesWorkspaceController(
                 page_size=self._resource_page_size,
             )
             self._set_overview(
-                serialize_resource_catalog_overview_view_model(
-                    workspace_state.overview
-                )
+                serialize_resource_catalog_overview_view_model(workspace_state.overview)
             )
             self._set_worker_type_options(
                 serialize_selector_options(workspace_state.worker_type_options)
@@ -234,9 +253,7 @@ class ProjectManagementResourcesWorkspaceController(
                 serialize_selector_options(workspace_state.category_options)
             )
             self._set_employee_options(
-                serialize_resource_employee_option_view_models(
-                    workspace_state.employee_options
-                )
+                serialize_resource_employee_option_view_models(workspace_state.employee_options)
             )
             self._set_selected_active_filter(workspace_state.selected_active_filter)
             self._set_selected_category_filter(workspace_state.selected_category_filter)
@@ -246,16 +263,12 @@ class ProjectManagementResourcesWorkspaceController(
                     "title": "Resource Pool",
                     "subtitle": "Manage resource capacity, staffing type, and active availability.",
                     "emptyState": workspace_state.empty_state,
-                    "items": serialize_resource_record_view_models(
-                        workspace_state.resources
-                    ),
+                    "items": serialize_resource_record_view_models(workspace_state.resources),
                 }
             )
             self._set_selected_resource_id(workspace_state.selected_resource_id)
             self._set_selected_resource(
-                serialize_resource_detail_view_model(
-                    workspace_state.selected_resource_detail
-                )
+                serialize_resource_detail_view_model(workspace_state.selected_resource_detail)
             )
             self._set_empty_state(workspace_state.empty_state)
             self._set_resource_total_count(workspace_state.total_count)
@@ -264,424 +277,113 @@ class ProjectManagementResourcesWorkspaceController(
             self._set_resource_availability(
                 serialize_resource_availability_view_model(workspace_state.resource_availability)
             )
-            self._reload_skills_and_certs(workspace_state.selected_resource_id)
+            reload_skills_and_certs(self, workspace_state.selected_resource_id)
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:
             self._set_is_loading(False)
 
+    # ── Filter / Selection ───────────────────────────────────────────────
+
     @Slot(str)
     def setSearchText(self, search_text: str) -> None:
-        normalized_value = (search_text or "").strip()
-        if normalized_value == self._search_text:
-            return
-        self._set_search_text(normalized_value)
-        self._resource_page = 1
-        self.refresh()
+        set_search_text(self, search_text)
 
     @Slot(str)
     def setActiveFilter(self, active_filter: str) -> None:
-        normalized_value = (active_filter or "").strip().lower() or "all"
-        if normalized_value == self._selected_active_filter:
-            return
-        self._set_selected_active_filter(normalized_value)
-        self._resource_page = 1
-        self.refresh()
+        set_active_filter(self, active_filter)
 
     @Slot(str)
     def setCategoryFilter(self, category_filter: str) -> None:
-        normalized_value = (category_filter or "").strip().upper() or "ALL"
-        if normalized_value == self._selected_category_filter.upper():
-            return
-        self._set_selected_category_filter(category_filter)
-        self._resource_page = 1
-        self.refresh()
+        set_category_filter(self, category_filter)
 
     @Slot(str)
     def selectResource(self, resource_id: str) -> None:
-        normalized_value = (resource_id or "").strip()
-        if normalized_value == self._selected_resource_id:
-            return
-        self._set_selected_resource_id(normalized_value)
+        select_resource(self, resource_id)
 
     @Slot(str)
     def activateResource(self, resource_id: str) -> None:
-        self.selectResource(resource_id)
-        QTimer.singleShot(0, self.refresh)
-        QTimer.singleShot(0, self.loadResourceAssignments)
+        activate_resource(self, resource_id)
 
     @Slot(str)
     def loadSkillsAndCerts(self, resource_id: str) -> None:
-        self._reload_skills_and_certs((resource_id or "").strip())
+        load_skills_and_certs(self, resource_id)
 
     @Slot()
     def loadResourceAssignments(self) -> None:
-        resource_id = self._selected_resource_id
-        if not resource_id:
-            self._set_resource_assignments([])
-            return
-        try:
-            rows = self._resources_workspace_presenter.build_resource_assignments(resource_id)
-            self._set_resource_assignments(rows)
-        except Exception:
-            self._set_resource_assignments([])
+        load_resource_assignments(self)
 
     @Slot(int)
     def setResourcePage(self, page: int) -> None:
-        p = max(1, page)
-        if p == self._resource_page:
-            return
-        self._set_resource_page(p)
-        self.refresh()
+        set_resource_page(self, page)
 
     @Slot(int)
     def setResourcePageSize(self, page_size: int) -> None:
-        if page_size <= 0 or page_size == self._resource_page_size:
-            return
-        self._resource_page_size = page_size
-        self.resourcePageSizeChanged.emit()
-        self._set_resource_page(1)
-        self.refresh()
+        set_resource_page_size(self, page_size)
 
-    @Slot(str, "QVariantMap", result=str)
-    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
-        if (entity_type or "").strip().lower() != "resource":
-            return ""
-        try:
-            return self._resources_workspace_presenter.suggest_code(dict(payload))
-        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
-            self._set_error_message(str(exc))
-            return ""
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def createResource(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._resources_workspace_presenter.create_resource(
-                dict(payload)
-            ),
-            success_message="Resource created.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def updateResource(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._resources_workspace_presenter.update_resource(
-                dict(payload)
-            ),
-            success_message="Resource updated.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot(str, int, result="QVariantMap")
-    def toggleResourceActive(
-        self,
-        resource_id: str,
-        expected_version: int,
-    ) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._resources_workspace_presenter.toggle_resource_active(
-                resource_id,
-                expected_version=expected_version,
-            ),
-            success_message="Resource availability updated.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot(str, result="QVariantMap")
-    def deleteResource(self, resource_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._resources_workspace_presenter.delete_resource(
-                resource_id
-            ),
-            success_message="Resource deleted.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+    # ── Bulk ─────────────────────────────────────────────────────────────
 
     @Slot(str, bool)
     def setResourceBulkSelection(self, resource_id: str, selected: bool) -> None:
-        normalized_id = (resource_id or "").strip()
-        if not normalized_id:
-            return
-        current = list(self._selected_resource_ids)
-        if selected and normalized_id not in current:
-            current.append(normalized_id)
-        elif not selected and normalized_id in current:
-            current.remove(normalized_id)
-        else:
-            return
-        self._set_selected_resource_ids(current)
+        set_resource_bulk_selection(self, resource_id, selected)
 
     @Slot()
     def clearResourceBulkSelection(self) -> None:
-        self._set_selected_resource_ids([])
+        clear_resource_bulk_selection(self)
 
     @Slot()
     def selectVisibleResources(self) -> None:
-        items = self._resources.get("items") or []
-        visible_ids = [
-            str(item.get("id", "") or "")
-            for item in items
-            if item.get("id")
-        ]
-        self._set_selected_resource_ids(visible_ids)
+        select_visible_resources(self)
 
     @Slot("QVariantList", result="QVariantMap")
     def bulkDeleteResources(self, resource_ids: list) -> dict[str, object]:
-        ids = [str(rid) for rid in (resource_ids or []) if rid]
-        if not ids:
-            return {}
-        return run_mutation(
-            operation=lambda: self._do_bulk_delete(ids),
-            success_message=f"{len(ids)} resource(s) deleted.",
-            on_success=self._on_bulk_mutation_success,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return bulk_delete_resources(self, resource_ids)
+
+    # ── Skills / Certifications ──────────────────────────────────────────
 
     @Slot("QVariantMap", result="QVariantMap")
     def addSkill(self, payload: dict[str, object]) -> dict[str, object]:
-        resource_id = str(self._selected_resource_id or "")
-        return run_mutation(
-            operation=lambda: self._resources_workspace_presenter.add_skill(resource_id, dict(payload)),
-            success_message="Skill added.",
-            on_success=lambda: self._reload_skills_and_certs(resource_id),
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return add_skill(self, payload)
 
     @Slot(str, result="QVariantMap")
     def removeSkill(self, skill_id: str) -> dict[str, object]:
-        resource_id = str(self._selected_resource_id or "")
-        return run_mutation(
-            operation=lambda: self._resources_workspace_presenter.remove_skill(skill_id),
-            success_message="Skill removed.",
-            on_success=lambda: self._reload_skills_and_certs(resource_id),
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return remove_skill(self, skill_id)
 
     @Slot("QVariantMap", result="QVariantMap")
     def addCertification(self, payload: dict[str, object]) -> dict[str, object]:
-        resource_id = str(self._selected_resource_id or "")
-        return run_mutation(
-            operation=lambda: self._resources_workspace_presenter.add_certification(resource_id, dict(payload)),
-            success_message="Certification added.",
-            on_success=lambda: self._reload_skills_and_certs(resource_id),
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return add_certification(self, payload)
 
     @Slot(str, result="QVariantMap")
     def removeCertification(self, cert_id: str) -> dict[str, object]:
-        resource_id = str(self._selected_resource_id or "")
-        return run_mutation(
-            operation=lambda: self._resources_workspace_presenter.remove_certification(cert_id),
-            success_message="Certification removed.",
-            on_success=lambda: self._reload_skills_and_certs(resource_id),
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return remove_certification(self, cert_id)
+
+    # ── Export ───────────────────────────────────────────────────────────
 
     @Slot("QVariantList", str, result="QVariantMap")
     def exportResources(self, columns: list, file_path: str) -> dict[str, object]:
-        from src.ui_qml.modules.project_management.utils.table_exporter import export_to_file
-        self._set_error_message("")
-        try:
-            all_ws = self._resources_workspace_presenter.build_workspace_state(
-                search_text=self._search_text,
-                active_filter=self._selected_active_filter,
-                category_filter=self._selected_category_filter,
-                selected_resource_id=None,
-                page=1,
-                page_size=99999,
-            )
-            rows = serialize_resource_record_view_models(all_ws.resources)
-            result = export_to_file(rows, list(columns), (file_path or "").strip())
-            if result.get("ok"):
-                self._set_feedback_message(result.get("message", "Export complete."))
-            else:
-                self._set_error_message(result.get("error", "Export failed."))
-            return result
-        except Exception as exc:
-            self._set_error_message(str(exc))
-            return {"ok": False, "error": str(exc)}
+        return export_resources(self, columns, file_path)
 
-    def _set_resource_assignments(self, rows: list[dict[str, object]]) -> None:
-        if rows == self._resource_assignments:
-            return
-        self._resource_assignments = rows
-        self._resource_assignments_table_model.set_rows(rows)
-        self.resourceAssignmentsChanged.emit()
+    # ── CRUD ─────────────────────────────────────────────────────────────
 
-    def _bind_domain_events(self) -> None:
-        self._subscribe_domain_change("resource", scope_code="project_management")
-        self._subscribe_domain_change(
-            "working_calendar",
-            scope_code="platform",
-            category="shared_master",
-        )
-        self._subscribe_domain_signal(
-            domain_events.employees_changed,
-            self._on_domain_event,
-        )
+    @Slot(str, "QVariantMap", result=str)
+    def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
+        return generate_entity_code(self, entity_type, payload)
 
-    def _on_domain_event(self, _payload: object) -> None:
-        self._request_domain_refresh()
+    @Slot("QVariantMap", result="QVariantMap")
+    def createResource(self, payload: dict[str, object]) -> dict[str, object]:
+        return create_resource(self, payload)
 
-    def _set_overview(self, overview: dict[str, object]) -> None:
-        if overview == self._overview:
-            return
-        self._overview = overview
-        self.overviewChanged.emit()
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateResource(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_resource(self, payload)
 
-    def _set_worker_type_options(self, worker_type_options: list[dict[str, object]]) -> None:
-        if worker_type_options == self._worker_type_options:
-            return
-        self._worker_type_options = worker_type_options
-        self.workerTypeOptionsChanged.emit()
+    @Slot(str, int, result="QVariantMap")
+    def toggleResourceActive(self, resource_id: str, expected_version: int) -> dict[str, object]:
+        return toggle_resource_active(self, resource_id, expected_version)
 
-    def _set_category_options(self, category_options: list[dict[str, object]]) -> None:
-        if category_options == self._category_options:
-            return
-        self._category_options = category_options
-        self.categoryOptionsChanged.emit()
-
-    def _set_employee_options(self, employee_options: list[dict[str, object]]) -> None:
-        if employee_options == self._employee_options:
-            return
-        self._employee_options = employee_options
-        self.employeeOptionsChanged.emit()
-
-    def _set_selected_active_filter(self, selected_active_filter: str) -> None:
-        if selected_active_filter == self._selected_active_filter:
-            return
-        self._selected_active_filter = selected_active_filter
-        self.selectedActiveFilterChanged.emit()
-
-    def _set_selected_category_filter(self, selected_category_filter: str) -> None:
-        if selected_category_filter == self._selected_category_filter:
-            return
-        self._selected_category_filter = selected_category_filter
-        self.selectedCategoryFilterChanged.emit()
-
-    def _set_search_text(self, search_text: str) -> None:
-        if search_text == self._search_text:
-            return
-        self._search_text = search_text
-        self.searchTextChanged.emit()
-
-    def _set_resources(self, resources: dict[str, object]) -> None:
-        if resources == self._resources:
-            return
-        self._resources = resources
-        self._resources_table_model.set_rows(resources.get("items", []))
-        self.resourcesChanged.emit()
-
-    def _set_selected_resource(self, selected_resource: dict[str, object]) -> None:
-        if selected_resource == self._selected_resource:
-            return
-        self._selected_resource = selected_resource
-        self.selectedResourceChanged.emit()
-
-    def _set_selected_resource_id(self, selected_resource_id: str) -> None:
-        if selected_resource_id == self._selected_resource_id:
-            return
-        self._selected_resource_id = selected_resource_id
-        self.selectedResourceIdChanged.emit()
-
-    def _set_resource_page(self, v: int) -> None:
-        if v == self._resource_page:
-            return
-        self._resource_page = v
-        self.resourcePageChanged.emit()
-
-    def _set_resource_page_size(self, v: int) -> None:
-        if v == self._resource_page_size:
-            return
-        self._resource_page_size = v
-        self.resourcePageSizeChanged.emit()
-
-    def _set_resource_total_count(self, v: int) -> None:
-        if v == self._resource_total_count:
-            return
-        self._resource_total_count = v
-        self.resourceTotalCountChanged.emit()
-
-    def _set_selected_resource_ids(self, selected_ids: list[str]) -> None:
-        if selected_ids == self._selected_resource_ids:
-            return
-        self._selected_resource_ids = selected_ids
-        count = len(selected_ids)
-        self.selectedResourceIdsChanged.emit()
-        if count != self._selected_resource_count:
-            self._selected_resource_count = count
-            self.selectedResourceCountChanged.emit()
-
-    def _on_bulk_mutation_success(self) -> None:
-        self._set_selected_resource_ids([])
-        self._request_domain_refresh()
-
-    def _do_bulk_delete(self, ids: list[str]) -> None:
-        for resource_id in ids:
-            self._resources_workspace_presenter.delete_resource(resource_id)
-
-    def _reload_skills_and_certs(self, resource_id: str) -> None:
-        rid = (resource_id or "").strip()
-        if not rid:
-            self._set_resource_skills([])
-            self._set_resource_certifications([])
-            return
-        self._clear_section_error("skills")
-        try:
-            skills = self._resources_workspace_presenter.build_skills_state(rid)
-            self._set_resource_skills(serialize_resource_skill_view_models(skills))
-        except Exception as exc:
-            self._set_resource_skills([])
-            self._set_section_error("skills", str(exc))
-        try:
-            certs = self._resources_workspace_presenter.build_certifications_state(rid)
-            self._set_resource_certifications(serialize_resource_certification_view_models(certs))
-        except Exception as exc:
-            self._set_resource_certifications([])
-            self._set_section_error("skills", str(exc))
-
-    def _set_resource_skills(self, skills: list[dict[str, object]]) -> None:
-        if skills == self._resource_skills:
-            return
-        self._resource_skills = skills
-        self._resource_skills_table_model.set_rows(skills)
-        self.resourceSkillsChanged.emit()
-
-    def _set_resource_certifications(self, certs: list[dict[str, object]]) -> None:
-        if certs == self._resource_certifications:
-            return
-        self._resource_certifications = certs
-        self._resource_certifications_table_model.set_rows(certs)
-        self.resourceCertificationsChanged.emit()
-
-    def _set_resource_availability(self, availability: dict[str, object]) -> None:
-        if availability == self._resource_availability:
-            return
-        self._resource_availability = availability
-        self.resourceAvailabilityChanged.emit()
+    @Slot(str, result="QVariantMap")
+    def deleteResource(self, resource_id: str) -> dict[str, object]:
+        return delete_resource(self, resource_id)
 
 
 __all__ = ["ProjectManagementResourcesWorkspaceController"]

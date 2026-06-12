@@ -1,6 +1,6 @@
 """Project management reporting adapters."""
 
-from src.core.modules.project_management.infrastructure.reporting.models import (
+from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     BaselineComparisonResult,
     BaselineComparisonRow,
     CostBreakdownRow,
@@ -16,7 +16,7 @@ from src.core.modules.project_management.infrastructure.reporting.models import 
     ResourceLoadRow,
     TaskVarianceRow,
 )
-from src.core.modules.project_management.infrastructure.reporting.service import (
+from src.core.modules.project_management.infrastructure.reporting.services.reporting_service import (
     ReportingService,
 )
 

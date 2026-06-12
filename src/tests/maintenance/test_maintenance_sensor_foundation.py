@@ -5,7 +5,8 @@ from decimal import Decimal
 from src.core.modules.maintenance.domain import MaintenanceAsset, MaintenanceLocation, MaintenanceSensor, MaintenanceSensorReading
 from src.core.modules.maintenance.contracts.repositories import MaintenanceSensorReadingRepository, MaintenanceSensorRepository
 from src.core.modules.maintenance import MaintenanceSensorReadingService, MaintenanceSensorService
-from src.core.platform.org.domain import Organization, Site
+from src.core.platform.org.domain import Organization
+from src.core.platform.site.domain import Site
 from .test_maintenance_foundation import (
     _AssetRepo,
     _ComponentRepo,
@@ -13,6 +14,7 @@ from .test_maintenance_foundation import (
     _OrgRepo,
     _SiteRepo,
     _SystemRepo,
+    _TenantContext,
     _user_session,
 )
 
@@ -130,6 +132,7 @@ def test_maintenance_sensor_service_creates_asset_anchored_sensors(session) -> N
         asset_repo=asset_repo,
         component_repo=_ComponentRepo(),
         system_repo=_SystemRepo(),
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
 
@@ -185,6 +188,7 @@ def test_maintenance_sensor_reading_service_updates_sensor_snapshot(session) -> 
         organization_repo=_OrgRepo(organization),
         sensor_repo=sensor_repo,
         component_repo=_ComponentRepo(),
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
 
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntry,
@@ -22,7 +21,7 @@ class RegisterEntryRepository(ABC):
     def delete(self, entry_id: str) -> None: ...
 
     @abstractmethod
-    def get(self, entry_id: str) -> Optional[RegisterEntry]: ...
+    def get(self, entry_id: str) -> RegisterEntry | None: ...
 
     @abstractmethod
     def list_entries(
@@ -32,4 +31,4 @@ class RegisterEntryRepository(ABC):
         entry_type: RegisterEntryType | None = None,
         status: RegisterEntryStatus | None = None,
         severity: RegisterEntrySeverity | None = None,
-    ) -> List[RegisterEntry]: ...
+    ) -> list[RegisterEntry]: ...

@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 import sys
+from threading import Timer
+from time import perf_counter
+
+
+logger = logging.getLogger(__name__)
 
 
 def _app_dir() -> Path:
@@ -41,9 +47,17 @@ def _migration_candidates(app_dir: Path) -> list[Path]:
 def run_migrations(db_url: str) -> None:
     from alembic import command
     from alembic.config import Config
+    from alembic.script import ScriptDirectory
 
+    started = perf_counter()
     app_dir = _app_dir()
     candidates = _migration_candidates(app_dir)
+    logger.debug(
+        "Alembic migration discovery begin app_dir=%s candidate_count=%s candidates=%s",
+        app_dir,
+        len(candidates),
+        [str(candidate) for candidate in candidates],
+    )
 
     script_location = None
     alembic_ini = None
@@ -54,16 +68,53 @@ def run_migrations(db_url: str) -> None:
             break
 
     if script_location is None:
+        logger.critical(
+            "Alembic script_location missing candidates=%s",
+            [str(path) for path in candidates],
+        )
         raise RuntimeError(
             "Alembic script_location missing. Tried the following locations: " + 
             ", ".join(str(p) for p in candidates)
         )
 
     if not alembic_ini.exists():
+        logger.critical("Alembic config missing path=%s", alembic_ini)
         raise RuntimeError(f"Alembic config missing: {alembic_ini}")
 
     cfg = Config(str(alembic_ini))
     cfg.set_main_option("script_location", str(script_location))
     cfg.set_main_option("sqlalchemy.url", db_url)
-
-    command.upgrade(cfg, "head")
+    slow_watchdog = Timer(
+        5.0,
+        lambda: logger.warning(
+            "Alembic migration upgrade still running duration_ms=%.1f script_location=%s",
+            (perf_counter() - started) * 1000,
+            script_location,
+        ),
+    )
+    slow_watchdog.daemon = True
+    slow_watchdog.start()
+    try:
+        script = ScriptDirectory.from_config(cfg)
+        heads = script.get_heads()
+        logger.debug(
+            "Alembic migration upgrade begin script_location=%s config=%s heads=%s db_url=%s",
+            script_location,
+            alembic_ini,
+            heads,
+            db_url,
+        )
+        command.upgrade(cfg, "head")
+    except Exception:
+        logger.exception(
+            "Alembic migration upgrade failed script_location=%s duration_ms=%.1f",
+            script_location,
+            (perf_counter() - started) * 1000,
+        )
+        raise
+    finally:
+        slow_watchdog.cancel()
+    logger.debug(
+        "Alembic migration upgrade complete duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )

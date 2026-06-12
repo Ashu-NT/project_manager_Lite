@@ -10,7 +10,7 @@ from src.core.modules.project_management.application.financials import CostServi
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.platform.audit import AuditService
 from src.core.platform.audit.domain import AuditLogEntry
-from src.core.modules.project_management.application.scheduling.baseline_service import (
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
 from src.core.modules.project_management.application.projects import ProjectService

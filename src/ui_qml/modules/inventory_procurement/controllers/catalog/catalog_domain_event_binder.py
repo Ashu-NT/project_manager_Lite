@@ -1,0 +1,7 @@
+from __future__ import annotations
+
+
+def bind_domain_events(ctrl) -> None:
+    ctrl._subscribe_domain_change(scope_code="inventory_procurement")
+    ctrl._subscribe_domain_change("document", scope_code="platform")
+    ctrl._subscribe_domain_change("party", scope_code="platform")

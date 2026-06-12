@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List
-
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.tasks.commands.assignment_audit import (
@@ -17,7 +15,7 @@ from src.core.modules.project_management.domain.tasks.task import TaskAssignment
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 
 
 class TaskAssignmentMixin:
@@ -65,7 +63,7 @@ class TaskAssignmentMixin:
             raise exc
         domain_events.tasks_changed.emit(task.project_id)
 
-    def list_assignments_for_task(self, task_id: str) -> List[TaskAssignment]:
+    def list_assignments_for_task(self, task_id: str) -> list[TaskAssignment]:
         require_permission(self._user_session, "task.read", operation_label="list task assignments")
         task = self._task_repo.get(task_id)
         if task is None:

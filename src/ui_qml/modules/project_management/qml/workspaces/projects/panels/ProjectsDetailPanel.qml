@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
+import "../sections"
 
 Item {
     id: root

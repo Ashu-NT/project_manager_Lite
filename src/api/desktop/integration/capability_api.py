@@ -19,8 +19,6 @@ Usage in a controller:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
-
 from src.core.platform.integration.cross_module_reference import CrossModuleReference
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.integration.resolver import IntegrationResolver
@@ -64,12 +62,12 @@ class IntegrationCapabilityDesktopApi:
 
     def resolve_soft_reference(
         self,
-        source_module: Optional[str],
-        source_entity_type: Optional[str],
-        source_entity_id: Optional[str],
-        source_code_snapshot: Optional[str] = None,
-        source_title_snapshot: Optional[str] = None,
-        source_status_snapshot: Optional[str] = None,
+        source_module: str | None,
+        source_entity_type: str | None,
+        source_entity_id: str | None,
+        source_code_snapshot: str | None = None,
+        source_title_snapshot: str | None = None,
+        source_status_snapshot: str | None = None,
     ) -> dict:
         """Resolve ORM soft-reference columns into a display-safe dict.
 

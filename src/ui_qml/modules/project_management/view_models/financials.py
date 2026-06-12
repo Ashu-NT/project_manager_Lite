@@ -3,13 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-
 @dataclass(frozen=True)
 class FinancialsMetricViewModel:
     label: str
     value: str
     supporting_text: str
-
 
 @dataclass(frozen=True)
 class FinancialsOverviewViewModel:
@@ -17,12 +15,10 @@ class FinancialsOverviewViewModel:
     subtitle: str
     metrics: tuple[FinancialsMetricViewModel, ...]
 
-
 @dataclass(frozen=True)
 class FinancialsSelectorOptionViewModel:
     value: str
     label: str
-
 
 @dataclass(frozen=True)
 class FinancialsRecordViewModel:
@@ -37,13 +33,11 @@ class FinancialsRecordViewModel:
     can_tertiary_action: bool = False
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class FinancialsDetailFieldViewModel:
     label: str
     value: str
     supporting_text: str = ""
-
 
 @dataclass(frozen=True)
 class FinancialsDetailViewModel:
@@ -56,7 +50,6 @@ class FinancialsDetailViewModel:
     fields: tuple[FinancialsDetailFieldViewModel, ...] = field(default_factory=tuple)
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class FinancialsCollectionViewModel:
     title: str
@@ -64,13 +57,11 @@ class FinancialsCollectionViewModel:
     empty_state: str = ""
     items: tuple[FinancialsRecordViewModel, ...] = field(default_factory=tuple)
 
-
 @dataclass(frozen=True)
 class FinancialsForecastMetricViewModel:
     label: str
     value: str
     color_hint: str = ""  # "success", "warning", "danger", or ""
-
 
 @dataclass(frozen=True)
 class FinancialsForecastViewModel:
@@ -89,7 +80,6 @@ class FinancialsForecastViewModel:
     alert_message: str = ""
     metrics: tuple[FinancialsForecastMetricViewModel, ...] = field(default_factory=tuple)
 
-
 @dataclass(frozen=True)
 class FinancialsCommitmentSummaryViewModel:
     planned_label: str = ""
@@ -100,7 +90,6 @@ class FinancialsCommitmentSummaryViewModel:
     exposure_label: str = ""
     commitment_rate_pct: float = 0.0
 
-
 @dataclass(frozen=True)
 class BaselineVarianceRowViewModel:
     task_id: str
@@ -110,7 +99,6 @@ class BaselineVarianceRowViewModel:
     cost_variance: float
     cost_variance_label: str
     tone: str = "default"
-
 
 @dataclass(frozen=True)
 class FinancialsWorkspaceViewModel:
@@ -133,7 +121,6 @@ class FinancialsWorkspaceViewModel:
     baseline_variance: tuple[BaselineVarianceRowViewModel, ...] = field(default_factory=tuple)
     notes: tuple[str, ...] = field(default_factory=tuple)
     empty_state: str = ""
-
 
 __all__ = [
     "BaselineVarianceRowViewModel",

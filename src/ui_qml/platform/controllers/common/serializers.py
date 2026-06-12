@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 def serialize_workspace_overview(overview) -> dict[str, object]:
     return {
         "title": overview.title,
@@ -33,7 +32,6 @@ def serialize_workspace_overview(overview) -> dict[str, object]:
         ],
     }
 
-
 def serialize_action_list(list_view_model) -> dict[str, object]:
     return {
         "title": list_view_model.title,
@@ -41,7 +39,6 @@ def serialize_action_list(list_view_model) -> dict[str, object]:
         "emptyState": list_view_model.empty_state,
         "items": [serialize_action_item(item) for item in list_view_model.items],
     }
-
 
 def serialize_action_item(item) -> dict[str, object]:
     return {
@@ -56,7 +53,6 @@ def serialize_action_item(item) -> dict[str, object]:
         "canTertiaryAction": item.can_tertiary_action,
         "state": dict(item.state),
     }
-
 
 def serialize_operation_result(
     result,
@@ -77,7 +73,6 @@ def serialize_operation_result(
         "code": getattr(error, "code", "operation_failed"),
         "message": getattr(error, "message", "The platform QML action did not complete."),
     }
-
 
 __all__ = [
     "serialize_action_item",

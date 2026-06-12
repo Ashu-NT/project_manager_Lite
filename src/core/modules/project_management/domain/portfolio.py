@@ -22,6 +22,7 @@ class PortfolioIntakeItem:
     id: str
     title: str
     sponsor_name: str
+    organization_id: str = ""
     summary: str = ""
     requested_budget: float = 0.0
     requested_capacity_percent: float = 0.0
@@ -44,6 +45,7 @@ class PortfolioIntakeItem:
     @staticmethod
     def create(
         *,
+        organization_id: str,
         title: str,
         sponsor_name: str,
         summary: str = "",
@@ -65,6 +67,7 @@ class PortfolioIntakeItem:
         now = datetime.now(timezone.utc)
         return PortfolioIntakeItem(
             id=generate_id(),
+            organization_id=str(organization_id or "").strip(),
             title=(title or "").strip(),
             sponsor_name=(sponsor_name or "").strip(),
             summary=(summary or "").strip(),
@@ -101,6 +104,7 @@ class PortfolioIntakeItem:
 class PortfolioScenario:
     id: str
     name: str
+    organization_id: str = ""
     budget_limit: float | None = None
     capacity_limit_percent: float | None = None
     project_ids: list[str] = field(default_factory=list)
@@ -112,6 +116,7 @@ class PortfolioScenario:
     @staticmethod
     def create(
         *,
+        organization_id: str,
         name: str,
         budget_limit: float | None = None,
         capacity_limit_percent: float | None = None,
@@ -122,6 +127,7 @@ class PortfolioScenario:
         now = datetime.now(timezone.utc)
         return PortfolioScenario(
             id=generate_id(),
+            organization_id=str(organization_id or "").strip(),
             name=(name or "").strip(),
             budget_limit=(None if budget_limit is None else float(budget_limit)),
             capacity_limit_percent=(
@@ -141,6 +147,7 @@ class PortfolioScenario:
 class PortfolioScoringTemplate:
     id: str
     name: str
+    organization_id: str = ""
     summary: str = ""
     strategic_weight: int = 3
     value_weight: int = 2
@@ -153,6 +160,7 @@ class PortfolioScoringTemplate:
     @staticmethod
     def create(
         *,
+        organization_id: str,
         name: str,
         summary: str = "",
         strategic_weight: int = 3,
@@ -164,6 +172,7 @@ class PortfolioScoringTemplate:
         now = datetime.now(timezone.utc)
         return PortfolioScoringTemplate(
             id=generate_id(),
+            organization_id=str(organization_id or "").strip(),
             name=(name or "").strip(),
             summary=(summary or "").strip(),
             strategic_weight=int(strategic_weight or 0),

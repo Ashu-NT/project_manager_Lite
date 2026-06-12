@@ -24,9 +24,12 @@ from src.core.platform.access.authorization import filter_scope_rows, require_sc
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
-from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
-from src.core.platform.org.domain import Organization, Site
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
+from src.core.platform.org.domain import Organization
+from src.core.platform.site.domain import Site
 
 
 class MaintenanceSensorService:
@@ -40,12 +43,17 @@ class MaintenanceSensorService:
         asset_repo: MaintenanceAssetRepository,
         component_repo: MaintenanceAssetComponentRepository,
         system_repo: MaintenanceSystemRepository,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
         self._session = session
         self._sensor_repo = sensor_repo
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._site_repo = site_repo
         self._asset_repo = asset_repo
         self._component_repo = component_repo
@@ -458,10 +466,9 @@ class MaintenanceSensorService:
         return system
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise BusinessRuleError("No active organization selected.", code="NO_ACTIVE_ORGANIZATION")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="maintenance sensors"
+        ).organization
 
     def _require_read(self, operation_label: str) -> None:
         require_permission(self._user_session, "maintenance.read", operation_label=operation_label)

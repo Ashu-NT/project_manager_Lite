@@ -26,7 +26,7 @@ from src.core.modules.inventory_procurement.application.procurement import Procu
 from src.core.modules.inventory_procurement.domain.procurement.purchasing import PurchaseRequisition
 from src.core.modules.inventory_procurement.domain.inventory.stock import StockReservation
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 
 
 class MaintenanceMaterialService:

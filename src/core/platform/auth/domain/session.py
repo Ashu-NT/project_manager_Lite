@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
-from typing import Callable, FrozenSet
+from typing import Callable
 
 from src.core.platform.common.ids import generate_id
 from src.core.platform.auth.datetime_utils import ensure_utc_datetime
@@ -48,7 +48,7 @@ class AuthSession:
         )
 
 
-def _normalize_permission_set(values: Iterable[str] | None) -> FrozenSet[str]:
+def _normalize_permission_set(values: Iterable[str] | None) -> frozenset[str]:
     return frozenset(
         str(value).strip()
         for value in (values or ())
@@ -57,12 +57,12 @@ def _normalize_permission_set(values: Iterable[str] | None) -> FrozenSet[str]:
 
 
 def _normalize_scoped_access(
-    scoped_access: Mapping[str, Mapping[str, Iterable[str] | FrozenSet[str]]] | None,
-    project_access: Mapping[str, Iterable[str] | FrozenSet[str]] | None = None,
-) -> dict[str, dict[str, FrozenSet[str]]]:
-    normalized: dict[str, dict[str, FrozenSet[str]]] = {}
+    scoped_access: Mapping[str, Mapping[str, Iterable[str] | frozenset[str]]] | None,
+    project_access: Mapping[str, Iterable[str] | frozenset[str]] | None = None,
+) -> dict[str, dict[str, frozenset[str]]]:
+    normalized: dict[str, dict[str, frozenset[str]]] = {}
 
-    def _merge(scope_type: str, scope_id: str, permissions: Iterable[str] | FrozenSet[str]) -> None:
+    def _merge(scope_type: str, scope_id: str, permissions: Iterable[str] | frozenset[str]) -> None:
         normalized_scope_type = str(scope_type or "").strip().lower()
         normalized_scope_id = str(scope_id or "").strip()
         if not normalized_scope_type or not normalized_scope_id:
@@ -94,16 +94,17 @@ class UserSessionPrincipal:
     user_id: str
     username: str
     display_name: str | None
-    role_names: FrozenSet[str]
-    permissions: FrozenSet[str]
-    scoped_access: dict[str, dict[str, FrozenSet[str]]] = field(default_factory=dict)
-    project_access: dict[str, FrozenSet[str]] = field(default_factory=dict)
+    role_names: frozenset[str]
+    permissions: frozenset[str]
+    scoped_access: dict[str, dict[str, frozenset[str]]] = field(default_factory=dict)
+    project_access: dict[str, frozenset[str]] = field(default_factory=dict)
     session_expires_at: datetime | None = None
     must_change_password: bool = False
     session_revision: int = 1
     identity_provider: str | None = None
     last_login_auth_method: str | None = None
     session_id: str | None = None
+    active_organization_id: str | None = None
 
 
 class UserSessionContext:
@@ -114,6 +115,7 @@ class UserSessionContext:
     ):
         self._principal: UserSessionPrincipal | None = None
         self._principal_validator = principal_validator
+        self._active_organization_id: str | None = None
 
     @property
     def principal(self) -> UserSessionPrincipal | None:
@@ -144,10 +146,14 @@ class UserSessionContext:
             identity_provider=(str(getattr(principal, "identity_provider", "") or "").strip() or None),
             last_login_auth_method=(str(getattr(principal, "last_login_auth_method", "") or "").strip() or None),
             session_id=(str(getattr(principal, "session_id", "") or "").strip() or None),
+            active_organization_id=(
+                str(getattr(principal, "active_organization_id", "") or "").strip() or None
+            ),
         )
 
     def clear(self) -> None:
         self._principal = None
+        self._active_organization_id = None
 
     def is_authenticated(self) -> bool:
         return self._active_principal() is not None
@@ -203,6 +209,43 @@ class UserSessionContext:
     def project_ids_for(self, permission_code: str) -> set[str]:
         return self.scope_ids_for("project", permission_code)
 
+    def organization_ids(self) -> set[str]:
+        principal = self._active_principal()
+        if principal is None:
+            return set()
+        return set(self._scope_rows(principal, "organization").keys())
+
+    def has_organization_access(self, organization_id: str) -> bool:
+        principal = self._active_principal()
+        if principal is None:
+            return False
+        if "admin" in principal.role_names:
+            return True
+        normalized_organization_id = str(organization_id or "").strip()
+        if not normalized_organization_id:
+            return False
+        organization_ids = self.organization_ids()
+        return not organization_ids or normalized_organization_id in organization_ids
+
+    def set_active_organization_id(self, organization_id: str | None) -> None:
+        self._active_organization_id = str(organization_id or "").strip() or None
+
+    def active_organization_id(self) -> str | None:
+        session_organization_id = str(self._active_organization_id or "").strip() or None
+        if session_organization_id:
+            return session_organization_id
+        principal = self._active_principal()
+        if principal is None:
+            return None
+        principal_organization_id = (
+            str(getattr(principal, "active_organization_id", "") or "").strip()
+            or None
+        )
+        if principal_organization_id:
+            return principal_organization_id
+        organization_ids = sorted(self.organization_ids())
+        return organization_ids[0] if len(organization_ids) == 1 else None
+
     def is_scope_restricted(self, scope_type: str) -> bool:
         principal = self._active_principal()
         if principal is None:
@@ -226,7 +269,7 @@ class UserSessionContext:
             self.clear()
             return None
         validator = self._principal_validator
-        if validator is not None:
+        if validator is not None and principal.session_id:
             validated = validator(principal)
             if validated is None:
                 self.clear()
@@ -241,7 +284,7 @@ class UserSessionContext:
     def _scope_rows(
         principal: UserSessionPrincipal,
         scope_type: str,
-    ) -> dict[str, FrozenSet[str]]:
+    ) -> dict[str, frozenset[str]]:
         normalized_scope_type = str(scope_type or "").strip().lower()
         if not normalized_scope_type:
             return {}

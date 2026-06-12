@@ -1,0 +1,1 @@
+"""Collaboration validation rules."""

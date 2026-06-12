@@ -57,7 +57,8 @@ from src.core.modules.maintenance.domain import (
     MaintenanceWorkOrderType,
     MaintenanceWorkRequestStatus,
 )
-from src.core.platform.org import EmployeeService, SiteService
+from src.core.platform.employee import EmployeeService
+from src.core.platform.site import SiteService
 from src.core.platform.party import PartyService, PartyType
 
 _VENDOR_PARTY_TYPES = {

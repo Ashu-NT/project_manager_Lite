@@ -1,21 +1,21 @@
 """Inventory procurement QML presenters."""
 
-from src.ui_qml.modules.inventory_procurement.presenters.catalog_workspace_presenter import (
+from src.ui_qml.modules.inventory_procurement.presenters.catalog import (
     InventoryCatalogWorkspacePresenter,
 )
-from src.ui_qml.modules.inventory_procurement.presenters.dashboard_workspace_presenter import (
+from src.ui_qml.modules.inventory_procurement.presenters.dashboard import (
     InventoryDashboardWorkspacePresenter,
 )
-from src.ui_qml.modules.inventory_procurement.presenters.inventory_workspace_presenter import (
+from src.ui_qml.modules.inventory_procurement.presenters.inventory import (
     InventoryInventoryWorkspacePresenter,
 )
-from src.ui_qml.modules.inventory_procurement.presenters.pricing_workspace_presenter import (
+from src.ui_qml.modules.inventory_procurement.presenters.pricing import (
     InventoryPricingWorkspacePresenter,
 )
-from src.ui_qml.modules.inventory_procurement.presenters.procurement_workspace_presenter import (
+from src.ui_qml.modules.inventory_procurement.presenters.procurement import (
     InventoryProcurementProcurementWorkspacePresenter,
 )
-from src.ui_qml.modules.inventory_procurement.presenters.reservations_workspace_presenter import (
+from src.ui_qml.modules.inventory_procurement.presenters.reservations import (
     InventoryReservationsWorkspacePresenter,
 )
 from src.ui_qml.modules.inventory_procurement.presenters.workspace_presenter import (

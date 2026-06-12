@@ -39,6 +39,36 @@ Item {
         siteDialog.openForEdit(state || {})
     }
 
+    function openWorkingCalendarEdit(state) {
+        workingCalendarDialog.openForEdit(state || {})
+    }
+
+    function openWorkingCalendarHolidayCreate() {
+        workingCalendarHolidayDialog.openForCreate()
+    }
+
+    function openCalendarCreate() {
+        calendarEditorDialog.openForCreate()
+    }
+
+    function openCalendarEdit(state) {
+        calendarEditorDialog.openForEdit(state || {})
+    }
+
+    function openCalendarExceptionCreate(calendarId) {
+        calendarExceptionDialog.openForCreate(calendarId || "")
+    }
+
+    function openCalendarRecurringEventCreate(calendarId) {
+        calendarRecurringEventDialog.openForCreate(calendarId || "")
+    }
+
+    function openCalendarAssign(entityType, entityId, entityLabel, calendars) {
+        calendarAssignmentDialog.openForAssign(
+            entityType || "", entityId || "", entityLabel || "", calendars || []
+        )
+    }
+
     function openDepartmentCreate() {
         if (root.workspaceController === null) {
             return
@@ -181,6 +211,34 @@ Item {
         }
     }
 
+    PlatformDialogs.WorkingCalendarEditorDialog {
+        id: workingCalendarDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.updateCalendar(payload)
+            root._handleResult(workingCalendarDialog, result)
+        }
+    }
+
+    PlatformDialogs.WorkingCalendarHolidayDialog {
+        id: workingCalendarHolidayDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.addCalendarHoliday(payload)
+            root._handleResult(workingCalendarHolidayDialog, result)
+        }
+    }
+
     PlatformDialogs.DepartmentEditorDialog {
         id: departmentDialog
 
@@ -293,6 +351,64 @@ Item {
                 ? root.workspaceController.createDocumentStructure(payload)
                 : root.workspaceController.updateDocumentStructure(payload)
             root._handleResult(documentStructureDialog, result)
+        }
+    }
+
+    PlatformDialogs.CalendarEditorDialog {
+        id: calendarEditorDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(mode, payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? root.workspaceController.createEnterpriseCalendar(payload)
+                : root.workspaceController.updateEnterpriseCalendar(payload)
+            root._handleResult(calendarEditorDialog, result)
+        }
+    }
+
+    PlatformDialogs.CalendarExceptionDialog {
+        id: calendarExceptionDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.addCalendarException(payload)
+            root._handleResult(calendarExceptionDialog, result)
+        }
+    }
+
+    PlatformDialogs.CalendarRecurringEventDialog {
+        id: calendarRecurringEventDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.addCalendarRecurringEvent(payload)
+            root._handleResult(calendarRecurringEventDialog, result)
+        }
+    }
+
+    PlatformDialogs.CalendarAssignmentDialog {
+        id: calendarAssignmentDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.assignCalendar(payload)
+            root._handleResult(calendarAssignmentDialog, result)
         }
     }
 }

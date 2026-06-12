@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
+from time import perf_counter
 
 from src.core.platform.access import ScopedRolePolicy
 from src.core.modules.inventory_procurement import (
@@ -52,6 +54,9 @@ from src.core.modules.inventory_procurement.infrastructure.reporting import Inve
 from src.infra.composition.platform_registry import PlatformServiceBundle
 
 
+logger = logging.getLogger(__name__)
+
+
 @dataclass(frozen=True)
 class InventoryProcurementServiceBundle:
     inventory_reference_service: InventoryReferenceService
@@ -71,6 +76,8 @@ class InventoryProcurementServiceBundle:
 def build_inventory_procurement_service_bundle(
     platform_services: PlatformServiceBundle,
 ) -> InventoryProcurementServiceBundle:
+    started = perf_counter()
+    logger.debug("Inventory/Procurement service bundle build begin")
     platform_services.access_service.register_scope_policy(
         ScopedRolePolicy(
             scope_type="storeroom",
@@ -79,6 +86,8 @@ def build_inventory_procurement_service_bundle(
             resolve_permissions=resolve_storeroom_scope_permissions,
         )
     )
+    logger.debug("Inventory/Procurement storeroom access policy registered")
+    logger.debug("Inventory/Procurement repositories build begin")
     balance_repo = SqlAlchemyStockBalanceRepository(platform_services.session)
     category_repo = SqlAlchemyInventoryItemCategoryRepository(platform_services.session)
     item_repo = SqlAlchemyStockItemRepository(platform_services.session)
@@ -94,10 +103,13 @@ def build_inventory_procurement_service_bundle(
     reservation_repo = SqlAlchemyStockReservationRepository(platform_services.session)
     transaction_repo = SqlAlchemyStockTransactionRepository(platform_services.session)
     storeroom_repo = SqlAlchemyStoreroomRepository(platform_services.session)
+    logger.debug("Inventory/Procurement repositories built")
+    logger.debug("Inventory/Procurement core services build begin")
     inventory_item_category_service = ItemCategoryService(
         platform_services.session,
         category_repo,
         organization_repo=platform_services.organization_repo,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -107,6 +119,7 @@ def build_inventory_procurement_service_bundle(
         organization_repo=platform_services.organization_repo,
         site_service=platform_services.site_service,
         party_service=platform_services.party_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -117,6 +130,7 @@ def build_inventory_procurement_service_bundle(
         organization_repo=platform_services.organization_repo,
         party_service=platform_services.party_service,
         document_integration_service=platform_services.document_integration_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -129,6 +143,7 @@ def build_inventory_procurement_service_bundle(
         item_service=inventory_item_service,
         party_service=platform_services.party_service,
         approval_service=platform_services.approval_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -139,6 +154,7 @@ def build_inventory_procurement_service_bundle(
         organization_repo=platform_services.organization_repo,
         item_service=inventory_item_service,
         inventory_service=inventory_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -161,6 +177,7 @@ def build_inventory_procurement_service_bundle(
         item_service=inventory_item_service,
         stock_service=inventory_stock_service,
         approval_service=platform_services.approval_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
         document_integration_service=platform_services.document_integration_service,
@@ -172,6 +189,7 @@ def build_inventory_procurement_service_bundle(
         item_service=inventory_item_service,
         inventory_service=inventory_service,
         stock_service=inventory_stock_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
         document_integration_service=platform_services.document_integration_service,
@@ -187,6 +205,7 @@ def build_inventory_procurement_service_bundle(
         stock_service=inventory_stock_service,
         party_service=platform_services.party_service,
         module_runtime_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -245,18 +264,23 @@ def build_inventory_procurement_service_bundle(
         reservation_service=inventory_reservation_service,
         procurement_service=inventory_procurement_service,
     )
+    logger.debug("Inventory/Procurement core services built")
 
     def _storeroom_exists(storeroom_id: str) -> bool:
         storeroom = storeroom_repo.get(storeroom_id)
-        organization = platform_services.organization_repo.get_active()
+        organization_id = platform_services.tenant_context_service.get_active_organization_id()
         return bool(
             storeroom is not None
-            and organization is not None
-            and storeroom.organization_id == organization.id
+            and organization_id
+            and storeroom.organization_id == organization_id
         )
 
     platform_services.access_service.register_scope_exists_resolver("storeroom", _storeroom_exists)
 
+    logger.debug(
+        "Inventory/Procurement service bundle build complete duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
     return InventoryProcurementServiceBundle(
         inventory_reference_service=inventory_reference_service,
         inventory_data_exchange_service=inventory_data_exchange_service,

@@ -11,7 +11,7 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     PurchaseRequisitionStatus,
 )
 from src.core.platform.auth.authorization import require_permission
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.org.domain import Organization
 from src.core.platform.party.domain import Party
 
@@ -54,10 +54,9 @@ class ProcurementSupportMixin:
             )
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="inventory procurement"
+        ).organization
 
     def _require_read(self, operation_label: str) -> None:
         require_permission(self._user_session, "inventory.read", operation_label=operation_label)

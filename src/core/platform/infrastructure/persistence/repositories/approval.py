@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import List, Optional
-
-from sqlalchemy import desc, select
+from sqlalchemy import desc, or_, select
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.platform.approval.contracts import ApprovalRepository
 from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from src.core.platform.infrastructure.persistence.mappers.approval import approval_from_orm, approval_to_orm
@@ -12,7 +11,9 @@ from src.core.platform.infrastructure.persistence.orm.approval import ApprovalRe
 
 
 class SqlAlchemyApprovalRepository(ApprovalRepository):
-    def __init__(self, session: Session):
+    session: Session
+
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, request: ApprovalRequest) -> None:
@@ -27,6 +28,7 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         obj.entity_type = request.entity_type
         obj.entity_id = request.entity_id
         obj.project_id = request.project_id
+        obj.organization_id = request.organization_id or None
         obj.payload_json = approval_to_orm(request).payload_json
         obj.status = request.status.value
         obj.requested_by_user_id = request.requested_by_user_id
@@ -37,7 +39,7 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         obj.decided_at = request.decided_at
         obj.decision_note = request.decision_note
 
-    def get(self, request_id: str) -> Optional[ApprovalRequest]:
+    def get(self, request_id: str) -> ApprovalRequest | None:
         obj = self.session.get(ApprovalRequestORM, request_id)
         return approval_from_orm(obj) if obj else None
 
@@ -49,8 +51,50 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         project_id: str | None = None,
         entity_type: str | list[str] | None = None,
         entity_id: str | None = None,
-    ) -> List[ApprovalRequest]:
+    ) -> list[ApprovalRequest]:
         stmt = select(ApprovalRequestORM)
+        if status is not None:
+            stmt = stmt.where(ApprovalRequestORM.status == status.value)
+        if project_id is not None:
+            stmt = stmt.where(ApprovalRequestORM.project_id == project_id)
+        if entity_type is not None:
+            if isinstance(entity_type, str):
+                stmt = stmt.where(ApprovalRequestORM.entity_type == entity_type)
+            else:
+                stmt = stmt.where(ApprovalRequestORM.entity_type.in_(entity_type))
+        if entity_id is not None:
+            stmt = stmt.where(ApprovalRequestORM.entity_id == entity_id)
+        stmt = stmt.order_by(desc(ApprovalRequestORM.requested_at)).limit(max(1, int(limit)))
+        rows = self.session.execute(stmt).scalars().all()
+        return [approval_from_orm(row) for row in rows]
+
+    def project_belongs_to_organization(self, project_id: str, organization_id: str) -> bool:
+        stmt = select(ProjectORM.id).where(
+            ProjectORM.id == project_id,
+            ProjectORM.organization_id == organization_id,
+        )
+        return self.session.execute(stmt).first() is not None
+
+    def list_by_status_for_organization(
+        self,
+        organization_id: str,
+        status: ApprovalStatus | None = None,
+        *,
+        limit: int = 200,
+        project_id: str | None = None,
+        entity_type: str | list[str] | None = None,
+        entity_id: str | None = None,
+    ) -> list[ApprovalRequest]:
+        stmt = (
+            select(ApprovalRequestORM)
+            .outerjoin(ProjectORM, ProjectORM.id == ApprovalRequestORM.project_id)
+            .where(
+                or_(
+                    ApprovalRequestORM.organization_id == organization_id,
+                    ProjectORM.organization_id == organization_id,
+                )
+            )
+        )
         if status is not None:
             stmt = stmt.where(ApprovalRequestORM.status == status.value)
         if project_id is not None:

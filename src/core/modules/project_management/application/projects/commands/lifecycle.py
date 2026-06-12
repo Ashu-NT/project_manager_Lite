@@ -22,9 +22,9 @@ from src.core.modules.project_management.domain.projects.project import Project
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.common.interfaces import TimeEntryRepository
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.domain.enums import ProjectStatus
 
 logger = logging.getLogger(__name__)
@@ -41,17 +41,30 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
     _calendar_repo: CalendarEventRepository
     _cost_repo: CostRepository
 
-    def _resolve_project_code(self, code: str, name: str, *, exclude_id: str | None = None) -> str:
-        """Normalize a manual code or auto-generate a unique one (global scope)."""
+    def _resolve_project_code(
+        self,
+        code: str,
+        name: str,
+        *,
+        exclude_id: str | None = None,
+        organization_id: str | None = None,
+    ) -> str:
+        """Normalize a manual code or auto-generate a unique code."""
         from src.core.platform.common.code_generation import (
             CodeGenerator,
             assert_code_unique,
             normalize_manual_code,
         )
 
+        if not organization_id:
+            raise BusinessRuleError(
+                "Active organization context is required for project code generation.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        project_rows = self._project_repo.list_for_organization(organization_id)
         existing = {
             str(getattr(project, "code", "") or "").upper()
-            for project in self._project_repo.list_all()
+            for project in project_rows
             if exclude_id is None or project.id != exclude_id
         }
         manual = normalize_manual_code(code)
@@ -86,20 +99,28 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         code: str = "",
     ) -> Project:
         require_permission(self._user_session, "project.manage", operation_label="create project")
-        self._validate_project_name(name)
+        resolved_organization_id = self._resolve_project_organization_id(
+            organization_id,
+            operation_label="create project",
+        )
+        self._validate_project_name(name, organization_id=resolved_organization_id)
         resolved_currency = (currency or "").strip().upper() or DEFAULT_CURRENCY_CODE
-        resolved_code = self._resolve_project_code(code, name)
+        resolved_code = self._resolve_project_code(
+            code,
+            name,
+            organization_id=resolved_organization_id,
+        )
         project = Project.create(
             name=name.strip(),
             code=resolved_code,
-            description=description.strip(),
+            description=(description or "").strip(),
             client_name=(client_name or "").strip() or None,
             client_contact=(client_contact or "").strip() or None,
             planned_budget=planned_budget,
             currency=resolved_currency,
             start_date=start_date,
             end_date=end_date,
-            organization_id=(organization_id or "").strip() or None,
+            organization_id=resolved_organization_id,
             site_id=(site_id or "").strip() or None,
             client_party_id=(client_party_id or "").strip() or None,
             manager_user_id=(manager_user_id or "").strip() or None,
@@ -129,6 +150,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found")
+        self._assert_project_in_active_organization(project, operation_label="set project status")
         require_project_permission(
             self._user_session,
             project.id,
@@ -156,6 +178,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found")
+        self._assert_project_in_active_organization(project, operation_label="update project dates")
 
         tasks = self._task_repo.list_by_project(project_id)
         if not tasks:
@@ -194,6 +217,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        self._assert_project_in_active_organization(project, operation_label="update project")
         require_project_permission(
             self._user_session,
             project.id,
@@ -209,9 +233,19 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         if name is not None:
             if not name.strip():
                 raise ValidationError("Project name cannot be empty.", code="PROJECT_NAME_EMPTY")
+            self._validate_project_name(
+                name,
+                organization_id=getattr(project, "organization_id", None),
+                exclude_id=project.id,
+            )
             project.name = name.strip()
         if code is not None and code.strip():
-            project.code = self._resolve_project_code(code, project.name, exclude_id=project.id)
+            project.code = self._resolve_project_code(
+                code,
+                project.name,
+                exclude_id=project.id,
+                organization_id=getattr(project, "organization_id", None),
+            )
         if description is not None:
             project.description = description.strip()
         if status is not None:
@@ -233,7 +267,10 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         if currency is not None:
             project.currency = currency.strip().upper() or None
         if organization_id is not None:
-            project.organization_id = (organization_id or "").strip() or None
+            project.organization_id = self._resolve_project_organization_id(
+                organization_id,
+                operation_label="update project",
+            )
         if site_id is not None:
             project.site_id = (site_id or "").strip() or None
         if client_party_id is not None:
@@ -264,6 +301,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found")
+        self._assert_project_in_active_organization(project, operation_label="delete project")
         require_project_permission(
             self._user_session,
             project.id,
@@ -300,6 +338,36 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             raise
 
         domain_events.project_changed.emit(project_id)
+
+    def _active_project_organization_id(self, *, operation_label: str) -> str | None:
+        tenant_context = getattr(self, "_tenant_context_service", None)
+        if tenant_context is None:
+            raise BusinessRuleError(
+                f"Active organization context is required for {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return tenant_context.require_active_organization_id(operation_label=operation_label)
+
+    def _resolve_project_organization_id(
+        self,
+        organization_id: str | None,
+        *,
+        operation_label: str,
+    ) -> str:
+        active_organization_id = self._active_project_organization_id(operation_label=operation_label)
+        requested_organization_id = str(organization_id or "").strip() or None
+        if requested_organization_id and requested_organization_id != active_organization_id:
+            raise ValidationError(
+                "Project organization must match the active tenant context.",
+                code="PROJECT_ORGANIZATION_MISMATCH",
+            )
+        return active_organization_id
+
+    def _assert_project_in_active_organization(self, project: Project, *, operation_label: str) -> None:
+        active_organization_id = self._active_project_organization_id(operation_label=operation_label)
+        project_organization_id = str(getattr(project, "organization_id", "") or "").strip()
+        if project_organization_id != active_organization_id:
+            raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 
 
 __all__ = ["DEFAULT_CURRENCY_CODE", "ProjectLifecycleMixin"]

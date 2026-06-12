@@ -17,7 +17,8 @@ from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
+from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org.domain import Organization
 
 
@@ -30,12 +31,17 @@ class MaintenanceSensorSourceMappingService:
         organization_repo: OrganizationRepository,
         integration_source_repo: MaintenanceIntegrationSourceRepository,
         sensor_repo: MaintenanceSensorRepository,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
         self._session = session
         self._sensor_source_mapping_repo = sensor_source_mapping_repo
         self._organization_repo = organization_repo
+        self._tenant_context_service = tenant_context_service or TenantContextService(
+            organization_repo=organization_repo,
+            user_session=user_session,
+        )
         self._integration_source_repo = integration_source_repo
         self._sensor_repo = sensor_repo
         self._user_session = user_session
@@ -326,10 +332,9 @@ class MaintenanceSensorSourceMappingService:
         )
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
-        if organization is None:
-            raise BusinessRuleError("No active organization selected.", code="NO_ACTIVE_ORGANIZATION")
-        return organization
+        return self._tenant_context_service.require_context(
+            operation_label="maintenance sensor source mappings"
+        ).organization
 
     def _require_read(self, operation_label: str) -> None:
         require_permission(self._user_session, "maintenance.read", operation_label=operation_label)

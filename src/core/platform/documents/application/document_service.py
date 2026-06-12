@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from typing import Any
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.platform.audit.helpers import record_audit
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.documents.contracts import (
     DocumentLinkRepository,
@@ -38,6 +39,7 @@ from src.core.platform.documents.support import (
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
 from src.core.platform.org.support import normalize_code, normalize_name
+from src.core.platform.tenancy import TenantContextService
 
 
 def _normalize_optional_date(value: date | None) -> date | None:
@@ -61,9 +63,10 @@ class DocumentService:
         structure_repo: DocumentStructureRepository,
         *,
         organization_repo: OrganizationRepository,
-        user_session=None,
-        audit_service=None,
-    ):
+        user_session: Any = None,
+        audit_service: Any = None,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self._session = session
         self._document_repo = document_repo
         self._link_repo = link_repo
@@ -71,6 +74,7 @@ class DocumentService:
         self._organization_repo = organization_repo
         self._user_session = user_session
         self._audit_service = audit_service
+        self._tenant_context_service = tenant_context_service
 
     def get_context_organization(self) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="view document context")
@@ -575,9 +579,17 @@ class DocumentService:
         return structure
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        organization = self._tenant_context_service.get_active_organization()
         if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
+            raise BusinessRuleError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
         return organization
 
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
-from typing import Optional
 
 from src.core.modules.project_management.domain.identifiers import generate_id
 
@@ -72,8 +71,8 @@ class ResourceCertification:
     resource_id: str
     certification_code: str
     certification_name: str
-    issued_date: Optional[date] = None
-    expiry_date: Optional[date] = None
+    issued_date: date | None = None
+    expiry_date: date | None = None
     issuing_body: str = ""
     notes: str = ""
     version: int = 1
@@ -83,8 +82,8 @@ class ResourceCertification:
         resource_id: str,
         certification_code: str,
         certification_name: str,
-        issued_date: Optional[date] = None,
-        expiry_date: Optional[date] = None,
+        issued_date: date | None = None,
+        expiry_date: date | None = None,
         issuing_body: str = "",
         notes: str = "",
     ) -> "ResourceCertification":
@@ -124,8 +123,8 @@ class TaskSkillRequirement:
     """
     id: str
     task_id: str
-    skill_code: Optional[str] = None             # required skill (if skill-based)
-    certification_code: Optional[str] = None      # required cert (if cert-based)
+    skill_code: str | None = None             # required skill (if skill-based)
+    certification_code: str | None = None      # required cert (if cert-based)
     required_proficiency: SkillProficiencyLevel = SkillProficiencyLevel.INTERMEDIATE
     validation_mode: SkillValidationMode = SkillValidationMode.WARN
     notes: str = ""
@@ -134,8 +133,8 @@ class TaskSkillRequirement:
     @staticmethod
     def create(
         task_id: str,
-        skill_code: Optional[str] = None,
-        certification_code: Optional[str] = None,
+        skill_code: str | None = None,
+        certification_code: str | None = None,
         required_proficiency: SkillProficiencyLevel = SkillProficiencyLevel.INTERMEDIATE,
         validation_mode: SkillValidationMode = SkillValidationMode.WARN,
         notes: str = "",

@@ -5,7 +5,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.platform.presenters import (
     PlatformControlQueuePresenter,
     PlatformControlWorkspacePresenter,

@@ -6,7 +6,6 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
-    run_mutation,
     serialize_register_collection_view_model,
     serialize_register_detail_view_model,
     serialize_register_overview_view_model,
@@ -18,6 +17,40 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectRegisterWorkspacePresenter,
 )
 
+from .register_state import (
+    default_entries,
+    default_overview,
+    default_selected_entry,
+    default_urgent_entries,
+)
+from .register_table_models import RegisterTableModels, create_register_table_models
+from .register_state_setters import RegisterStateSettersMixin
+from .register_domain_event_binder import bind_register_domain_events
+from .register_selection_handler import (
+    select_entry,
+    select_project,
+    set_entry_page,
+    set_entry_page_size,
+    set_search_text,
+    set_severity_filter,
+    set_status_filter,
+    set_type_filter,
+)
+from .register_bulk_handler import (
+    apply_bulk_entry_status,
+    bulk_delete_entries,
+    clear_entry_bulk_selection,
+    select_visible_entries,
+    set_entry_bulk_selection,
+)
+from .register_mutation_handler import (
+    create_entry,
+    delete_entry,
+    generate_entity_code,
+    update_entry,
+)
+from .register_export_handler import export_register
+
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
 
@@ -25,7 +58,7 @@ QML_IMPORT_MAJOR_VERSION = 1
 @QmlElement
 @QmlUncreatable("Project management workspace controllers are provided by the shell runtime.")
 class ProjectManagementRegisterWorkspaceController(
-    ProjectManagementWorkspaceControllerBase
+    RegisterStateSettersMixin, ProjectManagementWorkspaceControllerBase
 ):
     overviewChanged = Signal()
     projectOptionsChanged = Signal()
@@ -61,7 +94,7 @@ class ProjectManagementRegisterWorkspaceController(
         self._register_workspace_presenter = (
             register_workspace_presenter or ProjectRegisterWorkspacePresenter()
         )
-        self._overview: dict[str, object] = {"title": "", "subtitle": "", "metrics": []}
+        self._overview: dict[str, object] = default_overview()
         self._project_options: list[dict[str, str]] = []
         self._type_options: list[dict[str, str]] = []
         self._status_options: list[dict[str, str]] = []
@@ -71,36 +104,20 @@ class ProjectManagementRegisterWorkspaceController(
         self._selected_status_filter = "all"
         self._selected_severity_filter = "all"
         self._search_text = ""
-        self._entries_table_model = DynamicTableModel(self)
-        self._entries: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._selected_entry: dict[str, object] = {
-            "id": "",
-            "title": "",
-            "statusLabel": "",
-            "subtitle": "",
-            "description": "",
-            "emptyState": "",
-            "fields": [],
-            "state": {},
-        }
+        self._table_models: RegisterTableModels = create_register_table_models(self)
+        self._entries: dict[str, object] = default_entries()
+        self._selected_entry: dict[str, object] = default_selected_entry()
         self._selected_entry_id = ""
-        self._urgent_entries: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
+        self._urgent_entries: dict[str, object] = default_urgent_entries()
         self._entry_page = 1
         self._entry_page_size = 25
         self._entry_total_count = 0
         self._selected_entry_ids: list[str] = []
-        self._bind_domain_events()
+
+        bind_register_domain_events(self)
         self.refresh()
+
+    # ── Properties ───────────────────────────────────────────────────────
 
     @Property("QVariantMap", notify=overviewChanged)
     def overview(self) -> dict[str, object]:
@@ -148,7 +165,7 @@ class ProjectManagementRegisterWorkspaceController(
 
     @Property(QObject, constant=True)
     def entriesTableModel(self) -> DynamicTableModel:
-        return self._entries_table_model
+        return self._table_models.entries
 
     @Property("QVariantMap", notify=selectedEntryChanged)
     def selectedEntry(self) -> dict[str, object]:
@@ -185,6 +202,8 @@ class ProjectManagementRegisterWorkspaceController(
     @Property(int, notify=selectedEntryCountChanged)
     def selectedEntryCount(self) -> int:
         return len(self._selected_entry_ids)
+
+    # ── Core ─────────────────────────────────────────────────────────────
 
     @Slot()
     def refresh(self) -> None:
@@ -236,9 +255,7 @@ class ProjectManagementRegisterWorkspaceController(
                 )
             )
             self._set_urgent_entries(
-                serialize_register_collection_view_model(
-                    workspace_state.urgent_entries
-                )
+                serialize_register_collection_view_model(workspace_state.urgent_entries)
             )
             self._set_empty_state(workspace_state.empty_state)
         except Exception as exc:  # pragma: no cover - defensive fallback
@@ -246,294 +263,85 @@ class ProjectManagementRegisterWorkspaceController(
         finally:
             self._set_is_loading(False)
 
+    # ── Filter / Selection ───────────────────────────────────────────────
+
     @Slot(str)
     def selectProject(self, project_id: str) -> None:
-        normalized_value = (project_id or "").strip() or "all"
-        if normalized_value == self._selected_project_id:
-            return
-        self._set_selected_project_id(normalized_value)
-        self.refresh()
+        select_project(self, project_id)
 
     @Slot(str)
     def setTypeFilter(self, type_filter: str) -> None:
-        normalized_value = (type_filter or "").strip() or "all"
-        if normalized_value == self._selected_type_filter:
-            return
-        self._set_selected_type_filter(normalized_value)
-        self.refresh()
+        set_type_filter(self, type_filter)
 
     @Slot(str)
     def setStatusFilter(self, status_filter: str) -> None:
-        normalized_value = (status_filter or "").strip() or "all"
-        if normalized_value == self._selected_status_filter:
-            return
-        self._set_selected_status_filter(normalized_value)
-        self.refresh()
+        set_status_filter(self, status_filter)
 
     @Slot(str)
     def setSeverityFilter(self, severity_filter: str) -> None:
-        normalized_value = (severity_filter or "").strip() or "all"
-        if normalized_value == self._selected_severity_filter:
-            return
-        self._set_selected_severity_filter(normalized_value)
-        self.refresh()
+        set_severity_filter(self, severity_filter)
 
     @Slot(str)
     def setSearchText(self, search_text: str) -> None:
-        normalized_value = (search_text or "").strip()
-        if normalized_value == self._search_text:
-            return
-        self._set_search_text(normalized_value)
-        self.refresh()
+        set_search_text(self, search_text)
 
     @Slot(str)
     def selectEntry(self, entry_id: str) -> None:
-        normalized_value = (entry_id or "").strip()
-        if normalized_value == self._selected_entry_id:
-            return
-        self._set_selected_entry_id(normalized_value)
-        self.refresh()
+        select_entry(self, entry_id)
 
     @Slot(int)
     def setEntryPage(self, page: int) -> None:
-        p = max(1, page)
-        if p == self._entry_page:
-            return
-        self._set_entry_page(p)
-        self.refresh()
+        set_entry_page(self, page)
 
     @Slot(int)
     def setEntryPageSize(self, page_size: int) -> None:
-        if page_size <= 0 or page_size == self._entry_page_size:
-            return
-        self._entry_page_size = page_size
-        self.entryPageSizeChanged.emit()
-        self._set_entry_page(1)
-        self.refresh()
+        set_entry_page_size(self, page_size)
+
+    # ── Bulk ─────────────────────────────────────────────────────────────
 
     @Slot(str, bool)
     def setEntryBulkSelection(self, entry_id: str, selected: bool) -> None:
-        ids = list(self._selected_entry_ids)
-        if selected:
-            if entry_id not in ids:
-                ids.append(entry_id)
-        else:
-            ids = [i for i in ids if i != entry_id]
-        self._set_selected_entry_ids(ids)
+        set_entry_bulk_selection(self, entry_id, selected)
 
     @Slot()
     def selectVisibleEntries(self) -> None:
-        ids = [
-            str(item.get("id", ""))
-            for item in (self._entries.get("items") or [])
-            if item.get("id")
-        ]
-        self._set_selected_entry_ids(ids)
+        select_visible_entries(self)
 
     @Slot()
     def clearEntryBulkSelection(self) -> None:
-        self._set_selected_entry_ids([])
-
-    @Slot()
-    def exportRegister(self) -> None:
-        self._set_error_message("")
-        self._set_feedback_message(
-            "Export is not available here. Open the Reports section to generate register entries, risk summaries, and issue logs."
-        )
+        clear_entry_bulk_selection(self)
 
     @Slot("QVariantList", result="QVariantMap")
     def bulkDeleteEntries(self, entry_ids: list) -> dict[str, object]:
-        ids = [str(i) for i in (entry_ids or [])]
-        if not ids:
-            return {"ok": False, "message": "No entries selected."}
-        return run_mutation(
-            operation=lambda: [
-                self._register_workspace_presenter.delete_entry(i) for i in ids
-            ],
-            success_message=f"{len(ids)} register entry/entries deleted.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return bulk_delete_entries(self, entry_ids)
 
     @Slot("QVariantMap", result="QVariantMap")
     def applyBulkEntryStatus(self, payload: dict[str, object]) -> dict[str, object]:
-        ids = list(self._selected_entry_ids)
-        status = str(payload.get("value") or payload.get("status") or "")
-        if not ids or not status:
-            return {"ok": False, "message": "No entries or status selected."}
-        return run_mutation(
-            operation=lambda: [
-                self._register_workspace_presenter.update_entry({"id": i, "status": status})
-                for i in ids
-            ],
-            success_message=f"Status updated for {len(ids)} entry/entries.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return apply_bulk_entry_status(self, payload)
+
+    # ── Export ───────────────────────────────────────────────────────────
+
+    @Slot()
+    def exportRegister(self) -> None:
+        export_register(self)
+
+    # ── CRUD ─────────────────────────────────────────────────────────────
 
     @Slot(str, "QVariantMap", result=str)
     def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
-        if (entity_type or "").strip().lower() != "register":
-            return ""
-        try:
-            return self._register_workspace_presenter.suggest_code(dict(payload))
-        except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
-            self._set_error_message(str(exc))
-            return ""
+        return generate_entity_code(self, entity_type, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createEntry(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._register_workspace_presenter.create_entry(
-                dict(payload)
-            ),
-            success_message="Register entry created.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return create_entry(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def updateEntry(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._register_workspace_presenter.update_entry(
-                dict(payload)
-            ),
-            success_message="Register entry updated.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return update_entry(self, payload)
 
     @Slot(str, result="QVariantMap")
     def deleteEntry(self, entry_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._register_workspace_presenter.delete_entry(
-                entry_id
-            ),
-            success_message="Register entry deleted.",
-            on_success=self._request_domain_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    def _bind_domain_events(self) -> None:
-        self._subscribe_domain_change(
-            "project",
-            "register_scope",
-            scope_code="project_management",
-        )
-
-    def _set_overview(self, overview: dict[str, object]) -> None:
-        if overview == self._overview:
-            return
-        self._overview = overview
-        self.overviewChanged.emit()
-
-    def _set_project_options(self, project_options: list[dict[str, str]]) -> None:
-        if project_options == self._project_options:
-            return
-        self._project_options = project_options
-        self.projectOptionsChanged.emit()
-
-    def _set_type_options(self, type_options: list[dict[str, str]]) -> None:
-        if type_options == self._type_options:
-            return
-        self._type_options = type_options
-        self.typeOptionsChanged.emit()
-
-    def _set_status_options(self, status_options: list[dict[str, str]]) -> None:
-        if status_options == self._status_options:
-            return
-        self._status_options = status_options
-        self.statusOptionsChanged.emit()
-
-    def _set_severity_options(self, severity_options: list[dict[str, str]]) -> None:
-        if severity_options == self._severity_options:
-            return
-        self._severity_options = severity_options
-        self.severityOptionsChanged.emit()
-
-    def _set_selected_project_id(self, selected_project_id: str) -> None:
-        if selected_project_id == self._selected_project_id:
-            return
-        self._selected_project_id = selected_project_id
-        self.selectedProjectIdChanged.emit()
-
-    def _set_selected_type_filter(self, selected_type_filter: str) -> None:
-        if selected_type_filter == self._selected_type_filter:
-            return
-        self._selected_type_filter = selected_type_filter
-        self.selectedTypeFilterChanged.emit()
-
-    def _set_selected_status_filter(self, selected_status_filter: str) -> None:
-        if selected_status_filter == self._selected_status_filter:
-            return
-        self._selected_status_filter = selected_status_filter
-        self.selectedStatusFilterChanged.emit()
-
-    def _set_selected_severity_filter(self, selected_severity_filter: str) -> None:
-        if selected_severity_filter == self._selected_severity_filter:
-            return
-        self._selected_severity_filter = selected_severity_filter
-        self.selectedSeverityFilterChanged.emit()
-
-    def _set_search_text(self, search_text: str) -> None:
-        if search_text == self._search_text:
-            return
-        self._search_text = search_text
-        self.searchTextChanged.emit()
-
-    def _set_entries(self, entries: dict[str, object]) -> None:
-        if entries == self._entries:
-            return
-        self._entries = entries
-        self._entries_table_model.set_rows(entries.get("items", []))
-        self.entriesChanged.emit()
-
-    def _set_selected_entry(self, selected_entry: dict[str, object]) -> None:
-        if selected_entry == self._selected_entry:
-            return
-        self._selected_entry = selected_entry
-        self.selectedEntryChanged.emit()
-
-    def _set_selected_entry_id(self, selected_entry_id: str) -> None:
-        if selected_entry_id == self._selected_entry_id:
-            return
-        self._selected_entry_id = selected_entry_id
-        self.selectedEntryIdChanged.emit()
-
-    def _set_urgent_entries(self, urgent_entries: dict[str, object]) -> None:
-        if urgent_entries == self._urgent_entries:
-            return
-        self._urgent_entries = urgent_entries
-        self.urgentEntriesChanged.emit()
-
-    def _set_entry_page(self, v: int) -> None:
-        if v == self._entry_page:
-            return
-        self._entry_page = v
-        self.entryPageChanged.emit()
-
-    def _set_entry_total_count(self, v: int) -> None:
-        if v == self._entry_total_count:
-            return
-        self._entry_total_count = v
-        self.entryTotalCountChanged.emit()
-
-    def _set_selected_entry_ids(self, ids: list[str]) -> None:
-        if ids == self._selected_entry_ids:
-            return
-        self._selected_entry_ids = ids
-        self.selectedEntryIdsChanged.emit()
-        self.selectedEntryCountChanged.emit()
+        return delete_entry(self, entry_id)
 
 
 __all__ = ["ProjectManagementRegisterWorkspaceController"]

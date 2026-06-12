@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -30,11 +29,11 @@ class SqlAlchemyTaskCommentRepository(TaskCommentRepository):
     def update(self, comment: TaskComment) -> None:
         self.session.merge(task_comment_to_orm(comment))
 
-    def get(self, comment_id: str) -> Optional[TaskComment]:
+    def get(self, comment_id: str) -> TaskComment | None:
         obj = self.session.get(TaskCommentORM, comment_id)
         return task_comment_from_orm(obj) if obj else None
 
-    def list_by_task(self, task_id: str) -> List[TaskComment]:
+    def list_by_task(self, task_id: str) -> list[TaskComment]:
         stmt = (
             select(TaskCommentORM)
             .where(TaskCommentORM.task_id == task_id)
@@ -43,7 +42,7 @@ class SqlAlchemyTaskCommentRepository(TaskCommentRepository):
         rows = self.session.execute(stmt).scalars().all()
         return [task_comment_from_orm(row) for row in rows]
 
-    def list_recent_for_tasks(self, task_ids: List[str], limit: int = 200) -> List[TaskComment]:
+    def list_recent_for_tasks(self, task_ids: list[str], limit: int = 200) -> list[TaskComment]:
         if not task_ids:
             return []
         stmt = (
@@ -107,11 +106,11 @@ class SqlAlchemyTaskPresenceRepository(TaskPresenceRepository):
 
     def list_recent_for_tasks(
         self,
-        task_ids: List[str],
+        task_ids: list[str],
         *,
         since,
         limit: int = 200,
-    ) -> List[TaskPresence]:
+    ) -> list[TaskPresence]:
         if not task_ids:
             return []
         stmt = (

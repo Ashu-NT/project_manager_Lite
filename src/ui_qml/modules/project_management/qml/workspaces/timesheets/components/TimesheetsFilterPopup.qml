@@ -12,9 +12,6 @@ AppWidgets.AnchoredPopup {
 
     property var workspaceController: null
     property var state: null
-    property var anchorItem: null
-
-    anchorItem: root.anchorItem
     width: 280
     padding: Theme.AppTheme.marginMd
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside

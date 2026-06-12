@@ -45,6 +45,8 @@ EXPECTED_INVENTORY_WORKSPACE_KEYS = [
     "reservations",
     "procurement",
     "pricing",
+    "movements",
+    "warehouses",
 ]
 
 

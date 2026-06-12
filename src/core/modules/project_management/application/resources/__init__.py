@@ -23,9 +23,6 @@ from src.core.modules.project_management.application.resources.resource_availabi
 from src.core.modules.project_management.application.resources.resource_service import (
     ResourceService,
 )
-from src.core.modules.project_management.application.resources.timesheet_service import (
-    TimesheetService,
-)
 
 __all__ = [
     "AssignmentSkillValidator",
@@ -41,5 +38,4 @@ __all__ = [
     "ResourcePoolSummary",
     "ResourceService",
     "SkillViolation",
-    "TimesheetService",
 ]

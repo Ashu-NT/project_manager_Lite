@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import List
 
 from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
@@ -31,7 +30,7 @@ class TaskQueryMixin:
         )
         return task
 
-    def list_tasks_for_project(self, project_id: str) -> List[Task]:
+    def list_tasks_for_project(self, project_id: str) -> list[Task]:
         require_permission(self._user_session, "task.read", operation_label="list project tasks")
         require_project_permission(
             self._user_session,
@@ -41,18 +40,18 @@ class TaskQueryMixin:
         )
         return self._task_repo.list_by_project(project_id)
 
-    def list_tasks_for_resource(self, resource_id: str) -> List[Task]:
+    def list_tasks_for_resource(self, resource_id: str) -> list[Task]:
         require_permission(self._user_session, "task.read", operation_label="list resource tasks")
         assignments = self._assignment_repo.list_by_resource(resource_id)
         task_ids = {assignment.task_id for assignment in assignments}
-        tasks: List[Task] = []
+        tasks: list[Task] = []
         for task_id in task_ids:
             task = self._task_repo.get(task_id)
             if task and self._user_session.has_project_permission(task.project_id, "task.read"):
                 tasks.append(task)
         return tasks
 
-    def list_assignments_for_tasks(self, task_ids: list[str]) -> List[TaskAssignment]:
+    def list_assignments_for_tasks(self, task_ids: list[str]) -> list[TaskAssignment]:
         require_permission(self._user_session, "task.read", operation_label="list task assignments")
         if not task_ids:
             return []
@@ -74,7 +73,7 @@ class TaskQueryMixin:
         start_to: date | None = None,
         end_from: date | None = None,
         end_to: date | None = None,
-    ) -> List[Task]:
+    ) -> list[Task]:
         require_permission(self._user_session, "task.read", operation_label="query tasks")
         if project_id:
             require_project_permission(

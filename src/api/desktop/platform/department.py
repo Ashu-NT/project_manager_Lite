@@ -9,8 +9,8 @@ from src.api.desktop.platform.models import (
     DesktopApiResult,
     OrganizationDto,
 )
-from src.core.platform.org import DepartmentService
-from src.core.platform.org.domain import Department
+from src.core.platform.department import DepartmentService
+from src.core.platform.department.domain import Department
 
 class PlatformDepartmentDesktopApi:
     """Desktop-facing adapter for platform department master data."""

@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import logging
+from time import perf_counter
+
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -17,9 +22,13 @@ from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.data_exchange import MasterDataExchangeService
 from src.core.platform.documents import DocumentService
 from src.core.platform.modules import ModuleCatalogService
-from src.core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
+from src.core.platform.department import DepartmentService
+from src.core.platform.employee import EmployeeService
+from src.core.platform.org import OrganizationService
+from src.core.platform.site import SiteService
 from src.core.platform.party import PartyService
 from src.core.platform.time.application import TimeService
+from src.core.platform.tenancy import TenantContextService
 from src.core.platform.runtime_tracking import RuntimeExecutionService
 from src.core.modules.inventory_procurement import (
     ProcurementService,
@@ -71,16 +80,16 @@ from src.core.modules.maintenance.application.common import (
 from src.core.modules.maintenance.infrastructure.reporting import (
     MaintenanceReportingService,
 )
-from src.core.modules.project_management.application.scheduling.baseline_service import (
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import CostService, FinanceService
-from src.core.modules.project_management.application.projects import PortfolioService, ProjectService
+from src.core.modules.project_management.application.portfolio import PortfolioService
+from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
-    TimesheetService,
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
@@ -89,17 +98,31 @@ from src.core.modules.project_management.application.scheduling import (
 )
 from src.core.modules.project_management.infrastructure.importers import DataImportService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.modules.project_management.application.tasks import CollaborationService, TaskService
+from src.core.modules.project_management.application.collaboration import CollaborationService
+from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
 )
-from src.core.platform.calendar import WorkCalendarEngine, WorkCalendarService
+from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
+from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
+from src.core.platform.calendar.application.calendar_exception_service import CalendarExceptionService
+from src.core.platform.calendar.application.recurring_event_service import RecurringEventService
+from src.core.platform.calendar.application.shift_pattern_service import ShiftPatternService
+from src.core.platform.calendar.application.calendar_assignment_service import CalendarAssignmentService
+from src.core.platform.calendar.application.enterprise_calendar_resolver import EnterpriseCalendarResolver
+from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
+from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
+from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
 from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.infra.composition.inventory_registry import build_inventory_procurement_service_bundle
 from src.infra.composition.maintenance_registry import build_maintenance_service_bundle
 from src.infra.composition.platform_registry import build_platform_service_bundle
 from src.infra.composition.project_registry import build_project_management_service_bundle
 from src.infra.composition.repositories import build_repository_bundle
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -114,6 +137,7 @@ class ServiceGraph:
     time_service: TimeService
     auth_service: AuthService
     organization_service: OrganizationService
+    tenant_context_service: TenantContextService
     document_service: DocumentService
     party_service: PartyService
     department_service: DepartmentService
@@ -170,8 +194,7 @@ class ServiceGraph:
     resource_service: ResourceService
     cost_service: CostService
     finance_service: FinanceService
-    work_calendar_engine: WorkCalendarEngine
-    work_calendar_service: WorkCalendarService
+    work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
     reporting_service: ReportingService
     baseline_service: BaselineService
@@ -182,6 +205,16 @@ class ServiceGraph:
     data_import_service: DataImportService
     task_collaboration_store: TaskCollaborationStore
     assignment_skill_validator: AssignmentSkillValidator
+    enterprise_calendar_service: EnterpriseCalendarService | None
+    working_rule_service: WorkingRuleService | None
+    calendar_exception_service: CalendarExceptionService | None
+    recurring_event_service: RecurringEventService | None
+    shift_pattern_service: ShiftPatternService | None
+    calendar_assignment_service: CalendarAssignmentService | None
+    enterprise_calendar_resolver: EnterpriseCalendarResolver | None
+    working_time_calculator: WorkingTimeCalculator | None
+    resource_capacity_calculator: ResourceCapacityCalculator | None
+    enterprise_resource_availability: EnterpriseResourceAvailabilityService | None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -195,6 +228,7 @@ class ServiceGraph:
             "time_service": self.time_service,
             "auth_service": self.auth_service,
             "organization_service": self.organization_service,
+            "tenant_context_service": self.tenant_context_service,
             "document_service": self.document_service,
             "party_service": self.party_service,
             "department_service": self.department_service,
@@ -252,7 +286,6 @@ class ServiceGraph:
             "cost_service": self.cost_service,
             "finance_service": self.finance_service,
             "work_calendar_engine": self.work_calendar_engine,
-            "work_calendar_service": self.work_calendar_service,
             "scheduling_engine": self.scheduling_engine,
             "reporting_service": self.reporting_service,
             "baseline_service": self.baseline_service,
@@ -263,25 +296,59 @@ class ServiceGraph:
             "data_import_service": self.data_import_service,
             "task_collaboration_store": self.task_collaboration_store,
             "assignment_skill_validator": self.assignment_skill_validator,
+            "enterprise_calendar_service": self.enterprise_calendar_service,
+            "working_rule_service": self.working_rule_service,
+            "calendar_exception_service": self.calendar_exception_service,
+            "recurring_event_service": self.recurring_event_service,
+            "shift_pattern_service": self.shift_pattern_service,
+            "calendar_assignment_service": self.calendar_assignment_service,
+            "enterprise_calendar_resolver": self.enterprise_calendar_resolver,
+            "working_time_calculator": self.working_time_calculator,
+            "resource_capacity_calculator": self.resource_capacity_calculator,
+            # Registered as "resource_availability_service" so build_desktop_api_registry picks it up.
+            # The old ResourceAvailabilityService (uses WorkCalendarEngine) is no longer the default.
+            "resource_availability_service": self.enterprise_resource_availability,
         }
 
 
 def build_service_graph(session: Session) -> ServiceGraph:
+    started = perf_counter()
+    logger.debug("Service graph build begin session_type=%s", type(session).__name__)
     repositories = build_repository_bundle(session)
+    logger.debug(
+        "Repository bundle built duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
     platform_services = build_platform_service_bundle(session, repositories)
+    logger.debug(
+        "Platform service bundle built duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
     inventory_procurement_services = build_inventory_procurement_service_bundle(platform_services)
+    logger.debug(
+        "Inventory/Procurement service bundle built duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
     maintenance_services = build_maintenance_service_bundle(
         platform_services,
         inventory_procurement_services,
+    )
+    logger.debug(
+        "Maintenance service bundle built duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
     )
     project_management_services = build_project_management_service_bundle(
         session,
         repositories,
         platform_services,
     )
+    logger.debug(
+        "Project Management service bundle built duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
     _module_registry = ModuleRegistry(platform_services.module_runtime_service)
     _integration_resolver = IntegrationResolver(_module_registry)
-    return ServiceGraph(
+    graph = ServiceGraph(
         session=session,
         user_session=platform_services.user_session,
         platform_runtime_application_service=platform_services.platform_runtime_application_service,
@@ -292,6 +359,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         time_service=project_management_services.time_service,
         auth_service=platform_services.auth_service,
         organization_service=platform_services.organization_service,
+        tenant_context_service=platform_services.tenant_context_service,
         document_service=platform_services.document_service,
         party_service=platform_services.party_service,
         department_service=platform_services.department_service,
@@ -349,7 +417,6 @@ def build_service_graph(session: Session) -> ServiceGraph:
         cost_service=project_management_services.cost_service,
         finance_service=project_management_services.finance_service,
         work_calendar_engine=project_management_services.work_calendar_engine,
-        work_calendar_service=project_management_services.work_calendar_service,
         scheduling_engine=project_management_services.scheduling_engine,
         reporting_service=project_management_services.reporting_service,
         baseline_service=project_management_services.baseline_service,
@@ -360,8 +427,31 @@ def build_service_graph(session: Session) -> ServiceGraph:
         data_import_service=project_management_services.data_import_service,
         task_collaboration_store=project_management_services.task_collaboration_store,
         assignment_skill_validator=project_management_services.assignment_skill_validator,
+        enterprise_calendar_service=platform_services.enterprise_calendar_service,
+        working_rule_service=platform_services.working_rule_service,
+        calendar_exception_service=platform_services.calendar_exception_service,
+        recurring_event_service=platform_services.recurring_event_service,
+        shift_pattern_service=platform_services.shift_pattern_service,
+        calendar_assignment_service=platform_services.calendar_assignment_service,
+        enterprise_calendar_resolver=platform_services.enterprise_calendar_resolver,
+        working_time_calculator=platform_services.working_time_calculator,
+        resource_capacity_calculator=project_management_services.resource_capacity_calculator,
+        enterprise_resource_availability=project_management_services.enterprise_resource_availability,
     )
+    logger.debug(
+        "Service graph build complete duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
+    return graph
 
 
 def build_service_dict(session: Session) -> dict[str, Any]:
-    return build_service_graph(session).as_dict()
+    started = perf_counter()
+    graph = build_service_graph(session)
+    services = graph.as_dict()
+    logger.debug(
+        "Service dictionary build complete service_count=%s duration_ms=%.1f",
+        len(services),
+        (perf_counter() - started) * 1000,
+    )
+    return services

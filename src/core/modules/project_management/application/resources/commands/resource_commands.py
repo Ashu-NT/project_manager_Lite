@@ -9,11 +9,11 @@ from src.core.modules.project_management.contracts.repositories.project import P
 from src.core.modules.project_management.contracts.repositories.task import AssignmentRepository
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.platform.common.interfaces import TimeEntryRepository
-from src.core.platform.org.contracts import EmployeeRepository
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.employee.contracts import EmployeeRepository
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.audit.helpers import record_audit
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +50,15 @@ class ResourceCommandMixin:
             normalize_manual_code,
         )
 
+        active_organization_id = self._active_organization_id(operation_label="resolve resource code")
+        if not active_organization_id:
+            raise BusinessRuleError(
+                "Active organization context is required for resource code generation.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
         existing = {
             str(getattr(resource, "code", "") or "").upper()
-            for resource in self._resource_repo.list_all()
+            for resource in self._resource_repo.list_for_organization(active_organization_id)
             if exclude_id is None or resource.id != exclude_id
         }
         manual = normalize_manual_code(code)
@@ -113,6 +119,7 @@ class ResourceCommandMixin:
             raise ValidationError("Hourly rate cannot be negative.")
         resolved_currency = (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
         resolved_capacity = _normalize_capacity_percent(capacity_percent)
+        organization_id = self._active_organization_id(operation_label="create resource")
         resolved_code = self._resolve_resource_code(code, resolved_name)
         resource = Resource.create(
             name=resolved_name,
@@ -127,6 +134,7 @@ class ResourceCommandMixin:
             contact=resolved_contact,
             worker_type=resolved_worker_type,
             employee_id=employee_id,
+            organization_id=organization_id,
         )
         try:
             self._resource_repo.add(resource)
@@ -170,7 +178,8 @@ class ResourceCommandMixin:
         code: str | None = None,
     ) -> Resource:
         require_permission(self._user_session, "resource.manage", operation_label="update resource")
-        resource = self._resource_repo.get(resource_id)
+        organization_id = self._active_organization_id(operation_label="update resource")
+        resource = self._resource_repo.get_for_organization(resource_id, organization_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
         if code is not None and code.strip():
@@ -257,7 +266,8 @@ class ResourceCommandMixin:
 
     def delete_resource(self, resource_id: str) -> None:
         require_permission(self._user_session, "resource.manage", operation_label="delete resource")
-        resource = self._resource_repo.get(resource_id)
+        organization_id = self._active_organization_id(operation_label="delete resource")
+        resource = self._resource_repo.get_for_organization(resource_id, organization_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
 

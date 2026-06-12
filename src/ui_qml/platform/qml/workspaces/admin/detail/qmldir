@@ -1,1 +1,12 @@
-module Platform.AdminDetail
+﻿module Platform.AdminDetail
+AdminAccessDetailPage 1.0 AdminAccessDetailPage.qml
+AdminCalendarDetailPage 1.0 AdminCalendarDetailPage.qml
+AdminDepartmentDetailPage 1.0 AdminDepartmentDetailPage.qml
+AdminDocumentsDetailPage 1.0 AdminDocumentsDetailPage.qml
+AdminDocumentStructureDetailPage 1.0 AdminDocumentStructureDetailPage.qml
+AdminEmployeeDetailPage 1.0 AdminEmployeeDetailPage.qml
+AdminEntityDetailPage 1.0 AdminEntityDetailPage.qml
+AdminOrganizationDetailPage 1.0 AdminOrganizationDetailPage.qml
+AdminPartyDetailPage 1.0 AdminPartyDetailPage.qml
+AdminSiteDetailPage 1.0 AdminSiteDetailPage.qml
+AdminUserDetailPage 1.0 AdminUserDetailPage.qml

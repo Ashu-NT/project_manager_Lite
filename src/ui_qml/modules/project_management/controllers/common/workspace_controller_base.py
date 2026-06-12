@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from typing import Any
 
-from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
+from PySide6.QtCore import QCoreApplication, Property, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
-from src.core.platform.notifications.signal import Signal as DomainSignal
+from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
+from src.core.shared.events.signal import Signal as DomainSignal
 from src.infra.platform.app_settings import AppSettingsStore
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
+
+logger = logging.getLogger(__name__)
 
 
 @QmlElement
@@ -53,6 +56,13 @@ class ProjectManagementWorkspaceControllerBase(QObject):
         ] = []
         self.destroyed.connect(self._disconnect_domain_event_subscriptions)
 
+    def _diagnostic_context(self) -> dict[str, object]:
+        return {
+            "controller": type(self).__name__,
+            "route_id": str(self._workspace.get("routeId", "") or ""),
+            "title": str(self._workspace.get("title", "") or ""),
+        }
+
     @Property("QVariantMap", notify=workspaceChanged)
     def workspace(self) -> dict[str, object]:
         return self._workspace
@@ -88,11 +98,36 @@ class ProjectManagementWorkspaceControllerBase(QObject):
 
     @Slot(str, result="QVariantMap")
     def loadTableColumnState(self, table_id: str) -> dict[str, object]:
-        return self._app_settings.load_table_column_state(table_id)
+        return self._app_settings.load_table_column_state(
+            table_id,
+            organization_id=self._active_organization_id_for_settings(),
+        )
 
     @Slot(str, "QVariantMap")
     def saveTableColumnState(self, table_id: str, state: "dict[str, object]") -> None:
-        self._app_settings.save_table_column_state(table_id, state)
+        self._app_settings.save_table_column_state(
+            table_id,
+            state,
+            organization_id=self._active_organization_id_for_settings(),
+        )
+
+    def _active_organization_id_for_settings(self) -> str | None:
+        app = QCoreApplication.instance()
+        runtime_api = app.property("platformRuntimeApi") if app is not None else None
+        if runtime_api is None:
+            return None
+        try:
+            snapshot = runtime_api.snapshot()
+            data = getattr(snapshot, "data", None)
+            organization = getattr(data, "active_organization", None)
+            return str(getattr(organization, "id", "") or "").strip() or None
+        except Exception:
+            logger.debug(
+                "Unable to resolve active organization for table settings context=%s",
+                self._diagnostic_context(),
+                exc_info=True,
+            )
+            return None
 
     def _set_workspace(self, workspace: dict[str, object]) -> None:
         if workspace == self._workspace:
@@ -121,12 +156,20 @@ class ProjectManagementWorkspaceControllerBase(QObject):
             return
         self._error_message = value
         self.errorMessageChanged.emit()
+        if value:
+            logger.error("Controller error message set context=%s message=%s", self._diagnostic_context(), value)
+        else:
+            logger.debug("Controller error message cleared context=%s", self._diagnostic_context())
 
     def _set_feedback_message(self, value: str) -> None:
         if value == self._feedback_message:
             return
         self._feedback_message = value
         self.feedbackMessageChanged.emit()
+        if value:
+            logger.info("Controller feedback message set context=%s message=%s", self._diagnostic_context(), value)
+        else:
+            logger.debug("Controller feedback message cleared context=%s", self._diagnostic_context())
 
     def _set_empty_state(self, value: str) -> None:
         if value == self._empty_state:
@@ -154,6 +197,11 @@ class ProjectManagementWorkspaceControllerBase(QObject):
     ) -> None:
         signal.connect(callback)
         self._domain_event_subscriptions.append((signal, callback))
+        logger.debug(
+            "Domain signal subscribed context=%s subscription_count=%s",
+            self._diagnostic_context(),
+            len(self._domain_event_subscriptions),
+        )
 
     def _subscribe_domain_change(
         self,
@@ -174,14 +222,36 @@ class ProjectManagementWorkspaceControllerBase(QObject):
                 return
             if allowed_entity_types and event.entity_type not in allowed_entity_types:
                 return
+            logger.debug(
+                "Domain change matched context=%s entity_type=%s entity_id=%s scope=%s category=%s",
+                self._diagnostic_context(),
+                event.entity_type,
+                event.entity_id,
+                event.scope_code,
+                event.category,
+            )
             self._request_domain_refresh()
 
         self._subscribe_domain_signal(domain_events.domain_changed, _handler)
+        logger.debug(
+            "Domain change filter registered context=%s entity_types=%s scope=%s category=%s",
+            self._diagnostic_context(),
+            sorted(allowed_entity_types),
+            scope_code or "-",
+            category or "-",
+        )
 
     def _request_domain_refresh(self) -> None:
         self._pending_domain_refresh = True
         if self._is_loading or self._is_busy:
+            logger.debug(
+                "Domain refresh queued context=%s is_loading=%s is_busy=%s",
+                self._diagnostic_context(),
+                self._is_loading,
+                self._is_busy,
+            )
             return
+        logger.debug("Domain refresh requested context=%s", self._diagnostic_context())
         self._schedule_domain_refresh()
 
     def _flush_pending_domain_refresh(self) -> None:
@@ -191,8 +261,15 @@ class ProjectManagementWorkspaceControllerBase(QObject):
 
     def _schedule_domain_refresh(self) -> None:
         if self._domain_refresh_scheduled:
+            logger.debug("Domain refresh schedule skipped; already scheduled context=%s", self._diagnostic_context())
+            return
+        app = QCoreApplication.instance()
+        if app is None or not bool(app.property("pmEventLoopRunning")):
+            logger.debug("Domain refresh executing immediately without active Qt event loop context=%s", self._diagnostic_context())
+            self._execute_scheduled_domain_refresh()
             return
         self._domain_refresh_scheduled = True
+        logger.debug("Domain refresh scheduled context=%s", self._diagnostic_context())
         self._domain_refresh_timer.start(0)
 
     def _execute_scheduled_domain_refresh(self) -> None:
@@ -202,6 +279,7 @@ class ProjectManagementWorkspaceControllerBase(QObject):
         self._pending_domain_refresh = False
         refresh = getattr(self, "refresh", None)
         if callable(refresh):
+            logger.debug("Domain refresh executing context=%s", self._diagnostic_context())
             refresh()
 
     def _disconnect_domain_event_subscriptions(
@@ -209,8 +287,12 @@ class ProjectManagementWorkspaceControllerBase(QObject):
         _object: QObject | None = None,
     ) -> None:
         for signal, callback in self._domain_event_subscriptions:
-            signal.disconnect(callback)
+            try:
+                signal.disconnect(callback)
+            except Exception:
+                logger.debug("Domain signal disconnect failed context=%s", self._diagnostic_context(), exc_info=True)
         self._domain_event_subscriptions.clear()
+        logger.debug("Domain signal subscriptions cleared context=%s", self._diagnostic_context())
 
 
 __all__ = ["ProjectManagementWorkspaceControllerBase"]

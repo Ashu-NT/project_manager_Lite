@@ -8,6 +8,7 @@ from src.application.runtime.entitlement_runtime import (
     resolve_module_runtime_service,
 )
 from src.core.platform.org import Organization, OrganizationService
+from src.core.platform.tenancy import TenantContextService
 
 
 @dataclass(frozen=True)
@@ -28,9 +29,11 @@ class PlatformRuntimeApplicationService:
         *,
         module_runtime_service: ModuleRuntimeService,
         organization_service: OrganizationService | None = None,
+        tenant_context_service: TenantContextService | None = None,
     ) -> None:
         self._module_runtime_service = module_runtime_service
         self._organization_service = organization_service
+        self._tenant_context_service = tenant_context_service
 
     @property
     def module_runtime_service(self) -> ModuleRuntimeService:
@@ -39,6 +42,10 @@ class PlatformRuntimeApplicationService:
     @property
     def organization_service(self) -> OrganizationService | None:
         return self._organization_service
+
+    @property
+    def tenant_context_service(self) -> TenantContextService | None:
+        return self._tenant_context_service
 
     def list_modules(self):
         return self._module_runtime_service.list_modules()
@@ -107,9 +114,9 @@ class PlatformRuntimeApplicationService:
         return self._organization_service.list_organizations(active_only=active_only)
 
     def get_active_organization(self) -> Organization | None:
-        if self._organization_service is None:
-            return None
-        return self._organization_service.get_active_organization()
+        if self._tenant_context_service is not None:
+            return self._tenant_context_service.get_active_organization()
+        return None
 
     def create_organization(
         self,
@@ -188,13 +195,15 @@ class PlatformRuntimeApplicationService:
             enabled_module_codes=selected_module_codes,
         )
         if is_active:
-            return self._organization_service.set_active_organization(organization.id)
+            if self._tenant_context_service is not None:
+                return self._tenant_context_service.set_active_organization(organization.id)
+            raise RuntimeError("Tenant context service is not configured.")
         return organization
 
     def set_active_organization(self, organization_id: str) -> Organization:
-        if self._organization_service is None:
-            raise RuntimeError("Organization service is not configured.")
-        return self._organization_service.set_active_organization(organization_id)
+        if self._tenant_context_service is not None:
+            return self._tenant_context_service.set_active_organization(organization_id)
+        raise RuntimeError("Tenant context service is not configured.")
 
 
 def resolve_platform_runtime_application_service(
@@ -203,6 +212,7 @@ def resolve_platform_runtime_application_service(
     module_runtime_service: object | None,
     module_catalog_service=None,
     organization_service: OrganizationService | None = None,
+    tenant_context_service: TenantContextService | None = None,
 ) -> object | None:
     if isinstance(platform_runtime_application_service, PlatformRuntimeApplicationService):
         runtime = resolve_module_runtime_service(
@@ -223,6 +233,7 @@ def resolve_platform_runtime_application_service(
         return PlatformRuntimeApplicationService(
             module_runtime_service=runtime,
             organization_service=organization_service,
+            tenant_context_service=tenant_context_service,
         )
     return platform_runtime_application_service
 

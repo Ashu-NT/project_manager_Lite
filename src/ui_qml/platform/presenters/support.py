@@ -4,7 +4,6 @@ from typing import Any
 
 from src.api.desktop.platform import DesktopApiError, DesktopApiResult
 
-
 def preview_error_result(message: str) -> DesktopApiResult[object]:
     return DesktopApiResult(
         ok=False,
@@ -14,7 +13,6 @@ def preview_error_result(message: str) -> DesktopApiResult[object]:
             category="preview",
         ),
     )
-
 
 def option_item(
     *,
@@ -28,18 +26,15 @@ def option_item(
         "supportingText": supporting_text,
     }
 
-
 def string_value(payload: dict[str, Any], key: str, *, default: str = "") -> str:
     value = payload.get(key, default)
     if value is None:
         return default
     return str(value).strip()
 
-
 def optional_string_value(payload: dict[str, Any], key: str) -> str | None:
     value = string_value(payload, key)
     return value or None
-
 
 def bool_value(payload: dict[str, Any], key: str, *, default: bool = False) -> bool:
     value = payload.get(key, default)
@@ -49,7 +44,6 @@ def bool_value(payload: dict[str, Any], key: str, *, default: bool = False) -> b
         return value.strip().lower() in {"1", "true", "yes", "on"}
     return bool(value)
 
-
 def int_value(payload: dict[str, Any], key: str) -> int | None:
     value = payload.get(key)
     if value in {None, ""}:
@@ -58,7 +52,6 @@ def int_value(payload: dict[str, Any], key: str) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
-
 
 def tuple_of_strings(payload: dict[str, Any], key: str) -> tuple[str, ...]:
     value = payload.get(key)
@@ -70,18 +63,15 @@ def tuple_of_strings(payload: dict[str, Any], key: str) -> tuple[str, ...]:
         if (item_text := str(item).strip())
     )
 
-
 def enum_code(value: Any) -> str:
     raw = getattr(value, "value", value)
     if raw is None:
         return ""
     return str(raw).strip()
 
-
 def title_case_code(value: Any) -> str:
     code = enum_code(value)
     return code.replace("_", " ").title()
-
 
 __all__ = [
     "bool_value",

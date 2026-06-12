@@ -3,13 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-
 @dataclass(frozen=True)
 class InventoryCatalogMetricViewModel:
     label: str
     value: str
     supporting_text: str
-
 
 @dataclass(frozen=True)
 class InventoryCatalogOverviewViewModel:
@@ -17,12 +15,10 @@ class InventoryCatalogOverviewViewModel:
     subtitle: str
     metrics: tuple[InventoryCatalogMetricViewModel, ...] = field(default_factory=tuple)
 
-
 @dataclass(frozen=True)
 class InventorySelectorOptionViewModel:
     value: str
     label: str
-
 
 @dataclass(frozen=True)
 class InventoryDocumentOptionViewModel:
@@ -32,7 +28,6 @@ class InventoryDocumentOptionViewModel:
     storage_kind: str
     effective_date_label: str
     is_active: bool
-
 
 @dataclass(frozen=True)
 class InventoryRecordViewModel:
@@ -47,13 +42,11 @@ class InventoryRecordViewModel:
     can_tertiary_action: bool = False
     state: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class InventoryDetailFieldViewModel:
     label: str
     value: str
     supporting_text: str = ""
-
 
 @dataclass(frozen=True)
 class InventoryDetailViewModel:
@@ -66,7 +59,6 @@ class InventoryDetailViewModel:
     fields: tuple[InventoryDetailFieldViewModel, ...] = field(default_factory=tuple)
     linked_documents: tuple[InventoryDocumentOptionViewModel, ...] = field(default_factory=tuple)
     state: dict[str, Any] = field(default_factory=dict)
-
 
 @dataclass(frozen=True)
 class InventoryCatalogWorkspaceViewModel:
@@ -90,7 +82,6 @@ class InventoryCatalogWorkspaceViewModel:
     selected_item_id: str = ""
     selected_item_detail: InventoryDetailViewModel = field(default_factory=InventoryDetailViewModel)
     empty_state: str = ""
-
 
 __all__ = [
     "InventoryCatalogMetricViewModel",

@@ -11,10 +11,14 @@ AppLayouts.WorkspaceFrame {
     id: root
 
     property var shellModel: null
+    property bool _loadRequested: false
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
     property ProjectManagementControllers.ProjectManagementDashboardWorkspaceController workspaceController: root.pmCatalog
         ? root.pmCatalog.dashboardWorkspace
         : null
+    readonly property bool contentReady: root.workspaceController
+        ? root.workspaceController.hasLoaded
+        : false
     readonly property var workspaceModel: root.workspaceController
         ? root.workspaceController.workspace
         : ({
@@ -32,6 +36,16 @@ AppLayouts.WorkspaceFrame {
 
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
+    Component.onCompleted: root.ensureLoaded()
+    onWorkspaceControllerChanged: root.ensureLoaded()
+
+    function ensureLoaded() {
+        if (root._loadRequested || root.workspaceController === null) {
+            return
+        }
+        root._loadRequested = true
+        root.workspaceController.load()
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -137,21 +151,26 @@ AppLayouts.WorkspaceFrame {
                         shellModel: root.shellModel
                     }
 
-                    Sections.DashboardChartsSection {
+                    Loader {
                         Layout.fillWidth: true
-                        workspaceController: root.workspaceController
+                        active: root.contentReady
+                        asynchronous: true
+                        sourceComponent: chartsSectionComponent
                     }
 
-                    Sections.DashboardPanelsSection {
+                    Loader {
                         Layout.fillWidth: true
-                        workspaceController: root.workspaceController
+                        active: root.contentReady
+                        asynchronous: true
+                        sourceComponent: panelsSectionComponent
                     }
 
-                    Sections.DashboardOverviewSections {
+                    Loader {
                         Layout.fillWidth: true
                         Layout.preferredHeight: width >= 1360 ? 520 : 760
-                        workspaceController: root.workspaceController
-                        shellModel: root.shellModel
+                        active: root.contentReady
+                        asynchronous: true
+                        sourceComponent: overviewSectionsComponent
                     }
                 }
             }
@@ -165,6 +184,34 @@ AppLayouts.WorkspaceFrame {
                     && root.workspaceController.isLoading
                 message: "Loading dashboard data..."
             }
+        }
+    }
+
+    Component {
+        id: chartsSectionComponent
+
+        Sections.DashboardChartsSection {
+            width: dashboardScrollContent.width
+            workspaceController: root.workspaceController
+        }
+    }
+
+    Component {
+        id: panelsSectionComponent
+
+        Sections.DashboardPanelsSection {
+            width: dashboardScrollContent.width
+            workspaceController: root.workspaceController
+        }
+    }
+
+    Component {
+        id: overviewSectionsComponent
+
+        Sections.DashboardOverviewSections {
+            width: dashboardScrollContent.width
+            workspaceController: root.workspaceController
+            shellModel: root.shellModel
         }
     }
 }

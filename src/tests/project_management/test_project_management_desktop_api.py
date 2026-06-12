@@ -1023,8 +1023,12 @@ def test_project_management_tasks_desktop_api_falls_back_to_task_scope_without_p
         def __init__(self, projects):
             self._projects = {project.id: project for project in projects}
 
-        def list_all(self):
-            return list(self._projects.values())
+        def list_for_organization(self, organization_id):
+            return [
+                project
+                for project in self._projects.values()
+                if getattr(project, "organization_id", organization_id) == organization_id
+            ]
 
         def get(self, project_id):
             return self._projects.get(project_id)
@@ -1032,6 +1036,9 @@ def test_project_management_tasks_desktop_api_falls_back_to_task_scope_without_p
     class _ProjectReadDeniedService:
         def __init__(self, projects):
             self._project_repo = _ProjectRepo(projects)
+            self._tenant_context_service = SimpleNamespace(
+                require_active_organization_id=lambda **_kwargs: "org-test",
+            )
 
         def list_projects(self):
             raise BusinessRuleError(
@@ -1043,6 +1050,7 @@ def test_project_management_tasks_desktop_api_falls_back_to_task_scope_without_p
         name="Plant Upgrade",
         description="Replace switchgear and commission the new line.",
     )
+    project.organization_id = "org-test"
     task_service = _FakeTaskService()
     task = task_service.create_task(
         project_id=project.id,
@@ -1233,7 +1241,7 @@ def test_project_management_tasks_desktop_api_lists_assignments_without_resource
         def __init__(self, resources):
             self._resources = {resource.id: resource for resource in resources}
 
-        def list_all(self):
+        def list_for_organization(self, organization_id):
             return list(self._resources.values())
 
         def get(self, resource_id):
@@ -1242,6 +1250,9 @@ def test_project_management_tasks_desktop_api_lists_assignments_without_resource
     class _ResourceReadDeniedService:
         def __init__(self, resources):
             self._resource_repo = _ResourceRepo(resources)
+            self._tenant_context_service = SimpleNamespace(
+                require_active_organization_id=lambda **_kwargs: "org-test",
+            )
 
         def list_resources(self):
             raise BusinessRuleError(
@@ -1353,19 +1364,17 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     assert api.list_projects()[0].label == "Plant Upgrade"
     assert api.get_calendar_snapshot().working_days[0].label == "Mon"
 
-    calendar = api.update_calendar(
+    # update_calendar and add_holiday are now stubs — calendar editing moved to Platform Admin.
+    # They return the current snapshot / a no-op response without mutating state.
+    calendar_stub = api.update_calendar(
         SimpleNamespace(working_days=(0, 1, 2, 3, 4, 5), hours_per_day=10.0)
     )
+    assert calendar_stub is not None  # stub returns current snapshot, not an error
 
-    assert calendar.hours_per_day == 10.0
-    assert calendar.working_days[5].checked is True
-
-    holiday = api.add_holiday(
+    holiday_stub = api.add_holiday(
         SimpleNamespace(holiday_date=date(2026, 5, 1), name="Labor Day")
     )
-
-    assert holiday.name == "Labor Day"
-    assert len(api.get_calendar_snapshot().holidays) == 1
+    assert holiday_stub is not None  # stub returns a no-op DTO
 
     calculation = api.calculate_working_days(
         SimpleNamespace(start_date=date(2026, 5, 4), working_days=3)
@@ -1400,9 +1409,11 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     assert comparison_rows[0].task_name == "Cable Pull"
     assert comparison_rows[0].start_shift_days == 1
 
-    api.delete_holiday(holiday.id)
+    # delete_holiday is now a stub (calendar editing moved to Platform Admin)
+    api.delete_holiday(getattr(holiday_stub, "id", ""))
     api.delete_baseline(created_a.value)
 
+    # get_calendar_snapshot holidays stay empty since add_holiday is a no-op stub
     assert api.get_calendar_snapshot().holidays == ()
     assert [option.value for option in api.list_baselines(project.id)] == [created_b.value]
 

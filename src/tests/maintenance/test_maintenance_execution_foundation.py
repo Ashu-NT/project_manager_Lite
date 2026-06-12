@@ -24,9 +24,10 @@ from src.core.modules.maintenance import (
     MaintenanceWorkOrderTaskService,
     MaintenanceWorkOrderTaskStepService,
 )
-from src.core.platform.notifications.domain_events import domain_events
-from .test_maintenance_foundation import _OrgRepo, _WorkOrderRepo, _WorkOrderTaskRepo, _user_session
-from src.core.platform.org.domain import Organization, Site
+from src.core.shared.events.domain_events import domain_events
+from .test_maintenance_foundation import _OrgRepo, _TenantContext, _WorkOrderRepo, _WorkOrderTaskRepo, _user_session
+from src.core.platform.org.domain import Organization
+from src.core.platform.site.domain import Site
 from src.core.platform.common.exceptions import ValidationError
 
 
@@ -168,6 +169,7 @@ def test_maintenance_work_order_task_step_service_progresses_steps_and_unblocks_
         organization_repo=_OrgRepo(organization),
         work_order_repo=work_order_repo,
         work_order_task_step_repo=step_repo,
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
     step_service = MaintenanceWorkOrderTaskStepService(
@@ -176,6 +178,7 @@ def test_maintenance_work_order_task_step_service_progresses_steps_and_unblocks_
         organization_repo=_OrgRepo(organization),
         work_order_repo=work_order_repo,
         work_order_task_repo=task_repo,
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
 
@@ -285,6 +288,7 @@ def test_maintenance_material_requirement_service_tracks_stock_demand_and_availa
         item_service=item_lookup,
         inventory_service=storeroom_lookup,
         maintenance_material_service=_MaintenanceMaterialContract(),
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
     captured = []

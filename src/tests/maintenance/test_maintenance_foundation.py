@@ -35,9 +35,11 @@ from src.core.modules.maintenance.application.common.support import coerce_prior
 from src.core.platform.auth.contracts import UserRepository
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
-from src.core.platform.notifications.domain_events import domain_events
-from src.core.platform.org.domain import Organization, Site
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.site.contracts import SiteRepository
+from src.core.shared.events.domain_events import domain_events
+from src.core.platform.org.domain import Organization
+from src.core.platform.site.domain import Site
 from src.core.platform.party.domain import Party, PartyType
 from src.core.platform.party.contracts import PartyRepository
 
@@ -66,6 +68,24 @@ class _OrgRepo(OrganizationRepository):
         if active_only is None:
             return rows
         return [row for row in rows if row.is_active == bool(active_only)]
+
+
+class _TenantContext:
+    def __init__(self, organization: Organization) -> None:
+        self.organization = organization
+
+    def require_context(self, *, operation_label: str):
+        return type(
+            "TenantContext",
+            (),
+            {"organization_id": self.organization.id, "organization": self.organization},
+        )()
+
+    def require_active_organization_id(self, *, operation_label: str) -> str:
+        return self.organization.id
+
+    def get_active_organization_id(self) -> str:
+        return self.organization.id
 
 
 class _SiteRepo(SiteRepository):
@@ -482,6 +502,7 @@ def test_maintenance_location_service_creates_searches_and_emits_domain_events(s
         _LocationRepo(),
         organization_repo=_OrgRepo(organization),
         site_repo=_SiteRepo([site]),
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
     captured = []
@@ -520,6 +541,7 @@ def test_maintenance_location_service_rejects_parent_from_other_site(session) ->
         location_repo,
         organization_repo=_OrgRepo(organization),
         site_repo=_SiteRepo([site_a, site_b]),
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
 
@@ -561,6 +583,7 @@ def test_maintenance_system_service_creates_systems_and_validates_location_scope
         organization_repo=_OrgRepo(organization),
         site_repo=_SiteRepo([site_a, site_b]),
         location_repo=location_repo,
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
 
@@ -627,6 +650,7 @@ def test_maintenance_asset_service_creates_assets_and_emits_domain_events(sessio
         organization_repo=_OrgRepo(organization),
         site_repo=_SiteRepo([site]),
         location_repo=location_repo,
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     ).create_system(
         site_id=site.id,
@@ -642,6 +666,7 @@ def test_maintenance_asset_service_creates_assets_and_emits_domain_events(sessio
         location_repo=location_repo,
         system_repo=system_repo,
         party_repo=_PartyRepo([manufacturer, supplier]),
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
     captured = []
@@ -704,6 +729,7 @@ def test_maintenance_asset_service_rejects_cross_site_system_reference(session) 
         organization_repo=_OrgRepo(organization),
         site_repo=_SiteRepo([site_a, site_b]),
         location_repo=location_repo,
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     ).create_system(
         site_id=site_b.id,
@@ -719,6 +745,7 @@ def test_maintenance_asset_service_rejects_cross_site_system_reference(session) 
         location_repo=location_repo,
         system_repo=system_repo,
         party_repo=_PartyRepo(),
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
 
@@ -770,6 +797,7 @@ def test_maintenance_asset_component_service_creates_components_and_emits_domain
         asset_repo=asset_repo,
         organization_repo=_OrgRepo(organization),
         party_repo=_PartyRepo([supplier]),
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
     captured = []
@@ -835,6 +863,7 @@ def test_maintenance_asset_component_service_rejects_parent_from_other_asset(ses
         asset_repo=asset_repo,
         organization_repo=_OrgRepo(organization),
         party_repo=_PartyRepo(),
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
 
@@ -880,6 +909,7 @@ def test_maintenance_work_request_service_creates_and_triages_requests(session) 
         component_repo=_ComponentRepo(),
         location_repo=_LocationRepo(),
         system_repo=_SystemRepo(),
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
     service._asset_repo.add(asset)
@@ -960,6 +990,7 @@ def test_maintenance_work_order_service_creates_from_request_and_tracks_status(s
         location_repo=location_repo,
         system_repo=_SystemRepo(),
         work_request_repo=work_request_repo,
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
     captured = []
@@ -1026,6 +1057,7 @@ def test_maintenance_work_order_task_service_creates_and_progresses_tasks(sessio
         _WorkOrderTaskRepo(),
         organization_repo=_OrgRepo(organization),
         work_order_repo=work_order_repo,
+        tenant_context_service=_TenantContext(organization),
         user_session=_user_session(),
     )
     captured = []

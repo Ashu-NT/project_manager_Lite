@@ -1,0 +1,1 @@
+"""Presence application logic."""

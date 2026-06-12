@@ -7,7 +7,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.platform.presenters.access_workspace_presenter import PlatformAccessWorkspacePresenter
 
 from ..common import (

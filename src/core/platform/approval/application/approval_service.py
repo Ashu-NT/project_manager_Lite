@@ -7,11 +7,12 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.audit.application.audit_service import AuditService
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.core.platform.approval.contracts import ApprovalRepository
 from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from src.core.platform.auth.authorization import require_any_permission, require_permission
 from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.tenancy import TenantContextService
 
 ApplyHandler = Callable[[ApprovalRequest], None]
 
@@ -23,11 +24,13 @@ class ApprovalService:
         approval_repo: ApprovalRepository,
         user_session: UserSessionContext | None = None,
         audit_service: AuditService | None = None,
+        tenant_context_service: TenantContextService | None = None,
     ):
         self._session = session
         self._approval_repo = approval_repo
         self._user_session = user_session
         self._audit_service = audit_service
+        self._tenant_context_service = tenant_context_service
         self._apply_handlers: dict[str, ApplyHandler] = {}
         self._reject_handlers: dict[str, ApplyHandler] = {}
 
@@ -52,9 +55,14 @@ class ApprovalService:
             "approval.request",
             operation_label="request governed change",
         )
-        existing_pending = self._approval_repo.list_by_status(
-            ApprovalStatus.PENDING,
+        organization_id = self._active_organization_id(
+            operation_label="request governed change"
+        )
+        self._assert_project_in_active_organization(project_id, operation_label="request governed change")
+        existing_pending = self._list_approval_rows(
+            status=ApprovalStatus.PENDING,
             limit=1,
+            project_id=project_id,
             entity_type=entity_type,
             entity_id=entity_id,
         )
@@ -70,6 +78,7 @@ class ApprovalService:
             entity_type=entity_type,
             entity_id=entity_id,
             project_id=project_id,
+            organization_id=organization_id,
             payload=payload or {},
             requested_by_user_id=principal.user_id if principal else None,
             requested_by_username=principal.username if principal else None,
@@ -112,8 +121,8 @@ class ApprovalService:
                 normalized_status = ApprovalStatus(raw)
             except ValueError:
                 normalized_status = None
-        return self._approval_repo.list_by_status(
-            normalized_status,
+        return self._list_approval_rows(
+            status=normalized_status,
             limit=limit,
             project_id=project_id,
             entity_type=entity_type,
@@ -191,6 +200,10 @@ class ApprovalService:
         request = self._approval_repo.get(request_id)
         if request is None:
             raise NotFoundError("Approval request not found.", code="APPROVAL_NOT_FOUND")
+        self._assert_project_in_active_organization(
+            request.project_id,
+            operation_label="view approval request",
+        )
         if request.status != ApprovalStatus.PENDING:
             raise BusinessRuleError(
                 "Approval request is already decided.",
@@ -263,6 +276,55 @@ class ApprovalService:
         if decision_note:
             details["decision_note"] = decision_note
         return details
+
+    def _active_organization_id(self, *, operation_label: str) -> str | None:
+        tenant_context = getattr(self, "_tenant_context_service", None)
+        if tenant_context is None:
+            return None
+        return tenant_context.require_active_organization_id(operation_label=operation_label)
+
+    def _list_approval_rows(
+        self,
+        *,
+        status: ApprovalStatus | None,
+        limit: int,
+        project_id: str | None,
+        entity_type: str | list[str] | None,
+        entity_id: str | None,
+    ) -> list[ApprovalRequest]:
+        organization_id = self._active_organization_id(operation_label="view governance requests")
+        if organization_id and hasattr(self._approval_repo, "list_by_status_for_organization"):
+            return self._approval_repo.list_by_status_for_organization(
+                organization_id,
+                status,
+                limit=limit,
+                project_id=project_id,
+                entity_type=entity_type,
+                entity_id=entity_id,
+            )
+        return self._approval_repo.list_by_status(
+            status,
+            limit=limit,
+            project_id=project_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+        )
+
+    def _assert_project_in_active_organization(
+        self,
+        project_id: str | None,
+        *,
+        operation_label: str,
+    ) -> None:
+        organization_id = self._active_organization_id(operation_label=operation_label)
+        if not organization_id or not project_id:
+            return
+        if (
+            hasattr(self._approval_repo, "project_belongs_to_organization")
+            and self._approval_repo.project_belongs_to_organization(project_id, organization_id)
+        ):
+            return
+        raise NotFoundError("Approval request not found.", code="APPROVAL_NOT_FOUND")
 
 
 __all__ = ["ApplyHandler", "ApprovalService"]

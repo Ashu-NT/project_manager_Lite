@@ -1,19 +1,25 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.platform.audit.helpers import record_audit
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_any_permission, require_permission
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
 from src.core.platform.org.support import normalize_code, normalize_email, normalize_name, normalize_phone
 from src.core.platform.party.contracts import PartyRepository
 from src.core.platform.party.domain import Party, PartyType
+from src.core.platform.tenancy import TenantContextService
+
+if TYPE_CHECKING:
+    from src.core.platform.audit.application.audit_service import AuditService
+    from src.core.platform.auth.domain.session import UserSessionContext
 
 
 def _normalize_optional_text(value: str | None) -> str:
@@ -37,14 +43,16 @@ class PartyService:
         party_repo: PartyRepository,
         *,
         organization_repo: OrganizationRepository,
-        user_session=None,
-        audit_service=None,
+        user_session: UserSessionContext | None = None,
+        audit_service: AuditService | None = None,
+        tenant_context_service: TenantContextService | None = None,
     ):
         self._session = session
         self._party_repo = party_repo
         self._organization_repo = organization_repo
         self._user_session = user_session
         self._audit_service = audit_service
+        self._tenant_context_service = tenant_context_service
 
     def list_parties(self, *, active_only: bool | None = None) -> list[Party]:
         self._require_party_read_access("list parties")
@@ -277,9 +285,17 @@ class PartyService:
         return party
 
     def _active_organization(self) -> Organization:
-        organization = self._organization_repo.get_active()
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        organization = self._tenant_context_service.get_active_organization()
         if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
+            raise BusinessRuleError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
         return organization
 
     def _require_party_read_access(self, operation_label: str) -> None:

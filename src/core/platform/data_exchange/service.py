@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from src.core.platform.exporting import ExportDefinitionRegistry, ExportRuntime, ensure_output_path
 from src.core.platform.importing import (
@@ -15,9 +15,12 @@ from src.core.platform.importing import (
     ImportSourceRow,
     ImportSummary,
 )
-from src.core.platform.org import SiteService
+from src.core.platform.site import SiteService
 from src.core.platform.party import PartyService
 from src.core.platform.party.domain import PartyType
+
+if TYPE_CHECKING:
+    from src.core.platform.auth.domain.session import UserSessionContext
 
 
 _SITE_FIELDS: tuple[ImportFieldSpec, ...] = (
@@ -106,10 +109,10 @@ class _CallbackImportDefinition:
     def field_specs(self) -> tuple[ImportFieldSpec, ...]:
         return self.field_specs_value
 
-    def preview(self, rows) -> ImportPreview:
+    def preview(self, rows: list[ImportSourceRow]) -> ImportPreview:
         return self.preview_handler(list(rows))
 
-    def execute(self, rows) -> ImportSummary:
+    def execute(self, rows: list[ImportSourceRow]) -> ImportSummary:
         return self.execute_handler(list(rows))
 
 
@@ -132,7 +135,7 @@ class MasterDataExchangeService:
         *,
         site_service: SiteService,
         party_service: PartyService,
-        user_session=None,
+        user_session: UserSessionContext | None = None,
     ) -> None:
         self._site_service = site_service
         self._party_service = party_service
@@ -215,7 +218,7 @@ class MasterDataExchangeService:
         output_path: str | Path,
         *,
         active_only: bool | None = None,
-    ):
+    ) -> Path:
         return self._export_runtime.export(
             entity_type,
             MasterDataExportRequest(output_path=Path(output_path), active_only=active_only),

@@ -25,7 +25,7 @@ from src.core.modules.inventory_procurement.domain.inventory.stock import (
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.org.domain import Organization
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 
 
 class StockControlAdjustmentMixin:

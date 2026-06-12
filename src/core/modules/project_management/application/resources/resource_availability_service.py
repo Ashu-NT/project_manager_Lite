@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Dict, List, Optional
 
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.task import (
@@ -11,9 +12,6 @@ from src.core.modules.project_management.contracts.repositories.task import (
 )
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
-from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
-    WorkCalendarEngine,
-)
 
 
 @dataclass
@@ -25,7 +23,7 @@ class ResourceDateLoad:
     total_allocation_percent: float
     capacity_percent: float
     overloaded: bool
-    contributing_tasks: List[str]  # task IDs
+    contributing_tasks: list[str]  # task IDs
 
 
 @dataclass
@@ -43,7 +41,7 @@ class ResourceAvailabilityWindow:
     average_load_percent: float
     overloaded_days: int
     available_days: int
-    daily_loads: List[ResourceDateLoad] = field(default_factory=list)
+    daily_loads: list[ResourceDateLoad] = field(default_factory=list)
 
     @property
     def is_available(self) -> bool:
@@ -55,10 +53,10 @@ class MultiProjectAvailabilityReport:
     """Availability summary across all active projects for a set of resources."""
     from_date: date
     to_date: date
-    resources: List[ResourceAvailabilityWindow]
+    resources: list[ResourceAvailabilityWindow]
 
     @property
-    def overloaded_resources(self) -> List[ResourceAvailabilityWindow]:
+    def overloaded_resources(self) -> list[ResourceAvailabilityWindow]:
         return [r for r in self.resources if not r.is_available]
 
 
@@ -81,23 +79,23 @@ class ResourceAvailabilityService:
         resource_repo: ResourceRepository,
         assignment_repo: AssignmentRepository,
         task_repo: TaskRepository,
-        calendar: WorkCalendarEngine,
+        calendar: CalendarProtocol,
     ) -> None:
-        self._resources = resource_repo
-        self._assignments = assignment_repo
-        self._tasks = task_repo
-        self._calendar = calendar
+        self._resources: ResourceRepository = resource_repo
+        self._assignments: AssignmentRepository = assignment_repo
+        self._tasks: TaskRepository = task_repo
+        self._calendar: CalendarProtocol = calendar
 
     def check_availability(
         self,
-        resource_ids: List[str],
+        resource_ids: list[str],
         from_date: date,
         to_date: date,
     ) -> MultiProjectAvailabilityReport:
         """
         Compute daily load for each resource across ALL projects between from_date and to_date.
         """
-        windows: List[ResourceAvailabilityWindow] = []
+        windows: list[ResourceAvailabilityWindow] = []
         for rid in resource_ids:
             window = self._compute_window(rid, from_date, to_date)
             if window is not None:
@@ -110,7 +108,7 @@ class ResourceAvailabilityService:
         planned_start: date,
         planned_finish: date,
         additional_allocation_percent: float = 100.0,
-    ) -> tuple[bool, Optional[ResourceAvailabilityWindow]]:
+    ) -> tuple[bool, ResourceAvailabilityWindow | None]:
         """
         Quick check: can this resource accept additional_allocation_percent
         throughout the planned window without exceeding capacity?
@@ -133,7 +131,7 @@ class ResourceAvailabilityService:
         resource_id: str,
         from_date: date,
         to_date: date,
-    ) -> Optional[ResourceAvailabilityWindow]:
+    ) -> ResourceAvailabilityWindow | None:
         resource = self._resources.get(resource_id)
         if resource is None:
             return None
@@ -142,7 +140,7 @@ class ResourceAvailabilityService:
             capacity = 100.0
 
         # All assignments for this resource across all projects
-        assignments: List[TaskAssignment] = self._assignments.list_by_resource(resource_id)
+        assignments: list[TaskAssignment] = self._assignments.list_by_resource(resource_id)
         if not assignments:
             working_days = max(0, self._calendar.working_days_between(from_date, to_date))
             return ResourceAvailabilityWindow(
@@ -159,14 +157,14 @@ class ResourceAvailabilityService:
 
         # Build task map for all assigned tasks
         task_ids = list({a.task_id for a in assignments})
-        tasks_by_id: Dict[str, Task] = {}
+        tasks_by_id: dict[str, Task] = {}
         for tid in task_ids:
             task = self._tasks.get(tid)
             if task:
                 tasks_by_id[tid] = task
 
         # Compute daily load across the window
-        daily_loads: List[ResourceDateLoad] = []
+        daily_loads: list[ResourceDateLoad] = []
         working_days = 0
         overloaded = 0
         total_load = 0.0
@@ -178,7 +176,7 @@ class ResourceAvailabilityService:
                 continue
             working_days += 1
             day_load = 0.0
-            contributing: List[str] = []
+            contributing: list[str] = []
             for asgn in assignments:
                 task = tasks_by_id.get(asgn.task_id)
                 if task is None:

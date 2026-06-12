@@ -6,9 +6,11 @@ import App.Theme 1.0 as Theme
 Item {
     id: root
 
-    property bool hasResource: false
+    property var resourceDetail: ({ "id": "", "title": "" })
     property var resourceAssignmentsTableModel: null
     property bool isBusy: false
+
+    readonly property bool _hasResource: String(root.resourceDetail.id || "").length > 0
 
     implicitHeight: _col.implicitHeight
 
@@ -17,16 +19,19 @@ Item {
         width: parent.width
         spacing: 0
 
-        AppWidgets.SectionHeading { width: parent.width; label: "Assignments" }
-
-        Item {
+        AppWidgets.ContextualActionToolbar {
             width: parent.width
-            implicitHeight: Theme.AppTheme.spacingMd
+            title: root._hasResource ? root.resourceDetail.title : "Assignments"
+            subtitle: root._hasResource ? "Project and task assignment coverage for this resource" : ""
+            busy: root.isBusy
+            actions: []
         }
+
+        Item { width: parent.width; implicitHeight: Theme.AppTheme.spacingMd }
 
         AppWidgets.EmptyState {
             width: parent.width
-            visible: !root.hasResource
+            visible: !root._hasResource
             title: "No resource selected"
             message: "Select a resource to view its project and task assignments."
         }
@@ -34,7 +39,7 @@ Item {
         AppWidgets.DataTable {
             width: parent.width
             height: Math.min(480, Math.max(200, implicitHeight))
-            visible: root.hasResource
+            visible: root._hasResource
             columns: [
                 { key: "title",       label: "Task",         flex: 2,  sortable: true },
                 { key: "subtitle",    label: "Project",      flex: 2 },
@@ -43,14 +48,9 @@ Item {
             ]
             sourceModel: root.resourceAssignmentsTableModel
             loading: root.isBusy
-            emptyText: root.hasResource
-                ? "No task assignments found for this resource."
-                : "Select a resource to view assignments."
+            emptyText: "No task assignments found for this resource."
         }
 
-        Item {
-            width: parent.width
-            implicitHeight: Theme.AppTheme.spacingMd
-        }
+        Item { width: parent.width; implicitHeight: Theme.AppTheme.spacingMd }
     }
 }

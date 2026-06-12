@@ -5,13 +5,14 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "../components"
 
 Item {
     id: root
 
     property var workspaceController: null
-    property var pmCatalog: null
+    property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog: null
     property var baselinesModel: ({
         "options": [], "selectedBaselineAId": "", "selectedBaselineBId": "",
         "includeUnchanged": false, "summaryText": "", "emptyState": ""
@@ -19,7 +20,7 @@ Item {
     property string selectedBaselineRegisterId: ""
     property string selectedBaselineRegisterStatus: ""
 
-    signal selectedBaselineRegisterIdChanged(string registerId)
+    signal selectedBaselineRegisterSelectionChanged(string registerId)
     signal createBaselineRequested()
 
     readonly property var _compareColumns: [
@@ -188,7 +189,7 @@ Item {
                     emptyText: root.workspaceController ? (root.workspaceController.baselineRegister.emptyState || "No baseline register entries are available.") : "No baseline register entries are available."
                     selectedRowId: root.selectedBaselineRegisterId
                     onRowSelected: function(rowId) {
-                        root.selectedBaselineRegisterIdChanged(String(rowId || ""))
+                        root.selectedBaselineRegisterSelectionChanged(String(rowId || ""))
                         if (root.workspaceController !== null)
                             root.workspaceController.loadVarianceRecordsForBaseline(String(rowId || ""))
                     }

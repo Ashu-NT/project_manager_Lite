@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QApplication
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.infra.composition.app_container import build_service_dict
 from src.infra.persistence.orm.base import Base
 from src.tests.path_rewrites import REPO_ROOT, resolve_repo_path

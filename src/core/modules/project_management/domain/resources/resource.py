@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.core.modules.project_management.domain.identifiers import generate_id
@@ -16,13 +15,14 @@ class Resource:
     hourly_rate: float = 0.0
     is_active: bool = True
     cost_type: CostType = CostType.LABOR
-    currency_code: Optional[str] = None
+    currency_code: str | None = None
     version: int = 1
     capacity_percent: float = 100.0
     address: str = ""
     contact: str = ""
     worker_type: WorkerType = WorkerType.EXTERNAL
     employee_id: Optional[str] = None
+    organization_id: Optional[str] = None
 
     @staticmethod
     def create(
@@ -31,13 +31,14 @@ class Resource:
         hourly_rate: float = 0.0,
         is_active: bool = True,
         cost_type: CostType = CostType.LABOR,
-        currency_code: Optional[str] = None,
+        currency_code: str | None = None,
         capacity_percent: float = 100.0,
         address: str = "",
         contact: str = "",
         worker_type: WorkerType = WorkerType.EXTERNAL,
         employee_id: str | None = None,
         code: str = "",
+        organization_id: str | None = None,
     ) -> "Resource":
         return Resource(
             id=generate_id(),
@@ -53,6 +54,7 @@ class Resource:
             contact=contact,
             worker_type=worker_type,
             employee_id=employee_id,
+            organization_id=organization_id,
         )
 
 

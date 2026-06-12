@@ -83,7 +83,7 @@ class TimesheetPeriodRepository(ABC):
     def list_by_resource(self, resource_id: str) -> list[TimesheetPeriod]: ...
 
     @abstractmethod
-    def list_all(
+    def list_review_candidates(
         self,
         *,
         status: TimesheetPeriodStatus | None = None,

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
+from time import perf_counter
 
 from sqlalchemy.orm import Session
 
@@ -20,25 +22,39 @@ from src.core.platform.auth import AuthService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.documents import DocumentIntegrationService, DocumentService
 from src.core.platform.data_exchange import MasterDataExchangeService
-from src.core.platform.org import (
-    DepartmentService,
-    EmployeeService,
-    OrganizationRepository,
-    OrganizationService,
-    SiteRepository,
-    SiteService,
-)
-from src.core.platform.org.access_policy import (
+from src.core.platform.department import DepartmentService
+from src.core.platform.employee import EmployeeService
+from src.core.platform.org import Organization, OrganizationRepository, OrganizationService
+from src.core.platform.site import SiteRepository, SiteService
+from src.core.platform.site.access_policy import (
     SITE_SCOPE_ROLE_CHOICES,
     normalize_site_scope_role,
     resolve_site_scope_permissions,
 )
+from src.core.platform.tenancy import (
+    ORGANIZATION_SCOPE_ROLE_CHOICES,
+    TenantContextService,
+    normalize_organization_scope_role,
+    resolve_organization_scope_permissions,
+)
 from src.core.platform.party import PartyService
 from src.core.platform.party.contracts import PartyRepository
 from src.core.platform.runtime_tracking import RuntimeExecutionService
+from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
+from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
+from src.core.platform.calendar.application.calendar_exception_service import CalendarExceptionService
+from src.core.platform.calendar.application.recurring_event_service import RecurringEventService
+from src.core.platform.calendar.application.shift_pattern_service import ShiftPatternService
+from src.core.platform.calendar.application.calendar_assignment_service import CalendarAssignmentService
+from src.core.platform.calendar.application.enterprise_calendar_resolver import EnterpriseCalendarResolver
+from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
+from src.core.platform.calendar.application.global_calendar_shim import GlobalCalendarShim
 from src.core.platform.infrastructure.persistence.repositories.modules import SqlAlchemyModuleEntitlementRepository
 from src.core.platform.infrastructure.persistence.repositories.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
 from src.infra.composition.repositories import RepositoryBundle
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -48,6 +64,7 @@ class PlatformServiceBundle:
     organization_repo: OrganizationRepository
     site_repo: SiteRepository
     party_repo: PartyRepository
+    tenant_context_service: TenantContextService
     platform_runtime_application_service: PlatformRuntimeApplicationService
     module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
@@ -64,23 +81,40 @@ class PlatformServiceBundle:
     access_service: AccessControlService
     audit_service: AuditService
     approval_service: ApprovalService
+    enterprise_calendar_service: EnterpriseCalendarService
+    working_rule_service: WorkingRuleService
+    calendar_exception_service: CalendarExceptionService
+    recurring_event_service: RecurringEventService
+    shift_pattern_service: ShiftPatternService
+    calendar_assignment_service: CalendarAssignmentService
+    enterprise_calendar_resolver: EnterpriseCalendarResolver
+    working_time_calculator: WorkingTimeCalculator
+    global_calendar_shim: GlobalCalendarShim
 
 
 def build_platform_service_bundle(
     session: Session,
     repositories: RepositoryBundle,
 ) -> PlatformServiceBundle:
+    started = perf_counter()
+    logger.debug("Platform service bundle build begin")
     user_session = UserSessionContext()
+    tenant_context_service = TenantContextService(
+        organization_repo=repositories.organization_repo,
+        user_session=user_session,
+    )
     audit_service = AuditService(
         session=session,
         audit_repo=repositories.audit_repo,
         user_session=user_session,
+        tenant_context_service=tenant_context_service,
     )
     approval_service = ApprovalService(
         session=session,
         approval_repo=repositories.approval_repo,
         user_session=user_session,
         audit_service=audit_service,
+        tenant_context_service=tenant_context_service,
     )
     auth_service = AuthService(
         session=session,
@@ -96,7 +130,12 @@ def build_platform_service_bundle(
         audit_service=audit_service,
     )
     user_session.set_validator(auth_service.validate_session_principal)
+    logger.debug("Platform auth service created; bootstrapping defaults")
     auth_service.bootstrap_defaults()
+    logger.debug(
+        "Platform auth defaults bootstrapped duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
 
     organization_service = OrganizationService(
         session=session,
@@ -104,8 +143,21 @@ def build_platform_service_bundle(
         user_session=user_session,
         audit_service=audit_service,
     )
+    logger.debug("Platform organization service created; bootstrapping defaults")
     organization_service.bootstrap_defaults()
-
+    if user_session.active_organization_id() is None:
+        # Bootstrap the local/session tenant explicitly after organization
+        # defaults exist. This does not make Organization.is_active a runtime
+        # selector for repositories; it seeds UserSession -> TenantContext.
+        organizations = repositories.organization_repo.list_all(active_only=True)
+        if not organizations:
+            organizations = repositories.organization_repo.list_all()
+        if organizations:
+            user_session.set_active_organization_id(organizations[0].id)
+    logger.debug(
+        "Platform organization defaults bootstrapped duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
     document_service = DocumentService(
         session=session,
         document_repo=repositories.document_repo,
@@ -114,6 +166,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         audit_service=audit_service,
+        tenant_context_service=tenant_context_service,
     )
     document_integration_service = DocumentIntegrationService(
         session=session,
@@ -123,6 +176,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         audit_service=audit_service,
+        tenant_context_service=tenant_context_service,
     )
     party_service = PartyService(
         session=session,
@@ -130,6 +184,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         audit_service=audit_service,
+        tenant_context_service=tenant_context_service,
     )
     site_service = SiteService(
         session=session,
@@ -137,6 +192,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         audit_service=audit_service,
+        tenant_context_service=tenant_context_service,
     )
     department_service = DepartmentService(
         session=session,
@@ -146,14 +202,14 @@ def build_platform_service_bundle(
         employee_repo=repositories.employee_repo,
         user_session=user_session,
         audit_service=audit_service,
+        tenant_context_service=tenant_context_service,
     )
 
-    def _active_organization():
-        return repositories.organization_repo.get_active()
+    def _active_organization() -> Organization | None:
+        return tenant_context_service.get_active_organization()
 
     def _active_organization_id() -> str | None:
-        organization = _active_organization()
-        return organization.id if organization is not None else None
+        return tenant_context_service.get_active_organization_id()
 
     module_entitlement_repo = SqlAlchemyModuleEntitlementRepository(
         session,
@@ -173,11 +229,17 @@ def build_platform_service_bundle(
         audit_service=audit_service,
         organization_context_provider=_active_organization,
     )
+    logger.debug("Platform module catalog service created; bootstrapping defaults")
     module_catalog_service.bootstrap_defaults()
+    logger.debug(
+        "Platform module catalog defaults bootstrapped duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
     module_runtime_service = ModuleRuntimeService(module_catalog_service)
     platform_runtime_application_service = PlatformRuntimeApplicationService(
         module_runtime_service=module_runtime_service,
         organization_service=organization_service,
+        tenant_context_service=tenant_context_service,
     )
     runtime_execution_service = RuntimeExecutionService(
         runtime_execution_repo=SqlAlchemyRuntimeExecutionRepository(session),
@@ -191,6 +253,12 @@ def build_platform_service_bundle(
         policy_registry=ScopedRolePolicyRegistry(
             (
                 ScopedRolePolicy(
+                    scope_type="organization",
+                    role_choices=ORGANIZATION_SCOPE_ROLE_CHOICES,
+                    normalize_role=normalize_organization_scope_role,
+                    resolve_permissions=resolve_organization_scope_permissions,
+                ),
+                ScopedRolePolicy(
                     scope_type="site",
                     role_choices=SITE_SCOPE_ROLE_CHOICES,
                     normalize_role=normalize_site_scope_role,
@@ -200,6 +268,7 @@ def build_platform_service_bundle(
         ),
         scoped_access_repo=repositories.scoped_access_repo,
         scope_exists_resolvers={
+            "organization": lambda organization_id: repositories.organization_repo.get(organization_id) is not None,
             "site": lambda site_id: repositories.site_repo.get(site_id) is not None,
         },
         user_session=user_session,
@@ -212,6 +281,7 @@ def build_platform_service_bundle(
         site_repo=repositories.site_repo,
         department_repo=repositories.department_repo,
         organization_repo=repositories.organization_repo,
+        tenant_context_service=tenant_context_service,
         user_session=user_session,
         audit_service=audit_service,
     )
@@ -221,12 +291,86 @@ def build_platform_service_bundle(
         user_session=user_session,
     )
 
-    return PlatformServiceBundle(
+    # --- Enterprise calendar services ---
+    working_time_calculator = WorkingTimeCalculator()
+    enterprise_calendar_service = EnterpriseCalendarService(
+        session=session,
+        calendar_repo=repositories.platform_calendar_repo,
+        assignment_repo=repositories.calendar_assignment_repo,
+        organization_repo=repositories.organization_repo,
+        rule_repo=repositories.calendar_working_rule_repo,
+        exception_repo=repositories.calendar_exception_repo,
+        user_session=user_session,
+        audit_service=audit_service,
+        tenant_context_service=tenant_context_service,
+    )
+    working_rule_service = WorkingRuleService(
+        session=session,
+        calendar_repo=repositories.platform_calendar_repo,
+        rule_repo=repositories.calendar_working_rule_repo,
+        user_session=user_session,
+    )
+    calendar_exception_service = CalendarExceptionService(
+        session=session,
+        calendar_repo=repositories.platform_calendar_repo,
+        exception_repo=repositories.calendar_exception_repo,
+        user_session=user_session,
+    )
+    recurring_event_service = RecurringEventService(
+        session=session,
+        calendar_repo=repositories.platform_calendar_repo,
+        event_repo=repositories.calendar_recurring_event_repo,
+        user_session=user_session,
+    )
+    shift_pattern_service = ShiftPatternService(
+        session=session,
+        pattern_repo=repositories.shift_pattern_repo,
+        organization_repo=repositories.organization_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+    )
+    calendar_assignment_service = CalendarAssignmentService(
+        session=session,
+        calendar_repo=repositories.platform_calendar_repo,
+        assignment_repo=repositories.calendar_assignment_repo,
+        project_assignment_repo=repositories.project_calendar_assignment_repo,
+        resource_assignment_repo=repositories.resource_calendar_assignment_repo,
+        user_session=user_session,
+    )
+
+    def _get_active_org_id() -> str:
+        return tenant_context_service.get_active_organization_id() or ""
+
+    enterprise_calendar_resolver = EnterpriseCalendarResolver(
+        organization_id=_get_active_org_id(),
+        calendar_repo=repositories.platform_calendar_repo,
+        rule_repo=repositories.calendar_working_rule_repo,
+        exception_repo=repositories.calendar_exception_repo,
+        recurring_repo=repositories.calendar_recurring_event_repo,
+        assignment_repo=repositories.calendar_assignment_repo,
+        project_assignment_repo=repositories.project_calendar_assignment_repo,
+        resource_assignment_repo=repositories.resource_calendar_assignment_repo,
+        calculator=working_time_calculator,
+    )
+    global_calendar_shim = GlobalCalendarShim(resolver=enterprise_calendar_resolver)
+    # Bootstrap global calendar. After the Alembic migration drops legacy tables,
+    # working_calendar_repo will not be passed — the enterprise tables already hold the data.
+    try:
+        org = tenant_context_service.get_active_organization()
+        if org:
+            logger.debug("Ensuring enterprise global calendar organization_id=%s", org.id)
+            enterprise_calendar_service.ensure_global_calendar(org.id)
+            logger.debug("Enterprise global calendar ensured organization_id=%s", org.id)
+    except Exception:
+        logger.exception("Enterprise global calendar bootstrap failed; continuing startup")
+
+    bundle = PlatformServiceBundle(
         session=session,
         user_session=user_session,
         organization_repo=repositories.organization_repo,
         site_repo=repositories.site_repo,
         party_repo=repositories.party_repo,
+        tenant_context_service=tenant_context_service,
         platform_runtime_application_service=platform_runtime_application_service,
         module_runtime_service=module_runtime_service,
         module_catalog_service=module_catalog_service,
@@ -243,7 +387,21 @@ def build_platform_service_bundle(
         access_service=access_service,
         audit_service=audit_service,
         approval_service=approval_service,
+        enterprise_calendar_service=enterprise_calendar_service,
+        working_rule_service=working_rule_service,
+        calendar_exception_service=calendar_exception_service,
+        recurring_event_service=recurring_event_service,
+        shift_pattern_service=shift_pattern_service,
+        calendar_assignment_service=calendar_assignment_service,
+        enterprise_calendar_resolver=enterprise_calendar_resolver,
+        working_time_calculator=working_time_calculator,
+        global_calendar_shim=global_calendar_shim,
     )
+    logger.debug(
+        "Platform service bundle build complete duration_ms=%.1f",
+        (perf_counter() - started) * 1000,
+    )
+    return bundle
 
 
 __all__ = ["PlatformServiceBundle", "build_platform_service_bundle"]

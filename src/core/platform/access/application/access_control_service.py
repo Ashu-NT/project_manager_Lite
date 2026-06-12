@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.notifications.domain_events import domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.core.platform.access.contracts import (
     ProjectMembershipRepository,
     ScopedAccessGrantRepository,
@@ -259,7 +259,7 @@ class AccessControlService:
     def remove_project_membership(self, *, project_id: str, user_id: str) -> None:
         self.remove_scope_grant(scope_type="project", scope_id=project_id, user_id=user_id)
 
-    def _require_scope_policy(self, scope_type: str):
+    def _require_scope_policy(self, scope_type: str) -> ScopedRolePolicy:
         return self._policy_registry.get(scope_type)
 
     def _normalize_scope_role(self, scope_type: str, scope_role: str) -> str:
@@ -292,7 +292,7 @@ class AccessControlService:
         raise NotFoundError(f"{scope_type.title()} not found.", code=f"{scope_type.upper()}_NOT_FOUND")
 
     @staticmethod
-    def _raise_unsupported_scope_type(scope_type: str):
+    def _raise_unsupported_scope_type(scope_type: str) -> None:
         raise ValidationError(
             f"Unsupported scope type '{scope_type}'.",
             code="UNSUPPORTED_SCOPE_TYPE",

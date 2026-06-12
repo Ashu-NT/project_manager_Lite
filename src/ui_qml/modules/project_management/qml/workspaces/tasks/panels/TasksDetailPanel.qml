@@ -7,6 +7,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import App.Controls 1.0 as AppControls
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
+import "../sections"
 
 Item {
     id: root

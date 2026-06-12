@@ -117,7 +117,7 @@ AppLayouts.WorkspaceFrame {
                             anchors.centerIn: parent
                             text: panelTab.modelData.title || ""
                             color: root._activePanelIndex === panelTab.index
-                                ? Theme.AppTheme.accentForeground
+                                ? Theme.AppTheme.textOnAccent
                                 : Theme.AppTheme.textSecondary
                             font.pixelSize: Theme.AppTheme.captionSize
                             font.bold: root._activePanelIndex === panelTab.index
