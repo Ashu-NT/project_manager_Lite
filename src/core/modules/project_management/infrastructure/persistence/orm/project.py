@@ -30,10 +30,10 @@ class ProjectORM(Base):
     client_contact: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     planned_budget: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     currency: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
-    organization_id: Mapped[Optional[str]] = mapped_column(
+    organization_id: Mapped[str] = mapped_column(
         String,
-        ForeignKey("organizations.id", ondelete="SET NULL"),
-        nullable=True,
+        ForeignKey("organizations.id", ondelete="RESTRICT"),
+        nullable=False,
     )
     site_id: Mapped[Optional[str]] = mapped_column(
         String,

@@ -86,6 +86,7 @@ class TimesheetPeriodRepository(ABC):
     def list_review_candidates(
         self,
         *,
+        organization_id: str | None = None,
         status: TimesheetPeriodStatus | None = None,
         limit: int | None = None,
     ) -> list[TimesheetPeriod]: ...

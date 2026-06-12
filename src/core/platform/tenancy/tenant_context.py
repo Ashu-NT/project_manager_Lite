@@ -105,7 +105,7 @@ class TenantContextService:
         if not normalized_organization_id:
             return False
         organization_scopes = dict((principal.scoped_access or {}).get("organization", {}))
-        return not organization_scopes or normalized_organization_id in organization_scopes
+        return bool(organization_scopes) and normalized_organization_id in organization_scopes
 
 
 __all__ = ["TenantContext", "TenantContextService"]

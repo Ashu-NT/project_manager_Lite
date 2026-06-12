@@ -50,10 +50,10 @@ class ResourceORM(Base):
         ForeignKey("employees.id", ondelete="SET NULL"),
         nullable=True,
     )
-    organization_id: Mapped[Optional[str]] = mapped_column(
+    organization_id: Mapped[str] = mapped_column(
         String,
-        ForeignKey("organizations.id", ondelete="SET NULL"),
-        nullable=True,
+        ForeignKey("organizations.id", ondelete="RESTRICT"),
+        nullable=False,
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 

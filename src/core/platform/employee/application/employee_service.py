@@ -109,6 +109,7 @@ class EmployeeService:
         employee = Employee.create(
             employee_code=normalized_code,
             full_name=normalized_name,
+            organization_id=organization_id,
             department_id=resolved_department_id,
             department=resolved_department_name,
             site_id=resolved_site_id,

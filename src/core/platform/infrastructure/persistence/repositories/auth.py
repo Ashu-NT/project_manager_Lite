@@ -189,22 +189,44 @@ class SqlAlchemyUserRoleRepository(UserRoleRepository):
         self.session = session
 
     def add(self, binding: UserRoleBinding) -> None:
-        if self.exists(binding.user_id, binding.role_id):
+        if self.exists(binding.user_id, binding.role_id, organization_id=binding.organization_id):
             return
         self.session.add(user_role_to_orm(binding))
 
-    def delete(self, user_id: str, role_id: str) -> None:
-        self.session.query(UserRoleORM).filter_by(user_id=user_id, role_id=role_id).delete()
+    def delete(self, user_id: str, role_id: str, organization_id: str | None = None) -> None:
+        stmt = (
+            self.session.query(UserRoleORM)
+            .filter_by(user_id=user_id, role_id=role_id)
+        )
+        if organization_id is None:
+            stmt = stmt.filter(UserRoleORM.organization_id.is_(None))
+        else:
+            stmt = stmt.filter(UserRoleORM.organization_id == organization_id)
+        stmt.delete()
 
-    def exists(self, user_id: str, role_id: str) -> bool:
+    def exists(self, user_id: str, role_id: str, organization_id: str | None = None) -> bool:
         stmt = select(UserRoleORM.id).where(
             UserRoleORM.user_id == user_id,
             UserRoleORM.role_id == role_id,
         )
+        if organization_id is None:
+            stmt = stmt.where(UserRoleORM.organization_id.is_(None))
+        else:
+            stmt = stmt.where(UserRoleORM.organization_id == organization_id)
         return self.session.execute(stmt).first() is not None
 
     def list_role_ids(self, user_id: str) -> list[str]:
-        stmt = select(UserRoleORM.role_id).where(UserRoleORM.user_id == user_id)
+        stmt = select(UserRoleORM.role_id).where(
+            UserRoleORM.user_id == user_id,
+            UserRoleORM.organization_id.is_(None),
+        )
+        return list(self.session.execute(stmt).scalars().all())
+
+    def list_role_ids_for_organization(self, user_id: str, organization_id: str) -> list[str]:
+        stmt = select(UserRoleORM.role_id).where(
+            UserRoleORM.user_id == user_id,
+            UserRoleORM.organization_id == organization_id,
+        )
         return list(self.session.execute(stmt).scalars().all())
 
 

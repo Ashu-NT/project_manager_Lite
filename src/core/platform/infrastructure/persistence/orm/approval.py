@@ -31,10 +31,10 @@ class ApprovalRequestORM(Base):
     request_type: Mapped[str] = mapped_column(String(64), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
     entity_id: Mapped[str] = mapped_column(String, nullable=False)
-    organization_id: Mapped[Optional[str]] = mapped_column(
+    organization_id: Mapped[str] = mapped_column(
         String,
-        ForeignKey("organizations.id"),
-        nullable=True,
+        ForeignKey("organizations.id", ondelete="RESTRICT"),
+        nullable=False,
     )
     project_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     payload_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")

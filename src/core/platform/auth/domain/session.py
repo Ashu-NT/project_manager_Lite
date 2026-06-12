@@ -225,7 +225,13 @@ class UserSessionContext:
         if not normalized_organization_id:
             return False
         organization_ids = self.organization_ids()
-        return not organization_ids or normalized_organization_id in organization_ids
+        return normalized_organization_id in organization_ids
+
+    def is_platform_admin(self) -> bool:
+        principal = self._active_principal()
+        if principal is None:
+            return False
+        return "platform.admin" in principal.permissions
 
     def set_active_organization_id(self, organization_id: str | None) -> None:
         self._active_organization_id = str(organization_id or "").strip() or None

@@ -139,6 +139,7 @@ def user_role_to_orm(binding: UserRoleBinding) -> UserRoleORM:
         id=binding.id,
         user_id=binding.user_id,
         role_id=binding.role_id,
+        organization_id=binding.organization_id,
     )
 
 
@@ -147,6 +148,7 @@ def user_role_from_orm(obj: UserRoleORM) -> UserRoleBinding:
         id=obj.id,
         user_id=obj.user_id,
         role_id=obj.role_id,
+        organization_id=getattr(obj, "organization_id", None),
     )
 
 

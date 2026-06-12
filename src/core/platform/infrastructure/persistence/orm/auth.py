@@ -120,10 +120,16 @@ class UserRoleORM(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     role_id: Mapped[str] = mapped_column(String, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
+    organization_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=True,
+    )
 
 
 Index("idx_user_roles_user", UserRoleORM.user_id)
 Index("idx_user_roles_role", UserRoleORM.role_id)
+Index("idx_user_roles_organization", UserRoleORM.organization_id)
 
 
 class RolePermissionORM(Base):
