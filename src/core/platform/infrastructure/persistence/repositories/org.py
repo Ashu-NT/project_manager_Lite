@@ -29,6 +29,7 @@ class SqlAlchemyOrganizationRepository(OrganizationRepository):
             organization.id,
             getattr(organization, "version", 1),
             {
+                "tenant_id": getattr(organization, "tenant_id", None),
                 "organization_code": organization.organization_code,
                 "display_name": organization.display_name,
                 "timezone_name": organization.timezone_name,
@@ -55,6 +56,13 @@ class SqlAlchemyOrganizationRepository(OrganizationRepository):
 
     def list_all(self, *, active_only: bool | None = None) -> list[Organization]:
         stmt = select(OrganizationORM)
+        if active_only is not None:
+            stmt = stmt.where(OrganizationORM.is_active == bool(active_only))
+        rows = self.session.execute(stmt.order_by(OrganizationORM.display_name.asc())).scalars().all()
+        return [organization_from_orm(row) for row in rows]
+
+    def list_for_tenant(self, tenant_id: str, *, active_only: bool | None = None) -> list[Organization]:
+        stmt = select(OrganizationORM).where(OrganizationORM.tenant_id == tenant_id)
         if active_only is not None:
             stmt = stmt.where(OrganizationORM.is_active == bool(active_only))
         rows = self.session.execute(stmt.order_by(OrganizationORM.display_name.asc())).scalars().all()

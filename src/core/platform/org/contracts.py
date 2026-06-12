@@ -24,6 +24,9 @@ class OrganizationRepository(ABC):
     @abstractmethod
     def list_all(self, *, active_only: bool | None = None) -> list[Organization]: ...
 
+    @abstractmethod
+    def list_for_tenant(self, tenant_id: str, *, active_only: bool | None = None) -> list[Organization]: ...
+
 
 __all__ = [
     "OrganizationRepository",

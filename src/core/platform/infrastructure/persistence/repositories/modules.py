@@ -22,15 +22,18 @@ def _utc_now_naive() -> datetime:
 class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
     session: Session
     _organization_id_provider: Callable[[], str | None]
+    _tenant_id_provider: Callable[[], str | None]
 
     def __init__(
         self,
         session: Session,
         *,
         organization_id_provider: Callable[[], str | None],
+        tenant_id_provider: Callable[[], str | None] | None = None,
     ) -> None:
         self.session = session
         self._organization_id_provider = organization_id_provider
+        self._tenant_id_provider = tenant_id_provider or (lambda: None)
 
     def _current_organization_id(self) -> str | None:
         return self._organization_id_provider()
@@ -93,18 +96,20 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
             records_by_code[canonical_code] = self._to_record(row, canonical_code)
         return [records_by_code[code] for code in sorted(records_by_code)]
 
-    def upsert_for_organization(self, organization_id: str, record: ModuleEntitlementRecord) -> None:
+    def upsert_for_organization(self, organization_id: str, record: ModuleEntitlementRecord, *, tenant_id: str | None = None) -> None:
         canonical_code = normalize_module_code(record.module_code)
         rows = self._list_rows_for_codes(organization_id, canonical_code)
         obj = self._preferred_record(rows, canonical_code)
         extra_rows = [row for row in rows if row is not obj]
         for extra_row in extra_rows:
             self.session.delete(extra_row)
+        resolved_tenant_id = tenant_id or self._tenant_id_provider()
         if obj is None:
             self.session.add(
                 ModuleEntitlementORM(
                     organization_id=organization_id,
                     module_code=canonical_code,
+                    tenant_id=resolved_tenant_id,
                     licensed=bool(record.licensed),
                     enabled=bool(record.enabled and record.licensed),
                     lifecycle_status=str(record.lifecycle_status or "inactive").strip().lower() or "inactive",
@@ -112,6 +117,8 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
                 )
             )
             return
+        if resolved_tenant_id and not getattr(obj, "tenant_id", None):
+            obj.tenant_id = resolved_tenant_id
         obj.module_code = canonical_code
         obj.licensed = bool(record.licensed)
         obj.enabled = bool(record.enabled and record.licensed)

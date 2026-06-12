@@ -16,6 +16,8 @@ class AuthSession:
     session_revision: int
     auth_method: str
     device_label: str | None = None
+    last_active_tenant_id: str | None = None
+    last_active_organization_id: str | None = None
     issued_at: datetime | None = None
     expires_at: datetime | None = None
     last_validated_at: datetime | None = None
@@ -31,6 +33,8 @@ class AuthSession:
         auth_method: str,
         expires_at: datetime,
         device_label: str | None = None,
+        last_active_tenant_id: str | None = None,
+        last_active_organization_id: str | None = None,
     ) -> "AuthSession":
         now = datetime.now(timezone.utc)
         return AuthSession(
@@ -39,6 +43,8 @@ class AuthSession:
             session_revision=max(1, int(session_revision or 1)),
             auth_method=str(auth_method or "").strip() or "password",
             device_label=(str(device_label or "").strip() or None),
+            last_active_tenant_id=(str(last_active_tenant_id or "").strip() or None),
+            last_active_organization_id=(str(last_active_organization_id or "").strip() or None),
             issued_at=now,
             expires_at=expires_at,
             last_validated_at=now,
@@ -115,6 +121,7 @@ class UserSessionContext:
     ):
         self._principal: UserSessionPrincipal | None = None
         self._principal_validator = principal_validator
+        self._active_tenant_id: str | None = None
         self._active_organization_id: str | None = None
 
     @property
@@ -153,6 +160,7 @@ class UserSessionContext:
 
     def clear(self) -> None:
         self._principal = None
+        self._active_tenant_id = None
         self._active_organization_id = None
 
     def is_authenticated(self) -> bool:
@@ -232,6 +240,12 @@ class UserSessionContext:
         if principal is None:
             return False
         return "platform.admin" in principal.permissions
+
+    def set_active_tenant_id(self, tenant_id: str | None) -> None:
+        self._active_tenant_id = str(tenant_id or "").strip() or None
+
+    def active_tenant_id(self) -> str | None:
+        return self._active_tenant_id
 
     def set_active_organization_id(self, organization_id: str | None) -> None:
         self._active_organization_id = str(organization_id or "").strip() or None

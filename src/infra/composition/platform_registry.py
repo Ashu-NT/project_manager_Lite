@@ -100,6 +100,7 @@ def build_platform_service_bundle(
     logger.debug("Platform service bundle build begin")
     user_session = UserSessionContext()
     tenant_context_service = TenantContextService(
+        tenant_repo=repositories.tenant_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
     )
@@ -145,6 +146,24 @@ def build_platform_service_bundle(
     )
     logger.debug("Platform organization service created; bootstrapping defaults")
     organization_service.bootstrap_defaults()
+
+    # Bootstrap default tenant if none exists (desktop single-tenant mode).
+    # Must run after org bootstrap since default tenant is seeded from the first org.
+    if repositories.tenant_repo.get_default() is None:
+        from src.core.platform.tenancy.domain.tenant import Tenant
+        orgs = repositories.organization_repo.list_all()
+        tenant_code = orgs[0].organization_code if orgs else "DEFAULT"
+        tenant_name = orgs[0].display_name if orgs else "Default Tenant"
+        default_tenant = Tenant.create(tenant_code=tenant_code, display_name=tenant_name)
+        repositories.tenant_repo.add(default_tenant)
+        session.flush()
+        # Backfill organizations.tenant_id
+        for org in orgs:
+            org.tenant_id = default_tenant.id
+            repositories.organization_repo.update(org)
+        session.commit()
+        logger.debug("Platform default tenant bootstrapped tenant_id=%s", default_tenant.id)
+
     if user_session.active_organization_id() is None:
         # Bootstrap the local/session tenant explicitly after organization
         # defaults exist. This does not make Organization.is_active a runtime
@@ -154,6 +173,13 @@ def build_platform_service_bundle(
             organizations = repositories.organization_repo.list_all()
         if organizations:
             user_session.set_active_organization_id(organizations[0].id)
+
+    # Seed active tenant id from the first org's tenant
+    if user_session.active_tenant_id() is None:
+        default_tenant = repositories.tenant_repo.get_default()
+        if default_tenant is not None:
+            user_session.set_active_tenant_id(default_tenant.id)
+
     logger.debug(
         "Platform organization defaults bootstrapped duration_ms=%.1f",
         (perf_counter() - started) * 1000,

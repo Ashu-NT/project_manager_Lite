@@ -71,6 +71,7 @@ from src.core.platform.infrastructure.persistence.repositories.documents import 
 from src.core.platform.infrastructure.persistence.repositories.departments import SqlAlchemyDepartmentRepository
 from src.core.platform.infrastructure.persistence.repositories.employee import SqlAlchemyEmployeeRepository
 from src.core.platform.infrastructure.persistence.repositories.org import SqlAlchemyOrganizationRepository
+from src.core.platform.infrastructure.persistence.repositories.tenant import SqlAlchemyTenantRepository
 from src.core.platform.infrastructure.persistence.repositories.party import SqlAlchemyPartyRepository
 from src.core.platform.infrastructure.persistence.repositories.sites import SqlAlchemySiteRepository
 from src.core.platform.infrastructure.persistence.repositories.time import (
@@ -88,6 +89,7 @@ class RepositoryBundle:
     task_repo: SqlAlchemyTaskRepository
     resource_repo: SqlAlchemyResourceRepository
     employee_repo: SqlAlchemyEmployeeRepository
+    tenant_repo: SqlAlchemyTenantRepository
     organization_repo: SqlAlchemyOrganizationRepository
     document_repo: SqlAlchemyDocumentRepository
     document_link_repo: SqlAlchemyDocumentLinkRepository
@@ -141,6 +143,7 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         task_repo=SqlAlchemyTaskRepository(session),
         resource_repo=SqlAlchemyResourceRepository(session),
         employee_repo=SqlAlchemyEmployeeRepository(session),
+        tenant_repo=SqlAlchemyTenantRepository(session),
         organization_repo=SqlAlchemyOrganizationRepository(session),
         document_repo=SqlAlchemyDocumentRepository(session),
         document_link_repo=SqlAlchemyDocumentLinkRepository(session),

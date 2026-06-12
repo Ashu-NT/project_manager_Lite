@@ -7,6 +7,7 @@ from src.core.platform.infrastructure.persistence.orm.org import OrganizationORM
 def organization_to_orm(organization: Organization) -> OrganizationORM:
     return OrganizationORM(
         id=organization.id,
+        tenant_id=getattr(organization, "tenant_id", None),
         organization_code=organization.organization_code,
         display_name=organization.display_name,
         timezone_name=organization.timezone_name,
@@ -19,6 +20,7 @@ def organization_to_orm(organization: Organization) -> OrganizationORM:
 def organization_from_orm(obj: OrganizationORM) -> Organization:
     return Organization(
         id=obj.id,
+        tenant_id=getattr(obj, "tenant_id", None),
         organization_code=obj.organization_code,
         display_name=obj.display_name,
         timezone_name=obj.timezone_name,

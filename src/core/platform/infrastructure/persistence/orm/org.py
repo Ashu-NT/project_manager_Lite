@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Boolean, Index, Integer, String
+from typing import Optional
+
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infra.persistence.orm.base import Base
@@ -12,6 +14,11 @@ class OrganizationORM(Base):
     __tablename__ = "organizations"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_code: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     display_name: Mapped[str] = mapped_column(String(256), nullable=False)
     timezone_name: Mapped[str] = mapped_column(String(128), nullable=False, default="UTC", server_default="UTC")
@@ -22,3 +29,4 @@ class OrganizationORM(Base):
 
 Index("idx_organizations_code", OrganizationORM.organization_code, unique=True)
 Index("idx_organizations_active", OrganizationORM.is_active)
+Index("idx_organizations_tenant", OrganizationORM.tenant_id)

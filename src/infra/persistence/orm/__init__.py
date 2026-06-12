@@ -1,6 +1,7 @@
 """ORM metadata and model packages."""
 
 from src.infra.persistence.orm.base import Base
+import src.core.platform.infrastructure.persistence.orm.tenant  # noqa: F401  — must precede org (FK dep)
 import src.core.modules.maintenance.infrastructure.persistence.orm.models  # noqa: F401
 import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.org  # noqa: F401

@@ -75,6 +75,16 @@ class AuthSessionORM(Base):
     session_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     auth_method: Mapped[str] = mapped_column(String(64), nullable=False)
     device_label: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    last_active_tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    last_active_organization_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     issued_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     last_validated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

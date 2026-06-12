@@ -119,6 +119,8 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
         obj.session_revision = auth_session.session_revision
         obj.auth_method = auth_session.auth_method
         obj.device_label = auth_session.device_label
+        obj.last_active_tenant_id = getattr(auth_session, "last_active_tenant_id", None)
+        obj.last_active_organization_id = getattr(auth_session, "last_active_organization_id", None)
         obj.issued_at = auth_session.issued_at
         obj.expires_at = auth_session.expires_at
         obj.last_validated_at = auth_session.last_validated_at
