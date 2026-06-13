@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -144,7 +144,7 @@ class CalendarExceptionService:
 
         username = _resolve_username(self._user_session)
         exc.updated_by = username
-        exc.updated_at = datetime.utcnow()
+        exc.updated_at = datetime.now(timezone.utc)
         self._exception_repo.update(exc)
         self._session.commit()
         return exc

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date, datetime
+from datetime import timezone as zone
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -187,7 +188,7 @@ class EnterpriseCalendarService:
             cal.priority = priority
 
         cal.version += 1
-        cal.updated_at = datetime.utcnow()
+        cal.updated_at = datetime.now(zone.utc)
         username = _resolve_username(self._user_session)
         cal.updated_by = username
         self._calendar_repo.update(cal)
@@ -228,7 +229,7 @@ class EnterpriseCalendarService:
             self._session.commit()
             return existing
 
-        now = datetime.utcnow()
+        now = datetime.now(zone.utc)
         cal = PlatformCalendar(
             id=f"global-{organization_id[:8]}",
             organization_id=organization_id,
