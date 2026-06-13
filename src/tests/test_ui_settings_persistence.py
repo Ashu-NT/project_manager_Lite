@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 import os
+import json
 from pathlib import Path
+from types import SimpleNamespace
 
 from PySide6.QtCore import QByteArray, QSettings
 
 import main_qt
+import src.ui_qml.modules.project_management.controllers.common.workspace_controller_base as pm_workspace_controller_base
 import src.ui_qml.shell.app as shell_app
 from src.infra.platform.app_settings import AppSettingsStore
+from src.ui_qml.modules.project_management.controllers.common import (
+    ProjectManagementTaskViewStore,
+)
 
 
 def _store_with_ini(root: Path):
@@ -16,6 +22,26 @@ def _store_with_ini(root: Path):
     settings.clear()
     settings.sync()
     return AppSettingsStore(settings), settings
+
+
+class _FakeRuntimeApi:
+    def __init__(self, organization_id: str | None) -> None:
+        self._organization_id = organization_id
+
+    def get_runtime_context(self):
+        organization = (
+            SimpleNamespace(id=self._organization_id)
+            if self._organization_id is not None
+            else None
+        )
+        return SimpleNamespace(
+            ok=True,
+            data=SimpleNamespace(active_organization=organization),
+        )
+
+
+class _TestWorkspaceController(pm_workspace_controller_base.ProjectManagementWorkspaceControllerBase):
+    pass
 
 
 def test_app_settings_store_round_trip(repo_workspace):
@@ -73,6 +99,54 @@ def test_app_settings_store_namespaces_unscoped_tenant_state(repo_workspace):
     all_keys = set(settings.allKeys())
     assert "tenant/__no_organization__/task/saved_views" in all_keys
     assert "task/saved_views" not in all_keys
+
+
+def test_project_management_task_view_store_namespaces_unscoped_state(repo_workspace):
+    settings = QSettings(
+        str(repo_workspace / "pm-task-views.ini"),
+        QSettings.IniFormat,
+    )
+    settings.clear()
+    settings.sync()
+    store = ProjectManagementTaskViewStore(settings)
+
+    store.save_task_saved_views({"Shared": {"query": "status:open"}})
+
+    all_keys = set(settings.allKeys())
+    assert "tenant/__no_organization__/task/saved_views" in all_keys
+    assert "task/saved_views" not in all_keys
+
+
+def test_workspace_controller_base_scopes_table_state_by_runtime_context(
+    repo_workspace,
+    qapp,
+    monkeypatch,
+):
+    settings = QSettings(
+        str(repo_workspace / "pm-table-state.ini"),
+        QSettings.IniFormat,
+    )
+    settings.clear()
+    settings.sync()
+    monkeypatch.setattr(
+        pm_workspace_controller_base,
+        "AppSettingsStore",
+        lambda: AppSettingsStore(settings),
+    )
+    previous_runtime_api = qapp.property("platformRuntimeApi")
+    qapp.setProperty("platformRuntimeApi", _FakeRuntimeApi("org-table"))
+    try:
+        controller = _TestWorkspaceController()
+
+        controller.saveTableColumnState("tasks", {"columns": ["name"]})
+
+        assert controller.loadTableColumnState("tasks") == {"columns": ["name"]}
+        assert json.loads(
+            str(settings.value("tenant/org-table/ui/table_column_state", "{}"))
+        ) == {"tasks": {"columns": ["name"]}}
+        assert "ui/table_column_state" not in set(settings.allKeys())
+    finally:
+        qapp.setProperty("platformRuntimeApi", previous_runtime_api)
 
 
 def test_app_settings_store_normalizes_invalid_values(repo_workspace):

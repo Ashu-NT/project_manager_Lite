@@ -45,6 +45,22 @@ from src.ui_qml.modules.project_management.presenters.collaboration import (
 )
 
 
+class _FakePmRuntimeApi:
+    def __init__(self, organization_id: str | None = "org-1") -> None:
+        self._organization_id = organization_id
+
+    def get_runtime_context(self) -> DesktopApiResult[SimpleNamespace]:
+        organization = (
+            SimpleNamespace(id=self._organization_id)
+            if self._organization_id is not None
+            else None
+        )
+        return DesktopApiResult(
+            ok=True,
+            data=SimpleNamespace(active_organization=organization),
+        )
+
+
 def test_project_management_workspace_presenters_match_qml_routes() -> None:
     routes = build_project_management_routes()
     presenters = build_project_management_workspace_presenters()
@@ -1177,6 +1193,7 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
     settings.clear()
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(
+            platform_runtime=_FakePmRuntimeApi("org-1"),
             project_management_tasks=tasks_api,
             project_management_collaboration=collaboration_api,
             project_management_timesheets=timesheets_api,
@@ -1282,7 +1299,9 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
     }
     assert controller.selectedTaskViewName == "High Focus"
     assert controller.taskViewOptions[-1]["value"] == "High Focus"
-    assert json.loads(str(settings.value("task/saved_views", "{}"))) == {
+    assert json.loads(
+        str(settings.value("tenant/org-1/task/saved_views", "{}"))
+    ) == {
         "High Focus": {
             "priority": 0,
             "query": "priority>=90",
@@ -1290,6 +1309,7 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
             "status": 0,
         }
     }
+    assert "task/saved_views" not in set(settings.allKeys())
 
     controller.clearFilters()
 

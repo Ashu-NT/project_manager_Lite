@@ -19,6 +19,7 @@ from src.ui_qml.modules.project_management.controllers import (
 )
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementTaskViewStore,
+    resolve_active_organization_id_from_runtime_api,
     serialize_workspace_view_model,
 )
 from src.ui_qml.modules.project_management.controllers.common.pm_capability_controller import (
@@ -140,10 +141,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
         if runtime_api is None:
             return None
         try:
-            snapshot = runtime_api.snapshot()
-            data = getattr(snapshot, "data", None)
-            organization = getattr(data, "active_organization", None)
-            return str(getattr(organization, "id", "") or "").strip() or None
+            return resolve_active_organization_id_from_runtime_api(runtime_api)
         except Exception:
             return None
 

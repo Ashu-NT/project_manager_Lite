@@ -87,6 +87,9 @@ from src.ui_qml.modules.project_management.controllers.common.undo_stack import 
 from src.ui_qml.modules.project_management.controllers.common.task_view_store import (
     ProjectManagementTaskViewStore,
 )
+from src.ui_qml.modules.project_management.controllers.common.runtime_context import (
+    resolve_active_organization_id_from_runtime_api,
+)
 from src.ui_qml.modules.project_management.controllers.common.workspace_controller_base import (
     ProjectManagementWorkspaceControllerBase,
 )
@@ -100,6 +103,7 @@ __all__ = [
     "ProjectManagementTaskViewStore",
     "ProjectManagementUndoCommand",
     "ProjectManagementUndoStack",
+    "resolve_active_organization_id_from_runtime_api",
     "run_mutation",
     "serialize_collaboration_collection_view_model",
     "serialize_collaboration_overview_view_model",

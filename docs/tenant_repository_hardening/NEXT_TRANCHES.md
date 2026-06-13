@@ -47,17 +47,24 @@
   - preventive plan tasks
   - preventive plan instances
   - downtime events
+- Controller and settings follow-up is implemented and verified:
+  - runtime organization switching now requires `settings.manage`
+  - PM QML saved-view and table-column settings now resolve active organization
+    context from `platformRuntimeApi.get_runtime_context()`
+  - PM task-view fallback settings now use `tenant/__no_organization__/...`
+    instead of bare keys
 
 ## Next implementation order
 
-1. Controller and settings follow-up
-2. Contract cleanup for remaining transitional repository APIs
+1. Contract cleanup for remaining transitional repository APIs
 
 ## Execution notes
 
 - Reuse the same `TenantScopedRepositorySupport` style already applied in
   platform, access-control, project-management, inventory, procurement, and
   maintenance root repositories.
+- Prefer shared runtime-context helpers when QML workspaces need the active
+  organization id from the platform runtime API.
 - Require active organization context for repository reads and writes.
 - Scope `get(...)`, `get_by_*`, list, and delete behavior so foreign rows return
   `None` or `[]` and are not mutated.

@@ -41,8 +41,8 @@ The codebase is in a mixed state.
   its existence check now respects `extra_filters` instead of falling back to an
   unsafe plain `session.get()`.
 - UI settings already support organization scoping for task views, dashboard
-  layout, and table column state, but unscoped fallback keys still needed an
-  enterprise-safe namespace.
+  layout, and table column state, and the PM QML controller layer now resolves
+  active-organization settings context from the live platform runtime API.
 
 ## Audit summary
 
@@ -71,8 +71,8 @@ These were the clearest enterprise gaps and the safest first hardening target:
 - Portfolio repositories are now tenant-scoped, but transitional
   `get_for_organization()` / `list_for_organization()` APIs still remain in the
   service contract and should be simplified later.
-- UI and controller follow-up is still needed for organization switching and
-  tenant-aware settings behavior outside the PM repository tranche.
+- Contract cleanup is still needed for remaining transitional repository APIs
+  and composition seams that rely on optional post-build tenant-context wiring.
 
 ## Changes implemented in this pass
 
@@ -119,6 +119,15 @@ even when no organization id is available:
 
 This prevents accidental cross-context reuse of cached workspace state.
 
+### Controller and runtime follow-up
+
+- `PlatformRuntimeApplicationService` now requires `settings.manage` before
+  switching the session-scoped active organization.
+- PM QML runtime lookups now use `platformRuntimeApi.get_runtime_context()`
+  instead of the nonexistent `snapshot()` path exposed by the live desktop API.
+- PM task saved views and table-column state now resolve organization-aware
+  settings keys through the same runtime contract used by the shell.
+
 ## Verification added
 
 New or expanded coverage now checks:
@@ -140,6 +149,9 @@ New or expanded coverage now checks:
   `TenantContextService`, hide foreign rows, and reject cross-organization
   child writes
 - unscoped tenant UI state is written to a namespaced key instead of a bare key
+- runtime organization switching denies users missing `settings.manage`
+- PM QML task-view and table-column state follow the live runtime-context API
+  when resolving tenant-aware settings keys
 
 ## Progress tracker
 
@@ -154,6 +166,8 @@ New or expanded coverage now checks:
 - Harden maintenance tenant-root repositories
 - Harden maintenance secondary repositories
 - Harden portfolio and remaining PM secondary repositories
+- Complete controller and settings follow-up for runtime org switching and PM
+  cached workspace state
 - Add repository-focused regression tests
 - Add this follow-up README
 - Add tranche notes:
@@ -165,14 +179,11 @@ New or expanded coverage now checks:
   - `docs/tenant_repository_hardening/maintenance_repository_hardening_round_1.md`
   - `docs/tenant_repository_hardening/maintenance_repository_hardening_round_2.md`
   - `docs/tenant_repository_hardening/project_management_repository_hardening_round_2.md`
+  - `docs/tenant_repository_hardening/controller_settings_followup_round_1.md`
 
 ### Next recommended batches
 
-1. Controller and settings follow-up
-   - review organization switching permissions end-to-end
-   - audit any remaining organization-scoped settings or caches
-
-2. Contract cleanup after repository stabilization
+1. Contract cleanup after repository stabilization
    - remove residual legacy compatibility methods once all callers have moved
      to the scoped `list()` and `get()` contract
    - tighten constructor-time `TenantContextService` requirements where
@@ -194,3 +205,4 @@ New or expanded coverage now checks:
   - broader maintenance secondary-repository verification suite: `74 passed`
   - PM secondary repository + calendar integration suite: `33 passed`
   - broader PM portfolio/project-resource regression suite: `21 passed`
+  - platform runtime + PM QML settings follow-up suite: `40 passed`

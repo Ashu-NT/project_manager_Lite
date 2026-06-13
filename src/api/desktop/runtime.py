@@ -152,6 +152,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         module_catalog_service=services.get("module_catalog_service"),
         organization_service=services.get("organization_service"),
         tenant_context_service=services.get("tenant_context_service"),
+        user_session=services.get("user_session"),
     )
     if not isinstance(
         platform_runtime_application_service,

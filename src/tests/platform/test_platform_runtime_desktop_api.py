@@ -6,6 +6,7 @@ from src.api.desktop.platform import (
     PlatformRuntimeDesktopApi,
 )
 from src.api.desktop.runtime import build_desktop_api_registry
+from src.core.platform.auth.domain.session import UserSessionPrincipal
 
 
 def test_platform_runtime_desktop_api_returns_runtime_context_dto(services):
@@ -72,6 +73,49 @@ def test_platform_runtime_desktop_api_maps_validation_errors(services):
     assert result.error is not None
     assert result.error.category == "validation"
     assert result.error.code == "MODULE_NOT_AVAILABLE"
+
+
+def test_platform_runtime_desktop_api_maps_permission_denied_org_switch(services):
+    api = PlatformRuntimeDesktopApi(
+        platform_runtime_application_service=services["platform_runtime_application_service"]
+    )
+    organization_service = services["organization_service"]
+    user_session = services["user_session"]
+
+    default_organization = services["platform_runtime_application_service"].get_active_organization()
+    assert default_organization is not None
+    second = organization_service.create_organization(
+        organization_code="EAST",
+        display_name="East Division",
+        timezone_name="Asia/Dubai",
+        base_currency="AED",
+        is_active=False,
+    )
+    user_session.set_principal(
+        UserSessionPrincipal(
+            user_id="user-1",
+            username="viewer",
+            display_name="Viewer",
+            role_names=frozenset(),
+            permissions=frozenset({"organization.access"}),
+            scoped_access={
+                "organization": {
+                    default_organization.id: frozenset({"organization.access"}),
+                    second.id: frozenset({"organization.access"}),
+                }
+            },
+            active_organization_id=default_organization.id,
+        )
+    )
+    user_session.set_active_organization_id(default_organization.id)
+
+    result = api.set_active_organization(second.id)
+
+    assert result.ok is False
+    assert result.data is None
+    assert result.error is not None
+    assert result.error.category == "conflict"
+    assert result.error.code == "PERMISSION_DENIED"
 
 
 def test_build_desktop_api_registry_exposes_platform_runtime_adapter(services):
