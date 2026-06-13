@@ -15,17 +15,34 @@ from src.core.modules.maintenance.infrastructure.persistence.mappers import (
     maintenance_failure_code_to_orm,
 )
 from src.core.modules.maintenance.infrastructure.persistence.orm.models import MaintenanceDowntimeEventORM, MaintenanceFailureCodeORM
+from src.core.modules.maintenance.infrastructure.persistence.repositories._tenant_scope import (
+    MaintenanceTenantScopedRepositorySupport,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
-class SqlAlchemyMaintenanceFailureCodeRepository(MaintenanceFailureCodeRepository):
+class SqlAlchemyMaintenanceFailureCodeRepository(
+    MaintenanceFailureCodeRepository, MaintenanceTenantScopedRepositorySupport
+):
+    _repository_label = "Maintenance failure code repository"
+
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service = None
 
     def add(self, failure_code: MaintenanceFailureCode) -> None:
-        self.session.add(maintenance_failure_code_to_orm(failure_code))
+        ctx = self._context(operation_label="add maintenance failure code")
+        orm = maintenance_failure_code_to_orm(failure_code)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, failure_code: MaintenanceFailureCode) -> None:
+        self._require_in_scope(
+            MaintenanceFailureCodeORM,
+            failure_code.id,
+            operation_label="update maintenance failure code",
+            not_found_message="Maintenance failure code not found.",
+        )
         failure_code.version = update_with_version_check(
             self.session,
             MaintenanceFailureCodeORM,
@@ -46,7 +63,11 @@ class SqlAlchemyMaintenanceFailureCodeRepository(MaintenanceFailureCodeRepositor
         )
 
     def get(self, failure_code_id: str) -> MaintenanceFailureCode | None:
-        obj = self.session.get(MaintenanceFailureCodeORM, failure_code_id)
+        obj = self._get_in_scope(
+            MaintenanceFailureCodeORM,
+            failure_code_id,
+            operation_label="get maintenance failure code",
+        )
         return maintenance_failure_code_from_orm(obj) if obj else None
 
     def get_by_code(
@@ -54,10 +75,14 @@ class SqlAlchemyMaintenanceFailureCodeRepository(MaintenanceFailureCodeRepositor
         organization_id: str,
         failure_code: str,
     ) -> MaintenanceFailureCode | None:
+        ctx = self._context(operation_label="get maintenance failure code by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(MaintenanceFailureCodeORM).where(
             MaintenanceFailureCodeORM.organization_id == organization_id,
             MaintenanceFailureCodeORM.failure_code == failure_code,
         )
+        stmt = self._apply_scope(stmt, MaintenanceFailureCodeORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_failure_code_from_orm(obj) if obj else None
 
@@ -69,9 +94,13 @@ class SqlAlchemyMaintenanceFailureCodeRepository(MaintenanceFailureCodeRepositor
         code_type: str | None = None,
         parent_code_id: str | None = None,
     ) -> list[MaintenanceFailureCode]:
+        ctx = self._context(operation_label="list maintenance failure codes")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(MaintenanceFailureCodeORM).where(
             MaintenanceFailureCodeORM.organization_id == organization_id
         )
+        stmt = self._apply_scope(stmt, MaintenanceFailureCodeORM, ctx)
         if active_only is not None:
             stmt = stmt.where(MaintenanceFailureCodeORM.is_active == bool(active_only))
         if code_type is not None:

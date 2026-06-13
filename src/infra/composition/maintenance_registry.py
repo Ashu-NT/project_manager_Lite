@@ -152,9 +152,36 @@ def build_maintenance_service_bundle(
     time_entry_repo = SqlAlchemyTimeEntryRepository(platform_services.session)
     timesheet_period_repo = SqlAlchemyTimesheetPeriodRepository(platform_services.session)
     _tcs = platform_services.tenant_context_service
-    for _repo in (location_repo, system_repo, asset_repo, preventive_plan_repo, sensor_repo,
-                  work_request_repo, work_order_repo, document_repo, document_structure_repo,
-                  employee_repo, time_entry_repo, timesheet_period_repo):
+    for _repo in (
+        location_repo,
+        system_repo,
+        asset_repo,
+        component_repo,
+        downtime_event_repo,
+        failure_code_repo,
+        integration_source_repo,
+        preventive_plan_repo,
+        preventive_plan_instance_repo,
+        preventive_plan_task_repo,
+        sensor_source_mapping_repo,
+        sensor_exception_repo,
+        sensor_repo,
+        sensor_reading_repo,
+        task_step_template_repo,
+        task_template_repo,
+        work_request_repo,
+        work_order_repo,
+        work_order_material_requirement_repo,
+        work_order_task_repo,
+        work_order_task_step_repo,
+        document_repo,
+        document_link_repo,
+        document_structure_repo,
+        user_repo,
+        employee_repo,
+        time_entry_repo,
+        timesheet_period_repo,
+    ):
         if hasattr(_repo, "_tenant_context_service"):
             _repo._tenant_context_service = _tcs
     logger.debug("Maintenance repositories built")

@@ -9,35 +9,43 @@
   - catalog roots
   - storeroom and stock roots
   - storage location, reorder policy, and cycle count repositories
-- Procurement repository hardening round 1 is implemented:
+- Procurement repository hardening round 1 is implemented and verified:
   - requisition roots
   - purchase order roots
   - receipt header roots
-  - verification still pending
-- Procurement repository hardening round 2 is implemented:
+- Procurement repository hardening round 2 is implemented and verified:
   - requisition lines
   - purchase-order lines
   - receipt lines
-  - verification still pending
+- Maintenance tenant-root repository hardening round 1 is implemented and verified:
+  - locations
+  - systems
+  - assets
+  - sensors
+  - integration sources
+  - failure codes
+  - task templates
+  - work requests
+  - work orders
+  - preventive plans
 
 ## Next implementation order
 
-1. Procurement verification pass
-   - `docs/tenant_repository_hardening/procurement_repository_hardening_round_1.md`
-   - `docs/tenant_repository_hardening/procurement_repository_hardening_round_2.md`
-   - design note: `docs/tenant_repository_hardening/procurement_repository_hardening_plan.md`
-2. Maintenance tenant-root repositories
-3. Portfolio and remaining PM secondary repositories
-4. Controller and settings follow-up
+1. Maintenance secondary repositories
+   - `docs/tenant_repository_hardening/maintenance_repository_hardening_round_1.md`
+2. Portfolio and remaining PM secondary repositories
+3. Controller and settings follow-up
 
 ## Execution notes
 
 - Reuse the same `TenantScopedRepositorySupport` style already applied in
-  platform, access-control, project-management, and inventory repositories.
+  platform, access-control, project-management, inventory, procurement, and
+  maintenance root repositories.
 - Require active organization context for repository reads and writes.
 - Scope `get(...)`, `get_by_*`, list, and delete behavior so foreign rows return
   `None` or `[]` and are not mutated.
 - Stamp missing `organization_id` and `tenant_id` metadata from the active
   tenant context on writes.
-- Add focused repository hardening tests for each tranche and append the outcome
-  to the tranche-specific doc under `docs/tenant_repository_hardening/`.
+- Add focused repository hardening tests for each tranche and append the
+  verification outcome to the tranche-specific doc under
+  `docs/tenant_repository_hardening/`.
