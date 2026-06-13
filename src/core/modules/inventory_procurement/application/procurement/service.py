@@ -23,7 +23,10 @@ from src.core.modules.inventory_procurement.contracts.repositories.procurement i
 from src.core.platform.approval import ApprovalService
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.party import PartyService
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 
 
 class ProcurementService(
@@ -53,9 +56,9 @@ class ProcurementService(
         self._requisition_repo: PurchaseRequisitionRepository = requisition_repo
         self._requisition_line_repo: PurchaseRequisitionLineRepository = requisition_line_repo
         self._organization_repo: OrganizationRepository = organization_repo
-        self._tenant_context_service: TenantContextService = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
-            user_session=user_session,
+        self._tenant_context_service: TenantContextService = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="ProcurementService",
         )
         self._inventory_service: InventoryService = inventory_service
         self._item_service: ItemMasterService = item_service

@@ -11,7 +11,10 @@ from src.core.modules.inventory_procurement.domain.catalog.item import StockItem
 from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.party import PartyService
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 
 
 class ItemMasterService:
@@ -32,9 +35,9 @@ class ItemMasterService:
         self._item_repo = item_repo
         self._category_repo = category_repo
         self._organization_repo = organization_repo
-        self._tenant_context_service = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
-            user_session=user_session,
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="ItemMasterService",
         )
         self._party_service = party_service
         self._document_integration_service = document_integration_service

@@ -31,6 +31,12 @@ The codebase is in a mixed state.
   records and parent-scoped secondary records.
 - Project-management portfolio and remaining secondary repositories now use the
   same helper pattern for parent-scoped project/resource/task ownership.
+- Inventory/procurement and maintenance services now require injected
+  `TenantContextService` at construction time instead of silently rebuilding
+  session context from `organization_repo` and `user_session`.
+- Inventory/procurement and maintenance-owned repositories now require
+  injected `TenantContextService` at construction time instead of being patched
+  after creation by their module registries.
 - Access-control repositories sat in a gray area between auth bootstrap and
   business-data scoping; they needed a narrower hardening pass than the rest of
   the platform repos.
@@ -138,6 +144,30 @@ This prevents accidental cross-context reuse of cached workspace state.
 - `PortfolioService` now requires `TenantContextService` at construction time
   instead of tolerating a missing context dependency.
 
+### Constructor-time tenant context tightening
+
+- Inventory/procurement application services now require an injected
+  `TenantContextService` instead of silently constructing a fallback instance.
+- Maintenance application services now follow the same fail-fast rule.
+- `MaintenanceReportingService` and
+  `MaintenanceTaskWorkAllocationRepository` now require the same explicit
+  tenant-context dependency.
+- Shared helper `require_tenant_context_service(...)` now centralizes the
+  `TENANT_CONTEXT_REQUIRED` constructor failure used by these services.
+
+### Repository constructor tightening
+
+- Inventory/procurement repositories now require injected
+  `TenantContextService` at construction time.
+- Maintenance-owned repositories now require injected
+  `TenantContextService` at construction time.
+- `build_inventory_procurement_service_bundle(...)` now constructs scoped
+  repositories with tenant context directly instead of mutating them
+  afterward.
+- `build_maintenance_service_bundle(...)` now does the same for
+  maintenance-owned repositories, while still using a smaller compatibility
+  loop for locally created platform repositories.
+
 ## Verification added
 
 New or expanded coverage now checks:
@@ -164,6 +194,12 @@ New or expanded coverage now checks:
   when resolving tenant-aware settings keys
 - PM desktop fallback helpers and portfolio flows now use the scoped
   repository contract instead of explicit organization-id compatibility methods
+- inventory and maintenance service constructors now raise
+  `TENANT_CONTEXT_REQUIRED` when built without injected tenant context, while
+  representative injected-path service suites continue to pass
+- inventory/procurement and maintenance-owned repository constructors now raise
+  `TENANT_CONTEXT_REQUIRED` when built without injected tenant context, while
+  focused scoped-repository regression suites continue to pass
 
 ## Progress tracker
 
@@ -181,6 +217,9 @@ New or expanded coverage now checks:
 - Complete controller and settings follow-up for runtime org switching and PM
   cached workspace state
 - Complete PM contract cleanup round 1 for scoped repository callers
+- Complete inventory + maintenance constructor tightening round 1 for service
+  layer dependencies
+- Complete inventory + maintenance repository constructor tightening round 1
 - Add repository-focused regression tests
 - Add this follow-up README
 - Add tranche notes:
@@ -194,14 +233,17 @@ New or expanded coverage now checks:
   - `docs/tenant_repository_hardening/project_management_repository_hardening_round_2.md`
   - `docs/tenant_repository_hardening/controller_settings_followup_round_1.md`
   - `docs/tenant_repository_hardening/project_management_contract_cleanup_round_1.md`
+  - `docs/tenant_repository_hardening/inventory_maintenance_constructor_tightening_round_1.md`
+  - `docs/tenant_repository_hardening/inventory_maintenance_repository_constructor_tightening_round_1.md`
 
 ### Next recommended batches
 
-1. Constructor-time tenant-context tightening after repository stabilization
-   - replace optional fallback `TenantContextService()` construction where
-     inventory and maintenance services still build their own context
+1. Platform + PM repository constructor tightening after the inventory and
+   maintenance-owned repo slice
    - reduce post-build `_tenant_context_service` wiring where composition still
-     mutates repositories after construction
+     mutates platform and PM repositories after construction
+   - prefer constructor-time repo requirements in the remaining repository
+     implementations that still rely on post-build injection
 
 2. Non-PM contract cleanup follow-up
    - remove residual explicit-organization compatibility methods outside the PM
@@ -226,3 +268,5 @@ New or expanded coverage now checks:
   - broader PM portfolio/project-resource regression suite: `21 passed`
   - platform runtime + PM QML settings follow-up suite: `40 passed`
   - PM contract cleanup round 1 suite: `37 passed`
+  - inventory + maintenance constructor tightening round 1 suite: `92 passed`
+  - inventory + maintenance repository constructor tightening round 1 suite: `77 passed`

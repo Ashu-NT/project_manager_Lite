@@ -21,7 +21,10 @@ from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org.domain import Organization
 
@@ -43,9 +46,9 @@ class MaintenanceSensorReadingService:
         self._session = session
         self._sensor_reading_repo = sensor_reading_repo
         self._organization_repo = organization_repo
-        self._tenant_context_service = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
-            user_session=user_session,
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="MaintenanceSensorReadingService",
         )
         self._sensor_repo = sensor_repo
         self._component_repo = component_repo

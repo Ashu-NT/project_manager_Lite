@@ -18,6 +18,10 @@ from src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runt
 from src.core.modules.maintenance.infrastructure.persistence.repositories._tenant_scope import (
     MaintenanceParentScopedRepositorySupport,
 )
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
@@ -29,9 +33,17 @@ class SqlAlchemyMaintenancePreventivePlanInstanceRepository(
         (MaintenancePreventivePlanORM, MaintenancePreventivePlanInstanceORM.plan_id == MaintenancePreventivePlanORM.id),
     )
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, preventive_instance: MaintenancePreventivePlanInstance) -> None:
         self._require_in_scope(

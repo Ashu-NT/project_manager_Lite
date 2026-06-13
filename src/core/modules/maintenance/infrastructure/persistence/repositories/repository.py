@@ -108,6 +108,10 @@ from src.core.modules.maintenance.infrastructure.persistence.repositories._tenan
     MaintenanceTenantScopedRepositorySupport,
 )
 from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
@@ -116,9 +120,17 @@ class SqlAlchemyMaintenanceLocationRepository(
 ):
     _repository_label = "Maintenance location repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, location: MaintenanceLocation) -> None:
         ctx = self._context(operation_label="add maintenance location")
@@ -210,9 +222,17 @@ class SqlAlchemyMaintenanceSystemRepository(
 ):
     _repository_label = "Maintenance system repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, system: MaintenanceSystem) -> None:
         ctx = self._context(operation_label="add maintenance system")
@@ -308,9 +328,17 @@ class SqlAlchemyMaintenanceAssetRepository(
 ):
     _repository_label = "Maintenance asset repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, asset: MaintenanceAsset) -> None:
         ctx = self._context(operation_label="add maintenance asset")
@@ -431,9 +459,17 @@ class SqlAlchemyMaintenanceAssetComponentRepository(
         (MaintenanceAssetORM, MaintenanceAssetComponentORM.asset_id == MaintenanceAssetORM.id),
     )
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, component: MaintenanceAssetComponent) -> None:
         self._require_in_scope(
@@ -577,9 +613,17 @@ class SqlAlchemyMaintenanceSensorRepository(
 ):
     _repository_label = "Maintenance sensor repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, sensor: MaintenanceSensor) -> None:
         ctx = self._context(operation_label="add maintenance sensor")
@@ -693,9 +737,17 @@ class SqlAlchemyMaintenanceSensorReadingRepository(
         (MaintenanceSensorORM, MaintenanceSensorReadingORM.sensor_id == MaintenanceSensorORM.id),
     )
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, sensor_reading: MaintenanceSensorReading) -> None:
         self._require_in_scope(
@@ -756,9 +808,17 @@ class SqlAlchemyMaintenanceIntegrationSourceRepository(
 ):
     _repository_label = "Maintenance integration source repository"
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, integration_source: MaintenanceIntegrationSource) -> None:
         ctx = self._context(operation_label="add maintenance integration source")
@@ -856,9 +916,17 @@ class SqlAlchemyMaintenanceSensorSourceMappingRepository(
         (MaintenanceSensorORM, MaintenanceSensorSourceMappingORM.sensor_id == MaintenanceSensorORM.id),
     )
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, sensor_source_mapping: MaintenanceSensorSourceMapping) -> None:
         self._require_in_scope(
@@ -967,9 +1035,17 @@ class SqlAlchemyMaintenanceSensorExceptionRepository(
         (MaintenanceSensorORM, MaintenanceSensorSourceMappingORM.sensor_id == MaintenanceSensorORM.id),
     )
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def _exception_references_in_scope(
         self,
@@ -1150,9 +1226,17 @@ class SqlAlchemyMaintenanceWorkRequestRepository(
 ):
     _repository_label = "Maintenance work request repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, work_request: MaintenanceWorkRequest) -> None:
         ctx = self._context(operation_label="add maintenance work request")
@@ -1277,9 +1361,17 @@ class SqlAlchemyMaintenanceWorkOrderRepository(
 ):
     _repository_label = "Maintenance work order repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, work_order: MaintenanceWorkOrder) -> None:
         ctx = self._context(operation_label="add maintenance work order")
@@ -1433,9 +1525,17 @@ class SqlAlchemyMaintenanceWorkOrderTaskRepository(
         (MaintenanceWorkOrderORM, MaintenanceWorkOrderTaskORM.work_order_id == MaintenanceWorkOrderORM.id),
     )
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, work_order_task: MaintenanceWorkOrderTask) -> None:
         self._require_in_scope(
@@ -1561,9 +1661,17 @@ class SqlAlchemyMaintenanceWorkOrderTaskStepRepository(
         (MaintenanceTaskTemplateORM, MaintenanceTaskStepTemplateORM.task_template_id == MaintenanceTaskTemplateORM.id),
     )
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, work_order_task_step: MaintenanceWorkOrderTaskStep) -> None:
         self._require_via_anchor_in_scope(
@@ -1686,9 +1794,17 @@ class SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository(
         (MaintenanceWorkOrderORM, MaintenanceWorkOrderMaterialRequirementORM.work_order_id == MaintenanceWorkOrderORM.id),
     )
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, material_requirement: MaintenanceWorkOrderMaterialRequirement) -> None:
         self._require_in_scope(
@@ -1789,9 +1905,17 @@ class SqlAlchemyMaintenanceTaskTemplateRepository(
 ):
     _repository_label = "Maintenance task template repository"
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, task_template: MaintenanceTaskTemplate) -> None:
         ctx = self._context(operation_label="add maintenance task template")
@@ -1884,9 +2008,17 @@ class SqlAlchemyMaintenanceTaskStepTemplateRepository(
         (MaintenanceTaskTemplateORM, MaintenanceTaskStepTemplateORM.task_template_id == MaintenanceTaskTemplateORM.id),
     )
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, task_step_template: MaintenanceTaskStepTemplate) -> None:
         self._require_in_scope(
@@ -1983,9 +2115,17 @@ class SqlAlchemyMaintenancePreventivePlanRepository(
 ):
     _repository_label = "Maintenance preventive plan repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, preventive_plan: MaintenancePreventivePlan) -> None:
         ctx = self._context(operation_label="add maintenance preventive plan")
@@ -2115,9 +2255,17 @@ class SqlAlchemyMaintenancePreventivePlanTaskRepository(
         (MaintenancePreventivePlanORM, MaintenancePreventivePlanTaskORM.plan_id == MaintenancePreventivePlanORM.id),
     )
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, preventive_plan_task: MaintenancePreventivePlanTask) -> None:
         self._require_in_scope(

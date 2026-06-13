@@ -21,7 +21,10 @@ from src.core.modules.inventory_procurement.contracts.repositories.inventory imp
     StockTransactionRepository,
 )
 from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 
 
 class StockControlService(
@@ -49,9 +52,9 @@ class StockControlService(
         self._balance_repo = balance_repo
         self._transaction_repo = transaction_repo
         self._organization_repo = organization_repo
-        self._tenant_context_service = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
-            user_session=user_session,
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="StockControlService",
         )
         self._item_service = item_service
         self._inventory_service = inventory_service

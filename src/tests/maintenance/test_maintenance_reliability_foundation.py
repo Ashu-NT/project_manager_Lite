@@ -46,6 +46,12 @@ class _OrgRepo(OrganizationRepository):
             return rows
         return [row for row in rows if row.is_active == bool(active_only)]
 
+    def list_for_tenant(self, tenant_id: str, *, active_only=None):
+        rows = [self.organization] if self.organization.tenant_id == tenant_id else []
+        if active_only is None:
+            return rows
+        return [row for row in rows if row.is_active == bool(active_only)]
+
 
 class _FailureCodeRepo(MaintenanceFailureCodeRepository):
     def __init__(self) -> None:

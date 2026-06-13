@@ -20,7 +20,10 @@ from src.core.modules.maintenance.application.reliability import MaintenanceReli
 from src.core.platform.access.authorization import filter_scope_rows
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.core.platform.exporting import ensure_output_path, finalize_artifact
 from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
@@ -74,9 +77,9 @@ class MaintenanceReportingService:
         report_runtime: ReportRuntime | None = None,
     ) -> None:
         self._organization_repo = organization_repo
-        self._tenant_context_service = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
-            user_session=user_session,
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="MaintenanceReportingService",
         )
         self._site_repo = site_repo
         self._asset_repo = asset_repo

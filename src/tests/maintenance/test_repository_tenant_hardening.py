@@ -36,9 +36,10 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 
 def _maintenance_repo(repo_factory, services):
-    repo = repo_factory(services["session"])
-    repo._tenant_context_service = services["tenant_context_service"]
-    return repo
+    return repo_factory(
+        services["session"],
+        tenant_context_service=services["tenant_context_service"],
+    )
 
 
 def _seed_maintenance_root_scope_rows(services):
@@ -430,9 +431,8 @@ def test_maintenance_root_repositories_require_tenant_context_service(
     repo_factory,
     operation,
 ) -> None:
-    repo = repo_factory(session)
     with pytest.raises(BusinessRuleError, match="TenantContextService"):
-        operation(repo)
+        repo_factory(session)
 
 
 def test_maintenance_root_repositories_hide_cross_organization_rows(services) -> None:
@@ -678,9 +678,8 @@ def test_maintenance_secondary_repositories_require_tenant_context_service(
     repo_factory,
     operation,
 ) -> None:
-    repo = repo_factory(session)
     with pytest.raises(BusinessRuleError, match="TenantContextService"):
-        operation(repo)
+        repo_factory(session)
 
 
 def test_maintenance_secondary_repositories_hide_cross_organization_rows(services) -> None:

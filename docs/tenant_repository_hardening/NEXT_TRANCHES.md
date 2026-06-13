@@ -58,10 +58,23 @@
   - PM project and resource callers no longer use explicit
     `list_for_organization(...)` compatibility methods
   - `PortfolioService` now requires `TenantContextService` at construction time
+- Inventory + maintenance constructor tightening round 1 is implemented and
+  verified:
+  - inventory catalog, stock, reservation, and procurement application services
+  - maintenance application services
+  - maintenance reporting service
+  - maintenance work-allocation adapter
+- Inventory + maintenance repository constructor tightening round 1 is
+  implemented and verified:
+  - inventory/procurement repositories now require constructor-time tenant
+    context
+  - maintenance-owned repositories now require constructor-time tenant context
+  - inventory registry no longer patches repository tenant context post-build
+  - maintenance registry patching is reduced to locally created platform repos
 
 ## Next implementation order
 
-1. Constructor-time tenant-context tightening outside the completed PM slice
+1. Platform + PM repository constructor tightening for remaining post-build tenant-context wiring
 2. Non-PM contract cleanup for remaining transitional repository APIs
 
 ## Execution notes

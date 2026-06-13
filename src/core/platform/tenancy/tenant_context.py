@@ -194,4 +194,21 @@ class TenantContextService:
         )
 
 
-__all__ = ["TenantContext", "TenantContextService"]
+def require_tenant_context_service(
+    tenant_context_service: TenantContextService | None,
+    *,
+    consumer_label: str,
+) -> TenantContextService:
+    if tenant_context_service is None:
+        raise BusinessRuleError(
+            f"{consumer_label} requires TenantContextService.",
+            code="TENANT_CONTEXT_REQUIRED",
+        )
+    return tenant_context_service
+
+
+__all__ = [
+    "TenantContext",
+    "TenantContextService",
+    "require_tenant_context_service",
+]

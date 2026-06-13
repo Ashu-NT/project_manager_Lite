@@ -24,6 +24,10 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.orm.catal
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories._tenant_scope import (
     InventoryTenantScopedRepositorySupport,
 )
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
@@ -32,9 +36,17 @@ class SqlAlchemyInventoryItemCategoryRepository(
 ):
     _repository_label = "Inventory item category repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, category: InventoryItemCategory) -> None:
         ctx = self._context(operation_label="add inventory item category")
@@ -115,9 +127,17 @@ class SqlAlchemyInventoryItemCategoryRepository(
 class SqlAlchemyStockItemRepository(StockItemRepository, InventoryTenantScopedRepositorySupport):
     _repository_label = "Inventory item repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, item: StockItem) -> None:
         ctx = self._context(operation_label="add inventory item")

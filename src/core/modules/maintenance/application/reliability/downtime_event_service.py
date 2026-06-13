@@ -24,7 +24,10 @@ from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org.domain import Organization
 
@@ -47,9 +50,9 @@ class MaintenanceDowntimeEventService:
         self._session = session
         self._downtime_event_repo = downtime_event_repo
         self._organization_repo = organization_repo
-        self._tenant_context_service = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
-            user_session=user_session,
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="MaintenanceDowntimeEventService",
         )
         self._work_order_repo = work_order_repo
         self._asset_repo = asset_repo

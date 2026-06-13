@@ -26,6 +26,10 @@ from src.core.modules.maintenance.infrastructure.persistence.repositories._tenan
     MaintenanceTenantScopedRepositorySupport,
 )
 from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
@@ -34,9 +38,17 @@ class SqlAlchemyMaintenanceFailureCodeRepository(
 ):
     _repository_label = "Maintenance failure code repository"
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, failure_code: MaintenanceFailureCode) -> None:
         ctx = self._context(operation_label="add maintenance failure code")
@@ -126,9 +138,17 @@ class SqlAlchemyMaintenanceDowntimeEventRepository(
 ):
     _repository_label = "Maintenance downtime event repository"
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def _downtime_references_in_scope(
         self,

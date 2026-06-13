@@ -10,7 +10,10 @@ from src.core.modules.inventory_procurement.domain.catalog.item import (
     InventoryItemCategory,
 )
 from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 
 
 class ItemCategoryService:
@@ -27,9 +30,9 @@ class ItemCategoryService:
         self._session = session
         self._category_repo = category_repo
         self._organization_repo = organization_repo
-        self._tenant_context_service = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
-            user_session=user_session,
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="ItemCategoryService",
         )
         self._user_session = user_session
         self._audit_service = audit_service

@@ -37,7 +37,10 @@ from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org.domain import Organization
 from src.core.platform.site.domain import Site
@@ -76,9 +79,9 @@ class MaintenanceAssetService:
         self._session: Session = session
         self._asset_repo: MaintenanceAssetRepository = asset_repo
         self._organization_repo: OrganizationRepository = organization_repo
-        self._tenant_context_service: TenantContextService = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
-            user_session=user_session,
+        self._tenant_context_service: TenantContextService = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="MaintenanceAssetService",
         )
         self._site_repo: SiteRepository = site_repo
         self._location_repo: MaintenanceLocationRepository = location_repo

@@ -48,9 +48,10 @@ from src.core.platform.party.domain import PartyType
 
 
 def _inventory_repo(repo_factory, services):
-    repo = repo_factory(services["session"])
-    repo._tenant_context_service = services["tenant_context_service"]
-    return repo
+    return repo_factory(
+        services["session"],
+        tenant_context_service=services["tenant_context_service"],
+    )
 
 
 def _seed_inventory_scope_rows(services) -> dict[str, str]:
@@ -589,9 +590,8 @@ def test_inventory_repositories_require_tenant_context_service(
     repo_factory,
     operation,
 ) -> None:
-    repo = repo_factory(session)
     with pytest.raises(BusinessRuleError, match="TenantContextService"):
-        operation(repo)
+        repo_factory(session)
 
 
 def test_inventory_repositories_hide_cross_organization_rows(services) -> None:

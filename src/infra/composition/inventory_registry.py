@@ -88,41 +88,66 @@ def build_inventory_procurement_service_bundle(
     )
     logger.debug("Inventory/Procurement storeroom access policy registered")
     logger.debug("Inventory/Procurement repositories build begin")
-    balance_repo = SqlAlchemyStockBalanceRepository(platform_services.session)
-    category_repo = SqlAlchemyInventoryItemCategoryRepository(platform_services.session)
-    item_repo = SqlAlchemyStockItemRepository(platform_services.session)
-    purchase_order_line_repo = SqlAlchemyPurchaseOrderLineRepository(platform_services.session)
-    purchase_order_repo = SqlAlchemyPurchaseOrderRepository(platform_services.session)
-    requisition_line_repo = SqlAlchemyPurchaseRequisitionLineRepository(platform_services.session)
-    requisition_repo = SqlAlchemyPurchaseRequisitionRepository(platform_services.session)
-    receipt_header_repo = SqlAlchemyReceiptHeaderRepository(platform_services.session)
-    receipt_line_repo = SqlAlchemyReceiptLineRepository(platform_services.session)
-    cycle_count_repo = SqlAlchemyCycleCountRepository(platform_services.session)
-    location_repo = SqlAlchemyStorageLocationRepository(platform_services.session)
-    reorder_policy_repo = SqlAlchemyReorderPolicyRepository(platform_services.session)
-    reservation_repo = SqlAlchemyStockReservationRepository(platform_services.session)
-    transaction_repo = SqlAlchemyStockTransactionRepository(platform_services.session)
-    storeroom_repo = SqlAlchemyStoreroomRepository(platform_services.session)
-    _tcs = platform_services.tenant_context_service
-    for _repo in (
-        balance_repo,
-        category_repo,
-        cycle_count_repo,
-        item_repo,
-        location_repo,
-        purchase_order_line_repo,
-        purchase_order_repo,
-        receipt_line_repo,
-        receipt_header_repo,
-        reorder_policy_repo,
-        requisition_line_repo,
-        requisition_repo,
-        reservation_repo,
-        storeroom_repo,
-        transaction_repo,
-    ):
-        if hasattr(_repo, "_tenant_context_service"):
-            _repo._tenant_context_service = _tcs
+    balance_repo = SqlAlchemyStockBalanceRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    category_repo = SqlAlchemyInventoryItemCategoryRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    item_repo = SqlAlchemyStockItemRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    purchase_order_line_repo = SqlAlchemyPurchaseOrderLineRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    purchase_order_repo = SqlAlchemyPurchaseOrderRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    requisition_line_repo = SqlAlchemyPurchaseRequisitionLineRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    requisition_repo = SqlAlchemyPurchaseRequisitionRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    receipt_header_repo = SqlAlchemyReceiptHeaderRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    receipt_line_repo = SqlAlchemyReceiptLineRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    cycle_count_repo = SqlAlchemyCycleCountRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    location_repo = SqlAlchemyStorageLocationRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    reorder_policy_repo = SqlAlchemyReorderPolicyRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    reservation_repo = SqlAlchemyStockReservationRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    transaction_repo = SqlAlchemyStockTransactionRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    storeroom_repo = SqlAlchemyStoreroomRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
     logger.debug("Inventory/Procurement repositories built")
     logger.debug("Inventory/Procurement core services build begin")
     inventory_item_category_service = ItemCategoryService(

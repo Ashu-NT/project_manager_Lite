@@ -51,15 +51,27 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.orm.inven
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories._tenant_scope import (
     InventoryTenantScopedRepositorySupport,
 )
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyStoreroomRepository(StoreroomRepository, InventoryTenantScopedRepositorySupport):
     _repository_label = "Storeroom repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, storeroom: Storeroom) -> None:
         ctx = self._context(operation_label="add storeroom")
@@ -148,9 +160,17 @@ class SqlAlchemyStockBalanceRepository(
 ):
     _repository_label = "Stock balance repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, balance: StockBalance) -> None:
         ctx = self._context(operation_label="add stock balance")
@@ -238,9 +258,17 @@ class SqlAlchemyStockTransactionRepository(
 ):
     _repository_label = "Stock transaction repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, transaction: StockTransaction) -> None:
         ctx = self._context(operation_label="add stock transaction")
@@ -296,9 +324,17 @@ class SqlAlchemyStockReservationRepository(
 ):
     _repository_label = "Stock reservation repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, reservation: StockReservation) -> None:
         ctx = self._context(operation_label="add stock reservation")
@@ -392,9 +428,17 @@ class SqlAlchemyStorageLocationRepository(
 ):
     _repository_label = "Storage location repository"
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, location: StorageLocation) -> None:
         ctx = self._context(operation_label="add storage location")
@@ -491,9 +535,17 @@ class SqlAlchemyReorderPolicyRepository(
 ):
     _repository_label = "Reorder policy repository"
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, policy: ReorderPolicy) -> None:
         ctx = self._context(operation_label="add reorder policy")
@@ -602,9 +654,17 @@ class SqlAlchemyCycleCountRepository(
 ):
     _repository_label = "Cycle count repository"
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, cycle_count: CycleCount) -> None:
         ctx = self._context(operation_label="add cycle count")

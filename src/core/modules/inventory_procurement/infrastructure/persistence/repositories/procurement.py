@@ -42,6 +42,10 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.orm.procu
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories._tenant_scope import (
     InventoryTenantScopedRepositorySupport,
 )
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
@@ -92,9 +96,17 @@ class SqlAlchemyPurchaseRequisitionRepository(
 ):
     _repository_label = "Purchase requisition repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, requisition) -> None:
         ctx = self._context(operation_label="add purchase requisition")
@@ -189,9 +201,17 @@ class SqlAlchemyPurchaseRequisitionLineRepository(
 ):
     _repository_label = "Purchase requisition line repository"
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, line) -> None:
         self._require_in_scope(
@@ -251,9 +271,17 @@ class SqlAlchemyPurchaseOrderRepository(
 ):
     _repository_label = "Purchase order repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, purchase_order: PurchaseOrder) -> None:
         ctx = self._context(operation_label="add purchase order")
@@ -348,9 +376,17 @@ class SqlAlchemyPurchaseOrderLineRepository(
 ):
     _repository_label = "Purchase order line repository"
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, line: PurchaseOrderLine) -> None:
         self._require_in_scope(
@@ -443,9 +479,17 @@ class SqlAlchemyReceiptHeaderRepository(
 ):
     _repository_label = "Receipt header repository"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, receipt: ReceiptHeader) -> None:
         ctx = self._context(operation_label="add receipt header")
@@ -496,9 +540,17 @@ class SqlAlchemyReceiptHeaderRepository(
 class SqlAlchemyReceiptLineRepository(ReceiptLineRepository, _ProcurementLineRepositorySupport):
     _repository_label = "Receipt line repository"
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
-        self._tenant_context_service = None
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, line: ReceiptLine) -> None:
         self._require_in_scope(

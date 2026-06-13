@@ -30,7 +30,10 @@ from src.core.platform.site.domain import Site
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.site import SiteService
 from src.core.platform.party import PartyService
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 
 
 class InventoryService:
@@ -49,9 +52,9 @@ class InventoryService:
         self._session: Session = session
         self._storeroom_repo: StoreroomRepository = storeroom_repo
         self._organization_repo: OrganizationRepository = organization_repo
-        self._tenant_context_service: TenantContextService = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
-            user_session=user_session,
+        self._tenant_context_service: TenantContextService = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="InventoryService",
         )
         self._site_service: SiteService = site_service
         self._party_service: PartyService = party_service

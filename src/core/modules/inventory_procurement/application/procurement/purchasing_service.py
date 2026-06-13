@@ -36,7 +36,10 @@ from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.core.modules.inventory_procurement.application.common.support import normalize_optional_text
 from src.core.shared.events.domain_events import domain_events
 
@@ -80,9 +83,9 @@ class PurchasingService(
         self._requisition_line_repo: PurchaseRequisitionLineRepository = requisition_line_repo
         self._balance_repo: StockBalanceRepository = balance_repo
         self._organization_repo: OrganizationRepository = organization_repo
-        self._tenant_context_service: TenantContextService = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
-            user_session=user_session,
+        self._tenant_context_service: TenantContextService = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="PurchasingService",
         )
         self._reference_service: InventoryReferenceService = reference_service
         self._inventory_service: InventoryService = inventory_service
