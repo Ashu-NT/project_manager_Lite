@@ -99,7 +99,9 @@ def upgrade() -> None:
             )
 
         _drop_tmp_table_if_exists(table)
-        with op.batch_alter_table(table, recreate="always") as batch_op:
+        with op.batch_alter_table(
+            table, recreate="always", reflect_kwargs={"resolve_fks": False}
+        ) as batch_op:
             batch_op.alter_column(
                 "tenant_id",
                 existing_type=sa.String(),
@@ -112,7 +114,9 @@ def downgrade() -> None:
         if not _table_has_column(table, "tenant_id"):
             continue
         _drop_tmp_table_if_exists(table)
-        with op.batch_alter_table(table, recreate="always") as batch_op:
+        with op.batch_alter_table(
+            table, recreate="always", reflect_kwargs={"resolve_fks": False}
+        ) as batch_op:
             batch_op.alter_column(
                 "tenant_id",
                 existing_type=sa.String(),
