@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import datetime
 from types import SimpleNamespace
 
+from src.api.desktop.runtime import build_desktop_api_registry
 from src.api.desktop.platform.models import (
     ApprovalRequestDto,
     ApprovalStatus,
@@ -1792,6 +1793,25 @@ def test_platform_workspace_catalog_exposes_qml_safe_maps() -> None:
         "value": "TechAsh",
         "supportingText": "Current platform context",
     }
+
+
+def test_platform_workspace_catalog_returns_module_flags_off_without_active_organization(
+    services,
+) -> None:
+    services["user_session"].set_active_organization_id(None)
+    registry = build_desktop_api_registry(services)
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
+
+    assert catalog.isModuleEnabled("project_management") is False
+    assert catalog.hasCapability("inventory.stock.read") is False
+    assert catalog.canUseIntegration(
+        "project_management",
+        "inventory_procurement",
+        "material_demand",
+    ) is False
+    snapshot = catalog.capabilitySnapshot()
+    assert snapshot["isPlatformEnabled"] is True
+    assert snapshot["isProjectManagementEnabled"] is False
 
 
 def test_platform_workspace_catalog_exposes_grouped_platform_overviews() -> None:

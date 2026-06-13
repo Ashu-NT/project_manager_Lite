@@ -104,3 +104,18 @@ def test_module_catalog_service_supports_trial_and_suspended_lifecycle_states(se
         services["project_service"].list_projects()
     assert suspended_exc.value.code == "MODULE_DISABLED"
 
+
+def test_module_catalog_service_disables_entitlements_without_active_organization_context(services):
+    catalog = services["module_catalog_service"]
+    user_session = services["user_session"]
+
+    user_session.set_active_organization_id(None)
+
+    assert catalog.list_enabled_modules() == []
+    assert catalog.list_licensed_modules() == []
+    entitlement = catalog.get_entitlement("project_management")
+    assert entitlement is not None
+    assert entitlement.licensed is False
+    assert entitlement.enabled is False
+    assert entitlement.runtime_enabled is False
+

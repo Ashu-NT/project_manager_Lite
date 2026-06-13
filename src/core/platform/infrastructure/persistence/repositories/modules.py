@@ -6,6 +6,7 @@ from typing import Callable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.modules import (
     ModuleEntitlementRecord,
     ModuleEntitlementRepository,
@@ -140,7 +141,10 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
     def upsert(self, record: ModuleEntitlementRecord) -> None:
         organization_id = self._current_organization_id()
         if not organization_id:
-            raise RuntimeError("Active organization context is required for module entitlements.")
+            raise BusinessRuleError(
+                "Active organization context is required for module entitlements.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
         self.upsert_for_organization(organization_id, record)
 
 

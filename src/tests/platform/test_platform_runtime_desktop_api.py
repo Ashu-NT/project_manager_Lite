@@ -118,6 +118,28 @@ def test_platform_runtime_desktop_api_maps_permission_denied_org_switch(services
     assert result.error.code == "PERMISSION_DENIED"
 
 
+def test_platform_runtime_desktop_api_handles_missing_active_organization_context(services):
+    api = PlatformRuntimeDesktopApi(
+        platform_runtime_application_service=services["platform_runtime_application_service"]
+    )
+
+    services["user_session"].set_active_organization_id(None)
+
+    result = api.get_runtime_context()
+
+    assert result.ok is True
+    assert result.error is None
+    assert result.data is not None
+    assert result.data.active_organization is None
+    assert result.data.enabled_modules == ()
+    assert any(
+        entitlement.module_code == "project_management"
+        and entitlement.licensed is False
+        and entitlement.enabled is False
+        for entitlement in result.data.entitlements
+    )
+
+
 def test_build_desktop_api_registry_exposes_platform_runtime_adapter(services):
     registry = build_desktop_api_registry(services)
 

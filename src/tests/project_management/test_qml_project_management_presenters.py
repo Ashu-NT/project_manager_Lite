@@ -25,6 +25,7 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_scheduling_desktop_api,
     build_project_management_tasks_desktop_api,
 )
+from src.api.desktop.runtime import build_desktop_api_registry
 from src.api.desktop.platform import ApprovalRequestDto, ApprovalStatus, DesktopApiResult
 from src.core.modules.project_management.domain.enums import (
     CostType,
@@ -88,6 +89,25 @@ def test_project_management_workspace_catalog_exposes_qml_safe_maps() -> None:
         "migrationStatus": "QML landing zone ready",
         "legacyRuntimeStatus": "Existing QWidget screen remains active",
     }
+
+
+def test_project_management_workspace_catalog_returns_no_capabilities_without_active_organization(
+    services,
+) -> None:
+    services["user_session"].set_active_organization_id(None)
+    registry = build_desktop_api_registry(services)
+    catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
+
+    assert catalog.isModuleEnabled("project_management") is False
+    assert catalog.hasCapability("inventory.stock.read") is False
+    assert (
+        catalog.canUseIntegration(
+            "project_management",
+            "inventory_procurement",
+            "material_demand",
+        )
+        is False
+    )
 
 
 def test_project_management_workspace_catalog_exposes_typed_dashboard_controller() -> None:
