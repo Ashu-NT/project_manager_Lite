@@ -9,18 +9,82 @@ from src.core.modules.maintenance.infrastructure.persistence.mappers import (
     maintenance_preventive_plan_instance_from_orm,
     maintenance_preventive_plan_instance_to_orm,
 )
+from src.core.modules.maintenance.infrastructure.persistence.orm.models import (
+    MaintenancePreventivePlanORM,
+    MaintenanceWorkOrderORM,
+    MaintenanceWorkRequestORM,
+)
 from src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models import MaintenancePreventivePlanInstanceORM
+from src.core.modules.maintenance.infrastructure.persistence.repositories._tenant_scope import (
+    MaintenanceParentScopedRepositorySupport,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
-class SqlAlchemyMaintenancePreventivePlanInstanceRepository(MaintenancePreventivePlanInstanceRepository):
+class SqlAlchemyMaintenancePreventivePlanInstanceRepository(
+    MaintenancePreventivePlanInstanceRepository, MaintenanceParentScopedRepositorySupport
+):
+    _repository_label = "Maintenance preventive plan instance repository"
+    _scope_joins = (
+        (MaintenancePreventivePlanORM, MaintenancePreventivePlanInstanceORM.plan_id == MaintenancePreventivePlanORM.id),
+    )
+
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service = None
 
     def add(self, preventive_instance: MaintenancePreventivePlanInstance) -> None:
+        self._require_in_scope(
+            MaintenancePreventivePlanORM,
+            preventive_instance.plan_id,
+            operation_label="add maintenance preventive plan instance",
+            not_found_message="Maintenance preventive plan not found.",
+        )
+        if preventive_instance.generated_work_request_id:
+            self._require_in_scope(
+                MaintenanceWorkRequestORM,
+                preventive_instance.generated_work_request_id,
+                operation_label="add maintenance preventive plan instance work request",
+                not_found_message="Maintenance work request not found.",
+            )
+        if preventive_instance.generated_work_order_id:
+            self._require_in_scope(
+                MaintenanceWorkOrderORM,
+                preventive_instance.generated_work_order_id,
+                operation_label="add maintenance preventive plan instance work order",
+                not_found_message="Maintenance work order not found.",
+            )
         self.session.add(maintenance_preventive_plan_instance_to_orm(preventive_instance))
 
     def update(self, preventive_instance: MaintenancePreventivePlanInstance) -> None:
+        self._require_via_anchor_in_scope(
+            MaintenancePreventivePlanInstanceORM,
+            MaintenancePreventivePlanORM,
+            joins=self._scope_joins,
+            record_id=preventive_instance.id,
+            operation_label="update maintenance preventive plan instance",
+            not_found_message="Maintenance preventive plan instance not found.",
+        )
+        self._require_in_scope(
+            MaintenancePreventivePlanORM,
+            preventive_instance.plan_id,
+            operation_label="update maintenance preventive plan instance plan",
+            not_found_message="Maintenance preventive plan not found.",
+        )
+        if preventive_instance.generated_work_request_id:
+            self._require_in_scope(
+                MaintenanceWorkRequestORM,
+                preventive_instance.generated_work_request_id,
+                operation_label="update maintenance preventive plan instance work request",
+                not_found_message="Maintenance work request not found.",
+            )
+        if preventive_instance.generated_work_order_id:
+            self._require_in_scope(
+                MaintenanceWorkOrderORM,
+                preventive_instance.generated_work_order_id,
+                operation_label="update maintenance preventive plan instance work order",
+                not_found_message="Maintenance work order not found.",
+            )
         preventive_instance.version = update_with_version_check(
             self.session,
             MaintenancePreventivePlanInstanceORM,
@@ -44,12 +108,24 @@ class SqlAlchemyMaintenancePreventivePlanInstanceRepository(MaintenancePreventiv
         )
 
     def delete(self, preventive_instance_id: str) -> None:
-        obj = self.session.get(MaintenancePreventivePlanInstanceORM, preventive_instance_id)
+        obj = self._get_via_anchor_in_scope(
+            MaintenancePreventivePlanInstanceORM,
+            MaintenancePreventivePlanORM,
+            joins=self._scope_joins,
+            record_id=preventive_instance_id,
+            operation_label="delete maintenance preventive plan instance",
+        )
         if obj is not None:
             self.session.delete(obj)
 
     def get(self, preventive_instance_id: str) -> MaintenancePreventivePlanInstance | None:
-        obj = self.session.get(MaintenancePreventivePlanInstanceORM, preventive_instance_id)
+        obj = self._get_via_anchor_in_scope(
+            MaintenancePreventivePlanInstanceORM,
+            MaintenancePreventivePlanORM,
+            joins=self._scope_joins,
+            record_id=preventive_instance_id,
+            operation_label="get maintenance preventive plan instance",
+        )
         return maintenance_preventive_plan_instance_from_orm(obj) if obj else None
 
     def get_by_generated_work_order_id(
@@ -57,7 +133,15 @@ class SqlAlchemyMaintenancePreventivePlanInstanceRepository(MaintenancePreventiv
         organization_id: str,
         work_order_id: str,
     ) -> MaintenancePreventivePlanInstance | None:
-        stmt = select(MaintenancePreventivePlanInstanceORM).where(
+        ctx = self._context(operation_label="get maintenance preventive plan instance by work order")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
+        stmt = self._scoped_stmt_for_anchor(
+            MaintenancePreventivePlanInstanceORM,
+            MaintenancePreventivePlanORM,
+            joins=self._scope_joins,
+            operation_label="get maintenance preventive plan instance by work order",
+        ).where(
             MaintenancePreventivePlanInstanceORM.organization_id == organization_id,
             MaintenancePreventivePlanInstanceORM.generated_work_order_id == work_order_id,
         )
@@ -73,9 +157,15 @@ class SqlAlchemyMaintenancePreventivePlanInstanceRepository(MaintenancePreventiv
         generated_work_request_id: str | None = None,
         generated_work_order_id: str | None = None,
     ) -> list[MaintenancePreventivePlanInstance]:
-        stmt = select(MaintenancePreventivePlanInstanceORM).where(
-            MaintenancePreventivePlanInstanceORM.organization_id == organization_id
-        )
+        ctx = self._context(operation_label="list maintenance preventive plan instances")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
+        stmt = self._scoped_stmt_for_anchor(
+            MaintenancePreventivePlanInstanceORM,
+            MaintenancePreventivePlanORM,
+            joins=self._scope_joins,
+            operation_label="list maintenance preventive plan instances",
+        ).where(MaintenancePreventivePlanInstanceORM.organization_id == organization_id)
         if plan_id is not None:
             stmt = stmt.where(MaintenancePreventivePlanInstanceORM.plan_id == plan_id)
         if status is not None:

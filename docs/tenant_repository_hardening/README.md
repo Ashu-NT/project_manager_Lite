@@ -27,9 +27,8 @@ The codebase is in a mixed state.
   context.
 - Several Project Management repositories already use repository-scoped tenant
   joins.
-- Maintenance root repositories now use a shared scoped repository helper, but
-  several maintenance secondary repositories still use older organization-only
-  or parent-trusting patterns.
+- Maintenance repositories now use shared scoped helpers across both tenant-root
+  records and parent-scoped secondary records.
 - Access-control repositories sat in a gray area between auth bootstrap and
   business-data scoping; they needed a narrower hardening pass than the rest of
   the platform repos.
@@ -100,6 +99,10 @@ the brief.
 - Maintenance root repositories now use a shared scope helper for locations,
   systems, assets, sensors, integration sources, failure codes, task
   templates, work requests, work orders, and preventive plans.
+- Maintenance secondary repositories now use parent-aware scope resolution for
+  asset components, sensor readings, sensor source mappings, sensor exceptions,
+  work-order execution records, task-step templates, preventive plan tasks,
+  runtime plan instances, and downtime events.
 
 ### Tenant-aware settings
 
@@ -126,6 +129,8 @@ New or expanded coverage now checks:
   parent procurement references
 - maintenance root repositories require `TenantContextService`, hide foreign
   organization rows, and reject foreign root updates
+- maintenance secondary repositories require `TenantContextService`, hide
+  foreign rows, and reject cross-scope parent reassignments
 - unscoped tenant UI state is written to a namespaced key instead of a bare key
 
 ## Progress tracker
@@ -139,6 +144,7 @@ New or expanded coverage now checks:
 - Harden inventory catalog, stock, and foundation repositories
 - Harden procurement header and child-line repositories
 - Harden maintenance tenant-root repositories
+- Harden maintenance secondary repositories
 - Add repository-focused regression tests
 - Add this follow-up README
 - Add tranche notes:
@@ -148,20 +154,16 @@ New or expanded coverage now checks:
   - `docs/tenant_repository_hardening/procurement_repository_hardening_round_1.md`
   - `docs/tenant_repository_hardening/procurement_repository_hardening_round_2.md`
   - `docs/tenant_repository_hardening/maintenance_repository_hardening_round_1.md`
+  - `docs/tenant_repository_hardening/maintenance_repository_hardening_round_2.md`
 
 ### Next recommended batches
 
-1. Maintenance secondary repositories
-   - add parent-aware scoping to child repositories that inherit organization
-     and tenant boundaries from maintenance root records
-   - tighten secondary update/delete paths that still trust raw ids
-
-2. Portfolio and PM secondary repositories
+1. Portfolio and PM secondary repositories
    - remove residual legacy compatibility methods once all callers have moved
      to the scoped `list()` and `get()` contract
    - harden `ProjectResourceRepository` and portfolio dependency flows
 
-3. Controller and settings follow-up
+2. Controller and settings follow-up
    - review organization switching permissions end-to-end
    - audit any remaining organization-scoped settings or caches
 
@@ -178,3 +180,4 @@ New or expanded coverage now checks:
   - desktop/import-export procurement integration checks: `2 passed`
   - maintenance repository + service suite: `38 passed`
   - maintenance desktop API suite: `10 passed`
+  - broader maintenance secondary-repository verification suite: `74 passed`

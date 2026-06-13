@@ -69,6 +69,12 @@ class _OrgRepo(OrganizationRepository):
             return rows
         return [row for row in rows if row.is_active == bool(active_only)]
 
+    def list_for_tenant(self, tenant_id: str, *, active_only=None):
+        rows = [self.organization] if self.organization.tenant_id == tenant_id else []
+        if active_only is None:
+            return rows
+        return [row for row in rows if row.is_active == bool(active_only)]
+
 
 class _TenantContext:
     def __init__(self, organization: Organization) -> None:
@@ -81,11 +87,17 @@ class _TenantContext:
             {"organization_id": self.organization.id, "organization": self.organization},
         )()
 
+    def require_organization_context(self, *, operation_label: str):
+        return self.require_context(operation_label=operation_label)
+
     def require_active_organization_id(self, *, operation_label: str) -> str:
         return self.organization.id
 
     def get_active_organization_id(self) -> str:
         return self.organization.id
+
+    def get_active_tenant_id(self) -> str | None:
+        return self.organization.tenant_id
 
 
 class _SiteRepo(SiteRepository):

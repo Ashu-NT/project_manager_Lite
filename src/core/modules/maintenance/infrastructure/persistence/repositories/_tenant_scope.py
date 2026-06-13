@@ -75,4 +75,61 @@ class MaintenanceTenantScopedRepositorySupport(TenantScopedRepositorySupport):
                 )
 
 
-__all__ = ["MaintenanceTenantScopedRepositorySupport"]
+class MaintenanceParentScopedRepositorySupport(MaintenanceTenantScopedRepositorySupport):
+    def _scoped_stmt_for_anchor(
+        self,
+        row_model,
+        anchor_model,
+        *,
+        joins: tuple[tuple[object, object], ...],
+        operation_label: str,
+    ):
+        ctx = self._context(operation_label=operation_label)
+        stmt = select(row_model)
+        for join_model, on_clause in joins:
+            stmt = stmt.join(join_model, on_clause)
+        return self._apply_scope(stmt, anchor_model, ctx)
+
+    def _get_via_anchor_in_scope(
+        self,
+        row_model,
+        anchor_model,
+        *,
+        joins: tuple[tuple[object, object], ...],
+        record_id: str,
+        operation_label: str,
+    ):
+        stmt = self._scoped_stmt_for_anchor(
+            row_model,
+            anchor_model,
+            joins=joins,
+            operation_label=operation_label,
+        ).where(row_model.id == record_id)
+        return self.session.execute(stmt).scalars().first()
+
+    def _require_via_anchor_in_scope(
+        self,
+        row_model,
+        anchor_model,
+        *,
+        joins: tuple[tuple[object, object], ...],
+        record_id: str,
+        operation_label: str,
+        not_found_message: str,
+    ):
+        obj = self._get_via_anchor_in_scope(
+            row_model,
+            anchor_model,
+            joins=joins,
+            record_id=record_id,
+            operation_label=operation_label,
+        )
+        if obj is None:
+            raise NotFoundError(not_found_message)
+        return obj
+
+
+__all__ = [
+    "MaintenanceParentScopedRepositorySupport",
+    "MaintenanceTenantScopedRepositorySupport",
+]

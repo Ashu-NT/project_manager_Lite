@@ -28,13 +28,23 @@
   - work requests
   - work orders
   - preventive plans
+- Maintenance secondary repository hardening round 2 is implemented and verified:
+  - asset components
+  - sensor readings
+  - sensor source mappings
+  - sensor exceptions
+  - work-order tasks
+  - work-order task steps
+  - work-order material requirements
+  - task-step templates
+  - preventive plan tasks
+  - preventive plan instances
+  - downtime events
 
 ## Next implementation order
 
-1. Maintenance secondary repositories
-   - `docs/tenant_repository_hardening/maintenance_repository_hardening_round_1.md`
-2. Portfolio and remaining PM secondary repositories
-3. Controller and settings follow-up
+1. Portfolio and remaining PM secondary repositories
+2. Controller and settings follow-up
 
 ## Execution notes
 
