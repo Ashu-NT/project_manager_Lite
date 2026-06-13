@@ -104,8 +104,20 @@ def build_inventory_procurement_service_bundle(
     transaction_repo = SqlAlchemyStockTransactionRepository(platform_services.session)
     storeroom_repo = SqlAlchemyStoreroomRepository(platform_services.session)
     _tcs = platform_services.tenant_context_service
-    for _repo in (balance_repo, category_repo, item_repo, purchase_order_repo, requisition_repo,
-                  receipt_header_repo, reservation_repo, transaction_repo, storeroom_repo):
+    for _repo in (
+        balance_repo,
+        category_repo,
+        cycle_count_repo,
+        item_repo,
+        location_repo,
+        purchase_order_repo,
+        receipt_header_repo,
+        reorder_policy_repo,
+        requisition_repo,
+        reservation_repo,
+        storeroom_repo,
+        transaction_repo,
+    ):
         if hasattr(_repo, "_tenant_context_service"):
             _repo._tenant_context_service = _tcs
     logger.debug("Inventory/Procurement repositories built")

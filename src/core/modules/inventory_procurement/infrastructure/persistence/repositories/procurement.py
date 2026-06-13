@@ -39,24 +39,34 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.orm.procu
     ReceiptHeaderORM,
     ReceiptLineORM,
 )
+from src.core.modules.inventory_procurement.infrastructure.persistence.repositories._tenant_scope import (
+    InventoryTenantScopedRepositorySupport,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
-class SqlAlchemyPurchaseRequisitionRepository(PurchaseRequisitionRepository):
+class SqlAlchemyPurchaseRequisitionRepository(
+    PurchaseRequisitionRepository, InventoryTenantScopedRepositorySupport
+):
+    _repository_label = "Purchase requisition repository"
+
     def __init__(self, session: Session) -> None:
         self.session = session
         self._tenant_context_service = None
 
-    def _get_active_tid(self) -> str | None:
-        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
-
     def add(self, requisition) -> None:
+        ctx = self._context(operation_label="add purchase requisition")
         orm = purchase_requisition_to_orm(requisition)
-        if orm.tenant_id is None:
-            orm.tenant_id = self._get_active_tid()
+        self._stamp_scope(ctx, orm)
         self.session.add(orm)
 
     def update(self, requisition) -> None:
+        self._require_in_scope(
+            PurchaseRequisitionORM,
+            requisition.id,
+            operation_label="update purchase requisition",
+            not_found_message="Purchase requisition not found.",
+        )
         requisition.version = update_with_version_check(
             self.session,
             PurchaseRequisitionORM,
@@ -87,22 +97,22 @@ class SqlAlchemyPurchaseRequisitionRepository(PurchaseRequisitionRepository):
         )
 
     def get(self, requisition_id: str):
-        obj = self.session.get(PurchaseRequisitionORM, requisition_id)
-        if obj is None:
-            return None
-        _tid = self._get_active_tid()
-        if _tid is not None and obj.tenant_id != _tid:
-            return None
-        return purchase_requisition_from_orm(obj)
+        obj = self._get_in_scope(
+            PurchaseRequisitionORM,
+            requisition_id,
+            operation_label="get purchase requisition",
+        )
+        return purchase_requisition_from_orm(obj) if obj else None
 
     def get_by_number(self, organization_id: str, requisition_number: str):
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="get purchase requisition by number")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(PurchaseRequisitionORM).where(
             PurchaseRequisitionORM.organization_id == organization_id,
             PurchaseRequisitionORM.requisition_number == requisition_number,
         )
-        if _tid is not None:
-            stmt = stmt.where(PurchaseRequisitionORM.tenant_id == _tid)
+        stmt = self._apply_scope(stmt, PurchaseRequisitionORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return purchase_requisition_from_orm(obj) if obj else None
 
@@ -115,10 +125,11 @@ class SqlAlchemyPurchaseRequisitionRepository(PurchaseRequisitionRepository):
         storeroom_id: str | None = None,
         limit: int = 200,
     ):
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="list purchase requisitions")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(PurchaseRequisitionORM).where(PurchaseRequisitionORM.organization_id == organization_id)
-        if _tid is not None:
-            stmt = stmt.where(PurchaseRequisitionORM.tenant_id == _tid)
+        stmt = self._apply_scope(stmt, PurchaseRequisitionORM, ctx)
         if status is not None:
             stmt = stmt.where(PurchaseRequisitionORM.status == status)
         if site_id is not None:
@@ -166,21 +177,28 @@ class SqlAlchemyPurchaseRequisitionLineRepository(PurchaseRequisitionLineReposit
         return [purchase_requisition_line_from_orm(row) for row in rows]
 
 
-class SqlAlchemyPurchaseOrderRepository(PurchaseOrderRepository):
+class SqlAlchemyPurchaseOrderRepository(
+    PurchaseOrderRepository, InventoryTenantScopedRepositorySupport
+):
+    _repository_label = "Purchase order repository"
+
     def __init__(self, session: Session) -> None:
         self.session = session
         self._tenant_context_service = None
 
-    def _get_active_tid(self) -> str | None:
-        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
-
     def add(self, purchase_order: PurchaseOrder) -> None:
+        ctx = self._context(operation_label="add purchase order")
         orm = purchase_order_to_orm(purchase_order)
-        if orm.tenant_id is None:
-            orm.tenant_id = self._get_active_tid()
+        self._stamp_scope(ctx, orm)
         self.session.add(orm)
 
     def update(self, purchase_order: PurchaseOrder) -> None:
+        self._require_in_scope(
+            PurchaseOrderORM,
+            purchase_order.id,
+            operation_label="update purchase order",
+            not_found_message="Purchase order not found.",
+        )
         purchase_order.version = update_with_version_check(
             self.session,
             PurchaseOrderORM,
@@ -211,22 +229,22 @@ class SqlAlchemyPurchaseOrderRepository(PurchaseOrderRepository):
         )
 
     def get(self, purchase_order_id: str) -> PurchaseOrder | None:
-        obj = self.session.get(PurchaseOrderORM, purchase_order_id)
-        if obj is None:
-            return None
-        _tid = self._get_active_tid()
-        if _tid is not None and obj.tenant_id != _tid:
-            return None
-        return purchase_order_from_orm(obj)
+        obj = self._get_in_scope(
+            PurchaseOrderORM,
+            purchase_order_id,
+            operation_label="get purchase order",
+        )
+        return purchase_order_from_orm(obj) if obj else None
 
     def get_by_number(self, organization_id: str, po_number: str) -> PurchaseOrder | None:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="get purchase order by number")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(PurchaseOrderORM).where(
             PurchaseOrderORM.organization_id == organization_id,
             PurchaseOrderORM.po_number == po_number,
         )
-        if _tid is not None:
-            stmt = stmt.where(PurchaseOrderORM.tenant_id == _tid)
+        stmt = self._apply_scope(stmt, PurchaseOrderORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return purchase_order_from_orm(obj) if obj else None
 
@@ -239,10 +257,11 @@ class SqlAlchemyPurchaseOrderRepository(PurchaseOrderRepository):
         supplier_party_id: str | None = None,
         limit: int = 200,
     ) -> list[PurchaseOrder]:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="list purchase orders")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(PurchaseOrderORM).where(PurchaseOrderORM.organization_id == organization_id)
-        if _tid is not None:
-            stmt = stmt.where(PurchaseOrderORM.tenant_id == _tid)
+        stmt = self._apply_scope(stmt, PurchaseOrderORM, ctx)
         if status is not None:
             stmt = stmt.where(PurchaseOrderORM.status == status)
         if site_id is not None:
@@ -295,37 +314,38 @@ class SqlAlchemyPurchaseOrderLineRepository(PurchaseOrderLineRepository):
         return [purchase_order_line_from_orm(row) for row in rows]
 
 
-class SqlAlchemyReceiptHeaderRepository(ReceiptHeaderRepository):
+class SqlAlchemyReceiptHeaderRepository(
+    ReceiptHeaderRepository, InventoryTenantScopedRepositorySupport
+):
+    _repository_label = "Receipt header repository"
+
     def __init__(self, session: Session) -> None:
         self.session = session
         self._tenant_context_service = None
 
-    def _get_active_tid(self) -> str | None:
-        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
-
     def add(self, receipt: ReceiptHeader) -> None:
+        ctx = self._context(operation_label="add receipt header")
         orm = receipt_header_to_orm(receipt)
-        if orm.tenant_id is None:
-            orm.tenant_id = self._get_active_tid()
+        self._stamp_scope(ctx, orm)
         self.session.add(orm)
 
     def get(self, receipt_id: str) -> ReceiptHeader | None:
-        obj = self.session.get(ReceiptHeaderORM, receipt_id)
-        if obj is None:
-            return None
-        _tid = self._get_active_tid()
-        if _tid is not None and obj.tenant_id != _tid:
-            return None
-        return receipt_header_from_orm(obj)
+        obj = self._get_in_scope(
+            ReceiptHeaderORM,
+            receipt_id,
+            operation_label="get receipt header",
+        )
+        return receipt_header_from_orm(obj) if obj else None
 
     def get_by_number(self, organization_id: str, receipt_number: str) -> ReceiptHeader | None:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="get receipt header by number")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(ReceiptHeaderORM).where(
             ReceiptHeaderORM.organization_id == organization_id,
             ReceiptHeaderORM.receipt_number == receipt_number,
         )
-        if _tid is not None:
-            stmt = stmt.where(ReceiptHeaderORM.tenant_id == _tid)
+        stmt = self._apply_scope(stmt, ReceiptHeaderORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return receipt_header_from_orm(obj) if obj else None
 
@@ -336,10 +356,11 @@ class SqlAlchemyReceiptHeaderRepository(ReceiptHeaderRepository):
         purchase_order_id: str | None = None,
         limit: int = 200,
     ) -> list[ReceiptHeader]:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="list receipt headers")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(ReceiptHeaderORM).where(ReceiptHeaderORM.organization_id == organization_id)
-        if _tid is not None:
-            stmt = stmt.where(ReceiptHeaderORM.tenant_id == _tid)
+        stmt = self._apply_scope(stmt, ReceiptHeaderORM, ctx)
         if purchase_order_id is not None:
             stmt = stmt.where(ReceiptHeaderORM.purchase_order_id == purchase_order_id)
         rows = self.session.execute(

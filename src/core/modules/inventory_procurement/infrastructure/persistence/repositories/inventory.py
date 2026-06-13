@@ -48,24 +48,32 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.orm.inven
     StorageLocationORM,
     StoreroomORM,
 )
+from src.core.modules.inventory_procurement.infrastructure.persistence.repositories._tenant_scope import (
+    InventoryTenantScopedRepositorySupport,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
-class SqlAlchemyStoreroomRepository(StoreroomRepository):
+class SqlAlchemyStoreroomRepository(StoreroomRepository, InventoryTenantScopedRepositorySupport):
+    _repository_label = "Storeroom repository"
+
     def __init__(self, session: Session) -> None:
         self.session = session
         self._tenant_context_service = None
 
-    def _get_active_tid(self) -> str | None:
-        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
-
     def add(self, storeroom: Storeroom) -> None:
+        ctx = self._context(operation_label="add storeroom")
         orm = storeroom_to_orm(storeroom)
-        if orm.tenant_id is None:
-            orm.tenant_id = self._get_active_tid()
+        self._stamp_scope(ctx, orm)
         self.session.add(orm)
 
     def update(self, storeroom: Storeroom) -> None:
+        self._require_in_scope(
+            StoreroomORM,
+            storeroom.id,
+            operation_label="update storeroom",
+            not_found_message="Storeroom not found.",
+        )
         storeroom.version = update_with_version_check(
             self.session,
             StoreroomORM,
@@ -96,22 +104,22 @@ class SqlAlchemyStoreroomRepository(StoreroomRepository):
         )
 
     def get(self, storeroom_id: str) -> Storeroom | None:
-        obj = self.session.get(StoreroomORM, storeroom_id)
-        if obj is None:
-            return None
-        _tid = self._get_active_tid()
-        if _tid is not None and obj.tenant_id != _tid:
-            return None
-        return storeroom_from_orm(obj)
+        obj = self._get_in_scope(
+            StoreroomORM,
+            storeroom_id,
+            operation_label="get storeroom",
+        )
+        return storeroom_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, storeroom_code: str) -> Storeroom | None:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="get storeroom by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(StoreroomORM).where(
             StoreroomORM.organization_id == organization_id,
             StoreroomORM.storeroom_code == storeroom_code,
         )
-        if _tid is not None:
-            stmt = stmt.where(StoreroomORM.tenant_id == _tid)
+        stmt = self._apply_scope(stmt, StoreroomORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return storeroom_from_orm(obj) if obj else None
 
@@ -122,10 +130,11 @@ class SqlAlchemyStoreroomRepository(StoreroomRepository):
         active_only: bool | None = None,
         site_id: str | None = None,
     ) -> list[Storeroom]:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="list storerooms")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(StoreroomORM).where(StoreroomORM.organization_id == organization_id)
-        if _tid is not None:
-            stmt = stmt.where(StoreroomORM.tenant_id == _tid)
+        stmt = self._apply_scope(stmt, StoreroomORM, ctx)
         if active_only is not None:
             stmt = stmt.where(StoreroomORM.is_active == bool(active_only))
         if site_id is not None:
@@ -134,21 +143,28 @@ class SqlAlchemyStoreroomRepository(StoreroomRepository):
         return [storeroom_from_orm(row) for row in rows]
 
 
-class SqlAlchemyStockBalanceRepository(StockBalanceRepository):
+class SqlAlchemyStockBalanceRepository(
+    StockBalanceRepository, InventoryTenantScopedRepositorySupport
+):
+    _repository_label = "Stock balance repository"
+
     def __init__(self, session: Session) -> None:
         self.session = session
         self._tenant_context_service = None
 
-    def _get_active_tid(self) -> str | None:
-        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
-
     def add(self, balance: StockBalance) -> None:
+        ctx = self._context(operation_label="add stock balance")
         orm = stock_balance_to_orm(balance)
-        if orm.tenant_id is None:
-            orm.tenant_id = self._get_active_tid()
+        self._stamp_scope(ctx, orm)
         self.session.add(orm)
 
     def update(self, balance: StockBalance) -> None:
+        self._require_in_scope(
+            StockBalanceORM,
+            balance.id,
+            operation_label="update stock balance",
+            not_found_message="Stock balance not found.",
+        )
         balance.version = update_with_version_check(
             self.session,
             StockBalanceORM,
@@ -172,13 +188,12 @@ class SqlAlchemyStockBalanceRepository(StockBalanceRepository):
         )
 
     def get(self, balance_id: str) -> StockBalance | None:
-        obj = self.session.get(StockBalanceORM, balance_id)
-        if obj is None:
-            return None
-        _tid = self._get_active_tid()
-        if _tid is not None and obj.tenant_id != _tid:
-            return None
-        return stock_balance_from_orm(obj)
+        obj = self._get_in_scope(
+            StockBalanceORM,
+            balance_id,
+            operation_label="get stock balance",
+        )
+        return stock_balance_from_orm(obj) if obj else None
 
     def get_for_stock_position(
         self,
@@ -186,14 +201,15 @@ class SqlAlchemyStockBalanceRepository(StockBalanceRepository):
         stock_item_id: str,
         storeroom_id: str,
     ) -> StockBalance | None:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="get stock balance for position")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(StockBalanceORM).where(
             StockBalanceORM.organization_id == organization_id,
             StockBalanceORM.stock_item_id == stock_item_id,
             StockBalanceORM.storeroom_id == storeroom_id,
         )
-        if _tid is not None:
-            stmt = stmt.where(StockBalanceORM.tenant_id == _tid)
+        stmt = self._apply_scope(stmt, StockBalanceORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return stock_balance_from_orm(obj) if obj else None
 
@@ -204,10 +220,11 @@ class SqlAlchemyStockBalanceRepository(StockBalanceRepository):
         stock_item_id: str | None = None,
         storeroom_id: str | None = None,
     ) -> list[StockBalance]:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="list stock balances")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(StockBalanceORM).where(StockBalanceORM.organization_id == organization_id)
-        if _tid is not None:
-            stmt = stmt.where(StockBalanceORM.tenant_id == _tid)
+        stmt = self._apply_scope(stmt, StockBalanceORM, ctx)
         if stock_item_id is not None:
             stmt = stmt.where(StockBalanceORM.stock_item_id == stock_item_id)
         if storeroom_id is not None:
@@ -216,37 +233,38 @@ class SqlAlchemyStockBalanceRepository(StockBalanceRepository):
         return [stock_balance_from_orm(row) for row in rows]
 
 
-class SqlAlchemyStockTransactionRepository(StockTransactionRepository):
+class SqlAlchemyStockTransactionRepository(
+    StockTransactionRepository, InventoryTenantScopedRepositorySupport
+):
+    _repository_label = "Stock transaction repository"
+
     def __init__(self, session: Session) -> None:
         self.session = session
         self._tenant_context_service = None
 
-    def _get_active_tid(self) -> str | None:
-        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
-
     def add(self, transaction: StockTransaction) -> None:
+        ctx = self._context(operation_label="add stock transaction")
         orm = stock_transaction_to_orm(transaction)
-        if orm.tenant_id is None:
-            orm.tenant_id = self._get_active_tid()
+        self._stamp_scope(ctx, orm)
         self.session.add(orm)
 
     def get(self, transaction_id: str) -> StockTransaction | None:
-        obj = self.session.get(StockTransactionORM, transaction_id)
-        if obj is None:
-            return None
-        _tid = self._get_active_tid()
-        if _tid is not None and obj.tenant_id != _tid:
-            return None
-        return stock_transaction_from_orm(obj)
+        obj = self._get_in_scope(
+            StockTransactionORM,
+            transaction_id,
+            operation_label="get stock transaction",
+        )
+        return stock_transaction_from_orm(obj) if obj else None
 
     def get_by_number(self, organization_id: str, transaction_number: str) -> StockTransaction | None:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="get stock transaction by number")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(StockTransactionORM).where(
             StockTransactionORM.organization_id == organization_id,
             StockTransactionORM.transaction_number == transaction_number,
         )
-        if _tid is not None:
-            stmt = stmt.where(StockTransactionORM.tenant_id == _tid)
+        stmt = self._apply_scope(stmt, StockTransactionORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return stock_transaction_from_orm(obj) if obj else None
 
@@ -258,10 +276,11 @@ class SqlAlchemyStockTransactionRepository(StockTransactionRepository):
         storeroom_id: str | None = None,
         limit: int = 200,
     ) -> list[StockTransaction]:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="list stock transactions")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(StockTransactionORM).where(StockTransactionORM.organization_id == organization_id)
-        if _tid is not None:
-            stmt = stmt.where(StockTransactionORM.tenant_id == _tid)
+        stmt = self._apply_scope(stmt, StockTransactionORM, ctx)
         if stock_item_id is not None:
             stmt = stmt.where(StockTransactionORM.stock_item_id == stock_item_id)
         if storeroom_id is not None:
@@ -272,21 +291,28 @@ class SqlAlchemyStockTransactionRepository(StockTransactionRepository):
         return [stock_transaction_from_orm(row) for row in rows]
 
 
-class SqlAlchemyStockReservationRepository(StockReservationRepository):
+class SqlAlchemyStockReservationRepository(
+    StockReservationRepository, InventoryTenantScopedRepositorySupport
+):
+    _repository_label = "Stock reservation repository"
+
     def __init__(self, session: Session) -> None:
         self.session = session
         self._tenant_context_service = None
 
-    def _get_active_tid(self) -> str | None:
-        return self._tenant_context_service.get_active_tenant_id() if self._tenant_context_service else None
-
     def add(self, reservation: StockReservation) -> None:
+        ctx = self._context(operation_label="add stock reservation")
         orm = stock_reservation_to_orm(reservation)
-        if orm.tenant_id is None:
-            orm.tenant_id = self._get_active_tid()
+        self._stamp_scope(ctx, orm)
         self.session.add(orm)
 
     def update(self, reservation: StockReservation) -> None:
+        self._require_in_scope(
+            StockReservationORM,
+            reservation.id,
+            operation_label="update stock reservation",
+            not_found_message="Stock reservation not found.",
+        )
         reservation.version = update_with_version_check(
             self.session,
             StockReservationORM,
@@ -316,22 +342,22 @@ class SqlAlchemyStockReservationRepository(StockReservationRepository):
         )
 
     def get(self, reservation_id: str) -> StockReservation | None:
-        obj = self.session.get(StockReservationORM, reservation_id)
-        if obj is None:
-            return None
-        _tid = self._get_active_tid()
-        if _tid is not None and obj.tenant_id != _tid:
-            return None
-        return stock_reservation_from_orm(obj)
+        obj = self._get_in_scope(
+            StockReservationORM,
+            reservation_id,
+            operation_label="get stock reservation",
+        )
+        return stock_reservation_from_orm(obj) if obj else None
 
     def get_by_number(self, organization_id: str, reservation_number: str) -> StockReservation | None:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="get stock reservation by number")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(StockReservationORM).where(
             StockReservationORM.organization_id == organization_id,
             StockReservationORM.reservation_number == reservation_number,
         )
-        if _tid is not None:
-            stmt = stmt.where(StockReservationORM.tenant_id == _tid)
+        stmt = self._apply_scope(stmt, StockReservationORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return stock_reservation_from_orm(obj) if obj else None
 
@@ -344,10 +370,11 @@ class SqlAlchemyStockReservationRepository(StockReservationRepository):
         status: str | None = None,
         limit: int = 200,
     ) -> list[StockReservation]:
-        _tid = self._get_active_tid()
+        ctx = self._context(operation_label="list stock reservations")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(StockReservationORM).where(StockReservationORM.organization_id == organization_id)
-        if _tid is not None:
-            stmt = stmt.where(StockReservationORM.tenant_id == _tid)
+        stmt = self._apply_scope(stmt, StockReservationORM, ctx)
         if stock_item_id is not None:
             stmt = stmt.where(StockReservationORM.stock_item_id == stock_item_id)
         if storeroom_id is not None:
@@ -360,14 +387,28 @@ class SqlAlchemyStockReservationRepository(StockReservationRepository):
         return [stock_reservation_from_orm(row) for row in rows]
 
 
-class SqlAlchemyStorageLocationRepository(StorageLocationRepository):
+class SqlAlchemyStorageLocationRepository(
+    StorageLocationRepository, InventoryTenantScopedRepositorySupport
+):
+    _repository_label = "Storage location repository"
+
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service = None
 
     def add(self, location: StorageLocation) -> None:
-        self.session.add(storage_location_to_orm(location))
+        ctx = self._context(operation_label="add storage location")
+        orm = storage_location_to_orm(location)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, location: StorageLocation) -> None:
+        self._require_in_scope(
+            StorageLocationORM,
+            location.id,
+            operation_label="update storage location",
+            not_found_message="Storage location not found.",
+        )
         location.version = update_with_version_check(
             self.session,
             StorageLocationORM,
@@ -392,7 +433,11 @@ class SqlAlchemyStorageLocationRepository(StorageLocationRepository):
         )
 
     def get(self, location_id: str) -> StorageLocation | None:
-        obj = self.session.get(StorageLocationORM, location_id)
+        obj = self._get_in_scope(
+            StorageLocationORM,
+            location_id,
+            operation_label="get storage location",
+        )
         return storage_location_from_orm(obj) if obj else None
 
     def get_by_code(
@@ -401,11 +446,15 @@ class SqlAlchemyStorageLocationRepository(StorageLocationRepository):
         storeroom_id: str,
         location_code: str,
     ) -> StorageLocation | None:
+        ctx = self._context(operation_label="get storage location by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(StorageLocationORM).where(
             StorageLocationORM.organization_id == organization_id,
             StorageLocationORM.storeroom_id == storeroom_id,
             StorageLocationORM.location_code == location_code,
         )
+        stmt = self._apply_scope(stmt, StorageLocationORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return storage_location_from_orm(obj) if obj else None
 
@@ -417,9 +466,11 @@ class SqlAlchemyStorageLocationRepository(StorageLocationRepository):
         parent_location_id: str | None = None,
         active_only: bool | None = None,
     ) -> list[StorageLocation]:
-        stmt = select(StorageLocationORM).where(
-            StorageLocationORM.organization_id == organization_id
-        )
+        ctx = self._context(operation_label="list storage locations")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
+        stmt = select(StorageLocationORM).where(StorageLocationORM.organization_id == organization_id)
+        stmt = self._apply_scope(stmt, StorageLocationORM, ctx)
         if storeroom_id is not None:
             stmt = stmt.where(StorageLocationORM.storeroom_id == storeroom_id)
         if parent_location_id is not None:
@@ -435,14 +486,28 @@ class SqlAlchemyStorageLocationRepository(StorageLocationRepository):
         return [storage_location_from_orm(row) for row in rows]
 
 
-class SqlAlchemyReorderPolicyRepository(ReorderPolicyRepository):
+class SqlAlchemyReorderPolicyRepository(
+    ReorderPolicyRepository, InventoryTenantScopedRepositorySupport
+):
+    _repository_label = "Reorder policy repository"
+
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service = None
 
     def add(self, policy: ReorderPolicy) -> None:
-        self.session.add(reorder_policy_to_orm(policy))
+        ctx = self._context(operation_label="add reorder policy")
+        orm = reorder_policy_to_orm(policy)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, policy: ReorderPolicy) -> None:
+        self._require_in_scope(
+            ReorderPolicyORM,
+            policy.id,
+            operation_label="update reorder policy",
+            not_found_message="Reorder policy not found.",
+        )
         policy.version = update_with_version_check(
             self.session,
             ReorderPolicyORM,
@@ -470,7 +535,11 @@ class SqlAlchemyReorderPolicyRepository(ReorderPolicyRepository):
         )
 
     def get(self, policy_id: str) -> ReorderPolicy | None:
-        obj = self.session.get(ReorderPolicyORM, policy_id)
+        obj = self._get_in_scope(
+            ReorderPolicyORM,
+            policy_id,
+            operation_label="get reorder policy",
+        )
         return reorder_policy_from_orm(obj) if obj else None
 
     def get_for_scope(
@@ -480,6 +549,9 @@ class SqlAlchemyReorderPolicyRepository(ReorderPolicyRepository):
         storeroom_id: str,
         location_id: str | None,
     ) -> ReorderPolicy | None:
+        ctx = self._context(operation_label="get reorder policy for scope")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(ReorderPolicyORM).where(
             ReorderPolicyORM.organization_id == organization_id,
             ReorderPolicyORM.stock_item_id == stock_item_id,
@@ -489,6 +561,7 @@ class SqlAlchemyReorderPolicyRepository(ReorderPolicyRepository):
             stmt = stmt.where(ReorderPolicyORM.location_id.is_(None))
         else:
             stmt = stmt.where(ReorderPolicyORM.location_id == location_id)
+        stmt = self._apply_scope(stmt, ReorderPolicyORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return reorder_policy_from_orm(obj) if obj else None
 
@@ -501,9 +574,11 @@ class SqlAlchemyReorderPolicyRepository(ReorderPolicyRepository):
         location_id: str | None = None,
         active_only: bool | None = None,
     ) -> list[ReorderPolicy]:
-        stmt = select(ReorderPolicyORM).where(
-            ReorderPolicyORM.organization_id == organization_id
-        )
+        ctx = self._context(operation_label="list reorder policies")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
+        stmt = select(ReorderPolicyORM).where(ReorderPolicyORM.organization_id == organization_id)
+        stmt = self._apply_scope(stmt, ReorderPolicyORM, ctx)
         if stock_item_id is not None:
             stmt = stmt.where(ReorderPolicyORM.stock_item_id == stock_item_id)
         if storeroom_id is not None:
@@ -522,14 +597,28 @@ class SqlAlchemyReorderPolicyRepository(ReorderPolicyRepository):
         return [reorder_policy_from_orm(row) for row in rows]
 
 
-class SqlAlchemyCycleCountRepository(CycleCountRepository):
+class SqlAlchemyCycleCountRepository(
+    CycleCountRepository, InventoryTenantScopedRepositorySupport
+):
+    _repository_label = "Cycle count repository"
+
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service = None
 
     def add(self, cycle_count: CycleCount) -> None:
-        self.session.add(cycle_count_to_orm(cycle_count))
+        ctx = self._context(operation_label="add cycle count")
+        orm = cycle_count_to_orm(cycle_count)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, cycle_count: CycleCount) -> None:
+        self._require_in_scope(
+            CycleCountORM,
+            cycle_count.id,
+            operation_label="update cycle count",
+            not_found_message="Cycle count not found.",
+        )
         cycle_count.version = update_with_version_check(
             self.session,
             CycleCountORM,
@@ -556,7 +645,11 @@ class SqlAlchemyCycleCountRepository(CycleCountRepository):
         )
 
     def get(self, cycle_count_id: str) -> CycleCount | None:
-        obj = self.session.get(CycleCountORM, cycle_count_id)
+        obj = self._get_in_scope(
+            CycleCountORM,
+            cycle_count_id,
+            operation_label="get cycle count",
+        )
         return cycle_count_from_orm(obj) if obj else None
 
     def get_by_number(
@@ -564,10 +657,14 @@ class SqlAlchemyCycleCountRepository(CycleCountRepository):
         organization_id: str,
         cycle_count_number: str,
     ) -> CycleCount | None:
+        ctx = self._context(operation_label="get cycle count by number")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(CycleCountORM).where(
             CycleCountORM.organization_id == organization_id,
             CycleCountORM.cycle_count_number == cycle_count_number,
         )
+        stmt = self._apply_scope(stmt, CycleCountORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return cycle_count_from_orm(obj) if obj else None
 
@@ -581,7 +678,11 @@ class SqlAlchemyCycleCountRepository(CycleCountRepository):
         status: str | None = None,
         limit: int = 200,
     ) -> list[CycleCount]:
+        ctx = self._context(operation_label="list cycle counts")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(CycleCountORM).where(CycleCountORM.organization_id == organization_id)
+        stmt = self._apply_scope(stmt, CycleCountORM, ctx)
         if stock_item_id is not None:
             stmt = stmt.where(CycleCountORM.stock_item_id == stock_item_id)
         if storeroom_id is not None:
