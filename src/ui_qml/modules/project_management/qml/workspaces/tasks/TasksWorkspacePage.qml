@@ -64,10 +64,18 @@ AppLayouts.WorkspaceFrame {
     // ── Detail sections and actions ───────────────────────────────────────
     readonly property var _detailSections: state.detailSections
     readonly property var _bulkChangeProperties: state.bulkChangeProperties
+    property var _selectedDependencyItem: null
+    readonly property var _selectedAssignmentItem: root._itemById(
+        root.assignmentsModel ? (root.assignmentsModel.items || []) : [],
+        root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
+    )
 
     readonly property var _detailActions: {
         const idx = detailPage ? detailPage.activeSectionIndex : 0
-        return state.detailActionsForSection(idx)
+        return state.detailActionsForSection(idx, {
+            "assignmentItem": root._selectedAssignmentItem,
+            "dependencyItem": root._selectedDependencyItem
+        })
     }
 
     // ── Detail page state ─────────────────────────────────────────────────
@@ -86,6 +94,18 @@ AppLayouts.WorkspaceFrame {
     // ── Helper functions ──────────────────────────────────────────────────
     function _optionIndexForValue(options, value) {
         return state.optionIndexForValue(options, value)
+    }
+
+    function _itemById(items, itemId) {
+        const id = String(itemId || "")
+        if (!id.length) return null
+        const list = items || []
+        for (let i = 0; i < list.length; i += 1) {
+            if (String(list[i].id || "") === id) {
+                return list[i]
+            }
+        }
+        return null
     }
 
     function _loadLazyDetailSection(sectionIndex) {
@@ -297,6 +317,9 @@ AppLayouts.WorkspaceFrame {
                 }
 
                 onSectionChanged: function(index) {
+                    if ((root._detailSections[index] || "") !== "Dependencies") {
+                        root._selectedDependencyItem = null
+                    }
                     root._loadLazyDetailSection(index)
                 }
 
@@ -309,6 +332,7 @@ AppLayouts.WorkspaceFrame {
                     actions: root._detailActions
 
                     onBackRequested: {
+                        root._selectedDependencyItem = null
                         root._detailOpen = false
                     }
                     onActionTriggered: function(actionId) {
@@ -320,6 +344,20 @@ AppLayouts.WorkspaceFrame {
                             dialogHostLoader.invoke("openDeleteDialog", root.selectedTaskModel)
                         } else if (actionId === "reserve_material") {
                             root._openTaskReservationsRoute()
+                        } else if (actionId === "edit_allocation" && root._selectedAssignmentItem) {
+                            dialogHostLoader.invoke(
+                                "openEditAssignmentAllocationDialog",
+                                root._selectedAssignmentItem,
+                                root.selectedTaskModel
+                            )
+                        } else if (actionId === "set_assignment_hours" && root._selectedAssignmentItem) {
+                            dialogHostLoader.invoke("openAssignmentHoursDialog", root._selectedAssignmentItem)
+                        } else if (actionId === "remove_assignment" && root._selectedAssignmentItem) {
+                            dialogHostLoader.invoke("openDeleteAssignmentDialog", root._selectedAssignmentItem)
+                        } else if (actionId === "edit_dependency" && tasksDetailPanel) {
+                            tasksDetailPanel.openSelectedDependencyEditor()
+                        } else if (actionId === "remove_dependency" && root._selectedDependencyItem) {
+                            dialogHostLoader.invoke("openDeleteDependencyDialog", root._selectedDependencyItem)
                         }
                     }
                 }
@@ -341,6 +379,7 @@ AppLayouts.WorkspaceFrame {
                 }
 
                 Panels.TasksDetailPanel {
+                    id: tasksDetailPanel
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     pmCatalog: root.pmCatalog
@@ -357,6 +396,7 @@ AppLayouts.WorkspaceFrame {
                     dependenciesModel: root.dependenciesModel
                     dependenciesTableModel: root.workspaceController ? root.workspaceController.dependenciesTableModel : null
                     dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
+                    dependencyTypeOptions: root.workspaceController ? (root.workspaceController.dependencyTypeOptions || []) : []
 
                     timeAssignmentSummaryModel: root.timeAssignmentSummaryModel
                     timeEntriesModel: root.timeEntriesModel
@@ -406,6 +446,9 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     onCreateDependencyRequested: dialogHostLoader.invoke("openCreateDependencyDialog", root.selectedTaskModel)
+                    onDependencySelectionChanged: function(dependencyData) {
+                        root._selectedDependencyItem = dependencyData || null
+                    }
                     onEditDependencyRequested: function(payload) {
                         if (root.workspaceController !== null) {
                             root.workspaceController.updateDependency(payload)

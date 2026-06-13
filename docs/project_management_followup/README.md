@@ -40,6 +40,10 @@ The guiding rules stay the same:
   - the task workspace no longer dispatches task-detail or collaboration-presence work through task-only Qt thread-pool workers
   - task activation and task presence now stay on the same synchronous controller and shared-session path used by the rest of the PM QML module
   - PM task controllers now have an architecture guardrail that blocks `QThreadPool` and `QRunnable` from re-entering this slice
+- Completed in the current slice:
+  - PM detail-section create actions now stay in the section contextual toolbar instead of switching into local selected-row headers
+  - selected-row actions for task assignments/dependencies, resource skills/certifications, and project resources now surface in the main detail header
+  - section-level back buttons were removed from those PM detail sections so the remaining back action is only the page-level detail navigation
 - Still intentionally transitional:
   - existing historical PM task-comment attachments remain readable through the legacy attachment list
   - PM time-entry site/department snapshots intentionally stay as historical strings
@@ -184,6 +188,27 @@ Non-goals for this slice:
 
 - no rewrite of the broader PM refresh model
 - no new background job/session abstraction for QML controllers
+
+### 8. PM Detail Toolbar Normalization
+
+Status: completed
+
+Scope:
+
+- keep create and add flows inside the section-level contextual toolbar across PM detail workspaces
+- move selected-row actions into the main detail header so the panel action model stays consistent
+- remove section-local back buttons from these table-driven detail sections
+
+Acceptance notes:
+
+- task assignments and dependencies keep `Assign Resource` and `Add Dependency` in the section toolbar while selected-row actions render in the main detail header
+- resource skills and certifications keep add actions in-section while row-removal actions render in the main detail header
+- project resources keep `Assign Resource` in-section while selected-row edit/remove actions render in the main detail header
+
+Non-goals for this slice:
+
+- no change to the page-level detail back button
+- no redesign of unrelated PM list-page toolbars or bulk-action bars
 
 ## Guardrails
 

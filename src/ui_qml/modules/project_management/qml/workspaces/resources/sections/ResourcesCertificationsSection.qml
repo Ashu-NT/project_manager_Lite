@@ -3,7 +3,6 @@ import QtQuick
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
-import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -15,19 +14,11 @@ Item {
 
     signal addCertificationRequested()
     signal removeCertificationRequested(string certId)
+    signal selectionChanged(string certId)
 
     readonly property var _certs: root.workspaceController
         ? (root.workspaceController.resourceCertifications || []) : []
     property string _selectedCertId: ""
-    readonly property var _selectedCert: {
-        const cid = root._selectedCertId
-        if (!cid) return null
-        const list = root._certs
-        for (let i = 0; i < list.length; i++) {
-            if (String(list[i].id || "") === cid) return list[i]
-        }
-        return null
-    }
     readonly property int _tableH: {
         const n = root._certs.length
         const rH = Theme.AppTheme.compactRowHeight
@@ -35,10 +26,10 @@ Item {
         return n === 0 ? (hH + 80) : Math.min(hH + n * rH + 12, 300)
     }
     readonly property var _columns: [
-        { key: "title",       label: "Certification", flex: 2,  sortable: false },
-        { key: "subtitle",    label: "Code",          flex: 1,  sortable: false },
-        { key: "statusLabel", label: "Status",        flex: 0,  minWidth: 110, type: "status" },
-        { key: "metaText",    label: "Expiry",        flex: 1,  sortable: false }
+        { key: "title",       label: "Certification", flex: 2, sortable: false },
+        { key: "subtitle",    label: "Code",          flex: 1, sortable: false },
+        { key: "statusLabel", label: "Status",        flex: 0, minWidth: 110, type: "status" },
+        { key: "metaText",    label: "Expiry",        flex: 1, sortable: false }
     ]
 
     implicitHeight: _certsCol.implicitHeight
@@ -52,30 +43,12 @@ Item {
 
         AppWidgets.ContextualActionToolbar {
             Layout.fillWidth: true
-            visible: !root._selectedCertId
             title: "Certifications"
             subtitle: root._certs.length > 0 ? String(root._certs.length) : ""
             busy: root.isBusy
             createLabel: (root.hasResource && root.canManageSkills) ? "Add Certification" : ""
             actions: []
             onCreateRequested: root.addCertificationRequested()
-        }
-
-        AppWidgets.ContextualActionToolbar {
-            Layout.fillWidth: true
-            visible: Boolean(root._selectedCertId)
-            showBack: true
-            title: root._selectedCert ? String(root._selectedCert.title || "Certification") : "Certification"
-            subtitle: root._selectedCert ? String(root._selectedCert.statusLabel || "") : ""
-            busy: root.isBusy
-            actions: [
-                { id: "remove", label: "Remove", icon: "delete", enabled: true, danger: true }
-            ]
-            onBackRequested: root._selectedCertId = ""
-            onActionTriggered: function(actionId) {
-                if (actionId === "remove" && root._selectedCert)
-                    root.removeCertificationRequested(String(root._selectedCert.id || ""))
-            }
         }
 
         Item {
@@ -91,8 +64,14 @@ Item {
                 emptyText: root.hasResource
                     ? "No certifications recorded for this resource."
                     : "Select a resource to view its certifications."
-                onRowSelected: function(rowId) { root._selectedCertId = rowId }
-                onRowActivated: function(rowId) { root._selectedCertId = rowId }
+                onRowSelected: function(rowId) {
+                    root._selectedCertId = rowId
+                    root.selectionChanged(root._selectedCertId)
+                }
+                onRowActivated: function(rowId) {
+                    root._selectedCertId = rowId
+                    root.selectionChanged(root._selectedCertId)
+                }
             }
         }
     }

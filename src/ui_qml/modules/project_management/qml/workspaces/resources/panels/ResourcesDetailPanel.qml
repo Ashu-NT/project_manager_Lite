@@ -21,6 +21,8 @@ Item {
     })
     property bool canManageSkills: true
     property var resourceAssignmentsTableModel: null
+    property string selectedSkillId: ""
+    property string selectedCertificationId: ""
 
     signal editRequested()
     signal toggleRequested()
@@ -29,9 +31,34 @@ Item {
     signal addCertificationRequested()
     signal removeSkillRequested(string skillId)
     signal removeCertificationRequested(string certId)
+    signal skillSelectionChanged(string skillId)
+    signal certificationSelectionChanged(string certId)
 
     readonly property bool _hasResource: String(root.resourceDetail.id || "").length > 0
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
+
+    function _clearContextSelections() {
+        if (root._idx !== 4 && root.selectedSkillId.length > 0) {
+            root.selectedSkillId = ""
+            root.skillSelectionChanged("")
+        }
+        if (root._idx !== 5 && root.selectedCertificationId.length > 0) {
+            root.selectedCertificationId = ""
+            root.certificationSelectionChanged("")
+        }
+    }
+
+    on_IdxChanged: root._clearContextSelections()
+    onResourceDetailChanged: {
+        if (root.selectedSkillId.length > 0) {
+            root.selectedSkillId = ""
+            root.skillSelectionChanged("")
+        }
+        if (root.selectedCertificationId.length > 0) {
+            root.selectedCertificationId = ""
+            root.certificationSelectionChanged("")
+        }
+    }
 
     readonly property int _activeSectionH: {
         if (root._idx === 0) return _sec0.implicitHeight
@@ -125,6 +152,10 @@ Item {
                 canManageSkills: root.canManageSkills
                 isBusy: root.isBusy
                 onAddSkillRequested: root.addSkillRequested()
+                onSelectionChanged: function(skillId) {
+                    root.selectedSkillId = String(skillId || "")
+                    root.skillSelectionChanged(root.selectedSkillId)
+                }
                 onRemoveSkillRequested: function(skillId) { root.removeSkillRequested(skillId) }
             }
         }
@@ -144,6 +175,10 @@ Item {
                 canManageSkills: root.canManageSkills
                 isBusy: root.isBusy
                 onAddCertificationRequested: root.addCertificationRequested()
+                onSelectionChanged: function(certId) {
+                    root.selectedCertificationId = String(certId || "")
+                    root.certificationSelectionChanged(root.selectedCertificationId)
+                }
                 onRemoveCertificationRequested: function(certId) { root.removeCertificationRequested(certId) }
             }
         }

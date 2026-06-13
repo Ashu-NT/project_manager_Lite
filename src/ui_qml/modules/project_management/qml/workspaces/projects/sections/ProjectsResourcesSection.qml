@@ -22,6 +22,19 @@ Item {
     property bool isBusy: false
 
     readonly property bool _hasProject: String(root.projectDetail.id || "").length > 0
+    readonly property int _resourceCount: (root.projectResourcesModel.items || []).length
+
+    function openEditSelected() {
+        if (root.selectedProjectResourceId.length > 0) {
+            _editPopup.openForSelected()
+        }
+    }
+
+    function confirmRemoveSelected() {
+        if (root.selectedProjectResourceId.length > 0) {
+            _deleteConfirm.open()
+        }
+    }
 
     implicitHeight: _col.implicitHeight
 
@@ -35,64 +48,14 @@ Item {
             if (ctrl) ctrl.loadAssignableResources()
         }
 
-        Item {
+        AppWidgets.ContextualActionToolbar {
             width: parent.width
-            implicitHeight: 44
-
-            Rectangle {
-                anchors.bottom: parent.bottom
-                width: parent.width
-                height: 1
-                color: Theme.AppTheme.divider
-            }
-
-            AppControls.Label {
-                anchors {
-                    verticalCenter: parent.verticalCenter
-                    left: parent.left
-                    leftMargin: Theme.AppTheme.spacingMd
-                }
-                text: "RESOURCES"
-                color: Theme.AppTheme.textMuted
-                font.pixelSize: Theme.AppTheme.sectionTitleSize
-                font.bold: true
-                font.family: Theme.AppTheme.fontFamily
-                font.letterSpacing: 0.8
-            }
-
-            Row {
-                anchors {
-                    verticalCenter: parent.verticalCenter
-                    right: parent.right
-                    rightMargin: Theme.AppTheme.spacingMd
-                }
-                spacing: Theme.AppTheme.spacingSm
-
-                AppControls.SecondaryButton {
-                    visible: root.selectedProjectResourceId.length > 0
-                    text: "Edit"
-                    iconName: "edit"
-                    enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                    onClicked: _editPopup.openForSelected()
-                }
-
-                AppControls.SecondaryButton {
-                    visible: root.selectedProjectResourceId.length > 0
-                    text: "Remove"
-                    iconName: "delete"
-                    danger: true
-                    enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                    onClicked: _deleteConfirm.open()
-                }
-
-                AppControls.PrimaryButton {
-                    text: "Assign Resource"
-                    iconName: "add"
-                    enabled: root._hasProject
-                        && !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                    onClicked: _assignPopup.open()
-                }
-            }
+            title: "Resources"
+            subtitle: root._resourceCount > 0 ? String(root._resourceCount) : ""
+            busy: root.isBusy
+            createLabel: root._hasProject ? "Assign Resource" : ""
+            actions: []
+            onCreateRequested: _assignPopup.open()
         }
 
         AppWidgets.InlineMessage {
@@ -106,11 +69,11 @@ Item {
             width: parent.width
             height: Math.min(360, Math.max(200, implicitHeight))
             columns: [
-                { key: "title",          label: "Resource",      flex: 2,  sortable: true },
+                { key: "title",          label: "Resource",      flex: 2, sortable: true },
                 { key: "subtitle",       label: "Role",          flex: 1.5 },
-                { key: "supportingText", label: "Planned Hours", flex: 1,  minWidth: 100 },
-                { key: "metaText",       label: "Hourly Rate",   flex: 1,  minWidth: 100 },
-                { key: "statusLabel",    label: "Status",        flex: 0,  minWidth: 90, type: "status" }
+                { key: "supportingText", label: "Planned Hours", flex: 1, minWidth: 100 },
+                { key: "metaText",       label: "Hourly Rate",   flex: 1, minWidth: 100 },
+                { key: "statusLabel",    label: "Status",        flex: 0, minWidth: 90, type: "status" }
             ]
             sourceModel: root.projectResourcesTableModel
             selectedRowId: root.selectedProjectResourceId
@@ -122,11 +85,9 @@ Item {
             }
         }
 
-        // ── Edit assignment dialog ─────────────────────────────────────────
         AppWidgets.EntityDialog {
             id: _editPopup
             title: "Edit Resource Assignment"
-            standardButtons: Dialog.NoButton
 
             property var _rowState: ({})
 
@@ -141,7 +102,7 @@ Item {
                     }
                 }
                 _editHoursField.text = String(_rowState.plannedHours || "0")
-                _editRateField.text  = String(_rowState.hourlyRate  || "")
+                _editRateField.text = String(_rowState.hourlyRate || "")
                 _editActiveToggle.checked = Boolean(_rowState.isActive !== false)
                 _editError.message = ""
                 open()
@@ -234,8 +195,8 @@ Item {
                             const result = ctrl.updateProjectResource({
                                 "projectResourceId": String(_editPopup._rowState.projectResourceId || ""),
                                 "plannedHours": _editHoursField.text || "0",
-                                "hourlyRate":   _editRateField.text  || "",
-                                "isActive":     _editActiveToggle.checked
+                                "hourlyRate": _editRateField.text || "",
+                                "isActive": _editActiveToggle.checked
                             })
                             if (result && result.ok === false) {
                                 _editError.message = String(result.error || "Update failed.")
@@ -248,7 +209,6 @@ Item {
             }
         }
 
-        // ── Remove confirmation dialog ─────────────────────────────────────
         AppControls.ConfirmationDialog {
             id: _deleteConfirm
             title: "Remove Resource"
@@ -261,11 +221,9 @@ Item {
             }
         }
 
-        // ── Assign resource dialog ─────────────────────────────────────────
         AppWidgets.EntityDialog {
             id: _assignPopup
             title: "Assign Resource"
-            standardButtons: Dialog.NoButton
 
             onOpened: {
                 _resourceCombo.currentIndex = -1

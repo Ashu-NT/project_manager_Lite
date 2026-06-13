@@ -50,6 +50,13 @@ AppLayouts.WorkspaceFrame {
     property bool _detailOpen: false
     property int _pendingDetailSection: 0
     readonly property var detailPage: detailPageLoader.item
+    readonly property var _detailActions: {
+        const idx = detailPage ? detailPage.activeSectionIndex : 0
+        return state.detailActionsForSection(idx, {
+            "selectedProjectResourceId": root.workspaceController
+                ? root.workspaceController.selectedProjectResourceId : ""
+        })
+    }
 
     function _openDetail(sectionIndex) {
         root._pendingDetailSection = sectionIndex
@@ -243,13 +250,7 @@ AppLayouts.WorkspaceFrame {
                     title: root.selectedProjectModel.title || "Project Details"
                     subtitle: root.selectedProjectModel.statusLabel || ""
                     busy: root.workspaceController ? root.workspaceController.isBusy : false
-                    actions: _projectDetailPage.activeSectionIndex === 0
-                        ? [
-                            { "id": "edit",   "label": "Edit",   "icon": "edit",    "enabled": true, "danger": false },
-                            { "id": "status", "label": "Status", "icon": "approve", "enabled": true, "danger": false },
-                            { "id": "delete", "label": "Delete", "icon": "delete",  "enabled": true, "danger": true  }
-                          ]
-                        : []
+                    actions: root._detailActions
 
                     onBackRequested: root._detailOpen = false
                     onActionTriggered: function(actionId) {
@@ -259,6 +260,10 @@ AppLayouts.WorkspaceFrame {
                             dialogHostLoader.invoke("openStatusDialog", root.selectedProjectModel)
                         } else if (actionId === "delete") {
                             dialogHostLoader.invoke("openDeleteDialog", root.selectedProjectModel)
+                        } else if (actionId === "edit_project_resource" && projectsDetailPanel) {
+                            projectsDetailPanel.openSelectedProjectResourceEditDialog()
+                        } else if (actionId === "remove_project_resource" && projectsDetailPanel) {
+                            projectsDetailPanel.confirmSelectedProjectResourceRemoval()
                         }
                     }
                 }
@@ -280,6 +285,7 @@ AppLayouts.WorkspaceFrame {
                 }
 
                 Panels.ProjectsDetailPanel {
+                    id: projectsDetailPanel
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     pmCatalog: root.pmCatalog

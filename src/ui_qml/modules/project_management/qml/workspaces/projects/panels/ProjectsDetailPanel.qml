@@ -36,6 +36,20 @@ Item {
 
     function _secIdx(name) { return root._sections.indexOf(name) }
 
+    function openSelectedProjectResourceEditDialog() {
+        const section = _sec3.item
+        if (section) {
+            section.openEditSelected()
+        }
+    }
+
+    function confirmSelectedProjectResourceRemoval() {
+        const section = _sec3.item
+        if (section) {
+            section.confirmRemoveSelected()
+        }
+    }
+
     readonly property int _activeSectionH: {
         const name = root._sections[root._idx] || ""
         if (name === "Overview")        return _sec0.implicitHeight

@@ -24,6 +24,8 @@ Item {
 
     property var dependenciesModel: AppMock.MockFactory.catalog("Dependencies", "", "Select a task.")
     property var dependenciesTableModel: null
+    property var dependencyTypeOptions: []
+    property var selectedDependencyItem: null
     property var dependencyTaskOptions: []
 
     property var timeAssignmentSummaryModel: AppMock.MockFactory.fieldRecord("", "", "Select a task assignment.")
@@ -73,6 +75,7 @@ Item {
     signal createDependencyRequested()
     signal editDependencyRequested(var payload)
     signal deleteDependencyRequested(var dependencyData)
+    signal dependencySelectionChanged(var dependencyData)
 
     signal periodChanged(string periodStart)
     signal timeAssignmentSelected(string assignmentId)
@@ -111,6 +114,29 @@ Item {
         }
         return -1
     }
+
+    function _clearDependencySelection() {
+        if (root.selectedDependencyItem === null) return
+        root.selectedDependencyItem = null
+        root.dependencySelectionChanged(null)
+    }
+
+    function openSelectedDependencyEditor() {
+        const section = _sec2.item
+        if (section) {
+            section.openEditSelected()
+        }
+    }
+
+    on_IdxChanged: {
+        const entry = root._sections[root._idx] || ""
+        const name = (typeof entry === "string") ? entry : (entry.label || "")
+        if (name !== "Dependencies") {
+            root._clearDependencySelection()
+        }
+    }
+
+    onTaskDetailChanged: root._clearDependencySelection()
 
     implicitHeight: (_summaryStrip.visible ? _summaryStrip.height : 0)
         + _activeSectionH
@@ -180,7 +206,7 @@ Item {
             }
 
             Rectangle {
-                width: 1; height: 14
+                Layout.preferredWidth: 1; Layout.preferredHeight: 14
                 color: Theme.AppTheme.divider
                 visible: String(root.taskDetail.subtitle || "").length > 0
             }
@@ -259,6 +285,10 @@ Item {
                     dependencyTypeOptions: root.dependencyTypeOptions || []
 
                     onCreateRequested: root.createDependencyRequested()
+                    onSelectionChanged: function(dependencyData) {
+                        root.selectedDependencyItem = dependencyData || null
+                        root.dependencySelectionChanged(root.selectedDependencyItem)
+                    }
                     onEditRequested: function(payload) { root.editDependencyRequested(payload) }
                     onDeleteRequested: function(d) { root.deleteDependencyRequested(d) }
                 }

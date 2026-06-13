@@ -7,14 +7,11 @@ import "ProjectsColumnConfig.js" as ColumnConfig
 Item {
     id: root
 
-    // ── Injected dependencies ────────────────────────────────────────────
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog: null
     property var workspaceController: null
 
-    // ── Column table ID ──────────────────────────────────────────────────
     readonly property string tableId: "pm.projects.table"
 
-    // ── Readonly derived properties ──────────────────────────────────────
     readonly property var workspaceModel: root.workspaceController
         ? root.workspaceController.workspace
         : ({
@@ -61,7 +58,6 @@ Item {
         ? root.workspaceController.projectResources
         : ({ "title": "Resources", "subtitle": "", "emptyState": "Open this section to load project resources.", "items": [] })
 
-    // ── RBAC & Capabilities ──────────────────────────────────────────────
     readonly property bool hasInvCap: root.pmCatalog
         ? root.pmCatalog.hasCapability("inventory.reservations.create")
         : false
@@ -70,17 +66,34 @@ Item {
         ? root.pmCatalog.hasCapability("procurement.purchase_orders.read")
         : false
 
-    // ── Detail sections ──────────────────────────────────────────────────
     readonly property var detailSections: {
         const secs = ["Overview", "Schedule", "Tasks", "Resources", "Financials", "Risks"]
-        if (root.hasInvCap)  secs.push("Material Demand")
+        if (root.hasInvCap) secs.push("Material Demand")
         if (root.hasProcCap) secs.push("Procurement")
         secs.push("Documents")
         secs.push("Activity")
         return secs
     }
 
-    // ── Column configuration ─────────────────────────────────────────────
+    function detailActionsForSection(sectionIndex, selectionContext) {
+        const sectionName = detailSections[sectionIndex] || ""
+        const selection = selectionContext || {}
+        if (sectionName === "Overview") {
+            return [
+                { "id": "edit",   "label": "Edit",   "icon": "edit",    "enabled": true, "danger": false },
+                { "id": "status", "label": "Status", "icon": "approve", "enabled": true, "danger": false },
+                { "id": "delete", "label": "Delete", "icon": "delete",  "enabled": true, "danger": true  }
+            ]
+        }
+        if (sectionName === "Resources" && String(selection.selectedProjectResourceId || "").length > 0) {
+            return [
+                { "id": "edit_project_resource", "label": "Edit", "icon": "edit", "enabled": true, "danger": false },
+                { "id": "remove_project_resource", "label": "Remove", "icon": "delete", "enabled": true, "danger": true }
+            ]
+        }
+        return []
+    }
+
     property var columns: []
 
     function initializeColumns() {
@@ -103,7 +116,6 @@ Item {
         root.columns = newColumns
     }
 
-    // ── Bulk change properties ───────────────────────────────────────────
     readonly property var bulkChangeProperties: {
         const props = []
         const statusOptions = root.workspaceController
@@ -115,7 +127,6 @@ Item {
         return props
     }
 
-    // ── Helper functions ─────────────────────────────────────────────────
     function statusIndexForValue(statusValue) {
         const opts = root.workspaceController ? (root.workspaceController.statusOptions || []) : []
         for (let i = 0; i < opts.length; i++) {
@@ -127,15 +138,14 @@ Item {
     function lazyLoadDetailSection(detailPage, sectionIndex) {
         if (root.workspaceController === null) return
         const secName = root.detailSections[sectionIndex] || ""
-        if      (secName === "Tasks")     root.workspaceController.loadProjectTasks()
+        if (secName === "Tasks") root.workspaceController.loadProjectTasks()
         else if (secName === "Resources") root.workspaceController.loadProjectResources()
         else if (secName === "Financials") root.workspaceController.loadProjectFinancials()
-        else if (secName === "Risks")     root.workspaceController.loadProjectRisks()
+        else if (secName === "Risks") root.workspaceController.loadProjectRisks()
         else if (secName === "Documents") root.workspaceController.loadProjectDocuments()
-        else if (secName === "Activity")  root.workspaceController.loadProjectActivity()
+        else if (secName === "Activity") root.workspaceController.loadProjectActivity()
     }
 
-    // ── Initialization ───────────────────────────────────────────────────
     Component.onCompleted: {
         root.initializeColumns()
     }

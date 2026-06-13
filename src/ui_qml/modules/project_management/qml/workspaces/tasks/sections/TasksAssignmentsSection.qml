@@ -1,8 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
-import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Mock 1.0 as AppMock
 import App.Theme 1.0 as Theme
@@ -10,13 +8,13 @@ import App.Theme 1.0 as Theme
 Item {
     id: root
 
-    property var    assignmentsModel:     AppMock.MockFactory.catalog()
+    property var    assignmentsModel: AppMock.MockFactory.catalog()
     property var    assignmentsTableModel: null
     property string selectedAssignmentId: ""
-    property bool   isBusy:              false
-    property bool   canCreate:           false
-    property var    assignmentPreview:   null
-    property string errorText:           ""
+    property bool   isBusy: false
+    property bool   canCreate: false
+    property var    assignmentPreview: null
+    property string errorText: ""
 
     signal createRequested()
     signal assignmentSelected(string assignmentId)
@@ -48,7 +46,7 @@ Item {
             parts.push("Blocked: " + (p.blockMessages || []).join("; "))
         } else {
             if (p.overallocationPct > 0)
-                parts.push("Overallocated +" + p.overallocationPct + "% — conflicts: "
+                parts.push("Overallocated +" + p.overallocationPct + "% - conflicts: "
                     + (p.conflictProjects && p.conflictProjects.length
                         ? p.conflictProjects.join(", ") : "current project"))
             if (!p.skillsMatched) parts.push("Missing required skills")
@@ -56,13 +54,13 @@ Item {
             if (p.hasWarnings && !parts.length)
                 parts.push((p.warningMessages || []).join("; "))
         }
-        return parts.join(" · ")
+        return parts.join(" | ")
     }
 
     readonly property var _items: root.assignmentsModel.items || []
-    readonly property var _selectedItem: {
-        const id = root.selectedAssignmentId
-        if (!id) return null
+    function _itemForId(assignmentId) {
+        const id = String(assignmentId || "")
+        if (!id.length) return null
         const list = root._items
         for (let i = 0; i < list.length; i++) {
             if (String(list[i].id || "") === id) return list[i]
@@ -80,53 +78,28 @@ Item {
 
     readonly property var _columns: [
         { key: "title",       label: "Resource",   flex: 2,   sortable: false },
-        { key: "subtitle",    label: "Role",        flex: 1.5, sortable: false },
-        { key: "metaText",    label: "Allocation",  flex: 1.5, sortable: false },
-        { key: "statusLabel", label: "Status",      flex: 0,   minWidth: 90, type: "status" }
+        { key: "subtitle",    label: "Role",       flex: 1.5, sortable: false },
+        { key: "metaText",    label: "Allocation", flex: 1.5, sortable: false },
+        { key: "statusLabel", label: "Status",     flex: 0,   minWidth: 90, type: "status" }
     ]
 
     implicitHeight: _col.implicitHeight
 
     ColumnLayout {
         id: _col
-        anchors.left:  parent.left
+        anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top:   parent.top
+        anchors.top: parent.top
         spacing: 0
 
-        // Section toolbar — idle state
         AppWidgets.ContextualActionToolbar {
             Layout.fillWidth: true
-            visible:  !root.selectedAssignmentId
-            title:    "Assignments"
+            title: "Assignments"
             subtitle: root._items.length > 0 ? String(root._items.length) : ""
-            busy:     root.isBusy
+            busy: root.isBusy
             createLabel: root.canCreate ? "Assign Resource" : ""
             actions: []
             onCreateRequested: root.createRequested()
-        }
-
-        // Section toolbar — row selected state
-        AppWidgets.ContextualActionToolbar {
-            Layout.fillWidth: true
-            visible:  Boolean(root.selectedAssignmentId)
-            showBack: true
-            title:    root._selectedItem ? String(root._selectedItem.title || "Assignment") : "Assignment"
-            subtitle: root._selectedItem ? String(root._selectedItem.statusLabel || "") : ""
-            busy:     root.isBusy
-            actions: [
-                { id: "allocation", label: "Allocation", icon: "edit",   enabled: true, danger: false },
-                { id: "hours",      label: "Set Hours",  icon: "time",   enabled: true, danger: false },
-                { id: "remove",     label: "Remove",     icon: "delete", enabled: true, danger: true  }
-            ]
-            onBackRequested: root.selectedAssignmentId = ""
-            onActionTriggered: function(actionId) {
-                const item = root._selectedItem
-                if (!item) return
-                if      (actionId === "allocation") root.editAllocationRequested(item)
-                else if (actionId === "hours")      root.setHoursRequested(item)
-                else if (actionId === "remove")     root.deleteRequested(item)
-            }
         }
 
         AppWidgets.InlineMessage {
@@ -138,7 +111,6 @@ Item {
             onActionClicked: root.retryRequested()
         }
 
-        // Assignment preview strip
         AppWidgets.InlineMessage {
             Layout.fillWidth: true
             visible: root._hasPreview
@@ -146,23 +118,21 @@ Item {
             tone: root._previewTone
         }
 
-        // DataTable
         Item {
             Layout.fillWidth: true
             height: root._tableH
 
             AppWidgets.DataTable {
-                anchors.fill:  parent
-                columns:       root._columns
-                sourceModel:   root.assignmentsTableModel
+                anchors.fill: parent
+                columns: root._columns
+                sourceModel: root.assignmentsTableModel
                 selectedRowId: root.selectedAssignmentId
-                loading:       root.isBusy
-                emptyText:     root.assignmentsModel.emptyState || "No assignments for this task."
+                loading: root.isBusy
+                emptyText: root.assignmentsModel.emptyState || "No assignments for this task."
 
                 onRowSelected: function(rowId) {
-                    root.selectedAssignmentId = rowId
                     root.assignmentSelected(rowId)
-                    const item = root._selectedItem
+                    const item = root._itemForId(rowId)
                     if (item) {
                         const state = item.state || {}
                         root.previewRequested(
@@ -171,10 +141,7 @@ Item {
                         )
                     }
                 }
-                onRowActivated: function(rowId) {
-                    root.selectedAssignmentId = rowId
-                    root.assignmentSelected(rowId)
-                }
+                onRowActivated: function(rowId) { root.assignmentSelected(rowId) }
             }
         }
     }

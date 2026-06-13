@@ -12,26 +12,28 @@ Item {
 
     property var    dependenciesModel: AppMock.MockFactory.catalog()
     property var    dependenciesTableModel: null
-    property bool   isBusy:           false
-    property bool   canCreate:        false
-    property string errorText:        ""
+    property bool   isBusy: false
+    property bool   canCreate: false
+    property string errorText: ""
     property var    dependencyTypeOptions: []
 
     signal createRequested()
     signal editRequested(var dependencyData)
     signal deleteRequested(var dependencyData)
+    signal selectionChanged(var dependencyData)
 
-    readonly property var    _items: root.dependenciesModel.items || []
-    property string          _selectedId: ""
-    readonly property var    _selectedItem: {
-        const id = root._selectedId
-        if (!id) return null
+    readonly property var _items: root.dependenciesModel.items || []
+    property string _selectedId: ""
+    function _itemForId(dependencyId) {
+        const id = String(dependencyId || "")
+        if (!id.length) return null
         const list = root._items
         for (let i = 0; i < list.length; i++) {
             if (String(list[i].id || "") === id) return list[i]
         }
         return null
     }
+    readonly property var _selectedItem: root._itemForId(root._selectedId)
 
     readonly property int _tableH: {
         const n = root._items.length
@@ -48,13 +50,19 @@ Item {
         { key: "statusLabel", label: "Status", flex: 0,   minWidth: 90, type: "status" }
     ]
 
+    function openEditSelected() {
+        if (root._selectedItem) {
+            _editPopup.openForItem(root._selectedItem)
+        }
+    }
+
     implicitHeight: _col.implicitHeight
 
     ColumnLayout {
         id: _col
-        anchors.left:  parent.left
+        anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top:   parent.top
+        anchors.top: parent.top
         spacing: 0
 
         AppWidgets.InlineMessage {
@@ -64,70 +72,48 @@ Item {
             message: root.errorText
         }
 
-        // Section toolbar — idle
         AppWidgets.ContextualActionToolbar {
             Layout.fillWidth: true
-            visible:  !root._selectedId
-            title:    "Dependencies"
+            title: "Dependencies"
             subtitle: root._items.length > 0 ? String(root._items.length) : ""
-            busy:     root.isBusy
+            busy: root.isBusy
             createLabel: root.canCreate ? "Add Dependency" : ""
             actions: []
             onCreateRequested: root.createRequested()
         }
 
-        // Section toolbar — row selected
-        AppWidgets.ContextualActionToolbar {
-            Layout.fillWidth: true
-            visible:  Boolean(root._selectedId)
-            showBack: true
-            title:    root._selectedItem ? String(root._selectedItem.title || "Dependency") : "Dependency"
-            subtitle: root._selectedItem ? String(root._selectedItem.subtitle || "") : ""
-            busy:     root.isBusy
-            actions: [
-                { id: "edit",   label: "Edit",   icon: "edit",   enabled: true },
-                { id: "remove", label: "Remove", icon: "delete", enabled: true, danger: true }
-            ]
-            onBackRequested: root._selectedId = ""
-            onActionTriggered: function(actionId) {
-                if (actionId === "edit" && root._selectedItem) {
-                    _editPopup.openForItem(root._selectedItem)
-                } else if (actionId === "remove" && root._selectedItem) {
-                    root.deleteRequested(root._selectedItem)
-                }
-            }
-        }
-
-        // DataTable
         Item {
             Layout.fillWidth: true
             height: root._tableH
 
             AppWidgets.DataTable {
-                anchors.fill:  parent
-                columns:       root._columns
-                sourceModel:   root.dependenciesTableModel
+                anchors.fill: parent
+                columns: root._columns
+                sourceModel: root.dependenciesTableModel
                 selectedRowId: root._selectedId
-                loading:       root.isBusy
-                emptyText:     root.dependenciesModel.emptyState || "No dependencies for this task."
+                loading: root.isBusy
+                emptyText: root.dependenciesModel.emptyState || "No dependencies for this task."
 
-                onRowSelected: function(rowId) { root._selectedId = rowId }
-                onRowActivated: function(rowId) { root._selectedId = rowId }
+                onRowSelected: function(rowId) {
+                    root._selectedId = rowId
+                    root.selectionChanged(root._itemForId(rowId))
+                }
+                onRowActivated: function(rowId) {
+                    root._selectedId = rowId
+                    root.selectionChanged(root._itemForId(rowId))
+                }
             }
         }
 
-        // Edit dependency dialog
         AppWidgets.EntityDialog {
             id: _editPopup
             title: "Edit Dependency"
-            standardButtons: Dialog.NoButton
 
             property var _item: null
 
             function openForItem(item) {
                 _item = item
                 const state = item.state || {}
-                // Pre-select dependency type
                 const typeVal = String(state.dependencyType || "FS")
                 const opts = root.dependencyTypeOptions || []
                 _typeCombo.currentIndex = -1
@@ -210,9 +196,9 @@ Item {
                             if (!selected) return
                             _editError.message = ""
                             root.editRequested({
-                                "dependencyId":   String(state.dependencyId || _editPopup._item.id || ""),
+                                "dependencyId": String(state.dependencyId || _editPopup._item.id || ""),
                                 "dependencyType": String(selected.value || "FS"),
-                                "lagDays":        parseInt(_lagField.text || "0", 10) || 0
+                                "lagDays": parseInt(_lagField.text || "0", 10) || 0
                             })
                             _editPopup.close()
                         }
