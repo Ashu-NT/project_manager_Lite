@@ -14,7 +14,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.infra.persistence.orm import Base
+from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.platform.infrastructure.persistence.repositories.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
@@ -22,6 +23,7 @@ from src.core.platform.infrastructure.persistence.repositories.enterprise_calend
     SqlAlchemyCalendarWorkingRuleRepository,
     SqlAlchemyPlatformCalendarRepository,
 )
+from src.infra.persistence.orm import Base
 from src.core.modules.project_management.infrastructure.persistence.repositories.calendar_assignment import (
     SqlAlchemyProjectCalendarAssignmentRepository,
     SqlAlchemyResourceCalendarAssignmentRepository,
@@ -197,15 +199,33 @@ def global_cal(cal_service, org_id, rule_service):
     return cal
 
 
+def _seed_project(db_session, tenant_context, project_id: str) -> None:
+    ctx = tenant_context.require_organization_context()
+    if db_session.get(ProjectORM, project_id) is not None:
+        return
+    db_session.add(
+        ProjectORM(
+            id=project_id,
+            tenant_id=ctx.tenant_id,
+            organization_id=ctx.organization_id,
+            name=f"Project {project_id}",
+            status=ProjectStatus.PLANNED,
+            version=1,
+        )
+    )
+    db_session.commit()
+
+
 # ---------------------------------------------------------------------------
 # BoundProjectCalendar tests
 # ---------------------------------------------------------------------------
 
 
 def test_bound_project_calendar_is_working_day_uses_enterprise(
-    global_cal, adapter, assignment_service
+    global_cal, adapter, assignment_service, db_session, tenant_context
 ):
     """When project has a calendar assignment, BoundProjectCalendar uses enterprise resolver."""
+    _seed_project(db_session, tenant_context, "proj-bind-test")
     assignment_service.assign_project_calendar("proj-bind-test", global_cal.id)
     bound = BoundProjectCalendar(adapter, "proj-bind-test")
 
@@ -215,7 +235,10 @@ def test_bound_project_calendar_is_working_day_uses_enterprise(
     assert bound.is_working_day(date(2026, 6, 6)) is False
 
 
-def test_bound_project_calendar_add_working_days(global_cal, adapter, assignment_service):
+def test_bound_project_calendar_add_working_days(
+    global_cal, adapter, assignment_service, db_session, tenant_context
+):
+    _seed_project(db_session, tenant_context, "proj-add-test")
     assignment_service.assign_project_calendar("proj-add-test", global_cal.id)
     bound = BoundProjectCalendar(adapter, "proj-add-test")
 
@@ -224,7 +247,10 @@ def test_bound_project_calendar_add_working_days(global_cal, adapter, assignment
     assert result == date(2026, 6, 5)
 
 
-def test_bound_project_calendar_working_days_between(global_cal, adapter, assignment_service):
+def test_bound_project_calendar_working_days_between(
+    global_cal, adapter, assignment_service, db_session, tenant_context
+):
+    _seed_project(db_session, tenant_context, "proj-between-test")
     assignment_service.assign_project_calendar("proj-between-test", global_cal.id)
     bound = BoundProjectCalendar(adapter, "proj-between-test")
 
@@ -233,7 +259,10 @@ def test_bound_project_calendar_working_days_between(global_cal, adapter, assign
     assert count == 5
 
 
-def test_bound_project_calendar_next_working_day(global_cal, adapter, assignment_service):
+def test_bound_project_calendar_next_working_day(
+    global_cal, adapter, assignment_service, db_session, tenant_context
+):
+    _seed_project(db_session, tenant_context, "proj-next-test")
     assignment_service.assign_project_calendar("proj-next-test", global_cal.id)
     bound = BoundProjectCalendar(adapter, "proj-next-test")
 
@@ -276,9 +305,10 @@ def test_bind_for_project_returns_bound_when_only_global_exists(global_cal, adap
 
 
 def test_bind_for_project_returns_bound_when_assigned(
-    global_cal, adapter, assignment_service
+    global_cal, adapter, assignment_service, db_session, tenant_context
 ):
     """When project has a calendar, bind_for_project returns a BoundProjectCalendar."""
+    _seed_project(db_session, tenant_context, "proj-assigned")
     assignment_service.assign_project_calendar("proj-assigned", global_cal.id)
     bound = adapter.bind_for_project("proj-assigned")
     assert bound is not None
@@ -286,7 +316,7 @@ def test_bind_for_project_returns_bound_when_assigned(
 
 
 def test_project_calendar_overrides_weekend_via_bound(
-    global_cal, cal_service, rule_service, assignment_service, adapter, org_id
+    global_cal, cal_service, rule_service, assignment_service, adapter, org_id, db_session, tenant_context
 ):
     """Project calendar with Saturday working hours produces working day on Saturday via bound adapter."""
     project_cal = cal_service.create_calendar(
@@ -301,6 +331,7 @@ def test_project_calendar_overrides_weekend_via_bound(
         start_time=time(8, 0),
         end_time=time(14, 0),
     )
+    _seed_project(db_session, tenant_context, "proj-sat")
     assignment_service.assign_project_calendar("proj-sat", project_cal.id)
 
     bound = adapter.bind_for_project("proj-sat")
@@ -343,7 +374,7 @@ def test_scheduling_engine_falls_back_to_base_calendar_when_not_bootstrapped(
 
 
 def test_scheduling_engine_uses_enterprise_calendar_when_assigned(
-    global_cal, adapter, assignment_service
+    global_cal, adapter, assignment_service, db_session, tenant_context
 ):
     """
     SchedulingEngine swaps to BoundProjectCalendar when a project calendar is assigned.
@@ -352,6 +383,7 @@ def test_scheduling_engine_uses_enterprise_calendar_when_assigned(
     from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
     from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 
+    _seed_project(db_session, tenant_context, "proj-enterprise-cal")
     assignment_service.assign_project_calendar("proj-enterprise-cal", global_cal.id)
 
     mock_cal = MagicMock(spec=CalendarProtocol)

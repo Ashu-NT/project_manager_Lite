@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.domain.calendar.assignment import (
@@ -15,6 +15,12 @@ from src.core.modules.project_management.infrastructure.persistence.orm.calendar
     ProjectCalendarAssignmentORM,
     ResourceCalendarAssignmentORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.repositories._tenant_scope import (
+    ProjectManagementParentScopedRepositorySupport,
+)
+from src.core.platform.tenancy.tenant_context import TenantContextService
 
 
 def _project_from_orm(obj: ProjectCalendarAssignmentORM) -> ProjectCalendarAssignment:
@@ -51,49 +57,85 @@ def _is_effective(effective_from, effective_to, at_date: date | None) -> bool:
     return True
 
 
-class SqlAlchemyProjectCalendarAssignmentRepository:
+class SqlAlchemyProjectCalendarAssignmentRepository(
+    ProjectManagementParentScopedRepositorySupport
+):
+    _repository_label = "Project calendar assignment repository"
+
     def __init__(self, session: Session) -> None:
+        self.session = session
         self._session = session
+        self._tenant_context_service: TenantContextService | None = None
+
+    def _project_assignment_scoped_stmt(self, *, operation_label: str):
+        return self._scoped_stmt_for_anchor(
+            ProjectCalendarAssignmentORM,
+            ProjectORM,
+            joins=((ProjectORM, ProjectCalendarAssignmentORM.project_id == ProjectORM.id),),
+            operation_label=operation_label,
+        )
+
+    def _ensure_project_in_scope(self, project_id: str) -> None:
+        self._require_anchor_in_scope(
+            ProjectORM,
+            project_id,
+            operation_label="manage project calendar assignments",
+            not_found_message="Project not found.",
+        )
 
     def get(
         self, project_id: str, *, at_date: date | None = None
     ) -> ProjectCalendarAssignment | None:
-        stmt = select(ProjectCalendarAssignmentORM).where(
+        stmt = self._project_assignment_scoped_stmt(
+            operation_label="access project calendar assignments"
+        ).where(
             ProjectCalendarAssignmentORM.project_id == project_id
         ).order_by(
             ProjectCalendarAssignmentORM.priority.desc(),
             ProjectCalendarAssignmentORM.is_default.desc(),
         )
-        rows = self._session.execute(stmt).scalars().all()
+        rows = self.session.execute(stmt).scalars().all()
         for row in rows:
             if _is_effective(row.effective_from, row.effective_to, at_date):
                 return _project_from_orm(row)
         return None
 
     def list_for_project(self, project_id: str) -> list[ProjectCalendarAssignment]:
-        stmt = select(ProjectCalendarAssignmentORM).where(
+        stmt = self._project_assignment_scoped_stmt(
+            operation_label="access project calendar assignments"
+        ).where(
             ProjectCalendarAssignmentORM.project_id == project_id
         ).order_by(ProjectCalendarAssignmentORM.priority.desc())
-        rows = self._session.execute(stmt).scalars().all()
+        rows = self.session.execute(stmt).scalars().all()
         return [_project_from_orm(r) for r in rows]
 
     def list_for_calendar(self, calendar_id: str) -> list[ProjectCalendarAssignment]:
-        stmt = select(ProjectCalendarAssignmentORM).where(
+        stmt = self._project_assignment_scoped_stmt(
+            operation_label="access project calendar assignments"
+        ).where(
             ProjectCalendarAssignmentORM.calendar_id == calendar_id
         )
-        rows = self._session.execute(stmt).scalars().all()
+        rows = self.session.execute(stmt).scalars().all()
         return [_project_from_orm(r) for r in rows]
 
     def save(self, assignment: ProjectCalendarAssignment) -> None:
-        existing = self._session.get(ProjectCalendarAssignmentORM, assignment.id)
+        self._ensure_project_in_scope(assignment.project_id)
+        existing = self._get_via_anchor_in_scope(
+            ProjectCalendarAssignmentORM,
+            ProjectORM,
+            joins=((ProjectORM, ProjectCalendarAssignmentORM.project_id == ProjectORM.id),),
+            record_id=assignment.id,
+            operation_label="manage project calendar assignments",
+        )
         if existing:
+            existing.project_id = assignment.project_id
             existing.calendar_id = assignment.calendar_id
             existing.effective_from = assignment.effective_from
             existing.effective_to = assignment.effective_to
             existing.is_default = assignment.is_default
             existing.priority = assignment.priority
         else:
-            self._session.add(
+            self.session.add(
                 ProjectCalendarAssignmentORM(
                     id=assignment.id,
                     project_id=assignment.project_id,
@@ -106,54 +148,100 @@ class SqlAlchemyProjectCalendarAssignmentRepository:
             )
 
     def delete(self, assignment_id: str) -> None:
-        self._session.query(ProjectCalendarAssignmentORM).filter_by(
-            id=assignment_id
-        ).delete()
+        scoped_ids = (
+            self._project_assignment_scoped_stmt(
+                operation_label="manage project calendar assignments"
+            )
+            .where(ProjectCalendarAssignmentORM.id == assignment_id)
+            .with_only_columns(ProjectCalendarAssignmentORM.id)
+            .scalar_subquery()
+        )
+        self.session.execute(
+            delete(ProjectCalendarAssignmentORM).where(
+                ProjectCalendarAssignmentORM.id == scoped_ids
+            )
+        )
 
 
-class SqlAlchemyResourceCalendarAssignmentRepository:
+class SqlAlchemyResourceCalendarAssignmentRepository(
+    ProjectManagementParentScopedRepositorySupport
+):
+    _repository_label = "Resource calendar assignment repository"
+
     def __init__(self, session: Session) -> None:
+        self.session = session
         self._session = session
+        self._tenant_context_service: TenantContextService | None = None
+
+    def _resource_assignment_scoped_stmt(self, *, operation_label: str):
+        return self._scoped_stmt_for_anchor(
+            ResourceCalendarAssignmentORM,
+            ResourceORM,
+            joins=((ResourceORM, ResourceCalendarAssignmentORM.resource_id == ResourceORM.id),),
+            operation_label=operation_label,
+        )
+
+    def _ensure_resource_in_scope(self, resource_id: str) -> None:
+        self._require_anchor_in_scope(
+            ResourceORM,
+            resource_id,
+            operation_label="manage resource calendar assignments",
+            not_found_message="Resource not found.",
+        )
 
     def get(
         self, resource_id: str, *, at_date: date | None = None
     ) -> ResourceCalendarAssignment | None:
-        stmt = select(ResourceCalendarAssignmentORM).where(
+        stmt = self._resource_assignment_scoped_stmt(
+            operation_label="access resource calendar assignments"
+        ).where(
             ResourceCalendarAssignmentORM.resource_id == resource_id
         ).order_by(
             ResourceCalendarAssignmentORM.priority.desc(),
             ResourceCalendarAssignmentORM.is_default.desc(),
         )
-        rows = self._session.execute(stmt).scalars().all()
+        rows = self.session.execute(stmt).scalars().all()
         for row in rows:
             if _is_effective(row.effective_from, row.effective_to, at_date):
                 return _resource_from_orm(row)
         return None
 
     def list_for_resource(self, resource_id: str) -> list[ResourceCalendarAssignment]:
-        stmt = select(ResourceCalendarAssignmentORM).where(
+        stmt = self._resource_assignment_scoped_stmt(
+            operation_label="access resource calendar assignments"
+        ).where(
             ResourceCalendarAssignmentORM.resource_id == resource_id
         ).order_by(ResourceCalendarAssignmentORM.priority.desc())
-        rows = self._session.execute(stmt).scalars().all()
+        rows = self.session.execute(stmt).scalars().all()
         return [_resource_from_orm(r) for r in rows]
 
     def list_for_calendar(self, calendar_id: str) -> list[ResourceCalendarAssignment]:
-        stmt = select(ResourceCalendarAssignmentORM).where(
+        stmt = self._resource_assignment_scoped_stmt(
+            operation_label="access resource calendar assignments"
+        ).where(
             ResourceCalendarAssignmentORM.calendar_id == calendar_id
         )
-        rows = self._session.execute(stmt).scalars().all()
+        rows = self.session.execute(stmt).scalars().all()
         return [_resource_from_orm(r) for r in rows]
 
     def save(self, assignment: ResourceCalendarAssignment) -> None:
-        existing = self._session.get(ResourceCalendarAssignmentORM, assignment.id)
+        self._ensure_resource_in_scope(assignment.resource_id)
+        existing = self._get_via_anchor_in_scope(
+            ResourceCalendarAssignmentORM,
+            ResourceORM,
+            joins=((ResourceORM, ResourceCalendarAssignmentORM.resource_id == ResourceORM.id),),
+            record_id=assignment.id,
+            operation_label="manage resource calendar assignments",
+        )
         if existing:
+            existing.resource_id = assignment.resource_id
             existing.calendar_id = assignment.calendar_id
             existing.effective_from = assignment.effective_from
             existing.effective_to = assignment.effective_to
             existing.is_default = assignment.is_default
             existing.priority = assignment.priority
         else:
-            self._session.add(
+            self.session.add(
                 ResourceCalendarAssignmentORM(
                     id=assignment.id,
                     resource_id=assignment.resource_id,
@@ -166,9 +254,19 @@ class SqlAlchemyResourceCalendarAssignmentRepository:
             )
 
     def delete(self, assignment_id: str) -> None:
-        self._session.query(ResourceCalendarAssignmentORM).filter_by(
-            id=assignment_id
-        ).delete()
+        scoped_ids = (
+            self._resource_assignment_scoped_stmt(
+                operation_label="manage resource calendar assignments"
+            )
+            .where(ResourceCalendarAssignmentORM.id == assignment_id)
+            .with_only_columns(ResourceCalendarAssignmentORM.id)
+            .scalar_subquery()
+        )
+        self.session.execute(
+            delete(ResourceCalendarAssignmentORM).where(
+                ResourceCalendarAssignmentORM.id == scoped_ids
+            )
+        )
 
 
 __all__ = [

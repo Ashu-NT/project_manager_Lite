@@ -13,7 +13,13 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.infra.persistence.orm import Base
+from src.core.modules.project_management.domain.enums import (
+    CostType,
+    ProjectStatus,
+    WorkerType,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
 from src.core.platform.infrastructure.persistence.repositories.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
@@ -21,6 +27,7 @@ from src.core.platform.infrastructure.persistence.repositories.enterprise_calend
     SqlAlchemyCalendarWorkingRuleRepository,
     SqlAlchemyPlatformCalendarRepository,
 )
+from src.infra.persistence.orm import Base
 from src.core.modules.project_management.infrastructure.persistence.repositories.calendar_assignment import (
     SqlAlchemyProjectCalendarAssignmentRepository,
     SqlAlchemyResourceCalendarAssignmentRepository,
@@ -228,6 +235,45 @@ def global_cal(cal_service, org_id, rule_service):
     return cal
 
 
+def _seed_project(db_session, tenant_context, project_id: str) -> None:
+    ctx = tenant_context.require_organization_context()
+    if db_session.get(ProjectORM, project_id) is not None:
+        return
+    db_session.add(
+        ProjectORM(
+            id=project_id,
+            tenant_id=ctx.tenant_id,
+            organization_id=ctx.organization_id,
+            name=f"Project {project_id}",
+            status=ProjectStatus.PLANNED,
+            version=1,
+        )
+    )
+    db_session.commit()
+
+
+def _seed_resource(db_session, tenant_context, resource_id: str) -> None:
+    ctx = tenant_context.require_organization_context()
+    if db_session.get(ResourceORM, resource_id) is not None:
+        return
+    db_session.add(
+        ResourceORM(
+            id=resource_id,
+            tenant_id=ctx.tenant_id,
+            organization_id=ctx.organization_id,
+            name=f"Resource {resource_id}",
+            role="Planner",
+            hourly_rate=100.0,
+            is_active=True,
+            capacity_percent=100.0,
+            cost_type=CostType.LABOR,
+            worker_type=WorkerType.EXTERNAL,
+            version=1,
+        )
+    )
+    db_session.commit()
+
+
 def _make_resource_repo(resource_id, worker_type="EXTERNAL", employee_id=None):
     from dataclasses import dataclass
     from unittest.mock import MagicMock
@@ -257,13 +303,14 @@ def _make_resource_repo(resource_id, worker_type="EXTERNAL", employee_id=None):
 
 
 def test_project_calendar_assigned_and_resolved(
-    global_cal, cal_service, assignment_service, resolver, org_id
+    global_cal, cal_service, assignment_service, resolver, org_id, db_session, tenant_context
 ):
     project_cal = cal_service.create_calendar(
         code="PRJ-REFIT",
         name="Refit Project",
         calendar_type=CalendarType.PROJECT.value,
     )
+    _seed_project(db_session, tenant_context, "proj-001")
     assignment_service.assign_project_calendar("proj-001", project_cal.id)
 
     chain = resolver.get_source_chain(project_id="proj-001")
@@ -271,7 +318,7 @@ def test_project_calendar_assigned_and_resolved(
 
 
 def test_project_calendar_enables_weekend_work(
-    global_cal, cal_service, assignment_service, rule_service, resolver
+    global_cal, cal_service, assignment_service, rule_service, resolver, db_session, tenant_context
 ):
     project_cal = cal_service.create_calendar(
         code="PRJ-WEEKEND",
@@ -285,6 +332,7 @@ def test_project_calendar_enables_weekend_work(
         start_time=time(8, 0),
         end_time=time(14, 0),
     )
+    _seed_project(db_session, tenant_context, "proj-weekend")
     assignment_service.assign_project_calendar("proj-weekend", project_cal.id)
 
     ctx = resolver.resolve_calendar_context(
@@ -324,7 +372,7 @@ def test_project_calendar_adapter_add_working_days(
 
 
 def test_external_resource_uses_pm_resource_calendar(
-    global_cal, cal_service, assignment_service, resolver, rule_service
+    global_cal, cal_service, assignment_service, resolver, rule_service, db_session, tenant_context
 ):
     resource_cal = cal_service.create_calendar(
         code="RES-JDOE",
@@ -340,6 +388,7 @@ def test_external_resource_uses_pm_resource_calendar(
         break_minutes=0,
         hours_override=6.0,
     )
+    _seed_resource(db_session, tenant_context, "res-jdoe")
     assignment_service.assign_resource_calendar("res-jdoe", resource_cal.id)
 
     resource_repo = _make_resource_repo("res-jdoe", worker_type="EXTERNAL")
@@ -352,7 +401,7 @@ def test_external_resource_uses_pm_resource_calendar(
 
 
 def test_resource_calendar_overrides_working_hours(
-    global_cal, cal_service, assignment_service, resolver, rule_service
+    global_cal, cal_service, assignment_service, resolver, rule_service, db_session, tenant_context
 ):
     resource_cal = cal_service.create_calendar(
         code="RES-PARTTIME",
@@ -365,6 +414,7 @@ def test_resource_calendar_overrides_working_hours(
         is_working_day=True,
         hours_override=4.0,  # Part-time: 4h instead of 8h
     )
+    _seed_resource(db_session, tenant_context, "res-pt")
     assignment_service.assign_resource_calendar("res-pt", resource_cal.id)
 
     resource_repo = _make_resource_repo("res-pt", worker_type="EXTERNAL")
@@ -376,7 +426,7 @@ def test_resource_calendar_overrides_working_hours(
 
 
 def test_resource_exception_vacation_unavailable(
-    global_cal, cal_service, assignment_service, exc_service, resolver, rule_service
+    global_cal, cal_service, assignment_service, exc_service, resolver, rule_service, db_session, tenant_context
 ):
     resource_cal = cal_service.create_calendar(
         code="RES-VACATION",
@@ -386,6 +436,7 @@ def test_resource_exception_vacation_unavailable(
     rule_service.save_rule(
         resource_cal.id, weekday=0, is_working_day=True, hours_override=8.0
     )
+    _seed_resource(db_session, tenant_context, "res-vacation")
     assignment_service.assign_resource_calendar("res-vacation", resource_cal.id)
     exc_service.add_exception(
         resource_cal.id,
@@ -496,7 +547,7 @@ def test_employee_training_reduces_pm_resource_capacity(
 
 
 def test_employee_backed_resource_does_not_duplicate_employee_rules(
-    global_cal, cal_service, assignment_service, resolver, rule_service
+    global_cal, cal_service, assignment_service, resolver, rule_service, db_session, tenant_context
 ):
     """
     An employee-backed resource should inherit employee calendar.
@@ -517,6 +568,7 @@ def test_employee_backed_resource_does_not_duplicate_employee_rules(
         calendar_type=CalendarType.RESOURCE.value,
     )
     rule_service.save_rule(res_cal.id, weekday=0, is_working_day=True, hours_override=4.0)
+    _seed_resource(db_session, tenant_context, "res-nodupe")
     assignment_service.assign_resource_calendar("res-nodupe", res_cal.id)
 
     # Resource is EMPLOYEE-backed → should use employee calendar (8h), not resource calendar (4h)

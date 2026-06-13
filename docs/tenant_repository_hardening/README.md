@@ -29,6 +29,8 @@ The codebase is in a mixed state.
   joins.
 - Maintenance repositories now use shared scoped helpers across both tenant-root
   records and parent-scoped secondary records.
+- Project-management portfolio and remaining secondary repositories now use the
+  same helper pattern for parent-scoped project/resource/task ownership.
 - Access-control repositories sat in a gray area between auth bootstrap and
   business-data scoping; they needed a narrower hardening pass than the rest of
   the platform repos.
@@ -66,9 +68,9 @@ These were the clearest enterprise gaps and the safest first hardening target:
   `TenantContextService` requirements instead of post-build optional wiring.
 - Inventory and Maintenance tenant-root repositories still stamp `tenant_id`
   conditionally instead of overwriting from runtime context.
-- Portfolio repositories still carry legacy `get_for_organization()` /
-  `list_for_organization()` transitional APIs and some unscoped `get()` /
-  `delete()` behavior.
+- Portfolio repositories are now tenant-scoped, but transitional
+  `get_for_organization()` / `list_for_organization()` APIs still remain in the
+  service contract and should be simplified later.
 - UI and controller follow-up is still needed for organization switching and
   tenant-aware settings behavior outside the PM repository tranche.
 
@@ -103,6 +105,9 @@ the brief.
   asset components, sensor readings, sensor source mappings, sensor exceptions,
   work-order execution records, task-step templates, preventive plan tasks,
   runtime plan instances, and downtime events.
+- Remaining PM secondary repositories now use shared PM scope helpers for
+  project resources, resource skills, certifications, task skill requirements,
+  PM calendar assignments, and portfolio repositories.
 
 ### Tenant-aware settings
 
@@ -131,6 +136,9 @@ New or expanded coverage now checks:
   organization rows, and reject foreign root updates
 - maintenance secondary repositories require `TenantContextService`, hide
   foreign rows, and reject cross-scope parent reassignments
+- portfolio and remaining PM secondary repositories require
+  `TenantContextService`, hide foreign rows, and reject cross-organization
+  child writes
 - unscoped tenant UI state is written to a namespaced key instead of a bare key
 
 ## Progress tracker
@@ -145,6 +153,7 @@ New or expanded coverage now checks:
 - Harden procurement header and child-line repositories
 - Harden maintenance tenant-root repositories
 - Harden maintenance secondary repositories
+- Harden portfolio and remaining PM secondary repositories
 - Add repository-focused regression tests
 - Add this follow-up README
 - Add tranche notes:
@@ -155,17 +164,19 @@ New or expanded coverage now checks:
   - `docs/tenant_repository_hardening/procurement_repository_hardening_round_2.md`
   - `docs/tenant_repository_hardening/maintenance_repository_hardening_round_1.md`
   - `docs/tenant_repository_hardening/maintenance_repository_hardening_round_2.md`
+  - `docs/tenant_repository_hardening/project_management_repository_hardening_round_2.md`
 
 ### Next recommended batches
 
-1. Portfolio and PM secondary repositories
-   - remove residual legacy compatibility methods once all callers have moved
-     to the scoped `list()` and `get()` contract
-   - harden `ProjectResourceRepository` and portfolio dependency flows
-
-2. Controller and settings follow-up
+1. Controller and settings follow-up
    - review organization switching permissions end-to-end
    - audit any remaining organization-scoped settings or caches
+
+2. Contract cleanup after repository stabilization
+   - remove residual legacy compatibility methods once all callers have moved
+     to the scoped `list()` and `get()` contract
+   - tighten constructor-time `TenantContextService` requirements where
+     post-build optional wiring still exists
 
 ## Notes
 
@@ -181,3 +192,5 @@ New or expanded coverage now checks:
   - maintenance repository + service suite: `38 passed`
   - maintenance desktop API suite: `10 passed`
   - broader maintenance secondary-repository verification suite: `74 passed`
+  - PM secondary repository + calendar integration suite: `33 passed`
+  - broader PM portfolio/project-resource regression suite: `21 passed`

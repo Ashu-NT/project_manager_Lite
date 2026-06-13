@@ -3,7 +3,14 @@
 ## Current state
 
 - Platform repository hardening rounds are completed.
-- Project management repository hardening rounds are completed.
+- Project-management repository hardening round 1 is implemented and verified:
+  - task, assignment, dependency, collaboration, cost, calendar, register, and
+    baseline repositories
+- Project-management repository hardening round 2 is implemented and verified:
+  - project resources
+  - portfolio intake, scenario, dependency, and scoring-template repositories
+  - resource skills, certifications, and task skill requirements
+  - PM project and resource calendar assignments
 - Access-control repository hardening is completed.
 - Inventory repository hardening round 1 is implemented:
   - catalog roots
@@ -43,8 +50,8 @@
 
 ## Next implementation order
 
-1. Portfolio and remaining PM secondary repositories
-2. Controller and settings follow-up
+1. Controller and settings follow-up
+2. Contract cleanup for remaining transitional repository APIs
 
 ## Execution notes
 
