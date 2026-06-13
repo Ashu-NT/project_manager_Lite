@@ -63,6 +63,7 @@ safe, and fixed the access-control security bypass.
 | Step | Change | Migration |
 |------|--------|-----------|
 | Fix Alembic chain (duplicate head) | Chain repaired | — |
+| Legacy desktop default-org backfill | Follow-on migration added after `t4u5v6w7x8y9` so Alembic keeps one Phase A branch | `t4u5v6w7x8z0` |
 | NOT NULL on projects/resources/approvals/audit_logs | `organization_id` made required | `t4u5v6w7x8y9` |
 | `organization_id` on employees (backfill via site) | Column + backfill | `u5v6w7x8y9z0` |
 | `organization_id` on time_entries (backfill via project) | Column + backfill | `v6w7x8y9z0a1` |

@@ -1,7 +1,7 @@
 """Add organization_id to employees with backfill from site and department.
 
 Revision ID: u5v6w7x8y9z0
-Revises: t4u5v6w7x8y9
+Revises: t4u5v6w7x8z0
 Create Date: 2026-06-12
 """
 
@@ -12,7 +12,7 @@ from alembic import op
 
 
 revision = "u5v6w7x8y9z0"
-down_revision = "t4u5v6w7x8y9"
+down_revision = "t4u5v6w7x8z0"
 branch_labels = None
 depends_on = None
 

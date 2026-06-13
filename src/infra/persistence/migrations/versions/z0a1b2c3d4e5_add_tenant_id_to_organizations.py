@@ -35,6 +35,22 @@ def _index_names(inspector: sa.Inspector, table_name: str) -> set[str]:
     return {idx["name"] for idx in inspector.get_indexes(table_name)}
 
 
+def _has_foreign_key(
+    inspector: sa.Inspector,
+    table_name: str,
+    *,
+    constrained_column: str,
+    referred_table: str,
+) -> bool:
+    if not _table_exists(inspector, table_name):
+        return False
+    return any(
+        constrained_column in foreign_key.get("constrained_columns", [])
+        and foreign_key.get("referred_table") == referred_table
+        for foreign_key in inspector.get_foreign_keys(table_name)
+    )
+
+
 def _first_scalar(connection: sa.Connection, sql: str) -> str | None:
     row = connection.execute(sa.text(sql)).first()
     if row is None:
@@ -91,15 +107,27 @@ def upgrade() -> None:
     # Add tenant_id column
     columns = _column_names(inspector, "organizations")
     if "tenant_id" not in columns:
-        op.add_column(
+        with op.batch_alter_table("organizations") as batch_op:
+            batch_op.add_column(sa.Column("tenant_id", sa.String(), nullable=True))
+        inspector = sa.inspect(connection)
+
+    if (
+        "tenant_id" in _column_names(inspector, "organizations")
+        and not _has_foreign_key(
+            inspector,
             "organizations",
-            sa.Column(
-                "tenant_id",
-                sa.String(),
-                sa.ForeignKey("tenants.id", ondelete="RESTRICT"),
-                nullable=True,
-            ),
+            constrained_column="tenant_id",
+            referred_table="tenants",
         )
+    ):
+        with op.batch_alter_table("organizations") as batch_op:
+            batch_op.create_foreign_key(
+                "fk_organizations_tenant_id",
+                "tenants",
+                ["tenant_id"],
+                ["id"],
+                ondelete="RESTRICT",
+            )
         inspector = sa.inspect(connection)
 
     # Create index
@@ -129,5 +157,12 @@ def downgrade() -> None:
     inspector = sa.inspect(connection)
     if "tenant_id" in _column_names(inspector, "organizations"):
         with op.batch_alter_table("organizations") as batch_op:
+            if _has_foreign_key(
+                inspector,
+                "organizations",
+                constrained_column="tenant_id",
+                referred_table="tenants",
+            ):
+                batch_op.drop_constraint("fk_organizations_tenant_id", type_="foreignkey")
             batch_op.drop_column("tenant_id")
     # Note: does NOT remove the default tenant row — downgrade only reverses the column.

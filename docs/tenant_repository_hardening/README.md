@@ -220,6 +220,10 @@ New or expanded coverage now checks:
 - Complete inventory + maintenance constructor tightening round 1 for service
   layer dependencies
 - Complete inventory + maintenance repository constructor tightening round 1
+- Repair the duplicate Alembic Phase A revision by re-chaining the
+  legacy-desktop backfill as its own follow-on migration
+- Convert SQLite-unsafe tenant migration FK column adds into batch-mode
+  add-column plus named foreign-key steps
 - Add repository-focused regression tests
 - Add this follow-up README
 - Add tranche notes:
@@ -252,8 +256,13 @@ New or expanded coverage now checks:
 
 ## Notes
 
-- There is an untracked migration file in the working tree:
-  `src/infra/persistence/migrations/versions/t4u5v6w7x8y9_backfill_default_organization_for_legacy_desktop_data.py`
+- Alembic Phase A chain repaired on 2026-06-13:
+  `src/infra/persistence/migrations/versions/t4u5v6w7x8z0_backfill_default_organization_for_legacy_desktop_data.py`
+  now follows `t4u5v6w7x8y9` instead of reusing the same revision id.
+- SQLite migration hardening on 2026-06-13:
+  `x8y9z0a1b2c3_add_user_role_organization_scope.py` and
+  `z0a1b2c3d4e5_add_tenant_id_to_organizations.py` now use batch-mode FK
+  creation so desktop startup can migrate SQLite databases cleanly.
 - Existing docs under `docs/TENANT_ISOLATION_EXECUTION_STATUS.md` and
   `docs/tenant_isolation_audit/README.md` still contain historical transition
   assumptions that do not fully match the current code. Keep this README as the

@@ -35,6 +35,47 @@ def _python_files(root: Path):
         yield path
 
 
+def _migration_metadata():
+    versions_root = ROOT / "src" / "infra" / "persistence" / "migrations" / "versions"
+    revisions: dict[str, Path] = {}
+    duplicates: dict[str, list[Path]] = {}
+    down_revisions: dict[str, tuple[str, ...]] = {}
+
+    for path in sorted(versions_root.glob("*.py")):
+        source = path.read_text(encoding="utf-8", errors="ignore")
+        tree = ast.parse(source)
+        revision = None
+        raw_down_revision = None
+
+        for node in tree.body:
+            if not isinstance(node, ast.Assign):
+                continue
+            for target in node.targets:
+                if not isinstance(target, ast.Name):
+                    continue
+                if target.id == "revision":
+                    revision = ast.literal_eval(node.value)
+                elif target.id == "down_revision":
+                    raw_down_revision = ast.literal_eval(node.value)
+
+        if not revision:
+            continue
+
+        if revision in revisions:
+            duplicates.setdefault(revision, [revisions[revision]]).append(path)
+        else:
+            revisions[revision] = path
+
+        if raw_down_revision is None:
+            down_revisions[revision] = ()
+        elif isinstance(raw_down_revision, str):
+            down_revisions[revision] = (raw_down_revision,)
+        else:
+            down_revisions[revision] = tuple(str(item) for item in raw_down_revision)
+
+    return revisions, duplicates, down_revisions
+
+
 def test_no_python_module_exceeds_hard_line_limit():
     offenders = []
     for path in _python_files(ROOT):
@@ -45,6 +86,67 @@ def test_no_python_module_exceeds_hard_line_limit():
         if lines > 1200:
             offenders.append((relative_path, lines))
     assert not offenders, f"Modules exceed hard 1200-line limit: {offenders}"
+
+
+def test_alembic_revisions_are_unique():
+    _, duplicates, _ = _migration_metadata()
+    duplicate_details = {
+        revision: [str(path.relative_to(ROOT)).replace("\\", "/") for path in paths]
+        for revision, paths in duplicates.items()
+    }
+    assert not duplicate_details, f"Duplicate Alembic revisions found: {duplicate_details}"
+
+
+def test_alembic_migration_graph_has_single_head():
+    revisions, _, down_revisions = _migration_metadata()
+    referenced_revisions = {
+        down_revision
+        for parent_revisions in down_revisions.values()
+        for down_revision in parent_revisions
+    }
+    heads = sorted(revision for revision in revisions if revision not in referenced_revisions)
+    assert len(heads) == 1, f"Alembic migration graph must have exactly one head, found: {heads}"
+
+
+def test_alembic_op_add_column_does_not_inline_foreign_keys():
+    versions_root = ROOT / "src" / "infra" / "persistence" / "migrations" / "versions"
+    offenders: list[str] = []
+
+    for path in sorted(versions_root.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8", errors="ignore"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if not (
+                isinstance(func, ast.Attribute)
+                and func.attr == "add_column"
+                and isinstance(func.value, ast.Name)
+                and func.value.id == "op"
+            ):
+                continue
+            for arg in node.args[1:]:
+                if not (
+                    isinstance(arg, ast.Call)
+                    and (
+                        (isinstance(arg.func, ast.Attribute) and arg.func.attr == "Column")
+                        or (isinstance(arg.func, ast.Name) and arg.func.id == "Column")
+                    )
+                ):
+                    continue
+                if any(
+                    isinstance(sub, ast.Call)
+                    and isinstance(sub.func, ast.Attribute)
+                    and sub.func.attr == "ForeignKey"
+                    for sub in arg.args
+                ):
+                    offenders.append(str(path.relative_to(ROOT)).replace("\\", "/"))
+                    break
+
+    assert not offenders, (
+        "SQLite-targeted Alembic migrations must not inline ForeignKey() inside "
+        f"op.add_column(...): {sorted(offenders)}"
+    )
 
 
 def test_core_layer_does_not_import_ui_layer():

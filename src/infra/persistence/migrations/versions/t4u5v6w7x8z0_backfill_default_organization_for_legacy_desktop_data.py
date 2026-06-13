@@ -1,7 +1,7 @@
 """Backfill legacy desktop tenant data into the DEFAULT organization.
 
-Revision ID: t4u5v6w7x8y9
-Revises: s2t3u4v5w6x7
+Revision ID: t4u5v6w7x8z0
+Revises: t4u5v6w7x8y9
 Create Date: 2026-06-12
 """
 
@@ -10,8 +10,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-revision = "t4u5v6w7x8y9"
-down_revision = "s2t3u4v5w6x7"
+revision = "t4u5v6w7x8z0"
+down_revision = "t4u5v6w7x8y9"
 branch_labels = None
 depends_on = None
 

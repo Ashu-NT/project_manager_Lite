@@ -33,6 +33,22 @@ def _index_names(inspector: sa.Inspector, table_name: str) -> set[str]:
     return {idx["name"] for idx in inspector.get_indexes(table_name)}
 
 
+def _has_foreign_key(
+    inspector: sa.Inspector,
+    table_name: str,
+    *,
+    constrained_column: str,
+    referred_table: str,
+) -> bool:
+    if not _table_exists(inspector, table_name):
+        return False
+    return any(
+        constrained_column in foreign_key.get("constrained_columns", [])
+        and foreign_key.get("referred_table") == referred_table
+        for foreign_key in inspector.get_foreign_keys(table_name)
+    )
+
+
 def upgrade() -> None:
     connection = op.get_bind()
     inspector = sa.inspect(connection)
@@ -42,15 +58,27 @@ def upgrade() -> None:
 
     columns = _column_names(inspector, "user_roles")
     if "organization_id" not in columns:
-        op.add_column(
+        with op.batch_alter_table("user_roles") as batch_op:
+            batch_op.add_column(sa.Column("organization_id", sa.String(), nullable=True))
+
+    inspector = sa.inspect(connection)
+    if (
+        "organization_id" in _column_names(inspector, "user_roles")
+        and not _has_foreign_key(
+            inspector,
             "user_roles",
-            sa.Column(
-                "organization_id",
-                sa.String(),
-                sa.ForeignKey("organizations.id", ondelete="CASCADE"),
-                nullable=True,
-            ),
+            constrained_column="organization_id",
+            referred_table="organizations",
         )
+    ):
+        with op.batch_alter_table("user_roles") as batch_op:
+            batch_op.create_foreign_key(
+                "fk_user_roles_organization_id",
+                "organizations",
+                ["organization_id"],
+                ["id"],
+                ondelete="CASCADE",
+            )
 
     inspector = sa.inspect(connection)
     if "idx_user_roles_organization" not in _index_names(inspector, "user_roles"):
@@ -67,4 +95,11 @@ def downgrade() -> None:
     inspector = sa.inspect(connection)
     if "organization_id" in _column_names(inspector, "user_roles"):
         with op.batch_alter_table("user_roles") as batch_op:
+            if _has_foreign_key(
+                inspector,
+                "user_roles",
+                constrained_column="organization_id",
+                referred_table="organizations",
+            ):
+                batch_op.drop_constraint("fk_user_roles_organization_id", type_="foreignkey")
             batch_op.drop_column("organization_id")
