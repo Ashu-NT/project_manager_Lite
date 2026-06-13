@@ -36,6 +36,10 @@ The guiding rules stay the same:
 - Completed in the current slice:
   - the remaining major PM workspaces now subscribe to the module-neutral domain-event bridge alongside their legacy event hooks
   - PM refresh behavior stays compatible while reducing dependence on PM-only signal wiring
+- Completed in the current slice:
+  - the task workspace no longer dispatches task-detail or collaboration-presence work through task-only Qt thread-pool workers
+  - task activation and task presence now stay on the same synchronous controller and shared-session path used by the rest of the PM QML module
+  - PM task controllers now have an architecture guardrail that blocks `QThreadPool` and `QRunnable` from re-entering this slice
 - Still intentionally transitional:
   - existing historical PM task-comment attachments remain readable through the legacy attachment list
   - PM time-entry site/department snapshots intentionally stay as historical strings
@@ -160,6 +164,26 @@ Non-goals for this slice:
 
 - no broker/process-wide async event transport
 - no forced removal of the older specific PM signal hooks
+
+### 7. Task Controller Sync Alignment
+
+Status: completed
+
+Scope:
+
+- remove the task-only background worker path used by task activation and collaboration presence updates
+- align the task controller flow with the rest of the PM QML controllers, which operate on the shared app-scoped service graph synchronously
+
+Acceptance notes:
+
+- task detail activation no longer uses `QThreadPool` or `QRunnable`
+- collaboration review/edit presence transitions stay functionally the same for users
+- architecture tests prevent task controller worker threads from being reintroduced accidentally
+
+Non-goals for this slice:
+
+- no rewrite of the broader PM refresh model
+- no new background job/session abstraction for QML controllers
 
 ## Guardrails
 

@@ -260,6 +260,32 @@ def test_legacy_widget_ui_roots_are_removed():
     assert not (ROOT / "src" / "ui").exists()
 
 
+def test_pm_task_controllers_do_not_spawn_background_workers():
+    tasks_controller_root = (
+        ROOT
+        / "src"
+        / "ui_qml"
+        / "modules"
+        / "project_management"
+        / "controllers"
+        / "tasks"
+    )
+    forbidden_tokens = ("QThreadPool", "QRunnable")
+    violations: list[tuple[str, str]] = []
+
+    for path in _python_files(tasks_controller_root):
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for token in forbidden_tokens:
+            if token in text:
+                relative_path = str(path.relative_to(ROOT)).replace("\\", "/")
+                violations.append((relative_path, token))
+
+    assert not violations, (
+        "PM task controllers must stay on the shared main-thread service path; "
+        f"background worker usage found: {violations}"
+    )
+
+
 
 def test_runtime_code_does_not_import_legacy_widget_ui():
     violations: list[tuple[str, str]] = []

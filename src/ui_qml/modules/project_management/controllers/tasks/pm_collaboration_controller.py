@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import logging
-from time import perf_counter
 from typing import Callable
 
-from PySide6.QtCore import Property, QObject, QRunnable, QThreadPool, QTimer, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src.ui_qml.modules.project_management.controllers.common import (
     run_mutation,
@@ -14,42 +12,6 @@ from src.ui_qml.modules.project_management.controllers.common import (
 from src.ui_qml.modules.project_management.presenters import (
     ProjectTasksWorkspacePresenter,
 )
-
-logger = logging.getLogger(__name__)
-
-
-class _PresenceWorkerSignals(QObject):
-    succeeded = Signal()
-
-
-class _PresenceWorker(QRunnable):
-    """Runs a single presence API call in a pool thread; emits succeeded only on success."""
-
-    def __init__(self, fn: Callable[[], None]) -> None:
-        super().__init__()
-        self.setAutoDelete(True)
-        self._fn = fn
-        self._signals = _PresenceWorkerSignals()
-
-    @property
-    def signals(self) -> _PresenceWorkerSignals:
-        return self._signals
-
-    def run(self) -> None:
-        started = perf_counter()
-        logger.debug("PM task presence worker start")
-        try:
-            self._fn()
-            self._signals.succeeded.emit()
-            logger.debug(
-                "PM task presence worker complete duration_ms=%.1f",
-                (perf_counter() - started) * 1000,
-            )
-        except Exception:
-            logger.exception(
-                "PM task presence worker failed duration_ms=%.1f",
-                (perf_counter() - started) * 1000,
-            )
 
 
 class PMCollaborationController(QObject):
@@ -83,13 +45,17 @@ class PMCollaborationController(QObject):
         self._collaboration_mention_options: list[dict[str, str]] = []
         self._collaboration_document_options: list[dict[str, str]] = []
         self._collaboration_comments: dict[str, object] = {
-            "title": "", "subtitle": "", "emptyState": "", "items": []
+            "title": "",
+            "subtitle": "",
+            "emptyState": "",
+            "items": [],
         }
         self._collaboration_presence: dict[str, object] = {
-            "title": "", "subtitle": "", "emptyState": "", "items": []
+            "title": "",
+            "subtitle": "",
+            "emptyState": "",
+            "items": [],
         }
-
-    # ── Populate from workspace state ────────────────────────────────
 
     def _update(self, workspace_state: object) -> None:
         self._set_collaboration_mention_options(
@@ -114,10 +80,9 @@ class PMCollaborationController(QObject):
         if self._presence_override_task_id:
             return
         if self._last_selected_task_id:
-            task_id = self._last_selected_task_id
-            QTimer.singleShot(0, lambda: self._set_task_presence(task_id, "reviewing"))
+            self._set_task_presence(self._last_selected_task_id, "reviewing")
             return
-        QTimer.singleShot(0, self._clear_current_task_presence)
+        self._clear_current_task_presence()
 
     def on_destroyed_cleanup(self, *_args: object) -> None:
         try:
@@ -125,8 +90,6 @@ class PMCollaborationController(QObject):
             self._clear_current_task_presence()
         except Exception:
             pass
-
-    # ── Properties ───────────────────────────────────────────────────
 
     @Property("QVariantList", notify=collaborationMentionOptionsChanged)
     def collaborationMentionOptions(self) -> list[dict[str, str]]:
@@ -144,8 +107,6 @@ class PMCollaborationController(QObject):
     def collaborationPresence(self) -> dict[str, object]:
         return self._collaboration_presence
 
-    # ── Presence slots ────────────────────────────────────────────────
-
     @Slot(str, str, result="QVariantMap")
     def beginTaskPresence(self, task_id: str, activity: str) -> dict[str, object]:
         normalized_task_id = (task_id or "").strip()
@@ -155,11 +116,13 @@ class PMCollaborationController(QObject):
                 "message": "Task ID is required to start a presence session.",
             }
         normalized_activity = (activity or "").strip() or "reviewing"
+        previous_override = self._presence_override_task_id
         try:
             self._presence_override_task_id = normalized_task_id
             self._set_task_presence(normalized_task_id, normalized_activity)
             return {"ok": True, "message": ""}
         except Exception as exc:  # pragma: no cover
+            self._presence_override_task_id = previous_override
             self._set_error_message(str(exc))
             return {"ok": False, "message": str(exc)}
 
@@ -177,8 +140,6 @@ class PMCollaborationController(QObject):
         except Exception as exc:  # pragma: no cover
             self._set_error_message(str(exc))
             return {"ok": False, "message": str(exc)}
-
-    # ── Mutation slots ────────────────────────────────────────────────
 
     @Slot("QVariantMap", result="QVariantMap")
     def postTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
@@ -202,8 +163,6 @@ class PMCollaborationController(QObject):
             set_feedback_message=self._set_feedback_message,
         )
 
-    # ── Private presence helpers ──────────────────────────────────────
-
     def _set_task_presence(self, task_id: str, activity: str) -> None:
         norm_id = (task_id or "").strip()
         norm_act = (activity or "").strip() or "reviewing"
@@ -215,6 +174,8 @@ class PMCollaborationController(QObject):
             and norm_act == self._presence_session_activity
         ):
             return
+        # Keep presence updates on the controller path because the presenter
+        # reuses the app-scoped service graph and shared ORM session.
         if self._presence_session_task_id and (
             self._presence_session_task_id != norm_id
             or self._presence_session_activity != norm_act
@@ -222,28 +183,13 @@ class PMCollaborationController(QObject):
             old_id = self._presence_session_task_id
             self._presence_session_task_id = ""
             self._presence_session_activity = ""
-            QThreadPool.globalInstance().start(
-                _PresenceWorker(
-                    lambda: self._presenter.clear_task_collaboration_presence(old_id)
-                )
-            )
-        touch_id, touch_act = norm_id, norm_act
-        worker = _PresenceWorker(
-            lambda: self._presenter.touch_task_collaboration_presence(
-                touch_id, activity=touch_act
-            )
+            self._presenter.clear_task_collaboration_presence(old_id)
+        self._presenter.touch_task_collaboration_presence(
+            norm_id,
+            activity=norm_act,
         )
-        # Only record session state after the touch actually succeeds — if touch
-        # fails (e.g. permission error), _presence_session_task_id stays empty so
-        # the matching clear call is never attempted and no spurious domain events fire.
-        worker.signals.succeeded.connect(
-            lambda: self._on_touch_presence_succeeded(touch_id, touch_act)
-        )
-        QThreadPool.globalInstance().start(worker)
-
-    def _on_touch_presence_succeeded(self, task_id: str, activity: str) -> None:
-        self._presence_session_task_id = task_id
-        self._presence_session_activity = activity
+        self._presence_session_task_id = norm_id
+        self._presence_session_activity = norm_act
 
     def _clear_current_task_presence(self) -> None:
         if not self._presence_session_task_id:
@@ -251,13 +197,7 @@ class PMCollaborationController(QObject):
         clear_id = self._presence_session_task_id
         self._presence_session_task_id = ""
         self._presence_session_activity = ""
-        QThreadPool.globalInstance().start(
-            _PresenceWorker(
-                lambda: self._presenter.clear_task_collaboration_presence(clear_id)
-            )
-        )
-
-    # ── Private setters ───────────────────────────────────────────────
+        self._presenter.clear_task_collaboration_presence(clear_id)
 
     def _set_collaboration_mention_options(self, v: list) -> None:
         if v == self._collaboration_mention_options:
