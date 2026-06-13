@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.core.platform.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.auth.contracts import (
     AuthSessionRepository,
     PermissionRepository,
@@ -150,6 +151,7 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
         bind = self.session.get_bind()
         normalized_tenant_id = str(last_active_tenant_id or "").strip() or None
         normalized_organization_id = str(last_active_organization_id or "").strip() or None
+        normalized_updated_at = ensure_utc_datetime(updated_at)
         with Session(bind=bind) as temp_session:
             obj = temp_session.get(AuthSessionORM, session_id)
             if obj is None:
@@ -161,7 +163,7 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
                 return False
             obj.last_active_tenant_id = normalized_tenant_id
             obj.last_active_organization_id = normalized_organization_id
-            obj.updated_at = updated_at
+            obj.updated_at = normalized_updated_at
             temp_session.commit()
             return True
 
@@ -178,7 +180,7 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
             obj = temp_session.get(AuthSessionORM, session_id)
             if obj is None:
                 return False
-            current_validated_at = obj.last_validated_at
+            current_validated_at = ensure_utc_datetime(obj.last_validated_at)
             if (
                 current_validated_at is not None
                 and min_elapsed_seconds > 0

@@ -275,6 +275,9 @@ class UserSessionContext:
             return None
         return str(getattr(principal, "active_tenant_id", "") or "").strip() or None
 
+    def stored_active_tenant_id(self) -> str | None:
+        return str(self._active_tenant_id or "").strip() or None
+
     def set_active_organization_id(self, organization_id: str | None) -> None:
         normalized = str(organization_id or "").strip() or None
         if normalized == self._active_organization_id:
@@ -299,6 +302,9 @@ class UserSessionContext:
             return principal_organization_id
         organization_ids = sorted(self.organization_ids())
         return organization_ids[0] if len(organization_ids) == 1 else None
+
+    def stored_active_organization_id(self) -> str | None:
+        return str(self._active_organization_id or "").strip() or None
 
     def is_scope_restricted(self, scope_type: str) -> bool:
         principal = self._active_principal()

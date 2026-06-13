@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from src.core.platform.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.auth.mfa import generate_totp_code
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.infrastructure.persistence.orm.auth import AuthSessionORM
@@ -239,7 +240,6 @@ def test_auth_service_persists_sessions_and_supports_single_session_revocation(s
 def test_auth_service_restores_last_active_context_on_reauthentication(services):
     auth = services["auth_service"]
     user_session = services["user_session"]
-    runtime_service = services["platform_runtime_application_service"]
     organization_service = services["organization_service"]
 
     restored_org = organization_service.create_organization(
@@ -247,9 +247,9 @@ def test_auth_service_restores_last_active_context_on_reauthentication(services)
         display_name="Restore Org",
         timezone_name="UTC",
         base_currency="USD",
-        is_active=False,
+        is_active=True,
     )
-    runtime_service.set_active_organization(restored_org.id)
+    organization_service.set_active_organization(restored_org.id)
     current_principal = user_session.principal
 
     assert current_principal is not None
@@ -298,5 +298,5 @@ def test_validate_session_principal_updates_last_validated_at(services):
 
     assert refreshed_auth_session is not None
     assert refreshed_auth_session.last_validated_at is not None
-    assert refreshed_auth_session.last_validated_at > stale_validation_time
+    assert ensure_utc_datetime(refreshed_auth_session.last_validated_at) > stale_validation_time
 

@@ -64,6 +64,10 @@ def refresh_current_session_if_user(service: AuthService, user_id: str) -> None:
         service._user_session.clear()
         return
     preferred_session_id = resolve_current_principal_session_id(service, user_id)
+    current_session_id = str(getattr(principal, "session_id", "") or "").strip() or None
+    if service._auth_session_repo is not None and current_session_id is not None and preferred_session_id is None:
+        service._user_session.clear()
+        return
     service._user_session.set_principal(build_principal(service, user, session_id=preferred_session_id))
 
 
@@ -138,8 +142,8 @@ def persist_session_context(service: AuthService, session_context) -> None:
     try:
         service._auth_session_repo.persist_context(
             session_id,
-            last_active_tenant_id=session_context.active_tenant_id(),
-            last_active_organization_id=session_context.active_organization_id(),
+            last_active_tenant_id=session_context.stored_active_tenant_id(),
+            last_active_organization_id=session_context.stored_active_organization_id(),
             updated_at=datetime.now(timezone.utc),
         )
     except Exception:
