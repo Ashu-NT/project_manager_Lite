@@ -62,7 +62,7 @@ def list_resources_for_context(
             for rid in (resource_ids or ())
             if str(rid or "").strip()
         })
-        scoped_resources = list(resource_repo.list_for_organization(organization_id))
+        scoped_resources = list(resource_repo.list())
         if normalized_ids:
             resources = [
                 resource

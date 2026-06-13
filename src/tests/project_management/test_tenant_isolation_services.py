@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pytest
+
+from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.domain.projects.project import Project
@@ -8,7 +11,7 @@ from src.core.platform.auth.domain.session import UserSessionContext, UserSessio
 from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
 from src.core.platform.calendar.application.shift_pattern_service import ShiftPatternService
 from src.core.platform.calendar.domain.enterprise_calendar import PlatformCalendar, ShiftPattern
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.department.application.department_service import DepartmentService
 from src.core.platform.department.domain import Department
 from src.core.platform.documents.application.document_service import DocumentService
@@ -213,6 +216,22 @@ def test_project_service_lists_only_active_tenant_projects() -> None:
     assert [row.id for row in rows] == ["project-a"]
     assert project_repo.list_calls == 1
     assert service.get_project("project-b") is None
+
+
+def test_portfolio_service_requires_tenant_context_service() -> None:
+    with pytest.raises(BusinessRuleError, match="PortfolioService requires TenantContextService"):
+        PortfolioService(
+            session=object(),
+            intake_repo=object(),
+            dependency_repo=object(),
+            scoring_template_repo=object(),
+            scenario_repo=object(),
+            audit_repo=object(),
+            project_repo=object(),
+            resource_repo=object(),
+            reporting_service=object(),
+            tenant_context_service=None,
+        )
 
 
 def test_resource_service_lists_only_active_tenant_resources() -> None:

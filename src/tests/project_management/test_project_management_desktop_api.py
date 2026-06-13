@@ -1023,12 +1023,8 @@ def test_project_management_tasks_desktop_api_falls_back_to_task_scope_without_p
         def __init__(self, projects):
             self._projects = {project.id: project for project in projects}
 
-        def list_for_organization(self, organization_id):
-            return [
-                project
-                for project in self._projects.values()
-                if getattr(project, "organization_id", organization_id) == organization_id
-            ]
+        def list(self):
+            return list(self._projects.values())
 
         def get(self, project_id):
             return self._projects.get(project_id)
@@ -1241,7 +1237,7 @@ def test_project_management_tasks_desktop_api_lists_assignments_without_resource
         def __init__(self, resources):
             self._resources = {resource.id: resource for resource in resources}
 
-        def list_for_organization(self, organization_id):
+        def list(self):
             return list(self._resources.values())
 
         def get(self, resource_id):

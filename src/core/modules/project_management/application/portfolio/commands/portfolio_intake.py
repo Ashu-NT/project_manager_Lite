@@ -59,8 +59,8 @@ class PortfolioIntakeCommandMixin:
 
     def update_intake_item(self, item_id: str, **changes) -> PortfolioIntakeItem:
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio intake")
-        organization_id = self._active_portfolio_organization_id(operation_label="update portfolio intake")
-        item = self._intake_repo.get_for_organization(item_id, organization_id)
+        self._active_portfolio_organization_id(operation_label="update portfolio intake")
+        item = self._intake_repo.get(item_id)
         if item is None:
             raise NotFoundError("Portfolio intake item not found.", code="PORTFOLIO_INTAKE_NOT_FOUND")
         if "title" in changes and changes["title"] is not None:

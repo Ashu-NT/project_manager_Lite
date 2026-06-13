@@ -53,10 +53,16 @@
     context from `platformRuntimeApi.get_runtime_context()`
   - PM task-view fallback settings now use `tenant/__no_organization__/...`
     instead of bare keys
+- Project-management contract cleanup round 1 is implemented and verified:
+  - PM portfolio repositories now use scoped `get/list/delete` contracts
+  - PM project and resource callers no longer use explicit
+    `list_for_organization(...)` compatibility methods
+  - `PortfolioService` now requires `TenantContextService` at construction time
 
 ## Next implementation order
 
-1. Contract cleanup for remaining transitional repository APIs
+1. Constructor-time tenant-context tightening outside the completed PM slice
+2. Non-PM contract cleanup for remaining transitional repository APIs
 
 ## Execution notes
 
@@ -65,6 +71,8 @@
   maintenance root repositories.
 - Prefer shared runtime-context helpers when QML workspaces need the active
   organization id from the platform runtime API.
+- Prefer scoped repository `list()` / `get()` contracts once the active tenant
+  and organization are already enforced by the repository itself.
 - Require active organization context for repository reads and writes.
 - Scope `get(...)`, `get_by_*`, list, and delete behavior so foreign rows return
   `None` or `[]` and are not mutated.

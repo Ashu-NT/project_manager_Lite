@@ -12,19 +12,19 @@ from src.core.platform.common.exceptions import NotFoundError, ValidationError
 class PortfolioScenarioQueryMixin:
     def list_scenarios(self) -> list[PortfolioScenario]:
         require_permission(self._user_session, "portfolio.read", operation_label="view portfolio scenarios")
-        organization_id = self._active_portfolio_organization_id(operation_label="view portfolio scenarios")
-        return self._scenario_repo.list_for_organization(organization_id)
+        self._active_portfolio_organization_id(operation_label="view portfolio scenarios")
+        return self._scenario_repo.list()
 
     def evaluate_scenario(self, scenario_id: str) -> PortfolioScenarioEvaluation:
         require_permission(self._user_session, "portfolio.read", operation_label="evaluate portfolio scenario")
-        organization_id = self._active_portfolio_organization_id(operation_label="evaluate portfolio scenario")
-        scenario = self._scenario_repo.get_for_organization(scenario_id, organization_id)
+        self._active_portfolio_organization_id(operation_label="evaluate portfolio scenario")
+        scenario = self._scenario_repo.get(scenario_id)
         if scenario is None:
             raise NotFoundError("Portfolio scenario not found.", code="PORTFOLIO_SCENARIO_NOT_FOUND")
         projects = {project.id: project for project in self._accessible_projects()}
         intake_by_id = {
             item.id: item
-            for item in self._intake_repo.list_for_organization(organization_id)
+            for item in self._intake_repo.list()
         }
         selected_projects, selected_intake = self._scenario_selection(
             scenario,
@@ -100,17 +100,11 @@ class PortfolioScenarioQueryMixin:
                 code="PORTFOLIO_COMPARISON_DUPLICATE",
             )
 
-        organization_id = self._active_portfolio_organization_id(
+        self._active_portfolio_organization_id(
             operation_label="compare portfolio scenarios"
         )
-        base_scenario = self._scenario_repo.get_for_organization(
-            normalized_base,
-            organization_id,
-        )
-        candidate_scenario = self._scenario_repo.get_for_organization(
-            normalized_candidate,
-            organization_id,
-        )
+        base_scenario = self._scenario_repo.get(normalized_base)
+        candidate_scenario = self._scenario_repo.get(normalized_candidate)
         if base_scenario is None or candidate_scenario is None:
             raise NotFoundError("Portfolio scenario not found.", code="PORTFOLIO_SCENARIO_NOT_FOUND")
 
@@ -120,7 +114,7 @@ class PortfolioScenarioQueryMixin:
         accessible_projects = {project.id: project for project in self._accessible_projects()}
         intake_by_id = {
             item.id: item
-            for item in self._intake_repo.list_for_organization(organization_id)
+            for item in self._intake_repo.list()
         }
         base_projects, base_intake = self._scenario_selection(
             base_scenario,
@@ -163,8 +157,8 @@ class PortfolioScenarioQueryMixin:
         return comparison
 
     def _portfolio_resources(self):
-        organization_id = self._active_portfolio_organization_id(operation_label="evaluate portfolio resources")
-        return self._resource_repo.list_for_organization(organization_id)
+        self._active_portfolio_organization_id(operation_label="evaluate portfolio resources")
+        return self._resource_repo.list()
 
 
 __all__ = ["PortfolioScenarioQueryMixin"]

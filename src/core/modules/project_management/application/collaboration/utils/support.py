@@ -84,10 +84,10 @@ class CollaborationSupportMixin:
         return project.name if project is not None else ""
 
     def _collaboration_projects(self):
-        organization_id = self._active_collaboration_organization_id(
+        self._active_collaboration_organization_id(
             operation_label="view collaboration projects"
         )
-        return self._project_repo.list_for_organization(organization_id)
+        return self._project_repo.list()
 
     def _active_collaboration_organization_id(self, *, operation_label: str) -> str | None:
         tenant_context = getattr(self, "_tenant_context_service", None)

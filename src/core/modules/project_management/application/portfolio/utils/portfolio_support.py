@@ -12,8 +12,8 @@ from src.core.modules.project_management.domain.portfolio import (
 
 class PortfolioSupportMixin:
     def _accessible_projects(self):
-        organization_id = self._active_portfolio_organization_id(operation_label="view portfolio projects")
-        projects = self._project_repo.list_for_organization(organization_id)
+        self._active_portfolio_organization_id(operation_label="view portfolio projects")
+        projects = self._project_repo.list()
         return filter_project_rows(
             projects,
             self._user_session,
@@ -152,14 +152,14 @@ class PortfolioSupportMixin:
 
     def _ensure_scoring_templates(self) -> list[PortfolioScoringTemplate]:
         organization_id = self._active_portfolio_organization_id(operation_label="view scoring templates")
-        templates = self._scoring_template_repo.list_for_organization(organization_id)
+        templates = self._scoring_template_repo.list()
         if templates:
             if not any(template.is_active for template in templates):
                 templates[0].is_active = True
                 templates[0].updated_at = self._utc_now()
                 self._scoring_template_repo.update(templates[0])
                 self._session.commit()
-                templates = self._scoring_template_repo.list_for_organization(organization_id)
+                templates = self._scoring_template_repo.list()
             return templates
         default_template = PortfolioScoringTemplate.create(
             organization_id=organization_id,
@@ -185,8 +185,8 @@ class PortfolioSupportMixin:
     def _resolve_scoring_template(self, template_id: str | None) -> PortfolioScoringTemplate:
         normalized_id = str(template_id or "").strip()
         if normalized_id:
-            organization_id = self._active_portfolio_organization_id(operation_label="view scoring template")
-            template = self._scoring_template_repo.get_for_organization(normalized_id, organization_id)
+            self._active_portfolio_organization_id(operation_label="view scoring template")
+            template = self._scoring_template_repo.get(normalized_id)
             if template is None:
                 from src.core.platform.common.exceptions import NotFoundError
                 raise NotFoundError(
@@ -246,8 +246,8 @@ class PortfolioSupportMixin:
         return sorted({project_id for project_id in project_ids if project_id})
 
     def _validate_intake_ids(self, intake_item_ids: list[str]) -> list[str]:
-        organization_id = self._active_portfolio_organization_id(operation_label="validate intake ids")
-        known_ids = {item.id for item in self._intake_repo.list_for_organization(organization_id)}
+        self._active_portfolio_organization_id(operation_label="validate intake ids")
+        known_ids = {item.id for item in self._intake_repo.list()}
         invalid = [item_id for item_id in intake_item_ids if item_id not in known_ids]
         if invalid:
             raise ValidationError(

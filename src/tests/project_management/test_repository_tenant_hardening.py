@@ -1044,19 +1044,19 @@ def test_pm_secondary_repositories_hide_other_organization_rows(services):
     assert resource_assignment_repo.list_for_calendar(seeded["calendar_b"]) == []
 
     assert intake_repo.get(seeded["intake_b"]) is None
-    assert intake_repo.list_for_organization(seeded["other_org"].id) == []
+    assert all(row.id != seeded["intake_b"] for row in intake_repo.list())
 
     assert scenario_repo.get(seeded["scenario_b"]) is None
-    assert scenario_repo.list_for_organization(seeded["other_org"].id) == []
+    assert all(row.id != seeded["scenario_b"] for row in scenario_repo.list())
 
     assert scoring_repo.get(seeded["template_b"]) is None
-    assert scoring_repo.list_for_organization(seeded["other_org"].id) == []
+    assert all(row.id != seeded["template_b"] for row in scoring_repo.list())
 
-    assert dependency_repo.get_for_organization(
-        seeded["portfolio_dependency_b"],
-        seeded["default_org"].id,
-    ) is None
-    assert dependency_repo.list_for_organization(seeded["other_org"].id) == []
+    assert dependency_repo.get(seeded["portfolio_dependency_b"]) is None
+    assert all(
+        row.id != seeded["portfolio_dependency_b"]
+        for row in dependency_repo.list()
+    )
 
 
 def test_pm_secondary_repositories_scope_mutations_to_active_organization(services):
@@ -1086,10 +1086,7 @@ def test_pm_secondary_repositories_scope_mutations_to_active_organization(servic
     resource_assignment_repo.delete(seeded["resource_assignment_b"])
     intake_repo.delete(seeded["intake_b"])
     scenario_repo.delete(seeded["scenario_b"])
-    dependency_repo.delete_for_organization(
-        seeded["portfolio_dependency_b"],
-        seeded["default_org"].id,
-    )
+    dependency_repo.delete(seeded["portfolio_dependency_b"])
     services["session"].commit()
 
     organization_service.set_active_organization(seeded["other_org"].id)
@@ -1102,10 +1099,7 @@ def test_pm_secondary_repositories_scope_mutations_to_active_organization(servic
     assert resource_assignment_repo.get(seeded["resource_b"]) is not None
     assert intake_repo.get(seeded["intake_b"]) is not None
     assert scenario_repo.get(seeded["scenario_b"]) is not None
-    assert dependency_repo.get_for_organization(
-        seeded["portfolio_dependency_b"],
-        seeded["other_org"].id,
-    ) is not None
+    assert dependency_repo.get(seeded["portfolio_dependency_b"]) is not None
 
 
 def test_pm_secondary_repositories_reject_cross_organization_writes(services):
@@ -1250,7 +1244,7 @@ def test_remaining_pm_secondary_repositories_require_tenant_context_service(sess
     with pytest.raises(BusinessRuleError, match="TenantContextService"):
         scenario_repo.get("scenario-x")
     with pytest.raises(BusinessRuleError, match="TenantContextService"):
-        dependency_repo.list_for_organization("org-x")
+        dependency_repo.list()
     with pytest.raises(BusinessRuleError, match="TenantContextService"):
         scoring_repo.get("template-x")
     with pytest.raises(BusinessRuleError, match="TenantContextService"):

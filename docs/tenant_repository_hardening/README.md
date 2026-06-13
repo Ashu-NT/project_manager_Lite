@@ -68,9 +68,9 @@ These were the clearest enterprise gaps and the safest first hardening target:
   `TenantContextService` requirements instead of post-build optional wiring.
 - Inventory and Maintenance tenant-root repositories still stamp `tenant_id`
   conditionally instead of overwriting from runtime context.
-- Portfolio repositories are now tenant-scoped, but transitional
-  `get_for_organization()` / `list_for_organization()` APIs still remain in the
-  service contract and should be simplified later.
+- Project-management portfolio, project, and resource callers now use the
+  scoped repository contract directly instead of forwarding explicit
+  `organization_id` values through compatibility methods.
 - Contract cleanup is still needed for remaining transitional repository APIs
   and composition seams that rely on optional post-build tenant-context wiring.
 
@@ -128,6 +128,16 @@ This prevents accidental cross-context reuse of cached workspace state.
 - PM task saved views and table-column state now resolve organization-aware
   settings keys through the same runtime contract used by the shell.
 
+### PM contract cleanup
+
+- PM portfolio repositories now use scoped `get(...)`, `list(...)`, and
+  `delete(...)` methods instead of the transitional
+  `*_for_organization(...)` compatibility surface.
+- PM project and resource callers now consume the repository-scoped `list()`
+  contract directly.
+- `PortfolioService` now requires `TenantContextService` at construction time
+  instead of tolerating a missing context dependency.
+
 ## Verification added
 
 New or expanded coverage now checks:
@@ -152,6 +162,8 @@ New or expanded coverage now checks:
 - runtime organization switching denies users missing `settings.manage`
 - PM QML task-view and table-column state follow the live runtime-context API
   when resolving tenant-aware settings keys
+- PM desktop fallback helpers and portfolio flows now use the scoped
+  repository contract instead of explicit organization-id compatibility methods
 
 ## Progress tracker
 
@@ -168,6 +180,7 @@ New or expanded coverage now checks:
 - Harden portfolio and remaining PM secondary repositories
 - Complete controller and settings follow-up for runtime org switching and PM
   cached workspace state
+- Complete PM contract cleanup round 1 for scoped repository callers
 - Add repository-focused regression tests
 - Add this follow-up README
 - Add tranche notes:
@@ -180,14 +193,20 @@ New or expanded coverage now checks:
   - `docs/tenant_repository_hardening/maintenance_repository_hardening_round_2.md`
   - `docs/tenant_repository_hardening/project_management_repository_hardening_round_2.md`
   - `docs/tenant_repository_hardening/controller_settings_followup_round_1.md`
+  - `docs/tenant_repository_hardening/project_management_contract_cleanup_round_1.md`
 
 ### Next recommended batches
 
-1. Contract cleanup after repository stabilization
-   - remove residual legacy compatibility methods once all callers have moved
-     to the scoped `list()` and `get()` contract
-   - tighten constructor-time `TenantContextService` requirements where
-     post-build optional wiring still exists
+1. Constructor-time tenant-context tightening after repository stabilization
+   - replace optional fallback `TenantContextService()` construction where
+     inventory and maintenance services still build their own context
+   - reduce post-build `_tenant_context_service` wiring where composition still
+     mutates repositories after construction
+
+2. Non-PM contract cleanup follow-up
+   - remove residual explicit-organization compatibility methods outside the PM
+     slice once platform, inventory, and maintenance callers have moved to the
+     scoped `list()` and `get()` contract
 
 ## Notes
 
@@ -206,3 +225,4 @@ New or expanded coverage now checks:
   - PM secondary repository + calendar integration suite: `33 passed`
   - broader PM portfolio/project-resource regression suite: `21 passed`
   - platform runtime + PM QML settings follow-up suite: `40 passed`
+  - PM contract cleanup round 1 suite: `37 passed`

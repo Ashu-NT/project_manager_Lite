@@ -14,8 +14,8 @@ class PortfolioIntakeQueryMixin:
         status: PortfolioIntakeStatus | None = None,
     ) -> list[PortfolioIntakeItem]:
         require_permission(self._user_session, "portfolio.read", operation_label="view portfolio intake")
-        organization_id = self._active_portfolio_organization_id(operation_label="view portfolio intake")
-        rows = self._intake_repo.list_for_organization(organization_id)
+        self._active_portfolio_organization_id(operation_label="view portfolio intake")
+        rows = self._intake_repo.list()
         if status is None:
             return rows
         return [row for row in rows if row.status == status]

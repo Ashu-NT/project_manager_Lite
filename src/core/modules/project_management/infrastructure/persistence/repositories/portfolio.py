@@ -108,19 +108,11 @@ class SqlAlchemyPortfolioIntakeRepository(
         )
         return portfolio_intake_from_orm(obj) if obj else None
 
-    def get_for_organization(self, item_id: str, organization_id: str) -> PortfolioIntakeItem | None:
+    def list(self) -> list[PortfolioIntakeItem]:
         ctx = self._context(operation_label="access portfolio intake")
-        if organization_id != ctx.organization_id:
-            return None
-        return self.get(item_id)
-
-    def list_for_organization(self, organization_id: str) -> list[PortfolioIntakeItem]:
-        ctx = self._context(operation_label="access portfolio intake")
-        if organization_id != ctx.organization_id:
-            return []
         stmt = self._apply_scope(
             select(PortfolioIntakeItemORM)
-            .where(PortfolioIntakeItemORM.organization_id == organization_id)
+            .where(PortfolioIntakeItemORM.organization_id == ctx.organization_id)
             .order_by(PortfolioIntakeItemORM.updated_at.desc()),
             PortfolioIntakeItemORM,
             ctx,
@@ -191,19 +183,11 @@ class SqlAlchemyPortfolioScenarioRepository(
         )
         return portfolio_scenario_from_orm(obj) if obj else None
 
-    def get_for_organization(self, scenario_id: str, organization_id: str) -> PortfolioScenario | None:
+    def list(self) -> list[PortfolioScenario]:
         ctx = self._context(operation_label="access portfolio scenarios")
-        if organization_id != ctx.organization_id:
-            return None
-        return self.get(scenario_id)
-
-    def list_for_organization(self, organization_id: str) -> list[PortfolioScenario]:
-        ctx = self._context(operation_label="access portfolio scenarios")
-        if organization_id != ctx.organization_id:
-            return []
         stmt = self._apply_scope(
             select(PortfolioScenarioORM)
-            .where(PortfolioScenarioORM.organization_id == organization_id)
+            .where(PortfolioScenarioORM.organization_id == ctx.organization_id)
             .order_by(PortfolioScenarioORM.updated_at.desc()),
             PortfolioScenarioORM,
             ctx,
@@ -273,24 +257,14 @@ class SqlAlchemyPortfolioProjectDependencyRepository(
         self._ensure_project_in_scope(dependency.successor_project_id)
         self.session.add(portfolio_project_dependency_to_orm(dependency))
 
-    def get_for_organization(
-        self,
-        dependency_id: str,
-        organization_id: str,
-    ) -> PortfolioProjectDependency | None:
-        ctx = self._context(operation_label="access portfolio project dependencies")
-        if organization_id != ctx.organization_id:
-            return None
+    def get(self, dependency_id: str) -> PortfolioProjectDependency | None:
         stmt = self._scoped_stmt(
             operation_label="access portfolio project dependencies"
         ).where(PortfolioProjectDependencyORM.id == dependency_id)
         obj = self.session.execute(stmt).scalars().first()
         return portfolio_project_dependency_from_orm(obj) if obj else None
 
-    def list_for_organization(self, organization_id: str) -> list[PortfolioProjectDependency]:
-        ctx = self._context(operation_label="access portfolio project dependencies")
-        if organization_id != ctx.organization_id:
-            return []
+    def list(self) -> list[PortfolioProjectDependency]:
         stmt = self._scoped_stmt(
             operation_label="access portfolio project dependencies"
         ).order_by(
@@ -300,10 +274,7 @@ class SqlAlchemyPortfolioProjectDependencyRepository(
         rows = self.session.execute(stmt).scalars().all()
         return [portfolio_project_dependency_from_orm(row) for row in rows]
 
-    def delete_for_organization(self, dependency_id: str, organization_id: str) -> None:
-        ctx = self._context(operation_label="manage portfolio project dependencies")
-        if organization_id != ctx.organization_id:
-            return
+    def delete(self, dependency_id: str) -> None:
         scoped_ids = (
             self._scoped_stmt(operation_label="manage portfolio project dependencies")
             .where(PortfolioProjectDependencyORM.id == dependency_id)
@@ -373,19 +344,11 @@ class SqlAlchemyPortfolioScoringTemplateRepository(
         )
         return portfolio_scoring_template_from_orm(obj) if obj else None
 
-    def get_for_organization(self, template_id: str, organization_id: str) -> PortfolioScoringTemplate | None:
+    def list(self) -> list[PortfolioScoringTemplate]:
         ctx = self._context(operation_label="access portfolio scoring templates")
-        if organization_id != ctx.organization_id:
-            return None
-        return self.get(template_id)
-
-    def list_for_organization(self, organization_id: str) -> list[PortfolioScoringTemplate]:
-        ctx = self._context(operation_label="access portfolio scoring templates")
-        if organization_id != ctx.organization_id:
-            return []
         stmt = self._apply_scope(
             select(PortfolioScoringTemplateORM)
-            .where(PortfolioScoringTemplateORM.organization_id == organization_id)
+            .where(PortfolioScoringTemplateORM.organization_id == ctx.organization_id)
             .order_by(
                 PortfolioScoringTemplateORM.is_active.desc(),
                 PortfolioScoringTemplateORM.updated_at.desc(),
