@@ -45,6 +45,48 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.repositor
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
+class _ProcurementLineRepositorySupport(InventoryTenantScopedRepositorySupport):
+    _repository_label = "Procurement line repository"
+
+    def _get_line_in_scope(
+        self,
+        line_model,
+        root_model,
+        *,
+        parent_field_name: str,
+        line_id: str,
+        operation_label: str,
+    ):
+        ctx = self._context(operation_label=operation_label)
+        stmt = select(line_model).join(
+            root_model,
+            getattr(line_model, parent_field_name) == root_model.id,
+        )
+        stmt = self._apply_scope(stmt, root_model, ctx).where(line_model.id == line_id)
+        return self.session.execute(stmt).scalars().first()
+
+    def _list_lines_for_parent_in_scope(
+        self,
+        line_model,
+        root_model,
+        *,
+        parent_field_name: str,
+        parent_id: str,
+        operation_label: str,
+        order_by,
+    ):
+        ctx = self._context(operation_label=operation_label)
+        stmt = select(line_model).join(
+            root_model,
+            getattr(line_model, parent_field_name) == root_model.id,
+        )
+        stmt = self._apply_scope(stmt, root_model, ctx).where(
+            getattr(line_model, parent_field_name) == parent_id
+        )
+        rows = self.session.execute(stmt.order_by(order_by)).scalars().all()
+        return rows
+
+
 class SqlAlchemyPurchaseRequisitionRepository(
     PurchaseRequisitionRepository, InventoryTenantScopedRepositorySupport
 ):
@@ -142,15 +184,32 @@ class SqlAlchemyPurchaseRequisitionRepository(
         return [purchase_requisition_from_orm(row) for row in rows]
 
 
-class SqlAlchemyPurchaseRequisitionLineRepository(PurchaseRequisitionLineRepository):
+class SqlAlchemyPurchaseRequisitionLineRepository(
+    PurchaseRequisitionLineRepository, _ProcurementLineRepositorySupport
+):
+    _repository_label = "Purchase requisition line repository"
+
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service = None
 
     def add(self, line) -> None:
+        self._require_in_scope(
+            PurchaseRequisitionORM,
+            line.purchase_requisition_id,
+            operation_label="add purchase requisition line",
+            not_found_message="Purchase requisition not found.",
+        )
         self.session.add(purchase_requisition_line_to_orm(line))
 
     def update(self, line) -> None:
-        obj = self.session.get(PurchaseRequisitionLineORM, line.id)
+        obj = self._get_line_in_scope(
+            PurchaseRequisitionLineORM,
+            PurchaseRequisitionORM,
+            parent_field_name="purchase_requisition_id",
+            line_id=line.id,
+            operation_label="update purchase requisition line",
+        )
         if obj is None:
             raise ValueError("Purchase requisition line not found.")
         obj.line_number = line.line_number
@@ -166,14 +225,24 @@ class SqlAlchemyPurchaseRequisitionLineRepository(PurchaseRequisitionLineReposit
         obj.notes = line.notes or None
 
     def get(self, line_id: str):
-        obj = self.session.get(PurchaseRequisitionLineORM, line_id)
+        obj = self._get_line_in_scope(
+            PurchaseRequisitionLineORM,
+            PurchaseRequisitionORM,
+            parent_field_name="purchase_requisition_id",
+            line_id=line_id,
+            operation_label="get purchase requisition line",
+        )
         return purchase_requisition_line_from_orm(obj) if obj else None
 
     def list_for_requisition(self, requisition_id: str):
-        stmt = select(PurchaseRequisitionLineORM).where(
-            PurchaseRequisitionLineORM.purchase_requisition_id == requisition_id
+        rows = self._list_lines_for_parent_in_scope(
+            PurchaseRequisitionLineORM,
+            PurchaseRequisitionORM,
+            parent_field_name="purchase_requisition_id",
+            parent_id=requisition_id,
+            operation_label="list purchase requisition lines",
+            order_by=PurchaseRequisitionLineORM.line_number.asc(),
         )
-        rows = self.session.execute(stmt.order_by(PurchaseRequisitionLineORM.line_number.asc())).scalars().all()
         return [purchase_requisition_line_from_orm(row) for row in rows]
 
 
@@ -274,15 +343,42 @@ class SqlAlchemyPurchaseOrderRepository(
         return [purchase_order_from_orm(row) for row in rows]
 
 
-class SqlAlchemyPurchaseOrderLineRepository(PurchaseOrderLineRepository):
+class SqlAlchemyPurchaseOrderLineRepository(
+    PurchaseOrderLineRepository, _ProcurementLineRepositorySupport
+):
+    _repository_label = "Purchase order line repository"
+
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service = None
 
     def add(self, line: PurchaseOrderLine) -> None:
+        self._require_in_scope(
+            PurchaseOrderORM,
+            line.purchase_order_id,
+            operation_label="add purchase order line",
+            not_found_message="Purchase order not found.",
+        )
+        if line.source_requisition_line_id:
+            source_line = self._get_line_in_scope(
+                PurchaseRequisitionLineORM,
+                PurchaseRequisitionORM,
+                parent_field_name="purchase_requisition_id",
+                line_id=line.source_requisition_line_id,
+                operation_label="validate purchase order source requisition line",
+            )
+            if source_line is None:
+                raise ValueError("Purchase requisition line not found.")
         self.session.add(purchase_order_line_to_orm(line))
 
     def update(self, line: PurchaseOrderLine) -> None:
-        obj = self.session.get(PurchaseOrderLineORM, line.id)
+        obj = self._get_line_in_scope(
+            PurchaseOrderLineORM,
+            PurchaseOrderORM,
+            parent_field_name="purchase_order_id",
+            line_id=line.id,
+            operation_label="update purchase order line",
+        )
         if obj is None:
             raise ValueError("Purchase order line not found.")
         obj.line_number = line.line_number
@@ -300,16 +396,44 @@ class SqlAlchemyPurchaseOrderLineRepository(PurchaseOrderLineRepository):
         obj.notes = line.notes or None
 
     def get(self, line_id: str) -> PurchaseOrderLine | None:
-        obj = self.session.get(PurchaseOrderLineORM, line_id)
+        obj = self._get_line_in_scope(
+            PurchaseOrderLineORM,
+            PurchaseOrderORM,
+            parent_field_name="purchase_order_id",
+            line_id=line_id,
+            operation_label="get purchase order line",
+        )
         return purchase_order_line_from_orm(obj) if obj else None
 
     def list_for_purchase_order(self, purchase_order_id: str) -> list[PurchaseOrderLine]:
-        stmt = select(PurchaseOrderLineORM).where(PurchaseOrderLineORM.purchase_order_id == purchase_order_id)
-        rows = self.session.execute(stmt.order_by(PurchaseOrderLineORM.line_number.asc())).scalars().all()
+        rows = self._list_lines_for_parent_in_scope(
+            PurchaseOrderLineORM,
+            PurchaseOrderORM,
+            parent_field_name="purchase_order_id",
+            parent_id=purchase_order_id,
+            operation_label="list purchase order lines",
+            order_by=PurchaseOrderLineORM.line_number.asc(),
+        )
         return [purchase_order_line_from_orm(row) for row in rows]
 
     def list_for_requisition_line(self, requisition_line_id: str) -> list[PurchaseOrderLine]:
-        stmt = select(PurchaseOrderLineORM).where(PurchaseOrderLineORM.source_requisition_line_id == requisition_line_id)
+        ctx = self._context(operation_label="list purchase order lines for requisition line")
+        source_line = self._get_line_in_scope(
+            PurchaseRequisitionLineORM,
+            PurchaseRequisitionORM,
+            parent_field_name="purchase_requisition_id",
+            line_id=requisition_line_id,
+            operation_label="validate requisition line for purchase order lines",
+        )
+        if source_line is None:
+            return []
+        stmt = select(PurchaseOrderLineORM).join(
+            PurchaseOrderORM,
+            PurchaseOrderLineORM.purchase_order_id == PurchaseOrderORM.id,
+        )
+        stmt = self._apply_scope(stmt, PurchaseOrderORM, ctx).where(
+            PurchaseOrderLineORM.source_requisition_line_id == requisition_line_id
+        )
         rows = self.session.execute(stmt.order_by(PurchaseOrderLineORM.line_number.asc())).scalars().all()
         return [purchase_order_line_from_orm(row) for row in rows]
 
@@ -369,20 +493,50 @@ class SqlAlchemyReceiptHeaderRepository(
         return [receipt_header_from_orm(row) for row in rows]
 
 
-class SqlAlchemyReceiptLineRepository(ReceiptLineRepository):
+class SqlAlchemyReceiptLineRepository(ReceiptLineRepository, _ProcurementLineRepositorySupport):
+    _repository_label = "Receipt line repository"
+
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service = None
 
     def add(self, line: ReceiptLine) -> None:
+        self._require_in_scope(
+            ReceiptHeaderORM,
+            line.receipt_header_id,
+            operation_label="add receipt line",
+            not_found_message="Receipt not found.",
+        )
+        purchase_order_line = self._get_line_in_scope(
+            PurchaseOrderLineORM,
+            PurchaseOrderORM,
+            parent_field_name="purchase_order_id",
+            line_id=line.purchase_order_line_id,
+            operation_label="validate receipt purchase order line",
+        )
+        if purchase_order_line is None:
+            raise ValueError("Purchase order line not found.")
         self.session.add(receipt_line_to_orm(line))
 
     def get(self, line_id: str) -> ReceiptLine | None:
-        obj = self.session.get(ReceiptLineORM, line_id)
+        obj = self._get_line_in_scope(
+            ReceiptLineORM,
+            ReceiptHeaderORM,
+            parent_field_name="receipt_header_id",
+            line_id=line_id,
+            operation_label="get receipt line",
+        )
         return receipt_line_from_orm(obj) if obj else None
 
     def list_for_receipt(self, receipt_id: str) -> list[ReceiptLine]:
-        stmt = select(ReceiptLineORM).where(ReceiptLineORM.receipt_header_id == receipt_id)
-        rows = self.session.execute(stmt.order_by(ReceiptLineORM.line_number.asc())).scalars().all()
+        rows = self._list_lines_for_parent_in_scope(
+            ReceiptLineORM,
+            ReceiptHeaderORM,
+            parent_field_name="receipt_header_id",
+            parent_id=receipt_id,
+            operation_label="list receipt lines",
+            order_by=ReceiptLineORM.line_number.asc(),
+        )
         return [receipt_line_from_orm(row) for row in rows]
 
 

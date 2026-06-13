@@ -1,7 +1,7 @@
 # Tenant Repository Hardening
 
 Status: In progress  
-Last updated: 2026-06-12
+Last updated: 2026-06-13
 
 This README is the working follow-up for the enterprise multi-tenant repository
 hardening brief in the attached audit request. It is meant to stay practical:
@@ -27,11 +27,14 @@ The codebase is in a mixed state.
   context.
 - Several Project Management repositories already use repository-scoped tenant
   joins.
-- Many Platform, Inventory, and Maintenance repositories still use the older
-  optional `_tenant_context_service` + `_get_active_tid()` pattern.
+- Many Maintenance repositories and some secondary follow-up repositories still
+  use older optional tenant-context patterns or transitional compatibility APIs.
 - Access-control repositories sat in a gray area between auth bootstrap and
   business-data scoping; they needed a narrower hardening pass than the rest of
   the platform repos.
+- Procurement child-line repositories do not own `tenant_id` or
+  `organization_id`; they inherit scope through requisition, purchase-order,
+  and receipt header joins.
 - `update_with_version_check()` is already better than the legacy brief assumed:
   its existence check now respects `extra_filters` instead of falling back to an
   unsafe plain `session.get()`.
@@ -87,6 +90,12 @@ the brief.
 - Access-control repositories now scope project memberships through project
   ownership, scope generic grants by active tenant, and stamp
   `organization_id` / `tenant_id` on writes.
+- Inventory repositories now use a shared scope helper for catalog, storeroom,
+  balance, transaction, reservation, storage location, reorder policy, and
+  cycle-count data.
+- Procurement repositories now use scoped header access for requisitions,
+  purchase orders, and receipts, with parent-aware tenant isolation on
+  requisition lines, purchase-order lines, and receipt lines.
 
 ### Tenant-aware settings
 
@@ -109,6 +118,8 @@ New or expanded coverage now checks:
   `TenantContextService`
 - access-control repositories do not return or delete foreign-scope rows
 - access-control writes stamp scope metadata and reject foreign projects
+- inventory repositories hide foreign organization rows and reject foreign
+  parent procurement references
 - unscoped tenant UI state is written to a namespaced key instead of a bare key
 
 ## Progress tracker
@@ -119,18 +130,24 @@ New or expanded coverage now checks:
 - Scan repository classes and tenant-scoping patterns across modules
 - Harden the priority PM repository tranche
 - Harden access-control repositories and add focused repo tests
+- Harden inventory catalog, stock, and foundation repositories
+- Harden procurement header and child-line repositories
 - Add repository-focused regression tests
 - Add this follow-up README
 - Add tranche notes:
   - `docs/tenant_repository_hardening/platform_repository_hardening_round_2.md`
   - `docs/tenant_repository_hardening/access_control_repository_hardening.md`
+  - `docs/tenant_repository_hardening/inventory_repository_hardening_round_1.md`
+  - `docs/tenant_repository_hardening/procurement_repository_hardening_round_1.md`
+  - `docs/tenant_repository_hardening/procurement_repository_hardening_round_2.md`
 
 ### Next recommended batches
 
-1. Inventory and Maintenance tenant-root repositories
-   - replace conditional tenant stamping
-   - remove `session.get()` + post-filter patterns
-   - convert delete/update paths to scoped statements
+1. Maintenance tenant-root repositories
+   - convert remaining tenant-root maintenance repos to the shared scoped
+     repository pattern
+   - remove unscoped `session.get()` + post-filter behavior
+   - convert update/delete paths to scoped statements
 
 2. Portfolio and PM secondary repositories
    - remove residual legacy compatibility methods once all callers have moved
@@ -149,3 +166,6 @@ New or expanded coverage now checks:
   `docs/tenant_isolation_audit/README.md` still contain historical transition
   assumptions that do not fully match the current code. Keep this README as the
   practical follow-up log for the current hardening stream.
+- Verified on 2026-06-13:
+  - procurement repository + workflow suite: `31 passed`
+  - desktop/import-export procurement integration checks: `2 passed`

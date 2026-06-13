@@ -14,19 +14,21 @@
   - purchase order roots
   - receipt header roots
   - verification still pending
+- Procurement repository hardening round 2 is implemented:
+  - requisition lines
+  - purchase-order lines
+  - receipt lines
+  - verification still pending
 
 ## Next implementation order
 
-1. Procurement root repositories
-   - verification pass for `docs/tenant_repository_hardening/procurement_repository_hardening_round_1.md`
+1. Procurement verification pass
+   - `docs/tenant_repository_hardening/procurement_repository_hardening_round_1.md`
+   - `docs/tenant_repository_hardening/procurement_repository_hardening_round_2.md`
    - design note: `docs/tenant_repository_hardening/procurement_repository_hardening_plan.md`
-2. Procurement child-line repositories
-   - `SqlAlchemyPurchaseRequisitionLineRepository`
-   - `SqlAlchemyPurchaseOrderLineRepository`
-   - `SqlAlchemyReceiptLineRepository`
-3. Maintenance tenant-root repositories
-4. Portfolio and remaining PM secondary repositories
-5. Controller and settings follow-up
+2. Maintenance tenant-root repositories
+3. Portfolio and remaining PM secondary repositories
+4. Controller and settings follow-up
 
 ## Execution notes
 
