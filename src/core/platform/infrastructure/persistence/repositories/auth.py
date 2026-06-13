@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -136,6 +138,57 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
         stmt = select(AuthSessionORM).where(AuthSessionORM.user_id == user_id)
         rows = self.session.execute(stmt.order_by(AuthSessionORM.issued_at.desc())).scalars().all()
         return [auth_session_from_orm(row) for row in rows]
+
+    def persist_context(
+        self,
+        session_id: str,
+        *,
+        last_active_tenant_id: str | None,
+        last_active_organization_id: str | None,
+        updated_at: datetime,
+    ) -> bool:
+        bind = self.session.get_bind()
+        normalized_tenant_id = str(last_active_tenant_id or "").strip() or None
+        normalized_organization_id = str(last_active_organization_id or "").strip() or None
+        with Session(bind=bind) as temp_session:
+            obj = temp_session.get(AuthSessionORM, session_id)
+            if obj is None:
+                return False
+            if (
+                obj.last_active_tenant_id == normalized_tenant_id
+                and obj.last_active_organization_id == normalized_organization_id
+            ):
+                return False
+            obj.last_active_tenant_id = normalized_tenant_id
+            obj.last_active_organization_id = normalized_organization_id
+            obj.updated_at = updated_at
+            temp_session.commit()
+            return True
+
+    def touch_validation(
+        self,
+        session_id: str,
+        *,
+        validated_at: datetime,
+        throttle_seconds: int = 60,
+    ) -> bool:
+        bind = self.session.get_bind()
+        min_elapsed_seconds = max(0, int(throttle_seconds or 0))
+        with Session(bind=bind) as temp_session:
+            obj = temp_session.get(AuthSessionORM, session_id)
+            if obj is None:
+                return False
+            current_validated_at = obj.last_validated_at
+            if (
+                current_validated_at is not None
+                and min_elapsed_seconds > 0
+                and (validated_at - current_validated_at).total_seconds() < min_elapsed_seconds
+            ):
+                return False
+            obj.last_validated_at = validated_at
+            obj.updated_at = validated_at
+            temp_session.commit()
+            return True
 
 
 class SqlAlchemyRoleRepository(RoleRepository):

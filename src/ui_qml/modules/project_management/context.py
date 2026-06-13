@@ -315,6 +315,29 @@ class ProjectManagementWorkspaceCatalog(QObject):
     def dashboardOverview(self) -> dict[str, object]:
         return dict(self._get_dashboard_workspace().overview)
 
+    @Slot()
+    def refreshAllWorkspaces(self) -> None:
+        refresh = getattr(self._pm_capability, "refresh", None)
+        if callable(refresh):
+            refresh()
+        for controller in (
+            self._projects_workspace,
+            self._financials_workspace,
+            self._portfolio_workspace,
+            self._resources_workspace,
+            self._register_workspace,
+            self._scheduling_workspace,
+            self._tasks_workspace,
+            self._dashboard_workspace,
+            self._collaboration_workspace,
+            self._timesheets_workspace,
+        ):
+            if controller is None:
+                continue
+            controller_refresh = getattr(controller, "refresh", None)
+            if callable(controller_refresh):
+                controller_refresh()
+
     @Slot(str, result=bool)
     def isModuleEnabled(self, module_code: str) -> bool:
         if self._integration_api is None:

@@ -206,6 +206,9 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
     def validate_session_principal(self, principal: UserSessionPrincipal) -> UserSessionPrincipal | None:
         return _sessions.validate_session_principal(self, principal)
 
+    def persist_session_context(self, session_context: UserSessionContext) -> None:
+        _sessions.persist_session_context(self, session_context)
+
     def build_principal(self, user: UserAccount, *, session_id: str | None = None) -> UserSessionPrincipal:
         return _principal.build_principal(self, user, session_id=session_id)
 

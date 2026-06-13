@@ -110,6 +110,7 @@ class UserSessionPrincipal:
     identity_provider: str | None = None
     last_login_auth_method: str | None = None
     session_id: str | None = None
+    active_tenant_id: str | None = None
     active_organization_id: str | None = None
 
 
@@ -118,9 +119,11 @@ class UserSessionContext:
         self,
         *,
         principal_validator: Callable[[UserSessionPrincipal], UserSessionPrincipal | None] | None = None,
+        context_listener: Callable[["UserSessionContext"], None] | None = None,
     ):
         self._principal: UserSessionPrincipal | None = None
         self._principal_validator = principal_validator
+        self._context_listener = context_listener
         self._active_tenant_id: str | None = None
         self._active_organization_id: str | None = None
 
@@ -129,13 +132,22 @@ class UserSessionContext:
         return self._principal
 
     def set_principal(self, principal: UserSessionPrincipal) -> None:
-        self._principal = self._normalize_principal(principal)
+        normalized = self._normalize_principal(principal)
+        self._principal = normalized
+        self._restore_active_context_from_principal(normalized)
+        self._notify_context_changed()
 
     def set_validator(
         self,
         validator: Callable[[UserSessionPrincipal], UserSessionPrincipal | None] | None,
     ) -> None:
         self._principal_validator = validator
+
+    def set_context_listener(
+        self,
+        listener: Callable[["UserSessionContext"], None] | None,
+    ) -> None:
+        self._context_listener = listener
 
     def _normalize_principal(self, principal: UserSessionPrincipal) -> UserSessionPrincipal:
         normalized_scoped_access = _normalize_scoped_access(
@@ -153,6 +165,9 @@ class UserSessionContext:
             identity_provider=(str(getattr(principal, "identity_provider", "") or "").strip() or None),
             last_login_auth_method=(str(getattr(principal, "last_login_auth_method", "") or "").strip() or None),
             session_id=(str(getattr(principal, "session_id", "") or "").strip() or None),
+            active_tenant_id=(
+                str(getattr(principal, "active_tenant_id", "") or "").strip() or None
+            ),
             active_organization_id=(
                 str(getattr(principal, "active_organization_id", "") or "").strip() or None
             ),
@@ -162,6 +177,7 @@ class UserSessionContext:
         self._principal = None
         self._active_tenant_id = None
         self._active_organization_id = None
+        self._notify_context_changed()
 
     def is_authenticated(self) -> bool:
         return self._active_principal() is not None
@@ -242,13 +258,31 @@ class UserSessionContext:
         return "platform.admin" in principal.permissions
 
     def set_active_tenant_id(self, tenant_id: str | None) -> None:
-        self._active_tenant_id = str(tenant_id or "").strip() or None
+        normalized = str(tenant_id or "").strip() or None
+        if normalized == self._active_tenant_id:
+            return
+        self._active_tenant_id = normalized
+        if self._principal is not None:
+            self._principal = replace(self._principal, active_tenant_id=normalized)
+        self._notify_context_changed()
 
     def active_tenant_id(self) -> str | None:
-        return self._active_tenant_id
+        session_tenant_id = str(self._active_tenant_id or "").strip() or None
+        if session_tenant_id:
+            return session_tenant_id
+        principal = self._active_principal()
+        if principal is None:
+            return None
+        return str(getattr(principal, "active_tenant_id", "") or "").strip() or None
 
     def set_active_organization_id(self, organization_id: str | None) -> None:
-        self._active_organization_id = str(organization_id or "").strip() or None
+        normalized = str(organization_id or "").strip() or None
+        if normalized == self._active_organization_id:
+            return
+        self._active_organization_id = normalized
+        if self._principal is not None:
+            self._principal = replace(self._principal, active_organization_id=normalized)
+        self._notify_context_changed()
 
     def active_organization_id(self) -> str | None:
         session_organization_id = str(self._active_organization_id or "").strip() or None
@@ -298,7 +332,31 @@ class UserSessionContext:
             if normalized != principal:
                 principal = normalized
                 self._principal = principal
+                self._restore_active_context_from_principal(principal)
+                self._notify_context_changed()
         return principal
+
+    def _restore_active_context_from_principal(
+        self,
+        principal: UserSessionPrincipal | None,
+    ) -> None:
+        if principal is None:
+            return
+        principal_tenant_id = str(
+            getattr(principal, "active_tenant_id", "") or ""
+        ).strip() or None
+        principal_organization_id = str(
+            getattr(principal, "active_organization_id", "") or ""
+        ).strip() or None
+        if principal_tenant_id is not None:
+            self._active_tenant_id = principal_tenant_id
+        if principal_organization_id is not None:
+            self._active_organization_id = principal_organization_id
+
+    def _notify_context_changed(self) -> None:
+        listener = self._context_listener
+        if listener is not None:
+            listener(self)
 
     @staticmethod
     def _scope_rows(

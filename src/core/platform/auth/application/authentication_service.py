@@ -28,6 +28,46 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _current_session_context_for_user(service: AuthService, user_id: str) -> tuple[str | None, str | None]:
+    if service._user_session is None:
+        return None, None
+    principal = service._user_session.principal
+    if principal is None or principal.user_id != user_id:
+        return None, None
+    return (
+        service._user_session.active_tenant_id(),
+        service._user_session.active_organization_id(),
+    )
+
+
+def _preferred_restore_session(service: AuthService, user: UserAccount) -> AuthSession | None:
+    if service._auth_session_repo is None:
+        return None
+    active_session_id = str(getattr(user, "active_session_id", "") or "").strip() or None
+    if active_session_id is not None:
+        auth_session = service._auth_session_repo.get(active_session_id)
+        if auth_session is not None:
+            return auth_session
+    sessions = service._auth_session_repo.list_by_user(user.id)
+    for auth_session in sessions:
+        if auth_session.revoked_at is None:
+            return auth_session
+    return sessions[0] if sessions else None
+
+
+def _resolve_last_active_context(service: AuthService, user: UserAccount) -> tuple[str | None, str | None]:
+    active_tenant_id, active_organization_id = _current_session_context_for_user(service, user.id)
+    if active_tenant_id is not None or active_organization_id is not None:
+        return active_tenant_id, active_organization_id
+    restore_session = _preferred_restore_session(service, user)
+    if restore_session is None:
+        return None, None
+    return (
+        str(getattr(restore_session, "last_active_tenant_id", "") or "").strip() or None,
+        str(getattr(restore_session, "last_active_organization_id", "") or "").strip() or None,
+    )
+
+
 def complete_successful_authentication(
     service: AuthService,
     user: UserAccount,
@@ -36,6 +76,7 @@ def complete_successful_authentication(
     auth_method: str,
     device_label: str | None,
 ) -> None:
+    last_active_tenant_id, last_active_organization_id = _resolve_last_active_context(service, user)
     user.failed_login_attempts = 0
     user.locked_until = None
     user.last_login_at = occurred_at
@@ -50,6 +91,8 @@ def complete_successful_authentication(
             auth_method=auth_method,
             expires_at=user.session_expires_at,
             device_label=user.last_login_device_label,
+            last_active_tenant_id=last_active_tenant_id,
+            last_active_organization_id=last_active_organization_id,
         )
         user.active_session_id = auth_session.id
         service._auth_session_repo.add(auth_session)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
@@ -18,6 +19,9 @@ if TYPE_CHECKING:
     from src.core.platform.auth.domain import UserAccount
 
     from .auth_service import AuthService
+
+logger = logging.getLogger(__name__)
+_SESSION_VALIDATION_THROTTLE_SECONDS = 60
 
 
 def revoke_all_persisted_sessions(service: AuthService, user: UserAccount, *, revoked_at: datetime) -> None:
@@ -124,6 +128,43 @@ def list_user_sessions(service: AuthService, user_id: str) -> list[AuthSession]:
     return service._auth_session_repo.list_by_user(user.id)
 
 
+def persist_session_context(service: AuthService, session_context) -> None:
+    if service._auth_session_repo is None:
+        return
+    principal = getattr(session_context, "principal", None)
+    session_id = str(getattr(principal, "session_id", "") or "").strip() or None
+    if session_id is None:
+        return
+    try:
+        service._auth_session_repo.persist_context(
+            session_id,
+            last_active_tenant_id=session_context.active_tenant_id(),
+            last_active_organization_id=session_context.active_organization_id(),
+            updated_at=datetime.now(timezone.utc),
+        )
+    except Exception:
+        logger.exception(
+            "Failed to persist auth session context session_id=%s",
+            session_id,
+        )
+
+
+def _touch_session_validation(service: AuthService, session_id: str, *, validated_at: datetime) -> None:
+    if service._auth_session_repo is None:
+        return
+    try:
+        service._auth_session_repo.touch_validation(
+            session_id,
+            validated_at=validated_at,
+            throttle_seconds=_SESSION_VALIDATION_THROTTLE_SECONDS,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to update auth session validation heartbeat session_id=%s",
+            session_id,
+        )
+
+
 def revoke_session(service: AuthService, session_id: str, *, note: str = "") -> AuthSession:
     require_any_permission(
         service._user_session,
@@ -173,6 +214,7 @@ def validate_session_principal(service: AuthService, principal: UserSessionPrinc
             return None
         if int(auth_session.session_revision or 1) != int(getattr(user, "session_revision", 1) or 1):
             return None
+        _touch_session_validation(service, auth_session.id, validated_at=now)
         if principal_expires_at is None or principal_expires_at != ensure_utc_datetime(auth_session.expires_at):
             return build_principal(service, user, session_id=auth_session.id)
         return build_principal(service, user, session_id=auth_session.id)
@@ -185,6 +227,7 @@ def validate_session_principal(service: AuthService, principal: UserSessionPrinc
 
 __all__ = [
     "list_user_sessions",
+    "persist_session_context",
     "refresh_current_session_if_user",
     "resolve_current_principal_session_id",
     "revoke_all_persisted_sessions",

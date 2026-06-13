@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from src.core.platform.auth.domain import (
     AuthSession,
@@ -48,6 +49,25 @@ class AuthSessionRepository(ABC):
 
     @abstractmethod
     def list_by_user(self, user_id: str) -> list[AuthSession]: ...
+
+    @abstractmethod
+    def persist_context(
+        self,
+        session_id: str,
+        *,
+        last_active_tenant_id: str | None,
+        last_active_organization_id: str | None,
+        updated_at: datetime,
+    ) -> bool: ...
+
+    @abstractmethod
+    def touch_validation(
+        self,
+        session_id: str,
+        *,
+        validated_at: datetime,
+        throttle_seconds: int = 60,
+    ) -> bool: ...
 
 
 class RoleRepository(ABC):

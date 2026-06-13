@@ -136,6 +136,7 @@ def build_platform_service_bundle(
         audit_service=audit_service,
     )
     user_session.set_validator(auth_service.validate_session_principal)
+    user_session.set_context_listener(auth_service.persist_session_context)
     logger.debug("Platform auth service created; bootstrapping defaults")
     auth_service.bootstrap_defaults()
     logger.debug(

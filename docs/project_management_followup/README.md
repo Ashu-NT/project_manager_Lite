@@ -44,6 +44,10 @@ The guiding rules stay the same:
   - PM detail-section create actions now stay in the section contextual toolbar instead of switching into local selected-row headers
   - selected-row actions for task assignments/dependencies, resource skills/certifications, and project resources now surface in the main detail header
   - section-level back buttons were removed from those PM detail sections so the remaining back action is only the page-level detail navigation
+- Completed in the current slice:
+  - runtime desktop sessions now revalidate while the shell is open instead of relying only on startup login state
+  - persisted auth sessions now carry the user’s last active tenant and organization context so re-login restores the working scope automatically
+  - shell re-authentication now refreshes instantiated workspace controllers and reloads the active route so expired-session context failures do not leak raw exceptions into QML
 - Still intentionally transitional:
   - existing historical PM task-comment attachments remain readable through the legacy attachment list
   - PM time-entry site/department snapshots intentionally stay as historical strings
@@ -209,6 +213,27 @@ Non-goals for this slice:
 
 - no change to the page-level detail back button
 - no redesign of unrelated PM list-page toolbars or bulk-action bars
+
+### 9. Runtime Session Resilience
+
+Status: completed
+
+Scope:
+
+- revalidate authenticated desktop sessions during runtime instead of only at shell startup
+- persist and restore tenant/organization context through auth-session records
+- trigger graceful re-login and workspace refresh when the active session expires or is revoked
+
+Acceptance notes:
+
+- tenant/org context survives restart and runtime re-authentication for the same user session lineage
+- shell users are prompted back through the login flow when a runtime session becomes invalid
+- instantiated PM/platform/inventory/maintenance workspace controllers refresh after re-authentication before the active route is reloaded
+
+Non-goals for this slice:
+
+- no background distributed session broker
+- no broad masking of unexpected non-domain exceptions that should still surface during development
 
 ## Guardrails
 

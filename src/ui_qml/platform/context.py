@@ -195,6 +195,19 @@ class PlatformWorkspaceCatalog(QObject):
     def settingsOverview(self) -> dict[str, object]:
         return dict(self._settings_workspace.overview)
 
+    @Slot()
+    def refreshAllWorkspaces(self) -> None:
+        for controller in (
+            self._admin_workspace,
+            self._admin_access_workspace,
+            self._admin_support_workspace,
+            self._control_workspace,
+            self._settings_workspace,
+        ):
+            refresh = getattr(controller, "refresh", None)
+            if callable(refresh):
+                refresh()
+
     @Slot(result="QVariantMap")
     def approvalQueue(self) -> dict[str, object]:
         return dict(self._control_workspace.approvalQueue)

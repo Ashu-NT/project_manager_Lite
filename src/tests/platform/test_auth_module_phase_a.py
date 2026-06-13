@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from src.core.platform.auth.mfa import generate_totp_code
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.infrastructure.persistence.orm.auth import AuthSessionORM
 from src.infra.composition.app_container import build_service_dict
 
 
@@ -233,4 +234,69 @@ def test_auth_service_persists_sessions_and_supports_single_session_revocation(s
 
     assert auth.validate_session_principal(desktop_principal) is None
     assert auth.validate_session_principal(browser_principal) is not None
+
+
+def test_auth_service_restores_last_active_context_on_reauthentication(services):
+    auth = services["auth_service"]
+    user_session = services["user_session"]
+    runtime_service = services["platform_runtime_application_service"]
+    organization_service = services["organization_service"]
+
+    restored_org = organization_service.create_organization(
+        organization_code="RESTORE-ORG",
+        display_name="Restore Org",
+        timezone_name="UTC",
+        base_currency="USD",
+        is_active=False,
+    )
+    runtime_service.set_active_organization(restored_org.id)
+    current_principal = user_session.principal
+
+    assert current_principal is not None
+    assert current_principal.session_id is not None
+
+    persisted_current_session = next(
+        session
+        for session in auth.list_user_sessions(current_principal.user_id)
+        if session.id == current_principal.session_id
+    )
+    assert persisted_current_session.last_active_organization_id == restored_org.id
+
+    reauthenticated_user = auth.authenticate("admin", "ChangeMe123!", device_label="Runtime Reauth")
+    reauthenticated_principal = auth.build_principal(reauthenticated_user)
+
+    assert reauthenticated_principal.active_organization_id == restored_org.id
+    assert reauthenticated_principal.active_tenant_id == user_session.active_tenant_id()
+
+    user_session.clear()
+    user_session.set_principal(reauthenticated_principal)
+
+    assert user_session.active_organization_id() == restored_org.id
+    assert user_session.active_tenant_id() == reauthenticated_principal.active_tenant_id
+
+
+def test_validate_session_principal_updates_last_validated_at(services):
+    auth = services["auth_service"]
+    principal = services["user_session"].principal
+
+    assert principal is not None
+    assert principal.session_id is not None
+
+    stale_validation_time = datetime.now(timezone.utc) - timedelta(minutes=5)
+    auth_session = services["session"].get(AuthSessionORM, principal.session_id)
+    assert auth_session is not None
+    auth_session.last_validated_at = stale_validation_time
+    auth_session.updated_at = stale_validation_time
+    services["session"].commit()
+
+    validated_principal = auth.validate_session_principal(principal)
+
+    assert validated_principal is not None
+
+    services["session"].expire_all()
+    refreshed_auth_session = services["session"].get(AuthSessionORM, principal.session_id)
+
+    assert refreshed_auth_session is not None
+    assert refreshed_auth_session.last_validated_at is not None
+    assert refreshed_auth_session.last_validated_at > stale_validation_time
 

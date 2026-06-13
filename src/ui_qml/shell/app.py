@@ -31,6 +31,7 @@ from src.ui_qml.shell.qml_engine import (
     load_qml,
 )
 from src.ui_qml.shell.qml_registry import build_qml_route_registry
+from src.ui_qml.shell.runtime_session import ShellRuntimeSessionController
 from src.ui_qml.shell.routes import shell_qml_path
 
 
@@ -82,10 +83,11 @@ def _configure_runtime_environment(app: QGuiApplication, *, settings_store: AppS
     return startup_theme, startup_governance
 
 
-def _prompt_for_login_qml(*, auth_service, user_session) -> bool:
+def _prompt_for_login_qml(*, auth_service, user_session, username: str = "admin") -> bool:
     controller = ShellLoginController(
         auth_service=auth_service,
         user_session=user_session,
+        username=username,
     )
     engine = create_qml_engine()
     load_qml(
@@ -203,6 +205,35 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             "maintenanceCatalog": maintenance_workspace_catalog,
         },
     )
+    runtime_session_controller = None
+    if services is not None:
+        try:
+            poll_interval_ms = max(
+                1_000,
+                int(os.getenv("PM_SESSION_REVALIDATION_MS", "30000") or "30000"),
+            )
+        except ValueError:
+            poll_interval_ms = 30_000
+        runtime_session_controller = ShellRuntimeSessionController(
+            shell_context=shell_context,
+            user_session=services["user_session"],
+            login_prompt=lambda username: _prompt_for_login_qml(
+                auth_service=services["auth_service"],
+                user_session=services["user_session"],
+                username=username or "admin",
+            ),
+            refresh_callbacks=(
+                platform_workspace_catalog.refreshAllWorkspaces,
+                pm_workspace_catalog.refreshAllWorkspaces,
+                inventory_workspace_catalog.refreshAllWorkspaces,
+                maintenance_workspace_catalog.refreshAllWorkspaces,
+            ),
+            poll_interval_ms=poll_interval_ms,
+            app=app,
+            parent=app,
+        )
+        runtime_session_controller.start()
+        app.setProperty("pmRuntimeSessionController", runtime_session_controller)
     logger.info("Shell QML loaded; entering Qt event loop.")
     if hasattr(app, "setProperty"):
         app.setProperty("pmEventLoopRunning", True)

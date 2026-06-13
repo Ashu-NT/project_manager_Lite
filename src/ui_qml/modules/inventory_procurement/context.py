@@ -175,5 +175,19 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             }
         return serialize_workspace_view_model(presenter.build_view_model())
 
+    @Slot()
+    def refreshAllWorkspaces(self) -> None:
+        for controller in (
+            self._catalog_workspace,
+            self._inventory_workspace,
+            self._reservations_workspace,
+            self._procurement_workspace,
+            self._pricing_workspace,
+            self._dashboard_workspace,
+        ):
+            refresh = getattr(controller, "refresh", None)
+            if callable(refresh):
+                refresh()
+
 
 __all__ = ["InventoryProcurementWorkspaceCatalog"]
