@@ -78,6 +78,12 @@ def _count_nulls(table: str, column: str) -> int:
     return result.scalar() or 0
 
 
+def _drop_tmp_table_if_exists(table: str) -> None:
+    """Drop any leftover _alembic_tmp_ table from a previously interrupted batch migration."""
+    bind = op.get_bind()
+    bind.execute(sa.text(f"DROP TABLE IF EXISTS _alembic_tmp_{table}"))
+
+
 def upgrade() -> None:
     for table in _TENANT_ROOT_TABLES:
         if not _table_has_column(table, "tenant_id"):
@@ -92,6 +98,7 @@ def upgrade() -> None:
                 "Run Phase B backfill migration first."
             )
 
+        _drop_tmp_table_if_exists(table)
         with op.batch_alter_table(table, recreate="always") as batch_op:
             batch_op.alter_column(
                 "tenant_id",
@@ -104,6 +111,7 @@ def downgrade() -> None:
     for table in reversed(_TENANT_ROOT_TABLES):
         if not _table_has_column(table, "tenant_id"):
             continue
+        _drop_tmp_table_if_exists(table)
         with op.batch_alter_table(table, recreate="always") as batch_op:
             batch_op.alter_column(
                 "tenant_id",
