@@ -47,6 +47,7 @@ class ResourceService(
         cert_repo: ResourceCertificationRepository | None = None,
         user_session=None,
         audit_service=None,
+        activity_service=None,
         module_catalog_service=None,
         tenant_context_service=None,
     ):
@@ -60,6 +61,7 @@ class ResourceService(
         self._cert_repo: ResourceCertificationRepository | None = cert_repo
         self._user_session = user_session
         self._audit_service = audit_service
+        self._activity_service = activity_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
 

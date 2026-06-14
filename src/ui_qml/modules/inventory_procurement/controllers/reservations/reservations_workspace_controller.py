@@ -87,7 +87,7 @@ class InventoryProcurementReservationsWorkspaceController(
         *,
         workspace_presenter: InventoryProcurementWorkspacePresenter | None = None,
         reservations_workspace_presenter: InventoryReservationsWorkspacePresenter | None = None,
-        platform_audit: object | None = None,
+        activity_api: object | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -113,7 +113,7 @@ class InventoryProcurementReservationsWorkspaceController(
         self._reservation_page = 1
         self._reservation_page_size = 25
         self._selected_reservation_ids: list[str] = []
-        self._platform_audit = platform_audit
+        self._activity_api = activity_api
         self._detail_activity_items: list[dict[str, object]] = []
         bind_domain_events(self)
         self.refresh()

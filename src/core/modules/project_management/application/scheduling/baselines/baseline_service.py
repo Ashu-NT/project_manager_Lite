@@ -21,7 +21,7 @@ from src.core.modules.project_management.contracts.repositories.baseline import 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.approval.policy import is_governance_required
 from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity import record_activity
 from src.core.platform.auth.authorization import is_admin_session, require_permission
 from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
@@ -41,6 +41,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         resource_repo: ResourceRepository,
         user_session=None,
         audit_service=None,
+        activity_service=None,
         approval_service=None,
         module_catalog_service=None,
     ):
@@ -55,6 +56,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         self._resources: ResourceRepository = resource_repo
         self._user_session = user_session
         self._audit_service = audit_service
+        self._activity_service = activity_service
         self._approval_service = approval_service
         self._module_catalog_service = module_catalog_service
 
@@ -280,12 +282,13 @@ class BaselineService(ProjectManagementModuleGuardMixin):
             self._session.flush()
             self._baselines.add_baseline_tasks(baseline_tasks)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="baseline.create",
                 entity_type="project_baseline",
                 entity_id=baseline.id,
-                project_id=project_id,
+                module="project_management",
+                workspace_id=project_id,
                 details={"name": baseline.name},
             )
         except Exception:
@@ -328,12 +331,13 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         try:
             self._baselines.delete_baseline(baseline_id)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="baseline.delete",
                 entity_type="project_baseline",
                 entity_id=baseline_id,
-                project_id=baseline.project_id,
+                module="project_management",
+                workspace_id=baseline.project_id,
                 details={"name": baseline.name},
             )
         except Exception:
@@ -365,12 +369,13 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         try:
             self._baselines.update_baseline(baseline)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="baseline.submit",
                 entity_type="project_baseline",
                 entity_id=baseline_id,
-                project_id=baseline.project_id,
+                module="project_management",
+                workspace_id=baseline.project_id,
                 details={"name": baseline.name, "submitted_by": submitted_by},
             )
         except Exception:
@@ -422,12 +427,13 @@ class BaselineService(ProjectManagementModuleGuardMixin):
             if variance_records:
                 self._baselines.add_variance_records(variance_records)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="baseline.approve",
                 entity_type="project_baseline",
                 entity_id=baseline_id,
-                project_id=baseline.project_id,
+                module="project_management",
+                workspace_id=baseline.project_id,
                 details={
                     "name": baseline.name,
                     "approved_by": approved_by,
@@ -462,12 +468,13 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         try:
             self._baselines.update_baseline(baseline)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="baseline.reject",
                 entity_type="project_baseline",
                 entity_id=baseline_id,
-                project_id=baseline.project_id,
+                module="project_management",
+                workspace_id=baseline.project_id,
                 details={"name": baseline.name},
             )
         except Exception:

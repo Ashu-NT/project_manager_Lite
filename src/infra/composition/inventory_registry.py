@@ -157,6 +157,7 @@ def build_inventory_procurement_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
+        activity_service=platform_services.activity_service,
     )
     inventory_service = InventoryService(
         platform_services.session,
@@ -178,6 +179,7 @@ def build_inventory_procurement_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
+        activity_service=platform_services.activity_service,
     )
     inventory_procurement_service = ProcurementService(
         platform_services.session,

@@ -15,6 +15,7 @@ from src.application.runtime.platform_runtime import PlatformRuntimeApplicationS
 from src.core.platform.access import AccessControlService
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.integration.resolver import IntegrationResolver
+from src.core.platform.activity.application.activity_service import ActivityService
 from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import AuditService
 from src.core.platform.auth import AuthService
@@ -184,6 +185,7 @@ class ServiceGraph:
     maintenance_work_order_task_service: MaintenanceWorkOrderTaskService
     maintenance_work_order_task_step_service: MaintenanceWorkOrderTaskStepService
     access_service: AccessControlService
+    activity_service: ActivityService
     audit_service: AuditService
     approval_service: ApprovalService
     collaboration_service: CollaborationService
@@ -275,6 +277,7 @@ class ServiceGraph:
             "maintenance_work_order_task_service": self.maintenance_work_order_task_service,
             "maintenance_work_order_task_step_service": self.maintenance_work_order_task_step_service,
             "access_service": self.access_service,
+            "activity_service": self.activity_service,
             "audit_service": self.audit_service,
             "approval_service": self.approval_service,
             "collaboration_service": self.collaboration_service,
@@ -406,6 +409,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         maintenance_work_order_task_service=maintenance_services.maintenance_work_order_task_service,
         maintenance_work_order_task_step_service=maintenance_services.maintenance_work_order_task_step_service,
         access_service=platform_services.access_service,
+        activity_service=platform_services.activity_service,
         audit_service=platform_services.audit_service,
         approval_service=platform_services.approval_service,
         collaboration_service=project_management_services.collaboration_service,

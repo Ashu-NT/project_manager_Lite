@@ -16,6 +16,7 @@ from src.core.platform.modules import (
     parse_licensed_module_codes,
 )
 from src.core.platform.access import AccessControlService, ScopedRolePolicy, ScopedRolePolicyRegistry
+from src.core.platform.activity import ActivityService
 from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import AuditService
 from src.core.platform.auth import AuthService
@@ -79,6 +80,7 @@ class PlatformServiceBundle:
     master_data_exchange_service: MasterDataExchangeService
     runtime_execution_service: RuntimeExecutionService
     access_service: AccessControlService
+    activity_service: ActivityService
     audit_service: AuditService
     approval_service: ApprovalService
     enterprise_calendar_service: EnterpriseCalendarService
@@ -112,6 +114,12 @@ def build_platform_service_bundle(
     audit_service = AuditService(
         session=session,
         audit_repo=repositories.audit_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+    )
+    activity_service = ActivityService(
+        session=session,
+        activity_repo=repositories.activity_repo,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
@@ -418,6 +426,7 @@ def build_platform_service_bundle(
         master_data_exchange_service=master_data_exchange_service,
         runtime_execution_service=runtime_execution_service,
         access_service=access_service,
+        activity_service=activity_service,
         audit_service=audit_service,
         approval_service=approval_service,
         enterprise_calendar_service=enterprise_calendar_service,

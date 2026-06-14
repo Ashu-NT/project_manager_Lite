@@ -31,6 +31,7 @@ class CostService(
         task_repo: TaskRepository,
         user_session=None,
         audit_service=None,
+        activity_service=None,
         approval_service=None,
         module_catalog_service=None,
     ):
@@ -40,6 +41,7 @@ class CostService(
         self._task_repo: TaskRepository = task_repo
         self._user_session = user_session
         self._audit_service = audit_service
+        self._activity_service = activity_service
         self._approval_service = approval_service
         self._module_catalog_service = module_catalog_service
 

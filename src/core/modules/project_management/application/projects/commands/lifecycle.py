@@ -21,7 +21,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
 )
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.common.interfaces import TimeEntryRepository
@@ -145,12 +145,13 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         try:
             self._project_repo.add(project)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="project.create",
                 entity_type="project",
                 entity_id=project.id,
-                project_id=project.id,
+                module="project_management",
+                workspace_id=project.id,
                 details={"name": project.name},
             )
             logger.info("Created project %s - %s", project.id, project.name)
@@ -183,12 +184,13 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         try:
             self._project_repo.update(project)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="project.set_status",
                 entity_type="project",
                 entity_id=project.id,
-                project_id=project.id,
+                module="project_management",
+                workspace_id=project.id,
                 details={"status": project.status.value},
             )
         except Exception:
@@ -300,12 +302,13 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         try:
             self._project_repo.update(project)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="project.update",
                 entity_type="project",
                 entity_id=project.id,
-                project_id=project.id,
+                module="project_management",
+                workspace_id=project.id,
                 details={"name": project.name, "status": project.status.value},
             )
         except IntegrityError as exc:
@@ -348,12 +351,13 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             self._calendar_repo.delete_for_project(project_id)
             self._project_repo.delete(project_id)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="project.delete",
                 entity_type="project",
                 entity_id=project.id,
-                project_id=project.id,
+                module="project_management",
+                workspace_id=project.id,
                 details={"name": project.name},
             )
         except Exception:

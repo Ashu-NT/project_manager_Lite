@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity import record_activity
 
 
 def record_assignment_action(
@@ -22,12 +22,13 @@ def record_assignment_action(
     for key, value in (extra or {}).items():
         if value is not None:
             details[key] = value
-    record_audit(
+    record_activity(
         owner,
         action=action,
         entity_type="task_assignment",
         entity_id=assignment_id,
-        project_id=project_id,
+        module="project_management",
+        workspace_id=project_id,
         details=details,
     )
 

@@ -150,7 +150,7 @@ class InventoryProcurementInventoryWorkspaceController(
         *,
         workspace_presenter: InventoryProcurementWorkspacePresenter | None = None,
         inventory_workspace_presenter: InventoryInventoryWorkspacePresenter | None = None,
-        platform_audit: object | None = None,
+        activity_api: object | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -201,7 +201,7 @@ class InventoryProcurementInventoryWorkspaceController(
         self._location_page = 1
         self._location_page_size = 25
         self._selected_location_id = ""
-        self._platform_audit = platform_audit
+        self._activity_api = activity_api
         self._detail_activity_items: list[dict[str, object]] = []
         bind_domain_events(self)
         self.refresh()

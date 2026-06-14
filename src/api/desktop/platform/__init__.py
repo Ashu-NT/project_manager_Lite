@@ -62,6 +62,7 @@ from src.api.desktop.platform.models import (
 )
 # PlatformCalendarDesktopApi removed — use EnterpriseCalendarDesktopApi instead
 from src.api.desktop.platform.access import PlatformAccessDesktopApi
+from src.api.desktop.platform.activity import PlatformActivityDesktopApi
 from src.api.desktop.platform.approval import PlatformApprovalDesktopApi
 from src.api.desktop.platform.audit import PlatformAuditDesktopApi
 from src.api.desktop.platform.document import PlatformDocumentDesktopApi
@@ -116,6 +117,7 @@ __all__ = [
     "PartyUpdateCommand",
     "PlatformCapabilityDto",
     "PlatformAccessDesktopApi",
+    "PlatformActivityDesktopApi",
     "PlatformApprovalDesktopApi",
     "PlatformAuditDesktopApi",
     # "PlatformCalendarDesktopApi",  # removed — use EnterpriseCalendarDesktopApi

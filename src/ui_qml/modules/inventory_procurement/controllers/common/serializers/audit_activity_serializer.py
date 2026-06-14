@@ -1,19 +1,16 @@
 from __future__ import annotations
 
 
-def serialize_audit_entries_for_activity(
+def serialize_activity_entries(
     entries: object,
-    entity_id: str,
 ) -> list[dict[str, object]]:
     items: list[dict[str, object]] = []
     for entry in entries:
-        if getattr(entry, "entity_id", None) != entity_id:
-            continue
         action = getattr(entry, "action", "") or ""
-        details = getattr(entry, "details_label", "") or action
-        actor = getattr(entry, "actor_username", "") or ""
+        details = getattr(entry, "human_message", "") or action
+        actor = getattr(entry, "actor_id", "") or ""
         title = f"{details} — {actor}" if actor else details
-        meta = str(getattr(entry, "occurred_at", "") or "")
+        meta = str(getattr(entry, "timestamp", "") or "")
         al = action.lower()
         if any(k in al for k in ("creat", "add", "open", "approv", "complet", "receiv")):
             status = "success"

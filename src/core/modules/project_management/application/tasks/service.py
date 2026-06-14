@@ -47,6 +47,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
     DependencyRepository,
     TaskRepository,
 )
+from src.core.platform.activity.application.activity_service import ActivityService
 from src.core.platform.approval.application.approval_service import ApprovalService
 from src.core.platform.audit.application.audit_service import AuditService
 from src.core.platform.auth.domain.session import UserSessionContext
@@ -89,6 +90,7 @@ class TaskService(
         project_repo: ProjectRepository | None = None,
         user_session: UserSessionContext | None = None,
         audit_service: AuditService | None = None,
+        activity_service: ActivityService | None = None,
         approval_service: ApprovalService | None = None,
         module_catalog_service=None,
     ):
@@ -108,6 +110,7 @@ class TaskService(
         self._project_repo: ProjectRepository | None = project_repo
         self._user_session: UserSessionContext | None = user_session
         self._audit_service: AuditService | None = audit_service
+        self._activity_service: ActivityService | None = activity_service
         self._approval_service: ApprovalService | None = approval_service
         self._module_catalog_service = module_catalog_service
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()

@@ -4,7 +4,7 @@ from src.core.modules.project_management.contracts.repositories.project import P
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.domain.projects.project import ProjectResource
 from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.shared.events.domain_events import domain_events
@@ -74,12 +74,13 @@ class ProjectResourceCommandMixin:
         try:
             self._project_resource_repo.add(project_resource)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="project_resource.add",
                 entity_type="project_resource",
                 entity_id=project_resource.id,
-                project_id=project_id,
+                module="project_management",
+                workspace_id=project_id,
                 details={
                     "resource_name": resource.name,
                     "planned_hours": project_resource.planned_hours,
@@ -133,12 +134,13 @@ class ProjectResourceCommandMixin:
         try:
             self._project_resource_repo.update(project_resource)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="project_resource.update",
                 entity_type="project_resource",
                 entity_id=project_resource.id,
-                project_id=project_resource.project_id,
+                module="project_management",
+                workspace_id=project_resource.project_id,
                 details={
                     "resource_name": resource.name if resource is not None else project_resource.resource_id,
                     "planned_hours": project_resource.planned_hours,
@@ -174,12 +176,13 @@ class ProjectResourceCommandMixin:
             self._project_resource_repo.update(project_resource)
             self._session.commit()
             resource = self._resource_repo.get(project_resource.resource_id)
-            record_audit(
+            record_activity(
                 self,
                 action="project_resource.set_active",
                 entity_type="project_resource",
                 entity_id=project_resource.id,
-                project_id=project_resource.project_id,
+                module="project_management",
+                workspace_id=project_resource.project_id,
                 details={
                     "resource_name": resource.name if resource is not None else project_resource.resource_id,
                     "is_active": project_resource.is_active,
@@ -209,12 +212,13 @@ class ProjectResourceCommandMixin:
         try:
             self._project_resource_repo.delete(pr_id)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="project_resource.delete",
                 entity_type="project_resource",
                 entity_id=project_resource.id,
-                project_id=project_resource.project_id,
+                module="project_management",
+                workspace_id=project_resource.project_id,
                 details={
                     "resource_name": resource.name if resource is not None else project_resource.resource_id,
                 },

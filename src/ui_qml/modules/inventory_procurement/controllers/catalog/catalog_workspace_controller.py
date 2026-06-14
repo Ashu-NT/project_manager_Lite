@@ -122,7 +122,7 @@ class InventoryProcurementCatalogWorkspaceController(
         *,
         workspace_presenter: InventoryProcurementWorkspacePresenter | None = None,
         catalog_workspace_presenter: InventoryCatalogWorkspacePresenter | None = None,
-        platform_audit: object | None = None,
+        activity_api: object | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -162,7 +162,7 @@ class InventoryProcurementCatalogWorkspaceController(
         self._selected_category_ids: list[str] = []
         self._active_view = "items"
         self._bulk_status_options: list[dict[str, str]] = []
-        self._platform_audit = platform_audit
+        self._activity_api = activity_api
         self._detail_activity_items: list[dict[str, object]] = []
         bind_domain_events(self)
         self.refresh()

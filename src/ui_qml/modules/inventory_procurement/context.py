@@ -69,9 +69,9 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             "inventory_procurement_pricing",
             None,
         )
-        platform_audit = getattr(
+        platform_activity = getattr(
             desktop_api_registry,
-            "platform_audit",
+            "platform_activity",
             None,
         )
         self._catalog_workspace = InventoryProcurementCatalogWorkspaceController(
@@ -81,7 +81,7 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             catalog_workspace_presenter=InventoryCatalogWorkspacePresenter(
                 desktop_api=catalog_api
             ),
-            platform_audit=platform_audit,
+            platform_activity=platform_activity,
             parent=self,
         )
         self._inventory_workspace = InventoryProcurementInventoryWorkspaceController(
@@ -91,7 +91,7 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             inventory_workspace_presenter=InventoryInventoryWorkspacePresenter(
                 desktop_api=inventory_api
             ),
-            platform_audit=platform_audit,
+            platform_activity=platform_activity,
             parent=self,
         )
         self._reservations_workspace = (
@@ -102,7 +102,7 @@ class InventoryProcurementWorkspaceCatalog(QObject):
                 reservations_workspace_presenter=InventoryReservationsWorkspacePresenter(
                     desktop_api=reservations_api
                 ),
-                platform_audit=platform_audit,
+                platform_activity=platform_activity,
                 parent=self,
             )
         )
@@ -114,7 +114,7 @@ class InventoryProcurementWorkspaceCatalog(QObject):
                 procurement_workspace_presenter=InventoryProcurementProcurementWorkspacePresenter(
                     desktop_api=procurement_api
                 ),
-                platform_audit=platform_audit,
+                platform_activity=platform_activity,
                 parent=self,
             )
         )
@@ -125,7 +125,7 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             pricing_workspace_presenter=InventoryPricingWorkspacePresenter(
                 desktop_api=pricing_api
             ),
-            platform_audit=platform_audit,
+            platform_activity=platform_activity,
             parent=self,
         )
         self._dashboard_workspace = InventoryProcurementDashboardWorkspaceController(

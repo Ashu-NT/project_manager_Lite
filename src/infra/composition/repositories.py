@@ -53,6 +53,7 @@ from src.core.platform.infrastructure.persistence.repositories.access import (
     SqlAlchemyProjectMembershipRepository,
     SqlAlchemyScopedAccessGrantRepository,
 )
+from src.core.platform.infrastructure.persistence.repositories.activity import SqlAlchemyActivityRepository
 from src.core.platform.infrastructure.persistence.repositories.approval import SqlAlchemyApprovalRepository
 from src.core.platform.infrastructure.persistence.repositories.audit import SqlAlchemyAuditLogRepository
 from src.core.platform.infrastructure.persistence.repositories.auth import (
@@ -121,6 +122,7 @@ class RepositoryBundle:
     role_permission_repo: SqlAlchemyRolePermissionRepository
     project_membership_repo: SqlAlchemyProjectMembershipRepository
     scoped_access_repo: SqlAlchemyScopedAccessGrantRepository
+    activity_repo: SqlAlchemyActivityRepository
     audit_repo: SqlAlchemyAuditLogRepository
     approval_repo: SqlAlchemyApprovalRepository
     register_repo: SqlAlchemyRegisterEntryRepository
@@ -175,6 +177,7 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         role_permission_repo=SqlAlchemyRolePermissionRepository(session),
         project_membership_repo=SqlAlchemyProjectMembershipRepository(session),
         scoped_access_repo=SqlAlchemyScopedAccessGrantRepository(session),
+        activity_repo=SqlAlchemyActivityRepository(session),
         audit_repo=SqlAlchemyAuditLogRepository(session),
         approval_repo=SqlAlchemyApprovalRepository(session),
         register_repo=SqlAlchemyRegisterEntryRepository(session),

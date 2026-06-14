@@ -12,7 +12,7 @@ from src.core.platform.common.interfaces import TimeEntryRepository
 from src.core.platform.employee.contracts import EmployeeRepository
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.auth.authorization import require_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity import record_activity
 from src.core.shared.events.domain_events import domain_events
 
 logger = logging.getLogger(__name__)
@@ -133,11 +133,12 @@ class ResourceCommandMixin:
         try:
             self._resource_repo.add(resource)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="resource.create",
                 entity_type="resource",
                 entity_id=resource.id,
+                module="project_management",
                 details={
                     "name": resource.name,
                     "role": resource.role,
@@ -237,11 +238,12 @@ class ResourceCommandMixin:
         try:
             self._resource_repo.update(resource)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="resource.update",
                 entity_type="resource",
                 entity_id=resource.id,
+                module="project_management",
                 details={
                     "name": resource.name,
                     "role": resource.role,
@@ -275,11 +277,12 @@ class ResourceCommandMixin:
                  
             self._resource_repo.delete(resource_id)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="resource.delete",
                 entity_type="resource",
                 entity_id=resource.id,
+                module="project_management",
                 details={"name": resource.name},
             )
         except Exception as e:

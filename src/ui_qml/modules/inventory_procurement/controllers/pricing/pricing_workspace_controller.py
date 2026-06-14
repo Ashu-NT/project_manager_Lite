@@ -92,7 +92,7 @@ class InventoryProcurementPricingWorkspaceController(
         *,
         workspace_presenter: InventoryProcurementWorkspacePresenter | None = None,
         pricing_workspace_presenter: InventoryPricingWorkspacePresenter | None = None,
-        platform_audit: object | None = None,
+        activity_api: object | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -126,7 +126,7 @@ class InventoryProcurementPricingWorkspaceController(
         self._active_view = "stock"
         self._selected_stock_signal_id = ""
         self._selected_supplier_pricing_id = ""
-        self._platform_audit = platform_audit
+        self._activity_api = activity_api
         self._detail_activity_items: list[dict[str, object]] = []
         bind_domain_events(self)
         self.refresh()

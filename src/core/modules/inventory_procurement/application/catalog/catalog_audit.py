@@ -9,7 +9,7 @@ from src.core.modules.inventory_procurement.domain.catalog.item import (
     InventoryItemCategory,
     StockItem,
 )
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity import record_activity
 
 
 def _build_category_create_audit_details(
@@ -65,11 +65,12 @@ def record_inventory_item_category_create_audit(
     organization_id: str,
     category: InventoryItemCategory,
 ) -> None:
-    record_audit(
+    record_activity(
         owner,
         action="inventory_item_category.create",
         entity_type="inventory_item_category",
         entity_id=category.id,
+        module="inventory_procurement",
         details=_build_category_create_audit_details(organization_id, category),
     )
 
@@ -80,11 +81,12 @@ def record_inventory_item_category_update_audit(
     organization_id: str,
     category: InventoryItemCategory,
 ) -> None:
-    record_audit(
+    record_activity(
         owner,
         action="inventory_item_category.update",
         entity_type="inventory_item_category",
         entity_id=category.id,
+        module="inventory_procurement",
         details=_build_category_update_audit_details(organization_id, category),
     )
 
@@ -95,11 +97,12 @@ def record_inventory_item_create_audit(
     organization_id: str,
     item: StockItem,
 ) -> None:
-    record_audit(
+    record_activity(
         owner,
         action="inventory_item.create",
         entity_type="inventory_item",
         entity_id=item.id,
+        module="inventory_procurement",
         details=_build_item_audit_details(organization_id, item),
     )
 
@@ -110,11 +113,12 @@ def record_inventory_item_update_audit(
     organization_id: str,
     item: StockItem,
 ) -> None:
-    record_audit(
+    record_activity(
         owner,
         action="inventory_item.update",
         entity_type="inventory_item",
         entity_id=item.id,
+        module="inventory_procurement",
         details=_build_item_audit_details(organization_id, item),
     )
 
@@ -126,11 +130,12 @@ def record_inventory_item_link_document_audit(
     document_id: str,
     link_role: str,
 ) -> None:
-    record_audit(
+    record_activity(
         owner,
         action="inventory_item.link_document",
         entity_type="inventory_item",
         entity_id=item_id,
+        module="inventory_procurement",
         details=_build_document_audit_details(document_id, link_role),
     )
 
@@ -142,11 +147,12 @@ def record_inventory_item_unlink_document_audit(
     document_id: str,
     link_role: str,
 ) -> None:
-    record_audit(
+    record_activity(
         owner,
         action="inventory_item.unlink_document",
         entity_type="inventory_item",
         entity_id=item_id,
+        module="inventory_procurement",
         details=_build_document_audit_details(document_id, link_role),
     )
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.portfolio import PortfolioProjectDependency
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
@@ -54,12 +54,13 @@ class PortfolioDependencyCommandMixin:
         )
         self._dependency_repo.add(dependency)
         self._session.commit()
-        record_audit(
+        record_activity(
             self,
             action="portfolio.project_dependency.add",
             entity_type="portfolio_project_dependency",
             entity_id=dependency.id,
-            project_id=successor.id,
+            module="project_management",
+            workspace_id=successor.id,
             details={
                 "predecessor_project_id": predecessor.id,
                 "predecessor_project_name": predecessor.name,
@@ -93,12 +94,13 @@ class PortfolioDependencyCommandMixin:
             )
         self._dependency_repo.delete(dependency_id)
         self._session.commit()
-        record_audit(
+        record_activity(
             self,
             action="portfolio.project_dependency.remove",
             entity_type="portfolio_project_dependency",
             entity_id=dependency.id,
-            project_id=successor.id,
+            module="project_management",
+            workspace_id=successor.id,
             details={
                 "predecessor_project_id": predecessor.id,
                 "predecessor_project_name": predecessor.name,

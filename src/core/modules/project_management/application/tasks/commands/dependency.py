@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from src.core.modules.project_management.domain.tasks.task import TaskDependency
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.approval.policy import is_governance_required
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity import record_activity
 from src.core.platform.auth.authorization import is_admin_session, require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
@@ -117,12 +117,13 @@ class TaskDependencyMixin:
             self._dependency_repo.add(dependency)
             self._session.commit()
             self._sync_project_schedule(predecessor.project_id)
-            record_audit(
+            record_activity(
                 self,
                 action="dependency.add",
                 entity_type="task_dependency",
                 entity_id=dependency.id,
-                project_id=predecessor.project_id,
+                module="project_management",
+                workspace_id=predecessor.project_id,
                 details={
                     "predecessor_name": predecessor.name,
                     "successor_name": successor.name,
@@ -183,12 +184,13 @@ class TaskDependencyMixin:
             self._session.commit()
             project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
             self._sync_project_schedule(project_id)
-            record_audit(
+            record_activity(
                 self,
                 action="dependency.remove",
                 entity_type="task_dependency",
                 entity_id=dep_id,
-                project_id=project_id,
+                module="project_management",
+                workspace_id=project_id,
                 details={
                     "predecessor_name": predecessor.name if predecessor else None,
                     "successor_name": successor.name if successor else None,
@@ -291,12 +293,13 @@ class TaskDependencyMixin:
             self._session.commit()
             if project_id:
                 self._sync_project_schedule(project_id)
-            record_audit(
+            record_activity(
                 self,
                 action="dependency.update",
                 entity_type="task_dependency",
                 entity_id=dependency.id,
-                project_id=project_id,
+                module="project_management",
+                workspace_id=project_id,
                 details={
                     "predecessor_name": predecessor.name if predecessor else None,
                     "successor_name": successor.name if successor else None,

@@ -26,6 +26,7 @@ class ItemCategoryService:
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         audit_service=None,
+        activity_service=None,
     ) -> None:
         self._session = session
         self._category_repo = category_repo
@@ -36,6 +37,7 @@ class ItemCategoryService:
         )
         self._user_session = user_session
         self._audit_service = audit_service
+        self._activity_service = activity_service
         self._catalog_operation_label = "inventory item categories"
 
     def list_categories(

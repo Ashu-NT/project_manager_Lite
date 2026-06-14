@@ -1,4 +1,4 @@
-from .audit_activity_serializer import serialize_audit_entries_for_activity
+from .audit_activity_serializer import serialize_activity_entries
 from .catalog_serializer import serialize_catalog_overview_view_model
 from .dashboard_serializer import (
     serialize_dashboard_overview_view_model,
@@ -12,7 +12,7 @@ from .selector_serializer import serialize_selector_options
 from .workspace_serializer import serialize_workspace_view_model
 
 __all__ = [
-    "serialize_audit_entries_for_activity",
+    "serialize_activity_entries",
     "serialize_catalog_detail_view_model",
     "serialize_catalog_overview_view_model",
     "serialize_dashboard_overview_view_model",

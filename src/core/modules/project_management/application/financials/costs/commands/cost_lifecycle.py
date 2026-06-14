@@ -6,7 +6,7 @@ from src.core.shared.events.domain_events import domain_events
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, ValidationError
 from src.core.modules.project_management.domain.financials.cost import CostItem
 from src.core.modules.project_management.domain.enums import CostType
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity import record_activity
 
 
 class CostLifecycleMixin:
@@ -111,12 +111,13 @@ class CostLifecycleMixin:
         try:
             self._cost_repo.add(cost_item)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="cost.add",
                 entity_type="cost_item",
                 entity_id=cost_item.id,
-                project_id=project_id,
+                module="project_management",
+                workspace_id=project_id,
                 details={
                     "description": cost_item.description,
                     "planned_amount": cost_item.planned_amount,
@@ -205,12 +206,13 @@ class CostLifecycleMixin:
         try:
             self._cost_repo.update(item)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="cost.update",
                 entity_type="cost_item",
                 entity_id=item.id,
-                project_id=item.project_id,
+                module="project_management",
+                workspace_id=item.project_id,
                 details={
                     "description": item.description,
                     "planned_amount": item.planned_amount,
@@ -254,12 +256,13 @@ class CostLifecycleMixin:
         try:
             self._cost_repo.delete(cost_id)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="cost.delete",
                 entity_type="cost_item",
                 entity_id=item.id,
-                project_id=item.project_id,
+                module="project_management",
+                workspace_id=item.project_id,
                 details={"description": item.description},
             )
         except Exception:
