@@ -6,22 +6,27 @@ ROOT = REPO_ROOT
 PERSISTENCE_ROOT = ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence"
 EXPECTED_AREAS = {
     "access",
+    "activity",
     "approval",
     "audit",
+    "audit_entry",
     "auth",
-    "calendar",
+    "departments",
     "documents",
+    "employee",
     "enterprise_calendar",
     "modules",
     "org",
     "party",
     "runtime_tracking",
+    "sites",
+    "tenant",
     "time",
 }
 
 
 def _source_file_stems(path: Path) -> set[str]:
-    return {item.stem for item in path.glob("*.py") if item.stem != "__init__"}
+    return {item.stem for item in path.glob("*.py") if not item.stem.startswith("_")}
 
 
 def test_platform_persistence_uses_module_style_layout() -> None:

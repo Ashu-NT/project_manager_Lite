@@ -232,7 +232,7 @@ def test_timesheet_period_transitions_are_audited(services):
 
 def test_auth_login_attempts_are_audited(services):
     auth = services["auth_service"]
-    audit = services["audit_service"]
+    enterprise_audit = services["enterprise_audit_service"]
 
     admin = auth.authenticate("admin", "ChangeMe123!")
     assert admin.username == "admin"
@@ -240,8 +240,8 @@ def test_auth_login_attempts_are_audited(services):
     with pytest.raises(ValidationError, match="Invalid credentials"):
         auth.authenticate("admin", "WrongPassword123")
 
-    entries = audit.list_recent(limit=50, entity_type="auth_session")
-    actions = [entry.action for entry in entries]
+    entries = enterprise_audit.list_recent(limit=50, entity_type="auth_session")
+    actions = [entry.operation for entry in entries]
     assert "auth.login.success" in actions
     assert "auth.login.failed" in actions
 
