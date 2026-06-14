@@ -156,7 +156,6 @@ def build_inventory_procurement_service_bundle(
         organization_repo=platform_services.organization_repo,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
         activity_service=platform_services.activity_service,
     )
     inventory_service = InventoryService(
@@ -167,7 +166,6 @@ def build_inventory_procurement_service_bundle(
         party_service=platform_services.party_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
     )
     inventory_item_service = ItemMasterService(
         platform_services.session,
@@ -178,7 +176,6 @@ def build_inventory_procurement_service_bundle(
         document_integration_service=platform_services.document_integration_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
         activity_service=platform_services.activity_service,
     )
     inventory_procurement_service = ProcurementService(
@@ -192,7 +189,6 @@ def build_inventory_procurement_service_bundle(
         approval_service=platform_services.approval_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
     )
     inventory_stock_service = StockControlService(
         platform_services.session,
@@ -203,7 +199,6 @@ def build_inventory_procurement_service_bundle(
         inventory_service=inventory_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
     )
     inventory_purchasing_service = PurchasingService(
         platform_services.session,
@@ -226,7 +221,6 @@ def build_inventory_procurement_service_bundle(
         approval_service=platform_services.approval_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
         document_integration_service=platform_services.document_integration_service,
     )
     inventory_reservation_service = ReservationService(
@@ -238,7 +232,6 @@ def build_inventory_procurement_service_bundle(
         stock_service=inventory_stock_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
         document_integration_service=platform_services.document_integration_service,
     )
     inventory_foundation_service = InventoryFoundationService(
@@ -254,7 +247,6 @@ def build_inventory_procurement_service_bundle(
         module_runtime_service=platform_services.module_runtime_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
     )
     platform_services.approval_service.register_apply_handler(
         "purchase_requisition.submit",

@@ -29,7 +29,6 @@ class ItemMasterService:
         document_integration_service: DocumentIntegrationService,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
         activity_service=None,
     ) -> None:
         self._session = session
@@ -43,7 +42,7 @@ class ItemMasterService:
         self._party_service = party_service
         self._document_integration_service = document_integration_service
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
         self._activity_service = activity_service
         self._catalog_operation_label = "inventory items"
 

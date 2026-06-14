@@ -32,7 +32,7 @@ from src.core.modules.inventory_procurement.domain.inventory.foundation import (
     StorageLocationType,
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.common.ids import generate_id
@@ -63,7 +63,7 @@ class InventoryFoundationService:
         module_runtime_service: ModuleRuntimeService | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
     ) -> None:
         self._session = session
         self._location_repo = location_repo
@@ -80,7 +80,7 @@ class InventoryFoundationService:
         self._party_service = party_service
         self._module_runtime_service = module_runtime_service
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
 
     def list_storage_locations(
         self,
@@ -175,11 +175,12 @@ class InventoryFoundationService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_storage_location.create",
             entity_type="inventory_storage_location",
             entity_id=location.id,
+            module="inventory",
             details={
                 "storeroom_id": location.storeroom_id,
                 "location_code": location.location_code,
@@ -266,11 +267,12 @@ class InventoryFoundationService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_storage_location.update",
             entity_type="inventory_storage_location",
             entity_id=location.id,
+            module="inventory",
             details={
                 "storeroom_id": location.storeroom_id,
                 "location_code": location.location_code,
@@ -458,11 +460,12 @@ class InventoryFoundationService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action=action,
             entity_type="inventory_reorder_policy",
             entity_id=policy.id,
+            module="inventory",
             details={
                 "stock_item_id": policy.stock_item_id,
                 "storeroom_id": policy.storeroom_id,
@@ -565,11 +568,12 @@ class InventoryFoundationService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_cycle_count.schedule",
             entity_type="inventory_cycle_count",
             entity_id=cycle_count.id,
+            module="inventory",
             details={
                 "cycle_count_number": cycle_count.cycle_count_number,
                 "stock_item_id": cycle_count.stock_item_id,
@@ -648,11 +652,12 @@ class InventoryFoundationService:
             self._session.rollback()
             raise
         if adjustment_transaction is not None:
-            record_audit(
+            record_activity(
                 self,
                 action="inventory_stock_transaction.post",
                 entity_type="inventory_stock_transaction",
                 entity_id=adjustment_transaction.id,
+                module="inventory",
                 details={
                     "transaction_number": adjustment_transaction.transaction_number,
                     "stock_item_id": adjustment_transaction.stock_item_id,
@@ -662,11 +667,12 @@ class InventoryFoundationService:
                     "reference_id": adjustment_transaction.reference_id,
                 },
             )
-        record_audit(
+        record_activity(
             self,
             action="inventory_cycle_count.complete",
             entity_type="inventory_cycle_count",
             entity_id=cycle_count.id,
+            module="inventory",
             details={
                 "cycle_count_number": cycle_count.cycle_count_number,
                 "counted_qty": str(cycle_count.counted_qty),

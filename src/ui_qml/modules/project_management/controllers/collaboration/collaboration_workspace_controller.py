@@ -55,7 +55,6 @@ class ProjectManagementCollaborationWorkspaceController(
     approvalsChanged = Signal()
     activityFeedChanged = Signal()
     teamUpdatesChanged = Signal()
-    auditFeedChanged = Signal()
     selectedItemDetailChanged = Signal()
 
     def __init__(
@@ -87,7 +86,6 @@ class ProjectManagementCollaborationWorkspaceController(
         self._approvals: dict[str, object] = default_collection()
         self._activity_feed: dict[str, object] = default_collection()
         self._team_updates: dict[str, object] = default_collection()
-        self._audit_feed: dict[str, object] = default_collection()
         self._selected_item_detail: dict[str, object] = default_selected_item_detail()
         self._panel_item_index: dict[str, dict[str, dict[str, object]]] = {}
         bind_collaboration_domain_events(self)
@@ -196,10 +194,6 @@ class ProjectManagementCollaborationWorkspaceController(
     @Property("QVariantMap", notify=teamUpdatesChanged)
     def teamUpdates(self) -> dict[str, object]:
         return self._team_updates
-
-    @Property("QVariantMap", notify=auditFeedChanged)
-    def auditFeed(self) -> dict[str, object]:
-        return self._audit_feed
 
     @Property("QVariantMap", notify=selectedItemDetailChanged)
     def selectedItemDetail(self) -> dict[str, object]:
@@ -320,9 +314,6 @@ class ProjectManagementCollaborationWorkspaceController(
 
     def _set_team_updates(self, team_updates: dict[str, object]) -> None:
         _setters.set_team_updates(self, team_updates)
-
-    def _set_audit_feed(self, audit_feed: dict[str, object]) -> None:
-        _setters.set_audit_feed(self, audit_feed)
 
     def _set_selected_item_detail(
         self, selected_item_detail: dict[str, object]

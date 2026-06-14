@@ -13,7 +13,7 @@ from src.core.modules.maintenance.application.common.support import (
     normalize_maintenance_name,
     normalize_optional_text,
 )
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
@@ -35,7 +35,7 @@ class MaintenanceIntegrationSourceService:
         sensor_exception_service=None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
     ) -> None:
         self._session = session
         self._integration_source_repo = integration_source_repo
@@ -46,7 +46,7 @@ class MaintenanceIntegrationSourceService:
         )
         self._sensor_exception_service = sensor_exception_service
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
 
     def list_sources(
         self,
@@ -274,11 +274,12 @@ class MaintenanceIntegrationSourceService:
         return updated
 
     def _record_change(self, action: str, source: MaintenanceIntegrationSource) -> None:
-        record_audit(
+        record_activity(
             self,
             action=action,
             entity_type="maintenance_integration_source",
             entity_id=source.id,
+            module="maintenance",
             details={
                 "organization_id": source.organization_id,
                 "integration_code": source.integration_code,

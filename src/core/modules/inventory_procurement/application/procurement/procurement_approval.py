@@ -11,7 +11,7 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     PurchaseRequisitionStatus,
 )
 from src.core.platform.approval.domain import ApprovalRequest
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 
@@ -47,11 +47,12 @@ class ProcurementApprovalMixin:
         for line in self._requisition_line_repo.list_for_requisition(requisition.id):
             line.status = PurchaseRequisitionLineStatus.OPEN
             self._requisition_line_repo.update(line)
-        record_audit(
+        record_activity(
             self,
             action="inventory_requisition.approve",
             entity_type="purchase_requisition",
             entity_id=requisition.id,
+            module="inventory",
             details={
                 "requisition_number": requisition.requisition_number,
                 "approval_request_id": request.id,
@@ -88,11 +89,12 @@ class ProcurementApprovalMixin:
         for line in self._requisition_line_repo.list_for_requisition(requisition.id):
             line.status = PurchaseRequisitionLineStatus.REJECTED
             self._requisition_line_repo.update(line)
-        record_audit(
+        record_activity(
             self,
             action="inventory_requisition.reject",
             entity_type="purchase_requisition",
             entity_id=requisition.id,
+            module="inventory",
             details={
                 "requisition_number": requisition.requisition_number,
                 "approval_request_id": request.id,

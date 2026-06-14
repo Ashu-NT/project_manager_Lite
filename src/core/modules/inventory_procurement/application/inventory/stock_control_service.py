@@ -46,7 +46,7 @@ class StockControlService(
         inventory_service: InventoryService,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
     ):
         self._session = session
         self._balance_repo = balance_repo
@@ -59,7 +59,7 @@ class StockControlService(
         self._item_service = item_service
         self._inventory_service = inventory_service
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
 
 
 __all__ = ["StockControlService"]

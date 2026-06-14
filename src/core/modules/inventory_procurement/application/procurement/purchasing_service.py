@@ -34,7 +34,7 @@ from src.core.modules.inventory_procurement.contracts.repositories.procurement i
 from src.core.platform.approval import ApprovalService
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.tenancy.tenant_context import (
     TenantContextService,
@@ -71,7 +71,7 @@ class PurchasingService(
         approval_service: ApprovalService,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
         document_integration_service: DocumentIntegrationService | None = None,
     ) -> None:
         self._session: Session = session
@@ -93,7 +93,7 @@ class PurchasingService(
         self._stock_service: StockControlService = stock_service
         self._approval_service: ApprovalService = approval_service
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
         self._document_integration_service: DocumentIntegrationService | None = document_integration_service
 
     def list_purchase_order_documents(
@@ -111,6 +111,7 @@ class PurchasingService(
             module_code="inventory_procurement",
             entity_type="purchase_order",
             entity_id=po.id,
+            module="inventory",
             active_only=active_only,
         )
 
@@ -133,14 +134,16 @@ class PurchasingService(
             module_code="inventory_procurement",
             entity_type="purchase_order",
             entity_id=po.id,
+            module="inventory",
             document_id=document_id,
             link_role=link_role,
         )
-        record_audit(
+        record_activity(
             self,
             action="inventory_purchase_order.link_document",
             entity_type="purchase_order",
             entity_id=po.id,
+            module="inventory",
             details={
                 "document_id": document_id,
                 "link_role": normalize_optional_text(link_role) or "reference",
@@ -168,14 +171,16 @@ class PurchasingService(
             module_code="inventory_procurement",
             entity_type="purchase_order",
             entity_id=po.id,
+            module="inventory",
             document_id=document_id,
             link_role=link_role,
         )
-        record_audit(
+        record_activity(
             self,
             action="inventory_purchase_order.unlink_document",
             entity_type="purchase_order",
             entity_id=po.id,
+            module="inventory",
             details={
                 "document_id": document_id,
                 "link_role": normalize_optional_text(link_role) or "reference",

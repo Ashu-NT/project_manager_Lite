@@ -13,7 +13,7 @@ from src.core.modules.maintenance.contracts.repositories import (
 )
 from src.core.modules.maintenance.application.common.support import normalize_maintenance_name, normalize_optional_text
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
@@ -36,7 +36,7 @@ class MaintenanceSensorSourceMappingService:
         sensor_repo: MaintenanceSensorRepository,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
     ) -> None:
         self._session = session
         self._sensor_source_mapping_repo = sensor_source_mapping_repo
@@ -48,7 +48,7 @@ class MaintenanceSensorSourceMappingService:
         self._integration_source_repo = integration_source_repo
         self._sensor_repo = sensor_repo
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
 
     def list_mappings(
         self,
@@ -254,11 +254,12 @@ class MaintenanceSensorSourceMappingService:
                 )
 
     def _record_change(self, action: str, mapping: MaintenanceSensorSourceMapping) -> None:
-        record_audit(
+        record_activity(
             self,
             action=action,
             entity_type="maintenance_sensor_source_mapping",
             entity_id=mapping.id,
+            module="maintenance",
             details={
                 "organization_id": mapping.organization_id,
                 "integration_source_id": mapping.integration_source_id,

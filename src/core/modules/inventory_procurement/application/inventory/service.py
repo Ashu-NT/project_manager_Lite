@@ -20,7 +20,7 @@ from src.core.modules.inventory_procurement.contracts.repositories.inventory imp
     StoreroomRepository,
 )
 from src.core.modules.inventory_procurement.domain.inventory.stock import Storeroom
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
@@ -47,7 +47,7 @@ class InventoryService:
         party_service: PartyService,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
     ) -> None:
         self._session: Session = session
         self._storeroom_repo: StoreroomRepository = storeroom_repo
@@ -59,7 +59,7 @@ class InventoryService:
         self._site_service: SiteService = site_service
         self._party_service: PartyService = party_service
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
 
     def list_storerooms(
         self,
@@ -215,11 +215,12 @@ class InventoryService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_storeroom.create",
             entity_type="inventory_storeroom",
             entity_id=storeroom.id,
+            module="inventory",
             details={
                 "organization_id": organization.id,
                 "storeroom_code": storeroom.storeroom_code,
@@ -341,11 +342,12 @@ class InventoryService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_storeroom.update",
             entity_type="inventory_storeroom",
             entity_id=storeroom.id,
+            module="inventory",
             details={
                 "organization_id": organization.id,
                 "storeroom_code": storeroom.storeroom_code,

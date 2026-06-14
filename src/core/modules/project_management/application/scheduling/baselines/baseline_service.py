@@ -40,7 +40,6 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         project_resource_repo: ProjectResourceRepository,
         resource_repo: ResourceRepository,
         user_session=None,
-        audit_service=None,
         activity_service=None,
         approval_service=None,
         module_catalog_service=None,
@@ -55,7 +54,6 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         self._project_resources: ProjectResourceRepository = project_resource_repo
         self._resources: ResourceRepository = resource_repo
         self._user_session = user_session
-        self._audit_service = audit_service
         self._activity_service = activity_service
         self._approval_service = approval_service
         self._module_catalog_service = module_catalog_service

@@ -21,7 +21,7 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     ReceiptLine,
 )
 from src.core.platform.approval.domain import ApprovalRequest
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 
@@ -188,11 +188,12 @@ class PurchasingReceivingMixin:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_receipt.post",
             entity_type="inventory_receipt",
             entity_id=receipt.id,
+            module="inventory",
             details={
                 "receipt_number": receipt.receipt_number,
                 "purchase_order_id": receipt.purchase_order_id,
@@ -201,11 +202,12 @@ class PurchasingReceivingMixin:
             },
         )
         for transaction in created_transactions:
-            record_audit(
+            record_activity(
                 self,
                 action="inventory_stock_transaction.post",
                 entity_type="inventory_stock_transaction",
                 entity_id=transaction.id,
+                module="inventory",
                 details={
                     "transaction_number": transaction.transaction_number,
                     "stock_item_id": transaction.stock_item_id,
@@ -296,11 +298,12 @@ class PurchasingReceivingMixin:
             if requisition is None:
                 continue
             self._refresh_requisition_status(requisition)
-        record_audit(
+        record_activity(
             self,
             action="inventory_purchase_order.approve",
             entity_type="purchase_order",
             entity_id=purchase_order.id,
+            module="inventory",
             details={
                 "po_number": purchase_order.po_number,
                 "approval_request_id": request.id,
@@ -341,11 +344,12 @@ class PurchasingReceivingMixin:
         for line in self._purchase_order_line_repo.list_for_purchase_order(purchase_order.id):
             line.status = PurchaseOrderLineStatus.CANCELLED
             self._purchase_order_line_repo.update(line)
-        record_audit(
+        record_activity(
             self,
             action="inventory_purchase_order.reject",
             entity_type="purchase_order",
             entity_id=purchase_order.id,
+            module="inventory",
             details={
                 "po_number": purchase_order.po_number,
                 "approval_request_id": request.id,

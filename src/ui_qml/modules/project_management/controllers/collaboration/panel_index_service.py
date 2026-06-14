@@ -9,7 +9,6 @@ def rebuild_panel_item_index(controller) -> None:
         "approvals": controller._approvals,
         "activity": controller._activity_feed,
         "team_updates": controller._team_updates,
-        "audit": controller._audit_feed,
     }
     for pid, panel in panel_map.items():
         controller._panel_item_index[pid] = {

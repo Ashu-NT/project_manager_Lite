@@ -55,7 +55,6 @@ class PortfolioService(
         resource_repo: ResourceRepository,
         reporting_service: ReportingService,
         user_session=None,
-        audit_service=None,
         module_catalog_service=None,
         tenant_context_service=None,
     ) -> None:
@@ -69,7 +68,6 @@ class PortfolioService(
         self._resource_repo = resource_repo
         self._reporting = reporting_service
         self._user_session = user_session
-        self._audit_service = audit_service
         self._module_catalog_service = module_catalog_service
         if tenant_context_service is None:
             raise BusinessRuleError(

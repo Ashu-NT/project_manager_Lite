@@ -26,7 +26,7 @@ from src.core.modules.maintenance.contracts.repositories import (
 )
 from src.core.modules.maintenance.application.common.support import coerce_optional_decimal, normalize_optional_text
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
@@ -54,7 +54,7 @@ class MaintenanceWorkOrderMaterialRequirementService:
         maintenance_material_service: MaintenanceMaterialService | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
     ) -> None:
         self._session = session
         self._material_requirement_repo = material_requirement_repo
@@ -68,7 +68,7 @@ class MaintenanceWorkOrderMaterialRequirementService:
         self._inventory_service = inventory_service
         self._maintenance_material_service = maintenance_material_service
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
 
     def list_requirements(
         self,
@@ -579,11 +579,12 @@ class MaintenanceWorkOrderMaterialRequirementService:
             )
 
     def _record_change(self, action: str, requirement: MaintenanceWorkOrderMaterialRequirement) -> None:
-        record_audit(
+        record_activity(
             self,
             action=action,
             entity_type="maintenance_material_requirement",
             entity_id=requirement.id,
+            module="maintenance",
             details={
                 "organization_id": requirement.organization_id,
                 "work_order_id": requirement.work_order_id,

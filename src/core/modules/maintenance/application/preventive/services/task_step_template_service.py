@@ -15,7 +15,7 @@ from src.core.modules.maintenance.application.common.support import (
     normalize_maintenance_name,
     normalize_optional_text,
 )
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
@@ -37,7 +37,7 @@ class MaintenanceTaskStepTemplateService:
         task_template_repo: MaintenanceTaskTemplateRepository,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
     ) -> None:
         self._session = session
         self._task_step_template_repo = task_step_template_repo
@@ -48,7 +48,7 @@ class MaintenanceTaskStepTemplateService:
         )
         self._task_template_repo = task_template_repo
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
 
     def list_step_templates(
         self,
@@ -278,11 +278,12 @@ class MaintenanceTaskStepTemplateService:
         return resolved
 
     def _record_change(self, action: str, row: MaintenanceTaskStepTemplate) -> None:
-        record_audit(
+        record_activity(
             self,
             action=action,
             entity_type="maintenance_task_step_template",
             entity_id=row.id,
+            module="maintenance",
             details={
                 "organization_id": row.organization_id,
                 "task_template_id": row.task_template_id,

@@ -18,7 +18,7 @@ from src.core.modules.maintenance.application.common.support import (
     normalize_optional_text,
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
@@ -43,7 +43,7 @@ class MaintenanceSystemService:
         location_repo: MaintenanceLocationRepository,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
     ) -> None:
         self._session = session
         self._system_repo = system_repo
@@ -55,7 +55,7 @@ class MaintenanceSystemService:
         self._site_repo = site_repo
         self._location_repo = location_repo
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
 
     def list_systems(
         self,
@@ -327,11 +327,12 @@ class MaintenanceSystemService:
         return location
 
     def _record_change(self, action: str, system: MaintenanceSystem) -> None:
-        record_audit(
+        record_activity(
             self,
             action=action,
             entity_type="maintenance_system",
             entity_id=system.id,
+            module="maintenance",
             details={
                 "organization_id": system.organization_id,
                 "site_id": system.site_id,

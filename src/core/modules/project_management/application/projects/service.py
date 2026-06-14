@@ -19,7 +19,6 @@ from src.core.modules.project_management.application.projects.queries.project_qu
     ProjectQueryMixin,
 )
 from src.core.platform.activity.application.activity_service import ActivityService
-from src.core.platform.audit.application.audit_service import AuditService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.interfaces import TimeEntryRepository
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
@@ -39,7 +38,6 @@ class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, P
         calendar_repo: CalendarEventRepository,
         cost_repo: CostRepository,
         user_session: UserSessionContext | None = None,
-        audit_service: AuditService | None = None,
         activity_service: ActivityService | None = None,
         module_catalog_service=None,
         tenant_context_service=None,
@@ -53,7 +51,6 @@ class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, P
         self._calendar_repo: CalendarEventRepository = calendar_repo
         self._cost_repo: CostRepository = cost_repo
         self._user_session: UserSessionContext | None = user_session
-        self._audit_service: AuditService | None = audit_service
         self._activity_service: ActivityService | None = activity_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service

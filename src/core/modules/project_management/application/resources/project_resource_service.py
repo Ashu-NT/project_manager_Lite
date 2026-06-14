@@ -26,7 +26,6 @@ class ProjectResourceService(
         resource_repo: ResourceRepository,
         session: Session,
         user_session=None,
-        audit_service=None,
         activity_service=None,
         module_catalog_service=None,
     ):
@@ -34,7 +33,6 @@ class ProjectResourceService(
         self._resource_repo: ResourceRepository = resource_repo
         self._session: Session = session
         self._user_session = user_session
-        self._audit_service = audit_service
         self._activity_service = activity_service
         self._module_catalog_service = module_catalog_service
 

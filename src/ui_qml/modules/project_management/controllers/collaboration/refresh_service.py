@@ -51,9 +51,6 @@ def refresh_collaboration_workspace(controller) -> None:
         controller._set_team_updates(
             serialize_collaboration_collection_view_model(ws.team_updates)
         )
-        controller._set_audit_feed(
-            serialize_collaboration_collection_view_model(ws.audit_feed)
-        )
         rebuild_panel_item_index(controller)
         controller._set_empty_state(ws.empty_state)
     except Exception as exc:  # pragma: no cover - defensive fallback

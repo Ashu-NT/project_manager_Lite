@@ -56,7 +56,7 @@ from src.core.modules.maintenance.application.work_orders.work_order_validation 
     MaintenanceWorkOrderValidationMixin,
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.contracts import UserRepository
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
@@ -95,7 +95,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         work_order_task_step_service: MaintenanceWorkOrderTaskStepService | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
     ) -> None:
         self._session: Session = session
         self._work_order_repo: MaintenanceWorkOrderRepository = work_order_repo
@@ -134,7 +134,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
                 work_order_task_step_service=work_order_task_step_service,
             )
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
 
     def list_work_orders(
         self,
@@ -793,11 +793,12 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         return site
 
     def _record_change(self, action: str, work_order: MaintenanceWorkOrder) -> None:
-        record_audit(
+        record_activity(
             self,
             action=action,
             entity_type="maintenance_work_order",
             entity_id=work_order.id,
+            module="maintenance",
             details={
                 "organization_id": work_order.organization_id,
                 "site_id": work_order.site_id,
@@ -819,11 +820,12 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         )
 
     def _record_source_request_conversion(self, work_request: MaintenanceWorkRequest) -> None:
-        record_audit(
+        record_activity(
             self,
             action="maintenance_work_request.convert",
             entity_type="maintenance_work_request",
             entity_id=work_request.id,
+            module="maintenance",
             details={
                 "organization_id": work_request.organization_id,
                 "site_id": work_request.site_id,

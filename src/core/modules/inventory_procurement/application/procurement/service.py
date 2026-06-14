@@ -50,7 +50,7 @@ class ProcurementService(
         approval_service: ApprovalService,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
     ) -> None:
         self._session: Session = session
         self._requisition_repo: PurchaseRequisitionRepository = requisition_repo
@@ -65,7 +65,7 @@ class ProcurementService(
         self._party_service: PartyService = party_service
         self._approval_service: ApprovalService = approval_service
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
 
 
 __all__ = ["ProcurementService"]

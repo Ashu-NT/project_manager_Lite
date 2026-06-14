@@ -30,7 +30,7 @@ from src.core.modules.maintenance.application.common.support import (
     normalize_optional_text,
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
@@ -55,7 +55,7 @@ class MaintenancePreventivePlanTaskService:
         component_repo: MaintenanceAssetComponentRepository,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
     ) -> None:
         self._session = session
         self._preventive_plan_task_repo = preventive_plan_task_repo
@@ -69,7 +69,7 @@ class MaintenancePreventivePlanTaskService:
         self._sensor_repo = sensor_repo
         self._component_repo = component_repo
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
 
     def list_plan_tasks(
         self,
@@ -558,11 +558,12 @@ class MaintenancePreventivePlanTaskService:
             )
 
     def _record_change(self, action: str, row: MaintenancePreventivePlanTask) -> None:
-        record_audit(
+        record_activity(
             self,
             action=action,
             entity_type="maintenance_preventive_plan_task",
             entity_id=row.id,
+            module="maintenance",
             details={
                 "organization_id": row.organization_id,
                 "plan_id": row.plan_id,

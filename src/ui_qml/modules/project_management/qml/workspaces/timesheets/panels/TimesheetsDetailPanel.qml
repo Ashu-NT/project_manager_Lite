@@ -292,14 +292,14 @@ Item {
 
                 AppWidgets.SectionHeading {
                     width: parent.width
-                    label: "Audit Trail"
+                    label: "Approval History"
                 }
 
                 AppWidgets.EmptyState {
                     width: parent.width
                     message: !root._hasPeriod
-                        ? "Select a timesheet period to view its audit trail."
-                        : "No audit events recorded for this period."
+                        ? "Select a timesheet period to view its approval history."
+                        : "No approval events recorded for this period."
                 }
             }
         }

@@ -47,6 +47,7 @@ class ApprovalService:
         entity_type: str,
         entity_id: str,
         project_id: str | None,
+        module: str | None = None,
         payload: dict | None = None,
         commit: bool = True,
     ) -> ApprovalRequest:
