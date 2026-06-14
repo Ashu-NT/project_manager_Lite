@@ -340,15 +340,15 @@ AppLayouts.WorkspaceFrame {
                             onActionTriggered: function(actionId) { state._handleDetailAction(actionId) }
                         }
 
-                        AppWidgets.InlineMessage {
+                        AppWidgets.SectionScopedInlineMessage {
                             width: parent ? parent.width : 0
-                            visible: state._detailOpen && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                            requestedVisible: state._detailOpen && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
                             tone: "danger"
                             message: root.workspaceController ? root.workspaceController.errorMessage : ""
                         }
-                        AppWidgets.InlineMessage {
+                        AppWidgets.SectionScopedInlineMessage {
                             width: parent ? parent.width : 0
-                            visible: state._detailOpen
+                            requestedVisible: state._detailOpen
                                 && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
                                 && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
                             tone: "success"

@@ -20,6 +20,35 @@ Item {
         }
     }
 
+    function _calendarOptions() {
+        const items = root.workspaceController
+            ? ((root.workspaceController.calendars || {}).items || [])
+            : []
+        const options = []
+        for (let index = 0; index < items.length; index += 1) {
+            const item = items[index] || {}
+            const state = item.state || {}
+            const value = String(state.calendarId || state.id || item.id || "")
+            if (!value.length)
+                continue
+            const typeLabel = String(state.calendarType || item.statusLabel || "")
+            const codeLabel = String(state.code || "")
+            let label = String(state.name || item.title || value)
+            const suffix = []
+            if (typeLabel.length > 0)
+                suffix.push(typeLabel)
+            if (codeLabel.length > 0)
+                suffix.push(codeLabel)
+            if (suffix.length > 0)
+                label += " (" + suffix.join(" - ") + ")"
+            options.push({
+                "label": label,
+                "value": value
+            })
+        }
+        return options
+    }
+
     function openOrganizationCreate() {
         if (root.workspaceController === null) {
             return
@@ -374,6 +403,7 @@ Item {
         id: calendarExceptionDialog
 
         parent: Overlay.overlay
+        calendarOptions: root._calendarOptions()
 
         onSaveRequested: function(payload) {
             if (root.workspaceController === null) {
@@ -388,6 +418,7 @@ Item {
         id: calendarRecurringEventDialog
 
         parent: Overlay.overlay
+        calendarOptions: root._calendarOptions()
 
         onSaveRequested: function(payload) {
             if (root.workspaceController === null) {

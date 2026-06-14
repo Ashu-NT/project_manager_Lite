@@ -400,16 +400,16 @@ AppLayouts.WorkspaceFrame {
                     onBackRequested: state.detailOpen = false
                 }
 
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width:   parent ? parent.width : 0
-                    visible: state.detailOpen
+                    requestedVisible: state.detailOpen
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
                     tone:    "danger"
                     message: root.workspaceController ? root.workspaceController.errorMessage : ""
                 }
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width:   parent ? parent.width : 0
-                    visible: state.detailOpen
+                    requestedVisible: state.detailOpen
                         && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
                     tone:    "success"

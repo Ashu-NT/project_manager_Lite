@@ -266,16 +266,16 @@ AppLayouts.WorkspaceFrame {
                 onDeleteRequested: detailPage.open = false
 
                 // â”€â”€ Detail-scoped messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
-                    visible: detailPage.open
+                    requestedVisible: detailPage.open
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
                     tone: "danger"
                     message: root.workspaceController ? root.workspaceController.errorMessage : ""
                 }
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
-                    visible: detailPage.open
+                    requestedVisible: detailPage.open
                         && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
                     tone: "success"
