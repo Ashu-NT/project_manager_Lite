@@ -72,6 +72,7 @@ class PlatformWorkspaceCatalog(QObject):
             user_api=user_api,
             document_api=document_api,
             party_api=party_api,
+            audit_api=getattr(desktop_api_registry, "platform_enterprise_audit", None),
         )
         control_presenter = PlatformControlWorkspacePresenter(
             approval_api=getattr(desktop_api_registry, "platform_approval", None),

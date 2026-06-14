@@ -19,6 +19,7 @@ from src.api.desktop.platform import (
     PlatformSupportDesktopApi,
     PlatformUserDesktopApi,
 )
+from src.api.desktop.platform.audit_enterprise import PlatformEnterpriseAuditDesktopApi
 from src.api.desktop.platform.enterprise_calendar import EnterpriseCalendarDesktopApi
 from src.application.runtime.platform_runtime import (
     PlatformRuntimeApplicationService,
@@ -70,7 +71,7 @@ from src.core.modules.project_management.api.desktop_runtime import (
 from src.core.platform.access import AccessControlService
 from src.core.platform.approval import ApprovalService
 from src.core.platform.activity.application.activity_service import ActivityService
-from src.core.platform.audit import AuditService
+from src.core.platform.audit import AuditService, EnterpriseAuditService
 from src.core.platform.auth.application import AuthService
 from src.core.platform.calendar.application.calendar_assignment_service import (
     CalendarAssignmentService,
@@ -114,6 +115,7 @@ class DesktopApiRegistry:
     platform_approval: PlatformApprovalDesktopApi
     platform_activity: PlatformActivityDesktopApi | None
     platform_audit: PlatformAuditDesktopApi
+    platform_enterprise_audit: PlatformEnterpriseAuditDesktopApi | None
     platform_document: PlatformDocumentDesktopApi
     platform_party: PlatformPartyDesktopApi
     platform_support: PlatformSupportDesktopApi
@@ -181,6 +183,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     audit_service = services.get("audit_service")
     if not isinstance(audit_service, AuditService):
         raise RuntimeError("Platform audit service is not configured.")
+    enterprise_audit_service = services.get("enterprise_audit_service")
     activity_service = services.get("activity_service")
     document_service = services.get("document_service")
     if not isinstance(document_service, DocumentService):
@@ -365,6 +368,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             approval_service=approval_service,
         ),
         platform_activity=PlatformActivityDesktopApi(activity_service=activity_service) if isinstance(activity_service, ActivityService) else None,
+        platform_enterprise_audit=PlatformEnterpriseAuditDesktopApi(enterprise_audit_service=enterprise_audit_service) if isinstance(enterprise_audit_service, EnterpriseAuditService) else None,
         platform_audit=PlatformAuditDesktopApi(
             audit_service=audit_service,
             project_service=project_service,

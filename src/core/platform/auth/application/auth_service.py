@@ -35,6 +35,7 @@ from . import user_admin_service as _users
 
 if TYPE_CHECKING:
     from src.core.platform.audit.application.audit_service import AuditService
+    from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
 
 
 class AuthService(AuthQueryMixin, AuthValidationMixin):
@@ -51,6 +52,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         project_membership_repo: ProjectMembershipRepository | None = None,
         user_session: UserSessionContext | None = None,
         audit_service: "AuditService | None" = None,
+        enterprise_audit_service: "EnterpriseAuditService | None" = None,
         sod_policy: SeparationOfDutiesPolicy | None = None,
     ):
         self._session: Session = session
@@ -64,6 +66,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._project_membership_repo: ProjectMembershipRepository | None = project_membership_repo
         self._user_session: UserSessionContext | None = user_session
         self._audit_service: AuditService | None = audit_service
+        self._enterprise_audit_service: EnterpriseAuditService | None = enterprise_audit_service
         self._sod_policy = sod_policy or SeparationOfDutiesPolicy()
 
     def bootstrap_defaults(self) -> UserAccount:

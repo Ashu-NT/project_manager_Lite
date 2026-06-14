@@ -17,7 +17,7 @@ from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.integration.resolver import IntegrationResolver
 from src.core.platform.activity.application.activity_service import ActivityService
 from src.core.platform.approval import ApprovalService
-from src.core.platform.audit import AuditService
+from src.core.platform.audit import AuditService, EnterpriseAuditService
 from src.core.platform.auth import AuthService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.data_exchange import MasterDataExchangeService
@@ -187,6 +187,7 @@ class ServiceGraph:
     access_service: AccessControlService
     activity_service: ActivityService
     audit_service: AuditService
+    enterprise_audit_service: EnterpriseAuditService
     approval_service: ApprovalService
     collaboration_service: CollaborationService
     project_service: ProjectService
@@ -279,6 +280,7 @@ class ServiceGraph:
             "access_service": self.access_service,
             "activity_service": self.activity_service,
             "audit_service": self.audit_service,
+            "enterprise_audit_service": self.enterprise_audit_service,
             "approval_service": self.approval_service,
             "collaboration_service": self.collaboration_service,
             "project_service": self.project_service,
@@ -411,6 +413,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         access_service=platform_services.access_service,
         activity_service=platform_services.activity_service,
         audit_service=platform_services.audit_service,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
         approval_service=platform_services.approval_service,
         collaboration_service=project_management_services.collaboration_service,
         project_service=project_management_services.project_service,

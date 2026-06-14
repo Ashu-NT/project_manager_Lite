@@ -56,6 +56,7 @@ from src.core.platform.infrastructure.persistence.repositories.access import (
 from src.core.platform.infrastructure.persistence.repositories.activity import SqlAlchemyActivityRepository
 from src.core.platform.infrastructure.persistence.repositories.approval import SqlAlchemyApprovalRepository
 from src.core.platform.infrastructure.persistence.repositories.audit import SqlAlchemyAuditLogRepository
+from src.core.platform.infrastructure.persistence.repositories.audit_entry import SqlAlchemyAuditRepository
 from src.core.platform.infrastructure.persistence.repositories.auth import (
     SqlAlchemyAuthSessionRepository,
     SqlAlchemyPermissionRepository,
@@ -124,6 +125,7 @@ class RepositoryBundle:
     scoped_access_repo: SqlAlchemyScopedAccessGrantRepository
     activity_repo: SqlAlchemyActivityRepository
     audit_repo: SqlAlchemyAuditLogRepository
+    audit_entry_repo: SqlAlchemyAuditRepository
     approval_repo: SqlAlchemyApprovalRepository
     register_repo: SqlAlchemyRegisterEntryRepository
     task_comment_repo: SqlAlchemyTaskCommentRepository
@@ -179,6 +181,7 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         scoped_access_repo=SqlAlchemyScopedAccessGrantRepository(session),
         activity_repo=SqlAlchemyActivityRepository(session),
         audit_repo=SqlAlchemyAuditLogRepository(session),
+        audit_entry_repo=SqlAlchemyAuditRepository(session),
         approval_repo=SqlAlchemyApprovalRepository(session),
         register_repo=SqlAlchemyRegisterEntryRepository(session),
         task_comment_repo=SqlAlchemyTaskCommentRepository(session),

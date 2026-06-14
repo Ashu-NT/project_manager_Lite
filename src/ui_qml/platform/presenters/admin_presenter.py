@@ -9,6 +9,7 @@ from src.api.desktop.platform import (
     PlatformDepartmentDesktopApi,
     PlatformUserDesktopApi,
 )
+from src.api.desktop.platform.audit_enterprise import PlatformEnterpriseAuditDesktopApi
 from src.ui_qml.platform.view_models import (
     PlatformMetricViewModel,
     PlatformWorkspaceOverviewViewModel,
@@ -28,6 +29,7 @@ class PlatformAdminWorkspacePresenter:
         user_api: PlatformUserDesktopApi | None = None,
         document_api: PlatformDocumentDesktopApi | None = None,
         party_api: PlatformPartyDesktopApi | None = None,
+        audit_api: PlatformEnterpriseAuditDesktopApi | None = None,
     ) -> None:
         self._runtime_api = runtime_api
         self._site_api = site_api
@@ -36,6 +38,7 @@ class PlatformAdminWorkspacePresenter:
         self._user_api = user_api
         self._document_api = document_api
         self._party_api = party_api
+        self._audit_api = audit_api
 
     def build_overview(self) -> PlatformWorkspaceOverviewViewModel:
         runtime_result = self._runtime_api.get_runtime_context() if self._runtime_api is not None else None
@@ -81,10 +84,15 @@ class PlatformAdminWorkspacePresenter:
         active_party_count = sum(1 for party in parties if party.is_active)
         current_document_count = sum(1 for document in documents if document.is_current)
 
+        activity_feed_items: tuple[dict, ...] = ()
+        if self._audit_api is not None:
+            activity_feed_items = tuple(self._audit_api.list_for_overview(limit=50))
+
         return PlatformWorkspaceOverviewViewModel(
             title="Admin Console",
             subtitle=f"{runtime_context.context_label} | grouped platform administration in QML",
             status_label="Connected",
+            activityFeed=activity_feed_items,
             metrics=(
                 PlatformMetricViewModel("Organizations", str(len(organizations)), "Install profiles"),
                 PlatformMetricViewModel("Sites", str(active_site_count), "Active operating sites"),

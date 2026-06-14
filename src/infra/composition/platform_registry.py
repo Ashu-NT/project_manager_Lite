@@ -18,7 +18,7 @@ from src.core.platform.modules import (
 from src.core.platform.access import AccessControlService, ScopedRolePolicy, ScopedRolePolicyRegistry
 from src.core.platform.activity import ActivityService
 from src.core.platform.approval import ApprovalService
-from src.core.platform.audit import AuditService
+from src.core.platform.audit import AuditService, EnterpriseAuditService
 from src.core.platform.auth import AuthService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.documents import DocumentIntegrationService, DocumentService
@@ -82,6 +82,7 @@ class PlatformServiceBundle:
     access_service: AccessControlService
     activity_service: ActivityService
     audit_service: AuditService
+    enterprise_audit_service: EnterpriseAuditService
     approval_service: ApprovalService
     enterprise_calendar_service: EnterpriseCalendarService
     working_rule_service: WorkingRuleService
@@ -117,6 +118,12 @@ def build_platform_service_bundle(
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
+    enterprise_audit_service = EnterpriseAuditService(
+        session=session,
+        audit_repo=repositories.audit_entry_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+    )
     activity_service = ActivityService(
         session=session,
         activity_repo=repositories.activity_repo,
@@ -142,6 +149,7 @@ def build_platform_service_bundle(
         project_membership_repo=repositories.project_membership_repo,
         user_session=user_session,
         audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
     )
     user_session.set_validator(auth_service.validate_session_principal)
     user_session.set_context_listener(auth_service.persist_session_context)
@@ -428,6 +436,7 @@ def build_platform_service_bundle(
         access_service=access_service,
         activity_service=activity_service,
         audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
         approval_service=approval_service,
         enterprise_calendar_service=enterprise_calendar_service,
         working_rule_service=working_rule_service,

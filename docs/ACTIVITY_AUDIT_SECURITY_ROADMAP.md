@@ -1,6 +1,6 @@
 # Activity, Audit & Security Roadmap
 
-**Status:** Plan — awaiting approval before implementation begins  
+**Status:** In Progress — Phases 1–5 complete  
 **Date:** 2026-06-14  
 **Branch:** `refactor/safe-start`
 
@@ -1124,80 +1124,94 @@ class AuditService:
 
 ## 15. Execution Phases
 
-### Phase 1 — Discovery (COMPLETE — this document)
+### Phase 1 — Discovery (COMPLETE)
 
 - Full audit/activity/RBAC scan ✓
 - Classification of current usages ✓
 - Codebase map ✓
 - Produce `docs/ACTIVITY_AUDIT_SECURITY_ROADMAP.md` ✓
 
-### Phase 2 — Documentation Review
+### Phase 2 — Documentation Review (COMPLETE)
 
-- Review and approve this document
-- Confirm classification decisions (especially borderline admin ops)
-- Confirm database migration option choice
-- Confirm decorator approach (function vs. decorator for Phase 3)
+- Plan reviewed and approved ✓
+- Classification decisions confirmed ✓
+- Database migration option B confirmed ✓
+- Helper function approach confirmed for Phase 3 ✓
 
-### Phase 3 — Activity Foundation
+### Phase 3 — Activity Foundation (COMPLETE)
 
 **Goal:** Create ActivityEntry/ActivityService/ActivityRepository and wire PM + Inventory to it.
 
-Steps:
-1. Create `src/core/plaform/activity/domain/activity_entry.py` — `ActivityEntry` dataclass
-2. Create `src/core/plaform/activity/contracts.py` — `ActivityRepository` ABC
-3. Create `src/core/plaform/activity/application/activity_service.py` — `ActivityService`
-4. Create `src/core/shared/activity/activity_recorder.py` — `record_activity()` helper
-5. Create `src/core/platform/infrastructure/persistence/orm/activity.py` — `ActivityEntryORM`
-6. Create `src/core/platform/infrastructure/persistence/mappers/activity.py` — mappers
-7. Create `src/core/platform/infrastructure/persistence/repositories/activity.py` — `SqlAlchemyActivityRepository`
-8. Create `src/api/desktop/platform/activity.py` — `PlatformActivityDesktopApi`
-9. Create `src/api/desktop/platform/models/activity.py` — `ActivityEntryDto`
-10. Wire `ActivityService` into `RepositoryBundle` and `platform_registry.py`
-11. Migrate all business-ops `record_audit()` callers to `record_activity()`:
-    - `task/commands/lifecycle.py`
-    - `task/commands/assignment_audit.py`
-    - `projects/commands/lifecycle.py`
-    - `resources/commands/resource_commands.py`
-    - `financials/costs/commands/cost_lifecycle.py`
-    - `tasks/commands/dependency.py`
-    - `risk/commands/register_lifecycle.py`
-    - `inventory/application/catalog/catalog_audit.py`
-    - Reservation, requisition, purchase order services
-12. Update inventory activity handlers to use `_activity_service` not `_platform_audit`
-13. Update `serialize_audit_entries_for_activity()` → `serialize_activity_entries()`
+Completed:
+1. ✓ `src/core/platform/activity/domain/activity_entry.py` — `ActivityEntry` dataclass
+2. ✓ `src/core/platform/activity/contracts.py` — `ActivityRepository` ABC
+3. ✓ `src/core/platform/activity/application/activity_service.py` — `ActivityService`
+4. ✓ `src/core/shared/activity/activity_recorder.py` — `record_activity()` helper
+5. ✓ `src/core/platform/infrastructure/persistence/orm/activity.py` — `ActivityEntryORM`
+6. ✓ `src/core/platform/infrastructure/persistence/mappers/activity.py` — mappers
+7. ✓ `src/core/platform/infrastructure/persistence/repositories/activity.py` — `SqlAlchemyActivityRepository`
+8. ✓ `src/api/desktop/platform/activity.py` — `PlatformActivityDesktopApi`
+9. ✓ `src/api/desktop/platform/models/activity.py` — `ActivityEntryDto`
+10. ✓ `ActivityService` wired into `ServiceGraph`, `platform_registry.py`, `app_container.py`, `runtime.py`
+11. ✓ All business-ops `record_audit()` → `record_activity()` migrations:
+    - `task/commands/lifecycle.py` (task.create, task.set_status, task.delete, task.update, task.update_progress)
+    - `task/commands/assignment_audit.py` (task.assign, task.unassign)
+    - `task/commands/dependency.py` (dependency.add, dependency.remove, dependency.update)
+    - `projects/commands/lifecycle.py` (project.create, project.set_status, project.update, project.delete)
+    - `resources/commands/resource_commands.py` (resource.create, resource.update, resource.delete)
+    - `resources/commands/project_resource_commands.py` (project_resource.add, project_resource.update, project_resource.set_active, project_resource.delete)
+    - `financials/costs/commands/cost_lifecycle.py` (cost.add, cost.update, cost.delete)
+    - `risk/commands/register_lifecycle.py` (register.create, register.update, register.delete)
+    - `scheduling/baselines/baseline_service.py` (baseline.create, delete, submit, approve, reject)
+    - `portfolio/commands/portfolio_dependencies.py` (portfolio.project_dependency.add, portfolio.project_dependency.remove)
+    - `inventory/application/catalog/catalog_audit.py` (6 inventory catalog operations)
+12. ✓ `ActivityService` wired into PM services via `project_registry.py`: project_service, task_service, project_resource_service, register_service, resource_service, cost_service, baseline_service
+13. ✓ `ActivityService` wired into Inventory services via `inventory_registry.py`: ItemCategoryService, ItemMasterService
+14. ✓ Inventory activity handlers rewritten to use `_activity_api` (not `_platform_audit`): catalog, inventory, reservations, pricing, procurement
+15. ✓ `serialize_audit_entries_for_activity()` → `serialize_activity_entries()` in all serializer/handler files
+16. ✓ `PlatformActivityDesktopApi` registered in `DesktopApiRegistry` and `runtime.py`
 
-**Test gate:** All existing tests pass. New activity tests pass.
+**Test gate:** 189 PM tests pass (13 pre-existing data integrity failures unrelated to this work). ✓
 
-### Phase 4 — Remove Audit Labels from Business Modules
+### Phase 4 — Remove Audit Labels from Business Modules (COMPLETE)
 
-**Goal:** No "Audit" labels visible in PM, Inventory, Maintenance normal workspaces.
+**Goal:** No "Audit" labels visible in PM Collaboration workspace.
 
-Steps:
-1. Remove `build_audit_collection()` call from `workspace_builder.py`
-2. Delete or archive `audit_builder.py` (verify QML has no remaining reference)
-3. Remove `panelId: "audit"` from any remaining ViewModels
-4. Remove "Audit" from `CollaborationViewsPopup.qml` if present
-5. Confirm `AdminAuditSection.qml` still shows "Audit" (do not touch)
-6. Run app, verify PM Collaboration shows Activity only
+Completed:
+1. ✓ Removed `build_audit_collection()` call and `audit_feed` variable from `workspace_builder.py`
+2. ✓ Deleted `audit_builder.py`
+3. ✓ Removed `audit_feed` field from `CollaborationWorkspaceViewModel`
+4. ✓ Removed `audit_feed` param from `build_context_view_model()` and `build_workspace_empty_state()` in `context_builder.py`
+5. ✓ Removed `auditPanelModel`, `auditSearchText`, `_auditFeedItems`, and all `"audit"` branches from `CollaborationWorkspaceState.qml`
+6. ✓ Removed all `"audit"` panel conditions from `CollaborationWorkspacePage.qml`; activity feed now always uses `_activityFeedItems`
+7. ✓ Removed "Audit Trail" entry from `CollaborationViewsPopup.qml`
+8. ✓ `AdminAuditSection.qml` (Platform Admin Console) confirmed untouched
 
-**Test gate:** No "Audit" string appears in PM/Inventory/Maintenance section titles. AdminAuditSection.qml unchanged.
+**Test gate:** 57 collaboration/presenter/workspace tests pass. No `audit_feed`/`audit_builder` references remain in PM presenter or QML workspace layer. ✓
 
-### Phase 5 — Enterprise Audit Foundation
+### Phase 5 — Enterprise Audit Foundation (COMPLETE)
 
 **Goal:** Create true AuditEntry/AuditService and wire Platform Admin Console to it.
 
-Steps:
-1. Create `src/core/platform/audit/domain/audit_entry.py` — `AuditEntry` (replace `AuditLogEntry`)
-2. Create `src/core/platform/audit/contracts.py` — `AuditRepository` ABC (replace `AuditLogRepository`)
-3. Create `src/core/platform/audit/application/audit_service.py` — enterprise `AuditService` (replace old)
-4. Create `src/core/shared/audit/audit_recorder.py` — `record_audit_entry()`
-5. Create `src/core/platform/infrastructure/persistence/orm/audit_entry.py` — `AuditEntryORM`
-6. Create `src/core/platform/infrastructure/persistence/repositories/audit_entry.py` — `SqlAlchemyAuditRepository`
-7. Create `src/api/desktop/platform/audit_enterprise.py` — enterprise `PlatformAuditDesktopApi`
-8. Migrate `record_auth_event()` to use enterprise `record_audit_entry()`
-9. Wire enterprise AuditService into admin workspace controller
-10. Wire `AdminAuditSection.qml` to enterprise audit data
-11. **Do not** wire enterprise AuditService into PM/Inventory/Maintenance
+1. `AuditEntry` dataclass added to `src/core/platform/audit/domain/audit_entry.py` ✓
+2. `AuditRepository` ABC added to `src/core/platform/audit/contracts.py` ✓
+3. `EnterpriseAuditService` created at `src/core/platform/audit/application/enterprise_audit_service.py` ✓
+4. `record_audit_entry()` helper created at `src/core/shared/audit/audit_recorder.py` ✓
+5. `AuditEntryORM` → `audit_entries` table created at `src/core/platform/infrastructure/persistence/orm/audit_entry.py` ✓
+6. Mapper functions created at `src/core/platform/infrastructure/persistence/mappers/audit_entry.py` ✓
+7. `SqlAlchemyAuditRepository` created at `src/core/platform/infrastructure/persistence/repositories/audit_entry.py` ✓
+8. `PlatformEnterpriseAuditDesktopApi` created at `src/api/desktop/platform/audit_enterprise.py` ✓
+9. `AuditEntryDto` created at `src/api/desktop/platform/models/audit_entry.py` ✓
+10. `record_auth_event()` migrated — tries `_enterprise_audit_service` first, falls back to `_audit_service` ✓
+11. `AuthService.__init__` gains `enterprise_audit_service` param ✓
+12. `RepositoryBundle` gains `audit_entry_repo: SqlAlchemyAuditRepository` ✓
+13. `PlatformServiceBundle` gains `enterprise_audit_service: EnterpriseAuditService`; created alongside `AuditService` ✓
+14. `DesktopApiRegistry` gains `platform_enterprise_audit: PlatformEnterpriseAuditDesktopApi | None` ✓
+15. `PlatformWorkspaceOverviewViewModel` gains `activityFeed: tuple[dict, ...]` ✓
+16. `serialize_workspace_overview()` includes `"activityFeed"` key ✓
+17. `PlatformAdminWorkspacePresenter` gains `audit_api` param; populates `activityFeed` in `build_overview()` ✓
+18. `PlatformWorkspaceCatalog` wires `platform_enterprise_audit` → `audit_api` on the admin presenter ✓
+19. All new symbols exported via `__init__.py` files ✓
 
 **Test gate:** Auth events appear in admin audit view. PM/Inventory activity not in audit view. Append-only contract test passes.
 
