@@ -30,8 +30,7 @@ Item {
             "id": "", "title": "", "statusLabel": "", "subtitle": "", "description": "",
             "state": {}, "fields": [],
             "activity": { "title": "", "subtitle": "", "emptyState": "", "items": [] },
-            "relatedItems": { "title": "", "subtitle": "", "emptyState": "", "items": [] },
-            "audit": { "title": "", "subtitle": "", "emptyState": "", "items": [] }
+            "relatedItems": { "title": "", "subtitle": "", "emptyState": "", "items": [] }
         })
 
     // ── Filter state (readonly from controller) ───────────────────────────

@@ -43,6 +43,7 @@ class TimeService(
         timesheet_period_repo: TimesheetPeriodRepository | None,
         user_session: UserSessionContext | None = None,
         audit_service: AuditService | None = None,
+        enterprise_audit_service: Any = None,
         module_catalog_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
         scope_organization_resolver: Callable[[str, str], str | None] | None = None,
@@ -58,6 +59,7 @@ class TimeService(
         self._timesheet_period_repo = timesheet_period_repo
         self._user_session: UserSessionContext | None = user_session
         self._audit_service: AuditService | None = audit_service
+        self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
         self._scope_organization_resolver = scope_organization_resolver

@@ -30,6 +30,7 @@ class DepartmentService:
         location_reference_repo: LocationReferenceRepository | None = None,
         user_session=None,
         audit_service=None,
+        enterprise_audit_service=None,
         tenant_context_service: TenantContextService | None = None,
     ):
         self._session = session
@@ -40,6 +41,7 @@ class DepartmentService:
         self._location_reference_repo = location_reference_repo
         self._user_session = user_session
         self._audit_service = audit_service
+        self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
 
     def register_location_reference_repository(

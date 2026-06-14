@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
@@ -85,12 +85,15 @@ class ModuleCatalogMutationMixin:
                 lifecycle_status=next_status,
             )
         )
-        record_audit(
+        record_audit_entry(
             self,
-            action="module.entitlement.update",
+            operation="update",
             entity_type="module_entitlement",
             entity_id=module.code,
-            details={
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "module.entitlement.update",
                 "module_code": module.code,
                 "licensed": str(next_licensed),
                 "enabled": str(next_enabled),
@@ -164,12 +167,15 @@ class ModuleCatalogMutationMixin:
         if self._session is not None:
             self._session.commit()
 
-        record_audit(
+        record_audit_entry(
             self,
-            action="organization.modules.provision",
+            operation="update",
             entity_type="organization",
             entity_id=normalized_organization_id,
-            details={
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "organization.modules.provision",
                 "organization_id": normalized_organization_id,
                 "licensed_modules": ",".join(sorted(licensed_codes)),
                 "enabled_modules": ",".join(sorted(enabled_codes)),

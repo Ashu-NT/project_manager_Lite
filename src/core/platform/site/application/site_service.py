@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
@@ -20,6 +20,7 @@ from src.core.platform.tenancy import TenantContextService
 
 if TYPE_CHECKING:
     from src.core.platform.audit.application.audit_service import AuditService
+    from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth.domain.session import UserSessionContext
 
 
@@ -47,6 +48,7 @@ class SiteService:
         organization_repo: OrganizationRepository,
         user_session: UserSessionContext | None = None,
         audit_service: AuditService | None = None,
+        enterprise_audit_service: EnterpriseAuditService | None = None,
         tenant_context_service: TenantContextService | None = None,
     ):
         self._session = session
@@ -54,6 +56,7 @@ class SiteService:
         self._organization_repo = organization_repo
         self._user_session = user_session
         self._audit_service = audit_service
+        self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
 
     def list_sites(self, *, active_only: bool | None = None) -> list[Site]:
@@ -186,12 +189,15 @@ class SiteService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_audit_entry(
             self,
-            action="site.create",
+            operation="create",
             entity_type="site",
             entity_id=site.id,
-            details={
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "site.create",
                 "organization_id": organization.id,
                 "site_code": site.site_code,
                 "name": site.name,
@@ -304,12 +310,15 @@ class SiteService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_audit_entry(
             self,
-            action="site.update",
+            operation="update",
             entity_type="site",
             entity_id=site.id,
-            details={
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "site.update",
                 "organization_id": organization.id,
                 "site_code": site.site_code,
                 "name": site.name,

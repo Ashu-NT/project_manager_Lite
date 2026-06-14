@@ -51,6 +51,7 @@ class ModuleCatalogService(
         session: Session | None = None,
         user_session: Any = None,
         audit_service: Any = None,
+        enterprise_audit_service: Any = None,
         organization_context_provider: Callable[[], Organization | None] | None = None,
     ) -> None:
         known_modules = tuple(modules)
@@ -78,6 +79,7 @@ class ModuleCatalogService(
         self._session = session
         self._user_session = user_session
         self._audit_service = audit_service
+        self._enterprise_audit_service = enterprise_audit_service
         self._organization_context_provider = organization_context_provider
 
 

@@ -164,6 +164,7 @@ def build_project_management_service_bundle(
         timesheet_period_repo=repositories.timesheet_period_repo,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_runtime_service,
         tenant_context_service=platform_services.tenant_context_service,
         scope_organization_resolver=_time_scope_organization_id,

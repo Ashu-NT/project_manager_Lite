@@ -19,14 +19,12 @@ Item {
         "fields": [],
         "activity": { "title": "", "subtitle": "", "emptyState": "", "items": [] },
         "relatedItems": { "title": "", "subtitle": "", "emptyState": "", "items": [] },
-        "audit": { "title": "", "subtitle": "", "emptyState": "", "items": [] }
     })
     property var detailPage: null
     property bool isBusy: false
 
     signal relatedItemActivated(var itemData)
     signal activityItemActivated(var itemData)
-    signal auditItemActivated(var itemData)
 
     readonly property bool _hasDetail: String(root.detailModel.id || "").length > 0
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
@@ -40,7 +38,7 @@ Item {
         if (root._idx === 0) return _sec0.implicitHeight
         if (root._idx === 1) return _sec1.implicitHeight
         if (root._idx === 2) return _sec2.implicitHeight
-        return _sec3.implicitHeight
+        return 0
     }
 
     readonly property var _relatedColumns: [
@@ -244,38 +242,5 @@ Item {
             }
         }
 
-        AppWidgets.LazySectionLoader {
-            id: _sec3
-            active: root._idx === 3
-            loadingMessage: "Loading collaboration..."
-            sourceComponent: Component {
-                Item {
-                    width: parent ? parent.width : 0
-                    implicitHeight: _auditCol.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                    ColumnLayout {
-                        id: _auditCol
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.topMargin: Theme.AppTheme.spacingMd
-                        anchors.leftMargin: Theme.AppTheme.marginMd
-                        anchors.rightMargin: Theme.AppTheme.marginMd
-                        spacing: Theme.AppTheme.spacingMd
-
-                        AppWidgets.ActivityFeed {
-                            Layout.fillWidth: true
-                            items: root.detailModel.audit ? (root.detailModel.audit.items || []) : []
-                            emptyText: root.detailModel.audit
-                                ? (root.detailModel.audit.emptyState || "No related audit events are available.")
-                                : "No related audit events are available."
-                            onItemActivated: function(itemData) {
-                                root.auditItemActivated(itemData)
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }

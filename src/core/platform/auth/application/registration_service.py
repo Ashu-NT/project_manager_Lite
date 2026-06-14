@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Iterable
 
 from sqlalchemy.exc import IntegrityError
 
+from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.domain import UserAccount, UserRoleBinding
@@ -95,6 +96,16 @@ def register_user(
     except Exception:
         service._session.rollback()
         raise
+    record_audit_entry(
+        service,
+        operation="create",
+        entity_type="user",
+        entity_id=user.id,
+        module="platform",
+        severity="high",
+        compliance_tag="SOC2",
+        metadata={"action": "user.register", "username": user.username},
+    )
     domain_events.auth_changed.emit(user.id)
     return user
 

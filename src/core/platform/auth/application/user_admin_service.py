@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
+from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_any_permission, require_permission
 from src.core.platform.auth.domain import Role, UserAccount
@@ -41,6 +42,16 @@ def set_user_active(service: AuthService, user_id: str, is_active: bool) -> User
     user.updated_at = datetime.now(timezone.utc)
     service._user_repo.update(user)
     service._session.commit()
+    record_audit_entry(
+        service,
+        operation="update",
+        entity_type="user",
+        entity_id=user.id,
+        module="platform",
+        severity="medium",
+        field="is_active",
+        metadata={"action": "user.set_active", "is_active": str(is_active)},
+    )
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return user
@@ -85,6 +96,16 @@ def update_user_profile(
     except Exception:
         service._session.rollback()
         raise
+    record_audit_entry(
+        service,
+        operation="update",
+        entity_type="user",
+        entity_id=user.id,
+        module="platform",
+        severity="low",
+        field="profile",
+        metadata={"action": "user.update_profile"},
+    )
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return user
@@ -102,6 +123,16 @@ def unlock_user_account(service: AuthService, user_id: str) -> UserAccount:
     user.updated_at = datetime.now(timezone.utc)
     service._user_repo.update(user)
     service._session.commit()
+    record_audit_entry(
+        service,
+        operation="update",
+        entity_type="user",
+        entity_id=user.id,
+        module="platform",
+        severity="medium",
+        field="locked_until",
+        metadata={"action": "user.unlock_account"},
+    )
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return user

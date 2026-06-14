@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.domain import UserRoleBinding
@@ -22,6 +23,15 @@ def assign_role(service: AuthService, user_id: str, role_name: str) -> None:
     if not service._user_role_repo.exists(user.id, role.id):
         service._user_role_repo.add(UserRoleBinding.create(user_id=user.id, role_id=role.id))
         service._session.commit()
+        record_audit_entry(
+            service,
+            operation="permission_change",
+            entity_type="user_role_binding",
+            entity_id=user.id,
+            module="platform",
+            severity="medium",
+            metadata={"action": "role.assign", "role_name": role_name, "user_id": user.id},
+        )
         domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
 
@@ -32,6 +42,15 @@ def revoke_role(service: AuthService, user_id: str, role_name: str) -> None:
     role = service._require_role_by_name(role_name)
     service._user_role_repo.delete(user.id, role.id)
     service._session.commit()
+    record_audit_entry(
+        service,
+        operation="delete",
+        entity_type="user_role_binding",
+        entity_id=user.id,
+        module="platform",
+        severity="medium",
+        metadata={"action": "role.revoke", "role_name": role_name, "user_id": user.id},
+    )
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
 

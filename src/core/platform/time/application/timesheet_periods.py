@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.audit import record_audit_entry
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_events import domain_events
@@ -39,18 +39,23 @@ class TimesheetPeriodsMixin:
         self._timesheet_period_repo.update(period)  # type: ignore[union-attr]
         self._session.commit()
         project_ids = self._project_ids_for_entries(entries)
-        record_audit(
+        record_audit_entry(
             self,
-            action="timesheet_period.submit",
+            operation="update",
             entity_type="timesheet_period",
             entity_id=period.id,
-            project_id=project_ids[0] if len(project_ids) == 1 else None,
-            details=self._build_timesheet_period_audit_details(
-                period=period,
-                entry_count=len(entries),
-                total_hours=self._sum_entry_hours(entries),
-                project_ids=project_ids,
-            ),
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "timesheet_period.submit",
+                "project_id": project_ids[0] if len(project_ids) == 1 else None,
+                **self._build_timesheet_period_audit_details(
+                    period=period,
+                    entry_count=len(entries),
+                    total_hours=self._sum_entry_hours(entries),
+                    project_ids=project_ids,
+                ),
+            },
         )
         self._emit_timesheet_period_events(period.id, project_ids)
         return period
@@ -71,18 +76,23 @@ class TimesheetPeriodsMixin:
         self._timesheet_period_repo.update(period)  # type: ignore[union-attr]
         self._session.commit()
         project_ids = self._project_ids_for_entries(entries)
-        record_audit(
+        record_audit_entry(
             self,
-            action="timesheet_period.approve",
+            operation="update",
             entity_type="timesheet_period",
             entity_id=period.id,
-            project_id=project_ids[0] if len(project_ids) == 1 else None,
-            details=self._build_timesheet_period_audit_details(
-                period=period,
-                entry_count=len(entries),
-                total_hours=self._sum_entry_hours(entries),
-                project_ids=project_ids,
-            ),
+            module="platform",
+            severity="medium",
+            metadata={
+                "action": "timesheet_period.approve",
+                "project_id": project_ids[0] if len(project_ids) == 1 else None,
+                **self._build_timesheet_period_audit_details(
+                    period=period,
+                    entry_count=len(entries),
+                    total_hours=self._sum_entry_hours(entries),
+                    project_ids=project_ids,
+                ),
+            },
         )
         self._emit_timesheet_period_events(period.id, project_ids)
         return period
@@ -103,18 +113,23 @@ class TimesheetPeriodsMixin:
         self._timesheet_period_repo.update(period)  # type: ignore[union-attr]
         self._session.commit()
         project_ids = self._project_ids_for_entries(entries)
-        record_audit(
+        record_audit_entry(
             self,
-            action="timesheet_period.reject",
+            operation="update",
             entity_type="timesheet_period",
             entity_id=period.id,
-            project_id=project_ids[0] if len(project_ids) == 1 else None,
-            details=self._build_timesheet_period_audit_details(
-                period=period,
-                entry_count=len(entries),
-                total_hours=self._sum_entry_hours(entries),
-                project_ids=project_ids,
-            ),
+            module="platform",
+            severity="medium",
+            metadata={
+                "action": "timesheet_period.reject",
+                "project_id": project_ids[0] if len(project_ids) == 1 else None,
+                **self._build_timesheet_period_audit_details(
+                    period=period,
+                    entry_count=len(entries),
+                    total_hours=self._sum_entry_hours(entries),
+                    project_ids=project_ids,
+                ),
+            },
         )
         self._emit_timesheet_period_events(period.id, project_ids)
         return period
@@ -137,18 +152,23 @@ class TimesheetPeriodsMixin:
         self._session.commit()
         entries = self.list_time_entries_for_resource_period(resource_id, period_start=period.period_start)
         project_ids = self._project_ids_for_entries(entries)
-        record_audit(
+        record_audit_entry(
             self,
-            action="timesheet_period.lock",
+            operation="update",
             entity_type="timesheet_period",
             entity_id=period.id,
-            project_id=project_ids[0] if len(project_ids) == 1 else None,
-            details=self._build_timesheet_period_audit_details(
-                period=period,
-                entry_count=len(entries),
-                total_hours=self._sum_entry_hours(entries),
-                project_ids=project_ids,
-            ),
+            module="platform",
+            severity="medium",
+            metadata={
+                "action": "timesheet_period.lock",
+                "project_id": project_ids[0] if len(project_ids) == 1 else None,
+                **self._build_timesheet_period_audit_details(
+                    period=period,
+                    entry_count=len(entries),
+                    total_hours=self._sum_entry_hours(entries),
+                    project_ids=project_ids,
+                ),
+            },
         )
         self._emit_timesheet_period_events(period.id, project_ids)
         return period
@@ -165,18 +185,23 @@ class TimesheetPeriodsMixin:
         self._timesheet_period_repo.update(period)  # type: ignore[union-attr]
         self._session.commit()
         project_ids = self._project_ids_for_entries(entries)
-        record_audit(
+        record_audit_entry(
             self,
-            action="timesheet_period.unlock",
+            operation="update",
             entity_type="timesheet_period",
             entity_id=period.id,
-            project_id=project_ids[0] if len(project_ids) == 1 else None,
-            details=self._build_timesheet_period_audit_details(
-                period=period,
-                entry_count=len(entries),
-                total_hours=self._sum_entry_hours(entries),
-                project_ids=project_ids,
-            ),
+            module="platform",
+            severity="medium",
+            metadata={
+                "action": "timesheet_period.unlock",
+                "project_id": project_ids[0] if len(project_ids) == 1 else None,
+                **self._build_timesheet_period_audit_details(
+                    period=period,
+                    entry_count=len(entries),
+                    total_hours=self._sum_entry_hours(entries),
+                    project_ids=project_ids,
+                ),
+            },
         )
         self._emit_timesheet_period_events(period.id, project_ids)
         return period

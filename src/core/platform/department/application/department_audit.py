@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.audit import record_audit_entry
 
 if TYPE_CHECKING:
     from src.core.platform.department.domain import Department
@@ -12,12 +12,15 @@ if TYPE_CHECKING:
 
 
 def record_department_create(service: DepartmentService, department: Department, organization: Organization) -> None:
-    record_audit(
+    record_audit_entry(
         service,
-        action="department.create",
+        operation="create",
         entity_type="department",
         entity_id=department.id,
-        details={
+        module="platform",
+        severity="low",
+        metadata={
+            "action": "department.create",
             "organization_id": organization.id,
             "department_code": department.department_code,
             "name": department.name,
@@ -30,12 +33,15 @@ def record_department_create(service: DepartmentService, department: Department,
 
 
 def record_department_update(service: DepartmentService, department: Department, organization: Organization) -> None:
-    record_audit(
+    record_audit_entry(
         service,
-        action="department.update",
+        operation="update",
         entity_type="department",
         entity_id=department.id,
-        details={
+        module="platform",
+        severity="low",
+        metadata={
+            "action": "department.update",
             "organization_id": organization.id,
             "department_code": department.department_code,
             "name": department.name,

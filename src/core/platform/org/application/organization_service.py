@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
@@ -22,6 +22,7 @@ from src.core.platform.org.support import (
 
 if TYPE_CHECKING:
     from src.core.platform.audit.application.audit_service import AuditService
+    from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth.domain.session import UserSessionContext
 
 
@@ -33,11 +34,13 @@ class OrganizationService:
         *,
         user_session: UserSessionContext | None = None,
         audit_service: AuditService | None = None,
+        enterprise_audit_service: EnterpriseAuditService | None = None,
     ):
         self._session = session
         self._organization_repo = organization_repo
         self._user_session = user_session
         self._audit_service = audit_service
+        self._enterprise_audit_service = enterprise_audit_service
 
     def bootstrap_defaults(self) -> None:
         if self._organization_repo.list_all():
@@ -100,12 +103,15 @@ class OrganizationService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_audit_entry(
             self,
-            action="organization.create",
+            operation="create",
             entity_type="organization",
             entity_id=organization.id,
-            details={
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "organization.create",
                 "organization_code": organization.organization_code,
                 "display_name": organization.display_name,
                 "timezone_name": organization.timezone_name,
@@ -166,12 +172,15 @@ class OrganizationService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_audit_entry(
             self,
-            action="organization.update",
+            operation="update",
             entity_type="organization",
             entity_id=organization.id,
-            details={
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "organization.update",
                 "organization_code": organization.organization_code,
                 "display_name": organization.display_name,
                 "timezone_name": organization.timezone_name,
@@ -195,12 +204,15 @@ class OrganizationService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_audit_entry(
             self,
-            action="organization.set_active",
+            operation="update",
             entity_type="organization",
             entity_id=organization.id,
-            details={
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "organization.set_active",
                 "organization_code": organization.organization_code,
                 "display_name": organization.display_name,
             },

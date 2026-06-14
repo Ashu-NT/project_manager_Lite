@@ -165,6 +165,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
     )
     logger.debug("Platform organization service created; bootstrapping defaults")
     organization_service.bootstrap_defaults()
@@ -214,6 +215,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
     document_integration_service = DocumentIntegrationService(
@@ -224,6 +226,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
     party_service = PartyService(
@@ -232,6 +235,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
     site_service = SiteService(
@@ -240,6 +244,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
     department_service = DepartmentService(
@@ -250,6 +255,7 @@ def build_platform_service_bundle(
         employee_repo=repositories.employee_repo,
         user_session=user_session,
         audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
 
@@ -275,6 +281,7 @@ def build_platform_service_bundle(
         session=session,
         user_session=user_session,
         audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
         organization_context_provider=_active_organization,
     )
     logger.debug("Platform module catalog service created; bootstrapping defaults")
@@ -322,6 +329,7 @@ def build_platform_service_bundle(
         },
         user_session=user_session,
         audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
     )
     employee_service = EmployeeService(
         session=session,
@@ -333,6 +341,7 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         user_session=user_session,
         audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
     )
     master_data_exchange_service = MasterDataExchangeService(
         site_service=site_service,

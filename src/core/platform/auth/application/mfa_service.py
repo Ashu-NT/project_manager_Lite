@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_any_permission
 from src.core.platform.auth.mfa import generate_mfa_secret, verify_totp_code
@@ -28,6 +29,15 @@ def provision_mfa_secret(service: AuthService, user_id: str) -> str:
     user.updated_at = datetime.now(timezone.utc)
     service._user_repo.update(user)
     service._session.commit()
+    record_audit_entry(
+        service,
+        operation="update",
+        entity_type="user",
+        entity_id=user.id,
+        module="platform",
+        severity="high",
+        metadata={"action": "mfa.provision"},
+    )
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return str(user.mfa_secret or "")
@@ -49,6 +59,15 @@ def enable_user_mfa(service: AuthService, user_id: str, verification_code: str) 
     user.updated_at = datetime.now(timezone.utc)
     service._user_repo.update(user)
     service._session.commit()
+    record_audit_entry(
+        service,
+        operation="update",
+        entity_type="user",
+        entity_id=user.id,
+        module="platform",
+        severity="medium",
+        metadata={"action": "mfa.enable"},
+    )
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return user
@@ -65,6 +84,15 @@ def disable_user_mfa(service: AuthService, user_id: str) -> UserAccount:
     user.updated_at = datetime.now(timezone.utc)
     service._user_repo.update(user)
     service._session.commit()
+    record_audit_entry(
+        service,
+        operation="update",
+        entity_type="user",
+        entity_id=user.id,
+        module="platform",
+        severity="high",
+        metadata={"action": "mfa.disable"},
+    )
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return user

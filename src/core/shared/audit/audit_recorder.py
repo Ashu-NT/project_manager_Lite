@@ -29,28 +29,31 @@ def record_audit_entry(
     enterprise_audit_service = getattr(owner, "_enterprise_audit_service", None)
     if enterprise_audit_service is None:
         return
-    enterprise_audit_service.record(
-        operation=operation,
-        entity_type=entity_type,
-        entity_id=entity_id,
-        module=module,
-        actor_id=actor_id,
-        actor_type=actor_type,
-        actor_username=actor_username,
-        actor_ip=actor_ip,
-        entity_parent_id=entity_parent_id,
-        field=field,
-        old_value=old_value,
-        new_value=new_value,
-        organization_id=organization_id,
-        workspace_id=workspace_id,
-        request_id=request_id,
-        source=source,
-        severity=severity,
-        compliance_tag=compliance_tag,
-        metadata=metadata,
-        commit=True,
-    )
+    try:
+        enterprise_audit_service.record(
+            operation=operation,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            module=module,
+            actor_id=actor_id,
+            actor_type=actor_type,
+            actor_username=actor_username,
+            actor_ip=actor_ip,
+            entity_parent_id=entity_parent_id,
+            field=field,
+            old_value=old_value,
+            new_value=new_value,
+            organization_id=organization_id,
+            workspace_id=workspace_id,
+            request_id=request_id,
+            source=source,
+            severity=severity,
+            compliance_tag=compliance_tag,
+            metadata=metadata,
+            commit=True,
+        )
+    except Exception:
+        pass
 
 
 __all__ = ["record_audit_entry"]
