@@ -83,7 +83,9 @@ class SqlAlchemyRuntimeExecutionRepository(RuntimeExecutionRepository):
     def update(self, execution: RuntimeExecution) -> None:
         obj = self.session.get(RuntimeExecutionORM, execution.id)
         if obj is None:
-            raise ValueError("Runtime execution not found.")
+            self.session.add(_to_orm(execution))
+            self.session.flush()
+            return
         obj.operation_type = execution.operation_type
         obj.operation_key = execution.operation_key
         obj.module_code = execution.module_code
