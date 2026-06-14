@@ -114,26 +114,6 @@ Item {
             onCreateRequested: root.createStoreroomRequested()
         }
 
-        AppWidgets.BulkActionBar {
-            id: _balanceBulkBar
-            Layout.alignment: Qt.AlignRight
-            active: root._isBalancesView
-            selectedCount: root.workspaceController ? root.workspaceController.selectedBalanceCount : 0
-            busy: root.workspaceController ? root.workspaceController.isBusy : false
-            actions: [
-                { "id": "opening_balance", "label": "Opening Balance", "icon": "add", "danger": false, "enabled": true },
-                { "id": "adjustment", "label": "Adjust", "icon": "edit", "danger": false, "enabled": true }
-            ]
-
-            onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearBalanceBulkSelection() }
-            onActionTriggered: function(actionId) {
-                if (actionId === "opening_balance")
-                    root.openOpeningBalanceDialogRequested(root.selectedBalanceModel, root.selectedStoreroomModel, root.workspaceController ? root.workspaceController.selectedItemFilter : "all")
-                else if (actionId === "adjustment")
-                    root.openAdjustmentDialogRequested(root.selectedBalanceModel)
-            }
-        }
-
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -204,6 +184,29 @@ Item {
             }
 
             // ── Filter popup ──────────────────────────────────────────
+            AppWidgets.BulkActionBar {
+                id: _balanceBulkBar
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: _paginationBar.top
+                anchors.bottomMargin: Theme.AppTheme.spacingMd
+                z: 10
+                active: root._isBalancesView
+                selectedCount: root.workspaceController ? root.workspaceController.selectedBalanceCount : 0
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                actions: [
+                    { "id": "opening_balance", "label": "Opening Balance", "icon": "add", "danger": false, "enabled": true },
+                    { "id": "adjustment", "label": "Adjust", "icon": "edit", "danger": false, "enabled": true }
+                ]
+
+                onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearBalanceBulkSelection() }
+                onActionTriggered: function(actionId) {
+                    if (actionId === "opening_balance")
+                        root.openOpeningBalanceDialogRequested(root.selectedBalanceModel, root.selectedStoreroomModel, root.workspaceController ? root.workspaceController.selectedItemFilter : "all")
+                    else if (actionId === "adjustment")
+                        root.openAdjustmentDialogRequested(root.selectedBalanceModel)
+                }
+            }
+
             AppWidgets.AnchoredPopup {
                 id: filterPopup
                 anchorItem: tableToolbar.filterButtonItem; width: 304; padding: Theme.AppTheme.marginMd

@@ -71,15 +71,6 @@ Item {
             )
         }
 
-        AppWidgets.BulkActionBar {
-            Layout.alignment: Qt.AlignRight
-            selectedCount: root.workspaceController ? root.workspaceController.selectedReservationCount : 0
-            busy: root.workspaceController ? root.workspaceController.isBusy : false
-            actions: [{ "id": "cancel", "label": "Cancel Selected", "icon": "reject", "danger": true, "enabled": true }]
-            onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearReservationBulkSelection() }
-            onActionTriggered: function(actionId) {}
-        }
-
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -121,6 +112,18 @@ Item {
             }
 
             // ── Filter popup ──────────────────────────────────────────────
+            AppWidgets.BulkActionBar {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: _paginationBar.top
+                anchors.bottomMargin: Theme.AppTheme.spacingMd
+                z: 10
+                selectedCount: root.workspaceController ? root.workspaceController.selectedReservationCount : 0
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                actions: [{ "id": "cancel", "label": "Cancel Selected", "icon": "reject", "danger": true, "enabled": true }]
+                onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearReservationBulkSelection() }
+                onActionTriggered: function(actionId) {}
+            }
+
             AppWidgets.AnchoredPopup {
                 id: filterPopup
                 anchorItem: tableToolbar.filterButtonItem; width: 304; padding: Theme.AppTheme.marginMd

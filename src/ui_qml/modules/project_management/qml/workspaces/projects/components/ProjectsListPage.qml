@@ -103,22 +103,6 @@ Item {
             onCreateRequested: root.createRequested()
         }
 
-        AppWidgets.BulkActionBar {
-            id: bulkActionBarItem
-            Layout.alignment: Qt.AlignRight
-            selectedCount: root.workspaceController ? root.workspaceController.selectedProjectCount : 0
-            busy: root.workspaceController ? root.workspaceController.isBusy : false
-            actions: [
-                { "id": "delete", "label": "Delete", "icon": "delete", "danger": true, "enabled": true },
-                { "id": "change_property", "label": "Change Property", "icon": "edit", "danger": false, "enabled": true }
-            ]
-
-            onCancelRequested: root.bulkCancelRequested()
-            onActionTriggered: function(actionId) {
-                root.bulkActionRequested(actionId)
-            }
-        }
-
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -164,6 +148,25 @@ Item {
                 onPageSizeRequested: function(pageSize) {
                     if (root.workspaceController !== null)
                         root.workspaceController.setProjectPageSize(pageSize)
+                }
+            }
+
+            AppWidgets.BulkActionBar {
+                id: bulkActionBarItem
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: paginationBar.top
+                anchors.bottomMargin: Theme.AppTheme.spacingMd
+                z: 10
+                selectedCount: root.workspaceController ? root.workspaceController.selectedProjectCount : 0
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                actions: [
+                    { "id": "delete", "label": "Delete", "icon": "delete", "danger": true, "enabled": true },
+                    { "id": "change_property", "label": "Change Property", "icon": "edit", "danger": false, "enabled": true }
+                ]
+
+                onCancelRequested: root.bulkCancelRequested()
+                onActionTriggered: function(actionId) {
+                    root.bulkActionRequested(actionId)
                 }
             }
         }

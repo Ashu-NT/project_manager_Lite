@@ -97,22 +97,6 @@ Item {
             onExportRequested: root.exportRequested()
         }
 
-        AppWidgets.BulkActionBar {
-            id: bulkActionBarItem
-            Layout.alignment: Qt.AlignRight
-            selectedCount: root.workspaceController ? root.workspaceController.selectedQueuePeriodCount : 0
-            busy: root.workspaceController ? root.workspaceController.isBusy : false
-            actions: [
-                { "id": "approve", "label": "Approve", "icon": "approve", "danger": false, "enabled": true },
-                { "id": "reject", "label": "Reject", "icon": "close", "danger": true, "enabled": true }
-            ]
-
-            onCancelRequested: root.bulkCancelRequested()
-            onActionTriggered: function(actionId) {
-                root.bulkActionRequested(actionId)
-            }
-        }
-
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -158,6 +142,25 @@ Item {
                 onPageSizeRequested: function(pageSize) {
                     if (root.workspaceController !== null)
                         root.workspaceController.setQueuePageSize(pageSize)
+                }
+            }
+
+            AppWidgets.BulkActionBar {
+                id: bulkActionBarItem
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: paginationBar.top
+                anchors.bottomMargin: Theme.AppTheme.spacingMd
+                z: 10
+                selectedCount: root.workspaceController ? root.workspaceController.selectedQueuePeriodCount : 0
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                actions: [
+                    { "id": "approve", "label": "Approve", "icon": "approve", "danger": false, "enabled": true },
+                    { "id": "reject", "label": "Reject", "icon": "close", "danger": true, "enabled": true }
+                ]
+
+                onCancelRequested: root.bulkCancelRequested()
+                onActionTriggered: function(actionId) {
+                    root.bulkActionRequested(actionId)
                 }
             }
         }

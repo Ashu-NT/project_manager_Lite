@@ -73,19 +73,15 @@ Item {
         }
     }
 
-    implicitHeight: Math.min(_contentColumn.implicitHeight, 640)
+    implicitHeight: _contentColumn.implicitHeight
+    height: implicitHeight
 
-    Flickable {
-        anchors.fill: parent
-        contentWidth: width
-        contentHeight: _contentColumn.implicitHeight
-        clip: true
-        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-
-        ColumnLayout {
-            id: _contentColumn
-            width: parent.width
-            spacing: Theme.AppTheme.spacingMd
+    ColumnLayout {
+        id: _contentColumn
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        spacing: Theme.AppTheme.spacingMd
 
             AppWidgets.ContextualActionToolbar {
                 Layout.fillWidth: true
@@ -108,10 +104,13 @@ Item {
             AppWidgets.SectionCard {
                 Layout.fillWidth: true
                 title: "Assignment & Period"
+                implicitHeight: _assignmentCardBody.implicitHeight
 
                 Item {
+                    id: _assignmentCardBody
                     width: parent ? parent.width : 0
                     implicitHeight: _assignmentCardColumn.implicitHeight + Theme.AppTheme.marginMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _assignmentCardColumn
@@ -317,10 +316,13 @@ Item {
             AppWidgets.SectionCard {
                 Layout.fillWidth: true
                 title: "Capture Entry"
+                implicitHeight: _captureCardBody.implicitHeight
 
                 Item {
+                    id: _captureCardBody
                     width: parent ? parent.width : 0
                     implicitHeight: _captureColumn.implicitHeight + Theme.AppTheme.marginMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _captureColumn
@@ -515,10 +517,13 @@ Item {
             AppWidgets.SectionCard {
                 Layout.fillWidth: true
                 title: "Entry Ledger"
+                implicitHeight: _ledgerCardBody.implicitHeight
 
                 Item {
+                    id: _ledgerCardBody
                     width: parent ? parent.width : 0
                     implicitHeight: _ledgerColumn.implicitHeight + Theme.AppTheme.marginMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _ledgerColumn
@@ -576,10 +581,13 @@ Item {
                 Layout.fillWidth: true
                 visible: root._canSubmit || root._canUnlock
                 title: "Period Workflow"
+                implicitHeight: _periodCardBody.implicitHeight
 
                 Item {
+                    id: _periodCardBody
                     width: parent ? parent.width : 0
                     implicitHeight: _periodColumn.implicitHeight + Theme.AppTheme.marginMd * 2
+                    height: implicitHeight
 
                     ColumnLayout {
                         id: _periodColumn
@@ -674,6 +682,5 @@ Item {
                     }
                 }
             }
-        }
     }
 }

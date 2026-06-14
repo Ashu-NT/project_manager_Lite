@@ -141,26 +141,6 @@ Item {
             onCreateRequested: root.createRequested()
         }
 
-        AppWidgets.BulkActionBar {
-            id: _bulkActionBar
-            Layout.alignment: Qt.AlignRight
-            selectedCount: root.workspaceController ? root.workspaceController.selectedEntryCount : 0
-            busy: root.workspaceController ? root.workspaceController.isBusy : false
-            actions: [
-                { "id": "delete", "label": "Delete", "icon": "delete", "danger": true, "enabled": true },
-                { "id": "change_property", "label": "Change Status", "icon": "edit", "danger": false, "enabled": true }
-            ]
-
-            onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearEntryBulkSelection() }
-            onActionTriggered: function(actionId) {
-                if (root.workspaceController === null) return
-                if (actionId === "delete")
-                    root.workspaceController.bulkDeleteEntries(root.workspaceController.selectedEntryIds || [])
-                else if (actionId === "change_property")
-                    _bulkChangePopup.open()
-            }
-        }
-
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -215,6 +195,29 @@ Item {
             }
 
             // ── Bulk action bar ───────────────────────────────────────────
+            AppWidgets.BulkActionBar {
+                id: _bulkActionBar
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: _paginationBar.top
+                anchors.bottomMargin: Theme.AppTheme.spacingMd
+                z: 10
+                selectedCount: root.workspaceController ? root.workspaceController.selectedEntryCount : 0
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                actions: [
+                    { "id": "delete", "label": "Delete", "icon": "delete", "danger": true, "enabled": true },
+                    { "id": "change_property", "label": "Change Status", "icon": "edit", "danger": false, "enabled": true }
+                ]
+
+                onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearEntryBulkSelection() }
+                onActionTriggered: function(actionId) {
+                    if (root.workspaceController === null) return
+                    if (actionId === "delete")
+                        root.workspaceController.bulkDeleteEntries(root.workspaceController.selectedEntryIds || [])
+                    else if (actionId === "change_property")
+                        _bulkChangePopup.open()
+                }
+            }
+
             AppWidgets.BulkChangePropertyPopup {
                 id: _bulkChangePopup
                 anchorItem:    _bulkActionBar.actionButtonForId("change_property")
