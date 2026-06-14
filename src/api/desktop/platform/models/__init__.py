@@ -9,7 +9,6 @@ from src.api.desktop.platform.models.approval import (
     ApprovalDecisionCommand,
     ApprovalRequestDto,
 )
-from src.api.desktop.platform.models.audit import AuditLogEntryDto
 from src.api.desktop.platform.models.calendar import (
     WorkingCalendarDayDto,
     WorkingCalendarHolidayCreateCommand,
@@ -78,7 +77,6 @@ __all__ = [
     "ApprovalDecisionCommand",
     "ApprovalRequestDto",
     "ApprovalStatus",
-    "AuditLogEntryDto",
     "WorkingCalendarDayDto",
     "WorkingCalendarHolidayCreateCommand",
     "WorkingCalendarHolidayDto",

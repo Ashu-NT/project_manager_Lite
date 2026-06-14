@@ -22,7 +22,6 @@ from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.contracts import UserRepository
 
 if TYPE_CHECKING:
-    from src.core.platform.audit.application.audit_service import AuditService
     from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth import UserSessionContext
     from src.core.platform.auth.application.auth_service import AuthService
@@ -40,7 +39,6 @@ class AccessControlService:
         scoped_access_repo: ScopedAccessGrantRepository | None = None,
         scope_exists_resolvers: dict[str, Callable[[str], bool]] | None = None,
         user_session: "UserSessionContext | None" = None,
-        audit_service: "AuditService | None" = None,
         enterprise_audit_service: "EnterpriseAuditService | None" = None,
     ) -> None:
         self._session = session
@@ -54,7 +52,6 @@ class AccessControlService:
             for scope_type, resolver in dict(scope_exists_resolvers or {}).items()
         }
         self._user_session = user_session
-        self._audit_service = audit_service
         self._enterprise_audit_service = enterprise_audit_service
 
     def register_scope_policy(self, policy: ScopedRolePolicy) -> None:

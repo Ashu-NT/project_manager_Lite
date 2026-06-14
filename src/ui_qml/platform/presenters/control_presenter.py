@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 
-from src.api.desktop.platform import ApprovalStatus, PlatformApprovalDesktopApi, PlatformAuditDesktopApi
+from src.api.desktop.platform import ApprovalStatus, PlatformApprovalDesktopApi
+from src.api.desktop.platform.audit_enterprise import PlatformEnterpriseAuditDesktopApi
 from src.ui_qml.platform.view_models import (
     PlatformMetricViewModel,
     PlatformWorkspaceOverviewViewModel,
@@ -18,7 +19,7 @@ class PlatformControlWorkspacePresenter:
         self,
         *,
         approval_api: PlatformApprovalDesktopApi | None = None,
-        audit_api: PlatformAuditDesktopApi | None = None,
+        audit_api: PlatformEnterpriseAuditDesktopApi | None = None,
     ) -> None:
         self._approval_api = approval_api
         self._audit_api = audit_api
@@ -73,9 +74,9 @@ class PlatformControlWorkspacePresenter:
                     title="Recent Audit Trail",
                     rows=tuple(
                         PlatformWorkspaceRowViewModel(
-                            row.action,
-                            row.entity_label,
-                            row.project_label,
+                            row.operation,
+                            row.entity_type.replace("_", " ").title(),
+                            row.actor_username or "",
                         )
                         for row in audit_rows[:5]
                     ),

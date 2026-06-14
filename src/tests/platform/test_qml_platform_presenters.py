@@ -5,10 +5,10 @@ from datetime import datetime
 from types import SimpleNamespace
 
 from src.api.desktop.runtime import build_desktop_api_registry
+from src.api.desktop.platform.models.audit_entry import AuditEntryDto
 from src.api.desktop.platform.models import (
     ApprovalRequestDto,
     ApprovalStatus,
-    AuditLogEntryDto,
     DepartmentDto,
     DepartmentLocationReferenceDto,
     DesktopApiError,
@@ -1108,12 +1108,15 @@ class _FakePlatformApprovalApi:
         )
 
 
-class _FakePlatformAuditApi:
-    def __init__(self, rows: tuple[AuditLogEntryDto, ...]) -> None:
+class _FakePlatformEnterpriseAuditApi:
+    def __init__(self, rows: tuple[AuditEntryDto, ...]) -> None:
         self._rows = rows
 
-    def list_recent(self, *, limit: int = 25) -> DesktopApiResult[tuple[AuditLogEntryDto, ...]]:
+    def list_recent(self, *, limit: int = 25, **kwargs) -> DesktopApiResult[tuple[AuditEntryDto, ...]]:
         return DesktopApiResult(ok=True, data=self._rows[:limit])
+
+    def list_for_overview(self, *, limit: int = 50) -> list[dict]:
+        return []
 
 
 class _FakePlatformSupportApi:
@@ -1696,31 +1699,33 @@ def _build_connected_platform_registry() -> SimpleNamespace:
         ),
     )
     audit_rows = (
-        AuditLogEntryDto(
+        AuditEntryDto(
             id="audit-1",
-            occurred_at=datetime(2026, 4, 24, 8, 0, 0),
-            actor_user_id="user-1",
+            timestamp=datetime(2026, 4, 24, 8, 0, 0),
+            actor_id="user-1",
             actor_username="ada",
-            action="approve",
+            actor_type="user",
+            operation="approve",
             entity_type="project",
             entity_id="project-1",
-            project_id="project-1",
-            project_label="Project Apollo",
-            entity_label="Project",
-            details_label="request_type=budget_change",
+            module="platform",
+            source="api",
+            severity="medium",
+            compliance_tag="none",
         ),
-        AuditLogEntryDto(
+        AuditEntryDto(
             id="audit-2",
-            occurred_at=datetime(2026, 4, 24, 9, 0, 0),
-            actor_user_id="user-2",
+            timestamp=datetime(2026, 4, 24, 9, 0, 0),
+            actor_id="user-2",
             actor_username="grace",
-            action="reject",
+            actor_type="user",
+            operation="update",
             entity_type="task",
             entity_id="task-1",
-            project_id="project-1",
-            project_label="Project Apollo",
-            entity_label="Task",
-            details_label="request_type=scope_change",
+            module="platform",
+            source="api",
+            severity="high",
+            compliance_tag="none",
         ),
     )
 
@@ -1734,7 +1739,7 @@ def _build_connected_platform_registry() -> SimpleNamespace:
         platform_document=document_api,
         platform_party=party_api,
         platform_approval=_FakePlatformApprovalApi(approval_rows),
-        platform_audit=_FakePlatformAuditApi(audit_rows),
+        platform_enterprise_audit=_FakePlatformEnterpriseAuditApi(audit_rows),
         platform_support=_FakePlatformSupportApi(),
     )
 

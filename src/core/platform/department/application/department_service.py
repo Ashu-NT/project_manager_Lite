@@ -29,7 +29,6 @@ class DepartmentService:
         employee_repo: EmployeeRepository | None = None,
         location_reference_repo: LocationReferenceRepository | None = None,
         user_session=None,
-        audit_service=None,
         enterprise_audit_service=None,
         tenant_context_service: TenantContextService | None = None,
     ):
@@ -40,7 +39,6 @@ class DepartmentService:
         self._employee_repo = employee_repo
         self._location_reference_repo = location_reference_repo
         self._user_session = user_session
-        self._audit_service = audit_service
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
 

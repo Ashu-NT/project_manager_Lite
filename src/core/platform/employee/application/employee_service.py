@@ -31,7 +31,6 @@ from src.core.platform.site.contracts import SiteRepository
 from src.core.platform.tenancy.tenant_context import TenantContextService
 
 if TYPE_CHECKING:
-    from src.core.platform.audit.application.audit_service import AuditService
     from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth.domain.session import UserSessionContext
 
@@ -48,7 +47,6 @@ class EmployeeService:
         organization_repo: OrganizationRepository | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session: UserSessionContext | None = None,
-        audit_service: AuditService | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
     ):
         self._session = session
@@ -66,7 +64,6 @@ class EmployeeService:
             else None
         )
         self._user_session = user_session
-        self._audit_service = audit_service
         self._enterprise_audit_service = enterprise_audit_service
 
     def create_employee(

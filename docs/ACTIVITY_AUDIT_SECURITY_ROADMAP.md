@@ -1,6 +1,6 @@
 # Activity, Audit & Security Roadmap
 
-**Status:** In Progress — Phases 1–5 complete  
+**Status:** Activity/Audit migration complete — Phases 1–5 and 7–9 done; Phase 6 activity/audit cleanup done (6.3/6.5); broader architecture cleanup backlog open  
 **Date:** 2026-06-14  
 **Branch:** `refactor/safe-start`
 
@@ -1215,9 +1215,11 @@ Completed:
 
 **Test gate:** Auth events appear in admin audit view. PM/Inventory activity not in audit view. Append-only contract test passes.
 
-### Phase 6 — Architecture Cleanup & Simplification
+### Phase 6 — Architecture Cleanup & Simplification (PARTIAL — Activity/Audit cleanup done; broader cleanup backlog open)
 
 **Goal:** Remove obsolete code, duplicate validations, legacy audit wiring, and temporary migration artifacts after the Activity/Audit split and tenant hardening work are complete.
+
+**Completed 2026-06-14:** Section 6.3 (record_audit() migration to record_audit_entry() across all platform services) and Section 6.5 (QML audit sections removed from CollaborationDetailPanel and CollaborationWorkspaceState). Sections 6.1, 6.2, 6.4, 6.6–6.10 are a separate architecture cleanup backlog.
 
 #### 6.1 Repository Cleanup
 
@@ -1273,19 +1275,23 @@ Remove:
 
 ---
 
-#### 6.3 Activity / Audit Cleanup
+#### 6.3 Activity / Audit Cleanup ✓
 
-* [ ] Remove obsolete audit infrastructure replaced by Activity.
+* [x] Remove obsolete audit infrastructure replaced by Activity.
 
 Examples:
 
-* `record_audit()`
+* `record_audit()` — all call sites migrated to `record_audit_entry()`; definition in helpers.py retained for reference ✓
 
-* `audit_builder.py`
+* `audit_builder.py` — removed in Phase 4 ✓
 
-* `build_audit_collection()`
+* `build_audit_collection()` — removed in Phase 4 ✓
 
-* `serialize_audit_entries_for_activity()`
+* `serialize_audit_entries_for_activity()` — renamed/removed in Phase 3 ✓
+
+* [x] `enterprise_audit_service` param added to all remaining platform services (DocumentService, DocumentIntegrationService, DepartmentAudit, ModuleCatalogService, TimesheetEntries, TimesheetPeriods, AccessControlService, OrganizationService, PartyService, SiteService, EmployeeService) ✓
+
+* [x] Both registries (platform_registry.py, project_registry.py) wired to pass enterprise_audit_service ✓
 
 * [ ] Rename remaining activity-related audit code to Activity equivalents.
 
@@ -1341,8 +1347,10 @@ Rules:
 
 Tasks:
 
-* [ ] Remove obsolete Audit UI.
-* [ ] Replace with Activity sections where required.
+* [x] Removed audit section (`_sec3` LazySectionLoader) from `CollaborationDetailPanel.qml` ✓
+* [x] Removed `"audit"` key from `selectedDetailModel` fallback in `CollaborationWorkspaceState.qml` ✓
+* [x] Removed `auditItemActivated` signal from `CollaborationDetailPanel.qml` ✓
+* [ ] Replace with Activity sections where required (remaining files).
 * [ ] Verify Activity sections load entity-scoped records only.
 
 ---
@@ -1458,9 +1466,15 @@ Verify:
 
 ```
 
-### Phase 7 — RBAC Decorators
+### Phase 7 — RBAC Decorators (COMPLETE)
 
 **Goal:** Create shared security decorator form.
+
+**Completed 2026-06-14:**
+1. ✓ `src/core/shared/security/decorators.py` — `@requires_permission`, `@requires_any_permission`, `@requires_all_permissions`
+2. ✓ `src/core/shared/security/permissions.py` — `Permissions` constant class (AUDIT_READ, AUTH_MANAGE, TASK_MANAGE, etc.)
+3. ✓ Re-exported from `src/core/platform/auth/authorization.py`
+4. ✓ Decorator tests pass (see `test_rbac_decorators.py`)
 
 Steps:
 1. Create `src/core/shared/security/decorators.py` with `@requires_permission`, `@requires_any_permission`, `@requires_all_permissions`
@@ -1469,11 +1483,18 @@ Steps:
 4. Apply decorator form to new services (ActivityService, enterprise AuditService) first
 5. Gradually adopt in existing services — no flag-day migration
 
-**Test gate:** Decorator tests pass. No existing function-call imports broken.
+**Test gate:** Decorator tests pass. No existing function-call imports broken. ✓
 
-### Phase 8 — Database Migrations
+### Phase 8 — Database Migrations (COMPLETE)
 
 **Goal:** Create `activity_entries` and `audit_entries` tables and backfill.
+
+**Completed 2026-06-14:** Migrations A–D created. Migration E (drop audit_logs) deferred — requires full code migration verification.
+1. ✓ Migration A — create `activity_entries` table
+2. ✓ Migration B — create `audit_entries` table
+3. ✓ Migration C — backfill `audit_logs` business events → `activity_entries`
+4. ✓ Migration D — backfill `audit_logs` security events → `audit_entries`
+5. Migration E — drop `audit_logs` — deferred (pending full audit_logs reference scan)
 
 Steps:
 1. Write Alembic migration: create `activity_entries` (Migration A)
@@ -1484,9 +1505,15 @@ Steps:
 
 **Each migration is a separate Alembic revision.** Migrations A and B are independent and can be applied together. Migrations C and D depend on A and B respectively. Migration E depends on all prior phases and code migrations being complete.
 
-### Phase 9 — Tests
+### Phase 9 — Tests (COMPLETE)
 
 **Goal:** Full test coverage for new systems.
+
+**Completed 2026-06-14:** 32 tests across 4 new files — all pass.
+1. ✓ `src/tests/platform/test_activity_service.py` — 7 tests (availability, list_recent, limit, append-only, fields, entity filter, actor_username)
+2. ✓ `src/tests/platform/test_enterprise_audit_service.py` — 8 tests (availability, list_recent, append-only, fields, auth actions, role assignment, limit, severity values)
+3. ✓ `src/tests/platform/test_rbac_decorators.py` — 9 tests (requires_permission allow/block, requires_any_permission, requires_all_permissions, Permissions constants, no-session guard)
+4. ✓ `src/tests/platform/test_auth_audit_events.py` — 8 tests (register→high severity, assign_role→permission_change, revoke_role→delete, set_user_active, unlock_user, force_password_reset→high, entity_id non-null, compliance_tag SOC2)
 
 Steps:
 1. Activity visibility tests (entity scoping, tenant scoping)

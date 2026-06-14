@@ -76,11 +76,11 @@ class PlatformWorkspaceCatalog(QObject):
         )
         control_presenter = PlatformControlWorkspacePresenter(
             approval_api=getattr(desktop_api_registry, "platform_approval", None),
-            audit_api=getattr(desktop_api_registry, "platform_audit", None),
+            audit_api=getattr(desktop_api_registry, "platform_enterprise_audit", None),
         )
         control_queue_presenter = PlatformControlQueuePresenter(
             approval_api=getattr(desktop_api_registry, "platform_approval", None),
-            audit_api=getattr(desktop_api_registry, "platform_audit", None),
+            audit_api=getattr(desktop_api_registry, "platform_enterprise_audit", None),
         )
         settings_presenter = PlatformSettingsWorkspacePresenter(runtime_api=runtime_api)
         settings_catalog_presenter = PlatformSettingsCatalogPresenter(

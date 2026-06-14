@@ -18,7 +18,6 @@ from src.core.platform.party.domain import Party, PartyType
 from src.core.platform.tenancy import TenantContextService
 
 if TYPE_CHECKING:
-    from src.core.platform.audit.application.audit_service import AuditService
     from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth.domain.session import UserSessionContext
 
@@ -45,7 +44,6 @@ class PartyService:
         *,
         organization_repo: OrganizationRepository,
         user_session: UserSessionContext | None = None,
-        audit_service: AuditService | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
         tenant_context_service: TenantContextService | None = None,
     ):
@@ -53,7 +51,6 @@ class PartyService:
         self._party_repo = party_repo
         self._organization_repo = organization_repo
         self._user_session = user_session
-        self._audit_service = audit_service
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
 

@@ -21,7 +21,6 @@ from src.core.platform.org.support import (
 )
 
 if TYPE_CHECKING:
-    from src.core.platform.audit.application.audit_service import AuditService
     from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth.domain.session import UserSessionContext
 
@@ -33,13 +32,11 @@ class OrganizationService:
         organization_repo: OrganizationRepository,
         *,
         user_session: UserSessionContext | None = None,
-        audit_service: AuditService | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
     ):
         self._session = session
         self._organization_repo = organization_repo
         self._user_session = user_session
-        self._audit_service = audit_service
         self._enterprise_audit_service = enterprise_audit_service
 
     def bootstrap_defaults(self) -> None:

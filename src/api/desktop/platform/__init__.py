@@ -2,7 +2,6 @@ from src.api.desktop.platform.models import (
     ApprovalDecisionCommand,
     ApprovalRequestDto,
     ApprovalStatus,
-    AuditLogEntryDto,
     WorkingCalendarDayDto,
     WorkingCalendarHolidayCreateCommand,
     WorkingCalendarHolidayDto,
@@ -64,7 +63,6 @@ from src.api.desktop.platform.models import (
 from src.api.desktop.platform.access import PlatformAccessDesktopApi
 from src.api.desktop.platform.activity import PlatformActivityDesktopApi
 from src.api.desktop.platform.approval import PlatformApprovalDesktopApi
-from src.api.desktop.platform.audit import PlatformAuditDesktopApi
 from src.api.desktop.platform.document import PlatformDocumentDesktopApi
 from src.api.desktop.platform.department import PlatformDepartmentDesktopApi
 from src.api.desktop.platform.employee import PlatformEmployeeDesktopApi
@@ -78,7 +76,6 @@ __all__ = [
     "ApprovalDecisionCommand",
     "ApprovalRequestDto",
     "ApprovalStatus",
-    "AuditLogEntryDto",
     "WorkingCalendarDayDto",
     "WorkingCalendarHolidayCreateCommand",
     "WorkingCalendarHolidayDto",
@@ -119,7 +116,6 @@ __all__ = [
     "PlatformAccessDesktopApi",
     "PlatformActivityDesktopApi",
     "PlatformApprovalDesktopApi",
-    "PlatformAuditDesktopApi",
     # "PlatformCalendarDesktopApi",  # removed — use EnterpriseCalendarDesktopApi
     "PlatformDocumentDesktopApi",
     "PlatformPartyDesktopApi",

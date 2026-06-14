@@ -1,3 +1,3 @@
-from src.core.platform.audit.domain.audit_entry import AuditEntry, AuditLogEntry
+from src.core.platform.audit.domain.audit_entry import AuditEntry
 
-__all__ = ["AuditEntry", "AuditLogEntry"]
+__all__ = ["AuditEntry"]

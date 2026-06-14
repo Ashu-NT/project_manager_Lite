@@ -12,7 +12,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.resource
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.employee.domain import EmploymentType
 from src.core.platform.infrastructure.persistence.orm.approval import ApprovalRequestORM
-from src.core.platform.infrastructure.persistence.orm.audit import AuditLogORM
+from src.core.platform.infrastructure.persistence.orm.audit_entry import AuditEntryORM
 from src.core.platform.infrastructure.persistence.orm.departments import DepartmentORM
 from src.core.platform.infrastructure.persistence.orm.documents import (
     DocumentLinkORM,
@@ -40,8 +40,8 @@ from src.core.platform.infrastructure.persistence.orm.time import (
 from src.core.platform.infrastructure.persistence.repositories.approval import (
     SqlAlchemyApprovalRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.audit import (
-    SqlAlchemyAuditLogRepository,
+from src.core.platform.infrastructure.persistence.repositories.audit_entry import (
+    SqlAlchemyAuditRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.departments import (
     SqlAlchemyDepartmentRepository,
@@ -531,25 +531,33 @@ def _seed_platform_scope_rows(services) -> dict[str, str]:
         status="PENDING",
         requested_at=earlier,
     )
-    current_audit = AuditLogORM(
+    current_audit = AuditEntryORM(
         id="audit-current",
         tenant_id=current_tenant_id,
-        occurred_at=now,
-        action="entity.update",
+        timestamp=now,
+        operation="update",
         entity_type="task",
         entity_id="task-current",
         organization_id=default_org.id,
-        details_json="{}",
+        module="platform",
+        source="api",
+        severity="low",
+        compliance_tag="none",
+        metadata_json="{}",
     )
-    other_audit = AuditLogORM(
+    other_audit = AuditEntryORM(
         id="audit-other",
         tenant_id=other_tenant_id,
-        occurred_at=earlier,
-        action="entity.update",
+        timestamp=earlier,
+        operation="update",
         entity_type="task",
         entity_id="task-other",
         organization_id=other_org.id,
-        details_json="{}",
+        module="platform",
+        source="api",
+        severity="low",
+        compliance_tag="none",
+        metadata_json="{}",
     )
 
     session.add_all(
@@ -661,7 +669,7 @@ def _seed_platform_scope_rows(services) -> dict[str, str]:
         (SqlAlchemyDocumentRepository, lambda repo: repo.get("document-1")),
         (SqlAlchemyDocumentLinkRepository, lambda repo: repo.get("link-1")),
         (SqlAlchemyApprovalRepository, lambda repo: repo.get("approval-1")),
-        (SqlAlchemyAuditLogRepository, lambda repo: repo.list_recent(limit=1)),
+        (SqlAlchemyAuditRepository, lambda repo: repo.list_recent(limit=1)),
         (SqlAlchemyTimeEntryRepository, lambda repo: repo.get("time-entry-1")),
         (SqlAlchemyTimesheetPeriodRepository, lambda repo: repo.get("timesheet-1")),
         (SqlAlchemyPlatformCalendarRepository, lambda repo: repo.get("calendar-1")),
@@ -871,7 +879,7 @@ def test_time_and_governance_repositories_scope_cross_organization_data(
     session = services["session"]
 
     approval_repo = services["approval_service"]._approval_repo
-    audit_repo = services["audit_service"]._audit_repo
+    audit_repo = services["enterprise_audit_service"]._audit_repo
     time_entry_repo = services["time_service"]._time_entry_repo
     timesheet_period_repo = services["time_service"]._timesheet_period_repo
 

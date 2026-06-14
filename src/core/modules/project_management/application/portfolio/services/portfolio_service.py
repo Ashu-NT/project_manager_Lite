@@ -22,7 +22,7 @@ from src.core.modules.project_management.contracts.repositories.portfolio import
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.platform.audit.contracts import AuditLogRepository
+from src.core.platform.audit.contracts import AuditRepository
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
@@ -50,7 +50,7 @@ class PortfolioService(
         dependency_repo: PortfolioProjectDependencyRepository,
         scoring_template_repo: PortfolioScoringTemplateRepository,
         scenario_repo: PortfolioScenarioRepository,
-        audit_repo: AuditLogRepository,
+        audit_repo: AuditRepository,
         project_repo: ProjectRepository,
         resource_repo: ResourceRepository,
         reporting_service: ReportingService,

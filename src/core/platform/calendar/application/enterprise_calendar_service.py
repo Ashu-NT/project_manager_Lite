@@ -55,7 +55,6 @@ class EnterpriseCalendarService:
         rule_repo: CalendarWorkingRuleRepository | None = None,
         exception_repo: CalendarExceptionRepository | None = None,
         user_session: Any = None,
-        audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
     ) -> None:
         self._session = session
@@ -65,7 +64,6 @@ class EnterpriseCalendarService:
         self._rule_repo = rule_repo
         self._exception_repo = exception_repo
         self._user_session = user_session
-        self._audit_service = audit_service
         self._tenant_context_service = tenant_context_service
 
     def _active_org_id(self) -> str:

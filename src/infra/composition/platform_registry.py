@@ -18,7 +18,7 @@ from src.core.platform.modules import (
 from src.core.platform.access import AccessControlService, ScopedRolePolicy, ScopedRolePolicyRegistry
 from src.core.platform.activity import ActivityService
 from src.core.platform.approval import ApprovalService
-from src.core.platform.audit import AuditService, EnterpriseAuditService
+from src.core.platform.audit import EnterpriseAuditService
 from src.core.platform.auth import AuthService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.documents import DocumentIntegrationService, DocumentService
@@ -81,7 +81,6 @@ class PlatformServiceBundle:
     runtime_execution_service: RuntimeExecutionService
     access_service: AccessControlService
     activity_service: ActivityService
-    audit_service: AuditService
     enterprise_audit_service: EnterpriseAuditService
     approval_service: ApprovalService
     enterprise_calendar_service: EnterpriseCalendarService
@@ -112,12 +111,6 @@ def build_platform_service_bundle(
         _repo = getattr(repositories, _field_name)
         if hasattr(_repo, "_tenant_context_service"):
             _repo._tenant_context_service = tenant_context_service
-    audit_service = AuditService(
-        session=session,
-        audit_repo=repositories.audit_repo,
-        user_session=user_session,
-        tenant_context_service=tenant_context_service,
-    )
     enterprise_audit_service = EnterpriseAuditService(
         session=session,
         audit_repo=repositories.audit_entry_repo,
@@ -134,7 +127,7 @@ def build_platform_service_bundle(
         session=session,
         approval_repo=repositories.approval_repo,
         user_session=user_session,
-        audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
     auth_service = AuthService(
@@ -148,7 +141,6 @@ def build_platform_service_bundle(
         scoped_access_repo=repositories.scoped_access_repo,
         project_membership_repo=repositories.project_membership_repo,
         user_session=user_session,
-        audit_service=audit_service,
         enterprise_audit_service=enterprise_audit_service,
     )
     user_session.set_validator(auth_service.validate_session_principal)
@@ -164,7 +156,6 @@ def build_platform_service_bundle(
         session=session,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
-        audit_service=audit_service,
         enterprise_audit_service=enterprise_audit_service,
     )
     logger.debug("Platform organization service created; bootstrapping defaults")
@@ -214,7 +205,6 @@ def build_platform_service_bundle(
         structure_repo=repositories.document_structure_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
-        audit_service=audit_service,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
@@ -225,7 +215,6 @@ def build_platform_service_bundle(
         structure_repo=repositories.document_structure_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
-        audit_service=audit_service,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
@@ -234,7 +223,6 @@ def build_platform_service_bundle(
         party_repo=repositories.party_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
-        audit_service=audit_service,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
@@ -243,7 +231,6 @@ def build_platform_service_bundle(
         site_repo=repositories.site_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
-        audit_service=audit_service,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
@@ -254,7 +241,6 @@ def build_platform_service_bundle(
         site_repo=repositories.site_repo,
         employee_repo=repositories.employee_repo,
         user_session=user_session,
-        audit_service=audit_service,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
@@ -280,7 +266,6 @@ def build_platform_service_bundle(
         entitlement_repo=module_entitlement_repo,
         session=session,
         user_session=user_session,
-        audit_service=audit_service,
         enterprise_audit_service=enterprise_audit_service,
         organization_context_provider=_active_organization,
     )
@@ -328,7 +313,6 @@ def build_platform_service_bundle(
             "site": lambda site_id: repositories.site_repo.get(site_id) is not None,
         },
         user_session=user_session,
-        audit_service=audit_service,
         enterprise_audit_service=enterprise_audit_service,
     )
     employee_service = EmployeeService(
@@ -340,7 +324,6 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         tenant_context_service=tenant_context_service,
         user_session=user_session,
-        audit_service=audit_service,
         enterprise_audit_service=enterprise_audit_service,
     )
     master_data_exchange_service = MasterDataExchangeService(
@@ -359,7 +342,6 @@ def build_platform_service_bundle(
         rule_repo=repositories.calendar_working_rule_repo,
         exception_repo=repositories.calendar_exception_repo,
         user_session=user_session,
-        audit_service=audit_service,
         tenant_context_service=tenant_context_service,
     )
     working_rule_service = WorkingRuleService(
@@ -444,7 +426,6 @@ def build_platform_service_bundle(
         runtime_execution_service=runtime_execution_service,
         access_service=access_service,
         activity_service=activity_service,
-        audit_service=audit_service,
         enterprise_audit_service=enterprise_audit_service,
         approval_service=approval_service,
         enterprise_calendar_service=enterprise_calendar_service,

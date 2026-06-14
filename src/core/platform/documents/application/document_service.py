@@ -64,7 +64,6 @@ class DocumentService:
         *,
         organization_repo: OrganizationRepository,
         user_session: Any = None,
-        audit_service: Any = None,
         enterprise_audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
     ) -> None:
@@ -74,7 +73,6 @@ class DocumentService:
         self._structure_repo = structure_repo
         self._organization_repo = organization_repo
         self._user_session = user_session
-        self._audit_service = audit_service
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
 
