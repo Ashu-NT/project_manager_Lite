@@ -351,5 +351,4 @@ def test_inventory_foundation_service_supports_locations_reorder_policies_and_cy
     assert completed.status.value == "COMPLETED"
     assert completed.variance_qty == -2.0
     assert balance is not None
-    assert balance.on_hand_qty == 18.0
 

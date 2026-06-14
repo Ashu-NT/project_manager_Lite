@@ -5,8 +5,7 @@ from src.core.platform.approval import ApprovalService
 from src.core.platform.approval.application.approval_service import ApprovalService as LegacyApprovalService
 from src.core.platform.auth import AuthService
 from src.core.platform.auth.application.auth_service import AuthService as LegacyAuthService
-from src.core.platform.audit import AuditService
-from src.core.platform.audit.application.audit_service import AuditService as LegacyAuditService
+from src.core.platform.audit import EnterpriseAuditService
 from src.core.platform.data_exchange import MasterDataExchangeService
 from src.core.platform.documents import DocumentService
 from src.core.platform.department import DepartmentService
@@ -148,7 +147,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.maintenance_work_order_task_service, MaintenanceWorkOrderTaskService)
     assert isinstance(graph.maintenance_work_order_task_step_service, MaintenanceWorkOrderTaskStepService)
     assert isinstance(graph.access_service, AccessControlService)
-    assert isinstance(graph.audit_service, AuditService)
+    assert isinstance(graph.enterprise_audit_service, EnterpriseAuditService)
     assert isinstance(graph.collaboration_service, CollaborationService)
     assert isinstance(graph.project_service, ProjectService)
     assert isinstance(graph.task_service, TaskService)
@@ -226,7 +225,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["module_runtime_service"] is graph.module_runtime_service
     assert as_dict["time_service"] is graph.time_service
     assert as_dict["access_service"] is graph.access_service
-    assert as_dict["audit_service"] is graph.audit_service
+    assert as_dict["enterprise_audit_service"] is graph.enterprise_audit_service
     assert as_dict["collaboration_service"] is graph.collaboration_service
     assert as_dict["dashboard_service"] is graph.dashboard_service
     assert as_dict["finance_service"] is graph.finance_service
@@ -287,7 +286,6 @@ def test_legacy_service_imports_point_to_new_packages():
     assert LegacyServiceBase.__name__ == "ServiceBase"
     assert LegacyApprovalService is ApprovalService
     assert LegacyAuthService is AuthService
-    assert LegacyAuditService is AuditService
 
 
 def test_services_module_delegates_to_modular_registration_builders():

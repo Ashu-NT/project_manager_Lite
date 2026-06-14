@@ -16,6 +16,7 @@ _LARGE_MODULE_BUDGETS = {
     "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": 1600,
     "src/tests/project_management/test_project_management_desktop_api.py": 3212,
     "src/tests/project_management/test_qml_project_management_presenters.py": 2235,
+    "src/tests/project_management/test_repository_tenant_hardening.py": 1300,
     "src/tests/architecture/test_architecture_guardrails.py": 1500,
     "src/tests/platform/test_qml_platform_presenters.py": 2453,
 }
