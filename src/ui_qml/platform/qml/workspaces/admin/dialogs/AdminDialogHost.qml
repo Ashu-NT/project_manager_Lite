@@ -8,6 +8,20 @@ Item {
 
     property PlatformControllers.PlatformAdminWorkspaceController workspaceController
 
+    function _activeOrganizationName() {
+        const items = root.workspaceController
+            ? ((root.workspaceController.organizations || {}).items || [])
+            : []
+        for (let index = 0; index < items.length; index += 1) {
+            const item = items[index] || {}
+            const state = item.state || {}
+            if (state.isActive === true) {
+                return String(state.displayName || item.title || "")
+            }
+        }
+        return ""
+    }
+
     // Keeps the dialog open and shows the backend error inside it on failure;
     // clears and closes only on success. Mirrors the dialog-result handling in
     // the other modules' dialog hosts.
@@ -61,10 +75,13 @@ Item {
     }
 
     function openSiteCreate() {
+        siteDialog.organizationName = root._activeOrganizationName()
         siteDialog.openForCreate()
     }
 
     function openSiteEdit(state) {
+        const siteState = state || {}
+        siteDialog.organizationName = String(siteState.organizationName || root._activeOrganizationName())
         siteDialog.openForEdit(state || {})
     }
 

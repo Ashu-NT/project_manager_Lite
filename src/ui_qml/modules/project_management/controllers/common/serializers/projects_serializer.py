@@ -38,6 +38,7 @@ def serialize_project_record_view_models(
             "metaText": view_model.meta_text,
             "clientName": str(view_model.state.get("clientName", "") or ""),
             "clientContact": str(view_model.state.get("clientContact", "") or ""),
+            "siteLabel": str(view_model.state.get("siteLabel", "") or ""),
             "startDateLabel": str(view_model.state.get("startDateLabel", "") or ""),
             "endDateLabel": str(view_model.state.get("endDateLabel", "") or ""),
             "plannedBudgetLabel": str(view_model.state.get("plannedBudgetLabel", "") or ""),

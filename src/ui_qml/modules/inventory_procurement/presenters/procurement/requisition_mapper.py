@@ -21,7 +21,9 @@ def to_requisition_record_view_model(row) -> InventoryRecordViewModel:
         state={
             "requisitionId": row.id,
             "requestingSiteId": row.requesting_site_id,
+            "requestingSiteLabel": row.requesting_site_label,
             "requestingStoreroomId": row.requesting_storeroom_id,
+            "requestingStoreroomLabel": row.requesting_storeroom_label,
             "priority": row.priority,
             "status": row.status,
             "version": row.version,

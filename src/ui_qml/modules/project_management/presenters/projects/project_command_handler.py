@@ -49,6 +49,7 @@ def create_project(
         currency=optional_text(payload, "currency"),
         start_date=optional_date(payload, "startDate"),
         end_date=optional_date(payload, "endDate"),
+        site_id=optional_text(payload, "siteId"),
     )
     desktop_api.create_project(command)
 
@@ -68,6 +69,7 @@ def update_project(
         currency=optional_text(payload, "currency"),
         start_date=optional_date(payload, "startDate"),
         end_date=optional_date(payload, "endDate"),
+        site_id=optional_text(payload, "siteId"),
         expected_version=optional_int(payload, "expectedVersion"),
     )
     desktop_api.update_project(command)

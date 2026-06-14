@@ -22,6 +22,8 @@ class ResourceDesktopDto:
     contact: str
     employee_id: str | None
     employee_context: str
+    department: str
+    site: str
     is_active: bool
     active_label: str
     version: int

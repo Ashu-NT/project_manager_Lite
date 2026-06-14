@@ -43,18 +43,22 @@ Item {
     readonly property var siteColumns: [
         { key: "title",       label: "Name",            flex: 3, minWidth: 160, sortable: true,  visible: true },
         { key: "subtitle",    label: "Code / Location", flex: 4, minWidth: 200, sortable: false, visible: true },
+        { key: "organizationName", label: "Organization", flex: 2.5, minWidth: 180, sortable: true, visible: true },
         { key: "statusLabel", label: "Status",          flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
         { key: "metaText",    label: "Timezone / FX",   flex: 2, minWidth: 150, sortable: false, visible: true }
     ]
     readonly property var deptColumns: [
         { key: "title",       label: "Name",        flex: 3, minWidth: 160, sortable: true,  visible: true },
         { key: "subtitle",    label: "Code / Type", flex: 3, minWidth: 160, sortable: false, visible: true },
+        { key: "siteName",    label: "Site",        flex: 2.4, minWidth: 180, sortable: true, visible: true },
         { key: "statusLabel", label: "Status",      flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
         { key: "metaText",    label: "Cost Center", flex: 2, minWidth: 120, sortable: false, visible: true }
     ]
     readonly property var employeeColumns: [
         { key: "title",       label: "Name",             flex: 3, minWidth: 160, sortable: true,  visible: true },
         { key: "subtitle",    label: "Code / Job Title", flex: 3, minWidth: 180, sortable: false, visible: true },
+        { key: "departmentName", label: "Department",    flex: 2.4, minWidth: 180, sortable: true, visible: true },
+        { key: "siteName",    label: "Site",             flex: 2.2, minWidth: 160, sortable: true, visible: true },
         { key: "statusLabel", label: "Status",           flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
         { key: "metaText",    label: "Employment",       flex: 3, minWidth: 160, sortable: false, visible: true }
     ]

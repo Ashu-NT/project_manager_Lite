@@ -151,6 +151,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
                 projects_workspace_presenter=ProjectProjectsWorkspacePresenter(
                     desktop_api=self._projects_api,
                     tasks_desktop_api=self._tasks_api,
+                    site_api=getattr(self._desktop_api_registry, "platform_site", None),
                 ),
                 parent=self,
             )

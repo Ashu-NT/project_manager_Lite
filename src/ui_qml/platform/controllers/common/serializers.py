@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
+
+def _is_flattenable_state_value(value: Any) -> bool:
+    return value is None or isinstance(value, (str, int, float, bool))
+
+
 def serialize_workspace_overview(overview) -> dict[str, object]:
     return {
         "title": overview.title,
@@ -41,7 +46,8 @@ def serialize_action_list(list_view_model) -> dict[str, object]:
     }
 
 def serialize_action_item(item) -> dict[str, object]:
-    return {
+    state = dict(item.state)
+    payload = {
         "id": item.id,
         "title": item.title,
         "statusLabel": item.status_label,
@@ -51,8 +57,12 @@ def serialize_action_item(item) -> dict[str, object]:
         "canPrimaryAction": item.can_primary_action,
         "canSecondaryAction": item.can_secondary_action,
         "canTertiaryAction": item.can_tertiary_action,
-        "state": dict(item.state),
+        "state": state,
     }
+    for key, value in state.items():
+        if key not in payload and _is_flattenable_state_value(value):
+            payload[key] = value
+    return payload
 
 def serialize_operation_result(
     result,

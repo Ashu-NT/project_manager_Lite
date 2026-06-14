@@ -26,6 +26,9 @@ def build_project_state(project: Any) -> dict[str, object]:
         ),
         "plannedBudgetLabel": project.planned_budget_label,
         "currency": project.currency or "",
+        "organizationId": getattr(project, "organization_id", None) or "",
+        "siteId": getattr(project, "site_id", None) or "",
+        "siteLabel": getattr(project, "site_label", "") or "",
         "description": project.description or "",
         "version": project.version,
     }
@@ -34,15 +37,18 @@ def to_project_record(project: Any) -> ProjectRecordViewModel:
     state = build_project_state(project)
     client_text = state["clientName"] or "No client assigned"
     contact_text = state["clientContact"] or "No client contact recorded"
+    site_text = state["siteLabel"] or "No site assigned"
     return ProjectRecordViewModel(
         id=project.id,
         title=project.name,
         status_label=project.status_label,
-        subtitle=f"{client_text} | {contact_text}",
+        subtitle=f"{client_text} | {site_text}",
         supporting_text=(
             f"Schedule: {state['startDateLabel']} -> {state['endDateLabel']} | "
             f"Budget: {state['plannedBudgetLabel']}"
         ),
-        meta_text=project.description or "No project description has been added yet.",
+        meta_text=contact_text if contact_text != "No client contact recorded" else (
+            project.description or "No project description has been added yet."
+        ),
         state=state,
     )

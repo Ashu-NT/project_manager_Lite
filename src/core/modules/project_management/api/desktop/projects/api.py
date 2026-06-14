@@ -7,6 +7,7 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
 )
+from src.core.platform.site import SiteService
 from src.core.platform.common.exceptions import BusinessRuleError
 
 from src.core.modules.project_management.api.desktop.projects.models.project import (
@@ -52,10 +53,12 @@ class ProjectManagementProjectsDesktopApi:
         project_service: ProjectService | None = None,
         project_resource_service: ProjectResourceService | None = None,
         resource_service: ResourceService | None = None,
+        site_service: SiteService | None = None,
     ) -> None:
         self._project_service = project_service
         self._project_resource_service = project_resource_service
         self._resource_service = resource_service
+        self._site_service = site_service
 
     # ── Status options ────────────────────────────────────────────────────────
 
@@ -67,29 +70,32 @@ class ProjectManagementProjectsDesktopApi:
     def list_projects(self) -> tuple[ProjectDesktopDto, ...]:
         if self._project_service is None:
             return ()
+        site_lookup = self._site_lookup()
         projects = sorted(
             self._project_service.list_projects(),
             key=lambda p: (p.name or "").casefold(),
         )
-        return tuple(serialize_project(p) for p in projects)
+        return tuple(serialize_project(p, site_lookup=site_lookup) for p in projects)
 
     def list_projects_by_status(self, status: str) -> tuple[ProjectDesktopDto, ...]:
         if self._project_service is None:
             return ()
+        site_lookup = self._site_lookup()
         projects = sorted(
             self._project_service.list_projects_by_status(coerce_project_status(status)),
             key=lambda p: (p.name or "").casefold(),
         )
-        return tuple(serialize_project(p) for p in projects)
+        return tuple(serialize_project(p, site_lookup=site_lookup) for p in projects)
 
     def search_projects(self, query: str) -> tuple[ProjectDesktopDto, ...]:
         if self._project_service is None or not query:
             return ()
+        site_lookup = self._site_lookup()
         projects = sorted(
             self._project_service.search_projects_by_name(query),
             key=lambda p: (p.name or "").casefold(),
         )
-        return tuple(serialize_project(p) for p in projects)
+        return tuple(serialize_project(p, site_lookup=site_lookup) for p in projects)
 
     def create_project(self, command: ProjectCreateCommand) -> ProjectDesktopDto:
         service = self._require_project_service()
@@ -110,7 +116,7 @@ class ProjectManagementProjectsDesktopApi:
             client_party_id=getattr(command, "client_party_id", None),
             manager_user_id=getattr(command, "manager_user_id", None),
         )
-        return serialize_project(project)
+        return serialize_project(project, site_lookup=self._site_lookup())
 
     def update_project(self, command: ProjectUpdateCommand) -> ProjectDesktopDto:
         service = self._require_project_service()
@@ -133,7 +139,7 @@ class ProjectManagementProjectsDesktopApi:
             client_party_id=getattr(command, "client_party_id", None),
             manager_user_id=getattr(command, "manager_user_id", None),
         )
-        return serialize_project(project)
+        return serialize_project(project, site_lookup=self._site_lookup())
 
     def set_project_status(self, project_id: str, status: str) -> ProjectDesktopDto:
         service = self._require_project_service()
@@ -141,7 +147,7 @@ class ProjectManagementProjectsDesktopApi:
         project = service.get_project(project_id)
         if project is None:
             raise RuntimeError("Project status updated but the project could not be reloaded.")
-        return serialize_project(project)
+        return serialize_project(project, site_lookup=self._site_lookup())
 
     def delete_project(self, project_id: str) -> None:
         self._require_project_service().delete_project(project_id)
@@ -254,6 +260,18 @@ class ProjectManagementProjectsDesktopApi:
         if self._project_resource_service is None:
             raise RuntimeError("Project management project-resource desktop API is not connected.")
         return self._project_resource_service
+
+    def _site_lookup(self) -> dict[str, str]:
+        if self._site_service is None:
+            return {}
+        try:
+            return {
+                str(site.id): str(getattr(site, "name", "") or "").strip()
+                for site in self._site_service.list_sites(active_only=None)
+                if getattr(site, "id", None)
+            }
+        except Exception:
+            return {}
 
     def _can_fallback(self, project_id: str, exc: BusinessRuleError) -> bool:
         user_session = resolve_user_session(

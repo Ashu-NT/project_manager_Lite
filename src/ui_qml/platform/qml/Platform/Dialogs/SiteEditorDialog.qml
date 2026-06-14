@@ -11,6 +11,7 @@ AppWidgets.EntityDialog {
     property var draft: ({})
     property var workspaceController: null
     property string siteCode: ""
+    property string organizationName: ""
 
     signal saveRequested(string mode, var payload)
 
@@ -97,6 +98,20 @@ AppWidgets.EntityDialog {
                     root.siteCode = suggested
                 }
             }
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Organization"
+
+        AppControls.Label {
+            Layout.fillWidth: true
+            text: root.organizationName || "Active organization"
+            color: Theme.AppTheme.textSecondary
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.smallSize
+            wrapMode: Text.WordWrap
         }
     }
 

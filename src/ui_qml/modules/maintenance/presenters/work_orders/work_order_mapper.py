@@ -23,6 +23,7 @@ def work_order_record(row) -> MaintenanceWorkOrderRecordViewModel:
         state={
             "workOrderId": row.id,
             "siteId": row.site_id,
+            "siteLabel": row.site_label,
             "workOrderCode": row.work_order_code,
             "workOrderType": row.work_order_type,
             "workOrderTypeLabel": row.work_order_type_label,

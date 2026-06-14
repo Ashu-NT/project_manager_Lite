@@ -2286,6 +2286,7 @@ def test_platform_workspace_catalog_runs_admin_actions() -> None:
     assert "QML Labs" in organization_titles
     assert catalog.adminWorkspace.organizations["items"][1]["statusLabel"] == "Active"
     assert "Hamburg Hub" in site_titles
+    assert catalog.adminWorkspace.sites["items"][-1]["organizationName"] == "Operations"
     assert department_by_id["dep-2"]["statusLabel"] == "Active"
     assert "Katherine Johnson" in employee_titles
     assert "Katherine Johnson" in user_titles

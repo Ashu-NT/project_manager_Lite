@@ -56,6 +56,8 @@ def serialize_resource(
         contact=(getattr(resource, "contact", "") or "").strip(),
         employee_id=employee_id,
         employee_context=employee_context,
+        department=employee_option.department if employee_option is not None else "",
+        site=employee_option.site if employee_option is not None else "",
         is_active=is_active,
         active_label="Active" if is_active else "Inactive",
         version=int(getattr(resource, "version", 1) or 1),

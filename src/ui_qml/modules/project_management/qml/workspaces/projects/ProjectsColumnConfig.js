@@ -6,6 +6,7 @@ function baseColumns() {
         { "key": "projectCode",        "label": "Code",     "flex": 0,   "minWidth": 120, "sortable": true,  "visibleByDefault": true  },
         { "key": "statusLabel",        "label": "Status",   "flex": 0,   "minWidth": 110, "type": "status", "required": true, "visibleByDefault": true  },
         { "key": "clientName",         "label": "Client",   "flex": 1.5, "sortable": true,                   "visibleByDefault": true  },
+        { "key": "siteLabel",          "label": "Site",     "flex": 1.2, "sortable": true,                   "visibleByDefault": true  },
         { "key": "clientContact",      "label": "Contact",  "flex": 1.5,                                     "visibleByDefault": false },
         { "key": "startDateLabel",     "label": "Start",    "flex": 0,   "minWidth": 90,                     "visibleByDefault": true  },
         { "key": "endDateLabel",       "label": "Finish",   "flex": 0,   "minWidth": 90,                     "visibleByDefault": true  },

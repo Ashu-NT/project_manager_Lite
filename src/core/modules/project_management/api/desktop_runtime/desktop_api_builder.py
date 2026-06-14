@@ -85,6 +85,7 @@ def build_project_management_desktop_runtime_apis(
             project_service=resolved.project_service,
             project_resource_service=resolved.project_resource_service,
             resource_service=resolved.resource_service,
+            site_service=platform_dependencies.site_service,
         ),
         project_management_register=register_desktop_api,
         project_management_risk=register_desktop_api,

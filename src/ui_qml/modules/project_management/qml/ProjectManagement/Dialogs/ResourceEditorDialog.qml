@@ -53,9 +53,13 @@ AppWidgets.EntityDialog {
         var option = root.selectedEmployeeOption()
         if (!root.employeeWorkerSelected) {
             employeeContextValue.text = "-"
+            employeeDepartmentValue.text = "-"
+            employeeSiteValue.text = "-"
             return
         }
         employeeContextValue.text = String(option.context || "Select an employee to inherit shared context.")
+        employeeDepartmentValue.text = String(option.department || "-")
+        employeeSiteValue.text = String(option.site || "-")
         if (String(option.value || "").length > 0) {
             nameField.text = String(option.name || "")
             roleField.text = String(option.title || "")
@@ -153,6 +157,18 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             label: "Shared context"
             AppControls.Label { id: employeeContextValue; Layout.fillWidth: true; text: "-"; color: Theme.AppTheme.textSecondary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize; wrapMode: Text.WordWrap }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Department"
+            AppControls.Label { id: employeeDepartmentValue; Layout.fillWidth: true; text: "-"; color: Theme.AppTheme.textSecondary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize; wrapMode: Text.WordWrap }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Site"
+            AppControls.Label { id: employeeSiteValue; Layout.fillWidth: true; text: "-"; color: Theme.AppTheme.textSecondary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize; wrapMode: Text.WordWrap }
         }
 
         AppWidgets.FormField {

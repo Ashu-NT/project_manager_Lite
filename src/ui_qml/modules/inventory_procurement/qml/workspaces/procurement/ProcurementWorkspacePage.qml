@@ -71,15 +71,17 @@ AppLayouts.WorkspaceFrame {
 
     readonly property var _requisitionColumns: [
         { "key": "title",       "label": "Requisition",  "flex": 2,   "sortable": true },
-        { "key": "subtitle",    "label": "Site / Dept",  "flex": 1.5 },
+        { "key": "requestingSiteLabel", "label": "Site", "flex": 1.2, "sortable": true },
+        { "key": "requestingStoreroomLabel", "label": "Storeroom", "flex": 1.4, "sortable": true },
         { "key": "statusLabel", "label": "Status",       "flex": 0,   "minWidth": 90, "type": "status" },
-        { "key": "metaText",    "label": "Date / Ref",   "flex": 1 }
+        { "key": "supportingText", "label": "Priority / Need", "flex": 1.5 }
     ]
     readonly property var _purchaseOrderColumns: [
         { "key": "title",       "label": "Purchase Order", "flex": 2,  "sortable": true },
-        { "key": "subtitle",    "label": "Supplier",       "flex": 1.5 },
+        { "key": "siteLabel",   "label": "Site",           "flex": 1.2, "sortable": true },
+        { "key": "supplierLabel", "label": "Supplier",     "flex": 1.5, "sortable": true },
         { "key": "statusLabel", "label": "Status",         "flex": 0,  "minWidth": 90, "type": "status" },
-        { "key": "metaText",    "label": "Date / Value",   "flex": 1 }
+        { "key": "supportingText", "label": "Currency / Delivery", "flex": 1.5 }
     ]
 
     readonly property var _detailSections: root._isRequisitionsView

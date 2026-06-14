@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.api.desktop.platform import PlatformSiteDesktopApi
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementProjectsDesktopApi,
     build_project_management_projects_desktop_api,
@@ -46,10 +47,12 @@ class ProjectProjectsWorkspacePresenter:
         desktop_api: ProjectManagementProjectsDesktopApi | None = None,
         tasks_desktop_api: ProjectManagementTasksDesktopApi | None = None,
         register_desktop_api: ProjectManagementRegisterDesktopApi | None = None,
+        site_api: PlatformSiteDesktopApi | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_projects_desktop_api()
         self._tasks_desktop_api = tasks_desktop_api or build_project_management_tasks_desktop_api()
         self._register_desktop_api = register_desktop_api or build_project_management_register_desktop_api()
+        self._site_api = site_api
         self._import_sessions: dict[str, object] = {}
 
     def build_workspace_state(
@@ -131,6 +134,23 @@ class ProjectProjectsWorkspacePresenter:
 
     def suggest_code(self, payload: dict[str, Any]) -> str:
         return suggest_code(self._desktop_api, payload)
+
+    def build_site_options(self) -> list[dict[str, str]]:
+        if self._site_api is None:
+            return []
+        result = self._site_api.list_sites(active_only=True)
+        if not result.ok or result.data is None:
+            return []
+        return [
+            {
+                "value": row.id,
+                "label": row.name,
+                "supportingText": " | ".join(
+                    value for value in (row.site_code, row.city or "", row.country or "") if value
+                ),
+            }
+            for row in result.data
+        ]
 
     def create_project(self, payload: dict[str, Any]) -> None:
         create_project(self._desktop_api, payload)

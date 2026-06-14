@@ -28,6 +28,8 @@ class ResourceEmployeeOptionViewModel:
     title: str
     contact: str
     context: str
+    department: str
+    site: str
     is_active: bool
 
 @dataclass(frozen=True)

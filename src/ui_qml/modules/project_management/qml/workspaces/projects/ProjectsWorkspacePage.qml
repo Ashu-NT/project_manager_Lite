@@ -72,6 +72,7 @@ AppLayouts.WorkspaceFrame {
         sourceComponent: Component {
             Dialogs.ProjectsDialogHost {
                 statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
                 workspaceController: root.workspaceController
 
                 onDeleteRequested: function(projectId) {

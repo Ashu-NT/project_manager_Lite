@@ -55,7 +55,10 @@ class PlatformSiteCatalogPresenter:
             title="Sites",
             subtitle=f"Shared site records for {context_label}.",
             empty_state="No sites are available yet.",
-            items=tuple(self._serialize_site(row) for row in sites_result.data),
+            items=tuple(
+                self._serialize_site(row, organization_name=context_label)
+                for row in sites_result.data
+            ),
         )
 
     def suggest_code(self, payload: dict[str, Any]) -> str:
@@ -133,7 +136,11 @@ class PlatformSiteCatalogPresenter:
         )
 
     @staticmethod
-    def _serialize_site(row: SiteDto) -> PlatformWorkspaceActionItemViewModel:
+    def _serialize_site(
+        row: SiteDto,
+        *,
+        organization_name: str,
+    ) -> PlatformWorkspaceActionItemViewModel:
         return PlatformWorkspaceActionItemViewModel(
             id=row.id,
             title=row.name,
@@ -146,6 +153,8 @@ class PlatformSiteCatalogPresenter:
             state={
                 "id": row.id,
                 "siteId": row.id,
+                "organizationId": row.organization_id,
+                "organizationName": organization_name,
                 "siteCode": row.site_code,
                 "name": row.name,
                 "description": row.description,

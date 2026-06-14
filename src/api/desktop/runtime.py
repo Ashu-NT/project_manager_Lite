@@ -315,6 +315,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         services=services,
         platform_dependencies=ProjectManagementDesktopRuntimePlatformDependencies(
             employee_service=employee_service,
+            site_service=site_service,
             approval_service=approval_service,
             procurement_service=inventory_procurement_service,
             reservation_service=inventory_reservation_service,

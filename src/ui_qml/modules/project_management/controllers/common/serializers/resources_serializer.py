@@ -39,6 +39,8 @@ def serialize_resource_employee_option_view_models(
             "title": view_model.title,
             "contact": view_model.contact,
             "context": view_model.context,
+            "department": view_model.department,
+            "site": view_model.site,
             "isActive": view_model.is_active,
         }
         for view_model in view_models
@@ -58,6 +60,8 @@ def serialize_resource_record_view_models(
             "supportingText": view_model.supporting_text,
             "metaText": view_model.meta_text,
             "role": str(view_model.state.get("role", "") or ""),
+            "department": str(view_model.state.get("department", "") or ""),
+            "site": str(view_model.state.get("site", "") or ""),
             "workerTypeLabel": str(view_model.state.get("workerTypeLabel", "") or ""),
             "costTypeLabel": str(view_model.state.get("costTypeLabel", "") or ""),
             "hourlyRateLabel": str(view_model.state.get("hourlyRateLabel", "") or ""),

@@ -534,7 +534,17 @@ def test_inventory_qml_procurement_presenter_builds_workspace_state(services) ->
     assert snapshot.overview.title == "Procurement"
     assert snapshot.selected_site_filter == site.id
     assert snapshot.requisitions[0].title.startswith("PR-") or snapshot.requisitions[0].title
+    assert snapshot.requisitions[0].state["requestingSiteLabel"] == f"{site.site_code} - {site.name}"
+    assert (
+        snapshot.requisitions[0].state["requestingStoreroomLabel"]
+        == f"{storeroom.storeroom_code} - {storeroom.name}"
+    )
     assert snapshot.purchase_orders[0].title
+    assert snapshot.purchase_orders[0].state["siteLabel"] == f"{site.site_code} - {site.name}"
+    assert (
+        snapshot.purchase_orders[0].state["supplierLabel"]
+        == f"{supplier.party_code} - {supplier.party_name}"
+    )
     assert snapshot.selected_purchase_order_detail.fields[0].label == "Site"
 
 
