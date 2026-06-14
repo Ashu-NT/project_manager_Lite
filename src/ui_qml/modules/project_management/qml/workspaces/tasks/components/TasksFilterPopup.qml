@@ -13,7 +13,6 @@ AppWidgets.AnchoredPopup {
     // ── Input properties ─────────────────────────────────────────────────
     property var workspaceController: null
     property var state: null
-    required property var anchorItem
 
     // ── Layout ───────────────────────────────────────────────────────────
     width: 304

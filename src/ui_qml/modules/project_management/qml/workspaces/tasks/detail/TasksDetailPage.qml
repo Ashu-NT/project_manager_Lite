@@ -46,6 +46,7 @@ AppWidgets.SectionDetailPage {
 
     // ── Detail header toolbar ────────────────────────────────────────────
     AppWidgets.ContextualActionToolbar {
+        detailPagePinned: true
         width: parent ? parent.width : 0
         showBack: true
         title: root.selectedTaskModel.title || "Task Details"

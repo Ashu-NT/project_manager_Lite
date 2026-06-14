@@ -124,6 +124,23 @@ AppLayouts.WorkspaceFrame {
         state.openTaskProcurementRoute()
     }
 
+    function _openFilterPopup() {
+        filterPopup.anchorItem = listPage.filterButtonItem
+        filterPopup.open()
+    }
+
+    function _openViewsPopup() {
+        viewsPopup.anchorItem = listPage.viewsButtonItem
+        viewsPopup.open()
+    }
+
+    function _openBulkChangePropertyPopup() {
+        bulkChangePropertyPopup.anchorItem = listPage.bulkActionBar
+            ? listPage.bulkActionBar.actionButtonForId("change_property")
+            : null
+        bulkChangePropertyPopup.open()
+    }
+
     function _openDetail(sectionIndex) {
         root._pendingDetailSection = sectionIndex
         root._detailOpen = true
@@ -245,8 +262,8 @@ AppLayouts.WorkspaceFrame {
                         root.workspaceController.setSearchText(text)
                     }
                 }
-                onFilterClicked: filterPopup.open()
-                onViewsClicked: viewsPopup.open()
+                onFilterClicked: root._openFilterPopup()
+                onViewsClicked: root._openViewsPopup()
                 onRefreshRequested: {
                     if (root.workspaceController !== null) {
                         root.workspaceController.refresh()
@@ -266,7 +283,7 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
                         )
                     } else if (actionId === "change_property") {
-                        bulkChangePropertyPopup.open()
+                        root._openBulkChangePropertyPopup()
                     }
                 }
             }
@@ -338,6 +355,7 @@ AppLayouts.WorkspaceFrame {
                 }
 
                 AppWidgets.ContextualActionToolbar {
+                    detailPagePinned: true
                     width: parent ? parent.width : 0
                     showBack: true
                     title: root.selectedTaskModel.title || "Task Details"

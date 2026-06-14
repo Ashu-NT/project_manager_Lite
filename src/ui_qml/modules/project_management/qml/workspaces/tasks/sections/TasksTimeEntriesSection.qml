@@ -37,6 +37,7 @@ Item {
     readonly property var _items: root.entriesModel.items || []
     readonly property var _state: root.assignmentSummary.state || {}
     readonly property var _entryState: root.selectedEntryDetail.state || {}
+    readonly property var _entryFields: root.selectedEntryDetail.fields || []
     readonly property var _summaryFields: root.assignmentSummary.fields || []
     readonly property bool _hasAssignment: Boolean(root._state.assignmentId)
     readonly property bool _hasEntry: Boolean(root._entryState.entryId)
@@ -50,6 +51,13 @@ Item {
     readonly property string _selectedEntryTitle: String(root.selectedEntryDetail.title || "")
     readonly property string _selectedEntrySubtitle: String(root.selectedEntryDetail.subtitle || "")
     readonly property string _selectedEntryStatus: String(root.selectedEntryDetail.statusLabel || "")
+    readonly property string _resourceValue: root._fieldValue("Resource", "Not assigned")
+    readonly property string _hoursValue: root._fieldValue("Hours", "0.00")
+    readonly property string _hoursSupportingText: root._fieldSupportingText("Hours", "")
+    readonly property string _submittedByValue: root._fieldValue("Submitted by", "Not submitted")
+    readonly property string _submittedBySupportingText: root._fieldSupportingText("Submitted by", "")
+    readonly property string _decisionValue: root._fieldValue("Decision", "Pending review")
+    readonly property string _decisionSupportingText: root._fieldSupportingText("Decision", "")
     readonly property var _detailTabs: {
         const tabs = [
             { "id": "assignment", "label": "Assignment" },
@@ -66,18 +74,12 @@ Item {
             return 0
         return Math.max(0, Math.min(root._activeTabIndex, tabs.length - 1))
     }
-    readonly property string _activeTabId: {
-        const tabs = root._detailTabs
-        if (!tabs.length)
-            return "assignment"
-        return String((tabs[root._resolvedTabIndex] || {}).id || "assignment")
-    }
     readonly property real _activePanelHeight: {
-        if (root._activeTabId === "capture")
+        if (root._resolvedTabIndex === 1)
             return _capturePanel.implicitHeight
-        if (root._activeTabId === "ledger")
+        if (root._resolvedTabIndex === 2)
             return _ledgerPanel.implicitHeight
-        if (root._activeTabId === "workflow")
+        if (root._resolvedTabIndex === 3)
             return _workflowPanel.implicitHeight
         return _assignmentPanel.implicitHeight
     }
@@ -95,13 +97,31 @@ Item {
         { key: "statusLabel", label: "Status", flex: 0, minWidth: 90, type: "status" }
     ]
 
-    function _normalizeActiveTab() {
-        const maxIndex = Math.max(0, root._detailTabs.length - 1)
-        if (root._activeTabIndex > maxIndex)
-            root._activeTabIndex = maxIndex
+    function _fieldValue(label, fallbackValue) {
+        const wanted = String(label || "")
+        const fields = root._summaryFields
+        for (let i = 0; i < fields.length; i += 1) {
+            const field = fields[i] || {}
+            if (String(field.label || "") === wanted)
+                return String(field.value || fallbackValue || "")
+        }
+        return String(fallbackValue || "")
     }
 
-    onSelectedEntryDetailChanged: {
+    function _fieldSupportingText(label, fallbackValue) {
+        const wanted = String(label || "")
+        const fields = root._summaryFields
+        for (let i = 0; i < fields.length; i += 1) {
+            const field = fields[i] || {}
+            if (String(field.label || "") === wanted)
+                return String(field.supportingText || fallbackValue || "")
+        }
+        return String(fallbackValue || "")
+    }
+
+    function _syncEditorFields() {
+        if (!_dateField || !_hoursField || !_noteArea)
+            return
         if (root._entryState.entryId) {
             _dateField.text = String(root._entryState.entryDate || "")
             _hoursField.text = String(root._entryState.hours || "")
@@ -112,9 +132,9 @@ Item {
             _noteArea.text = ""
         }
     }
-    on_CanSubmitChanged: Qt.callLater(root._normalizeActiveTab)
-    on_CanUnlockChanged: Qt.callLater(root._normalizeActiveTab)
-    Component.onCompleted: root._normalizeActiveTab()
+
+    onSelectedEntryDetailChanged: Qt.callLater(root._syncEditorFields)
+    Component.onCompleted: root._syncEditorFields()
 
     implicitHeight: _contentColumn.implicitHeight
     height: implicitHeight
@@ -153,177 +173,198 @@ Item {
             }
         }
 
-        Item {
+        StackLayout {
             Layout.fillWidth: true
+            Layout.preferredHeight: root._activePanelHeight
             implicitHeight: root._activePanelHeight
-            height: implicitHeight
+            currentIndex: root._resolvedTabIndex
 
-            AppWidgets.SectionCard {
+            Item {
                 id: _assignmentPanel
-                visible: root._activeTabId === "assignment"
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                title: "Assignment & Period"
-                implicitHeight: _assignmentCardBody.implicitHeight
+                Layout.fillWidth: true
+                implicitHeight: _assignmentLayout.implicitHeight
 
-                Item {
-                    id: _assignmentCardBody
-                    width: parent ? parent.width : 0
-                    implicitHeight: _assignmentCardColumn.implicitHeight + Theme.AppTheme.marginMd * 2
-                    height: implicitHeight
+                ColumnLayout {
+                    id: _assignmentLayout
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    spacing: Theme.AppTheme.spacingMd
 
-                    ColumnLayout {
-                        id: _assignmentCardColumn
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.margins: Theme.AppTheme.marginMd
-                        spacing: Theme.AppTheme.spacingMd
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: _assignmentHeaderColumn.implicitHeight + Theme.AppTheme.marginMd * 2
+                        radius: Theme.AppTheme.radiusMd
+                        color: Theme.AppTheme.surfaceRaised
+                        border.color: Theme.AppTheme.subtleBorder
+                        border.width: 1
 
-                        RowLayout {
-                            Layout.fillWidth: true
+                        ColumnLayout {
+                            id: _assignmentHeaderColumn
+                            anchors.fill: parent
+                            anchors.margins: Theme.AppTheme.marginMd
                             spacing: Theme.AppTheme.spacingMd
 
-                            ColumnLayout {
+                            RowLayout {
                                 Layout.fillWidth: true
-                                spacing: 4
+                                spacing: Theme.AppTheme.spacingMd
 
-                                AppControls.Label {
+                                ColumnLayout {
                                     Layout.fillWidth: true
-                                    text: root._assignmentTitle
-                                    color: Theme.AppTheme.textPrimary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.sectionSize
-                                    font.bold: true
-                                    elide: Text.ElideRight
+                                    spacing: 2
+
+                                    AppControls.Label {
+                                        Layout.fillWidth: true
+                                        text: root._assignmentTitle
+                                        color: Theme.AppTheme.textPrimary
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.bodySize
+                                        font.bold: true
+                                        elide: Text.ElideRight
+                                    }
+
+                                    AppControls.Label {
+                                        Layout.fillWidth: true
+                                        visible: root._assignmentSubtitle.length > 0
+                                        text: root._assignmentSubtitle
+                                        color: Theme.AppTheme.textMuted
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        wrapMode: Text.WordWrap
+                                    }
                                 }
 
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    visible: root._assignmentSubtitle.length > 0
-                                    text: root._assignmentSubtitle
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    elide: Text.ElideRight
-                                }
-
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    visible: root._assignmentDescription.length > 0
-                                    text: root._assignmentDescription
-                                    color: Theme.AppTheme.textSecondary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    wrapMode: Text.WordWrap
+                                AppWidgets.StatusChip {
+                                    visible: root._assignmentStatus.length > 0
+                                    status: root._assignmentStatus
                                 }
                             }
 
-                            AppWidgets.StatusChip {
-                                visible: root._assignmentStatus.length > 0
-                                status: root._assignmentStatus
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                visible: root._assignmentDescription.length > 0
+                                text: root._assignmentDescription
+                                color: Theme.AppTheme.textSecondary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                wrapMode: Text.WordWrap
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 1
+                                color: Theme.AppTheme.divider
+                            }
+
+                            GridLayout {
+                                Layout.fillWidth: true
+                                columns: width >= 760 ? 2 : 1
+                                columnSpacing: Theme.AppTheme.spacingMd
+                                rowSpacing: Theme.AppTheme.spacingSm
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 4
+
+                                    AppControls.Label {
+                                        text: "Task Assignment"
+                                        color: Theme.AppTheme.textMuted
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        font.bold: true
+                                    }
+
+                                    AppControls.ComboBox {
+                                        Layout.fillWidth: true
+                                        model: root.assignmentOptions
+                                        textRole: "label"
+                                        enabled: !root.isBusy
+                                        currentIndex: {
+                                            const options = root.assignmentOptions
+                                            const assignmentId = String(root._state.assignmentId || "")
+                                            for (let i = 0; i < options.length; i += 1) {
+                                                if (String(options[i].value || "") === assignmentId)
+                                                    return i
+                                            }
+                                            return 0
+                                        }
+                                        onActivated: function(index) {
+                                            const option = root.assignmentOptions[index]
+                                            if (option)
+                                                root.assignmentChanged(String(option.value || ""))
+                                        }
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 4
+
+                                    AppControls.Label {
+                                        text: "Period"
+                                        color: Theme.AppTheme.textMuted
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        font.bold: true
+                                    }
+
+                                    AppControls.ComboBox {
+                                        Layout.fillWidth: true
+                                        model: root.periodOptions
+                                        textRole: "label"
+                                        enabled: !root.isBusy
+                                        currentIndex: {
+                                            const options = root.periodOptions
+                                            const value = String(root.selectedPeriodStart || "")
+                                            for (let i = 0; i < options.length; i += 1) {
+                                                if (String(options[i].value || "") === value)
+                                                    return i
+                                            }
+                                            return 0
+                                        }
+                                        onActivated: function(index) {
+                                            const option = root.periodOptions[index]
+                                            if (option)
+                                                root.periodChanged(String(option.value || ""))
+                                        }
+                                    }
+                                }
                             }
                         }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        visible: root._summaryFields.length > 0
+                        implicitHeight: _summaryGrid.implicitHeight + Theme.AppTheme.marginMd * 2
+                        radius: Theme.AppTheme.radiusMd
+                        color: Theme.AppTheme.surfaceRaised
+                        border.color: Theme.AppTheme.subtleBorder
+                        border.width: 1
 
                         GridLayout {
-                            Layout.fillWidth: true
-                            columns: width >= 760 ? 2 : 1
-                            columnSpacing: Theme.AppTheme.spacingMd
-                            rowSpacing: Theme.AppTheme.spacingSm
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 4
-
-                                AppControls.Label {
-                                    text: "Task Assignment"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-
-                                AppControls.ComboBox {
-                                    Layout.fillWidth: true
-                                    model: root.assignmentOptions
-                                    textRole: "label"
-                                    enabled: !root.isBusy
-                                    currentIndex: {
-                                        const options = root.assignmentOptions
-                                        const assignmentId = String(root._state.assignmentId || "")
-                                        for (let i = 0; i < options.length; i += 1) {
-                                            if (String(options[i].value || "") === assignmentId)
-                                                return i
-                                        }
-                                        return 0
-                                    }
-                                    onActivated: function(index) {
-                                        const option = root.assignmentOptions[index]
-                                        if (option)
-                                            root.assignmentChanged(String(option.value || ""))
-                                    }
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 4
-
-                                AppControls.Label {
-                                    text: "Period"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-
-                                AppControls.ComboBox {
-                                    Layout.fillWidth: true
-                                    model: root.periodOptions
-                                    textRole: "label"
-                                    enabled: !root.isBusy
-                                    currentIndex: {
-                                        const options = root.periodOptions
-                                        const value = String(root.selectedPeriodStart || "")
-                                        for (let i = 0; i < options.length; i += 1) {
-                                            if (String(options[i].value || "") === value)
-                                                return i
-                                        }
-                                        return 0
-                                    }
-                                    onActivated: function(index) {
-                                        const option = root.periodOptions[index]
-                                        if (option)
-                                            root.periodChanged(String(option.value || ""))
-                                    }
-                                }
-                            }
-                        }
-
-                        GridLayout {
-                            Layout.fillWidth: true
-                            visible: root._summaryFields.length > 0
+                            id: _summaryGrid
+                            anchors.fill: parent
+                            anchors.margins: Theme.AppTheme.marginMd
                             columns: width >= 920 ? 4 : width >= 620 ? 2 : 1
                             columnSpacing: Theme.AppTheme.spacingSm
                             rowSpacing: Theme.AppTheme.spacingSm
 
                             Repeater {
                                 model: root._summaryFields
+
                                 delegate: Rectangle {
                                     required property var modelData
                                     Layout.fillWidth: true
-                                    implicitHeight: _fieldColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                    implicitHeight: _fieldTileColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
                                     radius: Theme.AppTheme.radiusMd
                                     color: Theme.AppTheme.surfaceAlt
                                     border.color: Theme.AppTheme.subtleBorder
                                     border.width: 1
 
                                     ColumnLayout {
-                                        id: _fieldColumn
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
+                                        id: _fieldTileColumn
+                                        anchors.fill: parent
                                         anchors.margins: Theme.AppTheme.spacingMd
                                         spacing: 3
 
@@ -360,74 +401,276 @@ Item {
                                 }
                             }
                         }
+                    }
 
-                        AppControls.Label {
-                            Layout.fillWidth: true
-                            visible: !root._hasAssignment && String(root.assignmentSummary.emptyState || "").length > 0
-                            text: root.assignmentSummary.emptyState || ""
-                            color: Theme.AppTheme.textMuted
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.smallSize
-                            wrapMode: Text.WordWrap
-                        }
+                    AppControls.Label {
+                        Layout.fillWidth: true
+                        visible: !root._hasAssignment && String(root.assignmentSummary.emptyState || "").length > 0
+                        text: root.assignmentSummary.emptyState || ""
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.smallSize
+                        wrapMode: Text.WordWrap
                     }
                 }
             }
 
-            AppWidgets.SectionCard {
+            Item {
                 id: _capturePanel
-                visible: root._activeTabId === "capture"
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                title: "Capture Entry"
-                implicitHeight: _captureCardBody.implicitHeight
+                Layout.fillWidth: true
+                implicitHeight: _captureGrid.implicitHeight
 
-                Item {
-                    id: _captureCardBody
-                    width: parent ? parent.width : 0
-                    implicitHeight: _captureColumn.implicitHeight + Theme.AppTheme.marginMd * 2
-                    height: implicitHeight
+                GridLayout {
+                    id: _captureGrid
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    columns: width >= 980 ? 2 : 1
+                    columnSpacing: Theme.AppTheme.spacingMd
+                    rowSpacing: Theme.AppTheme.spacingMd
 
-                    ColumnLayout {
-                        id: _captureColumn
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.margins: Theme.AppTheme.marginMd
-                        spacing: Theme.AppTheme.spacingMd
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: _captureEditorColumn.implicitHeight + Theme.AppTheme.marginMd * 2
+                        radius: Theme.AppTheme.radiusMd
+                        color: Theme.AppTheme.surfaceRaised
+                        border.color: Theme.AppTheme.subtleBorder
+                        border.width: 1
 
-                        Rectangle {
-                            Layout.fillWidth: true
-                            visible: root._hasEntry
-                            implicitHeight: _selectedEntryColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
-                            radius: Theme.AppTheme.radiusMd
-                            color: Theme.AppTheme.surfaceAlt
-                            border.color: Theme.AppTheme.subtleBorder
-                            border.width: 1
+                        ColumnLayout {
+                            id: _captureEditorColumn
+                            anchors.fill: parent
+                            anchors.margins: Theme.AppTheme.marginMd
+                            spacing: Theme.AppTheme.spacingMd
 
                             RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: Theme.AppTheme.spacingMd
+                                Layout.fillWidth: true
                                 spacing: Theme.AppTheme.spacingMd
 
                                 ColumnLayout {
-                                    id: _selectedEntryColumn
                                     Layout.fillWidth: true
-                                    spacing: 3
+                                    spacing: 2
 
                                     AppControls.Label {
                                         Layout.fillWidth: true
-                                        text: "Editing selected entry"
+                                        text: "Capture Labor Entry"
+                                        color: Theme.AppTheme.textPrimary
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.bodySize
+                                        font.bold: true
+                                    }
+
+                                    AppControls.Label {
+                                        Layout.fillWidth: true
+                                        text: "Log daily hours and update the selected time entry without leaving the task workspace."
+                                        color: Theme.AppTheme.textMuted
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        wrapMode: Text.WordWrap
+                                    }
+                                }
+
+                                Rectangle {
+                                    implicitWidth: _entryModeLabel.implicitWidth + Theme.AppTheme.spacingMd * 2
+                                    implicitHeight: Theme.AppTheme.toolbarHeight
+                                    radius: Theme.AppTheme.radiusSm
+                                    color: root._hasEntry ? Theme.AppTheme.accentSoft : Theme.AppTheme.surfaceAlt
+                                    border.color: Theme.AppTheme.subtleBorder
+                                    border.width: 1
+
+                                    AppControls.Label {
+                                        id: _entryModeLabel
+                                        anchors.centerIn: parent
+                                        text: root._hasEntry ? "Selected entry" : "New entry"
+                                        color: root._hasEntry ? Theme.AppTheme.accent : Theme.AppTheme.textSecondary
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        font.bold: true
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 1
+                                color: Theme.AppTheme.divider
+                            }
+
+                            GridLayout {
+                                Layout.fillWidth: true
+                                columns: width >= 760 ? 2 : 1
+                                columnSpacing: Theme.AppTheme.spacingMd
+                                rowSpacing: Theme.AppTheme.spacingSm
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 4
+
+                                    AppControls.Label {
+                                        text: "Date"
                                         color: Theme.AppTheme.textMuted
                                         font.family: Theme.AppTheme.fontFamily
                                         font.pixelSize: Theme.AppTheme.captionSize
                                         font.bold: true
                                     }
 
+                                    AppControls.DateField {
+                                        id: _dateField
+                                        Layout.fillWidth: true
+                                        enabled: !root.isBusy && root._hasAssignment
+                                        placeholderText: "YYYY-MM-DD"
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 4
+
+                                    AppControls.Label {
+                                        text: "Hours"
+                                        color: Theme.AppTheme.textMuted
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        font.bold: true
+                                    }
+
+                                    AppControls.TextField {
+                                        id: _hoursField
+                                        Layout.fillWidth: true
+                                        enabled: !root.isBusy && root._hasAssignment
+                                        placeholderText: "8.00"
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                    }
+                                }
+                            }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 4
+
+                                AppControls.Label {
+                                    text: "Labor Note"
+                                    color: Theme.AppTheme.textMuted
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.captionSize
+                                    font.bold: true
+                                }
+
+                                AppControls.TextArea {
+                                    id: _noteArea
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 120
+                                    enabled: !root.isBusy && root._hasAssignment
+                                    placeholderText: "Describe the work completed, blockers, and key deliverables for this entry."
+                                    wrapMode: TextEdit.WordWrap
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.AppTheme.spacingSm
+
+                                AppControls.Label {
+                                    Layout.fillWidth: true
+                                    text: root._hasAssignment
+                                        ? "Capture work against the selected assignment and period."
+                                        : "Choose a task assignment before logging labor."
+                                    color: Theme.AppTheme.textMuted
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.captionSize
+                                    wrapMode: Text.WordWrap
+                                }
+
+                                AppControls.PrimaryButton {
+                                    text: "Add Entry"
+                                    iconName: "add"
+                                    enabled: !root.isBusy && root._hasAssignment
+                                    onClicked: root.addRequested({
+                                        "assignmentId": root._state.assignmentId || "",
+                                        "entryDate": _dateField.text,
+                                        "hours": _hoursField.text,
+                                        "note": _noteArea.text
+                                    })
+                                }
+
+                                AppControls.SecondaryButton {
+                                    text: "Update"
+                                    iconName: "edit"
+                                    enabled: !root.isBusy && root._hasEntry
+                                    onClicked: root.updateRequested({
+                                        "entryId": root._entryState.entryId || "",
+                                        "entryDate": _dateField.text,
+                                        "hours": _hoursField.text,
+                                        "note": _noteArea.text
+                                    })
+                                }
+
+                                AppControls.SecondaryButton {
+                                    text: "Delete"
+                                    iconName: "delete"
+                                    danger: true
+                                    enabled: !root.isBusy && root._hasEntry
+                                    onClicked: root.deleteRequested(String(root._entryState.entryId || ""))
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: _captureContextColumn.implicitHeight + Theme.AppTheme.marginMd * 2
+                        radius: Theme.AppTheme.radiusMd
+                        color: Theme.AppTheme.surfaceRaised
+                        border.color: Theme.AppTheme.subtleBorder
+                        border.width: 1
+
+                        ColumnLayout {
+                            id: _captureContextColumn
+                            anchors.fill: parent
+                            anchors.margins: Theme.AppTheme.marginMd
+                            spacing: Theme.AppTheme.spacingMd
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.AppTheme.spacingMd
+
+                                AppControls.Label {
+                                    Layout.fillWidth: true
+                                    text: "Entry Context"
+                                    color: Theme.AppTheme.textPrimary
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.bodySize
+                                    font.bold: true
+                                }
+
+                                AppWidgets.StatusChip {
+                                    visible: root._selectedEntryStatus.length > 0
+                                    status: root._selectedEntryStatus
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                implicitHeight: _contextSummaryColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                radius: Theme.AppTheme.radiusMd
+                                color: Theme.AppTheme.surfaceAlt
+                                border.color: Theme.AppTheme.subtleBorder
+                                border.width: 1
+
+                                ColumnLayout {
+                                    id: _contextSummaryColumn
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.AppTheme.spacingMd
+                                    spacing: 3
+
                                     AppControls.Label {
                                         Layout.fillWidth: true
-                                        text: root._selectedEntryTitle
+                                        text: root._hasEntry ? root._selectedEntryTitle : "No entry selected"
                                         color: Theme.AppTheme.textPrimary
                                         font.family: Theme.AppTheme.fontFamily
                                         font.pixelSize: Theme.AppTheme.smallSize
@@ -437,178 +680,219 @@ Item {
 
                                     AppControls.Label {
                                         Layout.fillWidth: true
-                                        visible: root._selectedEntrySubtitle.length > 0
+                                        visible: root._hasEntry && root._selectedEntrySubtitle.length > 0
                                         text: root._selectedEntrySubtitle
                                         color: Theme.AppTheme.textMuted
                                         font.family: Theme.AppTheme.fontFamily
                                         font.pixelSize: Theme.AppTheme.captionSize
                                         elide: Text.ElideRight
                                     }
-                                }
 
-                                AppWidgets.StatusChip {
-                                    visible: root._selectedEntryStatus.length > 0
-                                    status: root._selectedEntryStatus
+                                    AppControls.Label {
+                                        Layout.fillWidth: true
+                                        text: root._hasEntry
+                                            ? "Updating the current row keeps the ledger and approval context aligned to this task."
+                                            : "Select a ledger row to edit an existing entry, or stay in new-entry mode to add fresh labor."
+                                        color: Theme.AppTheme.textSecondary
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        wrapMode: Text.WordWrap
+                                    }
                                 }
                             }
-                        }
 
-                        GridLayout {
-                            Layout.fillWidth: true
-                            columns: width >= 760 ? 2 : 1
-                            columnSpacing: Theme.AppTheme.spacingMd
-                            rowSpacing: Theme.AppTheme.spacingSm
-
-                            ColumnLayout {
+                            GridLayout {
                                 Layout.fillWidth: true
-                                spacing: 4
+                                columns: 1
+                                rowSpacing: Theme.AppTheme.spacingSm
 
-                                AppControls.Label {
-                                    text: "Date"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-
-                                AppControls.DateField {
-                                    id: _dateField
+                                Rectangle {
                                     Layout.fillWidth: true
-                                    enabled: !root.isBusy && root._hasAssignment
-                                    placeholderText: "YYYY-MM-DD"
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    implicitHeight: _assignmentContextColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                    radius: Theme.AppTheme.radiusMd
+                                    color: Theme.AppTheme.surfaceAlt
+                                    border.color: Theme.AppTheme.subtleBorder
+                                    border.width: 1
+
+                                    ColumnLayout {
+                                        id: _assignmentContextColumn
+                                        anchors.fill: parent
+                                        anchors.margins: Theme.AppTheme.spacingMd
+                                        spacing: 3
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: "Assignment Context"
+                                            color: Theme.AppTheme.textMuted
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            font.bold: true
+                                        }
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: root._assignmentTitle
+                                            color: Theme.AppTheme.textPrimary
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.smallSize
+                                            font.bold: true
+                                            wrapMode: Text.WordWrap
+                                        }
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: root._assignmentSubtitle.length > 0 ? root._assignmentSubtitle : root._resourceValue
+                                            color: Theme.AppTheme.textMuted
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            wrapMode: Text.WordWrap
+                                        }
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: root.selectedPeriodStart.length > 0
+                                                ? "Period: " + root.selectedPeriodStart
+                                                : "Choose a period to align entry capture."
+                                            color: Theme.AppTheme.textSecondary
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            wrapMode: Text.WordWrap
+                                        }
+                                    }
                                 }
-                            }
 
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 4
-
-                                AppControls.Label {
-                                    text: "Hours"
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold: true
-                                }
-
-                                AppControls.TextField {
-                                    id: _hoursField
+                                Rectangle {
                                     Layout.fillWidth: true
-                                    enabled: !root.isBusy && root._hasAssignment
-                                    placeholderText: "8.00"
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    visible: root._entryFields.length > 0
+                                    implicitHeight: _entryDetailsColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                    radius: Theme.AppTheme.radiusMd
+                                    color: Theme.AppTheme.surfaceAlt
+                                    border.color: Theme.AppTheme.subtleBorder
+                                    border.width: 1
+
+                                    ColumnLayout {
+                                        id: _entryDetailsColumn
+                                        anchors.fill: parent
+                                        anchors.margins: Theme.AppTheme.spacingMd
+                                        spacing: Theme.AppTheme.spacingSm
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: "Selected Entry Details"
+                                            color: Theme.AppTheme.textMuted
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            font.bold: true
+                                        }
+
+                                        Repeater {
+                                            model: root._entryFields
+
+                                            delegate: ColumnLayout {
+                                                required property var modelData
+                                                Layout.fillWidth: true
+                                                spacing: 2
+
+                                                AppControls.Label {
+                                                    Layout.fillWidth: true
+                                                    text: String(modelData.label || "")
+                                                    color: Theme.AppTheme.textMuted
+                                                    font.family: Theme.AppTheme.fontFamily
+                                                    font.pixelSize: Theme.AppTheme.captionSize
+                                                }
+
+                                                AppControls.Label {
+                                                    Layout.fillWidth: true
+                                                    text: String(modelData.value || "")
+                                                    color: Theme.AppTheme.textPrimary
+                                                    font.family: Theme.AppTheme.fontFamily
+                                                    font.pixelSize: Theme.AppTheme.smallSize
+                                                    font.bold: true
+                                                    wrapMode: Text.WordWrap
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-                            }
-                        }
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 4
-
-                            AppControls.Label {
-                                text: "Labor Note"
-                                color: Theme.AppTheme.textMuted
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.bold: true
-                            }
-
-                            AppControls.TextArea {
-                                id: _noteArea
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 88
-                                enabled: !root.isBusy && root._hasAssignment
-                                placeholderText: "Describe the work completed, blockers, and key deliverables for this entry."
-                                wrapMode: TextEdit.WordWrap
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.smallSize
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: Theme.AppTheme.spacingSm
-
-                            AppControls.Label {
-                                Layout.fillWidth: true
-                                text: root._hasEntry
-                                    ? "Update or remove the selected entry, or clear the selection to capture a new one."
-                                    : "Add a new labor entry for the selected assignment and period."
-                                color: Theme.AppTheme.textMuted
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                wrapMode: Text.WordWrap
-                            }
-
-                            AppControls.PrimaryButton {
-                                text: "Add Entry"
-                                iconName: "add"
-                                enabled: !root.isBusy && root._hasAssignment
-                                onClicked: root.addRequested({
-                                    "assignmentId": root._state.assignmentId || "",
-                                    "entryDate": _dateField.text,
-                                    "hours": _hoursField.text,
-                                    "note": _noteArea.text
-                                })
-                            }
-
-                            AppControls.SecondaryButton {
-                                text: "Update"
-                                iconName: "edit"
-                                enabled: !root.isBusy && root._hasEntry
-                                onClicked: root.updateRequested({
-                                    "entryId": root._entryState.entryId || "",
-                                    "entryDate": _dateField.text,
-                                    "hours": _hoursField.text,
-                                    "note": _noteArea.text
-                                })
-                            }
-
-                            AppControls.SecondaryButton {
-                                text: "Delete"
-                                iconName: "delete"
-                                danger: true
-                                enabled: !root.isBusy && root._hasEntry
-                                onClicked: root.deleteRequested(String(root._entryState.entryId || ""))
                             }
                         }
                     }
                 }
             }
 
-            AppWidgets.SectionCard {
+            Item {
                 id: _ledgerPanel
-                visible: root._activeTabId === "ledger"
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                title: "Entry Ledger"
-                implicitHeight: _ledgerCardBody.implicitHeight
+                Layout.fillWidth: true
+                implicitHeight: _ledgerFrame.implicitHeight
 
-                Item {
-                    id: _ledgerCardBody
-                    width: parent ? parent.width : 0
+                Rectangle {
+                    id: _ledgerFrame
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
                     implicitHeight: _ledgerColumn.implicitHeight + Theme.AppTheme.marginMd * 2
-                    height: implicitHeight
+                    radius: Theme.AppTheme.radiusMd
+                    color: Theme.AppTheme.surfaceRaised
+                    border.color: Theme.AppTheme.subtleBorder
+                    border.width: 1
 
                     ColumnLayout {
                         id: _ledgerColumn
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
+                        anchors.fill: parent
                         anchors.margins: Theme.AppTheme.marginMd
-                        spacing: Theme.AppTheme.spacingSm
+                        spacing: Theme.AppTheme.spacingMd
 
-                        AppControls.Label {
+                        RowLayout {
                             Layout.fillWidth: true
-                            text: root.entriesModel.subtitle || "Detailed labor entries for the selected task assignment."
-                            color: Theme.AppTheme.textMuted
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.smallSize
-                            wrapMode: Text.WordWrap
+                            spacing: Theme.AppTheme.spacingMd
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 2
+
+                                AppControls.Label {
+                                    Layout.fillWidth: true
+                                    text: "Entry Ledger"
+                                    color: Theme.AppTheme.textPrimary
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.bodySize
+                                    font.bold: true
+                                }
+
+                                AppControls.Label {
+                                    Layout.fillWidth: true
+                                    text: root.entriesModel.subtitle || "Detailed labor entries for the selected task assignment."
+                                    color: Theme.AppTheme.textMuted
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+
+                            Rectangle {
+                                implicitWidth: _ledgerCountLabel.implicitWidth + Theme.AppTheme.spacingMd * 2
+                                implicitHeight: Theme.AppTheme.toolbarHeight
+                                radius: Theme.AppTheme.radiusSm
+                                color: Theme.AppTheme.surfaceAlt
+                                border.color: Theme.AppTheme.subtleBorder
+                                border.width: 1
+
+                                AppControls.Label {
+                                    id: _ledgerCountLabel
+                                    anchors.centerIn: parent
+                                    text: root._items.length > 0 ? root._items.length + " entries" : "No entries"
+                                    color: Theme.AppTheme.textSecondary
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    font.bold: true
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 1
+                            color: Theme.AppTheme.divider
                         }
 
                         Item {
@@ -635,7 +919,7 @@ Item {
                         AppControls.Label {
                             Layout.fillWidth: true
                             text: root._items.length > 0
-                                ? "Select a row to edit captured hours or review the labor note before period approval."
+                                ? "Select a row to move directly into capture mode for corrections, notes, or hour adjustments."
                                 : "Entries will appear here once labor is captured for the selected assignment and period."
                             color: Theme.AppTheme.textMuted
                             font.family: Theme.AppTheme.fontFamily
@@ -646,109 +930,372 @@ Item {
                 }
             }
 
-            AppWidgets.SectionCard {
+            Item {
                 id: _workflowPanel
-                visible: root._showWorkflowTab && root._activeTabId === "workflow"
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                title: "Period Workflow"
-                implicitHeight: _periodCardBody.implicitHeight
+                Layout.fillWidth: true
+                implicitHeight: _workflowGrid.implicitHeight
 
-                Item {
-                    id: _periodCardBody
-                    width: parent ? parent.width : 0
-                    implicitHeight: _periodColumn.implicitHeight + Theme.AppTheme.marginMd * 2
-                    height: implicitHeight
+                GridLayout {
+                    id: _workflowGrid
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    columns: width >= 980 ? 2 : 1
+                    columnSpacing: Theme.AppTheme.spacingMd
+                    rowSpacing: Theme.AppTheme.spacingMd
 
-                    ColumnLayout {
-                        id: _periodColumn
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.margins: Theme.AppTheme.marginMd
-                        spacing: Theme.AppTheme.spacingMd
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: _workflowSummaryColumn.implicitHeight + Theme.AppTheme.marginMd * 2
+                        radius: Theme.AppTheme.radiusMd
+                        color: Theme.AppTheme.surfaceRaised
+                        border.color: Theme.AppTheme.subtleBorder
+                        border.width: 1
 
-                        RowLayout {
-                            Layout.fillWidth: true
+                        ColumnLayout {
+                            id: _workflowSummaryColumn
+                            anchors.fill: parent
+                            anchors.margins: Theme.AppTheme.marginMd
                             spacing: Theme.AppTheme.spacingMd
 
-                            ColumnLayout {
+                            RowLayout {
                                 Layout.fillWidth: true
-                                spacing: 3
+                                spacing: Theme.AppTheme.spacingMd
 
-                                AppControls.Label {
+                                ColumnLayout {
                                     Layout.fillWidth: true
-                                    text: "Ready for approval"
-                                    color: Theme.AppTheme.textPrimary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    font.bold: true
+                                    spacing: 2
+
+                                    AppControls.Label {
+                                        Layout.fillWidth: true
+                                        text: "Approval Context"
+                                        color: Theme.AppTheme.textPrimary
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.bodySize
+                                        font.bold: true
+                                    }
+
+                                    AppControls.Label {
+                                        Layout.fillWidth: true
+                                        text: "Review the current period posture before submitting, locking, or reopening labor."
+                                        color: Theme.AppTheme.textMuted
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        wrapMode: Text.WordWrap
+                                    }
                                 }
 
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text: "Submit the selected period for review, lock approved labor, or reopen a locked period when corrections are required."
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    wrapMode: Text.WordWrap
+                                AppWidgets.StatusChip {
+                                    visible: root._assignmentStatus.length > 0
+                                    status: root._assignmentStatus
                                 }
                             }
 
-                            AppWidgets.StatusChip {
-                                visible: root._assignmentStatus.length > 0
-                                status: root._assignmentStatus
+                            Rectangle {
+                                Layout.fillWidth: true
+                                implicitHeight: _workflowAssignmentColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                radius: Theme.AppTheme.radiusMd
+                                color: Theme.AppTheme.surfaceAlt
+                                border.color: Theme.AppTheme.subtleBorder
+                                border.width: 1
+
+                                ColumnLayout {
+                                    id: _workflowAssignmentColumn
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.AppTheme.spacingMd
+                                    spacing: 3
+
+                                    AppControls.Label {
+                                        Layout.fillWidth: true
+                                        text: root._assignmentTitle
+                                        color: Theme.AppTheme.textPrimary
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        font.bold: true
+                                        wrapMode: Text.WordWrap
+                                    }
+
+                                    AppControls.Label {
+                                        Layout.fillWidth: true
+                                        text: root._assignmentSubtitle.length > 0 ? root._assignmentSubtitle : root._resourceValue
+                                        color: Theme.AppTheme.textMuted
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        wrapMode: Text.WordWrap
+                                    }
+
+                                    AppControls.Label {
+                                        Layout.fillWidth: true
+                                        text: root.selectedPeriodStart.length > 0
+                                            ? "Selected period: " + root.selectedPeriodStart
+                                            : "A timesheet period is required for approval workflow."
+                                        color: Theme.AppTheme.textSecondary
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        wrapMode: Text.WordWrap
+                                    }
+                                }
+                            }
+
+                            GridLayout {
+                                Layout.fillWidth: true
+                                columns: width >= 720 ? 2 : 1
+                                columnSpacing: Theme.AppTheme.spacingSm
+                                rowSpacing: Theme.AppTheme.spacingSm
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    implicitHeight: _resourceSummaryColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                    radius: Theme.AppTheme.radiusMd
+                                    color: Theme.AppTheme.surfaceAlt
+                                    border.color: Theme.AppTheme.subtleBorder
+                                    border.width: 1
+
+                                    ColumnLayout {
+                                        id: _resourceSummaryColumn
+                                        anchors.fill: parent
+                                        anchors.margins: Theme.AppTheme.spacingMd
+                                        spacing: 2
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: "Resource"
+                                            color: Theme.AppTheme.textMuted
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            font.bold: true
+                                        }
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: root._resourceValue
+                                            color: Theme.AppTheme.textPrimary
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.smallSize
+                                            font.bold: true
+                                            wrapMode: Text.WordWrap
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    implicitHeight: _hoursSummaryColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                    radius: Theme.AppTheme.radiusMd
+                                    color: Theme.AppTheme.surfaceAlt
+                                    border.color: Theme.AppTheme.subtleBorder
+                                    border.width: 1
+
+                                    ColumnLayout {
+                                        id: _hoursSummaryColumn
+                                        anchors.fill: parent
+                                        anchors.margins: Theme.AppTheme.spacingMd
+                                        spacing: 2
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: "Hours"
+                                            color: Theme.AppTheme.textMuted
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            font.bold: true
+                                        }
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: root._hoursValue
+                                            color: Theme.AppTheme.textPrimary
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.smallSize
+                                            font.bold: true
+                                            wrapMode: Text.WordWrap
+                                        }
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            visible: root._hoursSupportingText.length > 0
+                                            text: root._hoursSupportingText
+                                            color: Theme.AppTheme.textMuted
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            wrapMode: Text.WordWrap
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    implicitHeight: _submittedSummaryColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                    radius: Theme.AppTheme.radiusMd
+                                    color: Theme.AppTheme.surfaceAlt
+                                    border.color: Theme.AppTheme.subtleBorder
+                                    border.width: 1
+
+                                    ColumnLayout {
+                                        id: _submittedSummaryColumn
+                                        anchors.fill: parent
+                                        anchors.margins: Theme.AppTheme.spacingMd
+                                        spacing: 2
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: "Submitted by"
+                                            color: Theme.AppTheme.textMuted
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            font.bold: true
+                                        }
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: root._submittedByValue
+                                            color: Theme.AppTheme.textPrimary
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.smallSize
+                                            font.bold: true
+                                            wrapMode: Text.WordWrap
+                                        }
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            visible: root._submittedBySupportingText.length > 0
+                                            text: root._submittedBySupportingText
+                                            color: Theme.AppTheme.textMuted
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            wrapMode: Text.WordWrap
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    implicitHeight: _decisionSummaryColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                    radius: Theme.AppTheme.radiusMd
+                                    color: Theme.AppTheme.surfaceAlt
+                                    border.color: Theme.AppTheme.subtleBorder
+                                    border.width: 1
+
+                                    ColumnLayout {
+                                        id: _decisionSummaryColumn
+                                        anchors.fill: parent
+                                        anchors.margins: Theme.AppTheme.spacingMd
+                                        spacing: 2
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: "Decision"
+                                            color: Theme.AppTheme.textMuted
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            font.bold: true
+                                        }
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            text: root._decisionValue
+                                            color: Theme.AppTheme.textPrimary
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.smallSize
+                                            font.bold: true
+                                            wrapMode: Text.WordWrap
+                                        }
+
+                                        AppControls.Label {
+                                            Layout.fillWidth: true
+                                            visible: root._decisionSupportingText.length > 0
+                                            text: root._decisionSupportingText
+                                            color: Theme.AppTheme.textMuted
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            wrapMode: Text.WordWrap
+                                        }
+                                    }
+                                }
                             }
                         }
+                    }
 
-                        AppControls.TextArea {
-                            id: _periodNoteArea
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 72
-                            enabled: !root.isBusy
-                            placeholderText: "Optional note for submission, approval lock, or reopening the selected period."
-                            wrapMode: TextEdit.WordWrap
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.smallSize
-                        }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: _workflowActionsColumn.implicitHeight + Theme.AppTheme.marginMd * 2
+                        radius: Theme.AppTheme.radiusMd
+                        color: Theme.AppTheme.surfaceRaised
+                        border.color: Theme.AppTheme.subtleBorder
+                        border.width: 1
 
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: Theme.AppTheme.spacingSm
+                        ColumnLayout {
+                            id: _workflowActionsColumn
+                            anchors.fill: parent
+                            anchors.margins: Theme.AppTheme.marginMd
+                            spacing: Theme.AppTheme.spacingMd
 
-                            Item { Layout.fillWidth: true }
-
-                            AppControls.PrimaryButton {
-                                text: "Submit Period"
-                                iconName: "approve"
-                                enabled: !root.isBusy && root._canSubmit
-                                onClicked: root.submitRequested({
-                                    "resourceId": root._state.resourceId || "",
-                                    "periodStart": root._state.periodStart || "",
-                                    "note": _periodNoteArea.text
-                                })
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: "Period Actions"
+                                color: Theme.AppTheme.textPrimary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.bodySize
+                                font.bold: true
                             }
 
-                            AppControls.SecondaryButton {
-                                text: "Lock"
-                                iconName: "approve"
-                                enabled: !root.isBusy && root._canSubmit
-                                onClicked: root.lockRequested({
-                                    "resourceId": root._state.resourceId || "",
-                                    "periodStart": root._state.periodStart || "",
-                                    "note": _periodNoteArea.text
-                                })
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: "Record an optional workflow note, then submit for review, lock approved time, or reopen a period that needs correction."
+                                color: Theme.AppTheme.textMuted
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                wrapMode: Text.WordWrap
                             }
 
-                            AppControls.SecondaryButton {
-                                text: "Unlock"
-                                iconName: "close"
-                                enabled: !root.isBusy && root._canUnlock
-                                onClicked: root.unlockRequested({
-                                    "periodId": root._state.periodId || "",
-                                    "note": _periodNoteArea.text
-                                })
+                            AppControls.TextArea {
+                                id: _periodNoteArea
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 120
+                                enabled: !root.isBusy
+                                placeholderText: "Optional note for submission, approval lock, or reopening the selected period."
+                                wrapMode: TextEdit.WordWrap
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.AppTheme.spacingSm
+
+                                Item { Layout.fillWidth: true }
+
+                                AppControls.PrimaryButton {
+                                    text: "Submit Period"
+                                    iconName: "approve"
+                                    enabled: !root.isBusy && root._canSubmit
+                                    onClicked: root.submitRequested({
+                                        "resourceId": root._state.resourceId || "",
+                                        "periodStart": root._state.periodStart || "",
+                                        "note": _periodNoteArea.text
+                                    })
+                                }
+
+                                AppControls.SecondaryButton {
+                                    text: "Lock"
+                                    iconName: "approve"
+                                    enabled: !root.isBusy && root._canSubmit
+                                    onClicked: root.lockRequested({
+                                        "resourceId": root._state.resourceId || "",
+                                        "periodStart": root._state.periodStart || "",
+                                        "note": _periodNoteArea.text
+                                    })
+                                }
+
+                                AppControls.SecondaryButton {
+                                    text: "Unlock"
+                                    iconName: "close"
+                                    enabled: !root.isBusy && root._canUnlock
+                                    onClicked: root.unlockRequested({
+                                        "periodId": root._state.periodId || "",
+                                        "note": _periodNoteArea.text
+                                    })
+                                }
                             }
                         }
                     }

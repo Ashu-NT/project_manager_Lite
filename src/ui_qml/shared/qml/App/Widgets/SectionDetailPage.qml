@@ -51,6 +51,30 @@ Item {
 
     function _updateActiveFromScroll() {}
 
+    function _isPinnedContent(item) {
+        return item && item.detailPagePinned === true
+    }
+
+    function _syncPinnedContent() {
+        const scrollingChildren = contentColumn.children || []
+        for (let index = 0; index < scrollingChildren.length; index += 1) {
+            const child = scrollingChildren[index]
+            if (root._isPinnedContent(child) && child.parent !== stickyColumn) {
+                child.parent = stickyColumn
+            }
+        }
+
+        const pinnedChildren = stickyColumn.children || []
+        for (let index = 0; index < pinnedChildren.length; index += 1) {
+            const child = pinnedChildren[index]
+            if (!root._isPinnedContent(child) && child.parent !== contentColumn) {
+                child.parent = contentColumn
+            }
+        }
+    }
+
+    Component.onCompleted: Qt.callLater(root._syncPinnedContent)
+
     Rectangle {
         anchors.fill: parent
         color: Theme.AppTheme.workspaceBackground
@@ -164,6 +188,21 @@ Item {
                         implicitWidth: 80
                         onClicked: root.deleteRequested()
                     }
+                }
+            }
+
+            Item {
+                id: stickyHost
+                Layout.fillWidth: true
+                implicitHeight: stickyColumn.childrenRect.height
+                visible: implicitHeight > 0
+
+                Column {
+                    id: stickyColumn
+                    width: parent.width
+                    spacing: 0
+
+                    onChildrenChanged: Qt.callLater(root._syncPinnedContent)
                 }
             }
 
@@ -308,6 +347,8 @@ Item {
                     Column {
                         id: contentColumn
                         width: contentFlickable.width
+
+                        onChildrenChanged: Qt.callLater(root._syncPinnedContent)
                     }
 
                     ScrollBar.vertical: ScrollBar {

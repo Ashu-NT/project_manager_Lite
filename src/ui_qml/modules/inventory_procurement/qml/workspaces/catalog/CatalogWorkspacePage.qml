@@ -171,6 +171,7 @@ AppLayouts.WorkspaceFrame {
                 onSectionChanged: function(index) { root._loadLazyDetailSection(index) }
 
                 AppWidgets.ContextualActionToolbar {
+                    detailPagePinned: true
                     width:    parent ? parent.width : 0
                     showBack: true
                     title:    root._isItemsView ? (root.selectedItemModel.title || "Item Detail") : (root.selectedCategoryModel.title || "Category Detail")

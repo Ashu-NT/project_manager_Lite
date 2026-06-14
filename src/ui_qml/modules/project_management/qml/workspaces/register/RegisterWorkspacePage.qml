@@ -143,6 +143,7 @@ AppLayouts.WorkspaceFrame {
                 Component.onCompleted: scrollToSection(root._pendingDetailSection)
 
                 AppWidgets.ContextualActionToolbar {
+                    detailPagePinned: true
                     width:    parent ? parent.width : 0
                     showBack: true
                     title:    root.selectedEntryModel.title    || "Register Entry"

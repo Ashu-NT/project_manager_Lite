@@ -137,6 +137,7 @@ AppLayouts.WorkspaceFrame {
                 }
 
                 AppWidgets.ContextualActionToolbar {
+                    detailPagePinned: true
                     width:    parent ? parent.width : 0
                     showBack: true
                     title:    root.selectedReservationModel.title    || "Reservation Detail"

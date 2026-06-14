@@ -328,54 +328,50 @@ AppLayouts.WorkspaceFrame {
                         sections: ["Overview", "Activity", "Related Items", "Audit"]
                         onBackRequested: state._handleDetailAction("back")
 
-                        ColumnLayout {
-                            width: parent.width
-                            spacing: 0
+                        AppWidgets.ContextualActionToolbar {
+                            detailPagePinned: true
+                            width: parent ? parent.width : 0
+                            showBack: true
+                            title: state.selectedDetailModel.title || "Workflow Item"
+                            subtitle: state.selectedDetailModel.statusLabel || state.selectedDetailModel.subtitle || ""
+                            busy: root.workspaceController ? root.workspaceController.isBusy : false
+                            actions: state._detailActions()
+                            onBackRequested: state._handleDetailAction("back")
+                            onActionTriggered: function(actionId) { state._handleDetailAction(actionId) }
+                        }
 
-                            AppWidgets.ContextualActionToolbar {
-                                Layout.fillWidth: true
-                                showBack: true
-                                title: state.selectedDetailModel.title || "Workflow Item"
-                                subtitle: state.selectedDetailModel.statusLabel || state.selectedDetailModel.subtitle || ""
-                                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                                actions: state._detailActions()
-                                onBackRequested: state._handleDetailAction("back")
-                                onActionTriggered: function(actionId) { state._handleDetailAction(actionId) }
-                            }
+                        AppWidgets.InlineMessage {
+                            width: parent ? parent.width : 0
+                            visible: state._detailOpen && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                            tone: "danger"
+                            message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                        }
+                        AppWidgets.InlineMessage {
+                            width: parent ? parent.width : 0
+                            visible: state._detailOpen
+                                && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                                && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                            tone: "success"
+                            message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+                        }
 
-                            AppWidgets.InlineMessage {
-                                width: parent ? parent.width : 0
-                                visible: state._detailOpen && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
-                                tone: "danger"
-                                message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                        Panels.CollaborationDetailPanel {
+                            width: parent ? parent.width : 0
+                            detailModel: state.selectedDetailModel
+                            relatedItemsTableModel: root.workspaceController ? root.workspaceController.relatedItemsTableModel : null
+                            detailPage: detailPage
+                            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                            onRelatedItemActivated: function(itemData) {
+                                const st = itemData && itemData.state ? itemData.state : {}
+                                state._navigateRoute(String(st.routeId || ""))
                             }
-                            AppWidgets.InlineMessage {
-                                width: parent ? parent.width : 0
-                                visible: state._detailOpen
-                                    && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
-                                    && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-                                tone: "success"
-                                message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+                            onActivityItemActivated: function(itemData) {
+                                const st = itemData && itemData.state ? itemData.state : {}
+                                state._navigateRoute(String(st.routeId || ""))
                             }
-
-                            Panels.CollaborationDetailPanel {
-                                Layout.fillWidth: true
-                                detailModel: state.selectedDetailModel
-                                relatedItemsTableModel: root.workspaceController ? root.workspaceController.relatedItemsTableModel : null
-                                detailPage: detailPage
-                                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                                onRelatedItemActivated: function(itemData) {
-                                    const st = itemData && itemData.state ? itemData.state : {}
-                                    state._navigateRoute(String(st.routeId || ""))
-                                }
-                                onActivityItemActivated: function(itemData) {
-                                    const st = itemData && itemData.state ? itemData.state : {}
-                                    state._navigateRoute(String(st.routeId || ""))
-                                }
-                                onAuditItemActivated: function(itemData) {
-                                    const st = itemData && itemData.state ? itemData.state : {}
-                                    state._navigateRoute(String(st.routeId || ""))
-                                }
+                            onAuditItemActivated: function(itemData) {
+                                const st = itemData && itemData.state ? itemData.state : {}
+                                state._navigateRoute(String(st.routeId || ""))
                             }
                         }
                     }

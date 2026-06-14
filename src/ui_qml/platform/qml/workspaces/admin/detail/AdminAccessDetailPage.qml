@@ -128,6 +128,7 @@ Item {
         }
 
         AppWidgets.ContextualActionToolbar {
+            detailPagePinned: true
             width: parent ? parent.width : root.width
             title: root._activeSectionLabel
             subtitle: root._toolbarSubtitle

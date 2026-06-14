@@ -310,6 +310,7 @@ AppLayouts.WorkspaceFrame {
                 Component.onCompleted: scrollToSection(state.pendingDetailSection)
 
                 AppWidgets.ContextualActionToolbar {
+                    detailPagePinned: true
                     width:    parent ? parent.width : 0
                     showBack: true
                     title:    state.selectedHeatmapItem
