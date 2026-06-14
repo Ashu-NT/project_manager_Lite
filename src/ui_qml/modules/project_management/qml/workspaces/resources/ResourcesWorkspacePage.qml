@@ -140,6 +140,14 @@ AppLayouts.WorkspaceFrame {
                 }
                 onExportRequested: _exportDialog.open()
                 onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
+                onBulkCancelRequested: {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.clearResourceBulkSelection()
+                }
+                onBulkActionRequested: function(actionId) {
+                    if (actionId === "delete")
+                        _bulkDeleteDialog.open()
+                }
             }
 
             Components.ResourcesFilterPopup {
@@ -147,27 +155,6 @@ AppLayouts.WorkspaceFrame {
                 workspaceController: root.workspaceController
                 state: state
                 anchorItem: listPage.filterButtonItem
-            }
-
-            // ── Bulk action bar ───────────────────────────────────────────
-            AppWidgets.BulkActionBar {
-                id: _bulkActionBar
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: Theme.AppTheme.spacingMd + 40
-                z: 10
-                selectedCount: root.workspaceController ? root.workspaceController.selectedResourceCount : 0
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: [
-                    { "id": "delete", "label": "Delete", "icon": "delete", "danger": true, "enabled": true }
-                ]
-
-                onCancelRequested: {
-                    if (root.workspaceController !== null) root.workspaceController.clearResourceBulkSelection()
-                }
-                onActionTriggered: function(actionId) {
-                    if (actionId === "delete") _bulkDeleteDialog.open()
-                }
             }
 
             AppControls.ConfirmationDialog {

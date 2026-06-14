@@ -71,6 +71,15 @@ Item {
             )
         }
 
+        AppWidgets.BulkActionBar {
+            Layout.alignment: Qt.AlignRight
+            selectedCount: root.workspaceController ? root.workspaceController.selectedReservationCount : 0
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            actions: [{ "id": "cancel", "label": "Cancel Selected", "icon": "reject", "danger": true, "enabled": true }]
+            onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearReservationBulkSelection() }
+            onActionTriggered: function(actionId) {}
+        }
+
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -151,16 +160,6 @@ Item {
             }
 
             // ── Bulk action bar ───────────────────────────────────────────
-            AppWidgets.BulkActionBar {
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: _paginationBar.top; anchors.bottomMargin: Theme.AppTheme.spacingMd
-                z: 10
-                selectedCount: root.workspaceController ? root.workspaceController.selectedReservationCount : 0
-                busy:          root.workspaceController ? root.workspaceController.isBusy : false
-                actions: [{ "id": "cancel", "label": "Cancel Selected", "icon": "reject", "danger": true, "enabled": true }]
-                onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearReservationBulkSelection() }
-                onActionTriggered: function(actionId) {}
-            }
         }
     }
 }

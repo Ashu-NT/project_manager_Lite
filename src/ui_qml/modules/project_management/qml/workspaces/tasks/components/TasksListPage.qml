@@ -10,7 +10,6 @@ import App.Theme 1.0 as Theme
 Item {
     id: root
 
-    // ── Input properties ─────────────────────────────────────────────────
     property var workspaceController: null
     property var state: null
     property var overviewModel: ({})
@@ -18,11 +17,10 @@ Item {
     property var tasksTableModel: null
     property var selectedTaskModel: ({})
 
-    // ── Exposed UI elements for popup anchoring ────────────────────────
+    readonly property var bulkActionBar: bulkActionBarItem
     readonly property var filterButtonItem: tableToolbar.filterButtonItem
     readonly property var viewsButtonItem: tableToolbar.viewsButtonItem
 
-    // ── Signals ──────────────────────────────────────────────────────────
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
     signal rowSelectionToggled(string rowId, bool selected)
@@ -35,21 +33,20 @@ Item {
     signal refreshRequested()
     signal exportRequested()
     signal createRequested()
+    signal bulkCancelRequested()
+    signal bulkActionRequested(string actionId)
 
-    // ── Layout ───────────────────────────────────────────────────────────
     anchors.fill: parent
 
     ColumnLayout {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingSm
 
-        // ── KPI Strip ────────────────────────────────────────────────────
         AppWidgets.KpiStrip {
             Layout.fillWidth: true
             metrics: root.overviewModel.metrics || []
         }
 
-        // ── Loading overlay (initial load) ──────────────────────────────
         AppWidgets.LoadingOverlay {
             Layout.fillWidth: true
             loading: (root.workspaceController ? root.workspaceController.isLoading : false)
@@ -57,10 +54,9 @@ Item {
                 && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
             message: "Loading tasks..."
             compact: true
-            modal:   false
+            modal: false
         }
 
-        // ── Loading overlay (save) ───────────────────────────────────────
         AppWidgets.LoadingOverlay {
             Layout.fillWidth: true
             loading: root.workspaceController
@@ -68,10 +64,9 @@ Item {
                 : false
             message: "Saving task changes..."
             compact: true
-            modal:   false
+            modal: false
         }
 
-        // ── Error message ────────────────────────────────────────────────
         AppWidgets.InlineMessage {
             Layout.fillWidth: true
             visible: String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
@@ -79,7 +74,6 @@ Item {
             message: root.workspaceController ? root.workspaceController.errorMessage : ""
         }
 
-        // ── Success message ──────────────────────────────────────────────
         AppWidgets.InlineMessage {
             Layout.fillWidth: true
             visible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
@@ -88,7 +82,6 @@ Item {
             message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
         }
 
-        // ── Table toolbar ────────────────────────────────────────────────
         AppWidgets.TableToolbar {
             id: tableToolbar
             Layout.fillWidth: true
@@ -119,18 +112,32 @@ Item {
             onCreateRequested: root.createRequested()
         }
 
-        // ── Table + pagination container ─────────────────────────────────
+        AppWidgets.BulkActionBar {
+            id: bulkActionBarItem
+            Layout.alignment: Qt.AlignRight
+            selectedCount: root.workspaceController ? root.workspaceController.selectedTaskCount : 0
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            actions: [
+                { "id": "delete", "label": "Delete", "icon": "delete", "danger": true, "enabled": true },
+                { "id": "change_property", "label": "Change Property", "icon": "edit", "danger": false, "enabled": true }
+            ]
+
+            onCancelRequested: root.bulkCancelRequested()
+            onActionTriggered: function(actionId) {
+                root.bulkActionRequested(actionId)
+            }
+        }
+
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
 
-            // ── Data table ───────────────────────────────────────────────
             AppWidgets.DataTable {
                 id: tasksTable
-                anchors.top:    parent.top
-                anchors.left:   parent.left
-                anchors.right:  parent.right
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
                 anchors.bottom: paginationBar.top
                 multiSelect: true
                 tableId: root.state ? root.state.tableId : ""
@@ -158,16 +165,15 @@ Item {
                 }
             }
 
-            // ── Pagination bar ───────────────────────────────────────────
             AppWidgets.TablePaginationBar {
                 id: paginationBar
-                anchors.left:   parent.left
-                anchors.right:  parent.right
+                anchors.left: parent.left
+                anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                currentPage:  root.workspaceController ? root.workspaceController.taskPage     : 1
-                pageSize:     root.workspaceController ? root.workspaceController.taskPageSize  : 25
-                totalItems:   root.workspaceController ? root.workspaceController.taskTotalCount : 0
-                busy:         root.workspaceController ? root.workspaceController.isBusy        : false
+                currentPage: root.workspaceController ? root.workspaceController.taskPage : 1
+                pageSize: root.workspaceController ? root.workspaceController.taskPageSize : 25
+                totalItems: root.workspaceController ? root.workspaceController.taskTotalCount : 0
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
 
                 onPageRequested: function(page) {
                     if (root.workspaceController !== null)

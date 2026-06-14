@@ -254,6 +254,21 @@ AppLayouts.WorkspaceFrame {
                 }
                 onExportRequested: exportDialog.open()
                 onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
+                onBulkCancelRequested: {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.clearTaskBulkSelection()
+                    }
+                }
+                onBulkActionRequested: function(actionId) {
+                    if (actionId === "delete") {
+                        dialogHostLoader.invoke(
+                            "openBulkDeleteDialog",
+                            root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
+                        )
+                    } else if (actionId === "change_property") {
+                        bulkChangePropertyPopup.open()
+                    }
+                }
             }
 
             Components.TasksFilterPopup {
@@ -270,21 +285,20 @@ AppLayouts.WorkspaceFrame {
                 anchorItem: listPage.viewsButtonItem
             }
 
-            Components.TasksBulkActions {
-                id: bulkActions
-                workspaceController: root.workspaceController
-                state: state
+            AppWidgets.BulkChangePropertyPopup {
+                id: bulkChangePropertyPopup
+                anchorItem: listPage.bulkActionBar.actionButtonForId("change_property")
+                selectedCount: root.workspaceController ? root.workspaceController.selectedTaskCount : 0
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                properties: root._bulkChangeProperties
 
-                onCancelRequested: {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.clearTaskBulkSelection()
+                onApplyRequested: function(payload) {
+                    if (root.workspaceController === null) {
+                        return
                     }
-                }
-                onDeleteRequested: {
-                    dialogHostLoader.invoke(
-                        "openBulkDeleteDialog",
-                        root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
-                    )
+                    if (payload.propertyId === "status") {
+                        root.workspaceController.applyBulkStatus({ "status": payload.value })
+                    }
                 }
             }
         }

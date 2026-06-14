@@ -74,9 +74,10 @@ class ShellRuntimeSessionController(QObject):
         self._last_authenticated = False
         self._handle_session_expired()
 
-    @Slot(int)
-    def _on_application_state_changed(self, state: int) -> None:
-        if state == int(Qt.ApplicationState.ApplicationActive):
+    @Slot(Qt.ApplicationState)
+    def _on_application_state_changed(self, state: Qt.ApplicationState | int) -> None:
+        active_state = Qt.ApplicationState.ApplicationActive
+        if state == active_state or getattr(state, "value", state) == getattr(active_state, "value", active_state):
             self.revalidateSession()
 
     def _handle_session_expired(self) -> None:

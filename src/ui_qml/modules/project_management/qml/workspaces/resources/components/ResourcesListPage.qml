@@ -10,17 +10,15 @@ import App.Theme 1.0 as Theme
 Item {
     id: root
 
-    // ── Input properties ─────────────────────────────────────────────────
     property var workspaceController: null
     property var state: null
     property var overviewModel: ({})
     property var resourcesModel: ({})
 
-    // ── Exposed UI elements for popup anchoring ────────────────────────
+    readonly property var bulkActionBar: bulkActionBarItem
     readonly property var filterButtonItem: tableToolbar.filterButtonItem
     readonly property var customizeButtonItem: tableToolbar.customizeButtonItem
 
-    // ── Signals ──────────────────────────────────────────────────────────
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
     signal rowSelectionToggled(string rowId, bool selected)
@@ -31,6 +29,8 @@ Item {
     signal refreshRequested()
     signal exportRequested()
     signal createRequested()
+    signal bulkCancelRequested()
+    signal bulkActionRequested(string actionId)
 
     anchors.fill: parent
 
@@ -50,7 +50,7 @@ Item {
                 && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
             message: "Loading resources..."
             compact: true
-            modal:   false
+            modal: false
         }
 
         AppWidgets.LoadingOverlay {
@@ -60,7 +60,7 @@ Item {
                 : false
             message: "Saving changes..."
             compact: true
-            modal:   false
+            modal: false
         }
 
         AppWidgets.InlineMessage {
@@ -99,6 +99,21 @@ Item {
             onCreateRequested: root.createRequested()
         }
 
+        AppWidgets.BulkActionBar {
+            id: bulkActionBarItem
+            Layout.alignment: Qt.AlignRight
+            selectedCount: root.workspaceController ? root.workspaceController.selectedResourceCount : 0
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            actions: [
+                { "id": "delete", "label": "Delete", "icon": "delete", "danger": true, "enabled": true }
+            ]
+
+            onCancelRequested: root.bulkCancelRequested()
+            onActionTriggered: function(actionId) {
+                root.bulkActionRequested(actionId)
+            }
+        }
+
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -106,9 +121,9 @@ Item {
 
             AppWidgets.DataTable {
                 id: resourcesTable
-                anchors.top:    parent.top
-                anchors.left:   parent.left
-                anchors.right:  parent.right
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
                 anchors.bottom: paginationBar.top
                 multiSelect: true
                 tableId: root.state ? root.state.tableId : ""
@@ -129,19 +144,21 @@ Item {
 
             AppWidgets.TablePaginationBar {
                 id: paginationBar
-                anchors.left:   parent.left
-                anchors.right:  parent.right
+                anchors.left: parent.left
+                anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                currentPage:  root.workspaceController ? root.workspaceController.resourcePage      : 1
-                pageSize:     root.workspaceController ? root.workspaceController.resourcePageSize   : 25
-                totalItems:   root.workspaceController ? root.workspaceController.resourceTotalCount : 0
-                busy:         root.workspaceController ? root.workspaceController.isBusy             : false
+                currentPage: root.workspaceController ? root.workspaceController.resourcePage : 1
+                pageSize: root.workspaceController ? root.workspaceController.resourcePageSize : 25
+                totalItems: root.workspaceController ? root.workspaceController.resourceTotalCount : 0
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
 
                 onPageRequested: function(page) {
-                    if (root.workspaceController !== null) root.workspaceController.setResourcePage(page)
+                    if (root.workspaceController !== null)
+                        root.workspaceController.setResourcePage(page)
                 }
                 onPageSizeRequested: function(pageSize) {
-                    if (root.workspaceController !== null) root.workspaceController.setResourcePageSize(pageSize)
+                    if (root.workspaceController !== null)
+                        root.workspaceController.setResourcePageSize(pageSize)
                 }
             }
         }

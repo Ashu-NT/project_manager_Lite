@@ -6,15 +6,17 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 
-// Floating multi-select action bar.
-// Position with anchors.horizontalCenter + anchors.bottom in the parent Item.
-// actions: [{id, label, icon, danger, enabled}]
 Rectangle {
     id: root
 
+    property bool active: true
     property int selectedCount: 0
-    property bool busy:         false
-    property var  actions:      []
+    property bool busy: false
+    property var actions: []
+
+    readonly property real _naturalWidth: _contentFlow.implicitWidth + Theme.AppTheme.marginMd * 2
+    readonly property real _maxWidth: parent ? parent.width : _naturalWidth
+    readonly property real _resolvedWidth: Math.min(_maxWidth, _naturalWidth)
 
     signal cancelRequested()
     signal actionTriggered(string id)
@@ -30,53 +32,62 @@ Rectangle {
         return null
     }
 
-    visible: root.selectedCount > 0
-    height:  Theme.AppTheme.toolbarHeight
-    radius:  Theme.AppTheme.radiusMd
-    color:   Theme.AppTheme.surfaceRaised
-    border.color: Theme.AppTheme.subtleBorder
+    visible: root.active && root.selectedCount > 0
+    width: _resolvedWidth
+    implicitWidth: _resolvedWidth
+    implicitHeight: _contentFlow.implicitHeight + Theme.AppTheme.spacingSm * 2
+    height: implicitHeight
+    radius: Theme.AppTheme.radiusLg
+    color: Theme.AppTheme.surfaceRaised
+    border.color: Theme.AppTheme.borderStrong
     border.width: 1
-    width:   _row.implicitWidth + Theme.AppTheme.marginMd * 2
 
-    RowLayout {
-        id: _row
-        anchors.centerIn: parent
+    Flow {
+        id: _contentFlow
+        anchors.fill: parent
+        anchors.leftMargin: Theme.AppTheme.marginMd
+        anchors.rightMargin: Theme.AppTheme.marginMd
+        anchors.topMargin: Theme.AppTheme.spacingSm
+        anchors.bottomMargin: Theme.AppTheme.spacingSm
         spacing: Theme.AppTheme.spacingSm
 
-        AppControls.Label {
-            text:           root.selectedCount + " selected"
-            color:          Theme.AppTheme.textPrimary
-            font.family:    Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            font.bold:      true
-        }
-
         Rectangle {
-            implicitWidth: 1
-            implicitHeight: 20
-            color: Theme.AppTheme.divider
+            implicitWidth: _selectionLabel.implicitWidth + Theme.AppTheme.marginMd
+            implicitHeight: Theme.AppTheme.toolbarHeight
+            radius: Theme.AppTheme.radiusSm
+            color: Theme.AppTheme.accentSoft
+            border.color: Theme.AppTheme.divider
+            border.width: 1
+
+            AppControls.Label {
+                id: _selectionLabel
+                anchors.centerIn: parent
+                text: root.selectedCount + " selected"
+                color: Theme.AppTheme.accent
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                font.bold: true
+            }
         }
 
         AppControls.SecondaryButton {
-            text:         "Cancel"
-            iconName:     "close"
-            implicitWidth: 80
-            onClicked:    root.cancelRequested()
+            text: "Clear"
+            iconName: "close"
+            enabled: !root.busy
+            onClicked: root.cancelRequested()
         }
 
         Repeater {
             id: actionRepeater
             model: root.actions
             delegate: AppControls.SecondaryButton {
-                id: actionButton
                 required property var modelData
                 readonly property string _actionId: String(modelData.id || "")
                 objectName: _actionId
-                text:      modelData.label  || ""
-                iconName:  modelData.icon   || ""
-                danger:    modelData.danger || false
-                enabled:   !root.busy && (modelData.enabled !== false)
-                implicitWidth: 80
+                text: modelData.label || ""
+                iconName: modelData.icon || ""
+                danger: modelData.danger || false
+                enabled: !root.busy && (modelData.enabled !== false)
                 onClicked: root.actionTriggered(String(modelData.id || ""))
             }
         }

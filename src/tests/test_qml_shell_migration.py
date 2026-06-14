@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from PySide6.QtCore import Qt
 
 from src.ui_qml.shell.context import build_shell_context
 from src.ui_qml.shell.login import LoginViewModel, ShellLoginController
@@ -227,6 +228,29 @@ def test_qml_runtime_session_controller_quits_when_reauth_is_rejected(qapp, serv
 
     assert prompt_usernames == ["admin"]
     assert quit_markers == ["quit"]
+
+
+def test_qml_runtime_session_controller_revalidates_when_app_becomes_active(qapp, services) -> None:
+    shell_context = build_shell_context(build_main_window_navigation(build_qml_route_registry()))
+    controller = ShellRuntimeSessionController(
+        shell_context=shell_context,
+        user_session=services["user_session"],
+        login_prompt=lambda _username: True,
+        poll_interval_ms=1_000,
+        app=qapp,
+    )
+    revalidate_markers: list[str] = []
+    original_revalidate = controller.revalidateSession
+
+    def _revalidate() -> None:
+        revalidate_markers.append("called")
+        original_revalidate()
+
+    controller.revalidateSession = _revalidate  # type: ignore[method-assign]
+
+    controller._on_application_state_changed(Qt.ApplicationState.ApplicationActive)
+
+    assert revalidate_markers == ["called"]
 
 
 def test_qml_engine_registers_named_import_roots() -> None:

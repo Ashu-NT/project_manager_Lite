@@ -146,6 +146,17 @@ AppLayouts.WorkspaceFrame {
                 }
                 onExportRequested: _exportDialog.open()
                 onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
+                onBulkCancelRequested: {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.clearProjectBulkSelection()
+                }
+                onBulkActionRequested: function(actionId) {
+                    if (actionId === "delete") {
+                        _bulkDeleteDialog.open()
+                    } else if (actionId === "change_property") {
+                        _bulkChangePopup.open()
+                    }
+                }
             }
 
             Components.ProjectsFilterPopup {
@@ -155,32 +166,9 @@ AppLayouts.WorkspaceFrame {
                 anchorItem: listPage.filterButtonItem
             }
 
-            // ── Bulk action bar ───────────────────────────────────────────
-            AppWidgets.BulkActionBar {
-                id: bulkActionBar
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: Theme.AppTheme.spacingMd + 40
-                z: 10
-                selectedCount: root.workspaceController ? root.workspaceController.selectedProjectCount : 0
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: [
-                    { "id": "delete",          "label": "Delete",          "icon": "delete", "danger": true,  "enabled": true },
-                    { "id": "change_property", "label": "Change Property", "icon": "edit",   "danger": false, "enabled": true }
-                ]
-
-                onCancelRequested: {
-                    if (root.workspaceController !== null) root.workspaceController.clearProjectBulkSelection()
-                }
-                onActionTriggered: function(actionId) {
-                    if (actionId === "delete") _bulkDeleteDialog.open()
-                    else if (actionId === "change_property") _bulkChangePopup.open()
-                }
-            }
-
             AppWidgets.BulkChangePropertyPopup {
                 id: _bulkChangePopup
-                anchorItem: bulkActionBar.actionButtonForId("change_property")
+                anchorItem: listPage.bulkActionBar.actionButtonForId("change_property")
                 selectedCount: root.workspaceController ? root.workspaceController.selectedProjectCount : 0
                 busy: root.workspaceController ? root.workspaceController.isBusy : false
                 properties: state.bulkChangeProperties

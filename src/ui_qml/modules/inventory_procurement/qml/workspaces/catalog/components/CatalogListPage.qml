@@ -128,6 +128,30 @@ Item {
             }
         }
 
+        AppWidgets.BulkActionBar {
+            id: _itemBulkBar
+            Layout.alignment: Qt.AlignRight
+            active: root._isItemsView
+            selectedCount: root.workspaceController ? root.workspaceController.selectedItemCount : 0
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            actions: [{ "id": "change_property", "label": "Change Property", "icon": "edit", "danger": false, "enabled": true }]
+
+            onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearItemBulkSelection() }
+            onActionTriggered: function(actionId) { if (actionId === "change_property") _itemBulkChangePopup.open() }
+        }
+
+        AppWidgets.BulkActionBar {
+            id: _categoryBulkBar
+            Layout.alignment: Qt.AlignRight
+            active: !root._isItemsView
+            selectedCount: root.workspaceController ? root.workspaceController.selectedCategoryCount : 0
+            busy: root.workspaceController ? root.workspaceController.isBusy : false
+            actions: [{ "id": "archive", "label": "Archive", "icon": "delete", "danger": true, "enabled": true }]
+
+            onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearCategoryBulkSelection() }
+            onActionTriggered: function(actionId) {}
+        }
+
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -332,21 +356,6 @@ Item {
             }
 
             // ── Bulk action bar (items) ────────────────────────────────
-            AppWidgets.BulkActionBar {
-                id: _itemBulkBar
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom:       _paginationBar.top
-                anchors.bottomMargin: Theme.AppTheme.spacingMd
-                z: 10
-                visible:       root._isItemsView
-                selectedCount: root.workspaceController ? root.workspaceController.selectedItemCount : 0
-                busy:          root.workspaceController ? root.workspaceController.isBusy : false
-                actions: [{ "id": "change_property", "label": "Change Property", "icon": "edit", "danger": false, "enabled": true }]
-
-                onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearItemBulkSelection() }
-                onActionTriggered:  function(actionId) { if (actionId === "change_property") _itemBulkChangePopup.open() }
-            }
-
             AppWidgets.BulkChangePropertyPopup {
                 id: _itemBulkChangePopup
                 anchorItem:    _itemBulkBar.actionButtonForId("change_property")
@@ -362,19 +371,6 @@ Item {
             }
 
             // ── Bulk action bar (categories) ──────────────────────────
-            AppWidgets.BulkActionBar {
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom:       _paginationBar.top
-                anchors.bottomMargin: Theme.AppTheme.spacingMd
-                z: 10
-                visible:       !root._isItemsView
-                selectedCount: root.workspaceController ? root.workspaceController.selectedCategoryCount : 0
-                busy:          root.workspaceController ? root.workspaceController.isBusy : false
-                actions: [{ "id": "archive", "label": "Archive", "icon": "delete", "danger": true, "enabled": true }]
-
-                onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearCategoryBulkSelection() }
-                onActionTriggered: function(actionId) {}
-            }
         }
     }
 }
