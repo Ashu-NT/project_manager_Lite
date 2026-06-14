@@ -32,6 +32,8 @@ Item {
     signal lockRequested(var payload)
     signal unlockRequested(var payload)
 
+    property int _activeTabIndex: 0
+
     readonly property var _items: root.entriesModel.items || []
     readonly property var _state: root.assignmentSummary.state || {}
     readonly property var _entryState: root.selectedEntryDetail.state || {}
@@ -40,6 +42,7 @@ Item {
     readonly property bool _hasEntry: Boolean(root._entryState.entryId)
     readonly property bool _canSubmit: Boolean(root._state.resourceId) && Boolean(root._state.periodStart)
     readonly property bool _canUnlock: Boolean(root._state.periodId)
+    readonly property bool _showWorkflowTab: root._canSubmit || root._canUnlock
     readonly property string _assignmentStatus: String(root.assignmentSummary.statusLabel || "")
     readonly property string _assignmentTitle: String(root.assignmentSummary.title || "Task Assignment")
     readonly property string _assignmentSubtitle: String(root.assignmentSummary.subtitle || "")
@@ -47,6 +50,37 @@ Item {
     readonly property string _selectedEntryTitle: String(root.selectedEntryDetail.title || "")
     readonly property string _selectedEntrySubtitle: String(root.selectedEntryDetail.subtitle || "")
     readonly property string _selectedEntryStatus: String(root.selectedEntryDetail.statusLabel || "")
+    readonly property var _detailTabs: {
+        const tabs = [
+            { "id": "assignment", "label": "Assignment" },
+            { "id": "capture", "label": "Capture" },
+            { "id": "ledger", "label": "Ledger" }
+        ]
+        if (root._showWorkflowTab)
+            tabs.push({ "id": "workflow", "label": "Workflow" })
+        return tabs
+    }
+    readonly property int _resolvedTabIndex: {
+        const tabs = root._detailTabs
+        if (!tabs.length)
+            return 0
+        return Math.max(0, Math.min(root._activeTabIndex, tabs.length - 1))
+    }
+    readonly property string _activeTabId: {
+        const tabs = root._detailTabs
+        if (!tabs.length)
+            return "assignment"
+        return String((tabs[root._resolvedTabIndex] || {}).id || "assignment")
+    }
+    readonly property real _activePanelHeight: {
+        if (root._activeTabId === "capture")
+            return _capturePanel.implicitHeight
+        if (root._activeTabId === "ledger")
+            return _ledgerPanel.implicitHeight
+        if (root._activeTabId === "workflow")
+            return _workflowPanel.implicitHeight
+        return _assignmentPanel.implicitHeight
+    }
 
     readonly property int _tableH: {
         const count = root._items.length
@@ -61,6 +95,12 @@ Item {
         { key: "statusLabel", label: "Status", flex: 0, minWidth: 90, type: "status" }
     ]
 
+    function _normalizeActiveTab() {
+        const maxIndex = Math.max(0, root._detailTabs.length - 1)
+        if (root._activeTabIndex > maxIndex)
+            root._activeTabIndex = maxIndex
+    }
+
     onSelectedEntryDetailChanged: {
         if (root._entryState.entryId) {
             _dateField.text = String(root._entryState.entryDate || "")
@@ -72,6 +112,9 @@ Item {
             _noteArea.text = ""
         }
     }
+    on_CanSubmitChanged: Qt.callLater(root._normalizeActiveTab)
+    on_CanUnlockChanged: Qt.callLater(root._normalizeActiveTab)
+    Component.onCompleted: root._normalizeActiveTab()
 
     implicitHeight: _contentColumn.implicitHeight
     height: implicitHeight
@@ -83,26 +126,44 @@ Item {
         anchors.top: parent.top
         spacing: Theme.AppTheme.spacingMd
 
-            AppWidgets.ContextualActionToolbar {
-                Layout.fillWidth: true
-                title: "Time"
-                subtitle: root._assignmentStatus.length > 0
-                    ? root._assignmentStatus
-                    : (root._items.length > 0 ? root._items.length + " entries" : "Capture and approve task time")
-                busy: root.isBusy
-                createLabel: ""
-                actions: []
-            }
+        AppWidgets.ContextualActionToolbar {
+            Layout.fillWidth: true
+            title: "Time"
+            subtitle: root._assignmentStatus.length > 0
+                ? root._assignmentStatus
+                : (root._items.length > 0 ? root._items.length + " entries" : "Capture and approve task time")
+            busy: root.isBusy
+            createLabel: ""
+            actions: []
+        }
 
-            AppWidgets.InlineMessage {
-                Layout.fillWidth: true
-                visible: root.errorText.length > 0
-                tone: "danger"
-                message: root.errorText
+        AppWidgets.InlineMessage {
+            Layout.fillWidth: true
+            visible: root.errorText.length > 0
+            tone: "danger"
+            message: root.errorText
+        }
+
+        AppWidgets.DetailTabBar {
+            Layout.fillWidth: true
+            tabs: root._detailTabs
+            currentIndex: root._resolvedTabIndex
+            onTabSelected: function(index) {
+                root._activeTabIndex = index
             }
+        }
+
+        Item {
+            Layout.fillWidth: true
+            implicitHeight: root._activePanelHeight
+            height: implicitHeight
 
             AppWidgets.SectionCard {
-                Layout.fillWidth: true
+                id: _assignmentPanel
+                visible: root._activeTabId === "assignment"
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
                 title: "Assignment & Period"
                 implicitHeight: _assignmentCardBody.implicitHeight
 
@@ -314,7 +375,11 @@ Item {
             }
 
             AppWidgets.SectionCard {
-                Layout.fillWidth: true
+                id: _capturePanel
+                visible: root._activeTabId === "capture"
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
                 title: "Capture Entry"
                 implicitHeight: _captureCardBody.implicitHeight
 
@@ -515,7 +580,11 @@ Item {
             }
 
             AppWidgets.SectionCard {
-                Layout.fillWidth: true
+                id: _ledgerPanel
+                visible: root._activeTabId === "ledger"
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
                 title: "Entry Ledger"
                 implicitHeight: _ledgerCardBody.implicitHeight
 
@@ -578,8 +647,11 @@ Item {
             }
 
             AppWidgets.SectionCard {
-                Layout.fillWidth: true
-                visible: root._canSubmit || root._canUnlock
+                id: _workflowPanel
+                visible: root._showWorkflowTab && root._activeTabId === "workflow"
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
                 title: "Period Workflow"
                 implicitHeight: _periodCardBody.implicitHeight
 
@@ -682,5 +754,6 @@ Item {
                     }
                 }
             }
+        }
     }
 }

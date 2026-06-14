@@ -14,7 +14,7 @@ Rectangle {
     property bool busy: false
     property var actions: []
 
-    readonly property real _naturalWidth: _contentFlow.implicitWidth + Theme.AppTheme.marginMd * 2
+    readonly property real _naturalWidth: _contentRow.implicitWidth + Theme.AppTheme.marginMd * 2
     readonly property real _maxWidth: parent ? parent.width : _naturalWidth
     readonly property real _resolvedWidth: Math.min(_maxWidth, _naturalWidth)
 
@@ -35,20 +35,19 @@ Rectangle {
     visible: root.active && root.selectedCount > 0
     width: _resolvedWidth
     implicitWidth: _resolvedWidth
-    implicitHeight: _contentFlow.implicitHeight + Theme.AppTheme.spacingSm * 2
+    implicitHeight: _contentRow.implicitHeight + Theme.AppTheme.spacingSm * 2
     height: implicitHeight
     radius: Theme.AppTheme.radiusLg
     color: Theme.AppTheme.surfaceRaised
     border.color: Theme.AppTheme.borderStrong
     border.width: 1
+    clip: true
 
-    Flow {
-        id: _contentFlow
-        anchors.fill: parent
+    RowLayout {
+        id: _contentRow
+        anchors.left: parent.left
         anchors.leftMargin: Theme.AppTheme.marginMd
-        anchors.rightMargin: Theme.AppTheme.marginMd
-        anchors.topMargin: Theme.AppTheme.spacingSm
-        anchors.bottomMargin: Theme.AppTheme.spacingSm
+        anchors.verticalCenter: parent.verticalCenter
         spacing: Theme.AppTheme.spacingSm
 
         Rectangle {
