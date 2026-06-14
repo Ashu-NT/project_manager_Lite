@@ -27,6 +27,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyEr
 from src.core.platform.common.interfaces import TimeEntryRepository
 from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.platform.auth.domain.session import UserSessionContext
 
 logger = logging.getLogger(__name__)
 DEFAULT_CURRENCY_CODE = "EUR"
@@ -41,7 +42,8 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
     _time_entry_repo: TimeEntryRepository | None
     _calendar_repo: CalendarEventRepository
     _cost_repo: CostRepository
-
+    _user_session:UserSessionContext
+        
     def _resolve_project_code(
         self,
         code: str,
