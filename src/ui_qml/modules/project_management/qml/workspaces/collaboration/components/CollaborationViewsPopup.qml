@@ -34,8 +34,7 @@ AppWidgets.AnchoredPopup {
                 { "label": "Mentions Focus",     "panelId": "mentions",    "unread": "unread" },
                 { "label": "Pending Approvals",  "panelId": "approvals",   "unread": "attention" },
                 { "label": "Activity Journal",   "panelId": "activity",    "unread": "all" },
-                { "label": "Team Updates",        "panelId": "team_updates","unread": "all" },
-                { "label": "Audit Trail",         "panelId": "audit",       "unread": "all" }
+                { "label": "Team Updates",        "panelId": "team_updates","unread": "all" }
             ]
 
             delegate: AppControls.SecondaryButton {

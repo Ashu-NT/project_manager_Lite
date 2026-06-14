@@ -14,13 +14,12 @@ def build_context_view_model(
     approvals: CollaborationCollectionViewModel,
     activity_feed: CollaborationCollectionViewModel,
     team_updates: CollaborationCollectionViewModel,
-    audit_feed: CollaborationCollectionViewModel,
 ) -> CollaborationContextViewModel:
     project_options = [CollaborationOptionViewModel("all", "All Projects")]
     seen_projects: set[tuple[str, str]] = set()
     team_options = [CollaborationOptionViewModel("all", "All Teams")]
     seen_teams: set[str] = set()
-    for collection in (inbox, mentions, approvals, activity_feed, team_updates, audit_feed):
+    for collection in (inbox, mentions, approvals, activity_feed, team_updates):
         for item in collection.items:
             state = dict(item.state)
             project_id = str(state.get("projectId") or "").strip()
@@ -63,11 +62,10 @@ def build_workspace_empty_state(
     approvals: CollaborationCollectionViewModel,
     activity_feed: CollaborationCollectionViewModel,
     team_updates: CollaborationCollectionViewModel,
-    audit_feed: CollaborationCollectionViewModel,
 ) -> str:
     if any(
         collection.items
-        for collection in (inbox, mentions, approvals, activity_feed, team_updates, audit_feed)
+        for collection in (inbox, mentions, approvals, activity_feed, team_updates)
     ):
         return ""
     return "No collaboration or workflow activity is available for the accessible project scope yet."

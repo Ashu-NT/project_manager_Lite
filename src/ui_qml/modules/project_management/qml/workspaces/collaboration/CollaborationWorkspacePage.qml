@@ -215,12 +215,11 @@ AppLayouts.WorkspaceFrame {
                             if (state.activePanelId === "approvals") return "Search approvals..."
                             if (state.activePanelId === "team_updates") return "Search team updates..."
                             if (state.activePanelId === "activity") return "Search activity..."
-                            if (state.activePanelId === "audit") return "Search audit..."
                             return "Search inbox..."
                         }
                         showFilter: true
                         showViews: true
-                        showCustomize: state.activePanelId !== "activity" && state.activePanelId !== "audit"
+                        showCustomize: state.activePanelId !== "activity"
                         showExport: true
                         showRefresh: true
                         isBusy: root.workspaceController ? root.workspaceController.isBusy : false
@@ -234,7 +233,7 @@ AppLayouts.WorkspaceFrame {
                             panelViewsPopup.open()
                         }
                         onCustomizeClicked: {
-                            if (state.activePanelId !== "activity" && state.activePanelId !== "audit")
+                            if (state.activePanelId !== "activity")
                                 panelTable.openColumnCustomizer(panelToolbar.customizeButtonItem)
                         }
                         onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
@@ -251,7 +250,7 @@ AppLayouts.WorkspaceFrame {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.bottom: paginationBar.top
-                            visible: state.activePanelId !== "activity" && state.activePanelId !== "audit"
+                            visible: state.activePanelId !== "activity"
                             columns: state._currentTableColumns
                             sourceModel: root.workspaceController
                                 ? (state.activePanelId === "mentions"      ? root.workspaceController.mentionsTableModel
@@ -271,7 +270,7 @@ AppLayouts.WorkspaceFrame {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.bottom: parent.bottom
-                            visible: state.activePanelId !== "activity" && state.activePanelId !== "audit"
+                            visible: state.activePanelId !== "activity"
                             currentPage: state._effectiveTablePage
                             pageSize: state._currentTablePageSize
                             totalItems: state._currentTableTotalItems
@@ -284,7 +283,7 @@ AppLayouts.WorkspaceFrame {
 
                         ScrollView {
                             anchors.fill: parent
-                            visible: state.activePanelId === "activity" || state.activePanelId === "audit"
+                            visible: state.activePanelId === "activity"
                             contentWidth: availableWidth
                             clip: true
 
@@ -294,9 +293,7 @@ AppLayouts.WorkspaceFrame {
 
                                 AppWidgets.ActivityFeed {
                                     Layout.fillWidth: true
-                                    items: state.activePanelId === "activity"
-                                        ? state._activityFeedItems
-                                        : state._auditFeedItems
+                                    items: state._activityFeedItems
                                     emptyText: state._currentPanelModel.emptyState || "No collaboration activity is available."
                                     onItemActivated: function(itemData) {
                                         const st = itemData && itemData.state ? itemData.state : {}
