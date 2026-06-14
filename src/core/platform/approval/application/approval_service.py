@@ -314,12 +314,8 @@ class ApprovalService:
         organization_id = self._active_organization_id(operation_label=operation_label)
         if not organization_id or not project_id:
             return
-        if (
-            hasattr(self._approval_repo, "project_belongs_to_organization")
-            and self._approval_repo.project_belongs_to_organization(project_id, organization_id)
-        ):
-            return
-        raise NotFoundError("Approval request not found.", code="APPROVAL_NOT_FOUND")
+        if hasattr(self._approval_repo, "project_in_different_organization") and self._approval_repo.project_in_different_organization(project_id, organization_id):
+            raise NotFoundError("Approval request not found.", code="APPROVAL_NOT_FOUND")
 
 
 __all__ = ["ApplyHandler", "ApprovalService"]

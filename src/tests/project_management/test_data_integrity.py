@@ -38,6 +38,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskDependencyORM,
     TaskORM,
 )
+from src.core.platform.infrastructure.persistence.orm.org import OrganizationORM
+
+_DEFAULT_ORG_ID = "test-org-integrity"
 
 
 # ── small ORM builders ──────────────────────────────────────────────────────
@@ -50,8 +53,17 @@ def _add(session, row):
     return row
 
 
+def _ensure_org(session, org_id: str = _DEFAULT_ORG_ID) -> str:
+    from sqlalchemy import select
+    existing = session.execute(select(OrganizationORM.id).where(OrganizationORM.id == org_id)).first()
+    if existing is None:
+        _add(session, OrganizationORM(id=org_id, organization_code=org_id, display_name=org_id))
+    return org_id
+
+
 def _project(session, pid):
-    return _add(session, ProjectORM(id=pid, name=pid.upper()))
+    org_id = _ensure_org(session)
+    return _add(session, ProjectORM(id=pid, name=pid.upper(), organization_id=org_id))
 
 
 def _task(session, tid, pid):
@@ -59,7 +71,8 @@ def _task(session, tid, pid):
 
 
 def _resource(session, rid):
-    return _add(session, ResourceORM(id=rid, name=rid.upper()))
+    org_id = _ensure_org(session)
+    return _add(session, ResourceORM(id=rid, name=rid.upper(), organization_id=org_id))
 
 
 def _project_resource(session, prid, pid, rid):
