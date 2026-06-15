@@ -366,10 +366,6 @@ AppLayouts.WorkspaceFrame {
                                 const st = itemData && itemData.state ? itemData.state : {}
                                 state._navigateRoute(String(st.routeId || ""))
                             }
-                            onAuditItemActivated: function(itemData) {
-                                const st = itemData && itemData.state ? itemData.state : {}
-                                state._navigateRoute(String(st.routeId || ""))
-                            }
                         }
                     }
                 }

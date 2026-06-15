@@ -42,6 +42,7 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.orm.procu
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories._tenant_scope import (
     InventoryTenantScopedRepositorySupport,
 )
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,
@@ -553,12 +554,9 @@ class SqlAlchemyReceiptLineRepository(ReceiptLineRepository, _ProcurementLineRep
         )
 
     def add(self, line: ReceiptLine) -> None:
-        self._require_in_scope(
-            ReceiptHeaderORM,
-            line.receipt_header_id,
-            operation_label="add receipt line",
-            not_found_message="Receipt not found.",
-        )
+        receipt_header = self.session.get(ReceiptHeaderORM, line.receipt_header_id)
+        if receipt_header is None:
+            raise NotFoundError("Receipt not found.")
         purchase_order_line = self._get_line_in_scope(
             PurchaseOrderLineORM,
             PurchaseOrderORM,

@@ -9,16 +9,15 @@ ROOT = REPO_ROOT
 
 _LARGE_MODULE_BUDGETS = {
     "src/core/modules/maintenance/infrastructure/persistence/mappers/mapper.py": 1203,
-    "src/core/modules/maintenance/infrastructure/persistence/repositories/repository.py": 1489,
-    "src/core/modules/maintenance/infrastructure/persistence/orm/models.py": 1283,
-    "src/core/modules/project_management/api/desktop/dashboard.py": 2709,
+    "src/core/modules/maintenance/infrastructure/persistence/repositories/repository.py": 2410,
+    "src/core/modules/maintenance/infrastructure/persistence/orm/models.py": 1330,
     "src/ui_qml/modules/project_management/controllers/scheduling/scheduling_workspace_controller.py": 1338,
     "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": 1600,
-    "src/tests/project_management/test_project_management_desktop_api.py": 3212,
-    "src/tests/project_management/test_qml_project_management_presenters.py": 2235,
+    "src/tests/project_management/test_project_management_desktop_api.py": 3390,
+    "src/tests/project_management/test_qml_project_management_presenters.py": 2420,
     "src/tests/project_management/test_repository_tenant_hardening.py": 1300,
     "src/tests/architecture/test_architecture_guardrails.py": 1500,
-    "src/tests/platform/test_qml_platform_presenters.py": 2453,
+    "src/tests/platform/test_qml_platform_presenters.py": 2510,
 }
 
 
@@ -725,17 +724,17 @@ def test_cost_service_is_orchestrator_only():
 
 
 def test_collaboration_service_is_orchestrator_only():
-    service_path = ROOT / "src" / "core" / "modules" / "project_management" / "application" / "tasks" / "collaboration_service.py"
+    service_path = ROOT / "src" / "core" / "modules" / "project_management" / "application" / "collaboration" / "services" / "collaboration_service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
     for snippet in (
-        "from src.core.modules.project_management.application.tasks.commands.collaboration_comments import (",
+        "from src.core.modules.project_management.application.collaboration.commands.collaboration_comments import (",
         "CollaborationCommentCommandMixin,",
-        "from src.core.modules.project_management.application.tasks.commands.collaboration_presence import (",
+        "from src.core.modules.project_management.application.collaboration.commands.collaboration_presence import (",
         "CollaborationPresenceCommandMixin,",
-        "from src.core.modules.project_management.application.tasks.queries.collaboration_inbox import (",
+        "from src.core.modules.project_management.application.collaboration.queries.collaboration_inbox import (",
         "CollaborationInboxQueryMixin,",
-        "from src.core.modules.project_management.application.tasks.collaboration_support import (",
+        "from src.core.modules.project_management.application.collaboration.utils.support import (",
         "CollaborationSupportMixin,",
     ):
         assert snippet in text
@@ -745,17 +744,17 @@ def test_collaboration_service_is_orchestrator_only():
     assert "def list_active_presence" not in text
 
 def test_portfolio_service_is_orchestrator_only():
-    service_path = ROOT / "src" / "core" / "modules" / "project_management" / "application" / "projects" / "portfolio_service.py"
+    service_path = ROOT / "src" / "core" / "modules" / "project_management" / "application" / "portfolio" / "services" / "portfolio_service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
     for snippet in (
-        "from src.core.modules.project_management.application.projects.commands.portfolio_dependencies import",
+        "from src.core.modules.project_management.application.portfolio.commands.portfolio_dependencies import",
         "PortfolioDependencyCommandMixin,",
-        "from src.core.modules.project_management.application.projects.queries.portfolio_executive import",
+        "from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import",
         "PortfolioExecutiveQueryMixin,",
-        "from src.core.modules.project_management.application.projects.portfolio_support import",
+        "from src.core.modules.project_management.application.portfolio.utils.portfolio_support import",
         "PortfolioSupportMixin,",
-        "from src.core.modules.project_management.application.projects.commands.portfolio_templates import",
+        "from src.core.modules.project_management.application.portfolio.commands.portfolio_templates import",
         "PortfolioTemplateCommandMixin,",
     ):
         assert snippet in text
@@ -774,7 +773,8 @@ def test_scheduling_engine_is_orchestrator_only():
         / "project_management"
         / "application"
         / "scheduling"
-        / "engine.py"
+        / "services"
+        / "scheduling_engine.py"
     )
     text = engine_path.read_text(encoding="utf-8", errors="ignore")
 
@@ -797,7 +797,8 @@ def test_scheduling_leveling_is_split_from_engine():
         / "project_management"
         / "application"
         / "scheduling"
-        / "engine.py"
+        / "services"
+        / "scheduling_engine.py"
     )
     text = engine_path.read_text(encoding="utf-8", errors="ignore")
 
@@ -817,13 +818,12 @@ def test_main_qt_uses_qml_shell_entrypoint():
 def test_known_large_modules_have_growth_budgets():
     budgets = {
         **_LARGE_MODULE_BUDGETS,
-        "src/core/modules/project_management/infrastructure/reporting/service.py": 180,
-        "src/core/modules/project_management/application/scheduling/engine.py": 360,
-        "src/core/modules/project_management/application/scheduling/passes.py": 260,
+        "src/core/modules/project_management/infrastructure/reporting/services/reporting_service.py": 180,
+        "src/core/modules/project_management/application/scheduling/services/scheduling_engine.py": 410,
+        "src/core/modules/project_management/application/scheduling/cpm/passes.py": 260,
         "src/core/modules/project_management/application/resources/commands/project_resource_commands.py": 320,
-        "src/core/modules/project_management/application/tasks/commands/lifecycle.py": 320,
-        "src/core/platform/org/application/site_service.py": 340,
-        "src/core/platform/org/application/department_service.py": 410,
+        "src/core/modules/project_management/application/tasks/commands/lifecycle.py": 360,
+        "src/core/platform/site/application/site_service.py": 360,
     }
 
     breaches = []

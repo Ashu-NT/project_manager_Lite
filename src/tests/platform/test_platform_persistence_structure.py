@@ -8,7 +8,6 @@ EXPECTED_AREAS = {
     "access",
     "activity",
     "approval",
-    "audit",
     "audit_entry",
     "auth",
     "departments",

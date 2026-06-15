@@ -197,6 +197,13 @@ def test_main_qt_loads_theme_from_settings_before_qml_shell(repo_workspace, serv
             calls.append(("exec", None, None))
             return 0
 
+    class _FakeSessionController:
+        def __init__(self, **_kw):
+            pass
+
+        def start(self):
+            pass
+
     monkeypatch.setenv("PM_SKIP_LOGIN", "1")
     monkeypatch.setattr(shell_app, "QGuiApplication", _FakeApp)
     monkeypatch.setattr(shell_app, "QIcon", lambda path: path)
@@ -207,6 +214,7 @@ def test_main_qt_loads_theme_from_settings_before_qml_shell(repo_workspace, serv
     monkeypatch.setattr(shell_app, "AppSettingsStore", lambda: store)
     monkeypatch.setattr(shell_app, "_prompt_for_login_qml", lambda **_kwargs: True)
     monkeypatch.setattr(shell_app, "create_qml_engine", lambda: object())
+    monkeypatch.setattr(shell_app, "ShellRuntimeSessionController", _FakeSessionController)
     monkeypatch.setattr(
         shell_app,
         "load_qml",
