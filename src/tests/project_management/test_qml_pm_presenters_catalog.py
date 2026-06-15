@@ -1,0 +1,212 @@
+import json
+from datetime import date, datetime
+from pathlib import Path
+from types import SimpleNamespace
+
+from PySide6.QtCore import QSettings
+
+from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.controllers.common import (
+    ProjectManagementTaskViewStore,
+)
+from src.ui_qml.modules.project_management.presenters import (
+    ProjectDashboardPresenter,
+    ProjectFinancialsWorkspacePresenter,
+    build_project_management_workspace_presenters,
+)
+from src.ui_qml.modules.project_management.routes import build_project_management_routes
+from src.core.modules.project_management.api.desktop import (
+    build_project_management_collaboration_desktop_api,
+    build_project_management_dashboard_desktop_api,
+    build_project_management_financials_desktop_api,
+    build_project_management_projects_desktop_api,
+    build_project_management_register_desktop_api,
+    build_project_management_resources_desktop_api,
+    build_project_management_scheduling_desktop_api,
+    build_project_management_tasks_desktop_api,
+)
+from src.api.desktop.runtime import build_desktop_api_registry
+from src.api.desktop.platform import ApprovalRequestDto, ApprovalStatus, DesktopApiResult
+from src.core.modules.project_management.domain.enums import (
+    CostType,
+    DependencyType,
+    ProjectStatus,
+    TaskStatus,
+    WorkerType,
+)
+from src.core.modules.project_management.domain.risk.register import (
+    RegisterEntrySeverity,
+    RegisterEntryStatus,
+    RegisterEntryType,
+)
+from src.core.platform.documents import DocumentStorageKind
+from src.tests.ui_runtime_helpers import wait_until
+from src.ui_qml.modules.project_management.presenters.collaboration import (
+    ProjectCollaborationWorkspacePresenter,
+)
+
+
+def test_project_management_workspace_presenters_match_qml_routes() -> None:
+    routes = build_project_management_routes()
+    presenters = build_project_management_workspace_presenters()
+
+    assert list(presenters) == [route.route_id for route in routes]
+
+    for route in routes:
+        view_model = presenters[route.route_id].build_view_model()
+        assert view_model.route_id == route.route_id
+        assert view_model.title == route.title
+        assert view_model.summary
+        assert view_model.migration_status == "QML landing zone ready"
+        assert view_model.legacy_runtime_status == "Existing QWidget screen remains active"
+
+
+def test_project_management_workspace_catalog_exposes_qml_safe_maps() -> None:
+    catalog = ProjectManagementWorkspaceCatalog()
+
+    workspace = catalog.workspace("project_management.projects")
+
+    assert workspace == {
+        "routeId": "project_management.projects",
+        "title": "Projects",
+        "summary": "Project lifecycle, ownership, status, and project list workflows.",
+        "migrationStatus": "QML landing zone ready",
+        "legacyRuntimeStatus": "Existing QWidget screen remains active",
+    }
+
+
+def test_project_management_workspace_catalog_returns_no_capabilities_without_active_organization(
+    services,
+) -> None:
+    services["user_session"].set_active_organization_id(None)
+    registry = build_desktop_api_registry(services)
+    catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
+
+    assert catalog.isModuleEnabled("project_management") is False
+    assert catalog.hasCapability("inventory.stock.read") is False
+    assert (
+        catalog.canUseIntegration(
+            "project_management",
+            "inventory_procurement",
+            "material_demand",
+        )
+        is False
+    )
+
+
+def test_project_management_workspace_catalog_exposes_typed_dashboard_controller() -> None:
+    catalog = ProjectManagementWorkspaceCatalog()
+
+    controller = catalog.dashboardWorkspace
+    controller.load()
+    workspace = controller.workspace
+    overview = controller.overview
+
+    assert workspace["routeId"] == "project_management.dashboard"
+    assert workspace["migrationStatus"] == "QML landing zone ready"
+    assert overview["title"] == "Dashboard"
+    assert overview["metrics"][0]["label"] == "Tasks"
+    assert controller.periodOptions[0]["value"] == "all"
+    assert controller.selectedPeriodKey == "90d"
+    assert controller.viewOptions[0]["value"] == "executive"
+    assert controller.selectedViewKey == "executive"
+    assert controller.healthCards[0]["title"] == "Schedule Health"
+    assert controller.operationalTable["id"] == "delayed_tasks"
+    assert controller.activityFeed["title"] == "Recent Activity"
+
+
+def test_project_management_dashboard_controller_requires_explicit_load() -> None:
+    catalog = ProjectManagementWorkspaceCatalog()
+
+    controller = catalog.dashboardWorkspace
+
+    assert controller.hasLoaded is False
+    assert controller.projectOptions == []
+    assert controller.selectedProjectId == ""
+    assert controller.selectedViewKey == ""
+
+    controller.load()
+
+    assert controller.hasLoaded is True
+    assert controller.projectOptions[0]["label"] == "Portfolio Overview"
+    assert controller.selectedViewKey == "executive"
+
+    controller.load()
+
+    assert controller.hasLoaded is True
+    assert controller.selectedViewKey == "executive"
+
+
+def test_project_management_workspace_catalog_returns_empty_unknown_workspace() -> None:
+    catalog = ProjectManagementWorkspaceCatalog()
+
+    workspace = catalog.workspace("project_management.unknown")
+
+    assert workspace["routeId"] == "project_management.unknown"
+    assert workspace["title"] == ""
+    assert workspace["summary"] == ""
+
+
+def test_project_dashboard_presenter_exposes_empty_overview_view_model() -> None:
+    presenter = ProjectDashboardPresenter()
+
+    overview = presenter.build_empty_overview()
+
+    assert overview.title == "Dashboard"
+    assert overview.metrics[0].label == "Tasks"
+    assert overview.metrics[0].value == "0 / 0"
+    assert len(overview.metrics) == 8
+
+
+def test_project_management_workspace_catalog_exposes_dashboard_overview() -> None:
+    catalog = ProjectManagementWorkspaceCatalog()
+    catalog.dashboardWorkspace.load()
+
+    overview = catalog.dashboardOverview()
+
+    assert overview["title"] == "Dashboard"
+    assert len(overview["metrics"]) == 8
+    assert overview["metrics"][0] == {
+        "label": "Tasks",
+        "value": "0 / 0",
+        "supportingText": "Done / Total",
+    }
+
+
+def test_project_management_qml_presenters_do_not_import_legacy_widget_or_infra() -> None:
+    source_root = Path("src/ui_qml/modules/project_management")
+    source_text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in source_root.rglob("*.py")
+        if "__pycache__" not in path.parts
+    )
+
+    assert "src.ui.modules.project_management" not in source_text
+    assert "ui.modules.project_management" not in source_text
+    assert "infrastructure.persistence" not in source_text
+    assert "repositories" not in source_text
+
+
+def test_project_management_qml_uses_named_modules_and_typed_catalog_properties() -> None:
+    qml_root = Path("src/ui_qml/modules/project_management/qml")
+    qml_text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in qml_root.rglob("*.qml")
+        if "__pycache__" not in path.parts
+    )
+
+    assert "import ProjectManagement.Controllers 1.0" in qml_text
+    assert "import ProjectManagement.Dialogs 1.0" in qml_text
+    assert "import ProjectManagement.Widgets 1.0" in qml_text
+    assert "property var pmCatalog" not in qml_text
+    assert "QML landing zone ready" in qml_text
+    assert "Risks, issues, and changes — unified project governance register." in qml_text
+    assert "Task planning, progress, dependencies, assignments, and execution state." in qml_text
+    assert "Enterprise planning and schedule control workspace." in qml_text
+    assert 'searchPlaceholder: "Search tasks..."' in qml_text
+    assert "showCustomize: true" in qml_text
+    assert "showViews: true" in qml_text
+    assert "showExport: true" in qml_text
+    assert "AppWidgets.BulkActionBar {" in qml_text
+    assert "AppWidgets.BulkChangePropertyPopup {" in qml_text
+    assert "Project KPIs, health summaries, and executive delivery views." in qml_text

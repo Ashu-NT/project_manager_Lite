@@ -1,0 +1,212 @@
+from datetime import date, timedelta
+
+from src.core.modules.project_management.domain.enums import (
+    DependencyType,
+    TaskStatus,
+)
+from src.core.modules.project_management.domain.tasks.task import (
+    Task,
+    TaskAssignment,
+    TaskDependency,
+)
+
+
+class _FakeTaskService:
+    def __init__(self) -> None:
+        self._tasks: dict[str, Task] = {}
+        self._assignments: dict[str, TaskAssignment] = {}
+        self._dependencies: dict[str, TaskDependency] = {}
+        self._project_resource_lookup: dict[str, str] = {}
+        self._next_id = 1
+
+    def list_tasks_for_project(self, project_id: str) -> list[Task]:
+        return [task for task in self._tasks.values() if task.project_id == project_id]
+
+    def register_project_resource(self, project_resource_id: str, resource_id: str) -> None:
+        self._project_resource_lookup[project_resource_id] = resource_id
+
+    def create_task(
+        self,
+        *,
+        project_id: str,
+        name: str,
+        code: str = "",
+        description: str = "",
+        start_date: date | None = None,
+        duration_days: int | None = None,
+        priority: int = 0,
+        deadline: date | None = None,
+    ) -> Task:
+        task = Task(
+            id=f"task-{self._next_id}",
+            project_id=project_id,
+            name=name,
+            code=code,
+            description=description,
+            start_date=start_date,
+            end_date=_derive_end_date(start_date, duration_days),
+            duration_days=duration_days,
+            priority=priority,
+            deadline=deadline,
+        )
+        self._next_id += 1
+        self._tasks[task.id] = task
+        return task
+
+    def create_assignment(
+        self,
+        *,
+        task_id: str,
+        resource_id: str,
+        allocation_percent: float = 100.0,
+        hours_logged: float = 0.0,
+    ) -> TaskAssignment:
+        assignment = TaskAssignment(
+            id=f"assign-{len(self._assignments) + 1}",
+            task_id=task_id,
+            resource_id=resource_id,
+            allocation_percent=allocation_percent,
+            hours_logged=hours_logged,
+        )
+        self._assignments[assignment.id] = assignment
+        return assignment
+
+    def list_assignments_for_task(self, task_id: str) -> list[TaskAssignment]:
+        return [a for a in self._assignments.values() if a.task_id == task_id]
+
+    def list_assignments_for_tasks(self, task_ids: list[str]) -> list[TaskAssignment]:
+        task_id_set = {str(tid) for tid in task_ids}
+        return [a for a in self._assignments.values() if a.task_id in task_id_set]
+
+    def get_assignment(self, assignment_id: str) -> TaskAssignment | None:
+        return self._assignments.get(assignment_id)
+
+    def assign_project_resource(
+        self,
+        *,
+        task_id: str,
+        project_resource_id: str,
+        allocation_percent: float,
+    ) -> TaskAssignment:
+        resource_id = self._project_resource_lookup.get(project_resource_id, project_resource_id)
+        assignment = self.create_assignment(
+            task_id=task_id,
+            resource_id=resource_id,
+            allocation_percent=allocation_percent,
+        )
+        assignment.project_resource_id = project_resource_id
+        return assignment
+
+    def set_assignment_allocation(self, *, assignment_id: str, allocation_percent: float) -> TaskAssignment:
+        assignment = self._assignments[assignment_id]
+        assignment.allocation_percent = allocation_percent
+        return assignment
+
+    def set_assignment_hours(self, *, assignment_id: str, hours_logged: float) -> TaskAssignment:
+        assignment = self._assignments[assignment_id]
+        assignment.hours_logged = hours_logged
+        return assignment
+
+    def unassign_resource(self, assignment_id: str) -> None:
+        del self._assignments[assignment_id]
+
+    def add_dependency(
+        self,
+        *,
+        predecessor_id: str,
+        successor_id: str,
+        dependency_type: DependencyType,
+        lag_days: int = 0,
+    ) -> TaskDependency:
+        dependency = TaskDependency(
+            id=f"dep-{len(self._dependencies) + 1}",
+            predecessor_task_id=predecessor_id,
+            successor_task_id=successor_id,
+            dependency_type=dependency_type,
+            lag_days=lag_days,
+        )
+        self._dependencies[dependency.id] = dependency
+        return dependency
+
+    def list_dependencies_for_task(self, task_id: str) -> list[TaskDependency]:
+        return [
+            d for d in self._dependencies.values()
+            if d.predecessor_task_id == task_id or d.successor_task_id == task_id
+        ]
+
+    def remove_dependency(self, dependency_id: str) -> None:
+        del self._dependencies[dependency_id]
+
+    def update_task(
+        self,
+        task_id: str,
+        *,
+        expected_version: int | None = None,
+        name: str | None = None,
+        code: str | None = None,
+        description: str | None = None,
+        status: TaskStatus | None = None,
+        start_date: date | None = None,
+        duration_days: int | None = None,
+        priority: int | None = None,
+        deadline: date | None = None,
+    ) -> Task:
+        task = self._tasks[task_id]
+        if name is not None:
+            task.name = name
+        if code is not None and code:
+            task.code = code
+        if description is not None:
+            task.description = description
+        if status is not None:
+            task.status = status
+        if start_date is not None:
+            task.start_date = start_date
+        if duration_days is not None:
+            task.duration_days = duration_days
+        if priority is not None:
+            task.priority = priority
+        if deadline is not None:
+            task.deadline = deadline
+        task.end_date = _derive_end_date(task.start_date, task.duration_days)
+        task.version += 1
+        return task
+
+    def set_status(self, task_id: str, status: TaskStatus) -> None:
+        task = self._tasks[task_id]
+        task.status = status
+        task.version += 1
+
+    def update_progress(
+        self,
+        task_id: str,
+        *,
+        percent_complete: float | None = None,
+        actual_start: date | None = None,
+        actual_end: date | None = None,
+        status: TaskStatus | None = None,
+        expected_version: int | None = None,
+    ) -> Task:
+        task = self._tasks[task_id]
+        if percent_complete is not None:
+            task.percent_complete = percent_complete
+        if actual_start is not None:
+            task.actual_start = actual_start
+        if actual_end is not None:
+            task.actual_end = actual_end
+        if status is not None:
+            task.status = status
+        task.version += 1
+        return task
+
+    def delete_task(self, task_id: str) -> None:
+        del self._tasks[task_id]
+
+    def get_task(self, task_id: str) -> Task | None:
+        return self._tasks.get(task_id)
+
+
+def _derive_end_date(start_date: date | None, duration_days: int | None) -> date | None:
+    if start_date is None or duration_days is None:
+        return None
+    return start_date + timedelta(days=max(duration_days - 1, 0))
