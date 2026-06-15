@@ -8,9 +8,9 @@ from sqlalchemy.exc import IntegrityError
 from src.core.modules.inventory_procurement.application.catalog.catalog_access import (
     _require_manage,
 )
-from src.core.modules.inventory_procurement.application.catalog.catalog_audit import (
-    record_inventory_item_create_audit,
-    record_inventory_item_update_audit,
+from src.core.modules.inventory_procurement.application.catalog.catalog_activity import (
+    record_inventory_item_create_activity,
+    record_inventory_item_update_activity,
 )
 from src.core.modules.inventory_procurement.application.catalog.catalog_context import (
     _active_organization,
@@ -152,7 +152,7 @@ def create_item(
     except Exception:
         owner._session.rollback()
         raise
-    record_inventory_item_create_audit(
+    record_inventory_item_create_activity(
         owner,
         organization_id=organization.id,
         item=item,
@@ -351,7 +351,7 @@ def update_item(
     except Exception:
         owner._session.rollback()
         raise
-    record_inventory_item_update_audit(
+    record_inventory_item_update_activity(
         owner,
         organization_id=organization.id,
         item=item,

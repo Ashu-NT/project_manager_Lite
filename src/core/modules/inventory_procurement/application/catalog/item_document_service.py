@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.inventory_procurement.application.catalog.catalog_audit import (
-    record_inventory_item_link_document_audit,
-    record_inventory_item_unlink_document_audit,
+from src.core.modules.inventory_procurement.application.catalog.catalog_activity import (
+    record_inventory_item_link_document_activity,
+    record_inventory_item_unlink_document_activity,
 )
 from src.core.modules.inventory_procurement.application.catalog.item_queries import (
     get_item,
@@ -59,7 +59,7 @@ def link_document(
         document_id=document_id,
         link_role=link_role,
     )
-    record_inventory_item_link_document_audit(
+    record_inventory_item_link_document_activity(
         owner,
         item_id=item.id,
         document_id=document_id,
@@ -86,7 +86,7 @@ def unlink_document(
         document_id=document_id,
         link_role=link_role,
     )
-    record_inventory_item_unlink_document_audit(
+    record_inventory_item_unlink_document_activity(
         owner,
         item_id=item.id,
         document_id=document_id,

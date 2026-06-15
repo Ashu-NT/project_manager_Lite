@@ -322,7 +322,7 @@ AppLayouts.WorkspaceFrame {
                         isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                         showEdit: false
                         showDelete: false
-                        sections: ["Overview", "Activity", "Related Items", "Audit"]
+                        sections: ["Overview", "Activity", "Related Items"]
                         onBackRequested: state._handleDetailAction("back")
 
                         AppWidgets.ContextualActionToolbar {

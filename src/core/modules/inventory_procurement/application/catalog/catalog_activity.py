@@ -12,7 +12,7 @@ from src.core.modules.inventory_procurement.domain.catalog.item import (
 from src.core.shared.activity import record_activity
 
 
-def _build_category_create_audit_details(
+def _build_category_create_details(
     organization_id: str,
     category: InventoryItemCategory,
 ) -> dict[str, object]:
@@ -26,16 +26,16 @@ def _build_category_create_audit_details(
     }
 
 
-def _build_category_update_audit_details(
+def _build_category_update_details(
     organization_id: str,
     category: InventoryItemCategory,
 ) -> dict[str, object]:
-    details = _build_category_create_audit_details(organization_id, category)
+    details = _build_category_create_details(organization_id, category)
     details["is_active"] = category.is_active
     return details
 
 
-def _build_item_audit_details(
+def _build_item_details(
     organization_id: str,
     item: StockItem,
 ) -> dict[str, object]:
@@ -49,7 +49,7 @@ def _build_item_audit_details(
     }
 
 
-def _build_document_audit_details(
+def _build_document_details(
     document_id: str,
     link_role: str,
 ) -> dict[str, object]:
@@ -59,7 +59,7 @@ def _build_document_audit_details(
     }
 
 
-def record_inventory_item_category_create_audit(
+def record_inventory_item_category_create_activity(
     owner: Any,
     *,
     organization_id: str,
@@ -71,11 +71,11 @@ def record_inventory_item_category_create_audit(
         entity_type="inventory_item_category",
         entity_id=category.id,
         module="inventory_procurement",
-        details=_build_category_create_audit_details(organization_id, category),
+        details=_build_category_create_details(organization_id, category),
     )
 
 
-def record_inventory_item_category_update_audit(
+def record_inventory_item_category_update_activity(
     owner: Any,
     *,
     organization_id: str,
@@ -87,11 +87,11 @@ def record_inventory_item_category_update_audit(
         entity_type="inventory_item_category",
         entity_id=category.id,
         module="inventory_procurement",
-        details=_build_category_update_audit_details(organization_id, category),
+        details=_build_category_update_details(organization_id, category),
     )
 
 
-def record_inventory_item_create_audit(
+def record_inventory_item_create_activity(
     owner: Any,
     *,
     organization_id: str,
@@ -103,11 +103,11 @@ def record_inventory_item_create_audit(
         entity_type="inventory_item",
         entity_id=item.id,
         module="inventory_procurement",
-        details=_build_item_audit_details(organization_id, item),
+        details=_build_item_details(organization_id, item),
     )
 
 
-def record_inventory_item_update_audit(
+def record_inventory_item_update_activity(
     owner: Any,
     *,
     organization_id: str,
@@ -119,11 +119,11 @@ def record_inventory_item_update_audit(
         entity_type="inventory_item",
         entity_id=item.id,
         module="inventory_procurement",
-        details=_build_item_audit_details(organization_id, item),
+        details=_build_item_details(organization_id, item),
     )
 
 
-def record_inventory_item_link_document_audit(
+def record_inventory_item_link_document_activity(
     owner: Any,
     *,
     item_id: str,
@@ -136,11 +136,11 @@ def record_inventory_item_link_document_audit(
         entity_type="inventory_item",
         entity_id=item_id,
         module="inventory_procurement",
-        details=_build_document_audit_details(document_id, link_role),
+        details=_build_document_details(document_id, link_role),
     )
 
 
-def record_inventory_item_unlink_document_audit(
+def record_inventory_item_unlink_document_activity(
     owner: Any,
     *,
     item_id: str,
@@ -153,15 +153,15 @@ def record_inventory_item_unlink_document_audit(
         entity_type="inventory_item",
         entity_id=item_id,
         module="inventory_procurement",
-        details=_build_document_audit_details(document_id, link_role),
+        details=_build_document_details(document_id, link_role),
     )
 
 
 __all__ = [
-    "record_inventory_item_category_create_audit",
-    "record_inventory_item_category_update_audit",
-    "record_inventory_item_create_audit",
-    "record_inventory_item_link_document_audit",
-    "record_inventory_item_unlink_document_audit",
-    "record_inventory_item_update_audit",
+    "record_inventory_item_category_create_activity",
+    "record_inventory_item_category_update_activity",
+    "record_inventory_item_create_activity",
+    "record_inventory_item_link_document_activity",
+    "record_inventory_item_unlink_document_activity",
+    "record_inventory_item_update_activity",
 ]

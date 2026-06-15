@@ -75,8 +75,7 @@ Item {
     readonly property var detailSections: [
         "Entries",
         "Approval History",
-        "Labor Notes",
-        "Audit Trail"
+        "Labor Notes"
     ]
 
     // ── Detail actions ───────────────────────────────────────────────────

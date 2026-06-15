@@ -1,4 +1,4 @@
-from .audit_activity_serializer import serialize_activity_entries
+from .activity_serializer import serialize_activity_entries
 from .catalog_serializer import serialize_catalog_overview_view_model
 from .dashboard_serializer import (
     serialize_dashboard_overview_view_model,
