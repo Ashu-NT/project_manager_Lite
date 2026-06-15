@@ -554,9 +554,12 @@ class SqlAlchemyReceiptLineRepository(ReceiptLineRepository, _ProcurementLineRep
         )
 
     def add(self, line: ReceiptLine) -> None:
-        receipt_header = self.session.get(ReceiptHeaderORM, line.receipt_header_id)
-        if receipt_header is None:
-            raise NotFoundError("Receipt not found.")
+        self._require_in_scope(
+            ReceiptHeaderORM,
+            line.receipt_header_id,
+            operation_label="add receipt line",
+            not_found_message="Receipt not found.",
+        )
         purchase_order_line = self._get_line_in_scope(
             PurchaseOrderLineORM,
             PurchaseOrderORM,

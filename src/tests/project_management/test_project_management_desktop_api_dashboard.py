@@ -1,0 +1,472 @@
+from datetime import date, datetime
+from types import SimpleNamespace
+
+from src.core.modules.project_management.api.desktop import (
+    build_project_management_dashboard_desktop_api,
+)
+from src.core.modules.project_management.domain.risk.register import (
+    RegisterEntrySeverity,
+    RegisterEntryStatus,
+    RegisterEntryType,
+)
+
+
+def test_project_management_dashboard_desktop_api_builds_empty_overview() -> None:
+    api = build_project_management_dashboard_desktop_api()
+
+    overview = api.build_empty_overview()
+
+    assert overview.title == "Dashboard"
+    assert overview.subtitle == "Select a project to see schedule and cost health."
+    assert [metric.label for metric in overview.metrics] == [
+        "Tasks",
+        "Progress",
+        "In flight",
+        "Blocked",
+        "Critical",
+        "Late",
+        "Cost variance",
+        "Spend vs plan",
+    ]
+
+
+def test_project_management_dashboard_desktop_api_maps_dashboard_kpis() -> None:
+    api = build_project_management_dashboard_desktop_api()
+    dashboard_data = SimpleNamespace(
+        kpi=SimpleNamespace(
+            name="Plant Upgrade",
+            tasks_total=10,
+            tasks_completed=4,
+            tasks_in_progress=3,
+            task_blocked=1,
+            critical_tasks=2,
+            late_tasks=1,
+            cost_variance=-2500.5,
+            total_actual_cost=9000.0,
+            total_planned_cost=12000.0,
+        )
+    )
+
+    overview = api.build_overview_from_dashboard_data(
+        project_name="Plant Upgrade",
+        dashboard_data=dashboard_data,
+    )
+
+    metric_by_label = {metric.label: metric for metric in overview.metrics}
+    assert overview.title == "Plant Upgrade"
+    assert metric_by_label["Tasks"].value == "4 / 10"
+    assert metric_by_label["Progress"].value == "40.00%"
+    assert metric_by_label["Cost variance"].value == "-2,500.50"
+    assert metric_by_label["Spend vs plan"].value == "9,000 / 12,000"
+
+
+def test_project_management_dashboard_desktop_api_builds_preview_snapshot() -> None:
+    api = build_project_management_dashboard_desktop_api()
+
+    snapshot = api.build_snapshot()
+
+    assert snapshot.selected_project_id == "__portfolio__"
+    assert snapshot.project_options[0].label == "Portfolio Overview"
+    assert snapshot.baseline_options[0].label == "Portfolio view"
+    assert snapshot.panels[0].title == "Earned Value (EVM)"
+    assert snapshot.charts[0].title == "Burndown / Status Rollup"
+    assert snapshot.sections[0].title == "Dashboard Preview"
+    assert "not connected" in snapshot.empty_state
+
+
+def test_project_management_dashboard_desktop_api_builds_portfolio_service_snapshot() -> None:
+    api = build_project_management_dashboard_desktop_api(
+        dashboard_service=SimpleNamespace(
+            get_portfolio_data=lambda: SimpleNamespace(
+                kpi=SimpleNamespace(
+                    project_id="__portfolio__",
+                    name="Portfolio Overview",
+                    tasks_total=18,
+                    tasks_completed=10,
+                    tasks_in_progress=5,
+                    task_blocked=1,
+                    critical_tasks=2,
+                    late_tasks=3,
+                    cost_variance=4200.0,
+                    total_actual_cost=52000.0,
+                    total_planned_cost=47800.0,
+                ),
+                portfolio=SimpleNamespace(
+                    projects_total=3,
+                    status_rollup=[],
+                    project_rankings=[],
+                ),
+                alerts=[],
+                milestone_health=[],
+                critical_watchlist=[],
+                burndown=[],
+                resource_load=[],
+                upcoming_tasks=[],
+                evm=None,
+                register_summary=None,
+                cost_sources=None,
+            )
+        )
+    )
+
+    snapshot = api.build_snapshot(project_id="__portfolio__")
+
+    assert snapshot.selected_project_id == "__portfolio__"
+    assert snapshot.charts[0].title == "Portfolio Status"
+    assert snapshot.charts[1].title == "Cost Pressure"
+
+
+def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> None:
+    api = build_project_management_dashboard_desktop_api(
+        project_service=SimpleNamespace(
+            list_projects=lambda: [SimpleNamespace(id="proj-1", name="Plant Upgrade")]
+        ),
+        baseline_service=SimpleNamespace(
+            list_baselines=lambda _project_id: [
+                SimpleNamespace(
+                    id="base-1",
+                    name="Weekly Freeze",
+                    created_at=datetime(2026, 4, 27, 10, 30),
+                )
+            ]
+        ),
+        dashboard_service=SimpleNamespace(
+            get_dashboard_data=lambda project_id, baseline_id=None: SimpleNamespace(
+                kpi=SimpleNamespace(
+                    project_id=project_id,
+                    name="Plant Upgrade",
+                    tasks_total=10,
+                    tasks_completed=4,
+                    tasks_in_progress=3,
+                    task_blocked=1,
+                    critical_tasks=2,
+                    late_tasks=1,
+                    cost_variance=-2500.5,
+                    total_actual_cost=9000.0,
+                    total_planned_cost=12000.0,
+                ),
+                alerts=["Owner assignment missing on punchlist"],
+                milestone_health=[
+                    SimpleNamespace(
+                        task_id="mile-1",
+                        task_name="Mechanical Completion",
+                        status_label="Watch",
+                        owner_name="Alex",
+                        target_date=None,
+                        slip_days=3,
+                    )
+                ],
+                critical_watchlist=[
+                    SimpleNamespace(
+                        task_id="crit-1",
+                        task_name="Cable Pull",
+                        status_label="Critical",
+                        owner_name="Jordan",
+                        finish_date=None,
+                        total_float_days=0,
+                        late_by_days=2,
+                    )
+                ],
+                resource_load=[
+                    SimpleNamespace(
+                        resource_id="res-1",
+                        resource_name="Electrical Crew",
+                        utilization_percent=112.0,
+                        total_allocation_percent=112.0,
+                        capacity_percent=100.0,
+                        tasks_count=5,
+                    )
+                ],
+                upcoming_tasks=[
+                    SimpleNamespace(
+                        task_id="task-1",
+                        name="Commissioning Pack",
+                        is_late=False,
+                        is_critical=True,
+                        start_date=date(2026, 4, 30),
+                        end_date=date(2026, 5, 4),
+                        main_resource="Taylor",
+                        percent_complete=55.0,
+                    )
+                ],
+                burndown=[
+                    SimpleNamespace(day=date(2026, 4, 28), remaining_tasks=8),
+                    SimpleNamespace(day=date(2026, 4, 29), remaining_tasks=6),
+                    SimpleNamespace(day=date(2026, 4, 30), remaining_tasks=5),
+                ],
+                evm=SimpleNamespace(
+                    as_of=date(2026, 4, 30),
+                    CPI=0.92,
+                    SPI=0.88,
+                    PV=12000.0,
+                    EV=10400.0,
+                    AC=11300.0,
+                    EAC=13200.0,
+                    VAC=-1200.0,
+                    TCPI_to_BAC=1.11,
+                    TCPI_to_EAC=1.03,
+                    status_text="Cost is unfavorable. Schedule is behind target. Forecast is trending over budget. TCPI needs recovery focus.",
+                ),
+                register_summary=SimpleNamespace(
+                    open_risks=3,
+                    open_issues=2,
+                    pending_changes=1,
+                    overdue_items=1,
+                    critical_items=2,
+                    urgent_items=[
+                        SimpleNamespace(
+                            entry_id="reg-1",
+                            entry_type=RegisterEntryType.RISK,
+                            title="Critical supplier dependency",
+                            severity=RegisterEntrySeverity.CRITICAL,
+                            status=RegisterEntryStatus.OPEN,
+                            owner_name="Lead Planner",
+                            due_date=date(2026, 5, 2),
+                        )
+                    ],
+                ),
+                cost_sources=SimpleNamespace(
+                    rows=[
+                        SimpleNamespace(
+                            source_label="Direct Cost",
+                            planned=7000.0,
+                            committed=6500.0,
+                            actual=7200.0,
+                        ),
+                        SimpleNamespace(
+                            source_label="Computed Labor",
+                            planned=5000.0,
+                            committed=0.0,
+                            actual=4100.0,
+                        ),
+                    ]
+                ),
+            )
+        ),
+    )
+
+    snapshot = api.build_snapshot(project_id="proj-1", baseline_id="base-1")
+
+    assert snapshot.selected_project_id == "proj-1"
+    assert snapshot.selected_baseline_id == "base-1"
+    assert snapshot.baseline_options[1].label == "Weekly Freeze (2026-04-27 10:30)"
+    assert snapshot.overview.title == "Plant Upgrade"
+    assert [panel.title for panel in snapshot.panels] == [
+        "Earned Value (EVM)",
+        "Register Summary",
+        "Cost Sources",
+        "Baseline Variance",
+        "Resource Overloads",
+        "Available Reports",
+    ]
+    assert snapshot.panels[0].hint == "As of 2026-04-30 (baseline: Weekly Freeze (2026-04-27 10:30))"
+    assert snapshot.panels[0].metrics[0].label == "CPI"
+    assert snapshot.panels[1].rows[3].tone == "danger"
+    assert snapshot.panels[2].rows[0].supporting_text == "Committed: 6,500"
+    assert [chart.title for chart in snapshot.charts] == [
+        "Schedule Trend",
+        "Cost Trend",
+        "Resource Load",
+    ]
+    assert snapshot.charts[0].chart_type == "line"
+    assert snapshot.charts[0].points[0].target_value == 8.0
+    assert snapshot.charts[1].points[0].tone == "danger"
+    assert snapshot.health_cards[0].title == "Schedule Health"
+    assert snapshot.operational_tabs[0].id == "delayed_tasks"
+    assert snapshot.operational_tables[0].id == "delayed_tasks"
+    assert snapshot.activity_feed.title == "Recent Activity"
+    assert [section.title for section in snapshot.sections] == [
+        "Alerts",
+        "Milestones",
+        "Critical Path",
+        "Upcoming Work",
+        "Urgent Register Items",
+        "Reports",
+    ]
+    assert snapshot.sections[0].items[0].title == "Owner assignment missing on punchlist"
+    assert snapshot.sections[2].items[0].meta_text == "Late by 2 day(s)"
+    assert snapshot.sections[3].items[0].meta_text == "Progress: 55.00%"
+    assert snapshot.sections[4].items[0].status_label == "Critical"
+
+
+def test_project_management_dashboard_desktop_api_uses_real_period_labels_for_trend_axes() -> None:
+    api = build_project_management_dashboard_desktop_api(
+        project_service=SimpleNamespace(
+            list_projects=lambda: [SimpleNamespace(id="proj-1", name="Plant Upgrade")]
+        ),
+        baseline_service=SimpleNamespace(list_baselines=lambda _project_id: []),
+        dashboard_service=SimpleNamespace(
+            get_dashboard_data=lambda project_id, baseline_id=None: SimpleNamespace(
+                kpi=SimpleNamespace(
+                    project_id=project_id,
+                    name="Plant Upgrade",
+                    tasks_total=6,
+                    tasks_completed=2,
+                    tasks_in_progress=3,
+                    task_blocked=0,
+                    critical_tasks=1,
+                    late_tasks=1,
+                    cost_variance=1200.0,
+                    total_actual_cost=10000.0,
+                    total_planned_cost=11200.0,
+                ),
+                alerts=[],
+                milestone_health=[],
+                critical_watchlist=[],
+                resource_load=[],
+                upcoming_tasks=[],
+                burndown=[],
+                evm=SimpleNamespace(
+                    baseline_id="base-1",
+                    as_of=date(2026, 5, 31),
+                    CPI=0.96,
+                    SPI=0.93,
+                    PV=12000.0,
+                    EV=11200.0,
+                    AC=11850.0,
+                    EAC=12600.0,
+                    VAC=-600.0,
+                    TCPI_to_BAC=1.04,
+                    TCPI_to_EAC=1.01,
+                    status_text="Watch. Recover. Monitor. Above target.",
+                ),
+                register_summary=None,
+                cost_sources=None,
+            )
+        ),
+        reporting_service=SimpleNamespace(
+            get_evm_series=lambda project_id, baseline_id=None, as_of=None: [
+                SimpleNamespace(
+                    period_end=date(2026, 3, 31),
+                    PV=9000.0,
+                    EV=8800.0,
+                    AC=9100.0,
+                    BAC=15000.0,
+                    CPI=0.97,
+                    SPI=0.98,
+                ),
+                SimpleNamespace(
+                    period_end=date(2026, 4, 30),
+                    PV=10500.0,
+                    EV=9800.0,
+                    AC=10150.0,
+                    BAC=15000.0,
+                    CPI=0.97,
+                    SPI=0.93,
+                ),
+                SimpleNamespace(
+                    period_end=date(2026, 5, 31),
+                    PV=12000.0,
+                    EV=11200.0,
+                    AC=11850.0,
+                    BAC=15000.0,
+                    CPI=0.95,
+                    SPI=0.93,
+                ),
+            ]
+        ),
+    )
+
+    snapshot = api.build_snapshot(project_id="proj-1", period_key="90d")
+
+    assert [point.label for point in snapshot.charts[0].points] == [
+        "31 Mar",
+        "30 Apr",
+        "31 May",
+    ]
+    assert [point.supporting_text for point in snapshot.charts[0].points] == [
+        "2026-03-31",
+        "2026-04-30",
+        "2026-05-31",
+    ]
+    assert snapshot.charts[1].points[0].label == "31 Mar"
+
+
+def test_project_management_dashboard_desktop_api_normalizes_naive_activity_timestamps() -> None:
+    api = build_project_management_dashboard_desktop_api(
+        project_service=SimpleNamespace(
+            list_projects=lambda: [SimpleNamespace(id="proj-1", name="Plant Upgrade")]
+        ),
+        baseline_service=SimpleNamespace(list_baselines=lambda _project_id: []),
+        dashboard_service=SimpleNamespace(
+            get_dashboard_data=lambda project_id, baseline_id=None: SimpleNamespace(
+                kpi=SimpleNamespace(
+                    project_id=project_id,
+                    name="Plant Upgrade",
+                    tasks_total=4,
+                    tasks_completed=1,
+                    tasks_in_progress=2,
+                    task_blocked=0,
+                    critical_tasks=1,
+                    late_tasks=1,
+                    cost_variance=0.0,
+                    total_actual_cost=1000.0,
+                    total_planned_cost=1500.0,
+                ),
+                alerts=[],
+                milestone_health=[],
+                critical_watchlist=[],
+                resource_load=[],
+                upcoming_tasks=[],
+                burndown=[],
+                evm=None,
+                register_summary=None,
+                cost_sources=None,
+            )
+        ),
+        collaboration_service=SimpleNamespace(
+            list_workspace_snapshot=lambda limit=120: SimpleNamespace(
+                notifications=[
+                    SimpleNamespace(
+                        entity_id="approval-1",
+                        entity_type="approval_request",
+                        headline="Approval requested",
+                        notification_type="approval",
+                        actor_username="planner",
+                        created_at=datetime(2026, 5, 20, 9, 30),
+                        project_id="proj-1",
+                        project_name="Plant Upgrade",
+                    )
+                ],
+                recent_activity=[
+                    SimpleNamespace(
+                        comment_id="comment-1",
+                        task_id="task-1",
+                        task_name="Cable Pull",
+                        unread=False,
+                        author_username="pm",
+                        created_at=datetime(2026, 5, 19, 8, 15),
+                        project_id="proj-1",
+                        project_name="Plant Upgrade",
+                    )
+                ],
+                inbox=[],
+                active_presence=[],
+            )
+        ),
+        approval_service=SimpleNamespace(
+            list_pending=lambda project_id=None, limit=120: [
+                SimpleNamespace(
+                    id="req-1",
+                    project_id="proj-1",
+                    requested_by_username="planner",
+                    requested_at=datetime(2026, 5, 20, 7, 0),
+                    status=SimpleNamespace(value="pending"),
+                    module_key="project_management",
+                    request_type="baseline",
+                    entity_type="project_baseline",
+                    entity_label="Weekly Freeze",
+                    context_label="Plant Upgrade",
+                )
+            ]
+        ),
+    )
+
+    snapshot = api.build_snapshot(project_id="proj-1", period_key="30d")
+
+    assert snapshot.activity_feed.items[0].title == "Approval requested"
+    assert snapshot.activity_feed.items[0].meta_text.endswith("2026-05-20 09:30")
+    approvals_table = next(
+        table for table in snapshot.operational_tables if table.id == "pending_approvals"
+    )
+    assert approvals_table.rows[0].values["requestedAt"] == "2026-05-20 07:00"

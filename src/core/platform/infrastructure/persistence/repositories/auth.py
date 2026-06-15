@@ -148,24 +148,21 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
         last_active_organization_id: str | None,
         updated_at: datetime,
     ) -> bool:
-        bind = self.session.get_bind()
         normalized_tenant_id = str(last_active_tenant_id or "").strip() or None
         normalized_organization_id = str(last_active_organization_id or "").strip() or None
         normalized_updated_at = ensure_utc_datetime(updated_at)
-        with Session(bind=bind) as temp_session:
-            obj = temp_session.get(AuthSessionORM, session_id)
-            if obj is None:
-                return False
-            if (
-                obj.last_active_tenant_id == normalized_tenant_id
-                and obj.last_active_organization_id == normalized_organization_id
-            ):
-                return False
-            obj.last_active_tenant_id = normalized_tenant_id
-            obj.last_active_organization_id = normalized_organization_id
-            obj.updated_at = normalized_updated_at
-            temp_session.commit()
-            return True
+        obj = self.session.get(AuthSessionORM, session_id)
+        if obj is None:
+            return False
+        if (
+            obj.last_active_tenant_id == normalized_tenant_id
+            and obj.last_active_organization_id == normalized_organization_id
+        ):
+            return False
+        obj.last_active_tenant_id = normalized_tenant_id
+        obj.last_active_organization_id = normalized_organization_id
+        obj.updated_at = normalized_updated_at
+        return True
 
     def touch_validation(
         self,
@@ -174,23 +171,20 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
         validated_at: datetime,
         throttle_seconds: int = 60,
     ) -> bool:
-        bind = self.session.get_bind()
         min_elapsed_seconds = max(0, int(throttle_seconds or 0))
-        with Session(bind=bind) as temp_session:
-            obj = temp_session.get(AuthSessionORM, session_id)
-            if obj is None:
-                return False
-            current_validated_at = ensure_utc_datetime(obj.last_validated_at)
-            if (
-                current_validated_at is not None
-                and min_elapsed_seconds > 0
-                and (validated_at - current_validated_at).total_seconds() < min_elapsed_seconds
-            ):
-                return False
-            obj.last_validated_at = validated_at
-            obj.updated_at = validated_at
-            temp_session.commit()
-            return True
+        obj = self.session.get(AuthSessionORM, session_id)
+        if obj is None:
+            return False
+        current_validated_at = ensure_utc_datetime(obj.last_validated_at)
+        if (
+            current_validated_at is not None
+            and min_elapsed_seconds > 0
+            and (validated_at - current_validated_at).total_seconds() < min_elapsed_seconds
+        ):
+            return False
+        obj.last_validated_at = validated_at
+        obj.updated_at = validated_at
+        return True
 
 
 class SqlAlchemyRoleRepository(RoleRepository):
