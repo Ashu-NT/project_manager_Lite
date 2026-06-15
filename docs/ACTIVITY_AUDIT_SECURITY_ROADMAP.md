@@ -1,6 +1,6 @@
 # Activity, Audit & Security Roadmap
 
-**Status:** Activity/Audit migration complete — Phases 1–5 and 7–9 done; Phase 6 activity/audit cleanup done (6.1 verified, 6.2 verified, 6.3 complete, 6.4 verified, 6.5 complete, 6.7 audited); broader 6.6/6.8–6.10 architecture cleanup backlog open  
+**Status:** Activity/Audit migration complete — Phases 1–9 done; Phase 6 architecture cleanup complete (6.1–6.5 verified/complete, 6.6 deferred, 6.7 audited, 6.8–6.10 verified); 3 pre-existing QML guardrail failures unrelated to this work  
 **Date:** 2026-06-15  
 **Branch:** `refactor/safe-start`
 
@@ -1215,12 +1215,12 @@ Completed:
 
 **Test gate:** Auth events appear in admin audit view. PM/Inventory activity not in audit view. Append-only contract test passes.
 
-### Phase 6 — Architecture Cleanup & Simplification (PARTIAL — 6.1–6.5 complete/verified, 6.7 audited; 6.6/6.8–6.10 backlog open)
+### Phase 6 — Architecture Cleanup & Simplification (COMPLETE — 6.6 deferred UI work only)
 
 **Goal:** Remove obsolete code, duplicate validations, legacy audit wiring, and temporary migration artifacts after the Activity/Audit split and tenant hardening work are complete.
 
 **Completed 2026-06-14:** Section 6.3 (record_audit() migration to record_audit_entry() across all platform services) and Section 6.5 (QML audit sections removed from CollaborationDetailPanel and CollaborationWorkspaceState).  
-**Completed 2026-06-15:** Section 6.3 remaining (catalog_audit.py→catalog_activity.py, assignment_audit.py→assignment_activity.py, audit_activity_serializer.py→activity_serializer.py, all callers updated); Section 6.5 remaining ("Audit" tab removed from CollaborationWorkspacePage sections, "Audit Trail" tab + dead _sec3 removed from TimesheetsWorkspaceState/TimesheetsDetailPanel); Sections 6.1, 6.2, 6.4 verified (no unsafe queries, no duplicate checks, no audit presenters in business modules); Section 6.7 audited (no dead audit code found in business modules). Sections 6.6, 6.8–6.10 are a separate architecture cleanup backlog.
+**Completed 2026-06-15:** Section 6.3 remaining (catalog_audit.py→catalog_activity.py, assignment_audit.py→assignment_activity.py, audit_activity_serializer.py→activity_serializer.py, all callers updated); Section 6.5 remaining ("Audit" tab removed from CollaborationWorkspacePage sections, "Audit Trail" tab + dead _sec3 removed from TimesheetsWorkspaceState/TimesheetsDetailPanel); Sections 6.1, 6.2, 6.4 verified; Section 6.7 audited; department_audit.py inlined and deleted; path_rewrites.py dashboard stale entries fixed (10 entries updated to actual subdirectory paths); src/ui/ __pycache__ tree deleted (fixed 2 architecture guardrail test failures); Sections 6.8–6.10 verified clean (wiring correct, no legacy audit chains, no Audit UI in business modules).
 
 #### 6.1 Repository Cleanup
 
