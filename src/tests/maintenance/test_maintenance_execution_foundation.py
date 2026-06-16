@@ -25,7 +25,8 @@ from src.core.modules.maintenance import (
     MaintenanceWorkOrderTaskStepService,
 )
 from src.core.shared.events.domain_events import domain_events
-from .test_maintenance_foundation import _OrgRepo, _TenantContext, _WorkOrderRepo, _WorkOrderTaskRepo, _user_session
+from .test_maintenance_foundation_asset import _OrgRepo, _TenantContext,  _user_session
+from .test_maintenance_foundation_work_order import _WorkOrderRepo, _WorkOrderTaskRepo
 from src.core.platform.org.domain import Organization
 from src.core.platform.site.domain import Site
 from src.core.platform.common.exceptions import ValidationError

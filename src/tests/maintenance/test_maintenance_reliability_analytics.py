@@ -21,7 +21,7 @@ from src.core.platform.auth.domain.session import UserSessionContext, UserSessio
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.org.domain import Organization
 from src.core.platform.site.domain import Site
-from .test_maintenance_foundation import _TenantContext
+from .test_maintenance_foundation_asset import _TenantContext
 
 
 class _OrgRepo:

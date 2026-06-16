@@ -18,7 +18,7 @@ from src.core.modules.maintenance import MaintenanceDowntimeEventService, Mainte
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
-from .test_maintenance_foundation import _TenantContext
+from .test_maintenance_foundation_asset import _TenantContext
 
 
 class _OrgRepo(OrganizationRepository):
