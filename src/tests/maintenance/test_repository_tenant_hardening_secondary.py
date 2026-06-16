@@ -37,8 +37,10 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.tests.maintenance._maintenance_tenant_hardening_helpers import (
     _maintenance_repo,
 )
-from src.tests.maintenance.test_repository_tenant_hardening_root_context import _seed_maintenance_root_scope_rows
-
+from src.tests.maintenance.test_repository_tenant_hardening_root_context import (
+    _seed_maintenance_root_scope_rows
+    as _seed_maintenance_secondary_scope_rows
+)
 @pytest.mark.parametrize(
     ("repo_factory", "operation"),
     [
