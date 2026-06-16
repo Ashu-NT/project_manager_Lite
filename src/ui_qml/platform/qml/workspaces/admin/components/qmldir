@@ -1,4 +1,4 @@
-﻿module Platform.AdminComponents
+﻿module workspaces.admin.components
 AdminEntityWorkspace 1.0 AdminEntityWorkspace.qml
 AdminNavSidebar 1.0 AdminNavSidebar.qml
 AdminDetailTableSection 1.0 AdminDetailTableSection.qml

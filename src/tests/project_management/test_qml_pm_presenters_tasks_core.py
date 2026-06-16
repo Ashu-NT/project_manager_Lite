@@ -62,7 +62,7 @@ def test_tasks_controller_initial_state(
     settings.clear()
     collaboration_service = _FakeCollaborationService()
     timesheets_api = _FakeTaskTimesheetsDesktopApi()
-    catalog = _build_tasks_catalog(
+    catalog, _ = _build_tasks_catalog(
         tmp_path=tmp_path,
         collaboration_service=collaboration_service,
         timesheets_api=timesheets_api,
@@ -113,7 +113,7 @@ def test_tasks_controller_activate_and_load_detail(
     settings.clear()
     collaboration_service = _FakeCollaborationService()
     timesheets_api = _FakeTaskTimesheetsDesktopApi()
-    catalog = _build_tasks_catalog(
+    catalog, _ = _build_tasks_catalog(
         tmp_path=tmp_path,
         collaboration_service=collaboration_service,
         timesheets_api=timesheets_api,
@@ -180,7 +180,7 @@ def test_tasks_controller_search_and_saved_views(
     settings.clear()
     collaboration_service = _FakeCollaborationService()
     timesheets_api = _FakeTaskTimesheetsDesktopApi()
-    catalog = _build_tasks_catalog(
+    catalog, _ = _build_tasks_catalog(
         tmp_path=tmp_path,
         collaboration_service=collaboration_service,
         timesheets_api=timesheets_api,

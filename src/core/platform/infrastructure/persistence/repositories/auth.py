@@ -184,6 +184,7 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
             return False
         obj.last_validated_at = validated_at
         obj.updated_at = validated_at
+        self.session.flush()
         return True
 
 

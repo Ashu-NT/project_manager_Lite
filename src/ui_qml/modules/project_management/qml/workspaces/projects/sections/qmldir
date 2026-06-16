@@ -1,4 +1,4 @@
-﻿module ProjectManagement.ProjectsSections
+﻿module workspaces.projects.sections
 ProjectsOverviewSection 1.0 ProjectsOverviewSection.qml
 ProjectsScheduleSection 1.0 ProjectsScheduleSection.qml
 ProjectsTasksSection 1.0 ProjectsTasksSection.qml

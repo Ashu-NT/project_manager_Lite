@@ -6,7 +6,7 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Maintenance.Controllers 1.0 as MaintenanceControllers
-import "../sections"
+import workspaces.assets.sections 1.0
 
 Item {
     id: root

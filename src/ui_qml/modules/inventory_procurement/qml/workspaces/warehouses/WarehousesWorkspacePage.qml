@@ -7,7 +7,7 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
-import "../inventory/dialogs" as InventoryDlgs
+import workspaces.inventory.dialogs 1.0 as InventoryDlgs
 import "panels" as Panels
 import "components" as Components
 

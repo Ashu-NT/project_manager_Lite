@@ -12,10 +12,6 @@ _LARGE_MODULE_BUDGETS = {
     "src/core/modules/maintenance/infrastructure/persistence/orm/models.py": 1330,
     "src/ui_qml/modules/project_management/controllers/scheduling/scheduling_workspace_controller.py": 1338,
     "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": 1600,
-    "src/tests/project_management/test_project_management_desktop_api.py": 3390,
-    "src/tests/project_management/test_qml_project_management_presenters.py": 2420,
-    "src/tests/project_management/test_repository_tenant_hardening.py": 1300,
-    "src/tests/platform/test_qml_platform_presenters.py": 2510,
 }
 
 

@@ -5,7 +5,7 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
-import "../components"
+import workspaces.admin.components 1.0
 
 // Roles & Access — scoped access grant detail page.
 // Follows the shared Admin list/detail pattern (SectionDetailPage + section-aware

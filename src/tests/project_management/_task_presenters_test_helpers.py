@@ -271,7 +271,20 @@ def _build_task_record(*, task_id, project_id, name, description, status, start_
     )
 
 
-def _build_tasks_catalog(tmp_path: Path, task_service, collaboration_service, timesheets_api):
+def _build_tasks_catalog(
+    tmp_path: Path,
+    task_service=None,
+    collaboration_service=None,
+    timesheets_api=None,
+    *,
+    settings=None,
+):
+    if task_service is None:
+        task_service = _make_task_service()
+    if collaboration_service is None:
+        collaboration_service = _FakeCollaborationService()
+    if timesheets_api is None:
+        timesheets_api = _FakeTaskTimesheetsDesktopApi()
     tasks_api = build_project_management_tasks_desktop_api(
         project_service=SimpleNamespace(
             list_projects=lambda: [
@@ -290,8 +303,9 @@ def _build_tasks_catalog(tmp_path: Path, task_service, collaboration_service, ti
         ),
     )
     collaboration_api = build_project_management_collaboration_desktop_api(collaboration_service=collaboration_service)
-    settings = QSettings(str(tmp_path / "pm-task-views.ini"), QSettings.IniFormat)
-    settings.clear()
+    if settings is None:
+        settings = QSettings(str(tmp_path / "pm-task-views.ini"), QSettings.IniFormat)
+        settings.clear()
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(
             platform_runtime=_FakePmRuntimeApi("org-1"),

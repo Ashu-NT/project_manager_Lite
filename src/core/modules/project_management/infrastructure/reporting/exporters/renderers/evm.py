@@ -1,5 +1,7 @@
 from pathlib import Path
-import matplotlib.pyplot as plt
+
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.figure import Figure
 
 
 class EvmCurveRenderer:
@@ -10,7 +12,9 @@ class EvmCurveRenderer:
         ev = [float(p.EV or 0.0) for p in series]
         ac = [float(p.AC or 0.0) for p in series]
 
-        fig, ax = plt.subplots(figsize=(9, 3))
+        fig = Figure(figsize=(9, 3))
+        FigureCanvasAgg(fig)
+        ax = fig.add_subplot(1, 1, 1)
         ax.plot(xs, pv, label="PV")
         ax.plot(xs, ev, label="EV")
         ax.plot(xs, ac, label="AC")
@@ -19,6 +23,6 @@ class EvmCurveRenderer:
 
         fig.tight_layout()
         fig.savefig(output_path, dpi=150)
-        plt.close(fig)
+        fig.clear()
 
         return output_path

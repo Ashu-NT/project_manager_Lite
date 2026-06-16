@@ -1,17 +1,11 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.infrastructure.importers.scheduling.mpp.mpp_parser import (
-    MSProjectXmlParser,
-)
-from src.core.modules.project_management.infrastructure.importers.scheduling.primavera.p6_parser import (
-    P6Parser,
-)
-from src.core.modules.project_management.infrastructure.importers.services.validation import (
+from src.core.modules.project_management.application.imports import (
+    CsvImportParser,
     ImportValidationService,
     ImportValidationSeverity,
-)
-from src.core.modules.project_management.infrastructure.importers.utils.csv_parser import (
-    CsvImportParser,
+    MSProjectXmlParser,
+    P6Parser,
 )
 from src.ui_qml.modules.project_management.utils.file_paths import local_path_from_qml_file_url
 

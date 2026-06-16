@@ -36,11 +36,201 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 from src.tests.maintenance._maintenance_tenant_hardening_helpers import (
     _maintenance_repo,
+    _seed_maintenance_root_scope_rows,
 )
-from src.tests.maintenance.test_repository_tenant_hardening_root_context import (
-    _seed_maintenance_root_scope_rows
-    as _seed_maintenance_secondary_scope_rows
-)
+
+
+def _seed_maintenance_secondary_scope_rows(services):
+    root = _seed_maintenance_root_scope_rows(services)
+
+    organization_service = services["organization_service"]
+    component_service = services["maintenance_asset_component_service"]
+    sensor_reading_service = services["maintenance_sensor_reading_service"]
+    sensor_source_mapping_service = services["maintenance_sensor_source_mapping_service"]
+    sensor_exception_service = services["maintenance_sensor_exception_service"]
+    work_order_task_service = services["maintenance_work_order_task_service"]
+    work_order_task_step_service = services["maintenance_work_order_task_step_service"]
+    material_requirement_service = services["maintenance_work_order_material_requirement_service"]
+    task_step_template_service = services["maintenance_task_step_template_service"]
+    preventive_plan_task_service = services["maintenance_preventive_plan_task_service"]
+    downtime_event_service = services["maintenance_downtime_event_service"]
+
+    # Current org secondary entities (root seeder leaves context as current_org)
+    current_component = component_service.create_component(
+        asset_id=root["current_asset_id"],
+        component_code="SCOPE-COMP",
+        name="CUR Scoped Component",
+    )
+    current_sensor_reading = sensor_reading_service.record_reading(
+        sensor_id=root["current_sensor_id"],
+        reading_value=42.0,
+        reading_unit="H",
+    )
+    current_sensor_source_mapping = sensor_source_mapping_service.create_mapping(
+        integration_source_id=root["current_integration_source_id"],
+        sensor_id=root["current_sensor_id"],
+        external_measurement_key="CUR.SENSOR.RUN_HOURS",
+    )
+    current_sensor_exception = sensor_exception_service.raise_exception(
+        exception_type="EXTERNAL_SYNC_FAILURE",
+        message="CUR sensor sync failure",
+        sensor_id=root["current_sensor_id"],
+    )
+    current_work_order_task = work_order_task_service.create_task(
+        work_order_id=root["current_work_order_id"],
+        task_name="CUR Scoped WO Task",
+    )
+    current_work_order_task_step = work_order_task_step_service.create_step(
+        work_order_task_id=current_work_order_task.id,
+        instruction="CUR: Perform inspection step.",
+    )
+    current_material_requirement = material_requirement_service.create_requirement(
+        work_order_id=root["current_work_order_id"],
+        description="CUR Spare Part",
+        required_qty=1,
+        required_uom="EA",
+        is_stock_item=False,
+    )
+    current_task_step_template = task_step_template_service.create_step_template(
+        task_template_id=root["current_task_template_id"],
+        step_number=1,
+        instruction="CUR: Inspect component.",
+    )
+    current_preventive_plan_task = preventive_plan_task_service.create_plan_task(
+        plan_id=root["current_preventive_plan_id"],
+        task_template_id=root["current_task_template_id"],
+    )
+    current_downtime_event = downtime_event_service.create_downtime_event(
+        started_at=datetime(2026, 6, 1, 8, 0, tzinfo=timezone.utc),
+        downtime_type="unplanned",
+        work_order_id=root["current_work_order_id"],
+    )
+    current_plan_instance_repo = SqlAlchemyMaintenancePreventivePlanInstanceRepository(
+        services["session"],
+        tenant_context_service=services["tenant_context_service"],
+    )
+    current_plan_instance = MaintenancePreventivePlanInstance.create(
+        organization_id=root["current_org_id"],
+        plan_id=root["current_preventive_plan_id"],
+        due_at=datetime(2026, 7, 1, 8, 0, tzinfo=timezone.utc),
+    )
+    current_plan_instance_repo.add(current_plan_instance)
+    services["session"].flush()
+
+    # Switch to other org for secondary entities
+    organization_service.set_active_organization(root["other_org_id"])
+
+    other_component = component_service.create_component(
+        asset_id=root["other_asset_id"],
+        component_code="SCOPE-COMP",
+        name="OTH Scoped Component",
+    )
+    other_sensor_reading = sensor_reading_service.record_reading(
+        sensor_id=root["other_sensor_id"],
+        reading_value=99.0,
+        reading_unit="H",
+    )
+    other_sensor_source_mapping = sensor_source_mapping_service.create_mapping(
+        integration_source_id=root["other_integration_source_id"],
+        sensor_id=root["other_sensor_id"],
+        external_measurement_key="OTH.SENSOR.RUN_HOURS",
+    )
+    other_sensor_exception = sensor_exception_service.raise_exception(
+        exception_type="EXTERNAL_SYNC_FAILURE",
+        message="OTH sensor sync failure",
+        sensor_id=root["other_sensor_id"],
+    )
+    other_work_order_task = work_order_task_service.create_task(
+        work_order_id=root["other_work_order_id"],
+        task_name="OTH Scoped WO Task",
+    )
+    other_work_order_task_step = work_order_task_step_service.create_step(
+        work_order_task_id=other_work_order_task.id,
+        instruction="OTH: Perform inspection step.",
+    )
+    other_material_requirement = material_requirement_service.create_requirement(
+        work_order_id=root["other_work_order_id"],
+        description="OTH Spare Part",
+        required_qty=1,
+        required_uom="EA",
+        is_stock_item=False,
+    )
+    other_task_step_template = task_step_template_service.create_step_template(
+        task_template_id=root["other_task_template_id"],
+        step_number=1,
+        instruction="OTH: Inspect component.",
+    )
+    other_preventive_plan_task = preventive_plan_task_service.create_plan_task(
+        plan_id=root["other_preventive_plan_id"],
+        task_template_id=root["other_task_template_id"],
+    )
+    other_downtime_event = downtime_event_service.create_downtime_event(
+        started_at=datetime(2026, 6, 1, 8, 0, tzinfo=timezone.utc),
+        downtime_type="unplanned",
+        work_order_id=root["other_work_order_id"],
+    )
+    other_plan_instance_repo = SqlAlchemyMaintenancePreventivePlanInstanceRepository(
+        services["session"],
+        tenant_context_service=services["tenant_context_service"],
+    )
+    other_plan_instance = MaintenancePreventivePlanInstance.create(
+        organization_id=root["other_org_id"],
+        plan_id=root["other_preventive_plan_id"],
+        due_at=datetime(2026, 7, 1, 8, 0, tzinfo=timezone.utc),
+        generated_work_order_id=root["other_work_order_id"],
+    )
+    other_plan_instance_repo.add(other_plan_instance)
+    services["session"].flush()
+
+    # Restore current org context
+    organization_service.set_active_organization(root["current_org_id"])
+
+    return {
+        **root,
+        "current_component_id": current_component.id,
+        "current_component_code": current_component.component_code,
+        "current_component": current_component,
+        "other_component_id": other_component.id,
+        "other_component": other_component,
+        "current_sensor_reading_id": current_sensor_reading.id,
+        "other_sensor_reading_id": other_sensor_reading.id,
+        "current_sensor_source_mapping_id": current_sensor_source_mapping.id,
+        "other_sensor_source_mapping_id": other_sensor_source_mapping.id,
+        "current_sensor_source_mapping": current_sensor_source_mapping,
+        "other_sensor_source_mapping": other_sensor_source_mapping,
+        "current_sensor_exception_id": current_sensor_exception.id,
+        "other_sensor_exception_id": other_sensor_exception.id,
+        "current_sensor_exception": current_sensor_exception,
+        "other_sensor_exception": other_sensor_exception,
+        "current_work_order_task_id": current_work_order_task.id,
+        "other_work_order_task_id": other_work_order_task.id,
+        "current_work_order_task": current_work_order_task,
+        "other_work_order_task": other_work_order_task,
+        "current_work_order_task_step_id": current_work_order_task_step.id,
+        "other_work_order_task_step_id": other_work_order_task_step.id,
+        "current_work_order_task_step": current_work_order_task_step,
+        "other_work_order_task_step": other_work_order_task_step,
+        "current_material_requirement_id": current_material_requirement.id,
+        "other_material_requirement_id": other_material_requirement.id,
+        "current_material_requirement": current_material_requirement,
+        "other_material_requirement": other_material_requirement,
+        "current_task_step_template_id": current_task_step_template.id,
+        "other_task_step_template_id": other_task_step_template.id,
+        "current_task_step_template": current_task_step_template,
+        "other_task_step_template": other_task_step_template,
+        "current_preventive_plan_task_id": current_preventive_plan_task.id,
+        "other_preventive_plan_task_id": other_preventive_plan_task.id,
+        "current_preventive_plan_task": current_preventive_plan_task,
+        "other_preventive_plan_task": other_preventive_plan_task,
+        "current_downtime_event_id": current_downtime_event.id,
+        "other_downtime_event_id": other_downtime_event.id,
+        "current_downtime_event": current_downtime_event,
+        "other_downtime_event": other_downtime_event,
+        "current_preventive_plan_instance_id": current_plan_instance.id,
+        "other_preventive_plan_instance_id": other_plan_instance.id,
+        "current_preventive_plan_instance": current_plan_instance,
+        "other_preventive_plan_instance": other_plan_instance,
+    }
 @pytest.mark.parametrize(
     ("repo_factory", "operation"),
     [

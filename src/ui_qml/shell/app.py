@@ -233,7 +233,8 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             parent=app,
         )
         runtime_session_controller.start()
-        app.setProperty("pmRuntimeSessionController", runtime_session_controller)
+        if hasattr(app, "setProperty"):
+            app.setProperty("pmRuntimeSessionController", runtime_session_controller)
     logger.info("Shell QML loaded; entering Qt event loop.")
     if hasattr(app, "setProperty"):
         app.setProperty("pmEventLoopRunning", True)

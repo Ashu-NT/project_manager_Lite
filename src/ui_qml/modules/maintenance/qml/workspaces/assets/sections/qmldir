@@ -1,4 +1,4 @@
-﻿module Maintenance.AssetsSections
+﻿module workspaces.assets.sections
 AssetLibraryCatalogSection 1.0 AssetLibraryCatalogSection.qml
 AssetLibraryDetailSection 1.0 AssetLibraryDetailSection.qml
 AssetsFiltersSection 1.0 AssetsFiltersSection.qml
