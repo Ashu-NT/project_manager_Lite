@@ -9,12 +9,6 @@ from PySide6.QtGui import QGuiApplication
 from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml
 
 
-INVENTORY_DIALOG_HOST = Path(
-    "src/ui_qml/modules/inventory_procurement/qml/workspaces/inventory/dialogs/InventoryDialogHost.qml"
-)
-CATALOG_DIALOG_HOST = Path(
-    "src/ui_qml/modules/inventory_procurement/qml/workspaces/catalog/dialogs/CatalogDialogHost.qml"
-)
 PROCUREMENT_DIALOG_HOST = Path(
     "src/ui_qml/modules/inventory_procurement/qml/workspaces/procurement/dialogs/ProcurementDialogHost.qml"
 )
@@ -28,7 +22,7 @@ def _ensure_qgui_application() -> QGuiApplication:
     existing = QGuiApplication.instance()
     if existing is not None:
         return existing
-    return QGuiApplication(["inventory-dialog-host-test"])
+    return QGuiApplication(["procurement-dialog-host-test"])
 
 
 def _load_host(qml_path: Path, initial_properties: dict) -> tuple[object, QObject]:
@@ -54,16 +48,6 @@ def _set_text(child: QObject, value: str) -> None:
 
 
 class _MockController(QObject):
-    """Records the controller calls the dialog hosts make and returns success.
-
-    The refactored hosts no longer emit ``*Requested`` signals; instead each
-    ``onSubmitted``/``onAccepted`` handler calls
-    ``root.workspaceController.<method>(payload)`` directly and (for most dialogs)
-    passes the result to ``_handleResult`` which closes the dialog when
-    ``result.ok !== false``. This mock returns ``{"ok": True}`` for every method
-    so the dialog closes, while recording the call for assertion.
-    """
-
     _changed = Signal()
 
     def __init__(self) -> None:
@@ -95,7 +79,6 @@ class _MockController(QObject):
     def errorMessage(self):
         return ""
 
-    # --- Inventory: storeroom editor ---
     @Slot('QVariant', result='QVariant')
     def createStoreroom(self, p):
         return self._rec("createStoreroom", _variant(p))
@@ -104,7 +87,6 @@ class _MockController(QObject):
     def updateStoreroom(self, p):
         return self._rec("updateStoreroom", _variant(p))
 
-    # --- Inventory: stock movements ---
     @Slot('QVariant', result='QVariant')
     def postOpeningBalance(self, p):
         return self._rec("postOpeningBalance", _variant(p))
@@ -125,7 +107,6 @@ class _MockController(QObject):
     def transferStock(self, p):
         return self._rec("transferStock", _variant(p))
 
-    # --- Catalog: categories / items / documents ---
     @Slot('QVariant', result='QVariant')
     def createCategory(self, p):
         return self._rec("createCategory", _variant(p))
@@ -146,7 +127,6 @@ class _MockController(QObject):
     def linkDocument(self, item_id, document_id):
         return self._rec("linkDocument", (str(item_id), str(document_id)))
 
-    # --- Procurement: requisitions / purchase orders / receipts ---
     @Slot('QVariant', result='QVariant')
     def createRequisition(self, p):
         return self._rec("createRequisition", _variant(p))
@@ -175,7 +155,6 @@ class _MockController(QObject):
     def postReceipt(self, p):
         return self._rec("postReceipt", _variant(p))
 
-    # --- Reservations ---
     @Slot('QVariant', result='QVariant')
     def createReservation(self, p):
         return self._rec("createReservation", _variant(p))
@@ -191,105 +170,6 @@ class _MockController(QObject):
     @Slot(str, result='QVariant')
     def cancelReservation(self, rid):
         return self._rec("cancelReservation", str(rid))
-
-
-def test_inventory_dialog_host_edit_storeroom_submit_button_emits_update() -> None:
-    mock = _MockController()
-    _, root = _load_host(
-        INVENTORY_DIALOG_HOST,
-        {
-            "workspaceController": mock,
-            "siteOptions": [{"value": "SITE-1", "label": "SITE-1 - Main Site"}],
-            "storeroomStatusOptions": [{"value": "ACTIVE", "label": "Active"}],
-            "managerPartyOptions": [{"value": "PARTY-1", "label": "Manager Party"}],
-        },
-    )
-    record = {
-        "state": {
-            "storeroomId": "ST-1",
-            "version": 6,
-            "storeroomCode": "MAIN",
-            "name": "Main Storeroom",
-            "siteId": "SITE-1",
-            "status": "ACTIVE",
-        }
-    }
-
-    assert QMetaObject.invokeMethod(root, "openEditStoreroomDialog", Q_ARG("QVariant", record))
-    dialog = _find_child(root, "storeroomEditorDialog")
-    _find_child(dialog, "dialogCancelButton")
-    submit_button = _find_child(dialog, "dialogSubmitButton")
-    assert QMetaObject.invokeMethod(dialog, "populateFromStoreroom")
-    assert QMetaObject.invokeMethod(submit_button, "click")
-
-    assert mock.count("updateStoreroom") == 1
-    payload = mock.last("updateStoreroom")
-    assert payload["storeroomId"] == "ST-1"
-    assert payload["storeroomCode"] == "MAIN"
-    assert payload["expectedVersion"] == 6
-
-
-def test_inventory_dialog_host_issue_stock_submit_button_emits_issue() -> None:
-    mock = _MockController()
-    _, root = _load_host(
-        INVENTORY_DIALOG_HOST,
-        {
-            "workspaceController": mock,
-            "itemOptions": [{"value": "ITEM-1", "label": "ITEM-1 - Filter"}],
-            "storeroomOptions": [{"value": "ST-1", "label": "ST-1 - Main Storeroom"}],
-        },
-    )
-    balance = {
-        "state": {
-            "stockItemId": "ITEM-1",
-            "storeroomId": "ST-1",
-            "uom": "EA",
-            "averageCost": "8.50",
-        }
-    }
-
-    assert QMetaObject.invokeMethod(root, "openIssueDialog", Q_ARG("QVariant", balance))
-    dialog = _find_child(root, "stockMovementDialog")
-    quantity_field = _find_child(dialog, "quantityField")
-    submit_button = _find_child(dialog, "dialogSubmitButton")
-    assert QMetaObject.invokeMethod(dialog, "populateFromMovement")
-    _set_text(quantity_field, "2.500")
-    assert QMetaObject.invokeMethod(submit_button, "click")
-
-    assert mock.count("issueStock") == 1
-    payload = mock.last("issueStock")
-    assert payload["stockItemId"] == "ITEM-1"
-    assert payload["storeroomId"] == "ST-1"
-    assert payload["quantity"] == "2.500"
-    assert payload["direction"] == "DECREASE"
-    assert payload["referenceType"] == "issue"
-
-
-def test_catalog_dialog_host_link_document_submit_button_emits_link_request() -> None:
-    mock = _MockController()
-    _, root = _load_host(
-        CATALOG_DIALOG_HOST,
-        {
-            "workspaceController": mock,
-            "availableDocuments": [
-                {"value": "DOC-2", "label": "DOC-2 - Spec"},
-                {"value": "DOC-3", "label": "DOC-3 - SOP"},
-            ],
-        },
-    )
-    item = {
-        "state": {"itemId": "ITEM-1"},
-        "linkedDocuments": [{"value": "DOC-1", "label": "DOC-1 - Existing"}],
-    }
-
-    assert QMetaObject.invokeMethod(root, "openLinkDocumentDialog", Q_ARG("QVariant", item))
-    dialog = _find_child(root, "documentLinkDialog")
-    _find_child(dialog, "dialogCancelButton")
-    submit_button = _find_child(dialog, "dialogSubmitButton")
-    assert QMetaObject.invokeMethod(submit_button, "click")
-
-    assert mock.count("linkDocument") == 1
-    assert mock.last("linkDocument") == ("ITEM-1", "DOC-2")
 
 
 def test_procurement_dialog_host_edit_purchase_order_submit_button_emits_update() -> None:
@@ -457,4 +337,3 @@ def test_reservations_dialog_host_release_confirmation_submit_button_emits_relea
 
     assert mock.count("releaseReservation") == 1
     assert mock.last("releaseReservation") == "RSV-1"
-
