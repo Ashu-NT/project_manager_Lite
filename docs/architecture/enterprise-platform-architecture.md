@@ -6050,15 +6050,99 @@ These are single-day fixes that MUST happen before any other work proceeds.
 
 ---
 
-## Phase 2 — Admin Role Hierarchy (Weeks 7-10)
+<!--
+  PHASE 2 SPLIT RATIONALE
+  =======================
+  The original Phase 2 violated four architectural principles:
 
-1. Add `tenant_admin` role with permission codes `tenant.create`, `tenant.manage`, `tenant.read`, `org.create`. Seed via `bootstrap_service.py`.
-2. Add `org_admin` role with permission codes `org.manage`, `employee.manage`. Seed via `bootstrap_service.py`. Binding must be `organization_id`-scoped in `user_roles`.
-3. Wire `is_platform_admin()` end-to-end: confirm `platform.admin` is seeded (Phase 0), assign to `admin` role, add test asserting the method returns `True` for an admin-role user.
-4. Build `TenantAdminService` with operations: `create_tenant()`, `suspend_tenant()`, `archive_tenant()`, `restore_tenant()`. Each operation must emit a `platform_events` entry (see Phase 5).
-5. Add tenant switcher to the platform admin shell UI, driven by `list_tenants_for_user()`.
+  1. Single Responsibility — it mixed RBAC layer changes (roles/permissions),
+     a new domain service (TenantAdminService), platform-event infrastructure
+     (platform_events table — not defined until Phase 5), and a UI component
+     (tenant switcher) into one phase. A regression in any area would block
+     delivery of all others.
 
-**Exit criteria:** A `tenant_admin` user can create and manage tenants. An `org_admin` user can manage users within their organization only. Platform admin can switch between tenants without session corruption.
+  2. Dependency ordering — Task 4 ("emit a platform_events entry, see Phase 5")
+     is a forward dependency. Phase 2 tasks cannot be completed without
+     platform_events, which lives in Phase 5. This makes Phase 2 undeliverable
+     as written without reordering Phase 5.
+
+  3. Incremental delivery — RBAC changes can be tested and merged independently
+     of TenantAdminService and of the UI. Bundling them prevents incremental
+     validation and forces a large, risky batch merge.
+
+  4. Risk isolation — RBAC changes affect the entire auth system (high blast
+     radius). TenantAdminService introduces new persistence. UI changes are
+     presentational. These carry different risk profiles and should be isolated
+     so that a UI regression cannot block a security fix.
+
+  The phase is split into: 2A (RBAC), 2B (TenantAdminService without events),
+  2C (platform_events, moved forward from Phase 5), and 2D (tenant switcher UI).
+  Phase 5 retains the activity/audit expansion items that do not belong here.
+-->
+
+## Phase 2A — RBAC & Admin Role Hierarchy (Weeks 7-8)
+
+**Depends on:** Phase 0 (`platform.admin` seeded, `user_roles` constraint fixed), Phase 1 (tenant membership table exists)
+
+**Scope:** Pure RBAC layer. No service layer, no events, no UI.
+
+1. Add `tenant.create`, `tenant.manage`, `tenant.read`, `org.create`, `org.manage` to `DEFAULT_PERMISSIONS` in `auth/policy.py`.
+2. Add `tenant_admin` role with permissions: `tenant.create`, `tenant.manage`, `tenant.read`, `org.create`, `org.manage`, `organization.access`, `settings.manage`, `auth.read`, `auth.manage`. Seed via `DEFAULT_ROLE_PERMISSIONS` — picked up automatically by `ensure_default_roles()` / `ensure_role_permissions()`.
+3. Add `org_admin` role with permissions: `org.manage`, `employee.read`, `employee.manage`, `organization.access`, `settings.manage`, `auth.read`, `auth.manage`. The `org_admin` binding in `user_roles` MUST use a non-null `organization_id` (enforced by the Phase 0 unique constraint fix). Platform-level permissions (`tenant.*`, `platform.admin`) are explicitly excluded.
+4. Verify `is_platform_admin()` end-to-end: `platform.admin` is seeded (Phase 0); add integration tests asserting admin returns `True`, `tenant_admin` and `org_admin` return `False`.
+
+**Exit criteria:**
+- `tenant_admin` role exists in DB after bootstrap with all listed permission codes.
+- `org_admin` role exists; a binding with `organization_id` is accepted; a binding with `organization_id=NULL` is also valid (global fallback).
+- `is_platform_admin()` returns `True` for admin-role users, `False` for `tenant_admin`, `False` for `org_admin`.
+- No regressions in existing auth or organization test suite.
+
+---
+
+## Phase 2B — Tenant Administration Services (Weeks 9-10)
+
+**Depends on:** Phase 2A (`tenant_admin` role + permissions)
+
+**Scope:** New `TenantAdminService` domain service. No platform events (those are Phase 2C). No UI.
+
+1. Build `TenantAdminService` with operations: `create_tenant()`, `suspend_tenant()`, `archive_tenant()`, `restore_tenant()`. Each is guarded by `tenant.create` / `tenant.manage` permissions.
+2. `create_tenant()` must also create the first `user_tenants` row for the calling user in the new tenant.
+3. `suspend_tenant()` and `archive_tenant()` must refuse to act on the calling user's own active tenant (prevent self-lockout).
+4. Platform events are NOT emitted in this phase. Stub a `_emit_tenant_event()` no-op that will be replaced in Phase 2C.
+
+**Exit criteria:** A `tenant_admin` user can call all four lifecycle operations. A user without `tenant.manage` is denied with `PermissionDeniedError`. Self-suspension is rejected. No platform events are required to pass.
+
+---
+
+## Phase 2C — Platform Events Foundation (Weeks 11-12)
+
+**Depends on:** Phase 2B (`TenantAdminService`)
+
+**Note:** The original roadmap placed `platform_events` in Phase 5. It is pulled forward because Phase 2B emits tenant lifecycle events and requires the table. Phase 5 retains the activity/audit expansion items (domain event bus integration, `AuditViewer` UI, `ActivityFeed` component).
+
+**Scope:** `platform_events` table and event publishing infrastructure.
+
+1. Add `platform_events` table: `(id, operation, actor_user_id, tenant_id, resource_type, resource_id, outcome, severity, created_at)`. Alembic migration, no backfill needed.
+2. Add `PlatformEventRepository` contract + `SqlAlchemyPlatformEventRepository`. Append-only — raises `OperationNotPermittedError` on delete/update.
+3. Replace the no-op `_emit_tenant_event()` stub in `TenantAdminService` with real emission to `platform_events`.
+4. Wire `PlatformEventRepository` into `RepositoryBundle` and `platform_registry.py`.
+
+**Exit criteria:** Each `TenantAdminService` lifecycle operation produces a `platform_events` row. The repository raises `OperationNotPermittedError` on any delete or update call. Existing tests remain green.
+
+---
+
+## Phase 2D — Tenant Switcher UI (Weeks 13-14)
+
+**Depends on:** Phase 2A (tenant_admin role), Phase 2B (TenantAdminService), Phase 1 (`list_tenants_for_user()` + membership enforcement in `set_active_tenant()`)
+
+**Scope:** UI-only. No new backend logic.
+
+1. Add tenant switcher to the platform admin shell UI, driven by `UserTenantMembershipRepository.list_tenant_ids_for_user()` (Phase 1).
+2. On switch: update active tenant and active organization in `UserSessionContext`, trigger `principal` rebuild.
+3. The switcher must only show tenants where the user has an active `user_tenants` row — enforced server-side by `TenantContextService.set_active_tenant()` from Phase 1.
+4. A user with a single tenant sees the switcher disabled (greyed out).
+
+**Exit criteria:** Platform admin can switch between tenants from the shell UI without session corruption. A non-admin with membership in two tenants can switch. A single-tenant user cannot trigger a switch.
 
 ---
 
