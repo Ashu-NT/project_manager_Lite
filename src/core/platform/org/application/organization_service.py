@@ -45,24 +45,7 @@ class OrganizationService:
         self._enterprise_audit_service = enterprise_audit_service
 
     # ------------------------------------------------------------------
-    # Bootstrap — allowed to use unscoped repo methods (no tenant yet).
-    # ------------------------------------------------------------------
-
-    def bootstrap_defaults(self) -> None:
-        if self._organization_repo.list_all():
-            return
-        organization = Organization.create(
-            organization_code=DEFAULT_ORGANIZATION_CODE,
-            display_name=DEFAULT_ORGANIZATION_NAME,
-            timezone_name=DEFAULT_ORGANIZATION_TIMEZONE,
-            base_currency=DEFAULT_ORGANIZATION_CURRENCY,
-            is_active=True,
-        )
-        self._organization_repo.add(organization)
-        self._session.commit()
-
-    # ------------------------------------------------------------------
-    # Tenant context helper — used by every runtime method.
+    # Tenant context — the single gateway for all runtime methods.
     # Raises TENANT_CONTEXT_REQUIRED immediately if no active tenant.
     # ------------------------------------------------------------------
 
@@ -81,7 +64,39 @@ class OrganizationService:
         return tenant_id
 
     # ------------------------------------------------------------------
-    # Runtime read operations — all tenant-scoped.
+    # Bootstrap — runs before a tenant record exists in the system.
+    # Uses unscoped list_all() only when no tenant context is present.
+    # When a tenant context IS present (runtime re-call), scopes by it
+    # so it never creates an untenanted organization at runtime.
+    # ------------------------------------------------------------------
+
+    def bootstrap_defaults(self) -> None:
+        bootstrap_tenant_id = (
+            str(self._user_session.active_tenant_id() or "").strip()
+            if self._user_session is not None
+            else ""
+        ) or None
+
+        if bootstrap_tenant_id:
+            if self._organization_repo.list_for_tenant(bootstrap_tenant_id):
+                return
+        else:
+            if self._organization_repo.list_all():
+                return
+
+        organization = Organization.create(
+            organization_code=DEFAULT_ORGANIZATION_CODE,
+            display_name=DEFAULT_ORGANIZATION_NAME,
+            timezone_name=DEFAULT_ORGANIZATION_TIMEZONE,
+            base_currency=DEFAULT_ORGANIZATION_CURRENCY,
+            is_active=True,
+            tenant_id=bootstrap_tenant_id,
+        )
+        self._organization_repo.add(organization)
+        self._session.commit()
+
+    # ------------------------------------------------------------------
+    # Runtime read operations — all tenant-scoped, fail-fast.
     # ------------------------------------------------------------------
 
     def list_organizations(self, *, active_only: bool | None = None) -> list[Organization]:
@@ -101,7 +116,9 @@ class OrganizationService:
         return organization
 
     # ------------------------------------------------------------------
-    # Runtime write operations — all tenant-scoped.
+    # Runtime write operations — all tenant-scoped, fail-fast.
+    # tenant_id is always re-pinned on the domain object before write
+    # so the service layer is the authority, not the object's field.
     # ------------------------------------------------------------------
 
     def create_organization(
@@ -201,6 +218,7 @@ class OrganizationService:
                     code="ORGANIZATION_ACTIVE_REQUIRED",
                 )
             organization.is_active = bool(is_active)
+        organization.tenant_id = tenant_id  # pin: tenant ownership is immutable
         try:
             if organization.is_active:
                 self._deactivate_other_organizations(tenant_id=tenant_id, exclude_id=organization.id)
@@ -237,6 +255,7 @@ class OrganizationService:
         organization = self._organization_repo.get_for_tenant(organization_id, tenant_id)
         if organization is None:
             raise NotFoundError("Organization not found.", code="ORGANIZATION_NOT_FOUND")
+        organization.tenant_id = tenant_id  # pin: tenant ownership is immutable
         try:
             self._deactivate_other_organizations(tenant_id=tenant_id, exclude_id=organization.id)
             organization.is_active = True
@@ -264,7 +283,9 @@ class OrganizationService:
         return organization
 
     # ------------------------------------------------------------------
-    # Private helpers — tenant_id always passed by caller.
+    # Private helpers — tenant_id passed explicitly by every caller.
+    # Orgs from list_for_tenant() already carry the correct tenant_id;
+    # the pin below is defense-in-depth before any repo.update() call.
     # ------------------------------------------------------------------
 
     def _deactivate_other_organizations(self, *, tenant_id: str, exclude_id: str | None) -> None:
@@ -272,6 +293,7 @@ class OrganizationService:
             if exclude_id and organization.id == exclude_id:
                 continue
             organization.is_active = False
+            organization.tenant_id = tenant_id  # pin: tenant ownership is immutable
             self._organization_repo.update(organization)
 
     def _has_other_active_organizations(self, organization_id: str, *, tenant_id: str) -> bool:
