@@ -124,7 +124,7 @@ Index("idx_permissions_code", PermissionORM.code, unique=True)
 class UserRoleORM(Base):
     __tablename__ = "user_roles"
     __table_args__ = (
-        UniqueConstraint("user_id", "role_id", name="ux_user_roles_user_role"),
+        UniqueConstraint("user_id", "role_id", "organization_id", name="ux_user_roles_user_role_org"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)

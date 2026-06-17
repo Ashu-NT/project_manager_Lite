@@ -53,6 +53,7 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "auth.manage": "Manage users and roles",
     "security.manage": "Manage login security, lockouts, and session controls",
     "organization.access": "Access tenant organization context",
+    "platform.admin": "Full platform administration access",
 }
 
 _VIEWER = {
