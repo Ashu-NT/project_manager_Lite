@@ -105,6 +105,7 @@ def build_platform_service_bundle(
         tenant_repo=repositories.tenant_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
+        user_tenant_repo=repositories.user_tenant_repo,
     )
     # Wire _tenant_context_service on all repos that support it.
     for _field_name in repositories.__dataclass_fields__:
@@ -142,6 +143,7 @@ def build_platform_service_bundle(
         project_membership_repo=repositories.project_membership_repo,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
+        user_tenant_repo=repositories.user_tenant_repo,
     )
     user_session.set_validator(auth_service.validate_session_principal)
     user_session.set_context_listener(auth_service.persist_session_context)
@@ -193,6 +195,19 @@ def build_platform_service_bundle(
         default_tenant = repositories.tenant_repo.get_default()
         if default_tenant is not None:
             user_session.set_active_tenant_id(default_tenant.id)
+
+    # Backfill all existing users into the default tenant if they have no membership.
+    # Admin is exempt from the membership check by role, but backfilling ensures
+    # list_for_tenant() returns admin users consistently.
+    _backfill_tenant = repositories.tenant_repo.get_default()
+    if _backfill_tenant is not None:
+        from src.core.platform.tenancy.domain.user_tenant_membership import UserTenantMembership as _UTM
+        for _u in repositories.user_repo.list_all():
+            if not repositories.user_tenant_repo.is_active_member(_u.id, _backfill_tenant.id):
+                repositories.user_tenant_repo.add(
+                    _UTM.create(user_id=_u.id, tenant_id=_backfill_tenant.id, tenant_role="member")
+                )
+        session.flush()
 
     logger.debug(
         "Platform organization defaults bootstrapped duration_ms=%.1f",

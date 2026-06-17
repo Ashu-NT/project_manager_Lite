@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.core.platform.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.infrastructure.persistence.orm.user_tenant import UserTenantORM
 from src.core.platform.auth.contracts import (
     AuthSessionRepository,
     PermissionRepository,
@@ -102,6 +103,16 @@ class SqlAlchemyUserRepository(UserRepository):
 
     def list_all(self) -> list[UserAccount]:
         rows = self.session.execute(select(UserORM)).scalars().all()
+        return [user_from_orm(row) for row in rows]
+
+    def list_for_tenant(self, tenant_id: str) -> list[UserAccount]:
+        stmt = (
+            select(UserORM)
+            .join(UserTenantORM, UserTenantORM.user_id == UserORM.id)
+            .where(UserTenantORM.tenant_id == tenant_id)
+            .where(UserTenantORM.is_active.is_(True))
+        )
+        rows = self.session.execute(stmt).scalars().all()
         return [user_from_orm(row) for row in rows]
 
 

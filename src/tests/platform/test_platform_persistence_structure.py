@@ -21,6 +21,7 @@ EXPECTED_AREAS = {
     "sites",
     "tenant",
     "time",
+    "user_tenant",
 }
 
 

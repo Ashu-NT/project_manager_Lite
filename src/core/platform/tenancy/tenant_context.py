@@ -6,7 +6,7 @@ from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
-from src.core.platform.tenancy.contracts import TenantRepository
+from src.core.platform.tenancy.contracts import TenantRepository, UserTenantMembershipRepository
 from src.core.platform.tenancy.domain.tenant import Tenant
 
 
@@ -31,10 +31,12 @@ class TenantContextService:
         tenant_repo: TenantRepository,
         organization_repo: OrganizationRepository,
         user_session: UserSessionContext | None = None,
+        user_tenant_repo: UserTenantMembershipRepository | None = None,
     ) -> None:
         self._tenant_repo = tenant_repo
         self._organization_repo = organization_repo
         self._user_session = user_session
+        self._user_tenant_repo = user_tenant_repo
 
     # ------------------------------------------------------------------
     # Tenant resolution
@@ -74,6 +76,19 @@ class TenantContextService:
                 "Cannot switch to an inactive tenant.",
                 code="TENANT_INACTIVE",
             )
+        # Validate membership — skip for admin/platform_admin principals.
+        if self._user_tenant_repo is not None and self._user_session is not None:
+            principal = self._user_session.principal
+            if principal is not None:
+                is_admin = "admin" in getattr(principal, "role_names", frozenset())
+                is_platform_admin = "platform.admin" in getattr(principal, "permissions", frozenset())
+                if not is_admin and not is_platform_admin:
+                    user_id = str(getattr(principal, "user_id", "") or "").strip()
+                    if user_id and not self._user_tenant_repo.is_active_member(user_id, tenant.id):
+                        raise BusinessRuleError(
+                            "User does not have access to this tenant.",
+                            code="TENANT_ACCESS_DENIED",
+                        )
         if self._user_session is not None:
             self._user_session.set_active_tenant_id(tenant.id)
         return tenant

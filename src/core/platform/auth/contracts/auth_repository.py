@@ -36,6 +36,9 @@ class UserRepository(ABC):
     @abstractmethod
     def list_all(self) -> list[UserAccount]: ...
 
+    @abstractmethod
+    def list_for_tenant(self, tenant_id: str) -> list[UserAccount]: ...
+
 
 class AuthSessionRepository(ABC):
     @abstractmethod
