@@ -1,4 +1,4 @@
-"""Platform-level tenant lifecycle management service (Phase 2B)."""
+"""Platform-level tenant lifecycle management service (Phase 2B/2C)."""
 from __future__ import annotations
 
 from sqlalchemy.orm import Session
@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from src.core.platform.auth.authorization import require_any_permission, require_permission
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.platform_events.contracts import PlatformEventRepository
+from src.core.platform.platform_events.domain.platform_event import PlatformEvent
 from src.core.platform.tenancy.contracts import TenantRepository, UserTenantMembershipRepository
 from src.core.platform.tenancy.domain.tenant import (
     TENANT_STATUS_ACTIVE,
@@ -39,11 +41,13 @@ class TenantAdminService:
         tenant_repo: TenantRepository,
         user_tenant_repo: UserTenantMembershipRepository,
         user_session: UserSessionContext,
+        platform_event_repo: PlatformEventRepository | None = None,
     ) -> None:
         self._session = session
         self._tenant_repo = tenant_repo
         self._user_tenant_repo = user_tenant_repo
         self._user_session = user_session
+        self._platform_event_repo = platform_event_repo
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -74,8 +78,42 @@ class TenantAdminService:
                 code="TENANT_SELF_LOCKOUT",
             )
 
-    def _emit_tenant_event(self, operation: str, tenant_id: str) -> None:
-        """No-op stub — replaced in Phase 2C when platform_events table is available."""
+    def _emit_tenant_event(
+        self,
+        operation: str,
+        tenant: Tenant,
+        *,
+        old_status: str | None = None,
+    ) -> None:
+        if self._platform_event_repo is None:
+            return
+        _SEVERITY = {
+            "create_tenant": "low",
+            "suspend_tenant": "medium",
+            "archive_tenant": "high",
+            "restore_tenant": "medium",
+        }
+        if operation == "create_tenant":
+            meta: dict = {"tenant_code": tenant.tenant_code, "display_name": tenant.display_name}
+        elif operation == "suspend_tenant":
+            meta = {"old_status": TENANT_STATUS_ACTIVE, "new_status": TENANT_STATUS_SUSPENDED, "tenant_code": tenant.tenant_code}
+        elif operation == "archive_tenant":
+            meta = {"old_status": old_status or "", "new_status": TENANT_STATUS_ARCHIVED, "tenant_code": tenant.tenant_code}
+        elif operation == "restore_tenant":
+            meta = {"old_status": TENANT_STATUS_ARCHIVED, "new_status": TENANT_STATUS_ACTIVE, "tenant_code": tenant.tenant_code}
+        else:
+            meta = {"tenant_code": tenant.tenant_code}
+        event = PlatformEvent.create(
+            operation=operation,
+            actor_user_id=self._current_user_id(),
+            tenant_id=tenant.id,
+            resource_type="tenant",
+            resource_id=tenant.id,
+            outcome="success",
+            severity=_SEVERITY.get(operation, "low"),
+            metadata=meta,
+        )
+        self._platform_event_repo.add(event)
 
     # ------------------------------------------------------------------
     # Read operations
@@ -130,7 +168,7 @@ class TenantAdminService:
                 )
             )
         self._session.flush()
-        self._emit_tenant_event("create_tenant", tenant.id)
+        self._emit_tenant_event("create_tenant", tenant)
         return tenant
 
     # ------------------------------------------------------------------
@@ -153,7 +191,7 @@ class TenantAdminService:
         tenant.tenant_status = TENANT_STATUS_SUSPENDED
         self._tenant_repo.update(tenant)
         self._session.flush()
-        self._emit_tenant_event("suspend_tenant", tenant.id)
+        self._emit_tenant_event("suspend_tenant", tenant)
         return tenant
 
     def archive_tenant(self, tenant_id: str) -> Tenant:
@@ -169,10 +207,11 @@ class TenantAdminService:
                 "Tenant is already archived.",
                 code="TENANT_ALREADY_ARCHIVED",
             )
+        prior_status = tenant.tenant_status
         tenant.tenant_status = TENANT_STATUS_ARCHIVED
         self._tenant_repo.update(tenant)
         self._session.flush()
-        self._emit_tenant_event("archive_tenant", tenant.id)
+        self._emit_tenant_event("archive_tenant", tenant, old_status=prior_status)
         return tenant
 
     def restore_tenant(self, tenant_id: str) -> Tenant:
@@ -190,7 +229,7 @@ class TenantAdminService:
         tenant.tenant_status = TENANT_STATUS_ACTIVE
         self._tenant_repo.update(tenant)
         self._session.flush()
-        self._emit_tenant_event("restore_tenant", tenant.id)
+        self._emit_tenant_event("restore_tenant", tenant)
         return tenant
 
 

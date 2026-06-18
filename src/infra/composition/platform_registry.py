@@ -220,6 +220,7 @@ def build_platform_service_bundle(
         tenant_repo=repositories.tenant_repo,
         user_tenant_repo=repositories.user_tenant_repo,
         user_session=user_session,
+        platform_event_repo=repositories.platform_event_repo,
     )
     document_service = DocumentService(
         session=session,
