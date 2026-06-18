@@ -135,6 +135,31 @@ class TenantAdminService:
         )
         return self._tenant_repo.list_all(active_only=active_only)
 
+    def list_accessible_tenants(self) -> list[Tenant]:
+        """Return tenants the current user can switch to.
+
+        No permission guard — listing one's own memberships is always allowed.
+        Platform.admin and admin: all tenants (including suspended/archived, so
+        the UI can show their status). Regular users: only active (non-suspended,
+        non-archived) tenants where an active user_tenants membership exists.
+        """
+        user_id = self._current_user_id()
+        if not user_id:
+            return []
+        principal = getattr(self._user_session, "principal", None)
+        if principal is not None:
+            is_admin = "admin" in getattr(principal, "role_names", frozenset())
+            is_platform_admin = "platform.admin" in getattr(principal, "permissions", frozenset())
+            if is_admin or is_platform_admin:
+                return self._tenant_repo.list_all(active_only=None)
+        tenant_ids = self._user_tenant_repo.list_tenant_ids_for_user(user_id)
+        tenants: list[Tenant] = []
+        for tid in tenant_ids:
+            tenant = self._tenant_repo.get(tid)
+            if tenant is not None and tenant.is_active:
+                tenants.append(tenant)
+        return tenants
+
     # ------------------------------------------------------------------
     # Create
     # ------------------------------------------------------------------

@@ -6142,18 +6142,53 @@ These are single-day fixes that MUST happen before any other work proceeds.
 
 ---
 
-## Phase 2D — Tenant Switcher UI (Weeks 13-14)
+## Phase 2D — Tenant Switcher (Weeks 13-14)
 
-**Depends on:** Phase 2A (tenant_admin role), Phase 2B (TenantAdminService), Phase 1 (`list_tenants_for_user()` + membership enforcement in `set_active_tenant()`)
+**Depends on:** Phase 2A (tenant_admin role), Phase 2B (TenantAdminService), Phase 2C (platform_events), Phase 1 (`list_tenant_ids_for_user()` + membership enforcement in `set_active_tenant()`)
 
-**Scope:** UI-only. No new backend logic.
+**Scope:** Two backend prerequisites (complete), then UI.
 
-1. Add tenant switcher to the platform admin shell UI, driven by `UserTenantMembershipRepository.list_tenant_ids_for_user()` (Phase 1).
-2. On switch: update active tenant and active organization in `UserSessionContext`, trigger `principal` rebuild.
-3. The switcher must only show tenants where the user has an active `user_tenants` row — enforced server-side by `TenantContextService.set_active_tenant()` from Phase 1.
-4. A user with a single tenant sees the switcher disabled (greyed out).
+> The original spec listed this phase as "UI-only." A review against the implemented backend revealed two missing service methods and a `_can_access` cross-tenant leak. These are now complete.
 
-**Exit criteria:** Platform admin can switch between tenants from the shell UI without session corruption. A non-admin with membership in two tenants can switch. A single-tenant user cannot trigger a switch.
+---
+
+### Backend prerequisites ✅ COMPLETE (2026-06-18)
+
+**1. `TenantAdminService.list_accessible_tenants()` — implemented**
+
+- No permission guard — accessing one's own memberships is always allowed.
+- Regular users: active-only tenants from `user_tenant_repo.list_tenant_ids_for_user()`.
+- `platform.admin` / `admin`: all tenants including suspended/archived (so UI can show status).
+- `list_tenants()` is unchanged and remains admin-only.
+
+**2. `TenantContextService.switch_to_tenant(tenant_id)` — implemented**
+
+Atomic tenant switch:
+1. `set_active_tenant(tenant_id)` — validates status, enforces membership.
+2. `user_session.set_active_organization_id(None)` — clears stale org immediately.
+3. `org_repo.list_for_tenant(tenant_id, active_only=True)` — find orgs in new tenant.
+4. If exactly one → auto-select via `set_active_organization_id(orgs[0].id)`; otherwise leave None.
+
+Principal rebuild is automatic — `set_active_tenant_id()` and `set_active_organization_id()` both call `replace()` + `_notify_context_changed()`.
+
+**3. `TenantContextService._can_access(organization: Organization)` — fixed**
+
+Cross-tenant guard added: if `organization.tenant_id` is set and does not match `active_tenant_id`, access is denied regardless of session org ID. Also added missing `platform.admin` permission bypass. Signature changed from `(organization_id: str)` to `(organization: Organization)`.
+
+**Tests:** `src/tests/platform/test_phase_2d_tenant_switcher_backend.py` (10 tests). 387/387 platform tests pass.
+
+---
+
+### UI work (pending — Phase 2D-UI)
+
+1. Add tenant switcher to the platform admin shell UI, driven by `TenantAdminService.list_accessible_tenants()`.
+2. On switch: call `TenantContextService.switch_to_tenant(tenant_id)` — atomically updates both tenant and organization context.
+3. A user with a single tenant sees the switcher disabled (greyed out).
+4. Switcher must reflect the current active tenant as the selected item on open.
+
+---
+
+**Exit criteria:** Platform admin can switch between tenants from the shell UI without session corruption. A non-admin with membership in two tenants can switch. A single-tenant user cannot trigger a switch. After switching, `get_active_organization()` returns an org belonging to the new tenant.
 
 ---
 

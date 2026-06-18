@@ -124,7 +124,7 @@ class TenantContextService:
         organization_id = self._session_organization_id()
         if organization_id:
             organization = self._organization_repo.get(organization_id)
-            if organization is not None and self._can_access(organization.id):
+            if organization is not None and self._can_access(organization):
                 return organization
             if self._user_session is not None:
                 self._user_session.set_active_organization_id(None)
@@ -145,7 +145,7 @@ class TenantContextService:
                 "Cannot switch to an inactive organization.",
                 code="ORGANIZATION_INACTIVE",
             )
-        if not self._can_access(organization.id):
+        if not self._can_access(organization):
             raise BusinessRuleError(
                 "Permission denied for organization context.",
                 code="PERMISSION_DENIED",
@@ -153,6 +153,21 @@ class TenantContextService:
         if self._user_session is not None:
             self._user_session.set_active_organization_id(organization.id)
         return organization
+
+    def switch_to_tenant(self, tenant_id: str) -> Tenant:
+        """Atomically switch tenant context.
+
+        Validates and sets active_tenant_id via set_active_tenant(), then
+        clears active_organization_id so it never points to the old tenant.
+        Auto-selects the org when exactly one active org exists in the new tenant.
+        """
+        tenant = self.set_active_tenant(tenant_id)
+        if self._user_session is not None:
+            self._user_session.set_active_organization_id(None)
+            orgs = self._organization_repo.list_for_tenant(tenant.id, active_only=True)
+            if len(orgs) == 1:
+                self._user_session.set_active_organization_id(orgs[0].id)
+        return tenant
 
     # ------------------------------------------------------------------
     # Full context
@@ -197,7 +212,15 @@ class TenantContextService:
             return None
         return self._user_session.active_organization_id()
 
-    def _can_access(self, organization_id: str) -> bool:
+    def _can_access(self, organization: Organization) -> bool:
+        # Cross-tenant guard: org must belong to the currently active tenant.
+        # Skipped when either side is unset (single-tenant / bootstrap mode).
+        active_tenant_id = self._session_tenant_id()
+        if active_tenant_id:
+            org_tenant_id = str(getattr(organization, "tenant_id", "") or "").strip()
+            if org_tenant_id and org_tenant_id != active_tenant_id:
+                return False
+
         if self._user_session is None:
             return True
         principal = self._user_session.principal
@@ -205,7 +228,10 @@ class TenantContextService:
             return True
         if "admin" in getattr(principal, "role_names", frozenset()):
             return True
-        normalized_organization_id = str(organization_id or "").strip()
+        if "platform.admin" in getattr(principal, "permissions", frozenset()):
+            return True
+
+        normalized_organization_id = str(organization.id or "").strip()
         if not normalized_organization_id:
             return False
         organization_scopes = dict((principal.scoped_access or {}).get("organization", {}))
