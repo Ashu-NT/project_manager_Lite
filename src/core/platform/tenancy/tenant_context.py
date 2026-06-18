@@ -71,6 +71,16 @@ class TenantContextService:
         tenant = self._tenant_repo.get(normalized_id)
         if tenant is None:
             raise NotFoundError("Tenant not found.", code="TENANT_NOT_FOUND")
+        if tenant.tenant_status == "suspended":
+            raise BusinessRuleError(
+                "Cannot switch to a suspended tenant.",
+                code="TENANT_SUSPENDED",
+            )
+        if tenant.tenant_status == "archived":
+            raise BusinessRuleError(
+                "Cannot switch to an archived tenant.",
+                code="TENANT_ARCHIVED",
+            )
         if not tenant.is_active:
             raise BusinessRuleError(
                 "Cannot switch to an inactive tenant.",

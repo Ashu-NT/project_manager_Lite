@@ -34,6 +34,7 @@ from src.core.platform.site.access_policy import (
 )
 from src.core.platform.tenancy import (
     ORGANIZATION_SCOPE_ROLE_CHOICES,
+    TenantAdminService,
     TenantContextService,
     normalize_organization_scope_role,
     resolve_organization_scope_permissions,
@@ -91,6 +92,7 @@ class PlatformServiceBundle:
     calendar_assignment_service: CalendarAssignmentService
     enterprise_calendar_resolver: EnterpriseCalendarResolver
     working_time_calculator: WorkingTimeCalculator
+    tenant_admin_service: TenantAdminService
     global_calendar_shim: GlobalCalendarShim
 
 
@@ -212,6 +214,12 @@ def build_platform_service_bundle(
     logger.debug(
         "Platform organization defaults bootstrapped duration_ms=%.1f",
         (perf_counter() - started) * 1000,
+    )
+    tenant_admin_service = TenantAdminService(
+        session=session,
+        tenant_repo=repositories.tenant_repo,
+        user_tenant_repo=repositories.user_tenant_repo,
+        user_session=user_session,
     )
     document_service = DocumentService(
         session=session,
@@ -451,6 +459,7 @@ def build_platform_service_bundle(
         calendar_assignment_service=calendar_assignment_service,
         enterprise_calendar_resolver=enterprise_calendar_resolver,
         working_time_calculator=working_time_calculator,
+        tenant_admin_service=tenant_admin_service,
         global_calendar_shim=global_calendar_shim,
     )
     logger.debug(

@@ -29,7 +29,7 @@ from src.core.platform.org import OrganizationService
 from src.core.platform.site import SiteService
 from src.core.platform.party import PartyService
 from src.core.platform.time.application import TimeService
-from src.core.platform.tenancy import TenantContextService
+from src.core.platform.tenancy import TenantAdminService, TenantContextService
 from src.core.platform.runtime_tracking import RuntimeExecutionService
 from src.core.modules.inventory_procurement import (
     ProcurementService,
@@ -139,6 +139,7 @@ class ServiceGraph:
     auth_service: AuthService
     organization_service: OrganizationService
     tenant_context_service: TenantContextService
+    tenant_admin_service: TenantAdminService
     document_service: DocumentService
     party_service: PartyService
     department_service: DepartmentService
@@ -231,6 +232,7 @@ class ServiceGraph:
             "auth_service": self.auth_service,
             "organization_service": self.organization_service,
             "tenant_context_service": self.tenant_context_service,
+            "tenant_admin_service": self.tenant_admin_service,
             "document_service": self.document_service,
             "party_service": self.party_service,
             "department_service": self.department_service,
@@ -363,6 +365,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         auth_service=platform_services.auth_service,
         organization_service=platform_services.organization_service,
         tenant_context_service=platform_services.tenant_context_service,
+        tenant_admin_service=platform_services.tenant_admin_service,
         document_service=platform_services.document_service,
         party_service=platform_services.party_service,
         department_service=platform_services.department_service,
