@@ -159,8 +159,6 @@ def upgrade() -> None:
 
         offset += batch_size
 
-    conn.execute(sa.text("PRAGMA wal_checkpoint"))
-
 
 def downgrade() -> None:
     conn = op.get_bind()
