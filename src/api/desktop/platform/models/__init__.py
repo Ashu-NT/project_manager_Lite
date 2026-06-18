@@ -71,6 +71,7 @@ from src.api.desktop.platform.models.user import (
     UserPasswordResetCommand,
     UserUpdateCommand,
 )
+from src.api.desktop.platform.models.tenant import TenantDto
 from src.core.platform.approval.domain import ApprovalStatus
 
 __all__ = [
@@ -133,4 +134,5 @@ __all__ = [
     "UserDto",
     "UserPasswordResetCommand",
     "UserUpdateCommand",
+    "TenantDto",
 ]

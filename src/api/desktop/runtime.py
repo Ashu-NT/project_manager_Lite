@@ -16,6 +16,7 @@ from src.api.desktop.platform import (
     PlatformRuntimeDesktopApi,
     PlatformSiteDesktopApi,
     PlatformSupportDesktopApi,
+    PlatformTenantDesktopApi,
     PlatformUserDesktopApi,
 )
 from src.api.desktop.platform.audit_enterprise import PlatformEnterpriseAuditDesktopApi
@@ -117,6 +118,7 @@ class DesktopApiRegistry:
     platform_document: PlatformDocumentDesktopApi
     platform_party: PlatformPartyDesktopApi
     platform_support: PlatformSupportDesktopApi
+    platform_tenant: PlatformTenantDesktopApi | None
     platform_user: PlatformUserDesktopApi
     project_management_dashboard: ProjectManagementDashboardDesktopApi
     project_management_collaboration: ProjectManagementCollaborationDesktopApi
@@ -371,6 +373,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             party_service=party_service,
         ),
         platform_support=PlatformSupportDesktopApi(),
+        platform_tenant=_build_platform_tenant_api(services),
         platform_user=PlatformUserDesktopApi(
             auth_service=auth_service,
         ),
@@ -378,6 +381,22 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         **vars(inventory_procurement_apis),
         **vars(maintenance_apis),
     )
+
+
+def _build_platform_tenant_api(
+    services: Mapping[str, object],
+) -> PlatformTenantDesktopApi | None:
+    from src.core.platform.tenancy.application.tenant_admin_service import TenantAdminService as _TAS
+    from src.core.platform.tenancy.tenant_context import TenantContextService as _TCS
+
+    tenant_admin_service = services.get("tenant_admin_service")
+    tenant_context_service = services.get("tenant_context_service")
+    if isinstance(tenant_admin_service, _TAS) and isinstance(tenant_context_service, _TCS):
+        return PlatformTenantDesktopApi(
+            tenant_admin_service=tenant_admin_service,
+            tenant_context_service=tenant_context_service,
+        )
+    return None
 
 
 def _load_site_scope_options(

@@ -23,6 +23,7 @@ from src.ui_qml.platform.presenters.site_catalog_presenter import PlatformSiteCa
 from src.ui_qml.platform.presenters.support_workspace_presenter import (
     PlatformSupportWorkspacePresenter,
 )
+from src.ui_qml.platform.presenters.tenant_switcher_presenter import TenantSwitcherPresenter
 from src.ui_qml.platform.presenters.user_catalog_presenter import PlatformUserCatalogPresenter
 
 __all__ = [
@@ -42,5 +43,6 @@ __all__ = [
     "PlatformSettingsWorkspacePresenter",
     "PlatformSiteCatalogPresenter",
     "PlatformSupportWorkspacePresenter",
+    "TenantSwitcherPresenter",
     "PlatformUserCatalogPresenter",
 ]
