@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from sqlalchemy import Boolean, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -14,10 +12,10 @@ class OrganizationORM(Base):
     __tablename__ = "organizations"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="RESTRICT"),
-        nullable=True,
+        nullable=False,
     )
     organization_code: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     display_name: Mapped[str] = mapped_column(String(256), nullable=False)

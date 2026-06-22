@@ -81,8 +81,12 @@ def build_principal(service: AuthService, user: UserAccount, *, session_id: str 
             else None
         ),
         active_organization_id=(
+            # H-4: only carry forward org when a tenant is also recorded.
+            # An org without an associated tenant is ambiguous; clearing it forces
+            # re-validation through TenantContextService on first access.
             getattr(resolved_session, "last_active_organization_id", None)
             if resolved_session is not None
+            and getattr(resolved_session, "last_active_tenant_id", None)
             else None
         ),
     )

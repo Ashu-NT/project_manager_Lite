@@ -201,9 +201,9 @@ class TenantAdminService:
     # ------------------------------------------------------------------
 
     def suspend_tenant(self, tenant_id: str) -> Tenant:
-        require_any_permission(
+        require_permission(
             self._user_session,
-            ["tenant.manage", "platform.admin"],
+            "platform.admin",
             operation_label="suspend tenant",
         )
         self._guard_self_lockout(tenant_id, "suspend")
@@ -220,9 +220,9 @@ class TenantAdminService:
         return tenant
 
     def archive_tenant(self, tenant_id: str) -> Tenant:
-        require_any_permission(
+        require_permission(
             self._user_session,
-            ["tenant.manage", "platform.admin"],
+            "platform.admin",
             operation_label="archive tenant",
         )
         self._guard_self_lockout(tenant_id, "archive")

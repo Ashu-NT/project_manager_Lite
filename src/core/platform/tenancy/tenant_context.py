@@ -214,11 +214,13 @@ class TenantContextService:
 
     def _can_access(self, organization: Organization) -> bool:
         # Cross-tenant guard: org must belong to the currently active tenant.
-        # Skipped when either side is unset (single-tenant / bootstrap mode).
+        # Skipped only when no active tenant is set (single-tenant / bootstrap mode).
         active_tenant_id = self._session_tenant_id()
         if active_tenant_id:
             org_tenant_id = str(getattr(organization, "tenant_id", "") or "").strip()
-            if org_tenant_id and org_tenant_id != active_tenant_id:
+            # H-5: deny access when org has no tenant_id while a tenant is active —
+            # an unscoped org is ambiguous and must not be accessible in multi-tenant mode.
+            if not org_tenant_id or org_tenant_id != active_tenant_id:
                 return False
 
         if self._user_session is None:

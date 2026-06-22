@@ -162,25 +162,35 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
     )
+
+    # H-6: Bootstrap default tenant BEFORE org so that the org is always created
+    # with a non-null tenant_id. organizations.tenant_id is now NOT NULL.
+    if repositories.tenant_repo.get_default() is None:
+        from src.core.platform.tenancy.domain.tenant import Tenant as _Tenant
+        _existing_orgs = repositories.organization_repo.list_all()
+        _tenant_code = _existing_orgs[0].organization_code if _existing_orgs else "DEFAULT"
+        _tenant_name = _existing_orgs[0].display_name if _existing_orgs else "Default Tenant"
+        _default_tenant = _Tenant.create(tenant_code=_tenant_code, display_name=_tenant_name)
+        repositories.tenant_repo.add(_default_tenant)
+        session.flush()
+        # Backfill any existing orgs that pre-date this run (e.g. live DB upgrade path)
+        for _org in _existing_orgs:
+            if not _org.tenant_id:
+                _org.tenant_id = _default_tenant.id
+                repositories.organization_repo.update(_org)
+        session.commit()
+        user_session.set_active_tenant_id(_default_tenant.id)
+        logger.debug("Platform default tenant bootstrapped tenant_id=%s", _default_tenant.id)
+
+    # Set active tenant in the session before org bootstrap so that
+    # organization_service.bootstrap_defaults() creates the org with the correct tenant_id.
+    if user_session.active_tenant_id() is None:
+        _dt = repositories.tenant_repo.get_default()
+        if _dt is not None:
+            user_session.set_active_tenant_id(_dt.id)
+
     logger.debug("Platform organization service created; bootstrapping defaults")
     organization_service.bootstrap_defaults()
-
-    # Bootstrap default tenant if none exists (desktop single-tenant mode).
-    # Must run after org bootstrap since default tenant is seeded from the first org.
-    if repositories.tenant_repo.get_default() is None:
-        from src.core.platform.tenancy.domain.tenant import Tenant
-        orgs = repositories.organization_repo.list_all()
-        tenant_code = orgs[0].organization_code if orgs else "DEFAULT"
-        tenant_name = orgs[0].display_name if orgs else "Default Tenant"
-        default_tenant = Tenant.create(tenant_code=tenant_code, display_name=tenant_name)
-        repositories.tenant_repo.add(default_tenant)
-        session.flush()
-        # Backfill organizations.tenant_id
-        for org in orgs:
-            org.tenant_id = default_tenant.id
-            repositories.organization_repo.update(org)
-        session.commit()
-        logger.debug("Platform default tenant bootstrapped tenant_id=%s", default_tenant.id)
 
     if user_session.active_organization_id() is None:
         # Bootstrap the local/session tenant explicitly after organization
@@ -191,12 +201,6 @@ def build_platform_service_bundle(
             organizations = repositories.organization_repo.list_all()
         if organizations:
             user_session.set_active_organization_id(organizations[0].id)
-
-    # Seed active tenant id from the first org's tenant
-    if user_session.active_tenant_id() is None:
-        default_tenant = repositories.tenant_repo.get_default()
-        if default_tenant is not None:
-            user_session.set_active_tenant_id(default_tenant.id)
 
     # Backfill all existing users into the default tenant if they have no membership.
     # Admin is exempt from the membership check by role, but backfilling ensures

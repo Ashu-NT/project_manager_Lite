@@ -135,8 +135,12 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
         return self.session.execute(stmt).first() is not None
 
     def project_in_different_organization(self, project_id: str, organization_id: str) -> bool:
-        """True only when the project exists AND belongs to a different organization."""
-        stmt = select(ProjectORM.organization_id).where(ProjectORM.id == project_id)
+        """True only when the project exists in the active tenant AND belongs to a different organization."""
+        ctx = self._context(operation_label="access approvals")
+        stmt = select(ProjectORM.organization_id).where(
+            ProjectORM.id == project_id,
+            ProjectORM.tenant_id == ctx.tenant_id,
+        )
         row = self.session.execute(stmt).first()
         if row is None:
             return False

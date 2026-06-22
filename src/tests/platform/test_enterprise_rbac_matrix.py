@@ -82,8 +82,12 @@ def test_security_and_payroll_roles_expose_expected_permissions(services):
 def test_access_and_security_admin_capabilities_are_separated(services):
     auth = services["auth_service"]
     access = services["access_service"]
+    active_tenant_id = services["user_session"].active_tenant_id()
     project = services["project_service"].create_project("Access Admin Project")
-    target = auth.register_user("locked-target", "StrongPass123", role_names=["viewer"])
+    # H-8: target must be in the active tenant so security_admin can manage them
+    target = auth.register_user(
+        "locked-target", "StrongPass123", role_names=["viewer"], tenant_id=active_tenant_id
+    )
     auth.register_user("access-admin-user", "StrongPass123", role_names=["access_admin"])
     auth.register_user(
         "security-admin-user",
