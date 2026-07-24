@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -163,7 +163,7 @@ class ReportDefinition:
         visibility: ReportVisibility = ReportVisibility.PRIVATE,
         owner_id: str | None = None,
     ) -> "ReportDefinition":
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return ReportDefinition(
             id=generate_id(),
             report_key=report_key,
@@ -224,7 +224,7 @@ class SavedReportView:
         owner_id: str,
         visibility: ReportVisibility = ReportVisibility.PRIVATE,
     ) -> "SavedReportView":
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return SavedReportView(
             id=generate_id(),
             report_definition_id=report_definition_id,
