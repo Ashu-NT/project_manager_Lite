@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
-
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.modules.project_management.domain.enums import CostType
 from src.core.platform.approval.policy import is_governance_required
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import is_admin_session, require_permission
@@ -74,25 +71,6 @@ class CostSupportMixin:
                 code="TASK_PROJECT_MISMATCH",
             )
         return task
-
-    @staticmethod
-    def _validate_non_negative(value: float, label: str) -> float:
-        amount = float(value)
-        if amount < 0:
-            raise ValidationError(f"{label} cannot be negative.")
-        return amount
-
-    @staticmethod
-    def _validate_incurred_date(incurred_date: date | None) -> date | None:
-        if incurred_date is not None and not isinstance(incurred_date, date):
-            raise ValidationError("Incurred date must be a valid date.")
-        return incurred_date
-
-    @staticmethod
-    def _normalize_cost_type(cost_type: CostType | str) -> CostType:
-        if isinstance(cost_type, CostType):
-            return cost_type
-        return CostType(str(cost_type))
 
     @staticmethod
     def _normalize_currency(currency_code: str | None) -> str:

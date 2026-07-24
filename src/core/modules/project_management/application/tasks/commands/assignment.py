@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.tasks.commands.assignment_activity import (
@@ -77,8 +79,6 @@ class TaskAssignmentMixin:
         return self._assignment_repo.list_by_task(task_id)
 
     def set_assignment_hours(self, assignment_id: str, hours_logged: float) -> TaskAssignment:
-        if hours_logged < 0:
-            raise ValidationError("hours_logged cannot be negative.")
         assignment = self._assignment_repo.get(assignment_id)
         if not assignment:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
@@ -91,35 +91,31 @@ class TaskAssignmentMixin:
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         self._require_manage("log assignment hours", project_id=task.project_id)
-        assignment.hours_logged = hours_logged
+        candidate = replace(assignment, hours_logged=hours_logged)
         resource = self._resource_repo.get(assignment.resource_id)
         try:
-            self._assignment_repo.update(assignment)
+            self._assignment_repo.update(candidate)
             self._session.commit()
             record_assignment_action(
                 self,
                 action="assignment.log_hours",
-                assignment_id=assignment.id,
+                assignment_id=candidate.id,
                 project_id=task.project_id,
                 task_name=task.name,
-                resource_name=resource.name if resource is not None else assignment.resource_id,
-                extra={"hours_logged": assignment.hours_logged},
+                resource_name=resource.name if resource is not None else candidate.resource_id,
+                extra={"hours_logged": candidate.hours_logged},
             )
         except Exception as exc:
             self._session.rollback()
             raise exc
         domain_events.tasks_changed.emit(task.project_id)
-        return assignment
+        return candidate
 
     def set_assignment_allocation(
         self,
         assignment_id: str,
         allocation_percent: float,
     ) -> TaskAssignment:
-        alloc = float(allocation_percent or 0.0)
-        if alloc <= 0 or alloc > 100:
-            raise ValidationError("allocation_percent must be > 0 and <= 100.")
-
         assignment = self._assignment_repo.get(assignment_id)
         if not assignment:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
@@ -128,35 +124,35 @@ class TaskAssignmentMixin:
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         self._require_manage("set assignment allocation", project_id=task.project_id)
+        candidate = replace(assignment, allocation_percent=allocation_percent)
 
         self._check_resource_overallocation(
             project_id=task.project_id,
             resource_id=assignment.resource_id,
             new_task_id=task.id,
-            new_alloc_percent=alloc,
+            new_alloc_percent=candidate.allocation_percent,
             exclude_assignment_id=assignment.id,
         )
 
-        assignment.allocation_percent = alloc
         resource = self._resource_repo.get(assignment.resource_id)
         try:
-            self._assignment_repo.update(assignment)
+            self._assignment_repo.update(candidate)
             self._session.commit()
             record_assignment_action(
                 self,
                 action="assignment.set_allocation",
-                assignment_id=assignment.id,
+                assignment_id=candidate.id,
                 project_id=task.project_id,
                 task_name=task.name,
-                resource_name=resource.name if resource is not None else assignment.resource_id,
-                extra={"allocation_percent": assignment.allocation_percent},
+                resource_name=resource.name if resource is not None else candidate.resource_id,
+                extra={"allocation_percent": candidate.allocation_percent},
             )
         except Exception as exc:
             self._session.rollback()
             raise exc
 
         domain_events.tasks_changed.emit(task.project_id)
-        return assignment
+        return candidate
 
     def get_assignment(self, assignment_id: str) -> TaskAssignment | None:
         require_permission(self._user_session, "task.read", operation_label="view assignment")
@@ -183,10 +179,6 @@ class TaskAssignmentMixin:
                 code="PROJECT_RESOURCE_REPO_MISSING",
             )
 
-        alloc = float(allocation_percent or 0.0)
-        if alloc <= 0 or alloc > 100:
-            raise ValidationError("allocation_percent must be > 0 and <= 100.")
-
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
@@ -212,15 +204,19 @@ class TaskAssignmentMixin:
                 code="ASSIGNMENT_DUPLICATE",
             )
 
+        assignment = TaskAssignment.create(
+            task_id,
+            project_resource.resource_id,
+            allocation_percent,
+        )
+        assignment.project_resource_id = project_resource.id
+
         self._check_resource_overallocation(
             project_id=task.project_id,
             resource_id=project_resource.resource_id,
             new_task_id=task.id,
-            new_alloc_percent=alloc,
+            new_alloc_percent=assignment.allocation_percent,
         )
-
-        assignment = TaskAssignment.create(task_id, project_resource.resource_id, alloc)
-        setattr(assignment, "project_resource_id", project_resource.id)
         resource = self._resource_repo.get(project_resource.resource_id)
 
         try:

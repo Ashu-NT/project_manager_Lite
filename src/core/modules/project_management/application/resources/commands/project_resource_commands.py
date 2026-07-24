@@ -52,11 +52,6 @@ class ProjectResourceCommandMixin:
                 "Resource is already added to this project.",
                 code="PROJECT_RESOURCE_EXISTS",
             )
-        if planned_hours < 0:
-            raise BusinessRuleError(
-                "planned_hours cannot be negative.",
-                code="PROJECT_RESOURCE_PLANNED_HOURS_INVALID",
-            )
 
         resolved_currency = (currency_code or getattr(resource, "currency_code", None) or "").strip().upper()
         if not resolved_currency:
@@ -118,11 +113,6 @@ class ProjectResourceCommandMixin:
             "project.manage",
             operation_label="update project resource",
         )
-        if planned_hours < 0:
-            raise BusinessRuleError(
-                "planned_hours cannot be negative.",
-                code="PROJECT_RESOURCE_PLANNED_HOURS_INVALID",
-            )
 
         resolved_currency = (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
         project_resource.hourly_rate = hourly_rate

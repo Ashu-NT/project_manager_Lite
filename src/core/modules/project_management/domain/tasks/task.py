@@ -1,13 +1,23 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date
+
+from pydantic import field_validator, model_validator
 
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
 from src.core.modules.project_management.domain.identifiers import generate_id
+from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.pydantic import (
+    normalize_optional_identifier,
+    normalize_optional_text,
+    normalize_required_text,
+    validated_dataclass,
+)
+
+_INVALID_TASK_NAME_CHARACTERS = {"/", "\\", "?", "%", "*", ":", "|", '"', "<", ">"}
 
 
-@dataclass
+@validated_dataclass
 class Task:
     id: str
     project_id: str
@@ -27,6 +37,83 @@ class Task:
     constraint_date: date | None = None
     version: int = 1
 
+    @field_validator("project_id", mode="before")
+    @classmethod
+    def _validate_project_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Project ID is required.",
+            code="TASK_PROJECT_REQUIRED",
+        )
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def _validate_name(cls, value: object) -> str:
+        normalized = normalize_required_text(
+            value,
+            message="Task name cannot be empty.",
+            code="TASK_NAME_EMPTY",
+        )
+        if len(normalized) < 3:
+            raise ValidationError(
+                "Task name must be at least 3 characters.",
+                code="TASK_NAME_TOO_SHORT",
+            )
+        if any(char in normalized for char in _INVALID_TASK_NAME_CHARACTERS):
+            raise ValidationError(
+                "Task name contains invalid characters.",
+                code="TASK_NAME_INVALID_CHARS",
+            )
+        return normalized
+
+    @field_validator("code", "description", "constraint_type", mode="before")
+    @classmethod
+    def _normalize_text_fields(cls, value: object) -> str:
+        return normalize_optional_text(value)
+
+    @field_validator("duration_days", mode="before")
+    @classmethod
+    def _validate_duration_days(cls, value: object) -> int | None:
+        if value in (None, ""):
+            return None
+        resolved = int(value)
+        if resolved < 0:
+            raise ValidationError(
+                "Task duration_days cannot be negative.",
+                code="TASK_DURATION_INVALID",
+            )
+        return resolved
+
+    @field_validator("percent_complete", mode="before")
+    @classmethod
+    def _validate_percent_complete(cls, value: object) -> float:
+        resolved = float(value if value not in (None, "") else 0.0)
+        if resolved < 0 or resolved > 100:
+            raise ValidationError(
+                "percent_complete must be between 0 and 100.",
+                code="TASK_PERCENT_COMPLETE_INVALID",
+            )
+        return resolved
+
+    @model_validator(mode="after")
+    def _validate_date_ranges(self) -> "Task":
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValidationError(
+                "Task end date cannot be before start date.",
+                code="TASK_DATE_RANGE_INVALID",
+            )
+        if self.start_date and self.deadline and self.deadline < self.start_date:
+            raise ValidationError(
+                "Task deadline cannot be before start_date.",
+                code="TASK_DEADLINE_INVALID",
+            )
+        if self.actual_start and self.actual_end and self.actual_end < self.actual_start:
+            raise ValidationError(
+                "Actual end date cannot be before actual start.",
+                code="TASK_ACTUAL_DATE_RANGE_INVALID",
+            )
+        return self
+
     @staticmethod
     def create(project_id: str, name: str, description: str = "", **extra) -> "Task":
         return Task(
@@ -38,7 +125,7 @@ class Task:
         )
 
 
-@dataclass
+@validated_dataclass
 class TaskAssignment:
     id: str
     task_id: str
@@ -46,6 +133,51 @@ class TaskAssignment:
     allocation_percent: float = 100.0
     hours_logged: float = 0.0
     project_resource_id: str | None = None
+
+    @field_validator("task_id", mode="before")
+    @classmethod
+    def _validate_task_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Task ID is required.",
+            code="ASSIGNMENT_TASK_REQUIRED",
+        )
+
+    @field_validator("resource_id", mode="before")
+    @classmethod
+    def _validate_resource_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Resource ID is required.",
+            code="ASSIGNMENT_RESOURCE_REQUIRED",
+        )
+
+    @field_validator("project_resource_id", mode="before")
+    @classmethod
+    def _normalize_project_resource_id(cls, value: object) -> str | None:
+        return normalize_optional_identifier(value)
+
+    @field_validator("allocation_percent", mode="before")
+    @classmethod
+    def _validate_allocation_percent(cls, value: object) -> float:
+        resolved = float(value if value not in (None, "") else 0.0)
+        if resolved <= 0 or resolved > 100:
+            raise ValidationError(
+                "allocation_percent must be > 0 and <= 100.",
+                code="ASSIGNMENT_ALLOCATION_INVALID",
+            )
+        return resolved
+
+    @field_validator("hours_logged", mode="before")
+    @classmethod
+    def _validate_hours_logged(cls, value: object) -> float:
+        resolved = float(value if value not in (None, "") else 0.0)
+        if resolved < 0:
+            raise ValidationError(
+                "hours_logged cannot be negative.",
+                code="ASSIGNMENT_HOURS_INVALID",
+            )
+        return resolved
 
     @staticmethod
     def create(
@@ -63,13 +195,45 @@ class TaskAssignment:
         )
 
 
-@dataclass
+@validated_dataclass
 class TaskDependency:
     id: str
     predecessor_task_id: str
     successor_task_id: str
     dependency_type: DependencyType = DependencyType.FINISH_TO_START
     lag_days: int = 0
+
+    @field_validator("predecessor_task_id", mode="before")
+    @classmethod
+    def _validate_predecessor_task_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Predecessor task ID is required.",
+            code="DEPENDENCY_PREDECESSOR_REQUIRED",
+        )
+
+    @field_validator("successor_task_id", mode="before")
+    @classmethod
+    def _validate_successor_task_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Successor task ID is required.",
+            code="DEPENDENCY_SUCCESSOR_REQUIRED",
+        )
+
+    @field_validator("lag_days", mode="before")
+    @classmethod
+    def _validate_lag_days(cls, value: object) -> int:
+        return int(value if value not in (None, "") else 0)
+
+    @model_validator(mode="after")
+    def _validate_not_self_dependency(self) -> "TaskDependency":
+        if self.predecessor_task_id == self.successor_task_id:
+            raise ValidationError(
+                "A task cannot depend on itself.",
+                code="DEPENDENCY_SELF",
+            )
+        return self
 
     @staticmethod
     def create(

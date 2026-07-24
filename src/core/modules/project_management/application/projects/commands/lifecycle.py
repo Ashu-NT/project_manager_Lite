@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from datetime import date
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.projects.commands.validation import (
-    ProjectValidationMixin,
-)
 from src.core.modules.project_management.contracts.repositories.cost_calendar import (
     CalendarEventRepository,
     CostRepository,
@@ -33,7 +31,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_CURRENCY_CODE = "EUR"
 
 
-class ProjectLifecycleMixin(ProjectValidationMixin):
+class ProjectLifecycleMixin:
     _session: Session
     _project_repo: ProjectRepository
     _task_repo: TaskRepository
@@ -43,7 +41,26 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
     _calendar_repo: CalendarEventRepository
     _cost_repo: CostRepository
     _user_session:UserSessionContext
-        
+
+    def _validate_project_name(
+        self,
+        name: str,
+        *,
+        organization_id: str,
+        exclude_id: str | None = None,
+    ) -> None:
+        normalized_name = name.strip().lower()
+        if not normalized_name:
+            return
+        for project in self._project_repo.list():
+            if exclude_id is not None and project.id == exclude_id:
+                continue
+            if project.name.strip().lower() == normalized_name:
+                raise ValidationError(
+                    "A project with this name already exists.",
+                    code="PROJECT_NAME_DUPLICATE",
+                )
+
     def _resolve_project_code(
         self,
         code: str,
@@ -121,27 +138,26 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             organization_id,
             operation_label="create project",
         )
-        self._validate_project_name(name, organization_id=resolved_organization_id)
         resolved_currency = (currency or "").strip().upper() or DEFAULT_CURRENCY_CODE
-        resolved_code = self._resolve_project_code(
-            code,
-            name,
-            organization_id=resolved_organization_id,
-        )
         project = Project.create(
-            name=name.strip(),
-            code=resolved_code,
-            description=(description or "").strip(),
-            client_name=(client_name or "").strip() or None,
-            client_contact=(client_contact or "").strip() or None,
+            name=name,
+            description=description,
+            client_name=client_name,
+            client_contact=client_contact,
             planned_budget=planned_budget,
             currency=resolved_currency,
             start_date=start_date,
             end_date=end_date,
             organization_id=resolved_organization_id,
-            site_id=(site_id or "").strip() or None,
-            client_party_id=(client_party_id or "").strip() or None,
-            manager_user_id=(manager_user_id or "").strip() or None,
+            site_id=site_id,
+            client_party_id=client_party_id,
+            manager_user_id=manager_user_id,
+        )
+        self._validate_project_name(project.name, organization_id=resolved_organization_id)
+        project.code = self._resolve_project_code(
+            code,
+            project.name,
+            organization_id=resolved_organization_id,
         )
 
         try:
@@ -162,7 +178,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         except IntegrityError as exc:
             self._session.rollback()
             if self._is_project_code_integrity_error(exc):
-                self._raise_project_code_duplicate(resolved_code, exc)
+                self._raise_project_code_duplicate(project.code, exc)
             logger.error("Error creating project: %s", exc)
             raise
         except Exception as exc:
@@ -252,54 +268,44 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
                 "Project changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
-
-        if name is not None:
-            if not name.strip():
-                raise ValidationError("Project name cannot be empty.", code="PROJECT_NAME_EMPTY")
-            self._validate_project_name(
-                name,
-                organization_id=getattr(project, "organization_id", None),
-                exclude_id=project.id,
-            )
-            project.name = name.strip()
-        if code is not None and code.strip():
-            project.code = self._resolve_project_code(
-                code,
-                project.name,
-                exclude_id=project.id,
-                organization_id=getattr(project, "organization_id", None),
-            )
-        if description is not None:
-            project.description = description.strip()
-        if status is not None:
-            project.status = status
-        if start_date is not None:
-            project.start_date = start_date
-        if end_date is not None:
-            if project.start_date and end_date < project.start_date:
-                raise ValidationError("Project end date cannot be before start date.")
-            project.end_date = end_date
-        if client_name is not None:
-            project.client_name = client_name.strip() or None
-        if client_contact is not None:
-            project.client_contact = client_contact.strip() or None
-        if planned_budget is not None:
-            if planned_budget < 0:
-                raise ValidationError("Planned budget cannot be negative.")
-            project.planned_budget = planned_budget
-        if currency is not None:
-            project.currency = currency.strip().upper() or None
-        if organization_id is not None:
-            project.organization_id = self._resolve_project_organization_id(
+        resolved_organization_id = (
+            self._resolve_project_organization_id(
                 organization_id,
                 operation_label="update project",
             )
-        if site_id is not None:
-            project.site_id = (site_id or "").strip() or None
-        if client_party_id is not None:
-            project.client_party_id = (client_party_id or "").strip() or None
-        if manager_user_id is not None:
-            project.manager_user_id = (manager_user_id or "").strip() or None
+            if organization_id is not None
+            else project.organization_id
+        )
+        candidate = replace(
+            project,
+            name=project.name if name is None else name,
+            description=project.description if description is None else description,
+            status=project.status if status is None else status,
+            start_date=project.start_date if start_date is None else start_date,
+            end_date=project.end_date if end_date is None else end_date,
+            client_name=project.client_name if client_name is None else client_name,
+            client_contact=project.client_contact if client_contact is None else client_contact,
+            planned_budget=project.planned_budget if planned_budget is None else planned_budget,
+            currency=project.currency if currency is None else currency,
+            organization_id=resolved_organization_id,
+            site_id=project.site_id if site_id is None else site_id,
+            client_party_id=project.client_party_id if client_party_id is None else client_party_id,
+            manager_user_id=project.manager_user_id if manager_user_id is None else manager_user_id,
+        )
+        if name is not None:
+            self._validate_project_name(
+                candidate.name,
+                organization_id=getattr(candidate, "organization_id", None),
+                exclude_id=project.id,
+            )
+        if code is not None and code.strip():
+            candidate.code = self._resolve_project_code(
+                code,
+                candidate.name,
+                exclude_id=project.id,
+                organization_id=getattr(candidate, "organization_id", None),
+            )
+        project = candidate
 
         try:
             self._project_repo.update(project)

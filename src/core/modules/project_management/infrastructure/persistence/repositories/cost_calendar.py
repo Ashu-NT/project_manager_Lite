@@ -97,6 +97,7 @@ class SqlAlchemyCostRepository(CostRepository):
             {
                 "project_id": cost_item.project_id,
                 "task_id": cost_item.task_id,
+                "cost_code": getattr(cost_item, "code", "") or None,
                 "description": cost_item.description,
                 "cost_type": (
                     cost_item.cost_type.value
@@ -107,6 +108,13 @@ class SqlAlchemyCostRepository(CostRepository):
                 "planned_amount": cost_item.planned_amount,
                 "committed_amount": cost_item.committed_amount,
                 "actual_amount": cost_item.actual_amount,
+                "forecast_amount": cost_item.forecast_amount,
+                "commitment_status": (
+                    cost_item.commitment_status.value
+                    if hasattr(cost_item.commitment_status, "value")
+                    else cost_item.commitment_status
+                ),
+                "vendor_reference": cost_item.vendor_reference,
                 "incurred_date": cost_item.incurred_date,
             },
             extra_filters={"project_id": cost_item.project_id},

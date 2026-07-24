@@ -78,6 +78,7 @@ class SqlAlchemyTaskRepository(TaskRepository):
             getattr(task, "version", 1),
             {
                 "project_id": task.project_id,
+                "task_code": getattr(task, "code", "") or None,
                 "name": task.name,
                 "description": task.description,
                 "start_date": task.start_date,

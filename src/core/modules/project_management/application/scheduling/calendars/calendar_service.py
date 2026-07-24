@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import replace
 from datetime import date
 from src.core.modules.project_management.domain.scheduling.calendar import CalendarEvent
 from src.core.modules.project_management.domain.tasks.task import Task
@@ -31,7 +32,20 @@ class CalendarService(ProjectManagementModuleGuardMixin):
         self._task_repo: TaskRepository = task_repo
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
-        
+
+    def _resolve_task_for_project(self, project_id: str, task_id: str | None) -> Task | None:
+        if task_id is None:
+            return None
+        task = self._task_repo.get(task_id)
+        if task is None:
+            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        if task.project_id != project_id:
+            raise ValidationError(
+                "Task must belong to the selected project.",
+                code="TASK_PROJECT_MISMATCH",
+            )
+        return task
+
     def create_event(
         self,
         title: str,
@@ -43,6 +57,8 @@ class CalendarService(ProjectManagementModuleGuardMixin):
         description: str = "",
     ) -> CalendarEvent:
         require_permission(self._user_session, "task.manage", operation_label="create calendar event")
+        event_project_id = str(project_id or "").strip()
+        self._resolve_task_for_project(event_project_id, task_id)
         event = CalendarEvent.create(
             title=title,
             start_date=start_date,
@@ -109,24 +125,19 @@ class CalendarService(ProjectManagementModuleGuardMixin):
         event = self._calendar_repo.get(event_id)
         if not event:
             raise NotFoundError("Calendar event not found.", code="EVENT_NOT_FOUND")
-
-        if title is not None:
-            event.title = title.strip()
-        if start_date is not None:
-            event.start_date = start_date
-        if end_date is not None:
-            if event.start_date and end_date < event.start_date:
-                raise ValidationError("Event end date cannot be before start date.")
-            event.end_date = end_date
-        if description is not None:
-            event.description = description.strip()
-        if all_day is not None:
-            event.all_day = all_day
+        candidate = replace(
+            event,
+            title=event.title if title is None else title,
+            start_date=event.start_date if start_date is None else start_date,
+            end_date=event.end_date if end_date is None else end_date,
+            description=event.description if description is None else description,
+            all_day=event.all_day if all_day is None else all_day,
+        )
 
         try:
-            self._calendar_repo.update(event)
+            self._calendar_repo.update(candidate)
             self._session.commit()
-            return event
+            return candidate
         except Exception as e:
             self._session.rollback()
             raise e

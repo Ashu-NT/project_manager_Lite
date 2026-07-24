@@ -32,6 +32,14 @@ class CostItemORM(Base):
     planned_amount: Mapped[float] = mapped_column(Float, nullable=False)
     committed_amount: Mapped[float] = mapped_column(Float, default=0.0)
     actual_amount: Mapped[float] = mapped_column(Float, default=0.0)
+    forecast_amount: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    commitment_status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="uncommitted",
+        server_default="uncommitted",
+    )
+    vendor_reference: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     incurred_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
@@ -40,6 +48,7 @@ Index("idx_costs_project", CostItemORM.project_id)
 Index("ux_costs_project_code", CostItemORM.project_id, CostItemORM.cost_code, unique=True)
 Index("idx_costs_task", CostItemORM.task_id)
 Index("idx_costs_type", CostItemORM.cost_type)
+Index("idx_costs_commitment_status", CostItemORM.commitment_status)
 
 
 class CalendarEventORM(Base):

@@ -49,6 +49,7 @@ class SqlAlchemyResourceRepository(ResourceRepository):
             resource.id,
             getattr(resource, "version", 1),
             {
+                "resource_code": getattr(resource, "code", "") or None,
                 "name": resource.name,
                 "role": resource.role,
                 "hourly_rate": resource.hourly_rate,

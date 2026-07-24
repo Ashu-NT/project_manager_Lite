@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any
+
+from sqlalchemy.exc import IntegrityError
 
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntry,
@@ -25,6 +28,29 @@ class RegisterLifecycleMixin:
     _project_repo: ProjectRepository
     _register_repo: RegisterEntryRepository
     _UNSET = object()
+
+    @staticmethod
+    def _is_register_code_integrity_error(exc: IntegrityError) -> bool:
+        message = " ".join(
+            part
+            for part in [
+                str(getattr(exc, "orig", "") or ""),
+                str(getattr(exc, "statement", "") or ""),
+                str(exc),
+            ]
+            if part
+        ).lower()
+        return (
+            "ux_register_entries_project_code" in message
+            or "register_entries.entry_code" in message
+        )
+
+    @staticmethod
+    def _raise_register_code_duplicate(code: str, exc: IntegrityError) -> None:
+        raise ValidationError(
+            f"Register code '{code}' already exists in this project.",
+            code="CODE_DUPLICATE",
+        ) from exc
 
     def _resolve_entry_code(
         self, code: str, project_id: str, title: str, *, exclude_id: str | None = None
@@ -83,17 +109,18 @@ class RegisterLifecycleMixin:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
         entry = RegisterEntry.create(
             project_id,
-            entry_type=as_register_entry_type(entry_type),
-            title=self._normalize_title(title),
-            code=self._resolve_entry_code(code, project_id, title),
-            description=(description or "").strip(),
-            severity=as_register_entry_severity(severity),
-            status=as_register_entry_status(status),
-            owner_name=self._normalize_owner(owner_name),
+            entry_type=entry_type,
+            title=title,
+            code="",
+            description=description,
+            severity=severity,
+            status=status,
+            owner_name=owner_name,
             due_date=due_date,
-            impact_summary=(impact_summary or "").strip(),
-            response_plan=(response_plan or "").strip(),
+            impact_summary=impact_summary,
+            response_plan=response_plan,
         )
+        entry.code = self._resolve_entry_code(code, project_id, entry.title)
         try:
             self._register_repo.add(entry)
             self._session.commit()
@@ -106,6 +133,11 @@ class RegisterLifecycleMixin:
                 workspace_id=entry.project_id,
                 details=self._audit_details(entry),
             )
+        except IntegrityError as exc:
+            self._session.rollback()
+            if self._is_register_code_integrity_error(exc):
+                self._raise_register_code_duplicate(entry.code, exc)
+            raise
         except Exception:
             self._session.rollback()
             raise
@@ -143,46 +175,51 @@ class RegisterLifecycleMixin:
                 "Register entry changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
-        if entry_type is not None:
-            entry.entry_type = as_register_entry_type(entry_type)
-        if title is not None:
-            entry.title = self._normalize_title(title)
-        if description is not None:
-            entry.description = description.strip()
-        if severity is not None:
-            entry.severity = as_register_entry_severity(severity)
-        if status is not None:
-            entry.status = as_register_entry_status(status)
-        if owner_name is not None:
-            entry.owner_name = self._normalize_owner(owner_name)
-        if due_date is not self._UNSET:
-            entry.due_date = due_date
-        if impact_summary is not None:
-            entry.impact_summary = impact_summary.strip()
-        if response_plan is not None:
-            entry.response_plan = response_plan.strip()
+        candidate = replace(
+            entry,
+            entry_type=entry.entry_type if entry_type is None else entry_type,
+            title=entry.title if title is None else title,
+            description=entry.description if description is None else description,
+            severity=entry.severity if severity is None else severity,
+            status=entry.status if status is None else status,
+            owner_name=entry.owner_name if owner_name is None else owner_name,
+            due_date=entry.due_date if due_date is self._UNSET else due_date,
+            impact_summary=entry.impact_summary if impact_summary is None else impact_summary,
+            response_plan=entry.response_plan if response_plan is None else response_plan,
+            updated_at=datetime.now(timezone.utc),
+        )
         if code is not None and code.strip():
-            entry.code = self._resolve_entry_code(
-                code, entry.project_id, entry.title, exclude_id=entry.id
+            candidate = replace(
+                candidate,
+                code=self._resolve_entry_code(
+                    code,
+                    entry.project_id,
+                    candidate.title,
+                    exclude_id=entry.id,
+                ),
             )
-        entry.updated_at = datetime.now(timezone.utc)
         try:
-            self._register_repo.update(entry)
+            self._register_repo.update(candidate)
             self._session.commit()
             record_activity(
                 self,
                 action="register.update",
                 entity_type="register_entry",
-                entity_id=entry.id,
+                entity_id=candidate.id,
                 module="project_management",
-                workspace_id=entry.project_id,
-                details=self._audit_details(entry),
+                workspace_id=candidate.project_id,
+                details=self._audit_details(candidate),
             )
+        except IntegrityError as exc:
+            self._session.rollback()
+            if self._is_register_code_integrity_error(exc):
+                self._raise_register_code_duplicate(candidate.code, exc)
+            raise
         except Exception:
             self._session.rollback()
             raise
-        domain_events.register_changed.emit(entry.project_id)
-        return entry
+        domain_events.register_changed.emit(candidate.project_id)
+        return candidate
 
     def delete_entry(self, entry_id: str) -> None:
         require_permission(self._user_session, "register.manage", operation_label="delete register entry")
@@ -211,17 +248,6 @@ class RegisterLifecycleMixin:
             self._session.rollback()
             raise
         domain_events.register_changed.emit(entry.project_id)
-
-    @staticmethod
-    def _normalize_title(value: str) -> str:
-        title = (value or "").strip()
-        if not title:
-            raise ValidationError("Register title cannot be empty.", code="REGISTER_TITLE_EMPTY")
-        return title
-
-    @staticmethod
-    def _normalize_owner(value: str | None) -> str | None:
-        return (value or "").strip() or None
 
     @staticmethod
     def _audit_details(entry: RegisterEntry) -> dict[str, object]:

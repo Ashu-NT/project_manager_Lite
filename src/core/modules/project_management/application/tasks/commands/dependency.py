@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from src.core.modules.project_management.domain.tasks.task import TaskDependency
@@ -248,13 +249,16 @@ class TaskDependencyMixin:
                 operation_label="request dependency update" if governed else "update dependency",
             )
 
-        next_dependency_type = dependency_type or dependency.dependency_type
-        next_lag_days = int(dependency.lag_days if lag_days is None else lag_days)
+        candidate = replace(
+            dependency,
+            dependency_type=dependency.dependency_type if dependency_type is None else dependency_type,
+            lag_days=dependency.lag_days if lag_days is None else lag_days,
+        )
         diagnostic = self.get_dependency_diagnostics(
             predecessor_id=dependency.predecessor_task_id,
             successor_id=dependency.successor_task_id,
-            dependency_type=next_dependency_type,
-            lag_days=next_lag_days,
+            dependency_type=candidate.dependency_type,
+            lag_days=candidate.lag_days,
             include_impact=False,
         )
         if not diagnostic.is_valid and diagnostic.code not in {"DEPENDENCY_DUPLICATE"}:
@@ -277,8 +281,8 @@ class TaskDependencyMixin:
                     "predecessor_name": predecessor.name if predecessor else None,
                     "successor_id": dependency.successor_task_id,
                     "successor_name": successor.name if successor else None,
-                    "dependency_type": next_dependency_type.value,
-                    "lag_days": next_lag_days,
+                    "dependency_type": candidate.dependency_type.value,
+                    "lag_days": candidate.lag_days,
                 },
             )
             raise BusinessRuleError(
@@ -286,10 +290,8 @@ class TaskDependencyMixin:
                 code="APPROVAL_REQUIRED",
             )
 
-        dependency.dependency_type = next_dependency_type
-        dependency.lag_days = next_lag_days
         try:
-            self._dependency_repo.update(dependency)
+            self._dependency_repo.update(candidate)
             self._session.commit()
             if project_id:
                 self._sync_project_schedule(project_id)
@@ -297,14 +299,14 @@ class TaskDependencyMixin:
                 self,
                 action="dependency.update",
                 entity_type="task_dependency",
-                entity_id=dependency.id,
+                entity_id=candidate.id,
                 module="project_management",
                 workspace_id=project_id,
                 details={
                     "predecessor_name": predecessor.name if predecessor else None,
                     "successor_name": successor.name if successor else None,
-                    "type": dependency.dependency_type.value,
-                    "lag_days": dependency.lag_days,
+                    "type": candidate.dependency_type.value,
+                    "lag_days": candidate.lag_days,
                 },
             )
         except Exception as exc:
@@ -312,7 +314,7 @@ class TaskDependencyMixin:
             raise exc
         if project_id:
             domain_events.tasks_changed.emit(project_id)
-        return dependency
+        return candidate
 
 
 __all__ = ["TaskDependencyMixin"]
