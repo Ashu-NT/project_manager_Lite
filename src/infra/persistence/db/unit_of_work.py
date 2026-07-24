@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 
 from sqlalchemy.orm import Session
@@ -9,7 +9,7 @@ from src.infra.persistence.db.session_factory import SessionLocal
 
 
 @contextmanager
-def session_scope() -> Iterator[Session]:
+def session_scope() -> Generator[Session, None, None]:
     session = SessionLocal()
     try:
         yield session

@@ -13,7 +13,7 @@ from contextvars import ContextVar
 from datetime import date, datetime, timezone
 from pathlib import Path
 from threading import Lock
-from typing import Any, Iterator, Mapping
+from typing import Any, Generator, Mapping
 
 from src.infra.platform.path import user_data_dir
 from src.infra.platform.version import get_app_version
@@ -60,7 +60,7 @@ def current_trace_id() -> str | None:
 
 
 @contextmanager
-def bind_trace_id(trace_id: str | None) -> Iterator[str]:
+def bind_trace_id(trace_id: str | None) -> Generator[str, None, None]:
     normalized = (trace_id or "").strip() or create_incident_id()
     token = _TRACE_ID_CTX.set(normalized)
     try:
