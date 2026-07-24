@@ -1,1 +1,0 @@
-"""Maintenance event contracts."""
