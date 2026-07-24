@@ -30,10 +30,10 @@ tenancy/RBAC/audit platform layer.
 | **Project Management** | Production | Planning/scheduling (CPM), execution, cost, baselines, register (risk/issue/change), portfolio, collaboration, timesheets, dashboards & reporting/exports |
 | **Inventory & Procurement** | Available (phase 1, hardened) | Item master, storerooms, stock balances/transactions, reservations, requisitions, purchase orders, receiving |
 | **Maintenance Management** | Available (early phase) | Asset/system/location registry, sensors, preventive plans, work requests/orders with technician execution actions, reliability analytics |
-| **QHSE** | Skeleton only | Package scaffolding and module catalog entry only — no runtime capability yet |
+| **QHSE** | Skeleton only | Package scaffolding and module catalog entry only - no runtime capability yet |
 | **HR Management** | Skeleton only | Package scaffolding only; a Payroll-first slice is the intended first cut |
 
-Module visibility at runtime is driven by per-organization **module entitlements** — a module
+Module visibility at runtime is driven by per-organization **module entitlements** - a module
 must be both *licensed* and *enabled* before it appears in the shell. Business modules never
 share schema directly with each other; cross-module collaboration goes through the shared
 platform layer (references and domain events), per
@@ -89,10 +89,10 @@ single-tenant by default. Architectural rules are enforced by tests in
 
 **Detailed references:**
 
-- [`docs/ARCHITECTURE_README.md`](docs/ARCHITECTURE_README.md) — tenancy, org, auth, RBAC, tenant context, and repository-scoping reference with known risks/gaps
-- [`docs/architecture/enterprise-platform-architecture.md`](docs/architecture/enterprise-platform-architecture.md) — full enterprise platform architecture and roadmap
-- [`docs/architecture_decisions/`](docs/architecture_decisions/) — ADRs recording cross-module ownership decisions
-- [`docs/REMAINING_WORK.md`](docs/REMAINING_WORK.md) — consolidated backlog across every module and platform concern
+- [`docs/ARCHITECTURE_README.md`](docs/ARCHITECTURE_README.md) - tenancy, org, auth, RBAC, tenant context, and repository-scoping reference with known risks/gaps
+- [`docs/architecture/enterprise-platform-architecture.md`](docs/architecture/enterprise-platform-architecture.md) - full enterprise platform architecture and roadmap
+- [`docs/architecture_decisions/`](docs/architecture_decisions/) - ADRs recording cross-module ownership decisions
+- [`docs/REMAINING_WORK.md`](docs/REMAINING_WORK.md) - consolidated backlog across every module and platform concern
 
 ## Project Structure
 
@@ -148,7 +148,7 @@ project_manager_Lite/
 
 ### 1. Create an environment
 
-**Conda (recommended — matches the maintained `pmenv` environment):**
+**Conda (recommended - matches the maintained `pmenv` environment):**
 
 ```powershell
 conda create -n pmenv python=3.13 -y
@@ -172,12 +172,12 @@ python main_qt.py
 
 On first run, the app runs Alembic migrations automatically, bootstraps default roles/
 permissions/an admin user, and opens the login screen. Module visibility in the shell depends
-on licensing/entitlement state — `project_management` is enabled by default.
+on licensing/entitlement state - `project_management` is enabled by default.
 
 ## Configuration
 
 All configuration is via environment variables (optionally loaded from a `.env` file at repo
-root — none is required by default). Key variables:
+root - none is required by default). Key variables:
 
 | Variable | Purpose |
 |---|---|
@@ -231,19 +231,19 @@ conda run -n pmenv python -m pytest -q src/tests/test_large_scale_performance.py
 
 - **Packaging:** PyInstaller
 - **Installer:** NSIS script at `installer/ProjectManagerLite.nsi`
-- **CI/CD:** `.github/workflows/release.yml` — triggered by pushing a tag (e.g. `v2.1.1`) or manually via `workflow_dispatch`; produces the installer `.exe`, a `.sha256` checksum, and a `release-manifest.json`
+- **CI/CD:** `.github/workflows/release.yml` - triggered by pushing a tag (e.g. `v2.1.1`) or manually via `workflow_dispatch`; produces the installer `.exe`, a `.sha256` checksum, and a `release-manifest.json`
 - **In-app updates:** the admin **Support** workspace supports channel selection (`stable`/`beta`), manifest source configuration, manual update checks, an `Install Now` flow (Windows), and diagnostics bundle export
 
 ## Documentation
 
-- [`docs/REMAINING_WORK.md`](docs/REMAINING_WORK.md) — single consolidated backlog of everything not yet done, across every module and the platform layer
-- [`docs/ARCHITECTURE_README.md`](docs/ARCHITECTURE_README.md) — tenancy/org/auth/RBAC deep reference
-- [`docs/architecture/enterprise-platform-architecture.md`](docs/architecture/enterprise-platform-architecture.md) — full architecture & roadmap
-- [`docs/architecture_decisions/`](docs/architecture_decisions/) — ADRs
-- [`docs/inventory_procurement/`](docs/inventory_procurement/), [`docs/maintenance_management/`](docs/maintenance_management/), [`docs/pm_modernization/`](docs/pm_modernization/) — per-module design/execution plans
-- [`docs/cache_service_strategy/`](docs/cache_service_strategy/) — shared cache service design (not yet implemented)
-- [`docs/platform_alignment_followup/`](docs/platform_alignment_followup/), [`docs/platform_modernization/`](docs/platform_modernization/), [`docs/repo_structure_plan/`](docs/repo_structure_plan/), [`docs/tenant_repository_hardening/`](docs/tenant_repository_hardening/) — active cross-cutting workstreams
-- [`docs/INLINE_MESSAGE_STANDARDIZATION_README.md`](docs/INLINE_MESSAGE_STANDARDIZATION_README.md), [`docs/ux_design.md`](docs/ux_design.md) — UI/UX conventions
+- [`docs/REMAINING_WORK.md`](docs/REMAINING_WORK.md) - single consolidated backlog of everything not yet done, across every module and the platform layer
+- [`docs/ARCHITECTURE_README.md`](docs/ARCHITECTURE_README.md) - tenancy/org/auth/RBAC deep reference
+- [`docs/architecture/enterprise-platform-architecture.md`](docs/architecture/enterprise-platform-architecture.md) - full architecture & roadmap
+- [`docs/architecture_decisions/`](docs/architecture_decisions/) - ADRs
+- [`docs/inventory_procurement/`](docs/inventory_procurement/), [`docs/maintenance_management/`](docs/maintenance_management/), [`docs/pm_modernization/`](docs/pm_modernization/) - per-module design/execution plans
+- [`docs/cache_service_strategy/`](docs/cache_service_strategy/) - shared cache service design (not yet implemented)
+- [`docs/platform_alignment_followup/`](docs/platform_alignment_followup/), [`docs/platform_modernization/`](docs/platform_modernization/), [`docs/repo_structure_plan/`](docs/repo_structure_plan/), [`docs/tenant_repository_hardening/`](docs/tenant_repository_hardening/) - active cross-cutting workstreams
+- [`docs/INLINE_MESSAGE_STANDARDIZATION_README.md`](docs/INLINE_MESSAGE_STANDARDIZATION_README.md), [`docs/ux_design.md`](docs/ux_design.md) - UI/UX conventions
 
 ## License
 
