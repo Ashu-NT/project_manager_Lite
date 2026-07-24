@@ -12,6 +12,8 @@ Batched at 1000 rows to avoid locking on large datasets.
 
 from __future__ import annotations
 
+import logging
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -19,6 +21,8 @@ revision = "v7w8x9y0z1a2"
 down_revision = "u6v7w8x9y0z1"
 branch_labels = None
 depends_on = None
+
+logger = logging.getLogger(__name__)
 
 _ACTION_TO_OPERATION = {
     "auth.login": ("login", "high", "SOC2"),
@@ -44,6 +48,23 @@ _ACTION_TO_OPERATION = {
 }
 
 _SECURITY_ACTIONS = tuple(_ACTION_TO_OPERATION)
+
+
+def _is_sqlite_lock_error(exc: sa.exc.OperationalError) -> bool:
+    message = str(getattr(exc, "orig", exc) or "").lower()
+    return "database table is locked" in message or "database is locked" in message
+
+
+def _best_effort_wal_checkpoint(conn) -> None:
+    try:
+        conn.execute(sa.text("PRAGMA wal_checkpoint"))
+    except sa.exc.OperationalError as exc:
+        if not _is_sqlite_lock_error(exc):
+            raise
+        logger.warning(
+            "Skipping SQLite WAL checkpoint for migration %s because the database is busy.",
+            revision,
+        )
 
 
 def upgrade() -> None:
@@ -112,7 +133,7 @@ def upgrade() -> None:
 
         offset += batch_size
 
-    conn.execute(sa.text("PRAGMA wal_checkpoint"))
+    _best_effort_wal_checkpoint(conn)
 
 
 def downgrade() -> None:
