@@ -38,10 +38,6 @@ class TenantContextService:
         self._user_session = user_session
         self._user_tenant_repo = user_tenant_repo
 
-    # ------------------------------------------------------------------
-    # Tenant resolution
-    # ------------------------------------------------------------------
-
     def get_active_tenant_id(self) -> str | None:
         tenant = self.get_active_tenant()
         return tenant.id if tenant is not None else None
@@ -102,10 +98,6 @@ class TenantContextService:
         if self._user_session is not None:
             self._user_session.set_active_tenant_id(tenant.id)
         return tenant
-
-    # ------------------------------------------------------------------
-    # Organization resolution (within the active tenant)
-    # ------------------------------------------------------------------
 
     def get_active_organization_id(self) -> str | None:
         organization = self.get_active_organization()
@@ -168,10 +160,6 @@ class TenantContextService:
             if len(orgs) == 1:
                 self._user_session.set_active_organization_id(orgs[0].id)
         return tenant
-
-    # ------------------------------------------------------------------
-    # Full context
-    # ------------------------------------------------------------------
 
     def require_context(self, *, operation_label: str) -> TenantContext:
         tenant = self.get_active_tenant()

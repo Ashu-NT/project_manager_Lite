@@ -9,6 +9,7 @@ from PySide6.QtCore import QEventLoop
 from PySide6.QtGui import QFont, QGuiApplication, QIcon
 
 from src.api.desktop.runtime import build_desktop_api_registry
+from src.infra.platform.env_loader import load_env_file
 from src.infra.composition.app_container import build_service_dict
 from src.infra.persistence.db.engine import get_db_url
 from src.infra.persistence.db.session_factory import SessionLocal
@@ -36,6 +37,8 @@ from src.ui_qml.shell.routes import shell_qml_path
 
 
 logger = logging.getLogger(__name__)
+
+load_env_file()
 
 
 def build_services() -> dict[str, object]:
