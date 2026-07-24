@@ -134,6 +134,7 @@ Notes:
 - `CostItem` was migrated in the fourth slice
 - `CalendarEvent` was migrated in the fifth slice
 - `RegisterEntry` was migrated in the sixth slice
+- `PortfolioIntakeItem`, `PortfolioScenario`, and `PortfolioScoringTemplate` were migrated in the seventh slice
 
 #### Maintenance
 
@@ -369,6 +370,31 @@ Future action:
 
 - keep password policy in auth service
 - optionally move persisted-email normalization into `UserAccount` later
+
+#### `src/core/modules/project_management/application/portfolio/utils/portfolio_support.py`
+
+Decision:
+
+- keep, but trimmed
+
+Reason:
+
+- active-template resolution, default-template bootstrapping, and project/intake scope checks are still repository-aware service concerns
+- duplicated local CRUD helpers no longer need to live outside the write models after migrating `PortfolioIntakeItem`, `PortfolioScenario`, and `PortfolioScoringTemplate`
+
+Action taken:
+
+- removed duplicated local helpers for:
+  - intake title/sponsor required checks
+  - intake score and budget/capacity scalar checks
+  - intake status coercion
+  - scoring-template weight range and weight-mix checks
+- kept repo-aware helpers for:
+  - active organization resolution
+  - scoring-template lookup/activation behavior
+  - accessible project filtering
+  - project/intake scope validation
+  - portfolio summary/audit formatting
 
 ### Platform master-data entities
 
@@ -856,7 +882,7 @@ Service responsibilities:
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -1372,6 +1398,7 @@ Mitigation:
 - [x] Remove duplicated PM scalar validation from services where DTOs now own it
 - [x] Run focused verification for PM CRUD flows
 - [x] Expand to next module slice
+- [x] Migrate PM portfolio intake/scenario/template DTOs
 
 ## Current Implementation Decision
 

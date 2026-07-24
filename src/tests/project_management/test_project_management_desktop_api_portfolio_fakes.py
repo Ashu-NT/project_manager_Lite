@@ -139,6 +139,7 @@ class _FakePortfolioServiceBase:
         template = PortfolioScoringTemplate(
             id=f"tpl-{len(self._templates) + 1}",
             name=name,
+            organization_id="org-1",
             summary=summary,
             strategic_weight=strategic_weight,
             value_weight=value_weight,
@@ -190,6 +191,7 @@ class _FakePortfolioServiceBase:
             id=f"intake-{len(self._intake_items) + 1}",
             title=title,
             sponsor_name=sponsor_name,
+            organization_id="org-1",
             summary=summary,
             requested_budget=requested_budget,
             requested_capacity_percent=requested_capacity_percent,

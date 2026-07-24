@@ -45,6 +45,7 @@ class _FakePortfolioService(_FakePortfolioServiceBase):
         scenario = PortfolioScenario(
             id=f"scn-{len(self._scenarios) + 1}",
             name=name,
+            organization_id="org-1",
             budget_limit=budget_limit,
             capacity_limit_percent=capacity_limit_percent,
             project_ids=list(project_ids or []),
