@@ -18,6 +18,7 @@ class SqlAlchemyTenantRepository(TenantRepository):
         self._session.add(tenant_to_orm(tenant))
 
     def update(self, tenant: Tenant) -> None:
+        tenant_status = getattr(tenant, "tenant_status", "active") or "active"
         tenant.version = update_with_version_check(
             self._session,
             TenantORM,
@@ -26,7 +27,8 @@ class SqlAlchemyTenantRepository(TenantRepository):
             {
                 "tenant_code": tenant.tenant_code,
                 "display_name": tenant.display_name,
-                "is_active": tenant.is_active,
+                "tenant_status": tenant_status,
+                "is_active": (tenant_status == "active"),
             },
             not_found_message="Tenant not found.",
             stale_message="Tenant was updated by another process.",

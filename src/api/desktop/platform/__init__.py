@@ -70,6 +70,7 @@ from src.api.desktop.platform.party import PlatformPartyDesktopApi
 from src.api.desktop.platform.runtime import PlatformRuntimeDesktopApi
 from src.api.desktop.platform.site import PlatformSiteDesktopApi
 from src.api.desktop.platform.support import PlatformSupportDesktopApi
+from src.api.desktop.platform.tenant import PlatformTenantDesktopApi
 from src.api.desktop.platform.user import PlatformUserDesktopApi
 
 __all__ = [
@@ -124,6 +125,7 @@ __all__ = [
     "PlatformEmployeeDesktopApi",
     "PlatformRuntimeDesktopApi",
     "PlatformSiteDesktopApi",
+    "PlatformTenantDesktopApi",
     "PlatformUserDesktopApi",
     "RoleDto",
     "ScopedAccessGrantAssignCommand",

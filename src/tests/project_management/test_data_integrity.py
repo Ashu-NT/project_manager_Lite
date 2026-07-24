@@ -39,8 +39,10 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskORM,
 )
 from src.core.platform.infrastructure.persistence.orm.org import OrganizationORM
+from src.core.platform.infrastructure.persistence.orm.tenant import TenantORM
 
 _DEFAULT_ORG_ID = "test-org-integrity"
+_DEFAULT_TENANT_ID = "test-tenant-integrity"
 
 
 # ── small ORM builders ──────────────────────────────────────────────────────
@@ -53,11 +55,20 @@ def _add(session, row):
     return row
 
 
+def _ensure_tenant(session, tenant_id: str = _DEFAULT_TENANT_ID) -> str:
+    from sqlalchemy import select
+    existing = session.execute(select(TenantORM.id).where(TenantORM.id == tenant_id)).first()
+    if existing is None:
+        _add(session, TenantORM(id=tenant_id, tenant_code=tenant_id, display_name=tenant_id))
+    return tenant_id
+
+
 def _ensure_org(session, org_id: str = _DEFAULT_ORG_ID) -> str:
     from sqlalchemy import select
     existing = session.execute(select(OrganizationORM.id).where(OrganizationORM.id == org_id)).first()
     if existing is None:
-        _add(session, OrganizationORM(id=org_id, organization_code=org_id, display_name=org_id))
+        tenant_id = _ensure_tenant(session)
+        _add(session, OrganizationORM(id=org_id, organization_code=org_id, display_name=org_id, tenant_id=tenant_id))
     return org_id
 
 

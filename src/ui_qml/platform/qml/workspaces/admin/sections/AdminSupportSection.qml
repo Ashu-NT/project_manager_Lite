@@ -8,7 +8,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
-import "../components"
+import workspaces.admin.components 1.0
 
 ColumnLayout {
     id: root

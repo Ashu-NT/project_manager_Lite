@@ -14,9 +14,13 @@ class TenantORM(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     tenant_code: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     display_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    tenant_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="active", server_default="active"
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
 Index("idx_tenants_code", TenantORM.tenant_code, unique=True)
 Index("idx_tenants_active", TenantORM.is_active)
+Index("idx_tenants_status", TenantORM.tenant_status)

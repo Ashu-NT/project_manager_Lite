@@ -6,7 +6,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.shared.audit import record_audit_entry
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.org.contracts import OrganizationRepository
@@ -39,32 +44,82 @@ class OrganizationService:
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
 
+    # ------------------------------------------------------------------
+    # Tenant context — the single gateway for all runtime methods.
+    # Raises TENANT_CONTEXT_REQUIRED immediately if no active tenant.
+    # ------------------------------------------------------------------
+
+    def _require_current_tenant_id(self, *, operation_label: str) -> str:
+        if self._user_session is None:
+            raise BusinessRuleError(
+                f"Tenant context is required to {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        tenant_id = str(self._user_session.active_tenant_id() or "").strip()
+        if not tenant_id:
+            raise BusinessRuleError(
+                f"Tenant context is required to {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return tenant_id
+
+    # ------------------------------------------------------------------
+    # Bootstrap — runs before a tenant record exists in the system.
+    # Uses unscoped list_all() only when no tenant context is present.
+    # When a tenant context IS present (runtime re-call), scopes by it
+    # so it never creates an untenanted organization at runtime.
+    # ------------------------------------------------------------------
+
     def bootstrap_defaults(self) -> None:
-        if self._organization_repo.list_all():
-            return
+        bootstrap_tenant_id = (
+            str(self._user_session.active_tenant_id() or "").strip()
+            if self._user_session is not None
+            else ""
+        ) or None
+
+        if bootstrap_tenant_id:
+            if self._organization_repo.list_for_tenant(bootstrap_tenant_id):
+                return
+        else:
+            if self._organization_repo.list_all():
+                return
+
         organization = Organization.create(
             organization_code=DEFAULT_ORGANIZATION_CODE,
             display_name=DEFAULT_ORGANIZATION_NAME,
             timezone_name=DEFAULT_ORGANIZATION_TIMEZONE,
             base_currency=DEFAULT_ORGANIZATION_CURRENCY,
             is_active=True,
+            tenant_id=bootstrap_tenant_id,
         )
         self._organization_repo.add(organization)
         self._session.commit()
 
+    # ------------------------------------------------------------------
+    # Runtime read operations — all tenant-scoped, fail-fast.
+    # ------------------------------------------------------------------
+
     def list_organizations(self, *, active_only: bool | None = None) -> list[Organization]:
         require_permission(self._user_session, "settings.manage", operation_label="list organizations")
-        return self._organization_repo.list_all(active_only=active_only)
+        tenant_id = self._require_current_tenant_id(operation_label="list organizations")
+        return self._organization_repo.list_for_tenant(tenant_id, active_only=active_only)
 
     def get_active_organization(self) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="view active organization")
-        organization = self._organization_repo.get_active()
+        tenant_id = self._require_current_tenant_id(operation_label="view active organization")
+        organization = self._organization_repo.get_active_for_tenant(tenant_id)
         if organization is None:
             self.bootstrap_defaults()
-            organization = self._organization_repo.get_active()
+            organization = self._organization_repo.get_active_for_tenant(tenant_id)
         if organization is None:
             raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
         return organization
+
+    # ------------------------------------------------------------------
+    # Runtime write operations — all tenant-scoped, fail-fast.
+    # tenant_id is always re-pinned on the domain object before write
+    # so the service layer is the authority, not the object's field.
+    # ------------------------------------------------------------------
 
     def create_organization(
         self,
@@ -76,11 +131,12 @@ class OrganizationService:
         is_active: bool = True,
     ) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="create organization")
+        tenant_id = self._require_current_tenant_id(operation_label="create organization")
         normalized_code = normalize_code(organization_code, label="Organization code")
         normalized_name = normalize_name(display_name, label="Organization name")
         normalized_timezone = normalize_name(timezone_name, label="Timezone")
         normalized_currency = normalize_code(base_currency, label="Base currency")
-        if self._organization_repo.get_by_code(normalized_code) is not None:
+        if self._organization_repo.get_by_code_for_tenant(normalized_code, tenant_id) is not None:
             raise ValidationError("Organization code already exists.", code="ORGANIZATION_CODE_EXISTS")
         organization = Organization.create(
             organization_code=normalized_code,
@@ -88,10 +144,11 @@ class OrganizationService:
             timezone_name=normalized_timezone,
             base_currency=normalized_currency,
             is_active=bool(is_active),
+            tenant_id=tenant_id,
         )
         try:
             if organization.is_active:
-                self._deactivate_other_organizations(exclude_id=None)
+                self._deactivate_other_organizations(tenant_id=tenant_id, exclude_id=None)
             self._organization_repo.add(organization)
             self._session.commit()
         except IntegrityError as exc:
@@ -131,7 +188,8 @@ class OrganizationService:
         expected_version: int | None = None,
     ) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="update organization")
-        organization = self._organization_repo.get(organization_id)
+        tenant_id = self._require_current_tenant_id(operation_label="update organization")
+        organization = self._organization_repo.get_for_tenant(organization_id, tenant_id)
         if organization is None:
             raise NotFoundError("Organization not found.", code="ORGANIZATION_NOT_FOUND")
         if expected_version is not None and organization.version != expected_version:
@@ -141,7 +199,7 @@ class OrganizationService:
             )
         if organization_code is not None:
             normalized_code = normalize_code(organization_code, label="Organization code")
-            existing = self._organization_repo.get_by_code(normalized_code)
+            existing = self._organization_repo.get_by_code_for_tenant(normalized_code, tenant_id)
             if existing is not None and existing.id != organization.id:
                 raise ValidationError("Organization code already exists.", code="ORGANIZATION_CODE_EXISTS")
             organization.organization_code = normalized_code
@@ -152,15 +210,18 @@ class OrganizationService:
         if base_currency is not None:
             organization.base_currency = normalize_code(base_currency, label="Base currency")
         if is_active is not None:
-            if not is_active and organization.is_active and not self._has_other_active_organizations(organization.id):
+            if not is_active and organization.is_active and not self._has_other_active_organizations(
+                organization.id, tenant_id=tenant_id
+            ):
                 raise ValidationError(
                     "At least one active organization is required.",
                     code="ORGANIZATION_ACTIVE_REQUIRED",
                 )
             organization.is_active = bool(is_active)
+        organization.tenant_id = tenant_id  # pin: tenant ownership is immutable
         try:
             if organization.is_active:
-                self._deactivate_other_organizations(exclude_id=organization.id)
+                self._deactivate_other_organizations(tenant_id=tenant_id, exclude_id=organization.id)
             self._organization_repo.update(organization)
             self._session.commit()
         except IntegrityError as exc:
@@ -190,11 +251,13 @@ class OrganizationService:
 
     def set_active_organization(self, organization_id: str) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="set active organization")
-        organization = self._organization_repo.get(organization_id)
+        tenant_id = self._require_current_tenant_id(operation_label="set active organization")
+        organization = self._organization_repo.get_for_tenant(organization_id, tenant_id)
         if organization is None:
             raise NotFoundError("Organization not found.", code="ORGANIZATION_NOT_FOUND")
+        organization.tenant_id = tenant_id  # pin: tenant ownership is immutable
         try:
-            self._deactivate_other_organizations(exclude_id=organization.id)
+            self._deactivate_other_organizations(tenant_id=tenant_id, exclude_id=organization.id)
             organization.is_active = True
             self._organization_repo.update(organization)
             self._session.commit()
@@ -219,19 +282,24 @@ class OrganizationService:
         domain_events.organizations_changed.emit(organization.id)
         return organization
 
-    def _deactivate_other_organizations(self, *, exclude_id: str | None) -> None:
-        for organization in self._organization_repo.list_all(active_only=True):
+    # ------------------------------------------------------------------
+    # Private helpers — tenant_id passed explicitly by every caller.
+    # Orgs from list_for_tenant() already carry the correct tenant_id;
+    # the pin below is defense-in-depth before any repo.update() call.
+    # ------------------------------------------------------------------
+
+    def _deactivate_other_organizations(self, *, tenant_id: str, exclude_id: str | None) -> None:
+        for organization in self._organization_repo.list_for_tenant(tenant_id, active_only=True):
             if exclude_id and organization.id == exclude_id:
                 continue
-            if not organization.is_active:
-                continue
             organization.is_active = False
+            organization.tenant_id = tenant_id  # pin: tenant ownership is immutable
             self._organization_repo.update(organization)
 
-    def _has_other_active_organizations(self, organization_id: str) -> bool:
+    def _has_other_active_organizations(self, organization_id: str, *, tenant_id: str) -> bool:
         return any(
-            organization.id != organization_id
-            for organization in self._organization_repo.list_all(active_only=True)
+            org.id != organization_id
+            for org in self._organization_repo.list_for_tenant(tenant_id, active_only=True)
         )
 
 

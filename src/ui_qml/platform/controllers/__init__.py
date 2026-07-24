@@ -9,6 +9,7 @@ from .common import (
 )
 from .control import PlatformControlWorkspaceController
 from .settings import PlatformSettingsWorkspaceController
+from .shell import TenantSwitcherController
 
 __all__ = [
     "PlatformAdminAccessWorkspaceController",
@@ -16,6 +17,7 @@ __all__ = [
     "PlatformControlWorkspaceController",
     "PlatformSettingsWorkspaceController",
     "PlatformWorkspaceControllerBase",
+    "TenantSwitcherController",
     "run_mutation",
     "serialize_action_item",
     "serialize_action_list",

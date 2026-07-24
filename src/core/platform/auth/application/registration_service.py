@@ -10,6 +10,7 @@ from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.domain import UserAccount, UserRoleBinding
 from src.core.platform.auth.passwords import hash_password
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.tenancy.domain.user_tenant_membership import UserTenantMembership
 
 if TYPE_CHECKING:
     from .auth_service import AuthService
@@ -43,6 +44,7 @@ def register_user(
     identity_provider: str | None = None,
     federated_subject: str | None = None,
     session_timeout_minutes_override: int | None = None,
+    tenant_id: str | None = None,
     commit: bool = True,
     bypass_permission: bool = False,
 ) -> UserAccount:
@@ -79,10 +81,18 @@ def register_user(
     user.identity_provider = normalized_provider
     user.federated_subject = normalized_subject
     user.session_timeout_minutes_override = resolved_session_timeout
+    normalized_tenant_id = str(tenant_id or "").strip() or None
     try:
         with service._session.begin_nested():
             service._user_repo.add(user)
             assign_roles_for_user(service, user.id, resolved_role_names)
+            if normalized_tenant_id and service._user_tenant_repo is not None:
+                membership = UserTenantMembership.create(
+                    user_id=user.id,
+                    tenant_id=normalized_tenant_id,
+                    tenant_role="member",
+                )
+                service._user_tenant_repo.add(membership)
         if commit:
             service._session.commit()
     except IntegrityError as exc:

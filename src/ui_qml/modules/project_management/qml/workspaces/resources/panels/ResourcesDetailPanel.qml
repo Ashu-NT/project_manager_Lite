@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import App.Widgets 1.0 as AppWidgets
-import "../sections"
+import workspaces.resources.sections 1.0
 
 Item {
     id: root

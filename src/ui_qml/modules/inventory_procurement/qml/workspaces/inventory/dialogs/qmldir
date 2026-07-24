@@ -1,2 +1,2 @@
-﻿module InventoryProcurement.InventoryDialogs
+﻿module workspaces.inventory.dialogs
 InventoryDialogHost 1.0 InventoryDialogHost.qml

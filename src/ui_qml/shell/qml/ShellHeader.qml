@@ -11,6 +11,7 @@ Rectangle {
 
     property ShellContexts.ShellContext shellModel
     property bool sidebarCollapsed: false
+    property var platformCatalog: null
 
     signal toggleSidebar()
 
@@ -127,6 +128,12 @@ Rectangle {
 
         Item {
             Layout.fillWidth: true
+        }
+
+        TenantSwitcher {
+            Layout.alignment: Qt.AlignVCenter
+            controller: header.platformCatalog ? header.platformCatalog.tenantSwitcher : null
+            platformCatalog: header.platformCatalog
         }
 
         Rectangle {
@@ -257,4 +264,3 @@ Rectangle {
         }
     }
 }
-

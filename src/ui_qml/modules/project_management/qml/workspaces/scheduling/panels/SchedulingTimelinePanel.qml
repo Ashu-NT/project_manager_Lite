@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
-import "../components"
+import workspaces.scheduling.components 1.0
 
 SchedulingPanelFrame {
     id: root

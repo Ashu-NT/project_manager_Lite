@@ -17,10 +17,12 @@ EXPECTED_AREAS = {
     "modules",
     "org",
     "party",
+    "platform_events",
     "runtime_tracking",
     "sites",
     "tenant",
     "time",
+    "user_tenant",
 }
 
 

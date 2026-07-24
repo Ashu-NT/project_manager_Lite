@@ -6,7 +6,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Widgets 1.0 as PlatformWidgets
-import "../components"
+import workspaces.admin.components 1.0
 
 Item {
     id: root

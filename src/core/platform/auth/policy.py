@@ -53,6 +53,12 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "auth.manage": "Manage users and roles",
     "security.manage": "Manage login security, lockouts, and session controls",
     "organization.access": "Access tenant organization context",
+    "org.create": "Create organizations within a tenant",
+    "org.manage": "Manage organization settings and structure",
+    "tenant.create": "Create new tenants",
+    "tenant.manage": "Manage and update existing tenants",
+    "tenant.read": "View tenant list and details",
+    "platform.admin": "Full platform administration access",
 }
 
 _VIEWER = {
@@ -242,6 +248,28 @@ _SUPPORT_ADMIN = {
     "support.manage",
 }
 
+_TENANT_ADMIN = {
+    "tenant.create",
+    "tenant.manage",
+    "tenant.read",
+    "org.create",
+    "org.manage",
+    "organization.access",
+    "settings.manage",
+    "auth.read",
+    "auth.manage",
+}
+
+_ORG_ADMIN = {
+    "org.manage",
+    "employee.read",
+    "employee.manage",
+    "organization.access",
+    "settings.manage",
+    "auth.read",
+    "auth.manage",
+}
+
 DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "viewer": set(_VIEWER),
     "team_member": set(_TEAM_MEMBER),
@@ -260,6 +288,8 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "access_admin": set(_ACCESS_ADMIN),
     "security_admin": set(_SECURITY_ADMIN),
     "support_admin": set(_SUPPORT_ADMIN),
+    "tenant_admin": set(_TENANT_ADMIN),
+    "org_admin": set(_ORG_ADMIN),
     "admin": set(DEFAULT_PERMISSIONS.keys()),
 }
 

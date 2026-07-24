@@ -135,7 +135,8 @@ class PMCollaborationController(QObject):
                 and normalized_task_id == self._presence_override_task_id
             ):
                 self._presence_override_task_id = ""
-            self.sync_review_presence(self._last_selected_task_id)
+            restore_task_id = self._last_selected_task_id or normalized_task_id
+            self.sync_review_presence(restore_task_id)
             return {"ok": True, "message": ""}
         except Exception as exc:  # pragma: no cover
             self._set_error_message(str(exc))

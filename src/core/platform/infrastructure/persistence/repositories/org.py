@@ -54,6 +54,33 @@ class SqlAlchemyOrganizationRepository(OrganizationRepository):
         obj = self.session.execute(stmt.order_by(OrganizationORM.display_name.asc())).scalars().first()
         return organization_from_orm(obj) if obj else None
 
+    def get_for_tenant(self, organization_id: str, tenant_id: str) -> Organization | None:
+        stmt = (
+            select(OrganizationORM)
+            .where(OrganizationORM.id == organization_id)
+            .where(OrganizationORM.tenant_id == tenant_id)
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return organization_from_orm(obj) if obj else None
+
+    def get_by_code_for_tenant(self, organization_code: str, tenant_id: str) -> Organization | None:
+        stmt = (
+            select(OrganizationORM)
+            .where(OrganizationORM.organization_code == organization_code)
+            .where(OrganizationORM.tenant_id == tenant_id)
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return organization_from_orm(obj) if obj else None
+
+    def get_active_for_tenant(self, tenant_id: str) -> Organization | None:
+        stmt = (
+            select(OrganizationORM)
+            .where(OrganizationORM.tenant_id == tenant_id)
+            .where(OrganizationORM.is_active.is_(True))
+        )
+        obj = self.session.execute(stmt.order_by(OrganizationORM.display_name.asc())).scalars().first()
+        return organization_from_orm(obj) if obj else None
+
     def list_all(self, *, active_only: bool | None = None) -> list[Organization]:
         stmt = select(OrganizationORM)
         if active_only is not None:

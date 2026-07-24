@@ -27,6 +27,7 @@ Item {
         ShellHeader {
             Layout.fillWidth: true
             shellModel: root.shellModel
+            platformCatalog: root.platformCatalog
             sidebarCollapsed: shellDrawer.collapsed
             onToggleSidebar: shellDrawer.collapsed = !shellDrawer.collapsed
         }
@@ -86,4 +87,3 @@ Item {
         }
     }
 }
-

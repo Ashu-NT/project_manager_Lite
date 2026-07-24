@@ -34,6 +34,7 @@ from src.core.platform.site.access_policy import (
 )
 from src.core.platform.tenancy import (
     ORGANIZATION_SCOPE_ROLE_CHOICES,
+    TenantAdminService,
     TenantContextService,
     normalize_organization_scope_role,
     resolve_organization_scope_permissions,
@@ -91,6 +92,7 @@ class PlatformServiceBundle:
     calendar_assignment_service: CalendarAssignmentService
     enterprise_calendar_resolver: EnterpriseCalendarResolver
     working_time_calculator: WorkingTimeCalculator
+    tenant_admin_service: TenantAdminService
     global_calendar_shim: GlobalCalendarShim
 
 
@@ -105,6 +107,7 @@ def build_platform_service_bundle(
         tenant_repo=repositories.tenant_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
+        user_tenant_repo=repositories.user_tenant_repo,
     )
     # Wire _tenant_context_service on all repos that support it.
     for _field_name in repositories.__dataclass_fields__:
@@ -142,6 +145,7 @@ def build_platform_service_bundle(
         project_membership_repo=repositories.project_membership_repo,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
+        user_tenant_repo=repositories.user_tenant_repo,
     )
     user_session.set_validator(auth_service.validate_session_principal)
     user_session.set_context_listener(auth_service.persist_session_context)
@@ -158,25 +162,35 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
     )
+
+    # H-6: Bootstrap default tenant BEFORE org so that the org is always created
+    # with a non-null tenant_id. organizations.tenant_id is now NOT NULL.
+    if repositories.tenant_repo.get_default() is None:
+        from src.core.platform.tenancy.domain.tenant import Tenant as _Tenant
+        _existing_orgs = repositories.organization_repo.list_all()
+        _tenant_code = _existing_orgs[0].organization_code if _existing_orgs else "DEFAULT"
+        _tenant_name = _existing_orgs[0].display_name if _existing_orgs else "Default Tenant"
+        _default_tenant = _Tenant.create(tenant_code=_tenant_code, display_name=_tenant_name)
+        repositories.tenant_repo.add(_default_tenant)
+        session.flush()
+        # Backfill any existing orgs that pre-date this run (e.g. live DB upgrade path)
+        for _org in _existing_orgs:
+            if not _org.tenant_id:
+                _org.tenant_id = _default_tenant.id
+                repositories.organization_repo.update(_org)
+        session.commit()
+        user_session.set_active_tenant_id(_default_tenant.id)
+        logger.debug("Platform default tenant bootstrapped tenant_id=%s", _default_tenant.id)
+
+    # Set active tenant in the session before org bootstrap so that
+    # organization_service.bootstrap_defaults() creates the org with the correct tenant_id.
+    if user_session.active_tenant_id() is None:
+        _dt = repositories.tenant_repo.get_default()
+        if _dt is not None:
+            user_session.set_active_tenant_id(_dt.id)
+
     logger.debug("Platform organization service created; bootstrapping defaults")
     organization_service.bootstrap_defaults()
-
-    # Bootstrap default tenant if none exists (desktop single-tenant mode).
-    # Must run after org bootstrap since default tenant is seeded from the first org.
-    if repositories.tenant_repo.get_default() is None:
-        from src.core.platform.tenancy.domain.tenant import Tenant
-        orgs = repositories.organization_repo.list_all()
-        tenant_code = orgs[0].organization_code if orgs else "DEFAULT"
-        tenant_name = orgs[0].display_name if orgs else "Default Tenant"
-        default_tenant = Tenant.create(tenant_code=tenant_code, display_name=tenant_name)
-        repositories.tenant_repo.add(default_tenant)
-        session.flush()
-        # Backfill organizations.tenant_id
-        for org in orgs:
-            org.tenant_id = default_tenant.id
-            repositories.organization_repo.update(org)
-        session.commit()
-        logger.debug("Platform default tenant bootstrapped tenant_id=%s", default_tenant.id)
 
     if user_session.active_organization_id() is None:
         # Bootstrap the local/session tenant explicitly after organization
@@ -188,15 +202,29 @@ def build_platform_service_bundle(
         if organizations:
             user_session.set_active_organization_id(organizations[0].id)
 
-    # Seed active tenant id from the first org's tenant
-    if user_session.active_tenant_id() is None:
-        default_tenant = repositories.tenant_repo.get_default()
-        if default_tenant is not None:
-            user_session.set_active_tenant_id(default_tenant.id)
+    # Backfill all existing users into the default tenant if they have no membership.
+    # Admin is exempt from the membership check by role, but backfilling ensures
+    # list_for_tenant() returns admin users consistently.
+    _backfill_tenant = repositories.tenant_repo.get_default()
+    if _backfill_tenant is not None:
+        from src.core.platform.tenancy.domain.user_tenant_membership import UserTenantMembership as _UTM
+        for _u in repositories.user_repo.list_all():
+            if not repositories.user_tenant_repo.is_active_member(_u.id, _backfill_tenant.id):
+                repositories.user_tenant_repo.add(
+                    _UTM.create(user_id=_u.id, tenant_id=_backfill_tenant.id, tenant_role="member")
+                )
+        session.flush()
 
     logger.debug(
         "Platform organization defaults bootstrapped duration_ms=%.1f",
         (perf_counter() - started) * 1000,
+    )
+    tenant_admin_service = TenantAdminService(
+        session=session,
+        tenant_repo=repositories.tenant_repo,
+        user_tenant_repo=repositories.user_tenant_repo,
+        user_session=user_session,
+        platform_event_repo=repositories.platform_event_repo,
     )
     document_service = DocumentService(
         session=session,
@@ -436,6 +464,7 @@ def build_platform_service_bundle(
         calendar_assignment_service=calendar_assignment_service,
         enterprise_calendar_resolver=enterprise_calendar_resolver,
         working_time_calculator=working_time_calculator,
+        tenant_admin_service=tenant_admin_service,
         global_calendar_shim=global_calendar_shim,
     )
     logger.debug(

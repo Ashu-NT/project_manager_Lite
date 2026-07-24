@@ -1,4 +1,4 @@
-﻿module ProjectManagement.TasksSections
+﻿module workspaces.tasks.sections
 TasksDetailsSection 1.0 TasksDetailsSection.qml
 TasksAssignmentsSection 1.0 TasksAssignmentsSection.qml
 TasksDependenciesSection 1.0 TasksDependenciesSection.qml

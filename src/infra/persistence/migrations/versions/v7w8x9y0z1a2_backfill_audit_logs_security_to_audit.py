@@ -133,7 +133,7 @@ def upgrade() -> None:
 
         offset += batch_size
 
-    _best_effort_wal_checkpoint(conn)
+    conn.execute(sa.text("PRAGMA wal_checkpoint"))
 
 
 def downgrade() -> None:

@@ -299,7 +299,12 @@ class UserSessionContext:
             or None
         )
         if principal_organization_id:
-            return principal_organization_id
+            # H-2: only return org from principal when tenant context is consistent.
+            # Prevents a stale org_id (from a previous tenant) leaking through this fallback.
+            principal_tenant_id = str(getattr(principal, "active_tenant_id", "") or "").strip() or None
+            current_tenant_id = str(self._active_tenant_id or "").strip() or None
+            if current_tenant_id is None or current_tenant_id == principal_tenant_id:
+                return principal_organization_id
         organization_ids = sorted(self.organization_ids())
         return organization_ids[0] if len(organization_ids) == 1 else None
 
@@ -357,7 +362,13 @@ class UserSessionContext:
         if principal_tenant_id is not None:
             self._active_tenant_id = principal_tenant_id
         if principal_organization_id is not None:
-            self._active_organization_id = principal_organization_id
+            # H-3: only restore org when the tenant context is consistent.
+            # After switch_to_tenant(), _active_tenant_id is updated before this runs.
+            # If the stored tenant differs from the principal's tenant, skipping the org
+            # restore prevents a stale cross-tenant org reference being reinstated.
+            current_tenant = str(self._active_tenant_id or "").strip() or None
+            if current_tenant is None or current_tenant == principal_tenant_id:
+                self._active_organization_id = principal_organization_id
 
     def _notify_context_changed(self) -> None:
         listener = self._context_listener

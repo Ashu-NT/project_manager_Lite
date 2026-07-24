@@ -448,9 +448,7 @@ AppLayouts.WorkspaceFrame {
                     scheduleImpactModel: root.scheduleImpactModel
 
                     onRetrySectionRequested: function(sectionName) {
-                        const page = detailPageLoader.item
-                        if (!page) return
-                        const idx = page.sections.indexOf(sectionName)
+                        const idx = (root._detailSections || []).indexOf(sectionName)
                         if (idx >= 0) root._loadLazyDetailSection(idx)
                     }
                     onCreateAssignmentRequested: dialogHostLoader.invoke("openCreateAssignmentDialog", root.selectedTaskModel)
