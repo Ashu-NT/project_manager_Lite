@@ -19,6 +19,7 @@ from src.ui_qml.modules.project_management.controllers import (
 )
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementTaskViewStore,
+    resolve_active_organization_id_from_runtime_api,
     serialize_workspace_view_model,
 )
 from src.ui_qml.modules.project_management.controllers.common.pm_capability_controller import (
@@ -140,10 +141,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
         if runtime_api is None:
             return None
         try:
-            snapshot = runtime_api.snapshot()
-            data = getattr(snapshot, "data", None)
-            organization = getattr(data, "active_organization", None)
-            return str(getattr(organization, "id", "") or "").strip() or None
+            return resolve_active_organization_id_from_runtime_api(runtime_api)
         except Exception:
             return None
 
@@ -153,6 +151,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
                 projects_workspace_presenter=ProjectProjectsWorkspacePresenter(
                     desktop_api=self._projects_api,
                     tasks_desktop_api=self._tasks_api,
+                    site_api=getattr(self._desktop_api_registry, "platform_site", None),
                 ),
                 parent=self,
             )
@@ -316,6 +315,29 @@ class ProjectManagementWorkspaceCatalog(QObject):
     @Slot(result="QVariantMap")
     def dashboardOverview(self) -> dict[str, object]:
         return dict(self._get_dashboard_workspace().overview)
+
+    @Slot()
+    def refreshAllWorkspaces(self) -> None:
+        refresh = getattr(self._pm_capability, "refresh", None)
+        if callable(refresh):
+            refresh()
+        for controller in (
+            self._projects_workspace,
+            self._financials_workspace,
+            self._portfolio_workspace,
+            self._resources_workspace,
+            self._register_workspace,
+            self._scheduling_workspace,
+            self._tasks_workspace,
+            self._dashboard_workspace,
+            self._collaboration_workspace,
+            self._timesheets_workspace,
+        ):
+            if controller is None:
+                continue
+            controller_refresh = getattr(controller, "refresh", None)
+            if callable(controller_refresh):
+                controller_refresh()
 
     @Slot(str, result=bool)
     def isModuleEnabled(self, module_code: str) -> bool:

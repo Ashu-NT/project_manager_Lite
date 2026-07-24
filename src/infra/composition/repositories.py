@@ -53,8 +53,10 @@ from src.core.platform.infrastructure.persistence.repositories.access import (
     SqlAlchemyProjectMembershipRepository,
     SqlAlchemyScopedAccessGrantRepository,
 )
+from src.core.platform.infrastructure.persistence.repositories.activity import SqlAlchemyActivityRepository
 from src.core.platform.infrastructure.persistence.repositories.approval import SqlAlchemyApprovalRepository
-from src.core.platform.infrastructure.persistence.repositories.audit import SqlAlchemyAuditLogRepository
+from src.core.platform.infrastructure.persistence.repositories.audit_entry import SqlAlchemyAuditRepository
+from src.core.platform.infrastructure.persistence.repositories.platform_events import SqlAlchemyPlatformEventRepository
 from src.core.platform.infrastructure.persistence.repositories.auth import (
     SqlAlchemyAuthSessionRepository,
     SqlAlchemyPermissionRepository,
@@ -71,6 +73,8 @@ from src.core.platform.infrastructure.persistence.repositories.documents import 
 from src.core.platform.infrastructure.persistence.repositories.departments import SqlAlchemyDepartmentRepository
 from src.core.platform.infrastructure.persistence.repositories.employee import SqlAlchemyEmployeeRepository
 from src.core.platform.infrastructure.persistence.repositories.org import SqlAlchemyOrganizationRepository
+from src.core.platform.infrastructure.persistence.repositories.tenant import SqlAlchemyTenantRepository
+from src.core.platform.infrastructure.persistence.repositories.user_tenant import SqlAlchemyUserTenantMembershipRepository
 from src.core.platform.infrastructure.persistence.repositories.party import SqlAlchemyPartyRepository
 from src.core.platform.infrastructure.persistence.repositories.sites import SqlAlchemySiteRepository
 from src.core.platform.infrastructure.persistence.repositories.time import (
@@ -88,6 +92,8 @@ class RepositoryBundle:
     task_repo: SqlAlchemyTaskRepository
     resource_repo: SqlAlchemyResourceRepository
     employee_repo: SqlAlchemyEmployeeRepository
+    tenant_repo: SqlAlchemyTenantRepository
+    user_tenant_repo: SqlAlchemyUserTenantMembershipRepository
     organization_repo: SqlAlchemyOrganizationRepository
     document_repo: SqlAlchemyDocumentRepository
     document_link_repo: SqlAlchemyDocumentLinkRepository
@@ -119,7 +125,9 @@ class RepositoryBundle:
     role_permission_repo: SqlAlchemyRolePermissionRepository
     project_membership_repo: SqlAlchemyProjectMembershipRepository
     scoped_access_repo: SqlAlchemyScopedAccessGrantRepository
-    audit_repo: SqlAlchemyAuditLogRepository
+    activity_repo: SqlAlchemyActivityRepository
+    audit_entry_repo: SqlAlchemyAuditRepository
+    platform_event_repo: SqlAlchemyPlatformEventRepository
     approval_repo: SqlAlchemyApprovalRepository
     register_repo: SqlAlchemyRegisterEntryRepository
     task_comment_repo: SqlAlchemyTaskCommentRepository
@@ -141,6 +149,8 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         task_repo=SqlAlchemyTaskRepository(session),
         resource_repo=SqlAlchemyResourceRepository(session),
         employee_repo=SqlAlchemyEmployeeRepository(session),
+        tenant_repo=SqlAlchemyTenantRepository(session),
+        user_tenant_repo=SqlAlchemyUserTenantMembershipRepository(session),
         organization_repo=SqlAlchemyOrganizationRepository(session),
         document_repo=SqlAlchemyDocumentRepository(session),
         document_link_repo=SqlAlchemyDocumentLinkRepository(session),
@@ -172,7 +182,9 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         role_permission_repo=SqlAlchemyRolePermissionRepository(session),
         project_membership_repo=SqlAlchemyProjectMembershipRepository(session),
         scoped_access_repo=SqlAlchemyScopedAccessGrantRepository(session),
-        audit_repo=SqlAlchemyAuditLogRepository(session),
+        activity_repo=SqlAlchemyActivityRepository(session),
+        audit_entry_repo=SqlAlchemyAuditRepository(session),
+        platform_event_repo=SqlAlchemyPlatformEventRepository(session),
         approval_repo=SqlAlchemyApprovalRepository(session),
         register_repo=SqlAlchemyRegisterEntryRepository(session),
         task_comment_repo=SqlAlchemyTaskCommentRepository(session),

@@ -54,6 +54,8 @@ def build_workspace_state(
             title=option.title,
             contact=option.contact,
             context=option.context,
+            department=option.department,
+            site=option.site,
             is_active=option.is_active,
         )
         for option in desktop_api.list_employees()

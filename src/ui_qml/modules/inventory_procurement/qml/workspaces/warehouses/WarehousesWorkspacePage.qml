@@ -7,7 +7,7 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
-import "../inventory/dialogs" as InventoryDlgs
+import workspaces.inventory.dialogs 1.0 as InventoryDlgs
 import "panels" as Panels
 import "components" as Components
 
@@ -152,6 +152,7 @@ AppLayouts.WorkspaceFrame {
                 Component.onCompleted: scrollToSection(root._pendingDetailSection)
 
                 AppWidgets.ContextualActionToolbar {
+                    detailPagePinned: true
                     width:    parent ? parent.width : 0
                     showBack: true
                     title:    root._isStoreroomsView
@@ -181,8 +182,8 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                AppWidgets.InlineMessage { width: parent ? parent.width : 0; visible: root._detailOpen && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0; tone: "danger"; message: root.workspaceController ? root.workspaceController.errorMessage : "" }
-                AppWidgets.InlineMessage { width: parent ? parent.width : 0; visible: root._detailOpen && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0 && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0; tone: "success"; message: root.workspaceController ? root.workspaceController.feedbackMessage : "" }
+                AppWidgets.SectionScopedInlineMessage { width: parent ? parent.width : 0; requestedVisible: root._detailOpen && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0; tone: "danger"; message: root.workspaceController ? root.workspaceController.errorMessage : "" }
+                AppWidgets.SectionScopedInlineMessage { width: parent ? parent.width : 0; requestedVisible: root._detailOpen && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0 && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0; tone: "success"; message: root.workspaceController ? root.workspaceController.feedbackMessage : "" }
 
                 Panels.WarehousesDetailPanel {
                     width:             parent ? parent.width : 0

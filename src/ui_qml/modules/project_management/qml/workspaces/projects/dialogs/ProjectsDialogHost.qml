@@ -7,6 +7,7 @@ Item {
     id: root
 
     property var statusOptions: []
+    property var siteOptions: []
     property var workspaceController: null
     property var editTarget: ({})
     property var statusTarget: ({})
@@ -63,6 +64,7 @@ Item {
     ProjectManagementDialogs.ProjectEditorDialog {
         id: editorDialog
         statusOptions: root.statusOptions
+        siteOptions: root.siteOptions
         workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 

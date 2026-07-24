@@ -39,8 +39,8 @@ class PortfolioScenarioCommandMixin:
 
     def update_scenario(self, scenario_id: str, **changes) -> PortfolioScenario:
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio scenario")
-        organization_id = self._active_portfolio_organization_id(operation_label="update portfolio scenario")
-        scenario = self._scenario_repo.get_for_organization(scenario_id, organization_id)
+        self._active_portfolio_organization_id(operation_label="update portfolio scenario")
+        scenario = self._scenario_repo.get(scenario_id)
         if scenario is None:
             raise NotFoundError("Portfolio scenario not found.", code="PORTFOLIO_SCENARIO_NOT_FOUND")
         if "name" in changes and changes["name"] is not None:

@@ -30,6 +30,8 @@ def build_resource_state(resource: Any) -> dict[str, object]:
         "contact": resource.contact or "",
         "employeeId": resource.employee_id or "",
         "employeeContext": resource.employee_context or "-",
+        "department": getattr(resource, "department", "") or "",
+        "site": getattr(resource, "site", "") or "",
         "isActive": resource.is_active,
         "activeLabel": resource.active_label,
         "version": resource.version,
@@ -78,6 +80,14 @@ def build_detail_view_model(
                 label="Worker type",
                 value=state["workerTypeLabel"],
                 supporting_text=state["employeeContext"],
+            ),
+            ResourceDetailFieldViewModel(
+                label="Department",
+                value=state["department"] or "No department assigned",
+            ),
+            ResourceDetailFieldViewModel(
+                label="Site",
+                value=state["site"] or "No site assigned",
             ),
             ResourceDetailFieldViewModel(
                 label="Category",

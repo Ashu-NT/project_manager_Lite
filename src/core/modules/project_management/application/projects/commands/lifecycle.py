@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import date
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.projects.commands.validation import (
@@ -20,12 +21,13 @@ from src.core.modules.project_management.contracts.repositories.task import (
 )
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.common.interfaces import TimeEntryRepository
 from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.platform.auth.domain.session import UserSessionContext
 
 logger = logging.getLogger(__name__)
 DEFAULT_CURRENCY_CODE = "EUR"
@@ -40,7 +42,8 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
     _time_entry_repo: TimeEntryRepository | None
     _calendar_repo: CalendarEventRepository
     _cost_repo: CostRepository
-
+    _user_session:UserSessionContext
+        
     def _resolve_project_code(
         self,
         code: str,
@@ -56,12 +59,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             normalize_manual_code,
         )
 
-        if not organization_id:
-            raise BusinessRuleError(
-                "Active organization context is required for project code generation.",
-                code="TENANT_CONTEXT_REQUIRED",
-            )
-        project_rows = self._project_repo.list_for_organization(organization_id)
+        project_rows = self._project_repo.list()
         existing = {
             str(getattr(project, "code", "") or "").upper()
             for project in project_rows
@@ -81,6 +79,26 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             name=(name or "").strip() or None,
             use_year=not bool((name or "").strip()),
         )
+
+    @staticmethod
+    def _is_project_code_integrity_error(exc: IntegrityError) -> bool:
+        message = " ".join(
+            part
+            for part in [
+                str(getattr(exc, "orig", "") or ""),
+                str(getattr(exc, "statement", "") or ""),
+                str(exc),
+            ]
+            if part
+        ).lower()
+        return "ux_projects_code" in message or "projects.project_code" in message
+
+    @staticmethod
+    def _raise_project_code_duplicate(code: str, exc: IntegrityError) -> None:
+        raise ValidationError(
+            f"Project code '{code}' already exists.",
+            code="CODE_DUPLICATE",
+        ) from exc
 
     def create_project(
         self,
@@ -129,17 +147,24 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         try:
             self._project_repo.add(project)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="project.create",
                 entity_type="project",
                 entity_id=project.id,
-                project_id=project.id,
+                module="project_management",
+                workspace_id=project.id,
                 details={"name": project.name},
             )
             logger.info("Created project %s - %s", project.id, project.name)
             domain_events.project_changed.emit(project.id)
             return project
+        except IntegrityError as exc:
+            self._session.rollback()
+            if self._is_project_code_integrity_error(exc):
+                self._raise_project_code_duplicate(resolved_code, exc)
+            logger.error("Error creating project: %s", exc)
+            raise
         except Exception as exc:
             self._session.rollback()
             logger.error("Error creating project: %s", exc)
@@ -150,7 +175,6 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found")
-        self._assert_project_in_active_organization(project, operation_label="set project status")
         require_project_permission(
             self._user_session,
             project.id,
@@ -162,12 +186,13 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         try:
             self._project_repo.update(project)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="project.set_status",
                 entity_type="project",
                 entity_id=project.id,
-                project_id=project.id,
+                module="project_management",
+                workspace_id=project.id,
                 details={"status": project.status.value},
             )
         except Exception:
@@ -178,7 +203,6 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found")
-        self._assert_project_in_active_organization(project, operation_label="update project dates")
 
         tasks = self._task_repo.list_by_project(project_id)
         if not tasks:
@@ -217,7 +241,6 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
-        self._assert_project_in_active_organization(project, operation_label="update project")
         require_project_permission(
             self._user_session,
             project.id,
@@ -281,14 +304,20 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         try:
             self._project_repo.update(project)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="project.update",
                 entity_type="project",
                 entity_id=project.id,
-                project_id=project.id,
+                module="project_management",
+                workspace_id=project.id,
                 details={"name": project.name, "status": project.status.value},
             )
+        except IntegrityError as exc:
+            self._session.rollback()
+            if self._is_project_code_integrity_error(exc):
+                self._raise_project_code_duplicate(project.code, exc)
+            raise
         except Exception:
             self._session.rollback()
             raise
@@ -301,7 +330,6 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found")
-        self._assert_project_in_active_organization(project, operation_label="delete project")
         require_project_permission(
             self._user_session,
             project.id,
@@ -325,12 +353,13 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             self._calendar_repo.delete_for_project(project_id)
             self._project_repo.delete(project_id)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="project.delete",
                 entity_type="project",
                 entity_id=project.id,
-                project_id=project.id,
+                module="project_management",
+                workspace_id=project.id,
                 details={"name": project.name},
             )
         except Exception:
@@ -362,12 +391,6 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
                 code="PROJECT_ORGANIZATION_MISMATCH",
             )
         return active_organization_id
-
-    def _assert_project_in_active_organization(self, project: Project, *, operation_label: str) -> None:
-        active_organization_id = self._active_project_organization_id(operation_label=operation_label)
-        project_organization_id = str(getattr(project, "organization_id", "") or "").strip()
-        if project_organization_id != active_organization_id:
-            raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 
 
 __all__ = ["DEFAULT_CURRENCY_CODE", "ProjectLifecycleMixin"]

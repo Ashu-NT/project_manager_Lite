@@ -64,10 +64,18 @@ AppLayouts.WorkspaceFrame {
     // ── Detail sections and actions ───────────────────────────────────────
     readonly property var _detailSections: state.detailSections
     readonly property var _bulkChangeProperties: state.bulkChangeProperties
+    property var _selectedDependencyItem: null
+    readonly property var _selectedAssignmentItem: root._itemById(
+        root.assignmentsModel ? (root.assignmentsModel.items || []) : [],
+        root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
+    )
 
     readonly property var _detailActions: {
         const idx = detailPage ? detailPage.activeSectionIndex : 0
-        return state.detailActionsForSection(idx)
+        return state.detailActionsForSection(idx, {
+            "assignmentItem": root._selectedAssignmentItem,
+            "dependencyItem": root._selectedDependencyItem
+        })
     }
 
     // ── Detail page state ─────────────────────────────────────────────────
@@ -88,6 +96,18 @@ AppLayouts.WorkspaceFrame {
         return state.optionIndexForValue(options, value)
     }
 
+    function _itemById(items, itemId) {
+        const id = String(itemId || "")
+        if (!id.length) return null
+        const list = items || []
+        for (let i = 0; i < list.length; i += 1) {
+            if (String(list[i].id || "") === id) {
+                return list[i]
+            }
+        }
+        return null
+    }
+
     function _loadLazyDetailSection(sectionIndex) {
         state.lazyLoadDetailSection(detailPageLoader.item, sectionIndex)
     }
@@ -102,6 +122,23 @@ AppLayouts.WorkspaceFrame {
 
     function _openTaskProcurementRoute() {
         state.openTaskProcurementRoute()
+    }
+
+    function _openFilterPopup() {
+        filterPopup.anchorItem = listPage.filterButtonItem
+        filterPopup.open()
+    }
+
+    function _openViewsPopup() {
+        viewsPopup.anchorItem = listPage.viewsButtonItem
+        viewsPopup.open()
+    }
+
+    function _openBulkChangePropertyPopup() {
+        bulkChangePropertyPopup.anchorItem = listPage.bulkActionBar
+            ? listPage.bulkActionBar.actionButtonForId("change_property")
+            : null
+        bulkChangePropertyPopup.open()
     }
 
     function _openDetail(sectionIndex) {
@@ -225,8 +262,8 @@ AppLayouts.WorkspaceFrame {
                         root.workspaceController.setSearchText(text)
                     }
                 }
-                onFilterClicked: filterPopup.open()
-                onViewsClicked: viewsPopup.open()
+                onFilterClicked: root._openFilterPopup()
+                onViewsClicked: root._openViewsPopup()
                 onRefreshRequested: {
                     if (root.workspaceController !== null) {
                         root.workspaceController.refresh()
@@ -234,6 +271,21 @@ AppLayouts.WorkspaceFrame {
                 }
                 onExportRequested: exportDialog.open()
                 onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
+                onBulkCancelRequested: {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.clearTaskBulkSelection()
+                    }
+                }
+                onBulkActionRequested: function(actionId) {
+                    if (actionId === "delete") {
+                        dialogHostLoader.invoke(
+                            "openBulkDeleteDialog",
+                            root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
+                        )
+                    } else if (actionId === "change_property") {
+                        root._openBulkChangePropertyPopup()
+                    }
+                }
             }
 
             Components.TasksFilterPopup {
@@ -250,21 +302,20 @@ AppLayouts.WorkspaceFrame {
                 anchorItem: listPage.viewsButtonItem
             }
 
-            Components.TasksBulkActions {
-                id: bulkActions
-                workspaceController: root.workspaceController
-                state: state
+            AppWidgets.BulkChangePropertyPopup {
+                id: bulkChangePropertyPopup
+                anchorItem: listPage.bulkActionBar.actionButtonForId("change_property")
+                selectedCount: root.workspaceController ? root.workspaceController.selectedTaskCount : 0
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                properties: root._bulkChangeProperties
 
-                onCancelRequested: {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.clearTaskBulkSelection()
+                onApplyRequested: function(payload) {
+                    if (root.workspaceController === null) {
+                        return
                     }
-                }
-                onDeleteRequested: {
-                    dialogHostLoader.invoke(
-                        "openBulkDeleteDialog",
-                        root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
-                    )
+                    if (payload.propertyId === "status") {
+                        root.workspaceController.applyBulkStatus({ "status": payload.value })
+                    }
                 }
             }
         }
@@ -297,10 +348,14 @@ AppLayouts.WorkspaceFrame {
                 }
 
                 onSectionChanged: function(index) {
+                    if ((root._detailSections[index] || "") !== "Dependencies") {
+                        root._selectedDependencyItem = null
+                    }
                     root._loadLazyDetailSection(index)
                 }
 
                 AppWidgets.ContextualActionToolbar {
+                    detailPagePinned: true
                     width: parent ? parent.width : 0
                     showBack: true
                     title: root.selectedTaskModel.title || "Task Details"
@@ -309,6 +364,7 @@ AppLayouts.WorkspaceFrame {
                     actions: root._detailActions
 
                     onBackRequested: {
+                        root._selectedDependencyItem = null
                         root._detailOpen = false
                     }
                     onActionTriggered: function(actionId) {
@@ -320,20 +376,34 @@ AppLayouts.WorkspaceFrame {
                             dialogHostLoader.invoke("openDeleteDialog", root.selectedTaskModel)
                         } else if (actionId === "reserve_material") {
                             root._openTaskReservationsRoute()
+                        } else if (actionId === "edit_allocation" && root._selectedAssignmentItem) {
+                            dialogHostLoader.invoke(
+                                "openEditAssignmentAllocationDialog",
+                                root._selectedAssignmentItem,
+                                root.selectedTaskModel
+                            )
+                        } else if (actionId === "set_assignment_hours" && root._selectedAssignmentItem) {
+                            dialogHostLoader.invoke("openAssignmentHoursDialog", root._selectedAssignmentItem)
+                        } else if (actionId === "remove_assignment" && root._selectedAssignmentItem) {
+                            dialogHostLoader.invoke("openDeleteAssignmentDialog", root._selectedAssignmentItem)
+                        } else if (actionId === "edit_dependency" && tasksDetailPanel) {
+                            tasksDetailPanel.openSelectedDependencyEditor()
+                        } else if (actionId === "remove_dependency" && root._selectedDependencyItem) {
+                            dialogHostLoader.invoke("openDeleteDependencyDialog", root._selectedDependencyItem)
                         }
                     }
                 }
 
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
-                    visible: root._detailOpen
+                    requestedVisible: root._detailOpen
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
                     tone: "danger"
                     message: root.workspaceController ? root.workspaceController.errorMessage : ""
                 }
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
-                    visible: root._detailOpen
+                    requestedVisible: root._detailOpen
                         && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
                     tone: "success"
@@ -341,6 +411,7 @@ AppLayouts.WorkspaceFrame {
                 }
 
                 Panels.TasksDetailPanel {
+                    id: tasksDetailPanel
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     pmCatalog: root.pmCatalog
@@ -357,6 +428,7 @@ AppLayouts.WorkspaceFrame {
                     dependenciesModel: root.dependenciesModel
                     dependenciesTableModel: root.workspaceController ? root.workspaceController.dependenciesTableModel : null
                     dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
+                    dependencyTypeOptions: root.workspaceController ? (root.workspaceController.dependencyTypeOptions || []) : []
 
                     timeAssignmentSummaryModel: root.timeAssignmentSummaryModel
                     timeEntriesModel: root.timeEntriesModel
@@ -376,9 +448,7 @@ AppLayouts.WorkspaceFrame {
                     scheduleImpactModel: root.scheduleImpactModel
 
                     onRetrySectionRequested: function(sectionName) {
-                        const page = detailPageLoader.item
-                        if (!page) return
-                        const idx = page.sections.indexOf(sectionName)
+                        const idx = (root._detailSections || []).indexOf(sectionName)
                         if (idx >= 0) root._loadLazyDetailSection(idx)
                     }
                     onCreateAssignmentRequested: dialogHostLoader.invoke("openCreateAssignmentDialog", root.selectedTaskModel)
@@ -406,6 +476,9 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     onCreateDependencyRequested: dialogHostLoader.invoke("openCreateDependencyDialog", root.selectedTaskModel)
+                    onDependencySelectionChanged: function(dependencyData) {
+                        root._selectedDependencyItem = dependencyData || null
+                    }
                     onEditDependencyRequested: function(payload) {
                         if (root.workspaceController !== null) {
                             root.workspaceController.updateDependency(payload)

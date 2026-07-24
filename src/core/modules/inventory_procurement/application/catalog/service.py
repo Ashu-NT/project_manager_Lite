@@ -11,7 +11,10 @@ from src.core.modules.inventory_procurement.domain.catalog.item import StockItem
 from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.party import PartyService
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 
 
 class ItemMasterService:
@@ -26,20 +29,21 @@ class ItemMasterService:
         document_integration_service: DocumentIntegrationService,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
     ) -> None:
         self._session = session
         self._item_repo = item_repo
         self._category_repo = category_repo
         self._organization_repo = organization_repo
-        self._tenant_context_service = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
-            user_session=user_session,
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="ItemMasterService",
         )
         self._party_service = party_service
         self._document_integration_service = document_integration_service
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
+        self._activity_service = activity_service
         self._catalog_operation_label = "inventory items"
 
     def list_items(self, *, active_only: bool | None = None) -> list[StockItem]:

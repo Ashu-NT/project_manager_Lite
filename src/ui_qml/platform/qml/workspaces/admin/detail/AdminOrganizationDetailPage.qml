@@ -95,21 +95,22 @@ Item {
             detailRoot.activeSectionIndex = index
         }
 
-        AppWidgets.InlineMessage {
+        AppWidgets.SectionScopedInlineMessage {
             width: parent ? parent.width : detailRoot.width
-            visible: detailRoot.errorMessage.length > 0
+            requestedVisible: detailRoot.errorMessage.length > 0
             tone: "danger"
             message: detailRoot.errorMessage
         }
 
-        AppWidgets.InlineMessage {
+        AppWidgets.SectionScopedInlineMessage {
             width: parent ? parent.width : detailRoot.width
-            visible: detailRoot.feedbackMessage.length > 0 && detailRoot.errorMessage.length === 0
+            requestedVisible: detailRoot.feedbackMessage.length > 0 && detailRoot.errorMessage.length === 0
             tone: "success"
             message: detailRoot.feedbackMessage
         }
 
         AppWidgets.ContextualActionToolbar {
+            detailPagePinned: true
             width: parent ? parent.width : detailRoot.width
             title: detailRoot._activeSectionLabel
             subtitle: detailRoot._toolbarSubtitle

@@ -5,7 +5,6 @@ from src.api.desktop.platform import (
     ApprovalStatus,
     PlatformAccessDesktopApi,
     PlatformApprovalDesktopApi,
-    PlatformAuditDesktopApi,
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantRemoveCommand,
 )
@@ -19,17 +18,6 @@ def _access_api(services) -> PlatformAccessDesktopApi:
 
 def _approval_api(services) -> PlatformApprovalDesktopApi:
     return PlatformApprovalDesktopApi(approval_service=services["approval_service"])
-
-
-def _audit_api(services) -> PlatformAuditDesktopApi:
-    return PlatformAuditDesktopApi(
-        audit_service=services["audit_service"],
-        project_service=services["project_service"],
-        task_service=services["task_service"],
-        resource_service=services["resource_service"],
-        cost_service=services["cost_service"],
-        baseline_service=services["baseline_service"],
-    )
 
 
 def test_platform_access_desktop_api_manages_project_scope_grants(services):
@@ -115,33 +103,11 @@ def test_platform_approval_desktop_api_lists_and_approves_requests(services):
     assert approve_result.data.decision_note == "Approved from desktop API"
 
 
-def test_platform_audit_desktop_api_returns_resolved_labels(services):
-    api = _audit_api(services)
-    project = services["project_service"].create_project("Desktop Audit Project")
-    task = services["task_service"].create_task(project.id, "Desktop Audit Task")
-    services["audit_service"].record(
-        action="task.update",
-        entity_type="task",
-        entity_id=task.id,
-        project_id=project.id,
-        details={"task_id": task.id, "project_id": project.id, "status": "IN_PROGRESS"},
-        commit=True,
-    )
-
-    result = api.list_recent(limit=20)
-
-    assert result.ok is True
-    assert result.data is not None
-    row = next(item for item in result.data if item.entity_id == task.id and item.action == "task.update")
-    assert row.project_label == project.name
-    assert row.entity_label == "Task"
-    assert "task=Desktop Audit Task" in row.details_label
-
-
 def test_build_desktop_api_registry_exposes_platform_control_adapters(services):
     registry = build_desktop_api_registry(services)
 
     assert registry.platform_access.list_scope_role_choices("project").ok is True
     assert registry.platform_approval.list_requests(status=ApprovalStatus.PENDING).ok is True
-    assert registry.platform_audit.list_recent(limit=5).ok is True
+    assert registry.platform_enterprise_audit is not None
+    assert registry.platform_enterprise_audit.list_recent(limit=5).ok is True
 

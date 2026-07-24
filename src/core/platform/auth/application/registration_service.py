@@ -4,11 +4,13 @@ from typing import TYPE_CHECKING, Iterable
 
 from sqlalchemy.exc import IntegrityError
 
+from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.domain import UserAccount, UserRoleBinding
 from src.core.platform.auth.passwords import hash_password
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.tenancy.domain.user_tenant_membership import UserTenantMembership
 
 if TYPE_CHECKING:
     from .auth_service import AuthService
@@ -42,6 +44,7 @@ def register_user(
     identity_provider: str | None = None,
     federated_subject: str | None = None,
     session_timeout_minutes_override: int | None = None,
+    tenant_id: str | None = None,
     commit: bool = True,
     bypass_permission: bool = False,
 ) -> UserAccount:
@@ -78,10 +81,18 @@ def register_user(
     user.identity_provider = normalized_provider
     user.federated_subject = normalized_subject
     user.session_timeout_minutes_override = resolved_session_timeout
+    normalized_tenant_id = str(tenant_id or "").strip() or None
     try:
         with service._session.begin_nested():
             service._user_repo.add(user)
             assign_roles_for_user(service, user.id, resolved_role_names)
+            if normalized_tenant_id and service._user_tenant_repo is not None:
+                membership = UserTenantMembership.create(
+                    user_id=user.id,
+                    tenant_id=normalized_tenant_id,
+                    tenant_role="member",
+                )
+                service._user_tenant_repo.add(membership)
         if commit:
             service._session.commit()
     except IntegrityError as exc:
@@ -95,6 +106,16 @@ def register_user(
     except Exception:
         service._session.rollback()
         raise
+    record_audit_entry(
+        service,
+        operation="create",
+        entity_type="user",
+        entity_id=user.id,
+        module="platform",
+        severity="high",
+        compliance_tag="SOC2",
+        metadata={"action": "user.register", "username": user.username},
+    )
     domain_events.auth_changed.emit(user.id)
     return user
 

@@ -71,6 +71,7 @@ class ProjectManagementProjectsWorkspaceController(
 ):
     overviewChanged = Signal()
     statusOptionsChanged = Signal()
+    siteOptionsChanged = Signal()
     selectedStatusFilterChanged = Signal()
     searchTextChanged = Signal()
     projectsChanged = Signal()
@@ -119,6 +120,7 @@ class ProjectManagementProjectsWorkspaceController(
         )
         self._overview: dict[str, object] = default_overview()
         self._status_options: list[dict[str, str]] = []
+        self._site_options: list[dict[str, str]] = []
         self._selected_status_filter = "all"
         self._search_text = ""
         self._table_models: ProjectTableModels = create_project_table_models(self)
@@ -167,6 +169,10 @@ class ProjectManagementProjectsWorkspaceController(
     @Property("QVariantList", notify=statusOptionsChanged)
     def bulkStatusOptions(self) -> list[dict[str, str]]:
         return [opt for opt in self._status_options if opt.get("value", "all") != "all"]
+
+    @Property("QVariantList", notify=siteOptionsChanged)
+    def siteOptions(self) -> list[dict[str, str]]:
+        return self._site_options
 
     @Property(str, notify=selectedStatusFilterChanged)
     def selectedStatusFilter(self) -> str:
@@ -289,6 +295,9 @@ class ProjectManagementProjectsWorkspaceController(
             )
             self._set_status_options(
                 serialize_selector_options(workspace_state.status_options)
+            )
+            self._set_site_options(
+                list(self._projects_workspace_presenter.build_site_options())
             )
             self._set_selected_status_filter(workspace_state.selected_status_filter)
             self._set_search_text(workspace_state.search_text)

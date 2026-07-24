@@ -15,7 +15,10 @@ from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink, DocumentStructure
 from src.core.platform.documents.contracts import (
     DocumentLinkRepository,
@@ -72,9 +75,9 @@ class MaintenanceDocumentService:
         self._structure_repo = structure_repo
         self._document_integration_service = document_integration_service
         self._organization_repo = organization_repo
-        self._tenant_context_service = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
-            user_session=user_session,
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="MaintenanceDocumentService",
         )
         self._site_repo = site_repo
         self._location_repo = location_repo

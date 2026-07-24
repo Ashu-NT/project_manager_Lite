@@ -94,6 +94,78 @@ Item {
         _pickerDay = source.getDate()
     }
 
+    function _popupBoundaryItem() {
+        let current = root.parent
+        while (current) {
+            if (current.minimumSideMargin !== undefined
+                    && current.minimumTopMargin !== undefined
+                    && current.width !== undefined
+                    && current.height !== undefined
+                    && current.x !== undefined
+                    && current.y !== undefined) {
+                return current
+            }
+            current = current.parent
+        }
+        return null
+    }
+
+    function _popupBounds() {
+        const popupParent = datePopup.parent || root
+        const boundary = root._popupBoundaryItem()
+        const margin = Theme.AppTheme.spacingSm
+        if (boundary) {
+            const topLeft = boundary.mapToItem(popupParent, 0, 0)
+            return {
+                "x": topLeft.x + margin,
+                "y": topLeft.y + margin,
+                "width": Math.max(180, boundary.width - margin * 2),
+                "height": Math.max(180, boundary.height - margin * 2)
+            }
+        }
+        return {
+            "x": margin,
+            "y": margin,
+            "width": Math.max(180, (popupParent.width || root.width || 280) - margin * 2),
+            "height": Math.max(180, (popupParent.height || 360) - margin * 2)
+        }
+    }
+
+    function _popupWidth() {
+        const bounds = root._popupBounds()
+        return Math.max(180, Math.min(Math.max(root.width, 280), bounds.width))
+    }
+
+    function _positionPopup() {
+        const popupParent = datePopup.parent || root
+        const bounds = root._popupBounds()
+        const popupWidth = datePopup.width
+        const popupHeight = datePopup.implicitHeight > 0
+            ? datePopup.implicitHeight
+            : (datePopup.contentItem ? (datePopup.contentItem.implicitHeight + datePopup.topPadding + datePopup.bottomPadding) : datePopup.height)
+        const topLeft = root.mapToItem(popupParent, 0, 0)
+        const bottomLeft = root.mapToItem(popupParent, 0, root.height)
+        const margin = Theme.AppTheme.spacingXs
+
+        let nextX = topLeft.x
+        let nextY = bottomLeft.y + margin
+
+        const maxX = Math.max(bounds.x, bounds.x + bounds.width - popupWidth)
+        nextX = Math.min(Math.max(nextX, bounds.x), maxX)
+
+        if (nextY + popupHeight > bounds.y + bounds.height) {
+            const aboveY = topLeft.y - popupHeight - margin
+            if (aboveY >= bounds.y) {
+                nextY = aboveY
+            } else {
+                nextY = Math.max(bounds.y, bounds.y + bounds.height - popupHeight)
+            }
+        }
+
+        datePopup.x = Math.round(nextX)
+        datePopup.y = Math.round(nextY)
+    }
+
     property int _pickerYear: (new Date()).getFullYear()
     property int _pickerMonth: (new Date()).getMonth()
     property int _pickerDay: (new Date()).getDate()
@@ -168,9 +240,7 @@ Item {
     QQC2.Popup {
         id: datePopup
 
-        x: 0
-        y: root.height + Theme.AppTheme.spacingXs
-        width: Math.max(root.width, 280)
+        width: root._popupWidth()
         padding: Theme.AppTheme.dialogPadding
         closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
 
@@ -181,7 +251,18 @@ Item {
             border.width: 1
         }
 
-        onAboutToShow: root._syncPickerState(root.selectedDate)
+        onAboutToShow: {
+            root._syncPickerState(root.selectedDate)
+            Qt.callLater(root._positionPopup)
+        }
+        onWidthChanged: {
+            if (visible)
+                Qt.callLater(root._positionPopup)
+        }
+        onHeightChanged: {
+            if (visible)
+                Qt.callLater(root._positionPopup)
+        }
 
         ColumnLayout {
             width: parent.width

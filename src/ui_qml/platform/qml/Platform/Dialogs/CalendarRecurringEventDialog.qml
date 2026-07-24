@@ -8,6 +8,7 @@ AppWidgets.EntityDialog {
     id: root
 
     property string calendarId: ""
+    property var calendarOptions: []
 
     signal saveRequested(var payload)
 
@@ -46,8 +47,23 @@ AppWidgets.EntityDialog {
         return root._trimmed(combo.editable ? (combo.editText || combo.currentText) : combo.currentText)
     }
 
+    function _selectedCalendarId() {
+        const option = root.calendarOptions[calendarCombo.currentIndex] || {}
+        return String(option.value || option.id || root.calendarId || "")
+    }
+
+    function _calendarIndex(calendarId) {
+        const value = String(calendarId || "")
+        for (let index = 0; index < root.calendarOptions.length; index += 1) {
+            const option = root.calendarOptions[index] || {}
+            if (String(option.value || option.id || "") === value)
+                return index
+        }
+        return root.calendarOptions.length > 0 ? 0 : -1
+    }
+
     readonly property var _formData: ({
-        calendarId: root.calendarId,
+        calendarId: root._selectedCalendarId(),
         title: root._trimmed(titleField.text),
         eventType: eventTypeCombo.currentText || "MEETING",
         recurrenceRule: root._comboText(rruleField),
@@ -60,6 +76,7 @@ AppWidgets.EntityDialog {
 
     function openForCreate(calId) {
         root.calendarId = calId || ""
+        calendarCombo.currentIndex = root._calendarIndex(root.calendarId)
         titleField.text = ""
         eventTypeCombo.currentIndex = 0
         rruleField.currentIndex = 0
@@ -73,6 +90,10 @@ AppWidgets.EntityDialog {
     }
 
     function submitDialog() {
+        if (root._selectedCalendarId().length === 0) {
+            root.errorMessage = "Calendar is required."
+            return
+        }
         if (root._trimmed(titleField.text).length === 0) {
             root.errorMessage = "Title is required."
             return
@@ -87,6 +108,23 @@ AppWidgets.EntityDialog {
         }
         root.errorMessage = ""
         root.saveRequested(root._formData)
+    }
+
+    onCalendarOptionsChanged: {
+        calendarCombo.currentIndex = root._calendarIndex(root._selectedCalendarId())
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        label: "Calendar"
+        required: true
+
+        AppControls.ComboBox {
+            id: calendarCombo
+            Layout.fillWidth: true
+            model: root.calendarOptions
+            textRole: "label"
+        }
     }
 
     AppWidgets.FormField {

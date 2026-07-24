@@ -49,7 +49,7 @@ def resource_by_id(
         )
         if not organization_id:
             return {}
-        resources = list(resource_repo.list_for_organization(organization_id))
+        resources = list(resource_repo.list())
         if normalized_ids:
             resources = [
                 resource

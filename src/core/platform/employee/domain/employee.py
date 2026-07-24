@@ -17,6 +17,7 @@ class Employee:
     id: str
     employee_code: str
     full_name: str
+    organization_id: str | None = None
     department_id: str | None = None
     department: str = ""
     site_id: str | None = None
@@ -32,6 +33,7 @@ class Employee:
     def create(
         employee_code: str,
         full_name: str,
+        organization_id: str | None = None,
         department_id: str | None = None,
         department: str = "",
         site_id: str | None = None,
@@ -46,6 +48,7 @@ class Employee:
             id=generate_id(),
             employee_code=employee_code,
             full_name=full_name,
+            organization_id=organization_id,
             department_id=department_id,
             department=department,
             site_id=site_id,

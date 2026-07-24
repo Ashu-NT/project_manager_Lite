@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.passwords import hash_password, verify_password
@@ -31,6 +32,15 @@ def change_password(service: AuthService, user_id: str, current_password: str, n
     revoke_all_persisted_sessions(service, user, revoked_at=user.updated_at)
     service._user_repo.update(user)
     service._session.commit()
+    record_audit_entry(
+        service,
+        operation="update",
+        entity_type="user",
+        entity_id=user.id,
+        module="platform",
+        severity="high",
+        metadata={"action": "password.change"},
+    )
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
 
@@ -44,6 +54,15 @@ def force_user_password_reset(service: AuthService, user_id: str) -> None:
     revoke_all_persisted_sessions(service, user, revoked_at=user.updated_at)
     service._user_repo.update(user)
     service._session.commit()
+    record_audit_entry(
+        service,
+        operation="update",
+        entity_type="user",
+        entity_id=user.id,
+        module="platform",
+        severity="high",
+        metadata={"action": "password.force_reset"},
+    )
     domain_events.auth_changed.emit(user.id)
 
 
@@ -60,6 +79,15 @@ def reset_user_password(service: AuthService, user_id: str, new_password: str) -
     revoke_all_persisted_sessions(service, user, revoked_at=user.updated_at)
     service._user_repo.update(user)
     service._session.commit()
+    record_audit_entry(
+        service,
+        operation="update",
+        entity_type="user",
+        entity_id=user.id,
+        module="platform",
+        severity="high",
+        metadata={"action": "password.reset"},
+    )
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
 

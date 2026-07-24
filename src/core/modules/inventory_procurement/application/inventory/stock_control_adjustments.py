@@ -22,7 +22,7 @@ from src.core.modules.inventory_procurement.domain.inventory.stock import (
     StockTransactionType,
     Storeroom,
 )
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.org.domain import Organization
 from src.core.shared.events.domain_events import domain_events
@@ -286,11 +286,12 @@ class StockControlAdjustmentMixin:
             self._session.rollback()
             raise
         if commit:
-            record_audit(
+            record_activity(
                 self,
                 action="inventory_stock_transaction.post",
                 entity_type="inventory_stock_transaction",
                 entity_id=transaction.id,
+                module="inventory",
                 details={
                     "transaction_number": transaction.transaction_number,
                     "stock_item_id": item.id,
@@ -389,11 +390,12 @@ class StockControlAdjustmentMixin:
             self._session.rollback()
             raise
         if commit:
-            record_audit(
+            record_activity(
                 self,
                 action="inventory_stock_transaction.post",
                 entity_type="inventory_stock_transaction",
                 entity_id=transaction.id,
+                module="inventory",
                 details={
                     "transaction_number": transaction.transaction_number,
                     "stock_item_id": item.id,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.shell.navigation import NavigationItemViewModel
@@ -43,6 +43,8 @@ class ShellContext(QObject):
             item.route_id: item
             for item in navigation_items
         }
+        self._current_route_source = self._route_source_for(current_route_id)
+        self._route_reload_pending = False
 
     @Property(str, notify=appTitleChanged)
     def appTitle(self) -> str:
@@ -54,10 +56,7 @@ class ShellContext(QObject):
 
     @Property(str, notify=currentRouteSourceChanged)
     def currentRouteSource(self) -> str:
-        item = self._navigation_item_by_route_id.get(self._current_route_id)
-        if item is None:
-            return ""
-        return item.qml_source
+        return self._current_route_source
 
     @Property(str, notify=currentRouteIdChanged)
     def currentRouteTitle(self) -> str:
@@ -99,6 +98,8 @@ class ShellContext(QObject):
             return
         previous_route_id = self._current_route_id
         self._current_route_id = route_id
+        self._route_reload_pending = False
+        self._current_route_source = self._route_source_for(route_id)
         self.currentRouteIdChanged.emit()
         self.currentRouteSourceChanged.emit()
         logger.info(
@@ -107,6 +108,30 @@ class ShellContext(QObject):
             previous_route_id,
             self.currentRouteSource,
         )
+
+    @Slot()
+    def reloadCurrentRoute(self) -> None:
+        route_source = self._route_source_for(self._current_route_id)
+        if not route_source or self._route_reload_pending:
+            return
+        self._route_reload_pending = True
+        self._current_route_source = ""
+        self.currentRouteSourceChanged.emit()
+        QTimer.singleShot(0, self._finish_current_route_reload)
+
+    def _finish_current_route_reload(self) -> None:
+        self._route_reload_pending = False
+        resolved_route_source = self._route_source_for(self._current_route_id)
+        if resolved_route_source == self._current_route_source:
+            return
+        self._current_route_source = resolved_route_source
+        self.currentRouteSourceChanged.emit()
+
+    def _route_source_for(self, route_id: str) -> str:
+        item = self._navigation_item_by_route_id.get(route_id)
+        if item is None:
+            return ""
+        return item.qml_source
 
 
 def build_shell_context(navigation_items: list[NavigationItemViewModel]) -> ShellContext:

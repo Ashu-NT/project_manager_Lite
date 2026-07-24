@@ -24,6 +24,7 @@ class PlatformWorkspaceOverviewViewModel:
     status_label: str
     metrics: tuple[PlatformMetricViewModel, ...] = field(default_factory=tuple)
     sections: tuple[PlatformWorkspaceSectionViewModel, ...] = field(default_factory=tuple)
+    activityFeed: tuple[dict, ...] = field(default_factory=tuple)
 
 @dataclass(frozen=True)
 class PlatformWorkspaceActionItemViewModel:

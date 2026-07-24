@@ -6,30 +6,98 @@ from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
+from src.core.platform.tenancy.contracts import TenantRepository, UserTenantMembershipRepository
+from src.core.platform.tenancy.domain.tenant import Tenant
 
 
 @dataclass(frozen=True)
 class TenantContext:
-    organization_id: str
-    organization: Organization
+    tenant_id: str
+    tenant: Tenant
+    organization_id: str | None
+    organization: Organization | None
 
 
 class TenantContextService:
-    """Session-scoped organization context for tenant-owned business data.
+    """Session-scoped tenant + organization context for multi-tenant business data.
 
-    This service deliberately does not mutate ``Organization.is_active``. The
-    database flag remains a compatibility/default selector; the runtime tenant
-    selection belongs to the current user session.
+    Hierarchy: Tenant → Organization → Site → Department.
+    A session may have an active tenant and an active organization within that tenant.
     """
 
     def __init__(
         self,
         *,
+        tenant_repo: TenantRepository,
         organization_repo: OrganizationRepository,
         user_session: UserSessionContext | None = None,
+        user_tenant_repo: UserTenantMembershipRepository | None = None,
     ) -> None:
+        self._tenant_repo = tenant_repo
         self._organization_repo = organization_repo
         self._user_session = user_session
+        self._user_tenant_repo = user_tenant_repo
+
+    def get_active_tenant_id(self) -> str | None:
+        tenant = self.get_active_tenant()
+        return tenant.id if tenant is not None else None
+
+    def require_active_tenant_id(self, *, operation_label: str) -> str:
+        tenant = self.get_active_tenant()
+        if tenant is None:
+            raise BusinessRuleError(
+                f"Active tenant context is required for {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return tenant.id
+
+    def get_active_tenant(self) -> Tenant | None:
+        tenant_id = self._session_tenant_id()
+        if tenant_id:
+            tenant = self._tenant_repo.get(tenant_id)
+            if tenant is not None and tenant.is_active:
+                return tenant
+        # Fall back to the default (single-tenant desktop mode)
+        return self._tenant_repo.get_default()
+
+    def set_active_tenant(self, tenant_id: str) -> Tenant:
+        normalized_id = str(tenant_id or "").strip()
+        if not normalized_id:
+            raise BusinessRuleError("Tenant is required.", code="TENANT_CONTEXT_REQUIRED")
+        tenant = self._tenant_repo.get(normalized_id)
+        if tenant is None:
+            raise NotFoundError("Tenant not found.", code="TENANT_NOT_FOUND")
+        if tenant.tenant_status == "suspended":
+            raise BusinessRuleError(
+                "Cannot switch to a suspended tenant.",
+                code="TENANT_SUSPENDED",
+            )
+        if tenant.tenant_status == "archived":
+            raise BusinessRuleError(
+                "Cannot switch to an archived tenant.",
+                code="TENANT_ARCHIVED",
+            )
+        if not tenant.is_active:
+            raise BusinessRuleError(
+                "Cannot switch to an inactive tenant.",
+                code="TENANT_INACTIVE",
+            )
+        # Validate membership — skip for admin/platform_admin principals.
+        if self._user_tenant_repo is not None and self._user_session is not None:
+            principal = self._user_session.principal
+            if principal is not None:
+                is_admin = "admin" in getattr(principal, "role_names", frozenset())
+                is_platform_admin = "platform.admin" in getattr(principal, "permissions", frozenset())
+                if not is_admin and not is_platform_admin:
+                    user_id = str(getattr(principal, "user_id", "") or "").strip()
+                    if user_id and not self._user_tenant_repo.is_active_member(user_id, tenant.id):
+                        raise BusinessRuleError(
+                            "User does not have access to this tenant.",
+                            code="TENANT_ACCESS_DENIED",
+                        )
+        if self._user_session is not None:
+            self._user_session.set_active_tenant_id(tenant.id)
+        return tenant
 
     def get_active_organization_id(self) -> str | None:
         organization = self.get_active_organization()
@@ -48,11 +116,10 @@ class TenantContextService:
         organization_id = self._session_organization_id()
         if organization_id:
             organization = self._organization_repo.get(organization_id)
-            if organization is not None and self._can_access(organization.id):
+            if organization is not None and self._can_access(organization):
                 return organization
             if self._user_session is not None:
                 self._user_session.set_active_organization_id(None)
-
         return None
 
     def set_active_organization(self, organization_id: str) -> Organization:
@@ -70,7 +137,7 @@ class TenantContextService:
                 "Cannot switch to an inactive organization.",
                 code="ORGANIZATION_INACTIVE",
             )
-        if not self._can_access(organization.id):
+        if not self._can_access(organization):
             raise BusinessRuleError(
                 "Permission denied for organization context.",
                 code="PERMISSION_DENIED",
@@ -79,21 +146,71 @@ class TenantContextService:
             self._user_session.set_active_organization_id(organization.id)
         return organization
 
+    def switch_to_tenant(self, tenant_id: str) -> Tenant:
+        """Atomically switch tenant context.
+
+        Validates and sets active_tenant_id via set_active_tenant(), then
+        clears active_organization_id so it never points to the old tenant.
+        Auto-selects the org when exactly one active org exists in the new tenant.
+        """
+        tenant = self.set_active_tenant(tenant_id)
+        if self._user_session is not None:
+            self._user_session.set_active_organization_id(None)
+            orgs = self._organization_repo.list_for_tenant(tenant.id, active_only=True)
+            if len(orgs) == 1:
+                self._user_session.set_active_organization_id(orgs[0].id)
+        return tenant
+
     def require_context(self, *, operation_label: str) -> TenantContext:
+        tenant = self.get_active_tenant()
+        if tenant is None:
+            raise BusinessRuleError(
+                f"Active tenant context is required for {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
         organization = self.get_active_organization()
-        if organization is None:
+        return TenantContext(
+            tenant_id=tenant.id,
+            tenant=tenant,
+            organization_id=organization.id if organization is not None else None,
+            organization=organization,
+        )
+
+    def require_organization_context(self, *, operation_label: str) -> TenantContext:
+        """Require both tenant and organization to be set."""
+        ctx = self.require_context(operation_label=operation_label)
+        if ctx.organization_id is None:
             raise BusinessRuleError(
                 f"Active organization context is required for {operation_label}.",
                 code="TENANT_CONTEXT_REQUIRED",
             )
-        return TenantContext(organization_id=organization.id, organization=organization)
+        return ctx
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _session_tenant_id(self) -> str | None:
+        if self._user_session is None:
+            return None
+        return getattr(self._user_session, "active_tenant_id", lambda: None)()
 
     def _session_organization_id(self) -> str | None:
         if self._user_session is None:
             return None
         return self._user_session.active_organization_id()
 
-    def _can_access(self, organization_id: str) -> bool:
+    def _can_access(self, organization: Organization) -> bool:
+        # Cross-tenant guard: org must belong to the currently active tenant.
+        # Skipped only when no active tenant is set (single-tenant / bootstrap mode).
+        active_tenant_id = self._session_tenant_id()
+        if active_tenant_id:
+            org_tenant_id = str(getattr(organization, "tenant_id", "") or "").strip()
+            # H-5: deny access when org has no tenant_id while a tenant is active —
+            # an unscoped org is ambiguous and must not be accessible in multi-tenant mode.
+            if not org_tenant_id or org_tenant_id != active_tenant_id:
+                return False
+
         if self._user_session is None:
             return True
         principal = self._user_session.principal
@@ -101,11 +218,38 @@ class TenantContextService:
             return True
         if "admin" in getattr(principal, "role_names", frozenset()):
             return True
-        normalized_organization_id = str(organization_id or "").strip()
+        if "platform.admin" in getattr(principal, "permissions", frozenset()):
+            return True
+
+        normalized_organization_id = str(organization.id or "").strip()
         if not normalized_organization_id:
             return False
         organization_scopes = dict((principal.scoped_access or {}).get("organization", {}))
-        return not organization_scopes or normalized_organization_id in organization_scopes
+        if organization_scopes:
+            return normalized_organization_id in organization_scopes
+        session_organization_id = str(
+            getattr(self._user_session, "_active_organization_id", "") or ""
+        ).strip()
+        return bool(session_organization_id) and (
+            session_organization_id == normalized_organization_id
+        )
 
 
-__all__ = ["TenantContext", "TenantContextService"]
+def require_tenant_context_service(
+    tenant_context_service: TenantContextService | None,
+    *,
+    consumer_label: str,
+) -> TenantContextService:
+    if tenant_context_service is None:
+        raise BusinessRuleError(
+            f"{consumer_label} requires TenantContextService.",
+            code="TENANT_CONTEXT_REQUIRED",
+        )
+    return tenant_context_service
+
+
+__all__ = [
+    "TenantContext",
+    "TenantContextService",
+    "require_tenant_context_service",
+]

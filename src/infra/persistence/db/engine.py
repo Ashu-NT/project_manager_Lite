@@ -9,11 +9,15 @@ from urllib.parse import urlparse
 
 from sqlalchemy import create_engine, event
 
+from src.infra.platform.env_loader import load_env_file
 from src.infra.platform.path import default_db_path
 
 logger = logging.getLogger(__name__)
 sql_logger = logging.getLogger("sqlalchemy.diagnostics")
 _query_state = threading.local()
+
+load_env_file()
+
 _SLOW_QUERY_MS = float(os.getenv("PM_SLOW_QUERY_MS", "250") or 250)
 _TRACE_SQL = (os.getenv("PM_SQL_TRACE", "0") or "").strip().lower() in {"1", "true", "yes"}
 _LOGGED_DB_URLS: set[str] = set()

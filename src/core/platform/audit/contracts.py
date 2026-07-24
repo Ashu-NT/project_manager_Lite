@@ -2,31 +2,34 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from src.core.platform.audit.domain import AuditLogEntry
+from src.core.platform.audit.domain import AuditEntry
 
 
-class AuditLogRepository(ABC):
+class AuditRepository(ABC):
     @abstractmethod
-    def add(self, entry: AuditLogEntry) -> None: ...
+    def add(self, entry: AuditEntry) -> None: ...
 
     @abstractmethod
     def list_recent(
         self,
-        limit: int = 200,
+        limit: int = 100,
         *,
-        project_id: str | None = None,
         entity_type: str | None = None,
-    ) -> list[AuditLogEntry]: ...
+        operation: str | None = None,
+        severity: str | None = None,
+        compliance_tag: str | None = None,
+    ) -> list[AuditEntry]: ...
 
     @abstractmethod
     def list_recent_for_organization(
         self,
         organization_id: str,
-        limit: int = 200,
+        limit: int = 100,
         *,
-        project_id: str | None = None,
         entity_type: str | None = None,
-    ) -> list[AuditLogEntry]: ...
+        operation: str | None = None,
+        severity: str | None = None,
+    ) -> list[AuditEntry]: ...
 
 
-__all__ = ["AuditLogRepository"]
+__all__ = ["AuditRepository"]

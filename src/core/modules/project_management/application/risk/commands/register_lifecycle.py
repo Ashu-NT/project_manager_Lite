@@ -17,7 +17,7 @@ from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError,
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.register import RegisterEntryRepository
 from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity import record_activity
 from src.core.platform.auth.authorization import require_permission
 
 
@@ -97,12 +97,13 @@ class RegisterLifecycleMixin:
         try:
             self._register_repo.add(entry)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="register.create",
                 entity_type="register_entry",
                 entity_id=entry.id,
-                project_id=entry.project_id,
+                module="project_management",
+                workspace_id=entry.project_id,
                 details=self._audit_details(entry),
             )
         except Exception:
@@ -168,12 +169,13 @@ class RegisterLifecycleMixin:
         try:
             self._register_repo.update(entry)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="register.update",
                 entity_type="register_entry",
                 entity_id=entry.id,
-                project_id=entry.project_id,
+                module="project_management",
+                workspace_id=entry.project_id,
                 details=self._audit_details(entry),
             )
         except Exception:
@@ -196,12 +198,13 @@ class RegisterLifecycleMixin:
         try:
             self._register_repo.delete(entry_id)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="register.delete",
                 entity_type="register_entry",
                 entity_id=entry.id,
-                project_id=entry.project_id,
+                module="project_management",
+                workspace_id=entry.project_id,
                 details=self._audit_details(entry),
             )
         except Exception:

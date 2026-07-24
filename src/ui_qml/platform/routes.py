@@ -38,6 +38,15 @@ def build_platform_routes() -> list[QmlRoute]:
             qml_path=platform_qml_path("workspaces", "settings", "SettingsWorkspace.qml"),
             presenter_key="platform.settings",
         ),
+        QmlRoute(
+            route_id="platform.tenants",
+            module_code="platform",
+            module_label="Platform",
+            group_label="Tenants",
+            title="Tenant Management",
+            qml_path=platform_qml_path("workspaces", "tenants", "TenantManagementWorkspace.qml"),
+            presenter_key=None,
+        ),
     ]
 
 

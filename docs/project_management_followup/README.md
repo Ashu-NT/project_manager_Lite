@@ -36,6 +36,18 @@ The guiding rules stay the same:
 - Completed in the current slice:
   - the remaining major PM workspaces now subscribe to the module-neutral domain-event bridge alongside their legacy event hooks
   - PM refresh behavior stays compatible while reducing dependence on PM-only signal wiring
+- Completed in the current slice:
+  - the task workspace no longer dispatches task-detail or collaboration-presence work through task-only Qt thread-pool workers
+  - task activation and task presence now stay on the same synchronous controller and shared-session path used by the rest of the PM QML module
+  - PM task controllers now have an architecture guardrail that blocks `QThreadPool` and `QRunnable` from re-entering this slice
+- Completed in the current slice:
+  - PM detail-section create actions now stay in the section contextual toolbar instead of switching into local selected-row headers
+  - selected-row actions for task assignments/dependencies, resource skills/certifications, and project resources now surface in the main detail header
+  - section-level back buttons were removed from those PM detail sections so the remaining back action is only the page-level detail navigation
+- Completed in the current slice:
+  - runtime desktop sessions now revalidate while the shell is open instead of relying only on startup login state
+  - persisted auth sessions now carry the user’s last active tenant and organization context so re-login restores the working scope automatically
+  - shell re-authentication now refreshes instantiated workspace controllers and reloads the active route so expired-session context failures do not leak raw exceptions into QML
 - Still intentionally transitional:
   - existing historical PM task-comment attachments remain readable through the legacy attachment list
   - PM time-entry site/department snapshots intentionally stay as historical strings
@@ -160,6 +172,68 @@ Non-goals for this slice:
 
 - no broker/process-wide async event transport
 - no forced removal of the older specific PM signal hooks
+
+### 7. Task Controller Sync Alignment
+
+Status: completed
+
+Scope:
+
+- remove the task-only background worker path used by task activation and collaboration presence updates
+- align the task controller flow with the rest of the PM QML controllers, which operate on the shared app-scoped service graph synchronously
+
+Acceptance notes:
+
+- task detail activation no longer uses `QThreadPool` or `QRunnable`
+- collaboration review/edit presence transitions stay functionally the same for users
+- architecture tests prevent task controller worker threads from being reintroduced accidentally
+
+Non-goals for this slice:
+
+- no rewrite of the broader PM refresh model
+- no new background job/session abstraction for QML controllers
+
+### 8. PM Detail Toolbar Normalization
+
+Status: completed
+
+Scope:
+
+- keep create and add flows inside the section-level contextual toolbar across PM detail workspaces
+- move selected-row actions into the main detail header so the panel action model stays consistent
+- remove section-local back buttons from these table-driven detail sections
+
+Acceptance notes:
+
+- task assignments and dependencies keep `Assign Resource` and `Add Dependency` in the section toolbar while selected-row actions render in the main detail header
+- resource skills and certifications keep add actions in-section while row-removal actions render in the main detail header
+- project resources keep `Assign Resource` in-section while selected-row edit/remove actions render in the main detail header
+
+Non-goals for this slice:
+
+- no change to the page-level detail back button
+- no redesign of unrelated PM list-page toolbars or bulk-action bars
+
+### 9. Runtime Session Resilience
+
+Status: completed
+
+Scope:
+
+- revalidate authenticated desktop sessions during runtime instead of only at shell startup
+- persist and restore tenant/organization context through auth-session records
+- trigger graceful re-login and workspace refresh when the active session expires or is revoked
+
+Acceptance notes:
+
+- tenant/org context survives restart and runtime re-authentication for the same user session lineage
+- shell users are prompted back through the login flow when a runtime session becomes invalid
+- instantiated PM/platform/inventory/maintenance workspace controllers refresh after re-authentication before the active route is reloaded
+
+Non-goals for this slice:
+
+- no background distributed session broker
+- no broad masking of unexpected non-domain exceptions that should still surface during development
 
 ## Guardrails
 

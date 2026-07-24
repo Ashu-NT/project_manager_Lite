@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.portfolio import PortfolioProjectDependency
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
@@ -31,8 +31,8 @@ class PortfolioDependencyCommandMixin:
                 "Portfolio dependency must link two different projects.",
                 code="PORTFOLIO_DEPENDENCY_SAME_PROJECT",
             )
-        organization_id = self._active_portfolio_organization_id(operation_label="create portfolio dependency")
-        for existing in self._dependency_repo.list_for_organization(organization_id):
+        self._active_portfolio_organization_id(operation_label="create portfolio dependency")
+        for existing in self._dependency_repo.list():
             if (
                 existing.predecessor_project_id == predecessor.id
                 and existing.successor_project_id == successor.id
@@ -54,12 +54,13 @@ class PortfolioDependencyCommandMixin:
         )
         self._dependency_repo.add(dependency)
         self._session.commit()
-        record_audit(
+        record_activity(
             self,
             action="portfolio.project_dependency.add",
             entity_type="portfolio_project_dependency",
             entity_id=dependency.id,
-            project_id=successor.id,
+            module="project_management",
+            workspace_id=successor.id,
             details={
                 "predecessor_project_id": predecessor.id,
                 "predecessor_project_name": predecessor.name,
@@ -74,13 +75,10 @@ class PortfolioDependencyCommandMixin:
 
     def remove_project_dependency(self, dependency_id: str) -> None:
         require_permission(self._user_session, "portfolio.manage", operation_label="remove portfolio dependency")
-        organization_id = self._active_portfolio_organization_id(
+        self._active_portfolio_organization_id(
             operation_label="remove portfolio dependency"
         )
-        dependency = self._dependency_repo.get_for_organization(
-            dependency_id,
-            organization_id,
-        )
+        dependency = self._dependency_repo.get(dependency_id)
         if dependency is None:
             raise NotFoundError(
                 "Portfolio dependency not found.",
@@ -94,14 +92,15 @@ class PortfolioDependencyCommandMixin:
                 "You no longer have access to one of the projects in this dependency.",
                 code="PORTFOLIO_DEPENDENCY_SCOPE_INVALID",
             )
-        self._dependency_repo.delete_for_organization(dependency_id, organization_id)
+        self._dependency_repo.delete(dependency_id)
         self._session.commit()
-        record_audit(
+        record_activity(
             self,
             action="portfolio.project_dependency.remove",
             entity_type="portfolio_project_dependency",
             entity_id=dependency.id,
-            project_id=successor.id,
+            module="project_management",
+            workspace_id=successor.id,
             details={
                 "predecessor_project_id": predecessor.id,
                 "predecessor_project_name": predecessor.name,

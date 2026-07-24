@@ -24,17 +24,13 @@ Item {
     readonly property var teamUpdatesPanelModel: root.workspaceController
         ? root.workspaceController.teamUpdates
         : ({ "title": "Team Updates", "subtitle": "", "emptyState": "", "items": [] })
-    readonly property var auditPanelModel: root.workspaceController
-        ? root.workspaceController.auditFeed
-        : ({ "title": "Audit", "subtitle": "", "emptyState": "", "items": [] })
     readonly property var selectedDetailModel: root.workspaceController
         ? root.workspaceController.selectedItemDetail
         : ({
             "id": "", "title": "", "statusLabel": "", "subtitle": "", "description": "",
             "state": {}, "fields": [],
             "activity": { "title": "", "subtitle": "", "emptyState": "", "items": [] },
-            "relatedItems": { "title": "", "subtitle": "", "emptyState": "", "items": [] },
-            "audit": { "title": "", "subtitle": "", "emptyState": "", "items": [] }
+            "relatedItems": { "title": "", "subtitle": "", "emptyState": "", "items": [] }
         })
 
     // ── Filter state (readonly from controller) ───────────────────────────
@@ -47,7 +43,6 @@ Item {
     readonly property string approvalsSearchText: root.workspaceController ? root.workspaceController.approvalsSearchText : ""
     property string activitySearchText: ""
     readonly property string teamUpdatesSearchText: root.workspaceController ? root.workspaceController.teamUpdatesSearchText : ""
-    property string auditSearchText: ""
 
     // ── Pagination state ──────────────────────────────────────────────────
     property int inboxPage: 1
@@ -100,7 +95,6 @@ Item {
         if (root.activePanelId === "approvals") return root.approvalsPanelModel
         if (root.activePanelId === "activity") return root.activityPanelModel
         if (root.activePanelId === "team_updates") return root.teamUpdatesPanelModel
-        if (root.activePanelId === "audit") return root.auditPanelModel
         return root.inboxPanelModel
     }
     readonly property var _currentTableColumns: {
@@ -170,7 +164,6 @@ Item {
     readonly property var _approvalRows: root._buildApprovalRows(root.approvalsPanelModel.items || [])
     readonly property var _activityFeedItems: root._filterFeedItems(root.activityPanelModel.items || [], root.activitySearchText)
     readonly property var _teamUpdateRows: root._buildTeamUpdateRows(root.teamUpdatesPanelModel.items || [])
-    readonly property var _auditFeedItems: root._filterFeedItems(root.auditPanelModel.items || [], root.auditSearchText)
 
     // ── Event handlers ────────────────────────────────────────────────────
     onActivePanelIdChanged: {
@@ -198,7 +191,6 @@ Item {
         if (panelId === "approvals") return root.approvalsSearchText
         if (panelId === "activity") return root.activitySearchText
         if (panelId === "team_updates") return root.teamUpdatesSearchText
-        if (panelId === "audit") return root.auditSearchText
         return root.inboxSearchText
     }
 
@@ -208,7 +200,6 @@ Item {
         else if (panelId === "approvals") root.workspaceController.setApprovalsSearchText(text)
         else if (panelId === "activity")  root.activitySearchText = text
         else if (panelId === "team_updates") root.workspaceController.setTeamUpdatesSearchText(text)
-        else if (panelId === "audit")     root.auditSearchText = text
         else root.workspaceController.setInboxSearchText(text)
         root._resetPanelPage(panelId)
     }

@@ -12,6 +12,7 @@ from src.ui_qml.platform.controllers.admin import (
 )
 from src.ui_qml.platform.controllers.control import PlatformControlWorkspaceController
 from src.ui_qml.platform.controllers.settings import PlatformSettingsWorkspaceController
+from src.ui_qml.platform.controllers.shell import TenantSwitcherController
 from src.ui_qml.platform.presenters import (
     PlatformAccessWorkspacePresenter,
     PlatformAdminWorkspacePresenter,
@@ -29,6 +30,7 @@ from src.ui_qml.platform.presenters import (
     PlatformSettingsWorkspacePresenter,
     PlatformSiteCatalogPresenter,
     PlatformSupportWorkspacePresenter,
+    TenantSwitcherPresenter,
     PlatformUserCatalogPresenter,
 )
 from src.ui_qml.platform.routes import build_platform_routes
@@ -72,14 +74,15 @@ class PlatformWorkspaceCatalog(QObject):
             user_api=user_api,
             document_api=document_api,
             party_api=party_api,
+            audit_api=getattr(desktop_api_registry, "platform_enterprise_audit", None),
         )
         control_presenter = PlatformControlWorkspacePresenter(
             approval_api=getattr(desktop_api_registry, "platform_approval", None),
-            audit_api=getattr(desktop_api_registry, "platform_audit", None),
+            audit_api=getattr(desktop_api_registry, "platform_enterprise_audit", None),
         )
         control_queue_presenter = PlatformControlQueuePresenter(
             approval_api=getattr(desktop_api_registry, "platform_approval", None),
-            audit_api=getattr(desktop_api_registry, "platform_audit", None),
+            audit_api=getattr(desktop_api_registry, "platform_enterprise_audit", None),
         )
         settings_presenter = PlatformSettingsWorkspacePresenter(runtime_api=runtime_api)
         settings_catalog_presenter = PlatformSettingsCatalogPresenter(
@@ -133,6 +136,12 @@ class PlatformWorkspaceCatalog(QObject):
             catalog_presenter=settings_catalog_presenter,
             parent=self,
         )
+        tenant_api = getattr(desktop_api_registry, "platform_tenant", None) if desktop_api_registry is not None else None
+        self._tenant_switcher = TenantSwitcherController(
+            TenantSwitcherPresenter(tenant_api=tenant_api),
+            self,
+        )
+        self._tenant_switcher.refresh()
         self._route_by_id = {route.route_id: route for route in build_platform_routes()}
 
     @Property(PlatformAdminWorkspaceController, constant=True)
@@ -154,6 +163,10 @@ class PlatformWorkspaceCatalog(QObject):
     @Property(PlatformSettingsWorkspaceController, constant=True)
     def settingsWorkspace(self) -> PlatformSettingsWorkspaceController:
         return self._settings_workspace
+
+    @Property(TenantSwitcherController, constant=True)
+    def tenantSwitcher(self) -> TenantSwitcherController:
+        return self._tenant_switcher
 
     @Slot(str, result="QVariantMap")
     def workspace(self, route_id: str) -> dict[str, str]:
@@ -194,6 +207,20 @@ class PlatformWorkspaceCatalog(QObject):
     @Slot(result="QVariantMap")
     def settingsOverview(self) -> dict[str, object]:
         return dict(self._settings_workspace.overview)
+
+    @Slot()
+    def refreshAllWorkspaces(self) -> None:
+        for controller in (
+            self._tenant_switcher,
+            self._admin_workspace,
+            self._admin_access_workspace,
+            self._admin_support_workspace,
+            self._control_workspace,
+            self._settings_workspace,
+        ):
+            refresh = getattr(controller, "refresh", None)
+            if callable(refresh):
+                refresh()
 
     @Slot(result="QVariantMap")
     def approvalQueue(self) -> dict[str, object]:

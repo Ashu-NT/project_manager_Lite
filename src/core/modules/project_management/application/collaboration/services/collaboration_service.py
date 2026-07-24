@@ -39,7 +39,7 @@ from src.core.modules.project_management.contracts.repositories.collaboration im
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
 from src.core.platform.access.contracts import ProjectMembershipRepository
-from src.core.platform.audit.contracts import AuditLogRepository
+from src.core.platform.audit.contracts import AuditRepository
 from src.core.platform.auth.contracts import UserRepository
 from src.core.platform.documents import DocumentIntegrationService
 
@@ -65,7 +65,7 @@ class CollaborationService(
         task_repo: TaskRepository,
         project_repo: ProjectRepository,
         user_repo: UserRepository,
-        audit_repo: AuditLogRepository,
+        audit_repo: AuditRepository,
         project_membership_repo: ProjectMembershipRepository,
         document_integration_service: DocumentIntegrationService | None = None,
         user_session=None,

@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
-import "../components"
+import workspaces.admin.components 1.0
 
 Item {
     id: root
@@ -106,21 +106,22 @@ Item {
             root.activeSectionIndex = index
         }
 
-        AppWidgets.InlineMessage {
+        AppWidgets.SectionScopedInlineMessage {
             width: parent ? parent.width : root.width
-            visible: root.errorMessage.length > 0
+            requestedVisible: root.errorMessage.length > 0
             tone: "danger"
             message: root.errorMessage
         }
 
-        AppWidgets.InlineMessage {
+        AppWidgets.SectionScopedInlineMessage {
             width: parent ? parent.width : root.width
-            visible: root.feedbackMessage.length > 0 && root.errorMessage.length === 0
+            requestedVisible: root.feedbackMessage.length > 0 && root.errorMessage.length === 0
             tone: "success"
             message: root.feedbackMessage
         }
 
         AppWidgets.ContextualActionToolbar {
+            detailPagePinned: true
             width: parent ? parent.width : root.width
             title: root._activeSectionLabel
             subtitle: root._toolbarSubtitle

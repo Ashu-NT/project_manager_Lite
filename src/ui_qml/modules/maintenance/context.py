@@ -181,5 +181,20 @@ class MaintenanceWorkspaceCatalog(QObject):
             }
         return serialize_workspace_view_model(presenter.build_view_model())
 
+    @Slot()
+    def refreshAllWorkspaces(self) -> None:
+        for controller in (
+            self._dashboard_workspace,
+            self._assets_workspace,
+            self._planner_workspace,
+            self._preventive_workspace,
+            self._work_requests_workspace,
+            self._work_orders_workspace,
+            self._reliability_workspace,
+        ):
+            refresh = getattr(controller, "refresh", None)
+            if callable(refresh):
+                refresh()
+
 
 __all__ = ["MaintenanceWorkspaceCatalog"]

@@ -27,14 +27,17 @@ from src.core.modules.inventory_procurement.domain.inventory.stock import (
     StockReservation,
     StockReservationStatus,
 )
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
 from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 
 
 def _build_reservation_number() -> str:
@@ -53,21 +56,21 @@ class ReservationService:
         stock_service: StockControlService,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
         document_integration_service: DocumentIntegrationService | None = None,
     ):
         self._session = session
         self._reservation_repo = reservation_repo
         self._organization_repo = organization_repo
-        self._tenant_context_service = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
-            user_session=user_session,
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="ReservationService",
         )
         self._item_service = item_service
         self._inventory_service = inventory_service
         self._stock_service = stock_service
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
         self._document_integration_service = document_integration_service
 
     def list_reservations(
@@ -175,11 +178,12 @@ class ReservationService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_reservation.create",
             entity_type="stock_reservation",
             entity_id=reservation.id,
+            module="inventory",
             details={
                 "reservation_number": reservation.reservation_number,
                 "stock_item_id": reservation.stock_item_id,
@@ -260,11 +264,12 @@ class ReservationService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_reservation.issue",
             entity_type="stock_reservation",
             entity_id=reservation.id,
+            module="inventory",
             details={
                 "reservation_number": reservation.reservation_number,
                 "issued_qty": str(issue_qty),
@@ -296,6 +301,7 @@ class ReservationService:
             module_code="inventory_procurement",
             entity_type="stock_reservation",
             entity_id=reservation.id,
+            module="inventory",
             active_only=active_only,
         )
 
@@ -318,14 +324,16 @@ class ReservationService:
             module_code="inventory_procurement",
             entity_type="stock_reservation",
             entity_id=reservation.id,
+            module="inventory",
             document_id=document_id,
             link_role=link_role,
         )
-        record_audit(
+        record_activity(
             self,
             action="inventory_reservation.link_document",
             entity_type="stock_reservation",
             entity_id=reservation.id,
+            module="inventory",
             details={
                 "document_id": document_id,
                 "link_role": normalize_optional_text(link_role) or "reference",
@@ -353,14 +361,16 @@ class ReservationService:
             module_code="inventory_procurement",
             entity_type="stock_reservation",
             entity_id=reservation.id,
+            module="inventory",
             document_id=document_id,
             link_role=link_role,
         )
-        record_audit(
+        record_activity(
             self,
             action="inventory_reservation.unlink_document",
             entity_type="stock_reservation",
             entity_id=reservation.id,
+            module="inventory",
             details={
                 "document_id": document_id,
                 "link_role": normalize_optional_text(link_role) or "reference",
@@ -416,11 +426,12 @@ class ReservationService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action=f"inventory_reservation.{status.value.lower()}",
             entity_type="stock_reservation",
             entity_id=reservation.id,
+            module="inventory",
             details={
                 "reservation_number": reservation.reservation_number,
                 "released_qty": str(quantity_to_release),
@@ -437,11 +448,12 @@ class ReservationService:
         return reservation
 
     def _record_transaction_audit(self, transaction) -> None:
-        record_audit(
+        record_activity(
             self,
             action="inventory_stock_transaction.post",
             entity_type="inventory_stock_transaction",
             entity_id=transaction.id,
+            module="inventory",
             details={
                 "transaction_number": transaction.transaction_number,
                 "stock_item_id": transaction.stock_item_id,

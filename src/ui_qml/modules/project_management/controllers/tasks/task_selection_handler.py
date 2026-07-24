@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QThreadPool
-
-from .task_detail_worker import TaskDetailWorker
-
 
 def select_project(controller, project_id: str) -> None:
     normalized = (project_id or "").strip()
@@ -36,41 +32,18 @@ def activate_task(controller, task_id: str) -> None:
 
     controller._set_is_loading(True)
     controller._set_error_message("")
-    controller._task_activation_request_id += 1
-    req_id = controller._task_activation_request_id
-
-    worker = TaskDetailWorker(
-        presenter=controller._tasks_workspace_presenter,
-        task_id=normalized,
-        project_id=controller._selected_project_id or None,
-        request_id=req_id,
-    )
-    worker.signals.finished.connect(controller._on_task_detail_loaded)
-    worker.signals.failed.connect(controller._on_task_detail_error)
-    QThreadPool.globalInstance().start(worker)
-
-
-def on_task_detail_loaded(controller, data: object) -> None:
     try:
-        request_id, ws = data  # type: ignore[misc]
-    except (TypeError, ValueError):
-        return
-    if request_id != controller._task_activation_request_id:
-        return  # stale result from a superseded task click
-    controller._task_list.updateSelectedTaskOnly(ws)
-    controller._set_selected_task_id(ws.selected_task_id)
-    controller._set_is_loading(False)
-
-
-def on_task_detail_error(controller, data: object) -> None:
-    try:
-        request_id, message = data  # type: ignore[misc]
-    except (TypeError, ValueError):
-        return
-    if request_id != controller._task_activation_request_id:
-        return
-    controller._set_error_message(str(message))
-    controller._set_is_loading(False)
+        ws = controller._tasks_workspace_presenter.build_task_basic_detail_state(
+            task_id=normalized,
+            project_id=controller._selected_project_id or None,
+        )
+    except Exception as exc:
+        controller._set_error_message(str(exc))
+    else:
+        controller._task_list.updateSelectedTaskOnly(ws)
+        controller._set_selected_task_id(ws.selected_task_id)
+    finally:
+        controller._set_is_loading(False)
 
 
 def reset_task_lazy_sections(controller) -> None:
@@ -88,8 +61,6 @@ def reset_task_lazy_sections(controller) -> None:
 
 __all__ = [
     "activate_task",
-    "on_task_detail_error",
-    "on_task_detail_loaded",
     "reset_task_lazy_sections",
     "select_project",
     "select_task",

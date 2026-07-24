@@ -10,6 +10,9 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.core.shared.events.signal import Signal as DomainSignal
 from src.infra.platform.app_settings import AppSettingsStore
+from src.ui_qml.modules.project_management.controllers.common.runtime_context import (
+    resolve_active_organization_id_from_runtime_api,
+)
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -117,10 +120,7 @@ class ProjectManagementWorkspaceControllerBase(QObject):
         if runtime_api is None:
             return None
         try:
-            snapshot = runtime_api.snapshot()
-            data = getattr(snapshot, "data", None)
-            organization = getattr(data, "active_organization", None)
-            return str(getattr(organization, "id", "") or "").strip() or None
+            return resolve_active_organization_id_from_runtime_api(runtime_api)
         except Exception:
             logger.debug(
                 "Unable to resolve active organization for table settings context=%s",

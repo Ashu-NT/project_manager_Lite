@@ -6,20 +6,30 @@ from sqlalchemy.orm import Session
 from src.core.platform.party.domain import Party
 from src.core.platform.party.contracts import PartyRepository
 from src.core.platform.infrastructure.persistence.orm.party import PartyORM
+from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
+    TenantScopedRepositorySupport,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 from src.core.platform.infrastructure.persistence.mappers.party import party_from_orm, party_to_orm
 
 
-class SqlAlchemyPartyRepository(PartyRepository):
+class SqlAlchemyPartyRepository(TenantScopedRepositorySupport, PartyRepository):
+    _repository_label = "PartyRepository"
     session: Session
 
     def __init__(self, session: Session) -> None:
         self.session = session
+        self._tenant_context_service = None
 
     def add(self, party: Party) -> None:
-        self.session.add(party_to_orm(party))
+        ctx = self._context(operation_label="access parties")
+        orm = party_to_orm(party)
+        orm.tenant_id = ctx.tenant_id
+        orm.organization_id = ctx.organization_id
+        self.session.add(orm)
 
     def update(self, party: Party) -> None:
+        ctx = self._context(operation_label="access parties")
         party.version = update_with_version_check(
             self.session,
             PartyORM,
@@ -46,18 +56,32 @@ class SqlAlchemyPartyRepository(PartyRepository):
                 "updated_at": party.updated_at,
                 "notes": party.notes or None,
             },
+            extra_filters={
+                "tenant_id": ctx.tenant_id,
+                "organization_id": ctx.organization_id,
+            },
             not_found_message="Party not found.",
             stale_message="Party was updated by another user.",
         )
 
     def get(self, party_id: str) -> Party | None:
-        obj = self.session.get(PartyORM, party_id)
+        ctx = self._context(operation_label="access parties")
+        stmt = select(PartyORM).where(
+            PartyORM.id == party_id,
+            PartyORM.tenant_id == ctx.tenant_id,
+            PartyORM.organization_id == ctx.organization_id,
+        )
+        obj = self.session.execute(stmt).scalar_one_or_none()
         return party_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, party_code: str) -> Party | None:
+        ctx = self._context(operation_label="access parties")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(PartyORM).where(
-            PartyORM.organization_id == organization_id,
+            PartyORM.organization_id == ctx.organization_id,
             PartyORM.party_code == party_code,
+            PartyORM.tenant_id == ctx.tenant_id,
         )
         obj = self.session.execute(stmt).scalars().first()
         return party_from_orm(obj) if obj else None
@@ -68,7 +92,13 @@ class SqlAlchemyPartyRepository(PartyRepository):
         *,
         active_only: bool | None = None,
     ) -> list[Party]:
-        stmt = select(PartyORM).where(PartyORM.organization_id == organization_id)
+        ctx = self._context(operation_label="access parties")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
+        stmt = select(PartyORM).where(
+            PartyORM.organization_id == ctx.organization_id,
+            PartyORM.tenant_id == ctx.tenant_id,
+        )
         if active_only is not None:
             stmt = stmt.where(PartyORM.is_active == bool(active_only))
         rows = self.session.execute(stmt.order_by(PartyORM.party_name.asc())).scalars().all()

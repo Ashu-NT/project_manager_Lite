@@ -49,8 +49,6 @@ from .task_saved_view_actions import refresh_task_view_options
 from .task_saved_view_service import TaskSavedViewService
 from .task_selection_handler import (
     activate_task,
-    on_task_detail_error,
-    on_task_detail_loaded,
     select_project,
     select_task,
 )
@@ -148,7 +146,6 @@ class ProjectManagementTasksWorkspaceController(
         self._selected_time_period_start = ""
         self._selected_time_entry_id = ""
         self._task_review_active = False
-        self._task_activation_request_id = 0
         self._time_section_loaded_for_task_id = ""
         self._collaboration_section_loaded_for_task_id = ""
         self._assignments_section_loaded_for_task_id = ""
@@ -466,12 +463,6 @@ class ProjectManagementTasksWorkspaceController(
     @Slot(str)
     def activateTask(self, task_id: str) -> None:
         activate_task(self, task_id)
-
-    def _on_task_detail_loaded(self, data: object) -> None:
-        on_task_detail_loaded(self, data)
-
-    def _on_task_detail_error(self, data: object) -> None:
-        on_task_detail_error(self, data)
 
     # ── Lazy section loader slots ─────────────────────────────────────
 

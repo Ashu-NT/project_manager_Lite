@@ -84,10 +84,10 @@ class CollaborationSupportMixin:
         return project.name if project is not None else ""
 
     def _collaboration_projects(self):
-        organization_id = self._active_collaboration_organization_id(
+        self._active_collaboration_organization_id(
             operation_label="view collaboration projects"
         )
-        return self._project_repo.list_for_organization(organization_id)
+        return self._project_repo.list()
 
     def _active_collaboration_organization_id(self, *, operation_label: str) -> str | None:
         tenant_context = getattr(self, "_tenant_context_service", None)
@@ -135,14 +135,14 @@ class CollaborationSupportMixin:
 
     @staticmethod
     def _audit_project_ids(row) -> list[str]:
-        details = row.details or {}
-        if row.project_id:
-            return [row.project_id]
+        details = getattr(row, "details", None) or getattr(row, "metadata", None) or {}
+        row_project_id = str(getattr(row, "project_id", None) or getattr(row, "entity_parent_id", None) or details.get("project_id") or "").strip()
+        if row_project_id:
+            return [row_project_id]
         raw = details.get("project_ids")
         if isinstance(raw, list):
             return [str(item).strip() for item in raw if str(item).strip()]
-        project_id = str(details.get("project_id") or "").strip()
-        return [project_id] if project_id else []
+        return []
 
     def _require_task(self, task_id: str):
         task = self._task_repo.get(task_id)

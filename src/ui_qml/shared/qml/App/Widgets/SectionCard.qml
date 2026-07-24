@@ -14,6 +14,8 @@ Rectangle {
 
     signal actionClicked()
 
+    implicitWidth: cardLayout.implicitWidth
+    implicitHeight: cardLayout.implicitHeight
     radius: Theme.AppTheme.radiusMd
     color: Theme.AppTheme.surfaceRaised
     border.color: root.outlined ? Theme.AppTheme.borderStrong : Theme.AppTheme.subtleBorder
@@ -21,6 +23,7 @@ Rectangle {
     clip: true
 
     ColumnLayout {
+        id: cardLayout
         anchors.fill: parent
         spacing: 0
 
@@ -91,7 +94,8 @@ Rectangle {
         Item {
             id: contentArea
             Layout.fillWidth: true
-            Layout.fillHeight: true
+            Layout.preferredHeight: Math.max(childrenRect.height, 0)
+            implicitHeight: Math.max(childrenRect.height, 0)
         }
     }
 }

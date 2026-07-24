@@ -32,10 +32,10 @@ AppLayouts.WorkspaceFrame {
         workspaceController: root.workspaceController
     }
 
-    // ── Detail-page context actions (depend on detailPageLoader.item) ──
+    // ── Detail-page context actions ────────────────────────────────────
+    property int _activeDetailSectionIndex: 0
     readonly property var _detailActions: {
-        const idx = detailPageLoader.item ? detailPageLoader.item.activeSectionIndex : 0
-        if (idx === 0)
+        if (root._activeDetailSectionIndex === 0)
             return [{ "id": "evaluate", "label": "Evaluate", "icon": "approve", "enabled": true, "danger": false }]
         return []
     }
@@ -307,9 +307,14 @@ AppLayouts.WorkspaceFrame {
                 isBusy:      root.workspaceController ? root.workspaceController.isBusy : false
                 sections:    ["Overview", "Scenarios", "Dependencies", "Funding", "Activity"]
                 z:           20
-                Component.onCompleted: scrollToSection(state.pendingDetailSection)
+                Component.onCompleted: {
+                    root._activeDetailSectionIndex = 0
+                    scrollToSection(state.pendingDetailSection)
+                }
+                onSectionChanged: function(index) { root._activeDetailSectionIndex = index }
 
                 AppWidgets.ContextualActionToolbar {
+                    detailPagePinned: true
                     width:    parent ? parent.width : 0
                     showBack: true
                     title:    state.selectedHeatmapItem
@@ -329,16 +334,16 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width:   parent ? parent.width : 0
-                    visible: state.detailOpen
+                    requestedVisible: state.detailOpen
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
                     tone:    "danger"
                     message: root.workspaceController ? root.workspaceController.errorMessage : ""
                 }
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width:   parent ? parent.width : 0
-                    visible: state.detailOpen
+                    requestedVisible: state.detailOpen
                         && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
                     tone:    "success"

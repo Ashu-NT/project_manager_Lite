@@ -88,21 +88,66 @@ def build_inventory_procurement_service_bundle(
     )
     logger.debug("Inventory/Procurement storeroom access policy registered")
     logger.debug("Inventory/Procurement repositories build begin")
-    balance_repo = SqlAlchemyStockBalanceRepository(platform_services.session)
-    category_repo = SqlAlchemyInventoryItemCategoryRepository(platform_services.session)
-    item_repo = SqlAlchemyStockItemRepository(platform_services.session)
-    purchase_order_line_repo = SqlAlchemyPurchaseOrderLineRepository(platform_services.session)
-    purchase_order_repo = SqlAlchemyPurchaseOrderRepository(platform_services.session)
-    requisition_line_repo = SqlAlchemyPurchaseRequisitionLineRepository(platform_services.session)
-    requisition_repo = SqlAlchemyPurchaseRequisitionRepository(platform_services.session)
-    receipt_header_repo = SqlAlchemyReceiptHeaderRepository(platform_services.session)
-    receipt_line_repo = SqlAlchemyReceiptLineRepository(platform_services.session)
-    cycle_count_repo = SqlAlchemyCycleCountRepository(platform_services.session)
-    location_repo = SqlAlchemyStorageLocationRepository(platform_services.session)
-    reorder_policy_repo = SqlAlchemyReorderPolicyRepository(platform_services.session)
-    reservation_repo = SqlAlchemyStockReservationRepository(platform_services.session)
-    transaction_repo = SqlAlchemyStockTransactionRepository(platform_services.session)
-    storeroom_repo = SqlAlchemyStoreroomRepository(platform_services.session)
+    balance_repo = SqlAlchemyStockBalanceRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    category_repo = SqlAlchemyInventoryItemCategoryRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    item_repo = SqlAlchemyStockItemRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    purchase_order_line_repo = SqlAlchemyPurchaseOrderLineRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    purchase_order_repo = SqlAlchemyPurchaseOrderRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    requisition_line_repo = SqlAlchemyPurchaseRequisitionLineRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    requisition_repo = SqlAlchemyPurchaseRequisitionRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    receipt_header_repo = SqlAlchemyReceiptHeaderRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    receipt_line_repo = SqlAlchemyReceiptLineRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    cycle_count_repo = SqlAlchemyCycleCountRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    location_repo = SqlAlchemyStorageLocationRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    reorder_policy_repo = SqlAlchemyReorderPolicyRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    reservation_repo = SqlAlchemyStockReservationRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    transaction_repo = SqlAlchemyStockTransactionRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    storeroom_repo = SqlAlchemyStoreroomRepository(
+        platform_services.session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
     logger.debug("Inventory/Procurement repositories built")
     logger.debug("Inventory/Procurement core services build begin")
     inventory_item_category_service = ItemCategoryService(
@@ -111,7 +156,7 @@ def build_inventory_procurement_service_bundle(
         organization_repo=platform_services.organization_repo,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
+        activity_service=platform_services.activity_service,
     )
     inventory_service = InventoryService(
         platform_services.session,
@@ -121,7 +166,6 @@ def build_inventory_procurement_service_bundle(
         party_service=platform_services.party_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
     )
     inventory_item_service = ItemMasterService(
         platform_services.session,
@@ -132,7 +176,7 @@ def build_inventory_procurement_service_bundle(
         document_integration_service=platform_services.document_integration_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
+        activity_service=platform_services.activity_service,
     )
     inventory_procurement_service = ProcurementService(
         platform_services.session,
@@ -145,7 +189,6 @@ def build_inventory_procurement_service_bundle(
         approval_service=platform_services.approval_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
     )
     inventory_stock_service = StockControlService(
         platform_services.session,
@@ -156,7 +199,6 @@ def build_inventory_procurement_service_bundle(
         inventory_service=inventory_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
     )
     inventory_purchasing_service = PurchasingService(
         platform_services.session,
@@ -179,7 +221,6 @@ def build_inventory_procurement_service_bundle(
         approval_service=platform_services.approval_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
         document_integration_service=platform_services.document_integration_service,
     )
     inventory_reservation_service = ReservationService(
@@ -191,7 +232,6 @@ def build_inventory_procurement_service_bundle(
         stock_service=inventory_stock_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
         document_integration_service=platform_services.document_integration_service,
     )
     inventory_foundation_service = InventoryFoundationService(
@@ -207,7 +247,6 @@ def build_inventory_procurement_service_bundle(
         module_runtime_service=platform_services.module_runtime_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
     )
     platform_services.approval_service.register_apply_handler(
         "purchase_requisition.submit",

@@ -204,6 +204,7 @@ AppLayouts.WorkspaceFrame {
                 Component.onCompleted: scrollToSection(root._pendingDetailSection)
 
                 AppWidgets.ContextualActionToolbar {
+                    detailPagePinned: true
                     width: parent ? parent.width : 0
                     showBack: true
                     title: root.selectedCostModel.title || "Cost Details"
@@ -219,14 +220,14 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
-                    visible: root._detailOpen && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    requestedVisible: root._detailOpen && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
                     tone: "danger"; message: root.workspaceController ? root.workspaceController.errorMessage : ""
                 }
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
-                    visible: root._detailOpen
+                    requestedVisible: root._detailOpen
                         && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
                     tone: "success"; message: root.workspaceController ? root.workspaceController.feedbackMessage : ""

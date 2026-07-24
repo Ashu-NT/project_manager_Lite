@@ -15,12 +15,15 @@ from src.core.modules.maintenance.application.common.support import (
     normalize_optional_text,
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org.domain import Organization
 from src.core.platform.site.domain import Site
@@ -36,18 +39,18 @@ class MaintenanceLocationService:
         site_repo: SiteRepository,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
     ) -> None:
         self._session = session
         self._location_repo = location_repo
         self._organization_repo = organization_repo
-        self._tenant_context_service = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
-            user_session=user_session,
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="MaintenanceLocationService",
         )
         self._site_repo = site_repo
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
 
     def list_locations(
         self,
@@ -278,11 +281,12 @@ class MaintenanceLocationService:
         return site
 
     def _record_change(self, action: str, location: MaintenanceLocation) -> None:
-        record_audit(
+        record_activity(
             self,
             action=action,
             entity_type="maintenance_location",
             entity_id=location.id,
+            module="maintenance",
             details={
                 "organization_id": location.organization_id,
                 "site_id": location.site_id,

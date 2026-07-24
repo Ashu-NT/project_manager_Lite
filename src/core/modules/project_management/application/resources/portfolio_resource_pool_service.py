@@ -112,14 +112,14 @@ class PortfolioResourcePoolService:
 
         If resource_ids is None, includes all active resources.
         """
-        organization_id = self._active_organization_id(operation_label="build portfolio resource pool")
+        self._active_organization_id(operation_label="build portfolio resource pool")
         if resource_ids is None:
-            all_resources = self._resources.list_for_organization(organization_id)
+            all_resources = self._resources.list()
             resource_ids = [r.id for r in all_resources if getattr(r, "is_active", True)]
         else:
             scoped_resource_ids = {
                 resource.id
-                for resource in self._resources.list_for_organization(organization_id)
+                for resource in self._resources.list()
             }
             resource_ids = [resource_id for resource_id in resource_ids if resource_id in scoped_resource_ids]
 

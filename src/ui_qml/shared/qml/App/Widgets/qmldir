@@ -13,6 +13,7 @@ EntityDialog 1.0 EntityDialog.qml
 FilterBar 1.0 FilterBar.qml
 FormField 1.0 FormField.qml
 InlineMessage 1.0 InlineMessage.qml
+SectionScopedInlineMessage 1.0 SectionScopedInlineMessage.qml
 KpiStrip 1.0 KpiStrip.qml
 LazySectionLoader 1.0 LazySectionLoader.qml
 LazyObjectLoader 1.0 LazyObjectLoader.qml

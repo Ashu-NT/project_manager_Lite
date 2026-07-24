@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.access.contracts import (
@@ -22,7 +22,7 @@ from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.contracts import UserRepository
 
 if TYPE_CHECKING:
-    from src.core.platform.audit.application.audit_service import AuditService
+    from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth import UserSessionContext
     from src.core.platform.auth.application.auth_service import AuthService
 
@@ -39,7 +39,7 @@ class AccessControlService:
         scoped_access_repo: ScopedAccessGrantRepository | None = None,
         scope_exists_resolvers: dict[str, Callable[[str], bool]] | None = None,
         user_session: "UserSessionContext | None" = None,
-        audit_service: "AuditService | None" = None,
+        enterprise_audit_service: "EnterpriseAuditService | None" = None,
     ) -> None:
         self._session = session
         self._membership_repo = membership_repo
@@ -52,7 +52,7 @@ class AccessControlService:
             for scope_type, resolver in dict(scope_exists_resolvers or {}).items()
         }
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._enterprise_audit_service = enterprise_audit_service
 
     def register_scope_policy(self, policy: ScopedRolePolicy) -> None:
         self._policy_registry.register(policy)
@@ -182,13 +182,15 @@ class AccessControlService:
         else:
             self._raise_unsupported_scope_type(normalized_scope_type)
         self._session.commit()
-        record_audit(
+        record_audit_entry(
             self,
-            action="access.membership.upsert",
+            operation="permission_change",
             entity_type=entity_type,
             entity_id=grant.id,
-            project_id=normalized_scope_id if normalized_scope_type == "project" else None,
-            details={
+            module="platform",
+            severity="medium",
+            metadata={
+                "action": "access.membership.upsert",
                 "scope_type": normalized_scope_type,
                 "scope_id": normalized_scope_id,
                 "username": user.username,
@@ -240,13 +242,15 @@ class AccessControlService:
             self._membership_repo.delete(grant.id)
         entity_type = "project_membership" if normalized_scope_type == "project" else f"{normalized_scope_type}_access_grant"
         self._session.commit()
-        record_audit(
+        record_audit_entry(
             self,
-            action="access.membership.remove",
+            operation="delete",
             entity_type=entity_type,
             entity_id=grant.id,
-            project_id=normalized_scope_id if normalized_scope_type == "project" else None,
-            details={
+            module="platform",
+            severity="medium",
+            metadata={
+                "action": "access.membership.remove",
                 "scope_type": normalized_scope_type,
                 "scope_id": normalized_scope_id,
                 "username": user.username if user is not None else user_id,

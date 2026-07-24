@@ -15,6 +15,11 @@ class PortfolioScoringTemplateORM(Base):
     __tablename__ = "portfolio_scoring_templates"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -33,6 +38,7 @@ class PortfolioScoringTemplateORM(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+Index("idx_portfolio_scoring_tenant", PortfolioScoringTemplateORM.tenant_id)
 Index("idx_portfolio_scoring_active", PortfolioScoringTemplateORM.is_active)
 Index("idx_portfolio_scoring_org_active", PortfolioScoringTemplateORM.organization_id, PortfolioScoringTemplateORM.is_active)
 Index("idx_portfolio_scoring_updated", PortfolioScoringTemplateORM.updated_at)
@@ -42,6 +48,11 @@ class PortfolioIntakeItemORM(Base):
     __tablename__ = "portfolio_intake_items"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -81,6 +92,7 @@ class PortfolioIntakeItemORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_portfolio_intake_tenant", PortfolioIntakeItemORM.tenant_id)
 Index("idx_portfolio_intake_status", PortfolioIntakeItemORM.status)
 Index("idx_portfolio_intake_org_status", PortfolioIntakeItemORM.organization_id, PortfolioIntakeItemORM.status)
 Index("idx_portfolio_intake_updated", PortfolioIntakeItemORM.updated_at)
@@ -91,6 +103,11 @@ class PortfolioScenarioORM(Base):
     __tablename__ = "portfolio_scenarios"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -108,6 +125,7 @@ class PortfolioScenarioORM(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+Index("idx_portfolio_scenarios_tenant", PortfolioScenarioORM.tenant_id)
 Index("idx_portfolio_scenarios_org_updated", PortfolioScenarioORM.organization_id, PortfolioScenarioORM.updated_at)
 Index("idx_portfolio_scenarios_updated", PortfolioScenarioORM.updated_at)
 

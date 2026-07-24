@@ -25,10 +25,15 @@ class ConcurrencyError(DomainError):
     """Raised when optimistic locking detects a stale update."""
 
 
+class OperationNotPermittedError(DomainError):
+    """Raised when an operation is structurally forbidden on an entity (e.g. update/delete on append-only logs)."""
+
+
 __all__ = [
     "BusinessRuleError",
     "ConcurrencyError",
     "DomainError",
     "NotFoundError",
+    "OperationNotPermittedError",
     "ValidationError",
 ]

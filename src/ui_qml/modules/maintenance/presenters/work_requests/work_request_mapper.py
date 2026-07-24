@@ -21,6 +21,7 @@ def work_request_record(row) -> MaintenanceWorkRequestRecordViewModel:
             "workRequestId": row.id,
             "workRequestCode": row.work_request_code,
             "siteId": row.site_id,
+            "siteLabel": row.site_label,
             "assetId": row.asset_id or "",
             "assetLabel": row.asset_label,
             "componentId": row.component_id or "",

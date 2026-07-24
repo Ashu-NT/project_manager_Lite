@@ -12,7 +12,7 @@ from src.core.platform.common.interfaces import TimeEntryRepository
 from src.core.platform.employee.contracts import EmployeeRepository
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.auth.authorization import require_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity import record_activity
 from src.core.shared.events.domain_events import domain_events
 
 logger = logging.getLogger(__name__)
@@ -50,15 +50,9 @@ class ResourceCommandMixin:
             normalize_manual_code,
         )
 
-        active_organization_id = self._active_organization_id(operation_label="resolve resource code")
-        if not active_organization_id:
-            raise BusinessRuleError(
-                "Active organization context is required for resource code generation.",
-                code="TENANT_CONTEXT_REQUIRED",
-            )
         existing = {
             str(getattr(resource, "code", "") or "").upper()
-            for resource in self._resource_repo.list_for_organization(active_organization_id)
+            for resource in self._resource_repo.list()
             if exclude_id is None or resource.id != exclude_id
         }
         manual = normalize_manual_code(code)
@@ -139,11 +133,12 @@ class ResourceCommandMixin:
         try:
             self._resource_repo.add(resource)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="resource.create",
                 entity_type="resource",
                 entity_id=resource.id,
+                module="project_management",
                 details={
                     "name": resource.name,
                     "role": resource.role,
@@ -178,8 +173,7 @@ class ResourceCommandMixin:
         code: str | None = None,
     ) -> Resource:
         require_permission(self._user_session, "resource.manage", operation_label="update resource")
-        organization_id = self._active_organization_id(operation_label="update resource")
-        resource = self._resource_repo.get_for_organization(resource_id, organization_id)
+        resource = self._resource_repo.get(resource_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
         if code is not None and code.strip():
@@ -244,11 +238,12 @@ class ResourceCommandMixin:
         try:
             self._resource_repo.update(resource)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="resource.update",
                 entity_type="resource",
                 entity_id=resource.id,
+                module="project_management",
                 details={
                     "name": resource.name,
                     "role": resource.role,
@@ -266,8 +261,7 @@ class ResourceCommandMixin:
 
     def delete_resource(self, resource_id: str) -> None:
         require_permission(self._user_session, "resource.manage", operation_label="delete resource")
-        organization_id = self._active_organization_id(operation_label="delete resource")
-        resource = self._resource_repo.get_for_organization(resource_id, organization_id)
+        resource = self._resource_repo.get(resource_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
 
@@ -283,11 +277,12 @@ class ResourceCommandMixin:
                  
             self._resource_repo.delete(resource_id)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="resource.delete",
                 entity_type="resource",
                 entity_id=resource.id,
+                module="project_management",
                 details={"name": resource.name},
             )
         except Exception as e:

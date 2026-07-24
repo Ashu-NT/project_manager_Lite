@@ -50,6 +50,13 @@ AppLayouts.WorkspaceFrame {
     property bool _detailOpen: false
     property int _pendingDetailSection: 0
     readonly property var detailPage: detailPageLoader.item
+    readonly property var _detailActions: {
+        const idx = detailPage ? detailPage.activeSectionIndex : 0
+        return state.detailActionsForSection(idx, {
+            "selectedProjectResourceId": root.workspaceController
+                ? root.workspaceController.selectedProjectResourceId : ""
+        })
+    }
 
     function _openDetail(sectionIndex) {
         root._pendingDetailSection = sectionIndex
@@ -65,6 +72,7 @@ AppLayouts.WorkspaceFrame {
         sourceComponent: Component {
             Dialogs.ProjectsDialogHost {
                 statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
                 workspaceController: root.workspaceController
 
                 onDeleteRequested: function(projectId) {
@@ -139,6 +147,17 @@ AppLayouts.WorkspaceFrame {
                 }
                 onExportRequested: _exportDialog.open()
                 onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
+                onBulkCancelRequested: {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.clearProjectBulkSelection()
+                }
+                onBulkActionRequested: function(actionId) {
+                    if (actionId === "delete") {
+                        _bulkDeleteDialog.open()
+                    } else if (actionId === "change_property") {
+                        _bulkChangePopup.open()
+                    }
+                }
             }
 
             Components.ProjectsFilterPopup {
@@ -148,32 +167,9 @@ AppLayouts.WorkspaceFrame {
                 anchorItem: listPage.filterButtonItem
             }
 
-            // ── Bulk action bar ───────────────────────────────────────────
-            AppWidgets.BulkActionBar {
-                id: bulkActionBar
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: Theme.AppTheme.spacingMd + 40
-                z: 10
-                selectedCount: root.workspaceController ? root.workspaceController.selectedProjectCount : 0
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: [
-                    { "id": "delete",          "label": "Delete",          "icon": "delete", "danger": true,  "enabled": true },
-                    { "id": "change_property", "label": "Change Property", "icon": "edit",   "danger": false, "enabled": true }
-                ]
-
-                onCancelRequested: {
-                    if (root.workspaceController !== null) root.workspaceController.clearProjectBulkSelection()
-                }
-                onActionTriggered: function(actionId) {
-                    if (actionId === "delete") _bulkDeleteDialog.open()
-                    else if (actionId === "change_property") _bulkChangePopup.open()
-                }
-            }
-
             AppWidgets.BulkChangePropertyPopup {
                 id: _bulkChangePopup
-                anchorItem: bulkActionBar.actionButtonForId("change_property")
+                anchorItem: listPage.bulkActionBar.actionButtonForId("change_property")
                 selectedCount: root.workspaceController ? root.workspaceController.selectedProjectCount : 0
                 busy: root.workspaceController ? root.workspaceController.isBusy : false
                 properties: state.bulkChangeProperties
@@ -238,18 +234,13 @@ AppLayouts.WorkspaceFrame {
                 }
 
                 AppWidgets.ContextualActionToolbar {
+                    detailPagePinned: true
                     width: parent ? parent.width : 0
                     showBack: true
                     title: root.selectedProjectModel.title || "Project Details"
                     subtitle: root.selectedProjectModel.statusLabel || ""
                     busy: root.workspaceController ? root.workspaceController.isBusy : false
-                    actions: _projectDetailPage.activeSectionIndex === 0
-                        ? [
-                            { "id": "edit",   "label": "Edit",   "icon": "edit",    "enabled": true, "danger": false },
-                            { "id": "status", "label": "Status", "icon": "approve", "enabled": true, "danger": false },
-                            { "id": "delete", "label": "Delete", "icon": "delete",  "enabled": true, "danger": true  }
-                          ]
-                        : []
+                    actions: root._detailActions
 
                     onBackRequested: root._detailOpen = false
                     onActionTriggered: function(actionId) {
@@ -259,20 +250,24 @@ AppLayouts.WorkspaceFrame {
                             dialogHostLoader.invoke("openStatusDialog", root.selectedProjectModel)
                         } else if (actionId === "delete") {
                             dialogHostLoader.invoke("openDeleteDialog", root.selectedProjectModel)
+                        } else if (actionId === "edit_project_resource" && projectsDetailPanel) {
+                            projectsDetailPanel.openSelectedProjectResourceEditDialog()
+                        } else if (actionId === "remove_project_resource" && projectsDetailPanel) {
+                            projectsDetailPanel.confirmSelectedProjectResourceRemoval()
                         }
                     }
                 }
 
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
-                    visible: root._detailOpen
+                    requestedVisible: root._detailOpen
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
                     tone: "danger"
                     message: root.workspaceController ? root.workspaceController.errorMessage : ""
                 }
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
-                    visible: root._detailOpen
+                    requestedVisible: root._detailOpen
                         && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
                     tone: "success"
@@ -280,6 +275,7 @@ AppLayouts.WorkspaceFrame {
                 }
 
                 Panels.ProjectsDetailPanel {
+                    id: projectsDetailPanel
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     pmCatalog: root.pmCatalog

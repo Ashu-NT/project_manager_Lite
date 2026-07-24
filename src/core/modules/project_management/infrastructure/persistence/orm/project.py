@@ -16,6 +16,11 @@ class ProjectORM(Base):
     __tablename__ = "projects"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     project_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(String, default="")
@@ -30,10 +35,10 @@ class ProjectORM(Base):
     client_contact: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     planned_budget: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     currency: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
-    organization_id: Mapped[Optional[str]] = mapped_column(
+    organization_id: Mapped[str] = mapped_column(
         String,
-        ForeignKey("organizations.id", ondelete="SET NULL"),
-        nullable=True,
+        ForeignKey("organizations.id", ondelete="RESTRICT"),
+        nullable=False,
     )
     site_id: Mapped[Optional[str]] = mapped_column(
         String,
@@ -53,6 +58,7 @@ class ProjectORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_projects_tenant", ProjectORM.tenant_id)
 Index("ux_projects_code", ProjectORM.project_code, unique=True)
 
 

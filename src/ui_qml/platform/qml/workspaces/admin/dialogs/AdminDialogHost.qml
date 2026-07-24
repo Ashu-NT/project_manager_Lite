@@ -8,6 +8,20 @@ Item {
 
     property PlatformControllers.PlatformAdminWorkspaceController workspaceController
 
+    function _activeOrganizationName() {
+        const items = root.workspaceController
+            ? ((root.workspaceController.organizations || {}).items || [])
+            : []
+        for (let index = 0; index < items.length; index += 1) {
+            const item = items[index] || {}
+            const state = item.state || {}
+            if (state.isActive === true) {
+                return String(state.displayName || item.title || "")
+            }
+        }
+        return ""
+    }
+
     // Keeps the dialog open and shows the backend error inside it on failure;
     // clears and closes only on success. Mirrors the dialog-result handling in
     // the other modules' dialog hosts.
@@ -18,6 +32,35 @@ Item {
             dialog.errorMessage = ""
             dialog.close()
         }
+    }
+
+    function _calendarOptions() {
+        const items = root.workspaceController
+            ? ((root.workspaceController.calendars || {}).items || [])
+            : []
+        const options = []
+        for (let index = 0; index < items.length; index += 1) {
+            const item = items[index] || {}
+            const state = item.state || {}
+            const value = String(state.calendarId || state.id || item.id || "")
+            if (!value.length)
+                continue
+            const typeLabel = String(state.calendarType || item.statusLabel || "")
+            const codeLabel = String(state.code || "")
+            let label = String(state.name || item.title || value)
+            const suffix = []
+            if (typeLabel.length > 0)
+                suffix.push(typeLabel)
+            if (codeLabel.length > 0)
+                suffix.push(codeLabel)
+            if (suffix.length > 0)
+                label += " (" + suffix.join(" - ") + ")"
+            options.push({
+                "label": label,
+                "value": value
+            })
+        }
+        return options
     }
 
     function openOrganizationCreate() {
@@ -32,10 +75,13 @@ Item {
     }
 
     function openSiteCreate() {
+        siteDialog.organizationName = root._activeOrganizationName()
         siteDialog.openForCreate()
     }
 
     function openSiteEdit(state) {
+        const siteState = state || {}
+        siteDialog.organizationName = String(siteState.organizationName || root._activeOrganizationName())
         siteDialog.openForEdit(state || {})
     }
 
@@ -374,6 +420,7 @@ Item {
         id: calendarExceptionDialog
 
         parent: Overlay.overlay
+        calendarOptions: root._calendarOptions()
 
         onSaveRequested: function(payload) {
             if (root.workspaceController === null) {
@@ -388,6 +435,7 @@ Item {
         id: calendarRecurringEventDialog
 
         parent: Overlay.overlay
+        calendarOptions: root._calendarOptions()
 
         onSaveRequested: function(payload) {
             if (root.workspaceController === null) {

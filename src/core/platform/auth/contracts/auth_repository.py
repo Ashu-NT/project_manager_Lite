@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from src.core.platform.auth.domain import (
     AuthSession,
@@ -35,6 +36,9 @@ class UserRepository(ABC):
     @abstractmethod
     def list_all(self) -> list[UserAccount]: ...
 
+    @abstractmethod
+    def list_for_tenant(self, tenant_id: str) -> list[UserAccount]: ...
+
 
 class AuthSessionRepository(ABC):
     @abstractmethod
@@ -48,6 +52,25 @@ class AuthSessionRepository(ABC):
 
     @abstractmethod
     def list_by_user(self, user_id: str) -> list[AuthSession]: ...
+
+    @abstractmethod
+    def persist_context(
+        self,
+        session_id: str,
+        *,
+        last_active_tenant_id: str | None,
+        last_active_organization_id: str | None,
+        updated_at: datetime,
+    ) -> bool: ...
+
+    @abstractmethod
+    def touch_validation(
+        self,
+        session_id: str,
+        *,
+        validated_at: datetime,
+        throttle_seconds: int = 60,
+    ) -> bool: ...
 
 
 class RoleRepository(ABC):
@@ -83,13 +106,16 @@ class UserRoleRepository(ABC):
     def add(self, binding: UserRoleBinding) -> None: ...
 
     @abstractmethod
-    def delete(self, user_id: str, role_id: str) -> None: ...
+    def delete(self, user_id: str, role_id: str, organization_id: str | None = None) -> None: ...
 
     @abstractmethod
-    def exists(self, user_id: str, role_id: str) -> bool: ...
+    def exists(self, user_id: str, role_id: str, organization_id: str | None = None) -> bool: ...
 
     @abstractmethod
     def list_role_ids(self, user_id: str) -> list[str]: ...
+
+    def list_role_ids_for_organization(self, user_id: str, organization_id: str) -> list[str]:
+        return []
 
 
 class RolePermissionRepository(ABC):

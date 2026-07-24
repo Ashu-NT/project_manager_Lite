@@ -75,6 +75,16 @@ class AuthSessionORM(Base):
     session_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     auth_method: Mapped[str] = mapped_column(String(64), nullable=False)
     device_label: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    last_active_tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    last_active_organization_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     issued_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     last_validated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -114,16 +124,22 @@ Index("idx_permissions_code", PermissionORM.code, unique=True)
 class UserRoleORM(Base):
     __tablename__ = "user_roles"
     __table_args__ = (
-        UniqueConstraint("user_id", "role_id", name="ux_user_roles_user_role"),
+        UniqueConstraint("user_id", "role_id", "organization_id", name="ux_user_roles_user_role_org"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     role_id: Mapped[str] = mapped_column(String, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
+    organization_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=True,
+    )
 
 
 Index("idx_user_roles_user", UserRoleORM.user_id)
 Index("idx_user_roles_role", UserRoleORM.role_id)
+Index("idx_user_roles_organization", UserRoleORM.organization_id)
 
 
 class RolePermissionORM(Base):

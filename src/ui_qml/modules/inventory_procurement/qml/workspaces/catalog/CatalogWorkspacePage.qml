@@ -171,6 +171,7 @@ AppLayouts.WorkspaceFrame {
                 onSectionChanged: function(index) { root._loadLazyDetailSection(index) }
 
                 AppWidgets.ContextualActionToolbar {
+                    detailPagePinned: true
                     width:    parent ? parent.width : 0
                     showBack: true
                     title:    root._isItemsView ? (root.selectedItemModel.title || "Item Detail") : (root.selectedCategoryModel.title || "Category Detail")
@@ -194,8 +195,8 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                AppWidgets.InlineMessage { width: parent ? parent.width : 0; visible: root._detailOpen && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0; tone: "danger"; message: root.workspaceController ? root.workspaceController.errorMessage : "" }
-                AppWidgets.InlineMessage { width: parent ? parent.width : 0; visible: root._detailOpen && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0 && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0; tone: "success"; message: root.workspaceController ? root.workspaceController.feedbackMessage : "" }
+                AppWidgets.SectionScopedInlineMessage { width: parent ? parent.width : 0; requestedVisible: root._detailOpen && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0; tone: "danger"; message: root.workspaceController ? root.workspaceController.errorMessage : "" }
+                AppWidgets.SectionScopedInlineMessage { width: parent ? parent.width : 0; requestedVisible: root._detailOpen && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0 && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0; tone: "success"; message: root.workspaceController ? root.workspaceController.feedbackMessage : "" }
 
                 Panels.CatalogDetailPanel {
                     width:        parent ? parent.width : 0

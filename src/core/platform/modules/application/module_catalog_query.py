@@ -102,10 +102,19 @@ class ModuleCatalogQueryMixin:
             for record in self._effective_records()
         }
         record = records_by_code.get(module.code)
+        missing_organization_context = (
+            getattr(self, "_entitlement_repo", None) is not None
+            and getattr(self, "_current_organization", lambda: None)() is None
+        )
         if record is None:
-            licensed = module.code in self._licensed_codes
-            enabled = module.code in self._enabled_codes
-            lifecycle_status = default_lifecycle_status(licensed)
+            if missing_organization_context:
+                licensed = False
+                enabled = False
+                lifecycle_status = default_lifecycle_status(False)
+            else:
+                licensed = module.code in self._licensed_codes
+                enabled = module.code in self._enabled_codes
+                lifecycle_status = default_lifecycle_status(licensed)
         else:
             licensed = record.licensed
             enabled = record.enabled

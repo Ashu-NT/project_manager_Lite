@@ -16,8 +16,9 @@ from src.core.platform.modules import (
     parse_licensed_module_codes,
 )
 from src.core.platform.access import AccessControlService, ScopedRolePolicy, ScopedRolePolicyRegistry
+from src.core.platform.activity import ActivityService
 from src.core.platform.approval import ApprovalService
-from src.core.platform.audit import AuditService
+from src.core.platform.audit import EnterpriseAuditService
 from src.core.platform.auth import AuthService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.documents import DocumentIntegrationService, DocumentService
@@ -33,6 +34,7 @@ from src.core.platform.site.access_policy import (
 )
 from src.core.platform.tenancy import (
     ORGANIZATION_SCOPE_ROLE_CHOICES,
+    TenantAdminService,
     TenantContextService,
     normalize_organization_scope_role,
     resolve_organization_scope_permissions,
@@ -79,7 +81,8 @@ class PlatformServiceBundle:
     master_data_exchange_service: MasterDataExchangeService
     runtime_execution_service: RuntimeExecutionService
     access_service: AccessControlService
-    audit_service: AuditService
+    activity_service: ActivityService
+    enterprise_audit_service: EnterpriseAuditService
     approval_service: ApprovalService
     enterprise_calendar_service: EnterpriseCalendarService
     working_rule_service: WorkingRuleService
@@ -89,6 +92,7 @@ class PlatformServiceBundle:
     calendar_assignment_service: CalendarAssignmentService
     enterprise_calendar_resolver: EnterpriseCalendarResolver
     working_time_calculator: WorkingTimeCalculator
+    tenant_admin_service: TenantAdminService
     global_calendar_shim: GlobalCalendarShim
 
 
@@ -100,12 +104,25 @@ def build_platform_service_bundle(
     logger.debug("Platform service bundle build begin")
     user_session = UserSessionContext()
     tenant_context_service = TenantContextService(
+        tenant_repo=repositories.tenant_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
+        user_tenant_repo=repositories.user_tenant_repo,
     )
-    audit_service = AuditService(
+    # Wire _tenant_context_service on all repos that support it.
+    for _field_name in repositories.__dataclass_fields__:
+        _repo = getattr(repositories, _field_name)
+        if hasattr(_repo, "_tenant_context_service"):
+            _repo._tenant_context_service = tenant_context_service
+    enterprise_audit_service = EnterpriseAuditService(
         session=session,
-        audit_repo=repositories.audit_repo,
+        audit_repo=repositories.audit_entry_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+    )
+    activity_service = ActivityService(
+        session=session,
+        activity_repo=repositories.activity_repo,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
@@ -113,7 +130,7 @@ def build_platform_service_bundle(
         session=session,
         approval_repo=repositories.approval_repo,
         user_session=user_session,
-        audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
     auth_service = AuthService(
@@ -127,9 +144,11 @@ def build_platform_service_bundle(
         scoped_access_repo=repositories.scoped_access_repo,
         project_membership_repo=repositories.project_membership_repo,
         user_session=user_session,
-        audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
+        user_tenant_repo=repositories.user_tenant_repo,
     )
     user_session.set_validator(auth_service.validate_session_principal)
+    user_session.set_context_listener(auth_service.persist_session_context)
     logger.debug("Platform auth service created; bootstrapping defaults")
     auth_service.bootstrap_defaults()
     logger.debug(
@@ -141,10 +160,38 @@ def build_platform_service_bundle(
         session=session,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
-        audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
     )
+
+    # H-6: Bootstrap default tenant BEFORE org so that the org is always created
+    # with a non-null tenant_id. organizations.tenant_id is now NOT NULL.
+    if repositories.tenant_repo.get_default() is None:
+        from src.core.platform.tenancy.domain.tenant import Tenant as _Tenant
+        _existing_orgs = repositories.organization_repo.list_all()
+        _tenant_code = _existing_orgs[0].organization_code if _existing_orgs else "DEFAULT"
+        _tenant_name = _existing_orgs[0].display_name if _existing_orgs else "Default Tenant"
+        _default_tenant = _Tenant.create(tenant_code=_tenant_code, display_name=_tenant_name)
+        repositories.tenant_repo.add(_default_tenant)
+        session.flush()
+        # Backfill any existing orgs that pre-date this run (e.g. live DB upgrade path)
+        for _org in _existing_orgs:
+            if not _org.tenant_id:
+                _org.tenant_id = _default_tenant.id
+                repositories.organization_repo.update(_org)
+        session.commit()
+        user_session.set_active_tenant_id(_default_tenant.id)
+        logger.debug("Platform default tenant bootstrapped tenant_id=%s", _default_tenant.id)
+
+    # Set active tenant in the session before org bootstrap so that
+    # organization_service.bootstrap_defaults() creates the org with the correct tenant_id.
+    if user_session.active_tenant_id() is None:
+        _dt = repositories.tenant_repo.get_default()
+        if _dt is not None:
+            user_session.set_active_tenant_id(_dt.id)
+
     logger.debug("Platform organization service created; bootstrapping defaults")
     organization_service.bootstrap_defaults()
+
     if user_session.active_organization_id() is None:
         # Bootstrap the local/session tenant explicitly after organization
         # defaults exist. This does not make Organization.is_active a runtime
@@ -154,9 +201,30 @@ def build_platform_service_bundle(
             organizations = repositories.organization_repo.list_all()
         if organizations:
             user_session.set_active_organization_id(organizations[0].id)
+
+    # Backfill all existing users into the default tenant if they have no membership.
+    # Admin is exempt from the membership check by role, but backfilling ensures
+    # list_for_tenant() returns admin users consistently.
+    _backfill_tenant = repositories.tenant_repo.get_default()
+    if _backfill_tenant is not None:
+        from src.core.platform.tenancy.domain.user_tenant_membership import UserTenantMembership as _UTM
+        for _u in repositories.user_repo.list_all():
+            if not repositories.user_tenant_repo.is_active_member(_u.id, _backfill_tenant.id):
+                repositories.user_tenant_repo.add(
+                    _UTM.create(user_id=_u.id, tenant_id=_backfill_tenant.id, tenant_role="member")
+                )
+        session.flush()
+
     logger.debug(
         "Platform organization defaults bootstrapped duration_ms=%.1f",
         (perf_counter() - started) * 1000,
+    )
+    tenant_admin_service = TenantAdminService(
+        session=session,
+        tenant_repo=repositories.tenant_repo,
+        user_tenant_repo=repositories.user_tenant_repo,
+        user_session=user_session,
+        platform_event_repo=repositories.platform_event_repo,
     )
     document_service = DocumentService(
         session=session,
@@ -165,7 +233,7 @@ def build_platform_service_bundle(
         structure_repo=repositories.document_structure_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
-        audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
     document_integration_service = DocumentIntegrationService(
@@ -175,7 +243,7 @@ def build_platform_service_bundle(
         structure_repo=repositories.document_structure_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
-        audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
     party_service = PartyService(
@@ -183,7 +251,7 @@ def build_platform_service_bundle(
         party_repo=repositories.party_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
-        audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
     site_service = SiteService(
@@ -191,7 +259,7 @@ def build_platform_service_bundle(
         site_repo=repositories.site_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
-        audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
     department_service = DepartmentService(
@@ -201,7 +269,7 @@ def build_platform_service_bundle(
         site_repo=repositories.site_repo,
         employee_repo=repositories.employee_repo,
         user_session=user_session,
-        audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
 
@@ -226,7 +294,7 @@ def build_platform_service_bundle(
         entitlement_repo=module_entitlement_repo,
         session=session,
         user_session=user_session,
-        audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
         organization_context_provider=_active_organization,
     )
     logger.debug("Platform module catalog service created; bootstrapping defaults")
@@ -240,6 +308,7 @@ def build_platform_service_bundle(
         module_runtime_service=module_runtime_service,
         organization_service=organization_service,
         tenant_context_service=tenant_context_service,
+        user_session=user_session,
     )
     runtime_execution_service = RuntimeExecutionService(
         runtime_execution_repo=SqlAlchemyRuntimeExecutionRepository(session),
@@ -272,7 +341,7 @@ def build_platform_service_bundle(
             "site": lambda site_id: repositories.site_repo.get(site_id) is not None,
         },
         user_session=user_session,
-        audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
     )
     employee_service = EmployeeService(
         session=session,
@@ -283,7 +352,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         tenant_context_service=tenant_context_service,
         user_session=user_session,
-        audit_service=audit_service,
+        enterprise_audit_service=enterprise_audit_service,
     )
     master_data_exchange_service = MasterDataExchangeService(
         site_service=site_service,
@@ -301,7 +370,6 @@ def build_platform_service_bundle(
         rule_repo=repositories.calendar_working_rule_repo,
         exception_repo=repositories.calendar_exception_repo,
         user_session=user_session,
-        audit_service=audit_service,
         tenant_context_service=tenant_context_service,
     )
     working_rule_service = WorkingRuleService(
@@ -385,7 +453,8 @@ def build_platform_service_bundle(
         master_data_exchange_service=master_data_exchange_service,
         runtime_execution_service=runtime_execution_service,
         access_service=access_service,
-        audit_service=audit_service,
+        activity_service=activity_service,
+        enterprise_audit_service=enterprise_audit_service,
         approval_service=approval_service,
         enterprise_calendar_service=enterprise_calendar_service,
         working_rule_service=working_rule_service,
@@ -395,6 +464,7 @@ def build_platform_service_bundle(
         calendar_assignment_service=calendar_assignment_service,
         enterprise_calendar_resolver=enterprise_calendar_resolver,
         working_time_calculator=working_time_calculator,
+        tenant_admin_service=tenant_admin_service,
         global_calendar_shim=global_calendar_shim,
     )
     logger.debug(

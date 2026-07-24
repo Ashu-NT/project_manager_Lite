@@ -86,21 +86,22 @@ Item {
         onBackRequested: root.backRequested()
         onSectionChanged: function(index) { root.activeSectionIndex = index }
 
-        AppWidgets.InlineMessage {
+        AppWidgets.SectionScopedInlineMessage {
             width: parent ? parent.width : root.width
-            visible: root.errorMessage.length > 0
+            requestedVisible: root.errorMessage.length > 0
             tone: "danger"
             message: root.errorMessage
         }
 
-        AppWidgets.InlineMessage {
+        AppWidgets.SectionScopedInlineMessage {
             width: parent ? parent.width : root.width
-            visible: root.feedbackMessage.length > 0 && root.errorMessage.length === 0
+            requestedVisible: root.feedbackMessage.length > 0 && root.errorMessage.length === 0
             tone: "success"
             message: root.feedbackMessage
         }
 
         AppWidgets.ContextualActionToolbar {
+            detailPagePinned: true
             width: parent ? parent.width : root.width
             title: root._activeSectionLabel
             subtitle: root._toolbarSubtitle

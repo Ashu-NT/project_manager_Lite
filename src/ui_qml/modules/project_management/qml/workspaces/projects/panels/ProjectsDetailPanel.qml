@@ -3,7 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import "../sections"
+import workspaces.projects.sections 1.0
 
 Item {
     id: root
@@ -35,6 +35,20 @@ Item {
     readonly property var _sections: root.detailPage ? (root.detailPage.sections || []) : []
 
     function _secIdx(name) { return root._sections.indexOf(name) }
+
+    function openSelectedProjectResourceEditDialog() {
+        const section = _sec3.item
+        if (section) {
+            section.openEditSelected()
+        }
+    }
+
+    function confirmSelectedProjectResourceRemoval() {
+        const section = _sec3.item
+        if (section) {
+            section.confirmRemoveSelected()
+        }
+    }
 
     readonly property int _activeSectionH: {
         const name = root._sections[root._idx] || ""

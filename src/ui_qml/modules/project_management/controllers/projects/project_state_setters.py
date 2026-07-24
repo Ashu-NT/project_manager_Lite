@@ -15,6 +15,12 @@ class ProjectStateSettersMixin:
         self._status_options = status_options
         self.statusOptionsChanged.emit()
 
+    def _set_site_options(self, site_options: list[dict[str, str]]) -> None:
+        if site_options == self._site_options:
+            return
+        self._site_options = site_options
+        self.siteOptionsChanged.emit()
+
     def _set_selected_status_filter(self, selected_status_filter: str) -> None:
         if selected_status_filter == self._selected_status_filter:
             return

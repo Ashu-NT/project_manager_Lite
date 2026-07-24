@@ -3,11 +3,12 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.patches as mpatches
-from matplotlib.lines import Line2D
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.dates import date2num
+from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
 from matplotlib import ticker
 
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import GanttTaskBar
@@ -93,7 +94,9 @@ class GanttPngRenderer:
         colors = [self._status_color(status, is_critical) for status, is_critical in zip(statuses, critical)]
 
         fig_height = max(5.5, 2.6 + 0.48 * len(bars))
-        fig, ax = plt.subplots(figsize=(16, fig_height))
+        fig = Figure(figsize=(16, fig_height))
+        FigureCanvasAgg(fig)
+        ax = fig.add_subplot(1, 1, 1)
         fig.patch.set_facecolor("#F8FAFC")
         ax.set_facecolor("white")
 
@@ -190,6 +193,6 @@ class GanttPngRenderer:
 
         fig.subplots_adjust(left=0.24, right=0.98, top=0.90, bottom=0.12)
         fig.savefig(output_path, dpi=220)
-        plt.close(fig)
+        fig.clear()
 
         return output_path

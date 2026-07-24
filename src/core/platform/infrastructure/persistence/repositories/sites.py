@@ -5,21 +5,31 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.infrastructure.persistence.mappers.sites import site_from_orm, site_to_orm
 from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
+from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
+    TenantScopedRepositorySupport,
+)
 from src.core.platform.site.contracts import SiteRepository
 from src.core.platform.site.domain import Site
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
-class SqlAlchemySiteRepository(SiteRepository):
+class SqlAlchemySiteRepository(TenantScopedRepositorySupport, SiteRepository):
+    _repository_label = "SiteRepository"
     session: Session
 
     def __init__(self, session: Session) -> None:
         self.session = session
+        self._tenant_context_service = None
 
     def add(self, site: Site) -> None:
-        self.session.add(site_to_orm(site))
+        ctx = self._context(operation_label="access sites")
+        orm = site_to_orm(site)
+        orm.tenant_id = ctx.tenant_id
+        orm.organization_id = ctx.organization_id
+        self.session.add(orm)
 
     def update(self, site: Site) -> None:
+        ctx = self._context(operation_label="access sites")
         site.version = update_with_version_check(
             self.session,
             SiteORM,
@@ -48,18 +58,32 @@ class SqlAlchemySiteRepository(SiteRepository):
                 "updated_at": site.updated_at,
                 "notes": site.notes or None,
             },
+            extra_filters={
+                "tenant_id": ctx.tenant_id,
+                "organization_id": ctx.organization_id,
+            },
             not_found_message="Site not found.",
             stale_message="Site was updated by another user.",
         )
 
     def get(self, site_id: str) -> Site | None:
-        obj = self.session.get(SiteORM, site_id)
+        ctx = self._context(operation_label="access sites")
+        stmt = select(SiteORM).where(
+            SiteORM.id == site_id,
+            SiteORM.tenant_id == ctx.tenant_id,
+            SiteORM.organization_id == ctx.organization_id,
+        )
+        obj = self.session.execute(stmt).scalar_one_or_none()
         return site_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, site_code: str) -> Site | None:
+        ctx = self._context(operation_label="access sites")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(SiteORM).where(
-            SiteORM.organization_id == organization_id,
+            SiteORM.organization_id == ctx.organization_id,
             SiteORM.site_code == site_code,
+            SiteORM.tenant_id == ctx.tenant_id,
         )
         obj = self.session.execute(stmt).scalars().first()
         return site_from_orm(obj) if obj else None
@@ -70,7 +94,13 @@ class SqlAlchemySiteRepository(SiteRepository):
         *,
         active_only: bool | None = None,
     ) -> list[Site]:
-        stmt = select(SiteORM).where(SiteORM.organization_id == organization_id)
+        ctx = self._context(operation_label="access sites")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
+        stmt = select(SiteORM).where(
+            SiteORM.organization_id == ctx.organization_id,
+            SiteORM.tenant_id == ctx.tenant_id,
+        )
         if active_only is not None:
             stmt = stmt.where(SiteORM.is_active == bool(active_only))
         rows = self.session.execute(stmt.order_by(SiteORM.name.asc())).scalars().all()

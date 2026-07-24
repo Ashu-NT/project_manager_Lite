@@ -7,6 +7,8 @@ from src.application.runtime.entitlement_runtime import (
     ModuleRuntimeSnapshot,
     resolve_module_runtime_service,
 )
+from src.core.platform.auth.authorization import require_permission
+from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.org import Organization, OrganizationService
 from src.core.platform.tenancy import TenantContextService
 
@@ -30,10 +32,12 @@ class PlatformRuntimeApplicationService:
         module_runtime_service: ModuleRuntimeService,
         organization_service: OrganizationService | None = None,
         tenant_context_service: TenantContextService | None = None,
+        user_session: UserSessionContext | None = None,
     ) -> None:
         self._module_runtime_service = module_runtime_service
         self._organization_service = organization_service
         self._tenant_context_service = tenant_context_service
+        self._user_session = user_session
 
     @property
     def module_runtime_service(self) -> ModuleRuntimeService:
@@ -46,6 +50,10 @@ class PlatformRuntimeApplicationService:
     @property
     def tenant_context_service(self) -> TenantContextService | None:
         return self._tenant_context_service
+
+    @property
+    def user_session(self) -> UserSessionContext | None:
+        return self._user_session
 
     def list_modules(self):
         return self._module_runtime_service.list_modules()
@@ -195,15 +203,24 @@ class PlatformRuntimeApplicationService:
             enabled_module_codes=selected_module_codes,
         )
         if is_active:
+            self._require_settings_manage("set active organization context")
             if self._tenant_context_service is not None:
                 return self._tenant_context_service.set_active_organization(organization.id)
             raise RuntimeError("Tenant context service is not configured.")
         return organization
 
     def set_active_organization(self, organization_id: str) -> Organization:
+        self._require_settings_manage("set active organization context")
         if self._tenant_context_service is not None:
             return self._tenant_context_service.set_active_organization(organization_id)
         raise RuntimeError("Tenant context service is not configured.")
+
+    def _require_settings_manage(self, operation_label: str) -> None:
+        require_permission(
+            self._user_session,
+            "settings.manage",
+            operation_label=operation_label,
+        )
 
 
 def resolve_platform_runtime_application_service(
@@ -213,6 +230,7 @@ def resolve_platform_runtime_application_service(
     module_catalog_service=None,
     organization_service: OrganizationService | None = None,
     tenant_context_service: TenantContextService | None = None,
+    user_session: UserSessionContext | None = None,
 ) -> object | None:
     if isinstance(platform_runtime_application_service, PlatformRuntimeApplicationService):
         runtime = resolve_module_runtime_service(
@@ -221,7 +239,23 @@ def resolve_platform_runtime_application_service(
         )
         if (
             runtime is None
-            or platform_runtime_application_service.module_runtime_service is runtime
+            or (
+                platform_runtime_application_service.module_runtime_service is runtime
+                and (
+                    organization_service is None
+                    or platform_runtime_application_service.organization_service
+                    is organization_service
+                )
+                and (
+                    tenant_context_service is None
+                    or platform_runtime_application_service.tenant_context_service
+                    is tenant_context_service
+                )
+                and (
+                    user_session is None
+                    or platform_runtime_application_service.user_session is user_session
+                )
+            )
         ):
             return platform_runtime_application_service
 
@@ -234,6 +268,7 @@ def resolve_platform_runtime_application_service(
             module_runtime_service=runtime,
             organization_service=organization_service,
             tenant_context_service=tenant_context_service,
+            user_session=user_session,
         )
     return platform_runtime_application_service
 

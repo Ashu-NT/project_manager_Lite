@@ -22,7 +22,9 @@ def to_purchase_order_record_view_model(row) -> InventoryRecordViewModel:
         state={
             "purchaseOrderId": row.id,
             "siteId": row.site_id,
+            "siteLabel": row.site_label,
             "supplierPartyId": row.supplier_party_id,
+            "supplierLabel": row.supplier_label,
             "currencyCode": row.currency_code,
             "sourceRequisitionId": row.source_requisition_id or "",
             "status": row.status,

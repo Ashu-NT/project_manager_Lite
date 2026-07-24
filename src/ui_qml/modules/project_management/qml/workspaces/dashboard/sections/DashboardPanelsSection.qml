@@ -3,8 +3,8 @@ import QtQuick
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import "../components"
-import "../panels"
+import workspaces.dashboard.components 1.0
+import workspaces.dashboard.panels 1.0
 
 Item {
     id: root

@@ -31,6 +31,11 @@ class DocumentStructureORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -52,6 +57,7 @@ class DocumentStructureORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_document_structures_tenant", DocumentStructureORM.tenant_id)
 Index("idx_document_structures_organization", DocumentStructureORM.organization_id)
 Index("idx_document_structures_parent", DocumentStructureORM.parent_structure_id)
 
@@ -63,6 +69,11 @@ class DocumentORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -98,6 +109,7 @@ class DocumentORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_documents_tenant", DocumentORM.tenant_id)
 Index("idx_documents_organization", DocumentORM.organization_id)
 Index("idx_documents_structure", DocumentORM.document_structure_id)
 Index("idx_documents_uploaded_by", DocumentORM.uploaded_by_user_id)

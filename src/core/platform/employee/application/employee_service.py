@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
@@ -31,7 +31,7 @@ from src.core.platform.site.contracts import SiteRepository
 from src.core.platform.tenancy.tenant_context import TenantContextService
 
 if TYPE_CHECKING:
-    from src.core.platform.audit.application.audit_service import AuditService
+    from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth.domain.session import UserSessionContext
 
 
@@ -47,7 +47,7 @@ class EmployeeService:
         organization_repo: OrganizationRepository | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session: UserSessionContext | None = None,
-        audit_service: AuditService | None = None,
+        enterprise_audit_service: EnterpriseAuditService | None = None,
     ):
         self._session = session
         self._employee_repo = employee_repo
@@ -64,7 +64,7 @@ class EmployeeService:
             else None
         )
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._enterprise_audit_service = enterprise_audit_service
 
     def create_employee(
         self,
@@ -109,6 +109,7 @@ class EmployeeService:
         employee = Employee.create(
             employee_code=normalized_code,
             full_name=normalized_name,
+            organization_id=organization_id,
             department_id=resolved_department_id,
             department=resolved_department_name,
             site_id=resolved_site_id,
@@ -128,12 +129,14 @@ class EmployeeService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_audit_entry(
             self,
-            action="employee.create",
+            operation="create",
             entity_type="employee",
             entity_id=employee.id,
-            details=build_employee_audit_details(employee),
+            module="platform",
+            severity="low",
+            metadata={"action": "employee.create", **build_employee_audit_details(employee)},
         )
         domain_events.employees_changed.emit(employee.id)
         return employee
@@ -219,12 +222,14 @@ class EmployeeService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_audit_entry(
             self,
-            action="employee.update",
+            operation="update",
             entity_type="employee",
             entity_id=employee.id,
-            details=build_employee_audit_details(employee),
+            module="platform",
+            severity="low",
+            metadata={"action": "employee.update", **build_employee_audit_details(employee)},
         )
         domain_events.employees_changed.emit(employee.id)
         return employee

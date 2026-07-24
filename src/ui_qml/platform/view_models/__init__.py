@@ -3,6 +3,7 @@ from src.ui_qml.platform.view_models.runtime import (
     PlatformMetricViewModel,
     PlatformRuntimeOverviewViewModel,
 )
+from src.ui_qml.platform.view_models.tenant import TenantSwitcherItemViewModel
 from src.ui_qml.platform.view_models.workspace import (
     PlatformWorkspaceActionItemViewModel,
     PlatformWorkspaceActionListViewModel,
@@ -14,6 +15,7 @@ from src.ui_qml.platform.view_models.workspace import (
 __all__ = [
     "PlatformMetricViewModel",
     "PlatformRuntimeOverviewViewModel",
+    "TenantSwitcherItemViewModel",
     "PlatformWorkspaceActionItemViewModel",
     "PlatformWorkspaceActionListViewModel",
     "PlatformWorkspaceOverviewViewModel",

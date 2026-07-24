@@ -9,7 +9,6 @@ from src.api.desktop.platform.models.approval import (
     ApprovalDecisionCommand,
     ApprovalRequestDto,
 )
-from src.api.desktop.platform.models.audit import AuditLogEntryDto
 from src.api.desktop.platform.models.calendar import (
     WorkingCalendarDayDto,
     WorkingCalendarHolidayCreateCommand,
@@ -72,13 +71,13 @@ from src.api.desktop.platform.models.user import (
     UserPasswordResetCommand,
     UserUpdateCommand,
 )
+from src.api.desktop.platform.models.tenant import TenantDto
 from src.core.platform.approval.domain import ApprovalStatus
 
 __all__ = [
     "ApprovalDecisionCommand",
     "ApprovalRequestDto",
     "ApprovalStatus",
-    "AuditLogEntryDto",
     "WorkingCalendarDayDto",
     "WorkingCalendarHolidayCreateCommand",
     "WorkingCalendarHolidayDto",
@@ -135,4 +134,5 @@ __all__ = [
     "UserDto",
     "UserPasswordResetCommand",
     "UserUpdateCommand",
+    "TenantDto",
 ]

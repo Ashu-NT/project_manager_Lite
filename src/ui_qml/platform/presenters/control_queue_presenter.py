@@ -9,8 +9,8 @@ from src.api.desktop.platform import (
     DesktopApiError,
     DesktopApiResult,
     PlatformApprovalDesktopApi,
-    PlatformAuditDesktopApi,
 )
+from src.api.desktop.platform.audit_enterprise import PlatformEnterpriseAuditDesktopApi
 from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionItemViewModel,
     PlatformWorkspaceActionListViewModel,
@@ -24,7 +24,7 @@ class PlatformControlQueuePresenter:
         self,
         *,
         approval_api: PlatformApprovalDesktopApi | None = None,
-        audit_api: PlatformAuditDesktopApi | None = None,
+        audit_api: PlatformEnterpriseAuditDesktopApi | None = None,
     ) -> None:
         self._approval_api = approval_api
         self._audit_api = audit_api
@@ -78,11 +78,11 @@ class PlatformControlQueuePresenter:
             items=tuple(
                 PlatformWorkspaceActionItemViewModel(
                     id=row.id,
-                    title=row.action.replace("_", " ").title(),
-                    status_label=row.entity_label,
-                    subtitle=row.project_label,
-                    supporting_text=row.details_label,
-                    meta_text=self._format_timestamp(row.occurred_at),
+                    title=row.operation.replace("_", " ").title(),
+                    status_label=row.entity_type.replace("_", " ").title(),
+                    subtitle=row.actor_username or "",
+                    supporting_text=f"{row.module} | {row.severity}",
+                    meta_text=self._format_timestamp(row.timestamp),
                     state={
                         "entityType": row.entity_type,
                     },

@@ -60,18 +60,33 @@ Item {
     ]
 
     // ── Detail actions ───────────────────────────────────────────────────
-    readonly property var detailActions: {
-        const state = root.selectedResourceModel
-            ? (root.selectedResourceModel.state || {}) : {}
-        const isActive = state.isActive !== false
-        return [
-            { "id": "edit",   "label": "Edit",
-              "icon": "edit",    "enabled": true, "danger": false },
-            { "id": "toggle", "label": isActive ? "Deactivate" : "Activate",
-              "icon": isActive ? "close" : "approve", "enabled": true, "danger": false },
-            { "id": "delete", "label": "Delete",
-              "icon": "delete",  "enabled": true, "danger": true  }
-        ]
+    function detailActionsForSection(sectionIndex, selectionContext) {
+        const sectionName = detailSections[sectionIndex] || ""
+        const selection = selectionContext || {}
+        if (sectionName === "Overview") {
+            const state = root.selectedResourceModel
+                ? (root.selectedResourceModel.state || {}) : {}
+            const isActive = state.isActive !== false
+            return [
+                { "id": "edit",   "label": "Edit",
+                  "icon": "edit",    "enabled": true, "danger": false },
+                { "id": "toggle", "label": isActive ? "Deactivate" : "Activate",
+                  "icon": isActive ? "close" : "approve", "enabled": true, "danger": false },
+                { "id": "delete", "label": "Delete",
+                  "icon": "delete",  "enabled": true, "danger": true  }
+            ]
+        }
+        if (sectionName === "Skills" && String(selection.selectedSkillId || "").length > 0) {
+            return [
+                { "id": "remove_skill", "label": "Remove", "icon": "delete", "enabled": true, "danger": true }
+            ]
+        }
+        if (sectionName === "Certifications" && String(selection.selectedCertificationId || "").length > 0) {
+            return [
+                { "id": "remove_certification", "label": "Remove", "icon": "delete", "enabled": true, "danger": true }
+            ]
+        }
+        return []
     }
 
     // ── Column configuration ─────────────────────────────────────────────

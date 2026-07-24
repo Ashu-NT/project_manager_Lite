@@ -136,7 +136,7 @@ def build_project_management_service_bundle(
         repositories.calendar_repo,
         repositories.cost_repo,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
+        activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_runtime_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
@@ -163,7 +163,7 @@ def build_project_management_service_bundle(
         time_entry_repo=repositories.time_entry_repo,
         timesheet_period_repo=repositories.timesheet_period_repo,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_runtime_service,
         tenant_context_service=platform_services.tenant_context_service,
         scope_organization_resolver=_time_scope_organization_id,
@@ -174,7 +174,7 @@ def build_project_management_service_bundle(
         resource_repo=repositories.resource_repo,
         session=session,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
+        activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_runtime_service,
     )
     register_service = RegisterService(
@@ -182,7 +182,7 @@ def build_project_management_service_bundle(
         project_repo=repositories.project_repo,
         register_repo=repositories.register_repo,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
+        activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_runtime_service,
     )
     # Build enterprise calendar adapter here so it can be injected into SchedulingEngine.
@@ -217,7 +217,7 @@ def build_project_management_service_bundle(
         repositories.project_resource_repo,
         repositories.project_repo,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
+        activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_runtime_service,
     )
@@ -238,7 +238,7 @@ def build_project_management_service_bundle(
         skill_repo=repositories.resource_skill_repo,
         cert_repo=repositories.resource_cert_repo,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
+        activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_runtime_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
@@ -248,7 +248,7 @@ def build_project_management_service_bundle(
         repositories.project_repo,
         repositories.task_repo,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
+        activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_runtime_service,
     )
@@ -283,7 +283,7 @@ def build_project_management_service_bundle(
         task_repo=repositories.task_repo,
         project_repo=repositories.project_repo,
         user_repo=repositories.user_repo,
-        audit_repo=repositories.audit_repo,
+        audit_repo=repositories.audit_entry_repo,
         project_membership_repo=repositories.project_membership_repo,
         document_integration_service=platform_services.document_integration_service,
         user_session=platform_services.user_session,
@@ -296,12 +296,11 @@ def build_project_management_service_bundle(
         dependency_repo=repositories.portfolio_project_dependency_repo,
         scoring_template_repo=repositories.portfolio_scoring_template_repo,
         scenario_repo=repositories.portfolio_scenario_repo,
-        audit_repo=repositories.audit_repo,
+        audit_repo=repositories.audit_entry_repo,
         project_repo=repositories.project_repo,
         resource_repo=repositories.resource_repo,
         reporting_service=reporting_service,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
         module_catalog_service=platform_services.module_runtime_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
@@ -316,7 +315,7 @@ def build_project_management_service_bundle(
         project_resource_repo=repositories.project_resource_repo,
         resource_repo=repositories.resource_repo,
         user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
+        activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_runtime_service,
     )

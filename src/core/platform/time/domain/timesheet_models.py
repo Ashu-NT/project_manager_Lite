@@ -21,6 +21,7 @@ class TimeEntry:
     work_allocation_id: str
     entry_date: date
     hours: float
+    organization_id: str | None = None
     assignment_id: str | None = None
     note: str = ""
     author_user_id: str | None = None
@@ -44,6 +45,7 @@ class TimeEntry:
         *,
         entry_date: date,
         hours: float,
+        organization_id: str | None = None,
         assignment_id: str | None = None,
         note: str = "",
         author_user_id: str | None = None,
@@ -70,6 +72,7 @@ class TimeEntry:
             work_allocation_id=normalized_work_allocation_id,
             entry_date=entry_date,
             hours=hours,
+            organization_id=organization_id,
             assignment_id=normalized_assignment_id,
             note=note,
             author_user_id=author_user_id,
@@ -95,6 +98,7 @@ class TimesheetPeriod:
     resource_id: str
     period_start: date
     period_end: date
+    organization_id: str | None = None
     status: TimesheetPeriodStatus = TimesheetPeriodStatus.OPEN
     submitted_at: datetime | None = None
     submitted_by_user_id: str | None = None
@@ -111,12 +115,14 @@ class TimesheetPeriod:
         *,
         period_start: date,
         period_end: date,
+        organization_id: str | None = None,
     ) -> "TimesheetPeriod":
         return TimesheetPeriod(
             id=generate_id(),
             resource_id=resource_id,
             period_start=period_start,
             period_end=period_end,
+            organization_id=organization_id,
         )
 
 

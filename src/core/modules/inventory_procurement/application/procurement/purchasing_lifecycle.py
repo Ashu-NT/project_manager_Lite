@@ -23,7 +23,7 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     PurchaseOrderLineStatus,
     PurchaseOrderStatus,
 )
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import ConcurrencyError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 
@@ -81,11 +81,12 @@ class PurchasingLifecycleMixin:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_purchase_order.create",
             entity_type="purchase_order",
             entity_id=purchase_order.id,
+            module="inventory",
             details={
                 "po_number": purchase_order.po_number,
                 "site_id": purchase_order.site_id,
@@ -174,11 +175,12 @@ class PurchasingLifecycleMixin:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_purchase_order_line.create",
             entity_type="purchase_order_line",
             entity_id=line.id,
+            module="inventory",
             details={
                 "purchase_order_id": purchase_order.id,
                 "line_number": str(line.line_number),
@@ -208,6 +210,7 @@ class PurchasingLifecycleMixin:
             request_type="purchase_order.submit",
             entity_type="purchase_order",
             entity_id=purchase_order.id,
+            module="inventory",
             project_id=None,
             payload={
                 "purchase_order_id": purchase_order.id,
@@ -238,11 +241,12 @@ class PurchasingLifecycleMixin:
         purchase_order.updated_at = purchase_order.submitted_at
         self._purchase_order_repo.update(purchase_order)
         self._session.commit()
-        record_audit(
+        record_activity(
             self,
             action="inventory_purchase_order.submit",
             entity_type="purchase_order",
             entity_id=purchase_order.id,
+            module="inventory",
             details={
                 "po_number": purchase_order.po_number,
                 "approval_request_id": request.id,
@@ -308,11 +312,12 @@ class PurchasingLifecycleMixin:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_purchase_order.update",
             entity_type="purchase_order",
             entity_id=purchase_order.id,
+            module="inventory",
             details={
                 "po_number": purchase_order.po_number,
                 "site_id": purchase_order.site_id,
@@ -356,11 +361,12 @@ class PurchasingLifecycleMixin:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_purchase_order.cancel",
             entity_type="purchase_order",
             entity_id=purchase_order.id,
+            module="inventory",
             details={
                 "po_number": purchase_order.po_number,
                 "note": normalize_optional_text(note),
@@ -394,11 +400,12 @@ class PurchasingLifecycleMixin:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_purchase_order.send",
             entity_type="purchase_order",
             entity_id=purchase_order.id,
+            module="inventory",
             details={
                 "po_number": purchase_order.po_number,
                 "note": normalize_optional_text(note),
@@ -441,11 +448,12 @@ class PurchasingLifecycleMixin:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_purchase_order.close",
             entity_type="purchase_order",
             entity_id=purchase_order.id,
+            module="inventory",
             details={
                 "po_number": purchase_order.po_number,
                 "note": normalize_optional_text(note),

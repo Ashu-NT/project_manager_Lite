@@ -107,13 +107,15 @@ class UserRoleBinding:
     id: str
     user_id: str
     role_id: str
+    organization_id: str | None = None
 
     @staticmethod
-    def create(user_id: str, role_id: str) -> "UserRoleBinding":
+    def create(user_id: str, role_id: str, organization_id: str | None = None) -> "UserRoleBinding":
         return UserRoleBinding(
             id=generate_id(),
             user_id=user_id,
             role_id=role_id,
+            organization_id=organization_id,
         )
 
 

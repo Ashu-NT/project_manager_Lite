@@ -18,9 +18,13 @@ def truthy_env(value: str | None) -> bool:
 
 
 def resolve_bootstrap_admin_password() -> str:
+    from src.core.platform.common.exceptions import ValidationError
+
     configured = os.getenv("PM_ADMIN_PASSWORD")
     if configured is not None and configured.strip():
         return configured.strip()
+    if not truthy_env(os.getenv("PM_ALLOW_DEFAULT_ADMIN_PASSWORD")):
+        raise ValidationError("PM_ADMIN_PASSWORD must be set")
     default_password = "ChangeMe123!"
     logger.warning(
         "=================================================================\n"

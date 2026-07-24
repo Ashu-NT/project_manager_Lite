@@ -17,6 +17,7 @@ def build_detail_view_model(project: Any) -> ProjectDetailViewModel:
         )
     state = build_project_state(project)
     client_label = state["clientName"] or "No client assigned"
+    site_label = state["siteLabel"] or "No site assigned"
     return ProjectDetailViewModel(
         id=project.id,
         title=project.name,
@@ -36,6 +37,7 @@ def build_detail_view_model(project: Any) -> ProjectDetailViewModel:
                 value=state["plannedBudgetLabel"],
                 supporting_text=state["currency"] or "Currency follows project defaults",
             ),
+            ProjectDetailFieldViewModel(label="Site", value=site_label),
             ProjectDetailFieldViewModel(label="Version", value=str(state["version"])),
         ),
         state=state,

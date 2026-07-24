@@ -101,6 +101,19 @@ AppLayouts.WorkspaceFrame {
                 onExportRequested: {
                     if (root.workspaceController !== null) root.workspaceController.exportTimesheets()
                 }
+                onBulkCancelRequested: {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.clearQueueBulkSelection()
+                }
+                onBulkActionRequested: function(actionId) {
+                    if (root.workspaceController === null)
+                        return
+                    const ids = root.workspaceController.selectedQueuePeriodIds || []
+                    if (actionId === "approve")
+                        root.workspaceController.bulkApprovePeriods(ids)
+                    else if (actionId === "reject")
+                        root.workspaceController.bulkRejectPeriods(ids)
+                }
             }
 
             Components.TimesheetsFilterPopup {
@@ -115,31 +128,6 @@ AppLayouts.WorkspaceFrame {
                 workspaceController: root.workspaceController
                 state: state
                 anchorItem: listPage.viewsButtonItem
-            }
-
-            // ── Bulk action bar ───────────────────────────────────────────
-            AppWidgets.BulkActionBar {
-                id: _bulkActionBar
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: Theme.AppTheme.spacingMd + 40
-                z: 10
-                selectedCount: root.workspaceController ? root.workspaceController.selectedQueuePeriodCount : 0
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: [
-                    { "id": "approve", "label": "Approve", "icon": "approve", "danger": false, "enabled": true },
-                    { "id": "reject",  "label": "Reject",  "icon": "close",   "danger": true,  "enabled": true }
-                ]
-
-                onCancelRequested: {
-                    if (root.workspaceController !== null) root.workspaceController.clearQueueBulkSelection()
-                }
-                onActionTriggered: function(actionId) {
-                    if (root.workspaceController === null) return
-                    const ids = root.workspaceController.selectedQueuePeriodIds || []
-                    if (actionId === "approve") root.workspaceController.bulkApprovePeriods(ids)
-                    else if (actionId === "reject") root.workspaceController.bulkRejectPeriods(ids)
-                }
             }
         }
 
@@ -168,6 +156,7 @@ AppLayouts.WorkspaceFrame {
                 Component.onCompleted: scrollToSection(root._pendingDetailSection)
 
                 AppWidgets.ContextualActionToolbar {
+                    detailPagePinned: true
                     width: parent ? parent.width : 0
                     showBack: true
                     title: root.selectedPeriodModel.title || "Timesheet Period"
@@ -189,16 +178,16 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
-                    visible: root._detailOpen
+                    requestedVisible: root._detailOpen
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
                     tone: "danger"
                     message: root.workspaceController ? root.workspaceController.errorMessage : ""
                 }
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
-                    visible: root._detailOpen
+                    requestedVisible: root._detailOpen
                         && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
                     tone: "success"

@@ -18,7 +18,7 @@ from src.core.modules.maintenance import MaintenanceDowntimeEventService, Mainte
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
-from .test_maintenance_foundation import _TenantContext
+from .test_maintenance_foundation_asset import _TenantContext
 
 
 class _OrgRepo(OrganizationRepository):
@@ -42,6 +42,12 @@ class _OrgRepo(OrganizationRepository):
 
     def list_all(self, *, active_only=None):
         rows = [self.organization]
+        if active_only is None:
+            return rows
+        return [row for row in rows if row.is_active == bool(active_only)]
+
+    def list_for_tenant(self, tenant_id: str, *, active_only=None):
+        rows = [self.organization] if self.organization.tenant_id == tenant_id else []
         if active_only is None:
             return rows
         return [row for row in rows if row.is_active == bool(active_only)]

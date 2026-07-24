@@ -21,17 +21,46 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.orm.catal
     InventoryItemCategoryORM,
     StockItemORM,
 )
+from src.core.modules.inventory_procurement.infrastructure.persistence.repositories._tenant_scope import (
+    InventoryTenantScopedRepositorySupport,
+)
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
-class SqlAlchemyInventoryItemCategoryRepository(InventoryItemCategoryRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyInventoryItemCategoryRepository(
+    InventoryItemCategoryRepository, InventoryTenantScopedRepositorySupport
+):
+    _repository_label = "Inventory item category repository"
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, category: InventoryItemCategory) -> None:
-        self.session.add(inventory_item_category_to_orm(category))
+        ctx = self._context(operation_label="add inventory item category")
+        orm = inventory_item_category_to_orm(category)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, category: InventoryItemCategory) -> None:
+        self._require_in_scope(
+            InventoryItemCategoryORM,
+            category.id,
+            operation_label="update inventory item category",
+            not_found_message="Inventory item category not found.",
+        )
         category.version = update_with_version_check(
             self.session,
             InventoryItemCategoryORM,
@@ -54,14 +83,22 @@ class SqlAlchemyInventoryItemCategoryRepository(InventoryItemCategoryRepository)
         )
 
     def get(self, category_id: str) -> InventoryItemCategory | None:
-        obj = self.session.get(InventoryItemCategoryORM, category_id)
+        obj = self._get_in_scope(
+            InventoryItemCategoryORM,
+            category_id,
+            operation_label="get inventory item category",
+        )
         return inventory_item_category_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, category_code: str) -> InventoryItemCategory | None:
+        ctx = self._context(operation_label="get inventory item category by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(InventoryItemCategoryORM).where(
             InventoryItemCategoryORM.organization_id == organization_id,
             InventoryItemCategoryORM.category_code == category_code,
         )
+        stmt = self._apply_scope(stmt, InventoryItemCategoryORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return inventory_item_category_from_orm(obj) if obj else None
 
@@ -72,7 +109,11 @@ class SqlAlchemyInventoryItemCategoryRepository(InventoryItemCategoryRepository)
         active_only: bool | None = None,
         category_type: str | None = None,
     ) -> list[InventoryItemCategory]:
+        ctx = self._context(operation_label="list inventory item categories")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(InventoryItemCategoryORM).where(InventoryItemCategoryORM.organization_id == organization_id)
+        stmt = self._apply_scope(stmt, InventoryItemCategoryORM, ctx)
         if active_only is not None:
             stmt = stmt.where(InventoryItemCategoryORM.is_active == bool(active_only))
         if category_type is not None:
@@ -83,14 +124,34 @@ class SqlAlchemyInventoryItemCategoryRepository(InventoryItemCategoryRepository)
         return [inventory_item_category_from_orm(row) for row in rows]
 
 
-class SqlAlchemyStockItemRepository(StockItemRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyStockItemRepository(StockItemRepository, InventoryTenantScopedRepositorySupport):
+    _repository_label = "Inventory item repository"
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, item: StockItem) -> None:
-        self.session.add(stock_item_to_orm(item))
+        ctx = self._context(operation_label="add inventory item")
+        orm = stock_item_to_orm(item)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, item: StockItem) -> None:
+        self._require_in_scope(
+            StockItemORM,
+            item.id,
+            operation_label="update inventory item",
+            not_found_message="Inventory item not found.",
+        )
         item.version = update_with_version_check(
             self.session,
             StockItemORM,
@@ -131,14 +192,22 @@ class SqlAlchemyStockItemRepository(StockItemRepository):
         )
 
     def get(self, item_id: str) -> StockItem | None:
-        obj = self.session.get(StockItemORM, item_id)
+        obj = self._get_in_scope(
+            StockItemORM,
+            item_id,
+            operation_label="get inventory item",
+        )
         return stock_item_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, item_code: str) -> StockItem | None:
+        ctx = self._context(operation_label="get inventory item by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(StockItemORM).where(
             StockItemORM.organization_id == organization_id,
             StockItemORM.item_code == item_code,
         )
+        stmt = self._apply_scope(stmt, StockItemORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return stock_item_from_orm(obj) if obj else None
 
@@ -148,7 +217,11 @@ class SqlAlchemyStockItemRepository(StockItemRepository):
         *,
         active_only: bool | None = None,
     ) -> list[StockItem]:
+        ctx = self._context(operation_label="list inventory items")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(StockItemORM).where(StockItemORM.organization_id == organization_id)
+        stmt = self._apply_scope(stmt, StockItemORM, ctx)
         if active_only is not None:
             stmt = stmt.where(StockItemORM.is_active == bool(active_only))
         rows = self.session.execute(stmt.order_by(StockItemORM.name.asc())).scalars().all()

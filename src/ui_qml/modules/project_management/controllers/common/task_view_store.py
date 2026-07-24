@@ -5,6 +5,8 @@ from collections.abc import Callable
 
 from PySide6.QtCore import QSettings
 
+from src.infra.platform.app_settings import AppSettingsStore
+
 
 class ProjectManagementTaskViewStore:
     ORG_NAME = "TECHASH"
@@ -30,10 +32,10 @@ class ProjectManagementTaskViewStore:
     def _settings_key(self) -> str:
         provider = self._organization_id_provider
         organization_id = provider() if provider is not None else None
-        normalized = str(organization_id or "").strip()
-        if not normalized:
-            return self._KEY_TASK_SAVED_VIEWS
-        return f"tenant/{normalized}/{self._KEY_TASK_SAVED_VIEWS}"
+        return AppSettingsStore._tenant_key(
+            self._KEY_TASK_SAVED_VIEWS,
+            organization_id,
+        )
 
     def load_task_saved_views(self) -> dict[str, dict[str, object]]:
         raw = self._settings.value(self._settings_key(), "{}")

@@ -71,6 +71,7 @@ AppLayouts.WorkspaceFrame {
     readonly property var _tableColumns: [
         { "key": "title",              "label": "Code",     "flex": 1,   "sortable": true  },
         { "key": "subtitle",           "label": "Title",    "flex": 2,   "sortable": true  },
+        { "key": "siteLabel",          "label": "Site",     "flex": 1.2, "sortable": true  },
         { "key": "statusLabel",        "label": "Status",   "flex": 0,   "minWidth": 110, "type": "status" },
         { "key": "priorityLabel",      "label": "Priority", "flex": 0,   "minWidth": 90,  "type": "status" },
         { "key": "workOrderTypeLabel", "label": "Type",     "flex": 1,   "sortable": true  },
@@ -298,16 +299,16 @@ AppLayouts.WorkspaceFrame {
                 onDeleteRequested: detailPage.open = false
 
                 // ── Detail-scoped messages ─────────────────────────
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
-                    visible: detailPage.open
+                    requestedVisible: detailPage.open
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
                     tone: "danger"
                     message: root.workspaceController ? root.workspaceController.errorMessage : ""
                 }
-                AppWidgets.InlineMessage {
+                AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
-                    visible: detailPage.open
+                    requestedVisible: detailPage.open
                         && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
                     tone: "success"

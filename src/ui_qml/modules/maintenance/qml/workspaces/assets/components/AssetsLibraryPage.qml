@@ -6,7 +6,7 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Maintenance.Controllers 1.0 as MaintenanceControllers
-import "../sections"
+import workspaces.assets.sections 1.0
 
 Item {
     id: root
@@ -36,13 +36,13 @@ Item {
     })[_tabs.currentIndex] || "New Record"
 
     readonly property var _locationColumns: [
-        { "key": "title", "label": "Name", "flex": 2, "sortable": true }, { "key": "subtitle", "label": "Parent", "flex": 2 }, { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 100, "type": "status" }
+        { "key": "title", "label": "Name", "flex": 2, "sortable": true }, { "key": "siteLabel", "label": "Site", "flex": 1.2, "sortable": true }, { "key": "subtitle", "label": "Parent", "flex": 2 }, { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 100, "type": "status" }
     ]
     readonly property var _systemColumns: [
-        { "key": "title", "label": "Name", "flex": 2, "sortable": true }, { "key": "subtitle", "label": "Location", "flex": 2 }, { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 100, "type": "status" }
+        { "key": "title", "label": "Name", "flex": 2, "sortable": true }, { "key": "siteLabel", "label": "Site", "flex": 1.2, "sortable": true }, { "key": "subtitle", "label": "Location", "flex": 2 }, { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 100, "type": "status" }
     ]
     readonly property var _assetColumns: [
-        { "key": "title", "label": "Name", "flex": 2, "sortable": true }, { "key": "subtitle", "label": "System", "flex": 2 }, { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 100, "type": "status" }
+        { "key": "title", "label": "Name", "flex": 2, "sortable": true }, { "key": "siteLabel", "label": "Site", "flex": 1.2, "sortable": true }, { "key": "subtitle", "label": "System", "flex": 2 }, { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 100, "type": "status" }
     ]
     readonly property var _componentColumns: [
         { "key": "title", "label": "Name", "flex": 2, "sortable": true }, { "key": "subtitle", "label": "Asset", "flex": 2 }, { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 100, "type": "status" }

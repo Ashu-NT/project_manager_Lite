@@ -1,4 +1,4 @@
-﻿module ProjectManagement.FinancialsSections
+﻿module workspaces.financials.sections
 FinancialsMetricsSection 1.0 FinancialsMetricsSection.qml
 FinancialsBudgetSection 1.0 FinancialsBudgetSection.qml
 FinancialsActualsSection 1.0 FinancialsActualsSection.qml

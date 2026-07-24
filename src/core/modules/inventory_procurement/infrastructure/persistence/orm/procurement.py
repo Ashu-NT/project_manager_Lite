@@ -23,6 +23,11 @@ class PurchaseRequisitionORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -124,6 +129,11 @@ class PurchaseOrderORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -222,6 +232,11 @@ class ReceiptHeaderORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -299,12 +314,14 @@ class ReceiptLineORM(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
+Index("idx_inventory_requisitions_tenant", PurchaseRequisitionORM.tenant_id)
 Index("idx_inventory_requisitions_org", PurchaseRequisitionORM.organization_id)
 Index("idx_inventory_requisitions_status", PurchaseRequisitionORM.status)
 Index("idx_inventory_requisitions_site", PurchaseRequisitionORM.requesting_site_id)
 Index("idx_inventory_requisitions_storeroom", PurchaseRequisitionORM.requesting_storeroom_id)
 Index("idx_inventory_requisition_lines_requisition", PurchaseRequisitionLineORM.purchase_requisition_id)
 Index("idx_inventory_requisition_lines_item", PurchaseRequisitionLineORM.stock_item_id)
+Index("idx_inventory_purchase_orders_tenant", PurchaseOrderORM.tenant_id)
 Index("idx_inventory_purchase_orders_org", PurchaseOrderORM.organization_id)
 Index("idx_inventory_purchase_orders_status", PurchaseOrderORM.status)
 Index("idx_inventory_purchase_orders_site", PurchaseOrderORM.site_id)
@@ -313,6 +330,7 @@ Index("idx_inventory_purchase_order_lines_order", PurchaseOrderLineORM.purchase_
 Index("idx_inventory_purchase_order_lines_item", PurchaseOrderLineORM.stock_item_id)
 Index("idx_inventory_purchase_order_lines_storeroom", PurchaseOrderLineORM.destination_storeroom_id)
 Index("idx_inventory_purchase_order_lines_req_line", PurchaseOrderLineORM.source_requisition_line_id)
+Index("idx_inventory_receipt_headers_tenant", ReceiptHeaderORM.tenant_id)
 Index("idx_inventory_receipt_headers_org", ReceiptHeaderORM.organization_id)
 Index("idx_inventory_receipt_headers_order", ReceiptHeaderORM.purchase_order_id)
 Index("idx_inventory_receipt_headers_date", ReceiptHeaderORM.receipt_date)

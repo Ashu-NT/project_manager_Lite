@@ -16,13 +16,23 @@ ORGANIZATION_EDITOR_DIALOG = Path(
     "src/ui_qml/platform/qml/Platform/Dialogs/OrganizationEditorDialog.qml"
 )
 
+# Module-level reference prevents premature GC of the Qt application instance.
+# Without this, PySide6 would destroy the C++ QGuiApplication when the local
+# reference in _ensure_qgui_application() drops to zero, leaving the process in
+# a broken Qt state for any subsequent code that detects Qt bindings (e.g.
+# matplotlib's backend selection).
+_QAPP: QGuiApplication | None = None
+
 
 def _ensure_qgui_application() -> QGuiApplication:
+    global _QAPP
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     existing = QGuiApplication.instance()
     if existing is not None:
+        _QAPP = existing
         return existing
-    return QGuiApplication(["platform-dialog-test"])
+    _QAPP = QGuiApplication(["platform-dialog-test"])
+    return _QAPP
 
 
 def _load_dialog(qml_path: Path, initial_properties: dict) -> tuple[object, QObject]:

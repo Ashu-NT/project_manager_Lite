@@ -7,7 +7,7 @@ from uuid import uuid4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
@@ -49,7 +49,7 @@ class DocumentIntegrationService:
         *,
         organization_repo: OrganizationRepository,
         user_session: Any = None,
-        audit_service: Any = None,
+        enterprise_audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
     ) -> None:
         self._session = session
@@ -58,7 +58,7 @@ class DocumentIntegrationService:
         self._structure_repo = structure_repo
         self._organization_repo = organization_repo
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
 
     def register_entity_attachments(
@@ -143,12 +143,15 @@ class DocumentIntegrationService:
             self._session.rollback()
             raise
         for document in created:
-            record_audit(
+            record_audit_entry(
                 self,
-                action="document.linked_attachment.create",
+                operation="create",
                 entity_type="document",
                 entity_id=document.id,
-                details={
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "document.linked_attachment.create",
                     "module_code": normalized_module,
                     "entity_type": normalized_entity_type,
                     "entity_id": normalized_entity_id,
@@ -256,12 +259,15 @@ class DocumentIntegrationService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_audit_entry(
             self,
-            action="document.link_existing",
+            operation="update",
             entity_type="document",
             entity_id=document.id,
-            details={
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "document.link_existing",
                 "module_code": normalized_module,
                 "entity_type": normalized_entity_type,
                 "entity_id": normalized_entity_id,
@@ -314,12 +320,15 @@ class DocumentIntegrationService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_audit_entry(
             self,
-            action="document.unlink_existing",
+            operation="delete",
             entity_type="document",
             entity_id=document.id,
-            details={
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "document.unlink_existing",
                 "module_code": normalized_module,
                 "entity_type": normalized_entity_type,
                 "entity_id": normalized_entity_id,

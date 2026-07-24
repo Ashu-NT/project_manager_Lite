@@ -241,7 +241,7 @@ class CalendarException:
         approval_status: str = "APPROVED",
         created_by: str | None = None,
     ) -> "CalendarException":
-        now = datetime.utcnow()
+        now = datetime.now(dt_timezone.utc)
         return CalendarException(
             id=generate_id(),
             calendar_id=calendar_id,

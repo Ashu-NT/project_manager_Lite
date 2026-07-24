@@ -18,6 +18,11 @@ class SiteORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -47,5 +52,6 @@ class SiteORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_sites_tenant", SiteORM.tenant_id)
 Index("idx_sites_organization", SiteORM.organization_id)
 Index("idx_sites_active", SiteORM.organization_id, SiteORM.is_active)

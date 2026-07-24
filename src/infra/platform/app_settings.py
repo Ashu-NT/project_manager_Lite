@@ -12,6 +12,7 @@ class AppSettingsStore:
 
     ORG_NAME = "TECHASH"
     APP_NAME = "ProjectManagerLite"
+    _UNSCOPED_TENANT_SEGMENT = "__no_organization__"
 
     _KEY_THEME_MODE = "ui/theme_mode"
     _KEY_TAB_INDEX = "ui/current_tab_index"
@@ -31,7 +32,7 @@ class AppSettingsStore:
     def _tenant_key(base_key: str, organization_id: str | None = None) -> str:
         normalized = str(organization_id or "").strip()
         if not normalized:
-            return base_key
+            normalized = AppSettingsStore._UNSCOPED_TENANT_SEGMENT
         return f"tenant/{normalized}/{base_key}"
 
     def load_theme_mode(self, default_mode: str = "light") -> str:

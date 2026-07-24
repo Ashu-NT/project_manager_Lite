@@ -55,11 +55,13 @@ class CollaborationNotificationQueryMixin:
         return None
 
     def _approval_notification_from_audit(self, row) -> CollaborationNotificationItem | None:
-        if row.action not in {"governance.request", "governance.approve", "governance.reject"}:
+        action = str(getattr(row, "action", None) or row.metadata.get("action", "") or "")
+        if action not in {"governance.request", "governance.approve", "governance.reject"}:
             return None
-        if row.project_id and not self._principal_can_access_project(row.project_id):
+        project_id = str(getattr(row, "project_id", None) or row.metadata.get("project_id") or row.entity_parent_id or "").strip() or None
+        if project_id and not self._principal_can_access_project(project_id):
             return None
-        details = row.details or {}
+        details = getattr(row, "details", None) or row.metadata or {}
         subject = (
             str(details.get("baseline_name") or "").strip()
             or str(details.get("task_name") or "").strip()
@@ -72,21 +74,23 @@ class CollaborationNotificationQueryMixin:
             "governance.approve": f"Approval granted for {subject}",
             "governance.reject": f"Approval rejected for {subject}",
         }
+        occurred_at = getattr(row, "occurred_at", None) or getattr(row, "timestamp", None)
         return CollaborationNotificationItem(
             notification_type="approval",
             entity_type=row.entity_type,
             entity_id=row.entity_id,
-            headline=headline_map[row.action],
+            headline=headline_map[action],
             body_preview=self._workflow_preview_from_details(details),
             actor_username=row.actor_username or "system",
-            created_at=row.occurred_at,
-            project_id=row.project_id,
-            project_name=self._project_name(row.project_id),
-            attention=row.action == "governance.request",
+            created_at=occurred_at,
+            project_id=project_id,
+            project_name=self._project_name(project_id),
+            attention=action == "governance.request",
         )
 
     def _timesheet_notification_from_audit(self, row) -> CollaborationNotificationItem | None:
-        if row.action not in {
+        action = str(getattr(row, "action", None) or row.metadata.get("action", "") or "")
+        if action not in {
             "timesheet_period.submit",
             "timesheet_period.approve",
             "timesheet_period.reject",
@@ -98,7 +102,7 @@ class CollaborationNotificationQueryMixin:
         visible_project_ids = [project_id for project_id in project_ids if self._principal_can_access_project(project_id)]
         if project_ids and not visible_project_ids:
             return None
-        details = row.details or {}
+        details = getattr(row, "details", None) or row.metadata or {}
         resource_name = str(details.get("resource_name") or "Resource").strip()
         period_start = str(details.get("period_start") or "").strip()
         body_parts = [
@@ -113,17 +117,19 @@ class CollaborationNotificationQueryMixin:
             "timesheet_period.lock": f"Timesheet locked for {resource_name}",
             "timesheet_period.unlock": f"Timesheet reopened for {resource_name}",
         }
+        occurred_at = getattr(row, "occurred_at", None) or getattr(row, "timestamp", None)
+        row_project_id = str(getattr(row, "project_id", None) or row.metadata.get("project_id") or row.entity_parent_id or "").strip() or None
         return CollaborationNotificationItem(
             notification_type="timesheet",
             entity_type=row.entity_type,
             entity_id=row.entity_id,
-            headline=headline_map[row.action],
+            headline=headline_map[action],
             body_preview="; ".join(body_parts),
             actor_username=row.actor_username or "system",
-            created_at=row.occurred_at,
-            project_id=row.project_id if row.project_id and self._principal_can_access_project(row.project_id) else None,
+            created_at=occurred_at,
+            project_id=row_project_id if row_project_id and self._principal_can_access_project(row_project_id) else None,
             project_name=self._project_names_label(visible_project_ids),
-            attention=row.action in {"timesheet_period.submit", "timesheet_period.lock", "timesheet_period.reject"},
+            attention=action in {"timesheet_period.submit", "timesheet_period.lock", "timesheet_period.reject"},
         )
 
 

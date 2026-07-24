@@ -58,6 +58,8 @@ class ModuleCatalogContextMixin:
     def _ensure_context_defaults(self) -> list[ModuleEntitlementRecord]:
         if self._entitlement_repo is None:
             return []
+        if not self._has_active_organization_context():
+            return []
         records = self._entitlement_repo.list_all()
         if records:
             return records
@@ -79,6 +81,8 @@ class ModuleCatalogContextMixin:
     def _effective_codes(self) -> tuple[set[str], set[str]]:
         records = self._effective_records()
         if not records:
+            if self._entitlement_repo is not None and not self._has_active_organization_context():
+                return set(), set()
             return set(self._licensed_codes), set(self._enabled_codes)
         licensed_codes = {normalize_module_code(record.module_code) for record in records if record.licensed}
         enabled_codes = {
@@ -96,6 +100,9 @@ class ModuleCatalogContextMixin:
         if self._organization_context_provider is None:
             return None
         return self._organization_context_provider()
+
+    def _has_active_organization_context(self) -> bool:
+        return self._current_organization() is not None
 
 
 __all__ = ["ModuleCatalogContextMixin"]

@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
@@ -64,7 +64,7 @@ class DocumentService:
         *,
         organization_repo: OrganizationRepository,
         user_session: Any = None,
-        audit_service: Any = None,
+        enterprise_audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
     ) -> None:
         self._session = session
@@ -73,7 +73,7 @@ class DocumentService:
         self._structure_repo = structure_repo
         self._organization_repo = organization_repo
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
 
     def get_context_organization(self) -> Organization:
@@ -146,12 +146,15 @@ class DocumentService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_audit_entry(
             self,
-            action="document_structure.create",
+            operation="create",
             entity_type="document_structure",
             entity_id=structure.id,
-            details={
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "document_structure.create",
                 "organization_id": organization.id,
                 "structure_code": structure.structure_code,
                 "object_scope": structure.object_scope,
@@ -229,17 +232,20 @@ class DocumentService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_audit_entry(
             self,
-            action="document_structure.update",
+            operation="update",
             entity_type="document_structure",
             entity_id=structure.id,
-            details={
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "document_structure.update",
                 "organization_id": organization.id,
                 "structure_code": structure.structure_code,
                 "object_scope": structure.object_scope,
                 "default_document_type": structure.default_document_type.value,
-                "is_active": structure.is_active,
+                "is_active": str(structure.is_active),
             },
         )
         domain_events.documents_changed.emit(structure.id)
@@ -316,12 +322,15 @@ class DocumentService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_audit_entry(
             self,
-            action="document.create",
+            operation="create",
             entity_type="document",
             entity_id=document.id,
-            details={
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "document.create",
                 "organization_id": organization.id,
                 "document_code": document.document_code,
                 "title": document.title,
@@ -434,12 +443,15 @@ class DocumentService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_audit_entry(
             self,
-            action="document.update",
+            operation="update",
             entity_type="document",
             entity_id=document.id,
-            details={
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "document.update",
                 "organization_id": organization.id,
                 "document_code": document.document_code,
                 "title": document.title,
@@ -506,12 +518,15 @@ class DocumentService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_audit_entry(
             self,
-            action="document.link",
+            operation="update",
             entity_type="document",
             entity_id=document.id,
-            details={
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "document.link",
                 "module_code": link.module_code,
                 "entity_type": link.entity_type,
                 "entity_id": link.entity_id,
@@ -533,12 +548,15 @@ class DocumentService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_audit_entry(
             self,
-            action="document.unlink",
+            operation="delete",
             entity_type="document",
             entity_id=document.id,
-            details={
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "document.unlink",
                 "module_code": link.module_code,
                 "entity_type": link.entity_type,
                 "entity_id": link.entity_id,

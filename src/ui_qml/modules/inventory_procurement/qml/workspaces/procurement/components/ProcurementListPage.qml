@@ -176,6 +176,32 @@ Item {
             }
 
             // ── Filter popup ──────────────────────────────────────────────
+            AppWidgets.BulkActionBar {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: _paginationBar.top
+                anchors.bottomMargin: Theme.AppTheme.spacingMd
+                z: 10
+                active: root._isRequisitionsView
+                selectedCount: root.workspaceController ? root.workspaceController.selectedRequisitionCount : 0
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                actions: [{ "id": "cancel", "label": "Cancel Selected", "icon": "reject", "danger": true, "enabled": true }]
+                onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearRequisitionBulkSelection() }
+                onActionTriggered: function(actionId) {}
+            }
+
+            AppWidgets.BulkActionBar {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: _paginationBar.top
+                anchors.bottomMargin: Theme.AppTheme.spacingMd
+                z: 10
+                active: !root._isRequisitionsView
+                selectedCount: root.workspaceController ? root.workspaceController.selectedPurchaseOrderCount : 0
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                actions: [{ "id": "cancel", "label": "Cancel Selected", "icon": "reject", "danger": true, "enabled": true }]
+                onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearPurchaseOrderBulkSelection() }
+                onActionTriggered: function(actionId) {}
+            }
+
             AppWidgets.AnchoredPopup {
                 id: filterPopup
                 anchorItem: tableToolbar.filterButtonItem
@@ -258,25 +284,6 @@ Item {
             }
 
             // ── Bulk action bars ──────────────────────────────────────────
-            AppWidgets.BulkActionBar {
-                anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: _paginationBar.top; anchors.bottomMargin: Theme.AppTheme.spacingMd
-                z: 10; visible: root._isRequisitionsView
-                selectedCount: root.workspaceController ? root.workspaceController.selectedRequisitionCount : 0
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: [{ "id": "cancel", "label": "Cancel Selected", "icon": "reject", "danger": true, "enabled": true }]
-                onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearRequisitionBulkSelection() }
-                onActionTriggered: function(actionId) {}
-            }
-
-            AppWidgets.BulkActionBar {
-                anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: _paginationBar.top; anchors.bottomMargin: Theme.AppTheme.spacingMd
-                z: 10; visible: !root._isRequisitionsView
-                selectedCount: root.workspaceController ? root.workspaceController.selectedPurchaseOrderCount : 0
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: [{ "id": "cancel", "label": "Cancel Selected", "icon": "reject", "danger": true, "enabled": true }]
-                onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearPurchaseOrderBulkSelection() }
-                onActionTriggered: function(actionId) {}
-            }
         }
     }
 }

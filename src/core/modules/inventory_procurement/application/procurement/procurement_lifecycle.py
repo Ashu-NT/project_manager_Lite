@@ -25,7 +25,7 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     PurchaseRequisitionLineStatus,
     PurchaseRequisitionStatus,
 )
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import ConcurrencyError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 
@@ -99,11 +99,12 @@ class ProcurementLifecycleMixin:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_requisition.create",
             entity_type="purchase_requisition",
             entity_id=requisition.id,
+            module="inventory",
             details={
                 "requisition_number": requisition.requisition_number,
                 "site_id": requisition.requesting_site_id,
@@ -174,11 +175,12 @@ class ProcurementLifecycleMixin:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_requisition_line.create",
             entity_type="purchase_requisition_line",
             entity_id=line.id,
+            module="inventory",
             details={
                 "requisition_id": requisition.id,
                 "line_number": str(line.line_number),
@@ -203,6 +205,7 @@ class ProcurementLifecycleMixin:
             request_type="purchase_requisition.submit",
             entity_type="purchase_requisition",
             entity_id=requisition.id,
+            module="inventory",
             project_id=None,
             payload={
                 "requisition_id": requisition.id,
@@ -228,11 +231,12 @@ class ProcurementLifecycleMixin:
             self._requisition_line_repo.update(line)
         self._requisition_repo.update(requisition)
         self._session.commit()
-        record_audit(
+        record_activity(
             self,
             action="inventory_requisition.submit",
             entity_type="purchase_requisition",
             entity_id=requisition.id,
+            module="inventory",
             details={
                 "requisition_number": requisition.requisition_number,
                 "approval_request_id": request.id,
@@ -318,11 +322,12 @@ class ProcurementLifecycleMixin:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_requisition.update",
             entity_type="purchase_requisition",
             entity_id=requisition.id,
+            module="inventory",
             details={
                 "requisition_number": requisition.requisition_number,
                 "site_id": requisition.requesting_site_id,
@@ -366,11 +371,12 @@ class ProcurementLifecycleMixin:
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
+        record_activity(
             self,
             action="inventory_requisition.cancel",
             entity_type="purchase_requisition",
             entity_id=requisition.id,
+            module="inventory",
             details={
                 "requisition_number": requisition.requisition_number,
                 "note": normalize_optional_text(note),

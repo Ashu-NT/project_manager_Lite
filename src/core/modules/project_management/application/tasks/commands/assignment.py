@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.tasks.commands.assignment_audit import (
+from src.core.modules.project_management.application.tasks.commands.assignment_activity import (
     record_assignment_action,
 )
 from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository

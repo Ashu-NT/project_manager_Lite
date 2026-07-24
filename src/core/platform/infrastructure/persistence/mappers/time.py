@@ -7,6 +7,7 @@ from src.core.platform.infrastructure.persistence.orm.time import TimeEntryORM, 
 def time_entry_to_orm(entry: TimeEntry) -> TimeEntryORM:
     return TimeEntryORM(
         id=entry.id,
+        organization_id=entry.organization_id,
         work_allocation_id=entry.work_allocation_id,
         assignment_id=entry.assignment_id,
         entry_date=entry.entry_date,
@@ -34,6 +35,7 @@ def time_entry_from_orm(obj: TimeEntryORM) -> TimeEntry:
     owner_type = getattr(obj, "owner_type", None) or ("task_assignment" if obj.assignment_id else "work_allocation")
     return TimeEntry(
         id=obj.id,
+        organization_id=getattr(obj, "organization_id", None),
         work_allocation_id=work_allocation_id,
         assignment_id=obj.assignment_id,
         entry_date=obj.entry_date,
@@ -59,6 +61,7 @@ def time_entry_from_orm(obj: TimeEntryORM) -> TimeEntry:
 def timesheet_period_to_orm(period: TimesheetPeriod) -> TimesheetPeriodORM:
     return TimesheetPeriodORM(
         id=period.id,
+        organization_id=period.organization_id,
         resource_id=period.resource_id,
         period_start=period.period_start,
         period_end=period.period_end,
@@ -77,6 +80,7 @@ def timesheet_period_to_orm(period: TimesheetPeriod) -> TimesheetPeriodORM:
 def timesheet_period_from_orm(obj: TimesheetPeriodORM) -> TimesheetPeriod:
     return TimesheetPeriod(
         id=obj.id,
+        organization_id=getattr(obj, "organization_id", None),
         resource_id=obj.resource_id,
         period_start=obj.period_start,
         period_end=obj.period_end,

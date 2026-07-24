@@ -14,18 +14,55 @@ from src.core.modules.maintenance.infrastructure.persistence.mappers import (
     maintenance_failure_code_from_orm,
     maintenance_failure_code_to_orm,
 )
-from src.core.modules.maintenance.infrastructure.persistence.orm.models import MaintenanceDowntimeEventORM, MaintenanceFailureCodeORM
+from src.core.modules.maintenance.infrastructure.persistence.orm.models import (
+    MaintenanceAssetORM,
+    MaintenanceDowntimeEventORM,
+    MaintenanceFailureCodeORM,
+    MaintenanceSystemORM,
+    MaintenanceWorkOrderORM,
+)
+from src.core.modules.maintenance.infrastructure.persistence.repositories._tenant_scope import (
+    MaintenanceParentScopedRepositorySupport,
+    MaintenanceTenantScopedRepositorySupport,
+)
+from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
-class SqlAlchemyMaintenanceFailureCodeRepository(MaintenanceFailureCodeRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceFailureCodeRepository(
+    MaintenanceFailureCodeRepository, MaintenanceTenantScopedRepositorySupport
+):
+    _repository_label = "Maintenance failure code repository"
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, failure_code: MaintenanceFailureCode) -> None:
-        self.session.add(maintenance_failure_code_to_orm(failure_code))
+        ctx = self._context(operation_label="add maintenance failure code")
+        orm = maintenance_failure_code_to_orm(failure_code)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, failure_code: MaintenanceFailureCode) -> None:
+        self._require_in_scope(
+            MaintenanceFailureCodeORM,
+            failure_code.id,
+            operation_label="update maintenance failure code",
+            not_found_message="Maintenance failure code not found.",
+        )
         failure_code.version = update_with_version_check(
             self.session,
             MaintenanceFailureCodeORM,
@@ -46,7 +83,11 @@ class SqlAlchemyMaintenanceFailureCodeRepository(MaintenanceFailureCodeRepositor
         )
 
     def get(self, failure_code_id: str) -> MaintenanceFailureCode | None:
-        obj = self.session.get(MaintenanceFailureCodeORM, failure_code_id)
+        obj = self._get_in_scope(
+            MaintenanceFailureCodeORM,
+            failure_code_id,
+            operation_label="get maintenance failure code",
+        )
         return maintenance_failure_code_from_orm(obj) if obj else None
 
     def get_by_code(
@@ -54,10 +95,14 @@ class SqlAlchemyMaintenanceFailureCodeRepository(MaintenanceFailureCodeRepositor
         organization_id: str,
         failure_code: str,
     ) -> MaintenanceFailureCode | None:
+        ctx = self._context(operation_label="get maintenance failure code by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(MaintenanceFailureCodeORM).where(
             MaintenanceFailureCodeORM.organization_id == organization_id,
             MaintenanceFailureCodeORM.failure_code == failure_code,
         )
+        stmt = self._apply_scope(stmt, MaintenanceFailureCodeORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_failure_code_from_orm(obj) if obj else None
 
@@ -69,9 +114,13 @@ class SqlAlchemyMaintenanceFailureCodeRepository(MaintenanceFailureCodeRepositor
         code_type: str | None = None,
         parent_code_id: str | None = None,
     ) -> list[MaintenanceFailureCode]:
+        ctx = self._context(operation_label="list maintenance failure codes")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(MaintenanceFailureCodeORM).where(
             MaintenanceFailureCodeORM.organization_id == organization_id
         )
+        stmt = self._apply_scope(stmt, MaintenanceFailureCodeORM, ctx)
         if active_only is not None:
             stmt = stmt.where(MaintenanceFailureCodeORM.is_active == bool(active_only))
         if code_type is not None:
@@ -84,14 +133,114 @@ class SqlAlchemyMaintenanceFailureCodeRepository(MaintenanceFailureCodeRepositor
         return [maintenance_failure_code_from_orm(row) for row in rows]
 
 
-class SqlAlchemyMaintenanceDowntimeEventRepository(MaintenanceDowntimeEventRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceDowntimeEventRepository(
+    MaintenanceDowntimeEventRepository, MaintenanceParentScopedRepositorySupport
+):
+    _repository_label = "Maintenance downtime event repository"
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
+
+    def _downtime_references_in_scope(
+        self,
+        downtime_event: MaintenanceDowntimeEvent | MaintenanceDowntimeEventORM,
+        *,
+        operation_label: str,
+    ) -> bool:
+        if downtime_event.work_order_id and self._get_in_scope(
+            MaintenanceWorkOrderORM,
+            downtime_event.work_order_id,
+            operation_label=f"{operation_label} work order",
+        ) is None:
+            return False
+        if downtime_event.asset_id and self._get_in_scope(
+            MaintenanceAssetORM,
+            downtime_event.asset_id,
+            operation_label=f"{operation_label} asset",
+        ) is None:
+            return False
+        if downtime_event.system_id and self._get_in_scope(
+            MaintenanceSystemORM,
+            downtime_event.system_id,
+            operation_label=f"{operation_label} system",
+        ) is None:
+            return False
+        return True
+
+    def _require_downtime_references_in_scope(
+        self,
+        downtime_event: MaintenanceDowntimeEvent | MaintenanceDowntimeEventORM,
+        *,
+        operation_label: str,
+    ) -> None:
+        if downtime_event.work_order_id:
+            self._require_in_scope(
+                MaintenanceWorkOrderORM,
+                downtime_event.work_order_id,
+                operation_label=f"{operation_label} work order",
+                not_found_message="Maintenance work order not found.",
+            )
+        if downtime_event.asset_id:
+            self._require_in_scope(
+                MaintenanceAssetORM,
+                downtime_event.asset_id,
+                operation_label=f"{operation_label} asset",
+                not_found_message="Maintenance asset not found.",
+            )
+        if downtime_event.system_id:
+            self._require_in_scope(
+                MaintenanceSystemORM,
+                downtime_event.system_id,
+                operation_label=f"{operation_label} system",
+                not_found_message="Maintenance system not found.",
+            )
+
+    def _get_downtime_event_in_scope(
+        self,
+        downtime_event_id: str,
+        *,
+        operation_label: str,
+    ):
+        ctx = self._context(operation_label=operation_label)
+        stmt = select(MaintenanceDowntimeEventORM).where(
+            MaintenanceDowntimeEventORM.id == downtime_event_id,
+            MaintenanceDowntimeEventORM.organization_id == ctx.organization_id,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        if obj is None or not self._downtime_references_in_scope(
+            obj,
+            operation_label=operation_label,
+        ):
+            return None
+        return obj
 
     def add(self, downtime_event: MaintenanceDowntimeEvent) -> None:
+        self._context(operation_label="add maintenance downtime event")
+        self._require_downtime_references_in_scope(
+            downtime_event,
+            operation_label="add maintenance downtime event",
+        )
         self.session.add(maintenance_downtime_event_to_orm(downtime_event))
 
     def update(self, downtime_event: MaintenanceDowntimeEvent) -> None:
+        if self._get_downtime_event_in_scope(
+            downtime_event.id,
+            operation_label="update maintenance downtime event",
+        ) is None:
+            raise NotFoundError("Maintenance downtime event not found.")
+        self._require_downtime_references_in_scope(
+            downtime_event,
+            operation_label="update maintenance downtime event",
+        )
         downtime_event.version = update_with_version_check(
             self.session,
             MaintenanceDowntimeEventORM,
@@ -115,7 +264,10 @@ class SqlAlchemyMaintenanceDowntimeEventRepository(MaintenanceDowntimeEventRepos
         )
 
     def get(self, downtime_event_id: str) -> MaintenanceDowntimeEvent | None:
-        obj = self.session.get(MaintenanceDowntimeEventORM, downtime_event_id)
+        obj = self._get_downtime_event_in_scope(
+            downtime_event_id,
+            operation_label="get maintenance downtime event",
+        )
         return maintenance_downtime_event_from_orm(obj) if obj else None
 
     def list_for_organization(
@@ -131,6 +283,9 @@ class SqlAlchemyMaintenanceDowntimeEventRepository(MaintenanceDowntimeEventRepos
         started_from=None,
         started_to=None,
     ) -> list[MaintenanceDowntimeEvent]:
+        ctx = self._context(operation_label="list maintenance downtime events")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(MaintenanceDowntimeEventORM).where(
             MaintenanceDowntimeEventORM.organization_id == organization_id
         )
@@ -158,7 +313,14 @@ class SqlAlchemyMaintenanceDowntimeEventRepository(MaintenanceDowntimeEventRepos
                 MaintenanceDowntimeEventORM.created_at.desc(),
             )
         ).scalars().all()
-        return [maintenance_downtime_event_from_orm(row) for row in rows]
+        return [
+            maintenance_downtime_event_from_orm(row)
+            for row in rows
+            if self._downtime_references_in_scope(
+                row,
+                operation_label="list maintenance downtime events",
+            )
+        ]
 
 
 __all__ = [

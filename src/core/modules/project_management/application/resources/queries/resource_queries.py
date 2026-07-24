@@ -11,13 +11,11 @@ class ResourceQueryMixin:
 
     def list_resources(self) -> list[Resource]:
         require_permission(self._user_session, "resource.read", operation_label="list resources")
-        organization_id = self._active_organization_id(operation_label="list resources")
-        return self._resource_repo.list_for_organization(organization_id)
+        return self._resource_repo.list()
 
     def get_resource(self, resource_id: str) -> Resource:
         require_permission(self._user_session, "resource.read", operation_label="view resource")
-        organization_id = self._active_organization_id(operation_label="view resource")
-        resource = self._resource_repo.get_for_organization(resource_id, organization_id)
+        resource = self._resource_repo.get(resource_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
         return resource

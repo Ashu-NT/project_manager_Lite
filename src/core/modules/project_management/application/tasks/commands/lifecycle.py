@@ -18,7 +18,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
 )
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
@@ -111,12 +111,13 @@ class TaskLifecycleMixin:
         try:
             self._task_repo.add(task)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="task.create",
                 entity_type="task",
                 entity_id=task.id,
-                project_id=project_id,
+                module="project_management",
+                workspace_id=project_id,
                 details={"name": task.name},
             )
             logger.info("Created task %s - %s for project %s", task.id, task.name, project_id)
@@ -149,12 +150,13 @@ class TaskLifecycleMixin:
         try:
             self._task_repo.update(task)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="task.set_status",
                 entity_type="task",
                 entity_id=task.id,
-                project_id=task.project_id,
+                module="project_management",
+                workspace_id=task.project_id,
                 details={"status": task.status.value},
             )
         except Exception as exc:
@@ -188,12 +190,13 @@ class TaskLifecycleMixin:
                     self._cost_repo.delete(cost_item.id)
             self._task_repo.delete(task_id)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="task.delete",
                 entity_type="task",
                 entity_id=task_id,
-                project_id=task.project_id,
+                module="project_management",
+                workspace_id=task.project_id,
                 details={"name": task.name},
             )
         except Exception as exc:
@@ -263,12 +266,13 @@ class TaskLifecycleMixin:
         try:
             self._task_repo.update(task)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="task.update",
                 entity_type="task",
                 entity_id=task.id,
-                project_id=task.project_id,
+                module="project_management",
+                workspace_id=task.project_id,
                 details={"name": task.name, "status": task.status.value},
             )
         except Exception as exc:
@@ -332,12 +336,13 @@ class TaskLifecycleMixin:
         try:
             self._task_repo.update(task)
             self._session.commit()
-            record_audit(
+            record_activity(
                 self,
                 action="task.update_progress",
                 entity_type="task",
                 entity_id=task.id,
-                project_id=task.project_id,
+                module="project_management",
+                workspace_id=task.project_id,
                 details={
                     "percent_complete": task.percent_complete,
                     "status": task.status.value,

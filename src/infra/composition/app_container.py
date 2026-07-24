@@ -15,8 +15,9 @@ from src.application.runtime.platform_runtime import PlatformRuntimeApplicationS
 from src.core.platform.access import AccessControlService
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.integration.resolver import IntegrationResolver
+from src.core.platform.activity.application.activity_service import ActivityService
 from src.core.platform.approval import ApprovalService
-from src.core.platform.audit import AuditService
+from src.core.platform.audit import EnterpriseAuditService
 from src.core.platform.auth import AuthService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.data_exchange import MasterDataExchangeService
@@ -28,7 +29,7 @@ from src.core.platform.org import OrganizationService
 from src.core.platform.site import SiteService
 from src.core.platform.party import PartyService
 from src.core.platform.time.application import TimeService
-from src.core.platform.tenancy import TenantContextService
+from src.core.platform.tenancy import TenantAdminService, TenantContextService
 from src.core.platform.runtime_tracking import RuntimeExecutionService
 from src.core.modules.inventory_procurement import (
     ProcurementService,
@@ -138,6 +139,7 @@ class ServiceGraph:
     auth_service: AuthService
     organization_service: OrganizationService
     tenant_context_service: TenantContextService
+    tenant_admin_service: TenantAdminService
     document_service: DocumentService
     party_service: PartyService
     department_service: DepartmentService
@@ -184,7 +186,8 @@ class ServiceGraph:
     maintenance_work_order_task_service: MaintenanceWorkOrderTaskService
     maintenance_work_order_task_step_service: MaintenanceWorkOrderTaskStepService
     access_service: AccessControlService
-    audit_service: AuditService
+    activity_service: ActivityService
+    enterprise_audit_service: EnterpriseAuditService
     approval_service: ApprovalService
     collaboration_service: CollaborationService
     project_service: ProjectService
@@ -229,6 +232,7 @@ class ServiceGraph:
             "auth_service": self.auth_service,
             "organization_service": self.organization_service,
             "tenant_context_service": self.tenant_context_service,
+            "tenant_admin_service": self.tenant_admin_service,
             "document_service": self.document_service,
             "party_service": self.party_service,
             "department_service": self.department_service,
@@ -275,7 +279,8 @@ class ServiceGraph:
             "maintenance_work_order_task_service": self.maintenance_work_order_task_service,
             "maintenance_work_order_task_step_service": self.maintenance_work_order_task_step_service,
             "access_service": self.access_service,
-            "audit_service": self.audit_service,
+            "activity_service": self.activity_service,
+            "enterprise_audit_service": self.enterprise_audit_service,
             "approval_service": self.approval_service,
             "collaboration_service": self.collaboration_service,
             "project_service": self.project_service,
@@ -360,6 +365,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         auth_service=platform_services.auth_service,
         organization_service=platform_services.organization_service,
         tenant_context_service=platform_services.tenant_context_service,
+        tenant_admin_service=platform_services.tenant_admin_service,
         document_service=platform_services.document_service,
         party_service=platform_services.party_service,
         department_service=platform_services.department_service,
@@ -406,7 +412,8 @@ def build_service_graph(session: Session) -> ServiceGraph:
         maintenance_work_order_task_service=maintenance_services.maintenance_work_order_task_service,
         maintenance_work_order_task_step_service=maintenance_services.maintenance_work_order_task_step_service,
         access_service=platform_services.access_service,
-        audit_service=platform_services.audit_service,
+        activity_service=platform_services.activity_service,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
         approval_service=platform_services.approval_service,
         collaboration_service=project_management_services.collaboration_service,
         project_service=project_management_services.project_service,

@@ -198,14 +198,14 @@ Item {
             AppWidgets.BulkActionBar {
                 id: _bulkActionBar
                 anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom:       _paginationBar.top
+                anchors.bottom: _paginationBar.top
                 anchors.bottomMargin: Theme.AppTheme.spacingMd
                 z: 10
                 selectedCount: root.workspaceController ? root.workspaceController.selectedEntryCount : 0
-                busy:          root.workspaceController ? root.workspaceController.isBusy : false
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
                 actions: [
-                    { "id": "delete",          "label": "Delete",        "icon": "delete", "danger": true,  "enabled": true },
-                    { "id": "change_property", "label": "Change Status", "icon": "edit",   "danger": false, "enabled": true }
+                    { "id": "delete", "label": "Delete", "icon": "delete", "danger": true, "enabled": true },
+                    { "id": "change_property", "label": "Change Status", "icon": "edit", "danger": false, "enabled": true }
                 ]
 
                 onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearEntryBulkSelection() }

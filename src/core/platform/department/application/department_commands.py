@@ -5,13 +5,13 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
+from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.department.domain import Department
 from src.core.platform.org.support import normalize_code
 
-from .department_audit import record_department_create, record_department_update
 from .department_context import active_organization
 from .department_location_service import validate_default_location_id
 from .department_utils import normalize_optional_text, resolve_name
@@ -87,7 +87,24 @@ def create_department(
     except Exception:
         service._session.rollback()
         raise
-    record_department_create(service, department, organization)
+    record_audit_entry(
+        service,
+        operation="create",
+        entity_type="department",
+        entity_id=department.id,
+        module="platform",
+        severity="low",
+        metadata={
+            "action": "department.create",
+            "organization_id": organization.id,
+            "department_code": department.department_code,
+            "name": department.name,
+            "site_id": department.site_id or "",
+            "default_location_id": department.default_location_id or "",
+            "department_type": department.department_type,
+            "is_active": str(department.is_active),
+        },
+    )
     domain_events.departments_changed.emit(department.id)
     return department
 
@@ -177,7 +194,24 @@ def update_department(
     except Exception:
         service._session.rollback()
         raise
-    record_department_update(service, department, organization)
+    record_audit_entry(
+        service,
+        operation="update",
+        entity_type="department",
+        entity_id=department.id,
+        module="platform",
+        severity="low",
+        metadata={
+            "action": "department.update",
+            "organization_id": organization.id,
+            "department_code": department.department_code,
+            "name": department.name,
+            "site_id": department.site_id or "",
+            "default_location_id": department.default_location_id or "",
+            "department_type": department.department_type,
+            "is_active": str(department.is_active),
+        },
+    )
     domain_events.departments_changed.emit(department.id)
     return department
 

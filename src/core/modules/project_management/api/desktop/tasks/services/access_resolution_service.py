@@ -46,7 +46,7 @@ def project_rows_for_task_scope(
         elif user_session.has_permission("task.read") or user_session.has_permission(
             "task.manage"
         ):
-            projects = list(project_repo.list_for_organization(organization_id))
+            projects = list(project_repo.list())
         else:
             projects = []
     return tuple(

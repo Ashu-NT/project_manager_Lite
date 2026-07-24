@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -30,8 +31,7 @@ Item {
     readonly property int _activeSectionH: {
         if (root._idx === 0) return _sec0.implicitHeight
         if (root._idx === 1) return _sec1.implicitHeight
-        if (root._idx === 2) return _sec2.implicitHeight
-        return _sec3.implicitHeight
+        return _sec2.implicitHeight
     }
 
     readonly property var _entryColumns: [
@@ -278,29 +278,5 @@ Item {
         }
     }
 
-    AppWidgets.LazySectionLoader {
-        id: _sec3
-        anchors.left: parent.left
-        anchors.right: parent.right
-        active: root._idx === 3
-        loadingMessage: "Loading entries..."
-        sourceComponent: Component {
-            Column {
-                width: parent ? parent.width : 0
-                spacing: 0
 
-                AppWidgets.SectionHeading {
-                    width: parent.width
-                    label: "Audit Trail"
-                }
-
-                AppWidgets.EmptyState {
-                    width: parent.width
-                    message: !root._hasPeriod
-                        ? "Select a timesheet period to view its audit trail."
-                        : "No audit events recorded for this period."
-                }
-            }
-        }
-    }
 }

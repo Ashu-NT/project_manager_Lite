@@ -212,8 +212,21 @@ Item {
     }
 
     // ── Detail page actions (section-aware) ───────────────────────────────
-    function detailActionsForSection(sectionIndex) {
+    function _itemById(items, itemId) {
+        const id = String(itemId || "")
+        if (!id.length) return null
+        const list = items || []
+        for (let i = 0; i < list.length; i += 1) {
+            if (String(list[i].id || "") === id) {
+                return list[i]
+            }
+        }
+        return null
+    }
+
+    function detailActionsForSection(sectionIndex, selectionContext) {
         const sectionName = detailSections[sectionIndex] || ""
+        const selection = selectionContext || {}
         if (sectionName === "Details") {
             const actions = [
                 { "id": "edit",     "label": "Edit",     "icon": "edit",    "enabled": true, "danger": false },
@@ -230,6 +243,26 @@ Item {
                 })
             }
             return actions
+        }
+        if (sectionName === "Assignments") {
+            const assignmentItem = selection.assignmentItem
+                || root._itemById(
+                    root.assignmentsModel ? (root.assignmentsModel.items || []) : [],
+                    root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
+                )
+            if (!assignmentItem) return []
+            return [
+                { "id": "edit_allocation", "label": "Allocation", "icon": "edit", "enabled": true, "danger": false },
+                { "id": "set_assignment_hours", "label": "Set Hours", "icon": "time", "enabled": true, "danger": false },
+                { "id": "remove_assignment", "label": "Remove", "icon": "delete", "enabled": true, "danger": true }
+            ]
+        }
+        if (sectionName === "Dependencies") {
+            if (!selection.dependencyItem) return []
+            return [
+                { "id": "edit_dependency", "label": "Edit", "icon": "edit", "enabled": true, "danger": false },
+                { "id": "remove_dependency", "label": "Remove", "icon": "delete", "enabled": true, "danger": true }
+            ]
         }
         return []
     }

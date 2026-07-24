@@ -7,9 +7,8 @@ from src.core.modules.maintenance.contracts.repositories import MaintenanceSenso
 from src.core.modules.maintenance import MaintenanceSensorReadingService, MaintenanceSensorService
 from src.core.platform.org.domain import Organization
 from src.core.platform.site.domain import Site
-from .test_maintenance_foundation import (
+from .test_maintenance_foundation_asset import (
     _AssetRepo,
-    _ComponentRepo,
     _LocationRepo,
     _OrgRepo,
     _SiteRepo,
@@ -17,6 +16,7 @@ from .test_maintenance_foundation import (
     _TenantContext,
     _user_session,
 )
+from .test_maintenance_foundation_component import _ComponentRepo
 
 
 class _SensorRepo(MaintenanceSensorRepository):

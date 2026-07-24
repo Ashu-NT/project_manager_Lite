@@ -30,6 +30,11 @@ class PlatformCalendarORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -70,6 +75,7 @@ class PlatformCalendarORM(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+Index("idx_platform_calendars_tenant", PlatformCalendarORM.tenant_id)
 Index("idx_platform_calendars_org", PlatformCalendarORM.organization_id)
 Index("idx_platform_calendars_type", PlatformCalendarORM.calendar_type)
 Index(
@@ -209,6 +215,11 @@ class ShiftPatternORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -227,6 +238,7 @@ class ShiftPatternORM(Base):
     )
 
 
+Index("idx_shift_patterns_tenant", ShiftPatternORM.tenant_id)
 Index("idx_shift_patterns_org", ShiftPatternORM.organization_id)
 Index("idx_shift_patterns_active", ShiftPatternORM.organization_id, ShiftPatternORM.is_active)
 

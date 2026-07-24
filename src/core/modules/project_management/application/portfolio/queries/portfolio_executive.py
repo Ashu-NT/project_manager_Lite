@@ -71,29 +71,35 @@ class PortfolioExecutiveQueryMixin:
         accessible_projects = {project.id: project for project in self._accessible_projects()}
         if not accessible_projects:
             return []
-        _PM_PREFIXES = (
-            "project.",
-            "task.",
-            "baseline.",
-            "approval.",
-            "timesheet_period.",
-            "project_membership.",
-            "portfolio.",
-        )
+        _PM_ENTITY_TYPES = {
+            "project", "task", "project_baseline", "approval_request",
+            "timesheet_period", "project_membership", "portfolio",
+        }
         rows = []
         for row in self._audit_repo.list_recent(limit=max(limit * 4, 50)):
-            action = str(getattr(row, "action", "") or "").strip().lower()
-            if not any(action.startswith(prefix) for prefix in _PM_PREFIXES):
+            entity_type = str(getattr(row, "entity_type", "") or "").strip().lower()
+            if entity_type not in _PM_ENTITY_TYPES:
                 continue
-            project_id = str(getattr(row, "project_id", "") or "").strip()
+            project_id = str(
+                getattr(row, "project_id", None)
+                or getattr(row, "entity_parent_id", None)
+                or (getattr(row, "metadata", None) or {}).get("project_id")
+                or ""
+            ).strip()
             project = accessible_projects.get(project_id)
             if project is None:
                 continue
+            action = str(
+                getattr(row, "action", None)
+                or (getattr(row, "metadata", None) or {}).get("action")
+                or f"{entity_type}.{getattr(row, 'operation', 'update')}"
+                or ""
+            )
             rows.append(
                 PortfolioRecentAction(
-                    occurred_at=getattr(row, "occurred_at", None),
+                    occurred_at=getattr(row, "occurred_at", None) or getattr(row, "timestamp", None),
                     project_name=project.name,
-                    action_label=self._audit_action_label(str(getattr(row, "action", "") or "")),
+                    action_label=self._audit_action_label(action),
                     actor_username=str(getattr(row, "actor_username", "") or ""),
                     summary=self._audit_summary(row),
                 )

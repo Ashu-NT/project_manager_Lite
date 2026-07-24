@@ -10,7 +10,10 @@ from src.core.modules.maintenance.contracts.repositories import (
 )
 from src.core.platform.employee.contracts import EmployeeRepository
 from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 
 
 @dataclass
@@ -53,8 +56,9 @@ class MaintenanceTaskWorkAllocationRepository:
         tenant_context_service: TenantContextService | None = None,
     ) -> None:
         self._organization_repo = organization_repo
-        self._tenant_context_service = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="MaintenanceTaskWorkAllocationRepository",
         )
         self._work_order_task_repo = work_order_task_repo
         self._work_order_repo = work_order_repo

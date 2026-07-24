@@ -9,7 +9,7 @@ from src.core.modules.inventory_procurement.domain.inventory.stock import (
     StockTransactionType,
     Storeroom,
 )
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.org.domain import Organization
@@ -50,11 +50,12 @@ class StockControlSupportMixin:
         return -quantity
 
     def _record_transaction_audit(self, stock_item_id: str, storeroom_id: str, transaction: StockTransaction) -> None:
-        record_audit(
+        record_activity(
             self,
             action="inventory_stock_transaction.post",
             entity_type="inventory_stock_transaction",
             entity_id=transaction.id,
+            module="inventory",
             details={
                 "transaction_number": transaction.transaction_number,
                 "stock_item_id": stock_item_id,

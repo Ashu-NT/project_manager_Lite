@@ -97,13 +97,6 @@ def set_team_updates(controller, team_updates: dict[str, object]) -> None:
     controller.teamUpdatesChanged.emit()
 
 
-def set_audit_feed(controller, audit_feed: dict[str, object]) -> None:
-    if audit_feed == controller._audit_feed:
-        return
-    controller._audit_feed = audit_feed
-    controller.auditFeedChanged.emit()
-
-
 def set_selected_item_detail(
     controller, selected_item_detail: dict[str, object]
 ) -> None:
@@ -125,7 +118,6 @@ __all__ = [
     "set_active_presence",
     "set_activity_feed",
     "set_approvals",
-    "set_audit_feed",
     "set_context",
     "set_inbox",
     "set_mentions",

@@ -18,6 +18,7 @@ Rectangle {
     property bool   showBack:    false
     property string createLabel: ""
     property var    actions:     []
+    property bool   detailPagePinned: false
 
     signal backRequested()
     signal createRequested()

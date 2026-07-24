@@ -9,6 +9,7 @@ AppWidgets.EntityDialog {
 
     property string modeTitle: "Create Project"
     property var statusOptions: []
+    property var siteOptions: []
     property var projectData: ({})
     property var workspaceController: null
     property string projectCode: ""
@@ -39,6 +40,16 @@ AppWidgets.EntityDialog {
         return 0
     }
 
+    function optionIndexForValue(options, targetValue) {
+        const list = options || []
+        for (let index = 0; index < list.length; index += 1) {
+            if (String(list[index].value || "") === String(targetValue || "")) {
+                return index
+            }
+        }
+        return 0
+    }
+
     function populateFromProject() {
         var state = root.projectData && root.projectData.state ? root.projectData.state : (root.projectData || {})
         root.projectCode = String(state.projectCode || "")
@@ -51,11 +62,13 @@ AppWidgets.EntityDialog {
         endDateField.text = String(state.endDate || "")
         descriptionField.text = String(state.description || "")
         statusCombo.currentIndex = root.statusIndexForValue(state.status || "PLANNED")
+        siteCombo.currentIndex = root.optionIndexForValue(root.siteOptions, state.siteId || "")
         root.errorMessage = ""
     }
 
     function buildPayload() {
         var statusOption = root.workflowStatusOptions[statusCombo.currentIndex] || { "value": "PLANNED" }
+        var siteOption = root.siteOptions[siteCombo.currentIndex] || { "value": "" }
         return {
             "name": nameField.text,
             "projectCode": root.projectCode,
@@ -66,7 +79,8 @@ AppWidgets.EntityDialog {
             "startDate": startDateField.text,
             "endDate": endDateField.text,
             "description": descriptionField.text,
-            "status": statusOption.value || "PLANNED"
+            "status": statusOption.value || "PLANNED",
+            "siteId": String(siteOption.value || "")
         }
     }
 
@@ -118,6 +132,12 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             label: "Status"
             AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.workflowStatusOptions; textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Site"
+            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
         }
 
         AppWidgets.FormField {

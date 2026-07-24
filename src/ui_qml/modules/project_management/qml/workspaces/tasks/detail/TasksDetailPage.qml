@@ -46,6 +46,7 @@ AppWidgets.SectionDetailPage {
 
     // ── Detail header toolbar ────────────────────────────────────────────
     AppWidgets.ContextualActionToolbar {
+        detailPagePinned: true
         width: parent ? parent.width : 0
         showBack: true
         title: root.selectedTaskModel.title || "Task Details"
@@ -70,17 +71,17 @@ AppWidgets.SectionDetailPage {
     }
 
     // ── Detail error message ─────────────────────────────────────────────
-    AppWidgets.InlineMessage {
+    AppWidgets.SectionScopedInlineMessage {
         width: parent ? parent.width : 0
-        visible: String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+        requestedVisible: String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
         tone: "danger"
         message: root.workspaceController ? root.workspaceController.errorMessage : ""
     }
 
     // ── Detail success message ───────────────────────────────────────────
-    AppWidgets.InlineMessage {
+    AppWidgets.SectionScopedInlineMessage {
         width: parent ? parent.width : 0
-        visible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+        requestedVisible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
             && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
         tone: "success"
         message: root.workspaceController ? root.workspaceController.feedbackMessage : ""

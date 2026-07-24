@@ -1,2 +1,2 @@
-﻿module InventoryProcurement.InventoryPanels
+﻿module workspaces.inventory.panels
 InventoryDetailPanel 1.0 InventoryDetailPanel.qml

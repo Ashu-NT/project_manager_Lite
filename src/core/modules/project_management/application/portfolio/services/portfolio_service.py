@@ -22,7 +22,8 @@ from src.core.modules.project_management.contracts.repositories.portfolio import
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.platform.audit.contracts import AuditLogRepository
+from src.core.platform.audit.contracts import AuditRepository
+from src.core.platform.common.exceptions import BusinessRuleError
 
 
 class PortfolioService(
@@ -49,12 +50,11 @@ class PortfolioService(
         dependency_repo: PortfolioProjectDependencyRepository,
         scoring_template_repo: PortfolioScoringTemplateRepository,
         scenario_repo: PortfolioScenarioRepository,
-        audit_repo: AuditLogRepository,
+        audit_repo: AuditRepository,
         project_repo: ProjectRepository,
         resource_repo: ResourceRepository,
         reporting_service: ReportingService,
         user_session=None,
-        audit_service=None,
         module_catalog_service=None,
         tenant_context_service=None,
     ) -> None:
@@ -68,8 +68,12 @@ class PortfolioService(
         self._resource_repo = resource_repo
         self._reporting = reporting_service
         self._user_session = user_session
-        self._audit_service = audit_service
         self._module_catalog_service = module_catalog_service
+        if tenant_context_service is None:
+            raise BusinessRuleError(
+                "PortfolioService requires TenantContextService.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
         self._tenant_context_service = tenant_context_service
 
 

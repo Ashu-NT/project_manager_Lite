@@ -16,6 +16,7 @@ def to_location_record_view_model(row) -> MaintenanceAssetLibraryRecordViewModel
         state={
             "locationId": row.id,
             "siteId": row.site_id,
+            "siteLabel": row.site_label,
             "locationCode": row.location_code,
             "name": row.name,
             "description": row.description,

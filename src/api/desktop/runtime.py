@@ -7,8 +7,8 @@ from src.api.desktop.integration import IntegrationCapabilityDesktopApi
 from src.api.desktop.integration.capability_api import build_integration_capability_api
 from src.api.desktop.platform import (
     PlatformAccessDesktopApi,
+    PlatformActivityDesktopApi,
     PlatformApprovalDesktopApi,
-    PlatformAuditDesktopApi,
     PlatformDepartmentDesktopApi,
     PlatformDocumentDesktopApi,
     PlatformEmployeeDesktopApi,
@@ -16,8 +16,10 @@ from src.api.desktop.platform import (
     PlatformRuntimeDesktopApi,
     PlatformSiteDesktopApi,
     PlatformSupportDesktopApi,
+    PlatformTenantDesktopApi,
     PlatformUserDesktopApi,
 )
+from src.api.desktop.platform.audit_enterprise import PlatformEnterpriseAuditDesktopApi
 from src.api.desktop.platform.enterprise_calendar import EnterpriseCalendarDesktopApi
 from src.application.runtime.platform_runtime import (
     PlatformRuntimeApplicationService,
@@ -68,7 +70,8 @@ from src.core.modules.project_management.api.desktop_runtime import (
 )
 from src.core.platform.access import AccessControlService
 from src.core.platform.approval import ApprovalService
-from src.core.platform.audit import AuditService
+from src.core.platform.activity.application.activity_service import ActivityService
+from src.core.platform.audit import EnterpriseAuditService
 from src.core.platform.auth.application import AuthService
 from src.core.platform.calendar.application.calendar_assignment_service import (
     CalendarAssignmentService,
@@ -110,10 +113,12 @@ class DesktopApiRegistry:
     platform_employee: PlatformEmployeeDesktopApi
     platform_access: PlatformAccessDesktopApi
     platform_approval: PlatformApprovalDesktopApi
-    platform_audit: PlatformAuditDesktopApi
+    platform_activity: PlatformActivityDesktopApi | None
+    platform_enterprise_audit: PlatformEnterpriseAuditDesktopApi | None
     platform_document: PlatformDocumentDesktopApi
     platform_party: PlatformPartyDesktopApi
     platform_support: PlatformSupportDesktopApi
+    platform_tenant: PlatformTenantDesktopApi | None
     platform_user: PlatformUserDesktopApi
     project_management_dashboard: ProjectManagementDashboardDesktopApi
     project_management_collaboration: ProjectManagementCollaborationDesktopApi
@@ -152,6 +157,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         module_catalog_service=services.get("module_catalog_service"),
         organization_service=services.get("organization_service"),
         tenant_context_service=services.get("tenant_context_service"),
+        user_session=services.get("user_session"),
     )
     if not isinstance(
         platform_runtime_application_service,
@@ -174,9 +180,8 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     approval_service = services.get("approval_service")
     if not isinstance(approval_service, ApprovalService):
         raise RuntimeError("Platform approval service is not configured.")
-    audit_service = services.get("audit_service")
-    if not isinstance(audit_service, AuditService):
-        raise RuntimeError("Platform audit service is not configured.")
+    enterprise_audit_service = services.get("enterprise_audit_service")
+    activity_service = services.get("activity_service")
     document_service = services.get("document_service")
     if not isinstance(document_service, DocumentService):
         raise RuntimeError("Platform document service is not configured.")
@@ -314,6 +319,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         services=services,
         platform_dependencies=ProjectManagementDesktopRuntimePlatformDependencies(
             employee_service=employee_service,
+            site_service=site_service,
             approval_service=approval_service,
             procurement_service=inventory_procurement_service,
             reservation_service=inventory_reservation_service,
@@ -358,17 +364,8 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         platform_approval=PlatformApprovalDesktopApi(
             approval_service=approval_service,
         ),
-        platform_audit=PlatformAuditDesktopApi(
-            audit_service=audit_service,
-            project_service=project_service,
-            task_service=task_service,
-            resource_service=resource_service,
-            cost_service=cost_service,
-            baseline_service=baseline_service,
-            reservation_service=inventory_reservation_service,
-            procurement_service=inventory_procurement_service,
-            purchasing_service=inventory_purchasing_service,
-        ),
+        platform_activity=PlatformActivityDesktopApi(activity_service=activity_service) if isinstance(activity_service, ActivityService) else None,
+        platform_enterprise_audit=PlatformEnterpriseAuditDesktopApi(enterprise_audit_service=enterprise_audit_service) if isinstance(enterprise_audit_service, EnterpriseAuditService) else None,
         platform_document=PlatformDocumentDesktopApi(
             document_service=document_service,
         ),
@@ -376,6 +373,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             party_service=party_service,
         ),
         platform_support=PlatformSupportDesktopApi(),
+        platform_tenant=_build_platform_tenant_api(services),
         platform_user=PlatformUserDesktopApi(
             auth_service=auth_service,
         ),
@@ -383,6 +381,22 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         **vars(inventory_procurement_apis),
         **vars(maintenance_apis),
     )
+
+
+def _build_platform_tenant_api(
+    services: Mapping[str, object],
+) -> PlatformTenantDesktopApi | None:
+    from src.core.platform.tenancy.application.tenant_admin_service import TenantAdminService as _TAS
+    from src.core.platform.tenancy.tenant_context import TenantContextService as _TCS
+
+    tenant_admin_service = services.get("tenant_admin_service")
+    tenant_context_service = services.get("tenant_context_service")
+    if isinstance(tenant_admin_service, _TAS) and isinstance(tenant_context_service, _TCS):
+        return PlatformTenantDesktopApi(
+            tenant_admin_service=tenant_admin_service,
+            tenant_context_service=tenant_context_service,
+        )
+    return None
 
 
 def _load_site_scope_options(

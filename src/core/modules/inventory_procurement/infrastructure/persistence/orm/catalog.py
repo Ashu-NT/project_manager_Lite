@@ -16,6 +16,11 @@ class InventoryItemCategoryORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -51,6 +56,11 @@ class StockItemORM(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
@@ -91,8 +101,10 @@ class StockItemORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_inventory_item_categories_tenant", InventoryItemCategoryORM.tenant_id)
 Index("idx_inventory_item_categories_org", InventoryItemCategoryORM.organization_id)
 Index("idx_inventory_item_categories_active", InventoryItemCategoryORM.is_active)
+Index("idx_inventory_stock_items_tenant", StockItemORM.tenant_id)
 Index("idx_inventory_stock_items_org", StockItemORM.organization_id)
 Index("idx_inventory_stock_items_active", StockItemORM.is_active)
 

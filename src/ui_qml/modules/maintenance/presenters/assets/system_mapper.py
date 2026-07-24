@@ -16,6 +16,7 @@ def to_system_record_view_model(row) -> MaintenanceAssetLibraryRecordViewModel:
         state={
             "systemId": row.id,
             "siteId": row.site_id,
+            "siteLabel": row.site_label,
             "locationId": row.location_id or "",
             "systemCode": row.system_code,
             "name": row.name,

@@ -41,12 +41,15 @@ from src.core.modules.maintenance.application.common.support import (
 )
 from src.core.modules.maintenance.application.preventive.utils.date_utils import advance_calendar_due
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
-from src.core.platform.audit.helpers import record_audit
+from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org.domain import Organization
 from src.core.platform.site.domain import Site
@@ -66,14 +69,14 @@ class MaintenancePreventivePlanService:
         sensor_repo: MaintenanceSensorRepository,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
-        audit_service=None,
+        activity_service=None,
     ) -> None:
         self._session = session
         self._preventive_plan_repo = preventive_plan_repo
         self._organization_repo = organization_repo
-        self._tenant_context_service = tenant_context_service or TenantContextService(
-            organization_repo=organization_repo,
-            user_session=user_session,
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label="MaintenancePreventivePlanService",
         )
         self._site_repo = site_repo
         self._asset_repo = asset_repo
@@ -81,7 +84,7 @@ class MaintenancePreventivePlanService:
         self._system_repo = system_repo
         self._sensor_repo = sensor_repo
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._activity_service = activity_service
 
     def list_preventive_plans(
         self,
@@ -611,7 +614,8 @@ class MaintenancePreventivePlanService:
             raise BusinessRuleError(f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.", code="PERMISSION_DENIED")
 
     def _record_change(self, action: str, row: MaintenancePreventivePlan) -> None:
-        record_audit(self, action=action, entity_type="maintenance_preventive_plan", entity_id=row.id, details={
+        record_activity(self, action=action, entity_type="maintenance_preventive_plan", entity_id=row.id,
+ module="maintenance", details={
             "organization_id": row.organization_id, "site_id": row.site_id,
             "plan_code": row.plan_code, "name": row.name,
             "asset_id": row.asset_id, "component_id": row.component_id, "system_id": row.system_id,

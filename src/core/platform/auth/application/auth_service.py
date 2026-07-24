@@ -34,7 +34,8 @@ from . import session_service as _sessions
 from . import user_admin_service as _users
 
 if TYPE_CHECKING:
-    from src.core.platform.audit.application.audit_service import AuditService
+    from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.tenancy.contracts import UserTenantMembershipRepository
 
 
 class AuthService(AuthQueryMixin, AuthValidationMixin):
@@ -50,8 +51,9 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         scoped_access_repo: ScopedAccessGrantRepository | None = None,
         project_membership_repo: ProjectMembershipRepository | None = None,
         user_session: UserSessionContext | None = None,
-        audit_service: "AuditService | None" = None,
+        enterprise_audit_service: "EnterpriseAuditService | None" = None,
         sod_policy: SeparationOfDutiesPolicy | None = None,
+        user_tenant_repo: "UserTenantMembershipRepository | None" = None,
     ):
         self._session: Session = session
         self._user_repo: UserRepository = user_repo
@@ -63,8 +65,9 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._scoped_access_repo: ScopedAccessGrantRepository | None = scoped_access_repo
         self._project_membership_repo: ProjectMembershipRepository | None = project_membership_repo
         self._user_session: UserSessionContext | None = user_session
-        self._audit_service: AuditService | None = audit_service
+        self._enterprise_audit_service: EnterpriseAuditService | None = enterprise_audit_service
         self._sod_policy = sod_policy or SeparationOfDutiesPolicy()
+        self._user_tenant_repo: "UserTenantMembershipRepository | None" = user_tenant_repo
 
     def bootstrap_defaults(self) -> UserAccount:
         return _bootstrap.bootstrap_defaults(self)
@@ -82,6 +85,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         identity_provider: str | None = None,
         federated_subject: str | None = None,
         session_timeout_minutes_override: int | None = None,
+        tenant_id: str | None = None,
         commit: bool = True,
         bypass_permission: bool = False,
     ) -> UserAccount:
@@ -97,6 +101,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             identity_provider=identity_provider,
             federated_subject=federated_subject,
             session_timeout_minutes_override=session_timeout_minutes_override,
+            tenant_id=tenant_id,
             commit=commit,
             bypass_permission=bypass_permission,
         )
@@ -205,6 +210,9 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
 
     def validate_session_principal(self, principal: UserSessionPrincipal) -> UserSessionPrincipal | None:
         return _sessions.validate_session_principal(self, principal)
+
+    def persist_session_context(self, session_context: UserSessionContext) -> None:
+        _sessions.persist_session_context(self, session_context)
 
     def build_principal(self, user: UserAccount, *, session_id: str | None = None) -> UserSessionPrincipal:
         return _principal.build_principal(self, user, session_id=session_id)

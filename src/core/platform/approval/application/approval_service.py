@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Callable
+from typing import Any, Callable
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.audit.application.audit_service import AuditService
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.shared.events.domain_events import domain_events
+from src.core.shared.audit import record_audit_entry
 from src.core.platform.approval.contracts import ApprovalRepository
 from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from src.core.platform.auth.authorization import require_any_permission, require_permission
@@ -23,13 +23,13 @@ class ApprovalService:
         session: Session,
         approval_repo: ApprovalRepository,
         user_session: UserSessionContext | None = None,
-        audit_service: AuditService | None = None,
+        enterprise_audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
     ):
         self._session = session
         self._approval_repo = approval_repo
         self._user_session = user_session
-        self._audit_service = audit_service
+        self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
         self._apply_handlers: dict[str, ApplyHandler] = {}
         self._reject_handlers: dict[str, ApplyHandler] = {}
@@ -47,6 +47,7 @@ class ApprovalService:
         entity_type: str,
         entity_id: str,
         project_id: str | None,
+        module: str | None = None,
         payload: dict | None = None,
         commit: bool = True,
     ) -> ApprovalRequest:
@@ -84,10 +85,14 @@ class ApprovalService:
             requested_by_username=principal.username if principal else None,
         )
         self._approval_repo.add(request)
-        self._record_governance_audit(
-            action="governance.request",
-            request=request,
-            details=self._build_request_audit_details(request),
+        record_audit_entry(
+            self,
+            operation="create",
+            entity_type="approval_request",
+            entity_id=request.id,
+            module="platform",
+            severity="medium",
+            metadata={"action": "governance.request", **self._build_request_audit_details(request)},
         )
         if commit:
             self._session.commit()
@@ -153,10 +158,14 @@ class ApprovalService:
         if reject_handler is not None:
             reject_handler(request)
         self._approval_repo.update(request)
-        self._record_governance_audit(
-            action="governance.reject",
-            request=request,
-            details=self._build_request_audit_details(request, decision_note=request.decision_note),
+        record_audit_entry(
+            self,
+            operation="update",
+            entity_type="approval_request",
+            entity_id=request.id,
+            module="platform",
+            severity="high",
+            metadata={"action": "governance.reject", **self._build_request_audit_details(request, decision_note=request.decision_note)},
         )
         self._session.commit()
         domain_events.approvals_changed.emit(request.id)
@@ -187,10 +196,14 @@ class ApprovalService:
         request.decided_by_username = principal.username if principal else None
         request.decision_note = (note or "").strip() or None
         self._approval_repo.update(request)
-        self._record_governance_audit(
-            action="governance.approve",
-            request=request,
-            details=self._build_request_audit_details(request, decision_note=request.decision_note),
+        record_audit_entry(
+            self,
+            operation="update",
+            entity_type="approval_request",
+            entity_id=request.id,
+            module="platform",
+            severity="high",
+            metadata={"action": "governance.approve", **self._build_request_audit_details(request, decision_note=request.decision_note)},
         )
         self._session.commit()
         domain_events.approvals_changed.emit(request.id)
@@ -225,24 +238,6 @@ class ApprovalService:
     def _emit_post_apply_domain_events(request: ApprovalRequest) -> None:
         if request.request_type == "baseline.create" and request.project_id:
             domain_events.baseline_changed.emit(request.project_id)
-
-    def _record_governance_audit(
-        self,
-        *,
-        action: str,
-        request: ApprovalRequest,
-        details: dict | None = None,
-    ) -> None:
-        if self._audit_service is None:
-            return
-        self._audit_service.record(
-            action=action,
-            entity_type="approval_request",
-            entity_id=request.id,
-            project_id=request.project_id,
-            details=details or {},
-            commit=False,
-        )
 
     @staticmethod
     def _build_request_audit_details(
@@ -319,12 +314,8 @@ class ApprovalService:
         organization_id = self._active_organization_id(operation_label=operation_label)
         if not organization_id or not project_id:
             return
-        if (
-            hasattr(self._approval_repo, "project_belongs_to_organization")
-            and self._approval_repo.project_belongs_to_organization(project_id, organization_id)
-        ):
-            return
-        raise NotFoundError("Approval request not found.", code="APPROVAL_NOT_FOUND")
+        if hasattr(self._approval_repo, "project_in_different_organization") and self._approval_repo.project_in_different_organization(project_id, organization_id):
+            raise NotFoundError("Approval request not found.", code="APPROVAL_NOT_FOUND")
 
 
 __all__ = ["ApplyHandler", "ApprovalService"]

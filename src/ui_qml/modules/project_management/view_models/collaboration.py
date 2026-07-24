@@ -98,9 +98,6 @@ class CollaborationWorkspaceViewModel:
     team_updates: CollaborationCollectionViewModel = field(
         default_factory=lambda: CollaborationCollectionViewModel("", "", "", ())
     )
-    audit_feed: CollaborationCollectionViewModel = field(
-        default_factory=lambda: CollaborationCollectionViewModel("", "", "", ())
-    )
     empty_state: str = ""
 
 __all__ = [

@@ -16,6 +16,7 @@ from src.core.modules.project_management.api.desktop import (
 )
 from src.core.platform.approval import ApprovalService
 from src.core.platform.employee import EmployeeService
+from src.core.platform.site import SiteService
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,7 @@ class ProjectManagementDesktopRuntimeApis:
 @dataclass(frozen=True)
 class ProjectManagementDesktopRuntimePlatformDependencies:
     employee_service: EmployeeService
+    site_service: SiteService
     approval_service: ApprovalService
     procurement_service: object | None
     reservation_service: object | None

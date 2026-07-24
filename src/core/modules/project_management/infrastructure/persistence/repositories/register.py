@@ -10,7 +10,10 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.modules.project_management.infrastructure.persistence.orm.register import RegisterEntryORM
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
 from src.core.modules.project_management.infrastructure.persistence.mappers.register import register_entry_from_orm, register_entry_to_orm
 
@@ -18,11 +21,49 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.regi
 class SqlAlchemyRegisterEntryRepository(RegisterEntryRepository):
     def __init__(self, session: Session):
         self.session = session
+        self._tenant_context_service: TenantContextService | None = None
+
+    def _context(self) -> TenantContext:
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "RegisterEntryRepository requires TenantContextService.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_organization_context(
+            operation_label="access register entries"
+        )
+
+    def _project_scoped_stmt(self):
+        ctx = self._context()
+        return (
+            select(RegisterEntryORM)
+            .join(ProjectORM, RegisterEntryORM.project_id == ProjectORM.id)
+            .where(
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        )
+
+    def _ensure_project_in_scope(self, project_id: str) -> None:
+        ctx = self._context()
+        project = self.session.execute(
+            select(ProjectORM.id).where(
+                ProjectORM.id == project_id,
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        ).scalar_one_or_none()
+        if project is None:
+            raise NotFoundError("Project not found.")
 
     def add(self, entry: RegisterEntry) -> None:
+        self._ensure_project_in_scope(entry.project_id)
         self.session.add(register_entry_to_orm(entry))
 
     def update(self, entry: RegisterEntry) -> None:
+        if self.get(entry.id) is None:
+            raise BusinessRuleError("Register entry not found.")
+        self._ensure_project_in_scope(entry.project_id)
         entry.version = update_with_version_check(
             self.session,
             RegisterEntryORM,
@@ -42,16 +83,26 @@ class SqlAlchemyRegisterEntryRepository(RegisterEntryRepository):
                 "created_at": entry.created_at,
                 "updated_at": entry.updated_at,
             },
+            extra_filters={"project_id": entry.project_id},
             not_found_message="Register entry not found.",
             stale_message="Register entry was updated by another user.",
         )
 
     def delete(self, entry_id: str) -> None:
-        self.session.query(RegisterEntryORM).filter_by(id=entry_id).delete()
+        self.session.execute(
+            RegisterEntryORM.__table__.delete().where(
+                RegisterEntryORM.id.in_(
+                    self._project_scoped_stmt()
+                    .where(RegisterEntryORM.id == entry_id)
+                    .with_only_columns(RegisterEntryORM.id)
+                )
+            )
+        )
 
     def get(self, entry_id: str) -> RegisterEntry | None:
-        obj = self.session.get(RegisterEntryORM, entry_id)
-        return register_entry_from_orm(obj) if obj else None
+        stmt = self._project_scoped_stmt().where(RegisterEntryORM.id == entry_id)
+        row = self.session.execute(stmt).scalar_one_or_none()
+        return register_entry_from_orm(row) if row else None
 
     def list_entries(
         self,
@@ -61,7 +112,7 @@ class SqlAlchemyRegisterEntryRepository(RegisterEntryRepository):
         status: RegisterEntryStatus | None = None,
         severity: RegisterEntrySeverity | None = None,
     ) -> list[RegisterEntry]:
-        stmt = select(RegisterEntryORM)
+        stmt = self._project_scoped_stmt()
         if project_id:
             stmt = stmt.where(RegisterEntryORM.project_id == project_id)
         if entry_type is not None:

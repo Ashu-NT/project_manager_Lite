@@ -14,6 +14,7 @@ class Organization:
     base_currency: str = "EUR"
     is_active: bool = True
     version: int = 1
+    tenant_id: str | None = None
 
     @staticmethod
     def create(
@@ -22,6 +23,7 @@ class Organization:
         timezone_name: str = "UTC",
         base_currency: str = "EUR",
         is_active: bool = True,
+        tenant_id: str | None = None,
     ) -> "Organization":
         return Organization(
             id=generate_id(),
@@ -31,6 +33,7 @@ class Organization:
             base_currency=base_currency,
             is_active=is_active,
             version=1,
+            tenant_id=tenant_id,
         )
 
 

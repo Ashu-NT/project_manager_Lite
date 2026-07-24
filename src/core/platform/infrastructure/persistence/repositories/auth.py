@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.core.platform.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.infrastructure.persistence.orm.user_tenant import UserTenantORM
 from src.core.platform.auth.contracts import (
     AuthSessionRepository,
     PermissionRepository,
@@ -101,6 +105,16 @@ class SqlAlchemyUserRepository(UserRepository):
         rows = self.session.execute(select(UserORM)).scalars().all()
         return [user_from_orm(row) for row in rows]
 
+    def list_for_tenant(self, tenant_id: str) -> list[UserAccount]:
+        stmt = (
+            select(UserORM)
+            .join(UserTenantORM, UserTenantORM.user_id == UserORM.id)
+            .where(UserTenantORM.tenant_id == tenant_id)
+            .where(UserTenantORM.is_active.is_(True))
+        )
+        rows = self.session.execute(stmt).scalars().all()
+        return [user_from_orm(row) for row in rows]
+
 
 class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
     session: Session
@@ -119,6 +133,8 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
         obj.session_revision = auth_session.session_revision
         obj.auth_method = auth_session.auth_method
         obj.device_label = auth_session.device_label
+        obj.last_active_tenant_id = getattr(auth_session, "last_active_tenant_id", None)
+        obj.last_active_organization_id = getattr(auth_session, "last_active_organization_id", None)
         obj.issued_at = auth_session.issued_at
         obj.expires_at = auth_session.expires_at
         obj.last_validated_at = auth_session.last_validated_at
@@ -134,6 +150,53 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
         stmt = select(AuthSessionORM).where(AuthSessionORM.user_id == user_id)
         rows = self.session.execute(stmt.order_by(AuthSessionORM.issued_at.desc())).scalars().all()
         return [auth_session_from_orm(row) for row in rows]
+
+    def persist_context(
+        self,
+        session_id: str,
+        *,
+        last_active_tenant_id: str | None,
+        last_active_organization_id: str | None,
+        updated_at: datetime,
+    ) -> bool:
+        normalized_tenant_id = str(last_active_tenant_id or "").strip() or None
+        normalized_organization_id = str(last_active_organization_id or "").strip() or None
+        normalized_updated_at = ensure_utc_datetime(updated_at)
+        obj = self.session.get(AuthSessionORM, session_id)
+        if obj is None:
+            return False
+        if (
+            obj.last_active_tenant_id == normalized_tenant_id
+            and obj.last_active_organization_id == normalized_organization_id
+        ):
+            return False
+        obj.last_active_tenant_id = normalized_tenant_id
+        obj.last_active_organization_id = normalized_organization_id
+        obj.updated_at = normalized_updated_at
+        return True
+
+    def touch_validation(
+        self,
+        session_id: str,
+        *,
+        validated_at: datetime,
+        throttle_seconds: int = 60,
+    ) -> bool:
+        min_elapsed_seconds = max(0, int(throttle_seconds or 0))
+        obj = self.session.get(AuthSessionORM, session_id)
+        if obj is None:
+            return False
+        current_validated_at = ensure_utc_datetime(obj.last_validated_at)
+        if (
+            current_validated_at is not None
+            and min_elapsed_seconds > 0
+            and (validated_at - current_validated_at).total_seconds() < min_elapsed_seconds
+        ):
+            return False
+        obj.last_validated_at = validated_at
+        obj.updated_at = validated_at
+        self.session.flush()
+        return True
 
 
 class SqlAlchemyRoleRepository(RoleRepository):
@@ -189,22 +252,44 @@ class SqlAlchemyUserRoleRepository(UserRoleRepository):
         self.session = session
 
     def add(self, binding: UserRoleBinding) -> None:
-        if self.exists(binding.user_id, binding.role_id):
+        if self.exists(binding.user_id, binding.role_id, organization_id=binding.organization_id):
             return
         self.session.add(user_role_to_orm(binding))
 
-    def delete(self, user_id: str, role_id: str) -> None:
-        self.session.query(UserRoleORM).filter_by(user_id=user_id, role_id=role_id).delete()
+    def delete(self, user_id: str, role_id: str, organization_id: str | None = None) -> None:
+        stmt = (
+            self.session.query(UserRoleORM)
+            .filter_by(user_id=user_id, role_id=role_id)
+        )
+        if organization_id is None:
+            stmt = stmt.filter(UserRoleORM.organization_id.is_(None))
+        else:
+            stmt = stmt.filter(UserRoleORM.organization_id == organization_id)
+        stmt.delete()
 
-    def exists(self, user_id: str, role_id: str) -> bool:
+    def exists(self, user_id: str, role_id: str, organization_id: str | None = None) -> bool:
         stmt = select(UserRoleORM.id).where(
             UserRoleORM.user_id == user_id,
             UserRoleORM.role_id == role_id,
         )
+        if organization_id is None:
+            stmt = stmt.where(UserRoleORM.organization_id.is_(None))
+        else:
+            stmt = stmt.where(UserRoleORM.organization_id == organization_id)
         return self.session.execute(stmt).first() is not None
 
     def list_role_ids(self, user_id: str) -> list[str]:
-        stmt = select(UserRoleORM.role_id).where(UserRoleORM.user_id == user_id)
+        stmt = select(UserRoleORM.role_id).where(
+            UserRoleORM.user_id == user_id,
+            UserRoleORM.organization_id.is_(None),
+        )
+        return list(self.session.execute(stmt).scalars().all())
+
+    def list_role_ids_for_organization(self, user_id: str, organization_id: str) -> list[str]:
+        stmt = select(UserRoleORM.role_id).where(
+            UserRoleORM.user_id == user_id,
+            UserRoleORM.organization_id == organization_id,
+        )
         return list(self.session.execute(stmt).scalars().all())
 
 

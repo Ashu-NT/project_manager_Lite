@@ -103,17 +103,48 @@ from src.core.modules.maintenance.infrastructure.persistence.orm.models import (
     MaintenanceWorkOrderTaskStepORM,
     MaintenanceWorkRequestORM,
 )
+from src.core.modules.maintenance.infrastructure.persistence.repositories._tenant_scope import (
+    MaintenanceParentScopedRepositorySupport,
+    MaintenanceTenantScopedRepositorySupport,
+)
+from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.tenancy.tenant_context import (
+    TenantContextService,
+    require_tenant_context_service,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
-class SqlAlchemyMaintenanceLocationRepository(MaintenanceLocationRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceLocationRepository(
+    MaintenanceLocationRepository, MaintenanceTenantScopedRepositorySupport
+):
+    _repository_label = "Maintenance location repository"
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, location: MaintenanceLocation) -> None:
-        self.session.add(maintenance_location_to_orm(location))
+        ctx = self._context(operation_label="add maintenance location")
+        orm = maintenance_location_to_orm(location)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, location: MaintenanceLocation) -> None:
+        self._require_in_scope(
+            MaintenanceLocationORM,
+            location.id,
+            operation_label="update maintenance location",
+            not_found_message="Maintenance location not found.",
+        )
         location.version = update_with_version_check(
             self.session,
             MaintenanceLocationORM,
@@ -138,7 +169,11 @@ class SqlAlchemyMaintenanceLocationRepository(MaintenanceLocationRepository):
         )
 
     def get(self, location_id: str) -> MaintenanceLocation | None:
-        obj = self.session.get(MaintenanceLocationORM, location_id)
+        obj = self._get_in_scope(
+            MaintenanceLocationORM,
+            location_id,
+            operation_label="get maintenance location",
+        )
         return maintenance_location_from_orm(obj) if obj else None
 
     def get_by_code(
@@ -146,10 +181,14 @@ class SqlAlchemyMaintenanceLocationRepository(MaintenanceLocationRepository):
         organization_id: str,
         location_code: str,
     ) -> MaintenanceLocation | None:
+        ctx = self._context(operation_label="get maintenance location by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(MaintenanceLocationORM).where(
             MaintenanceLocationORM.organization_id == organization_id,
             MaintenanceLocationORM.location_code == location_code,
         )
+        stmt = self._apply_scope(stmt, MaintenanceLocationORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_location_from_orm(obj) if obj else None
 
@@ -161,7 +200,11 @@ class SqlAlchemyMaintenanceLocationRepository(MaintenanceLocationRepository):
         site_id: str | None = None,
         parent_location_id: str | None = None,
     ) -> list[MaintenanceLocation]:
+        ctx = self._context(operation_label="list maintenance locations")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(MaintenanceLocationORM).where(MaintenanceLocationORM.organization_id == organization_id)
+        stmt = self._apply_scope(stmt, MaintenanceLocationORM, ctx)
         if active_only is not None:
             stmt = stmt.where(MaintenanceLocationORM.is_active == bool(active_only))
         if site_id is not None:
@@ -174,14 +217,36 @@ class SqlAlchemyMaintenanceLocationRepository(MaintenanceLocationRepository):
         return [maintenance_location_from_orm(row) for row in rows]
 
 
-class SqlAlchemyMaintenanceSystemRepository(MaintenanceSystemRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceSystemRepository(
+    MaintenanceSystemRepository, MaintenanceTenantScopedRepositorySupport
+):
+    _repository_label = "Maintenance system repository"
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, system: MaintenanceSystem) -> None:
-        self.session.add(maintenance_system_to_orm(system))
+        ctx = self._context(operation_label="add maintenance system")
+        orm = maintenance_system_to_orm(system)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, system: MaintenanceSystem) -> None:
+        self._require_in_scope(
+            MaintenanceSystemORM,
+            system.id,
+            operation_label="update maintenance system",
+            not_found_message="Maintenance system not found.",
+        )
         system.version = update_with_version_check(
             self.session,
             MaintenanceSystemORM,
@@ -207,7 +272,11 @@ class SqlAlchemyMaintenanceSystemRepository(MaintenanceSystemRepository):
         )
 
     def get(self, system_id: str) -> MaintenanceSystem | None:
-        obj = self.session.get(MaintenanceSystemORM, system_id)
+        obj = self._get_in_scope(
+            MaintenanceSystemORM,
+            system_id,
+            operation_label="get maintenance system",
+        )
         return maintenance_system_from_orm(obj) if obj else None
 
     def get_by_code(
@@ -215,10 +284,14 @@ class SqlAlchemyMaintenanceSystemRepository(MaintenanceSystemRepository):
         organization_id: str,
         system_code: str,
     ) -> MaintenanceSystem | None:
+        ctx = self._context(operation_label="get maintenance system by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(MaintenanceSystemORM).where(
             MaintenanceSystemORM.organization_id == organization_id,
             MaintenanceSystemORM.system_code == system_code,
         )
+        stmt = self._apply_scope(stmt, MaintenanceSystemORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_system_from_orm(obj) if obj else None
 
@@ -231,7 +304,11 @@ class SqlAlchemyMaintenanceSystemRepository(MaintenanceSystemRepository):
         location_id: str | None = None,
         parent_system_id: str | None = None,
     ) -> list[MaintenanceSystem]:
+        ctx = self._context(operation_label="list maintenance systems")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(MaintenanceSystemORM).where(MaintenanceSystemORM.organization_id == organization_id)
+        stmt = self._apply_scope(stmt, MaintenanceSystemORM, ctx)
         if active_only is not None:
             stmt = stmt.where(MaintenanceSystemORM.is_active == bool(active_only))
         if site_id is not None:
@@ -246,14 +323,36 @@ class SqlAlchemyMaintenanceSystemRepository(MaintenanceSystemRepository):
         return [maintenance_system_from_orm(row) for row in rows]
 
 
-class SqlAlchemyMaintenanceAssetRepository(MaintenanceAssetRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceAssetRepository(
+    MaintenanceAssetRepository, MaintenanceTenantScopedRepositorySupport
+):
+    _repository_label = "Maintenance asset repository"
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, asset: MaintenanceAsset) -> None:
-        self.session.add(maintenance_asset_to_orm(asset))
+        ctx = self._context(operation_label="add maintenance asset")
+        orm = maintenance_asset_to_orm(asset)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, asset: MaintenanceAsset) -> None:
+        self._require_in_scope(
+            MaintenanceAssetORM,
+            asset.id,
+            operation_label="update maintenance asset",
+            not_found_message="Maintenance asset not found.",
+        )
         asset.version = update_with_version_check(
             self.session,
             MaintenanceAssetORM,
@@ -295,7 +394,11 @@ class SqlAlchemyMaintenanceAssetRepository(MaintenanceAssetRepository):
         )
 
     def get(self, asset_id: str) -> MaintenanceAsset | None:
-        obj = self.session.get(MaintenanceAssetORM, asset_id)
+        obj = self._get_in_scope(
+            MaintenanceAssetORM,
+            asset_id,
+            operation_label="get maintenance asset",
+        )
         return maintenance_asset_from_orm(obj) if obj else None
 
     def get_by_code(
@@ -303,10 +406,14 @@ class SqlAlchemyMaintenanceAssetRepository(MaintenanceAssetRepository):
         organization_id: str,
         asset_code: str,
     ) -> MaintenanceAsset | None:
+        ctx = self._context(operation_label="get maintenance asset by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(MaintenanceAssetORM).where(
             MaintenanceAssetORM.organization_id == organization_id,
             MaintenanceAssetORM.asset_code == asset_code,
         )
+        stmt = self._apply_scope(stmt, MaintenanceAssetORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_asset_from_orm(obj) if obj else None
 
@@ -321,7 +428,11 @@ class SqlAlchemyMaintenanceAssetRepository(MaintenanceAssetRepository):
         parent_asset_id: str | None = None,
         asset_category: str | None = None,
     ) -> list[MaintenanceAsset]:
+        ctx = self._context(operation_label="list maintenance assets")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(MaintenanceAssetORM).where(MaintenanceAssetORM.organization_id == organization_id)
+        stmt = self._apply_scope(stmt, MaintenanceAssetORM, ctx)
         if active_only is not None:
             stmt = stmt.where(MaintenanceAssetORM.is_active == bool(active_only))
         if site_id is not None:
@@ -340,14 +451,68 @@ class SqlAlchemyMaintenanceAssetRepository(MaintenanceAssetRepository):
         return [maintenance_asset_from_orm(row) for row in rows]
 
 
-class SqlAlchemyMaintenanceAssetComponentRepository(MaintenanceAssetComponentRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceAssetComponentRepository(
+    MaintenanceAssetComponentRepository, MaintenanceParentScopedRepositorySupport
+):
+    _repository_label = "Maintenance asset component repository"
+    _scope_joins = (
+        (MaintenanceAssetORM, MaintenanceAssetComponentORM.asset_id == MaintenanceAssetORM.id),
+    )
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, component: MaintenanceAssetComponent) -> None:
+        self._require_in_scope(
+            MaintenanceAssetORM,
+            component.asset_id,
+            operation_label="add maintenance asset component",
+            not_found_message="Maintenance asset not found.",
+        )
+        if component.parent_component_id:
+            self._require_via_anchor_in_scope(
+                MaintenanceAssetComponentORM,
+                MaintenanceAssetORM,
+                joins=self._scope_joins,
+                record_id=component.parent_component_id,
+                operation_label="validate maintenance parent component",
+                not_found_message="Maintenance asset component not found.",
+            )
         self.session.add(maintenance_asset_component_to_orm(component))
 
     def update(self, component: MaintenanceAssetComponent) -> None:
+        self._require_via_anchor_in_scope(
+            MaintenanceAssetComponentORM,
+            MaintenanceAssetORM,
+            joins=self._scope_joins,
+            record_id=component.id,
+            operation_label="update maintenance asset component",
+            not_found_message="Maintenance asset component not found.",
+        )
+        self._require_in_scope(
+            MaintenanceAssetORM,
+            component.asset_id,
+            operation_label="update maintenance asset component asset",
+            not_found_message="Maintenance asset not found.",
+        )
+        if component.parent_component_id:
+            self._require_via_anchor_in_scope(
+                MaintenanceAssetComponentORM,
+                MaintenanceAssetORM,
+                joins=self._scope_joins,
+                record_id=component.parent_component_id,
+                operation_label="update maintenance asset component parent",
+                not_found_message="Maintenance asset component not found.",
+            )
         component.version = update_with_version_check(
             self.session,
             MaintenanceAssetComponentORM,
@@ -382,7 +547,13 @@ class SqlAlchemyMaintenanceAssetComponentRepository(MaintenanceAssetComponentRep
         )
 
     def get(self, component_id: str) -> MaintenanceAssetComponent | None:
-        obj = self.session.get(MaintenanceAssetComponentORM, component_id)
+        obj = self._get_via_anchor_in_scope(
+            MaintenanceAssetComponentORM,
+            MaintenanceAssetORM,
+            joins=self._scope_joins,
+            record_id=component_id,
+            operation_label="get maintenance asset component",
+        )
         return maintenance_asset_component_from_orm(obj) if obj else None
 
     def get_by_code(
@@ -390,7 +561,15 @@ class SqlAlchemyMaintenanceAssetComponentRepository(MaintenanceAssetComponentRep
         organization_id: str,
         component_code: str,
     ) -> MaintenanceAssetComponent | None:
-        stmt = select(MaintenanceAssetComponentORM).where(
+        ctx = self._context(operation_label="get maintenance asset component by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
+        stmt = self._scoped_stmt_for_anchor(
+            MaintenanceAssetComponentORM,
+            MaintenanceAssetORM,
+            joins=self._scope_joins,
+            operation_label="get maintenance asset component by code",
+        ).where(
             MaintenanceAssetComponentORM.organization_id == organization_id,
             MaintenanceAssetComponentORM.component_code == component_code,
         )
@@ -406,9 +585,15 @@ class SqlAlchemyMaintenanceAssetComponentRepository(MaintenanceAssetComponentRep
         parent_component_id: str | None = None,
         component_type: str | None = None,
     ) -> list[MaintenanceAssetComponent]:
-        stmt = select(MaintenanceAssetComponentORM).where(
-            MaintenanceAssetComponentORM.organization_id == organization_id
-        )
+        ctx = self._context(operation_label="list maintenance asset components")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
+        stmt = self._scoped_stmt_for_anchor(
+            MaintenanceAssetComponentORM,
+            MaintenanceAssetORM,
+            joins=self._scope_joins,
+            operation_label="list maintenance asset components",
+        ).where(MaintenanceAssetComponentORM.organization_id == organization_id)
         if active_only is not None:
             stmt = stmt.where(MaintenanceAssetComponentORM.is_active == bool(active_only))
         if asset_id is not None:
@@ -423,14 +608,36 @@ class SqlAlchemyMaintenanceAssetComponentRepository(MaintenanceAssetComponentRep
         return [maintenance_asset_component_from_orm(row) for row in rows]
 
 
-class SqlAlchemyMaintenanceSensorRepository(MaintenanceSensorRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceSensorRepository(
+    MaintenanceSensorRepository, MaintenanceTenantScopedRepositorySupport
+):
+    _repository_label = "Maintenance sensor repository"
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, sensor: MaintenanceSensor) -> None:
-        self.session.add(maintenance_sensor_to_orm(sensor))
+        ctx = self._context(operation_label="add maintenance sensor")
+        orm = maintenance_sensor_to_orm(sensor)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, sensor: MaintenanceSensor) -> None:
+        self._require_in_scope(
+            MaintenanceSensorORM,
+            sensor.id,
+            operation_label="update maintenance sensor",
+            not_found_message="Maintenance sensor not found.",
+        )
         sensor.version = update_with_version_check(
             self.session,
             MaintenanceSensorORM,
@@ -462,7 +669,11 @@ class SqlAlchemyMaintenanceSensorRepository(MaintenanceSensorRepository):
         )
 
     def get(self, sensor_id: str) -> MaintenanceSensor | None:
-        obj = self.session.get(MaintenanceSensorORM, sensor_id)
+        obj = self._get_in_scope(
+            MaintenanceSensorORM,
+            sensor_id,
+            operation_label="get maintenance sensor",
+        )
         return maintenance_sensor_from_orm(obj) if obj else None
 
     def get_by_code(
@@ -470,10 +681,14 @@ class SqlAlchemyMaintenanceSensorRepository(MaintenanceSensorRepository):
         organization_id: str,
         sensor_code: str,
     ) -> MaintenanceSensor | None:
+        ctx = self._context(operation_label="get maintenance sensor by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(MaintenanceSensorORM).where(
             MaintenanceSensorORM.organization_id == organization_id,
             MaintenanceSensorORM.sensor_code == sensor_code,
         )
+        stmt = self._apply_scope(stmt, MaintenanceSensorORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_sensor_from_orm(obj) if obj else None
 
@@ -489,7 +704,11 @@ class SqlAlchemyMaintenanceSensorRepository(MaintenanceSensorRepository):
         sensor_type: str | None = None,
         source_type: str | None = None,
     ) -> list[MaintenanceSensor]:
+        ctx = self._context(operation_label="list maintenance sensors")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(MaintenanceSensorORM).where(MaintenanceSensorORM.organization_id == organization_id)
+        stmt = self._apply_scope(stmt, MaintenanceSensorORM, ctx)
         if active_only is not None:
             stmt = stmt.where(MaintenanceSensorORM.is_active == bool(active_only))
         if site_id is not None:
@@ -510,15 +729,43 @@ class SqlAlchemyMaintenanceSensorRepository(MaintenanceSensorRepository):
         return [maintenance_sensor_from_orm(row) for row in rows]
 
 
-class SqlAlchemyMaintenanceSensorReadingRepository(MaintenanceSensorReadingRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceSensorReadingRepository(
+    MaintenanceSensorReadingRepository, MaintenanceParentScopedRepositorySupport
+):
+    _repository_label = "Maintenance sensor reading repository"
+    _scope_joins = (
+        (MaintenanceSensorORM, MaintenanceSensorReadingORM.sensor_id == MaintenanceSensorORM.id),
+    )
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, sensor_reading: MaintenanceSensorReading) -> None:
+        self._require_in_scope(
+            MaintenanceSensorORM,
+            sensor_reading.sensor_id,
+            operation_label="add maintenance sensor reading",
+            not_found_message="Maintenance sensor not found.",
+        )
         self.session.add(maintenance_sensor_reading_to_orm(sensor_reading))
 
     def get(self, sensor_reading_id: str) -> MaintenanceSensorReading | None:
-        obj = self.session.get(MaintenanceSensorReadingORM, sensor_reading_id)
+        obj = self._get_via_anchor_in_scope(
+            MaintenanceSensorReadingORM,
+            MaintenanceSensorORM,
+            joins=self._scope_joins,
+            record_id=sensor_reading_id,
+            operation_label="get maintenance sensor reading",
+        )
         return maintenance_sensor_reading_from_orm(obj) if obj else None
 
     def list_for_organization(
@@ -531,9 +778,15 @@ class SqlAlchemyMaintenanceSensorReadingRepository(MaintenanceSensorReadingRepos
         reading_from=None,
         reading_to=None,
     ) -> list[MaintenanceSensorReading]:
-        stmt = select(MaintenanceSensorReadingORM).where(
-            MaintenanceSensorReadingORM.organization_id == organization_id
-        )
+        ctx = self._context(operation_label="list maintenance sensor readings")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
+        stmt = self._scoped_stmt_for_anchor(
+            MaintenanceSensorReadingORM,
+            MaintenanceSensorORM,
+            joins=self._scope_joins,
+            operation_label="list maintenance sensor readings",
+        ).where(MaintenanceSensorReadingORM.organization_id == organization_id)
         if sensor_id is not None:
             stmt = stmt.where(MaintenanceSensorReadingORM.sensor_id == sensor_id)
         if quality_state is not None:
@@ -550,14 +803,36 @@ class SqlAlchemyMaintenanceSensorReadingRepository(MaintenanceSensorReadingRepos
         return [maintenance_sensor_reading_from_orm(row) for row in rows]
 
 
-class SqlAlchemyMaintenanceIntegrationSourceRepository(MaintenanceIntegrationSourceRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceIntegrationSourceRepository(
+    MaintenanceIntegrationSourceRepository, MaintenanceTenantScopedRepositorySupport
+):
+    _repository_label = "Maintenance integration source repository"
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, integration_source: MaintenanceIntegrationSource) -> None:
-        self.session.add(maintenance_integration_source_to_orm(integration_source))
+        ctx = self._context(operation_label="add maintenance integration source")
+        orm = maintenance_integration_source_to_orm(integration_source)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, integration_source: MaintenanceIntegrationSource) -> None:
+        self._require_in_scope(
+            MaintenanceIntegrationSourceORM,
+            integration_source.id,
+            operation_label="update maintenance integration source",
+            not_found_message="Maintenance integration source not found.",
+        )
         integration_source.version = update_with_version_check(
             self.session,
             MaintenanceIntegrationSourceORM,
@@ -583,7 +858,11 @@ class SqlAlchemyMaintenanceIntegrationSourceRepository(MaintenanceIntegrationSou
         )
 
     def get(self, integration_source_id: str) -> MaintenanceIntegrationSource | None:
-        obj = self.session.get(MaintenanceIntegrationSourceORM, integration_source_id)
+        obj = self._get_in_scope(
+            MaintenanceIntegrationSourceORM,
+            integration_source_id,
+            operation_label="get maintenance integration source",
+        )
         return maintenance_integration_source_from_orm(obj) if obj else None
 
     def get_by_code(
@@ -591,10 +870,14 @@ class SqlAlchemyMaintenanceIntegrationSourceRepository(MaintenanceIntegrationSou
         organization_id: str,
         integration_code: str,
     ) -> MaintenanceIntegrationSource | None:
+        ctx = self._context(operation_label="get maintenance integration source by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(MaintenanceIntegrationSourceORM).where(
             MaintenanceIntegrationSourceORM.organization_id == organization_id,
             MaintenanceIntegrationSourceORM.integration_code == integration_code,
         )
+        stmt = self._apply_scope(stmt, MaintenanceIntegrationSourceORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_integration_source_from_orm(obj) if obj else None
 
@@ -605,9 +888,13 @@ class SqlAlchemyMaintenanceIntegrationSourceRepository(MaintenanceIntegrationSou
         active_only: bool | None = None,
         integration_type: str | None = None,
     ) -> list[MaintenanceIntegrationSource]:
+        ctx = self._context(operation_label="list maintenance integration sources")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(MaintenanceIntegrationSourceORM).where(
             MaintenanceIntegrationSourceORM.organization_id == organization_id
         )
+        stmt = self._apply_scope(stmt, MaintenanceIntegrationSourceORM, ctx)
         if active_only is not None:
             stmt = stmt.where(MaintenanceIntegrationSourceORM.is_active == bool(active_only))
         if integration_type is not None:
@@ -621,14 +908,62 @@ class SqlAlchemyMaintenanceIntegrationSourceRepository(MaintenanceIntegrationSou
         return [maintenance_integration_source_from_orm(row) for row in rows]
 
 
-class SqlAlchemyMaintenanceSensorSourceMappingRepository(MaintenanceSensorSourceMappingRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceSensorSourceMappingRepository(
+    MaintenanceSensorSourceMappingRepository, MaintenanceParentScopedRepositorySupport
+):
+    _repository_label = "Maintenance sensor source mapping repository"
+    _scope_joins = (
+        (MaintenanceSensorORM, MaintenanceSensorSourceMappingORM.sensor_id == MaintenanceSensorORM.id),
+    )
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, sensor_source_mapping: MaintenanceSensorSourceMapping) -> None:
+        self._require_in_scope(
+            MaintenanceSensorORM,
+            sensor_source_mapping.sensor_id,
+            operation_label="add maintenance sensor source mapping",
+            not_found_message="Maintenance sensor not found.",
+        )
+        self._require_in_scope(
+            MaintenanceIntegrationSourceORM,
+            sensor_source_mapping.integration_source_id,
+            operation_label="add maintenance sensor source mapping integration source",
+            not_found_message="Maintenance integration source not found.",
+        )
         self.session.add(maintenance_sensor_source_mapping_to_orm(sensor_source_mapping))
 
     def update(self, sensor_source_mapping: MaintenanceSensorSourceMapping) -> None:
+        self._require_via_anchor_in_scope(
+            MaintenanceSensorSourceMappingORM,
+            MaintenanceSensorORM,
+            joins=self._scope_joins,
+            record_id=sensor_source_mapping.id,
+            operation_label="update maintenance sensor source mapping",
+            not_found_message="Maintenance sensor source mapping not found.",
+        )
+        self._require_in_scope(
+            MaintenanceSensorORM,
+            sensor_source_mapping.sensor_id,
+            operation_label="update maintenance sensor source mapping sensor",
+            not_found_message="Maintenance sensor not found.",
+        )
+        self._require_in_scope(
+            MaintenanceIntegrationSourceORM,
+            sensor_source_mapping.integration_source_id,
+            operation_label="update maintenance sensor source mapping integration source",
+            not_found_message="Maintenance integration source not found.",
+        )
         sensor_source_mapping.version = update_with_version_check(
             self.session,
             MaintenanceSensorSourceMappingORM,
@@ -651,7 +986,13 @@ class SqlAlchemyMaintenanceSensorSourceMappingRepository(MaintenanceSensorSource
         )
 
     def get(self, sensor_source_mapping_id: str) -> MaintenanceSensorSourceMapping | None:
-        obj = self.session.get(MaintenanceSensorSourceMappingORM, sensor_source_mapping_id)
+        obj = self._get_via_anchor_in_scope(
+            MaintenanceSensorSourceMappingORM,
+            MaintenanceSensorORM,
+            joins=self._scope_joins,
+            record_id=sensor_source_mapping_id,
+            operation_label="get maintenance sensor source mapping",
+        )
         return maintenance_sensor_source_mapping_from_orm(obj) if obj else None
 
     def list_for_organization(
@@ -662,9 +1003,15 @@ class SqlAlchemyMaintenanceSensorSourceMappingRepository(MaintenanceSensorSource
         sensor_id: str | None = None,
         active_only: bool | None = None,
     ) -> list[MaintenanceSensorSourceMapping]:
-        stmt = select(MaintenanceSensorSourceMappingORM).where(
-            MaintenanceSensorSourceMappingORM.organization_id == organization_id
-        )
+        ctx = self._context(operation_label="list maintenance sensor source mappings")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
+        stmt = self._scoped_stmt_for_anchor(
+            MaintenanceSensorSourceMappingORM,
+            MaintenanceSensorORM,
+            joins=self._scope_joins,
+            operation_label="list maintenance sensor source mappings",
+        ).where(MaintenanceSensorSourceMappingORM.organization_id == organization_id)
         if integration_source_id is not None:
             stmt = stmt.where(MaintenanceSensorSourceMappingORM.integration_source_id == integration_source_id)
         if sensor_id is not None:
@@ -680,14 +1027,121 @@ class SqlAlchemyMaintenanceSensorSourceMappingRepository(MaintenanceSensorSource
         return [maintenance_sensor_source_mapping_from_orm(row) for row in rows]
 
 
-class SqlAlchemyMaintenanceSensorExceptionRepository(MaintenanceSensorExceptionRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceSensorExceptionRepository(
+    MaintenanceSensorExceptionRepository, MaintenanceParentScopedRepositorySupport
+):
+    _repository_label = "Maintenance sensor exception repository"
+    _mapping_scope_joins = (
+        (MaintenanceSensorORM, MaintenanceSensorSourceMappingORM.sensor_id == MaintenanceSensorORM.id),
+    )
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
+
+    def _exception_references_in_scope(
+        self,
+        sensor_exception: MaintenanceSensorException | MaintenanceSensorExceptionORM,
+        *,
+        operation_label: str,
+    ) -> bool:
+        if sensor_exception.sensor_id and self._get_in_scope(
+            MaintenanceSensorORM,
+            sensor_exception.sensor_id,
+            operation_label=f"{operation_label} sensor",
+        ) is None:
+            return False
+        if sensor_exception.source_mapping_id and self._get_via_anchor_in_scope(
+            MaintenanceSensorSourceMappingORM,
+            MaintenanceSensorORM,
+            joins=self._mapping_scope_joins,
+            record_id=sensor_exception.source_mapping_id,
+            operation_label=f"{operation_label} source mapping",
+        ) is None:
+            return False
+        if sensor_exception.integration_source_id and self._get_in_scope(
+            MaintenanceIntegrationSourceORM,
+            sensor_exception.integration_source_id,
+            operation_label=f"{operation_label} integration source",
+        ) is None:
+            return False
+        return True
+
+    def _require_exception_references_in_scope(
+        self,
+        sensor_exception: MaintenanceSensorException | MaintenanceSensorExceptionORM,
+        *,
+        operation_label: str,
+    ) -> None:
+        if sensor_exception.sensor_id:
+            self._require_in_scope(
+                MaintenanceSensorORM,
+                sensor_exception.sensor_id,
+                operation_label=f"{operation_label} sensor",
+                not_found_message="Maintenance sensor not found.",
+            )
+        if sensor_exception.source_mapping_id:
+            self._require_via_anchor_in_scope(
+                MaintenanceSensorSourceMappingORM,
+                MaintenanceSensorORM,
+                joins=self._mapping_scope_joins,
+                record_id=sensor_exception.source_mapping_id,
+                operation_label=f"{operation_label} source mapping",
+                not_found_message="Maintenance sensor source mapping not found.",
+            )
+        if sensor_exception.integration_source_id:
+            self._require_in_scope(
+                MaintenanceIntegrationSourceORM,
+                sensor_exception.integration_source_id,
+                operation_label=f"{operation_label} integration source",
+                not_found_message="Maintenance integration source not found.",
+            )
+
+    def _get_exception_in_scope(
+        self,
+        sensor_exception_id: str,
+        *,
+        operation_label: str,
+    ):
+        ctx = self._context(operation_label=operation_label)
+        stmt = select(MaintenanceSensorExceptionORM).where(
+            MaintenanceSensorExceptionORM.id == sensor_exception_id,
+            MaintenanceSensorExceptionORM.organization_id == ctx.organization_id,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        if obj is None or not self._exception_references_in_scope(
+            obj,
+            operation_label=operation_label,
+        ):
+            return None
+        return obj
 
     def add(self, sensor_exception: MaintenanceSensorException) -> None:
+        self._context(operation_label="add maintenance sensor exception")
+        self._require_exception_references_in_scope(
+            sensor_exception,
+            operation_label="add maintenance sensor exception",
+        )
         self.session.add(maintenance_sensor_exception_to_orm(sensor_exception))
 
     def update(self, sensor_exception: MaintenanceSensorException) -> None:
+        if self._get_exception_in_scope(
+            sensor_exception.id,
+            operation_label="update maintenance sensor exception",
+        ) is None:
+            raise NotFoundError("Maintenance sensor exception not found.")
+        self._require_exception_references_in_scope(
+            sensor_exception,
+            operation_label="update maintenance sensor exception",
+        )
         sensor_exception.version = update_with_version_check(
             self.session,
             MaintenanceSensorExceptionORM,
@@ -716,7 +1170,10 @@ class SqlAlchemyMaintenanceSensorExceptionRepository(MaintenanceSensorExceptionR
         )
 
     def get(self, sensor_exception_id: str) -> MaintenanceSensorException | None:
-        obj = self.session.get(MaintenanceSensorExceptionORM, sensor_exception_id)
+        obj = self._get_exception_in_scope(
+            sensor_exception_id,
+            operation_label="get maintenance sensor exception",
+        )
         return maintenance_sensor_exception_from_orm(obj) if obj else None
 
     def list_for_organization(
@@ -730,6 +1187,9 @@ class SqlAlchemyMaintenanceSensorExceptionRepository(MaintenanceSensorExceptionR
         status: str | None = None,
         source_batch_id: str | None = None,
     ) -> list[MaintenanceSensorException]:
+        ctx = self._context(operation_label="list maintenance sensor exceptions")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(MaintenanceSensorExceptionORM).where(
             MaintenanceSensorExceptionORM.organization_id == organization_id
         )
@@ -751,17 +1211,46 @@ class SqlAlchemyMaintenanceSensorExceptionRepository(MaintenanceSensorExceptionR
                 MaintenanceSensorExceptionORM.created_at.desc(),
             )
         ).scalars().all()
-        return [maintenance_sensor_exception_from_orm(row) for row in rows]
+        return [
+            maintenance_sensor_exception_from_orm(row)
+            for row in rows
+            if self._exception_references_in_scope(
+                row,
+                operation_label="list maintenance sensor exceptions",
+            )
+        ]
 
 
-class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceWorkRequestRepository(
+    MaintenanceWorkRequestRepository, MaintenanceTenantScopedRepositorySupport
+):
+    _repository_label = "Maintenance work request repository"
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, work_request: MaintenanceWorkRequest) -> None:
-        self.session.add(maintenance_work_request_to_orm(work_request))
+        ctx = self._context(operation_label="add maintenance work request")
+        orm = maintenance_work_request_to_orm(work_request)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, work_request: MaintenanceWorkRequest) -> None:
+        self._require_in_scope(
+            MaintenanceWorkRequestORM,
+            work_request.id,
+            operation_label="update maintenance work request",
+            not_found_message="Maintenance work request not found.",
+        )
         work_request.version = update_with_version_check(
             self.session,
             MaintenanceWorkRequestORM,
@@ -801,7 +1290,11 @@ class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepositor
         )
 
     def get(self, work_request_id: str) -> MaintenanceWorkRequest | None:
-        obj = self.session.get(MaintenanceWorkRequestORM, work_request_id)
+        obj = self._get_in_scope(
+            MaintenanceWorkRequestORM,
+            work_request_id,
+            operation_label="get maintenance work request",
+        )
         return maintenance_work_request_from_orm(obj) if obj else None
 
     def get_by_code(
@@ -809,10 +1302,14 @@ class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepositor
         organization_id: str,
         work_request_code: str,
     ) -> MaintenanceWorkRequest | None:
+        ctx = self._context(operation_label="get maintenance work request by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(MaintenanceWorkRequestORM).where(
             MaintenanceWorkRequestORM.organization_id == organization_id,
             MaintenanceWorkRequestORM.work_request_code == work_request_code,
         )
+        stmt = self._apply_scope(stmt, MaintenanceWorkRequestORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_work_request_from_orm(obj) if obj else None
 
@@ -830,7 +1327,11 @@ class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepositor
         requested_by_user_id: str | None = None,
         triaged_by_user_id: str | None = None,
     ) -> list[MaintenanceWorkRequest]:
+        ctx = self._context(operation_label="list maintenance work requests")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(MaintenanceWorkRequestORM).where(MaintenanceWorkRequestORM.organization_id == organization_id)
+        stmt = self._apply_scope(stmt, MaintenanceWorkRequestORM, ctx)
         if site_id is not None:
             stmt = stmt.where(MaintenanceWorkRequestORM.site_id == site_id)
         if asset_id is not None:
@@ -855,14 +1356,36 @@ class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepositor
         return [maintenance_work_request_from_orm(row) for row in rows]
 
 
-class SqlAlchemyMaintenanceWorkOrderRepository(MaintenanceWorkOrderRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceWorkOrderRepository(
+    MaintenanceWorkOrderRepository, MaintenanceTenantScopedRepositorySupport
+):
+    _repository_label = "Maintenance work order repository"
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, work_order: MaintenanceWorkOrder) -> None:
-        self.session.add(maintenance_work_order_to_orm(work_order))
+        ctx = self._context(operation_label="add maintenance work order")
+        orm = maintenance_work_order_to_orm(work_order)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, work_order: MaintenanceWorkOrder) -> None:
+        self._require_in_scope(
+            MaintenanceWorkOrderORM,
+            work_order.id,
+            operation_label="update maintenance work order",
+            not_found_message="Maintenance work order not found.",
+        )
         work_order.version = update_with_version_check(
             self.session,
             MaintenanceWorkOrderORM,
@@ -913,7 +1436,11 @@ class SqlAlchemyMaintenanceWorkOrderRepository(MaintenanceWorkOrderRepository):
         )
 
     def get(self, work_order_id: str) -> MaintenanceWorkOrder | None:
-        obj = self.session.get(MaintenanceWorkOrderORM, work_order_id)
+        obj = self._get_in_scope(
+            MaintenanceWorkOrderORM,
+            work_order_id,
+            operation_label="get maintenance work order",
+        )
         return maintenance_work_order_from_orm(obj) if obj else None
 
     def get_by_code(
@@ -921,10 +1448,14 @@ class SqlAlchemyMaintenanceWorkOrderRepository(MaintenanceWorkOrderRepository):
         organization_id: str,
         work_order_code: str,
     ) -> MaintenanceWorkOrder | None:
+        ctx = self._context(operation_label="get maintenance work order by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(MaintenanceWorkOrderORM).where(
             MaintenanceWorkOrderORM.organization_id == organization_id,
             MaintenanceWorkOrderORM.work_order_code == work_order_code,
         )
+        stmt = self._apply_scope(stmt, MaintenanceWorkOrderORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_work_order_from_orm(obj) if obj else None
 
@@ -947,7 +1478,11 @@ class SqlAlchemyMaintenanceWorkOrderRepository(MaintenanceWorkOrderRepository):
         is_preventive: bool | None = None,
         is_emergency: bool | None = None,
     ) -> list[MaintenanceWorkOrder]:
+        ctx = self._context(operation_label="list maintenance work orders")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(MaintenanceWorkOrderORM).where(MaintenanceWorkOrderORM.organization_id == organization_id)
+        stmt = self._apply_scope(stmt, MaintenanceWorkOrderORM, ctx)
         if site_id is not None:
             stmt = stmt.where(MaintenanceWorkOrderORM.site_id == site_id)
         if asset_id is not None:
@@ -982,14 +1517,64 @@ class SqlAlchemyMaintenanceWorkOrderRepository(MaintenanceWorkOrderRepository):
         return [maintenance_work_order_from_orm(row) for row in rows]
 
 
-class SqlAlchemyMaintenanceWorkOrderTaskRepository(MaintenanceWorkOrderTaskRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceWorkOrderTaskRepository(
+    MaintenanceWorkOrderTaskRepository, MaintenanceParentScopedRepositorySupport
+):
+    _repository_label = "Maintenance work order task repository"
+    _scope_joins = (
+        (MaintenanceWorkOrderORM, MaintenanceWorkOrderTaskORM.work_order_id == MaintenanceWorkOrderORM.id),
+    )
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, work_order_task: MaintenanceWorkOrderTask) -> None:
+        self._require_in_scope(
+            MaintenanceWorkOrderORM,
+            work_order_task.work_order_id,
+            operation_label="add maintenance work order task",
+            not_found_message="Maintenance work order not found.",
+        )
+        if work_order_task.task_template_id:
+            self._require_in_scope(
+                MaintenanceTaskTemplateORM,
+                work_order_task.task_template_id,
+                operation_label="add maintenance work order task template",
+                not_found_message="Maintenance task template not found.",
+            )
         self.session.add(maintenance_work_order_task_to_orm(work_order_task))
 
     def update(self, work_order_task: MaintenanceWorkOrderTask) -> None:
+        self._require_via_anchor_in_scope(
+            MaintenanceWorkOrderTaskORM,
+            MaintenanceWorkOrderORM,
+            joins=self._scope_joins,
+            record_id=work_order_task.id,
+            operation_label="update maintenance work order task",
+            not_found_message="Maintenance work order task not found.",
+        )
+        self._require_in_scope(
+            MaintenanceWorkOrderORM,
+            work_order_task.work_order_id,
+            operation_label="update maintenance work order task work order",
+            not_found_message="Maintenance work order not found.",
+        )
+        if work_order_task.task_template_id:
+            self._require_in_scope(
+                MaintenanceTaskTemplateORM,
+                work_order_task.task_template_id,
+                operation_label="update maintenance work order task template",
+                not_found_message="Maintenance task template not found.",
+            )
         work_order_task.version = update_with_version_check(
             self.session,
             MaintenanceWorkOrderTaskORM,
@@ -1020,7 +1605,13 @@ class SqlAlchemyMaintenanceWorkOrderTaskRepository(MaintenanceWorkOrderTaskRepos
         )
 
     def get(self, work_order_task_id: str) -> MaintenanceWorkOrderTask | None:
-        obj = self.session.get(MaintenanceWorkOrderTaskORM, work_order_task_id)
+        obj = self._get_via_anchor_in_scope(
+            MaintenanceWorkOrderTaskORM,
+            MaintenanceWorkOrderORM,
+            joins=self._scope_joins,
+            record_id=work_order_task_id,
+            operation_label="get maintenance work order task",
+        )
         return maintenance_work_order_task_from_orm(obj) if obj else None
 
     def list_for_organization(
@@ -1032,7 +1623,15 @@ class SqlAlchemyMaintenanceWorkOrderTaskRepository(MaintenanceWorkOrderTaskRepos
         assigned_employee_id: str | None = None,
         assigned_team_id: str | None = None,
     ) -> list[MaintenanceWorkOrderTask]:
-        stmt = select(MaintenanceWorkOrderTaskORM).where(MaintenanceWorkOrderTaskORM.organization_id == organization_id)
+        ctx = self._context(operation_label="list maintenance work order tasks")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
+        stmt = self._scoped_stmt_for_anchor(
+            MaintenanceWorkOrderTaskORM,
+            MaintenanceWorkOrderORM,
+            joins=self._scope_joins,
+            operation_label="list maintenance work order tasks",
+        ).where(MaintenanceWorkOrderTaskORM.organization_id == organization_id)
         if work_order_id is not None:
             stmt = stmt.where(MaintenanceWorkOrderTaskORM.work_order_id == work_order_id)
         if status is not None:
@@ -1047,14 +1646,79 @@ class SqlAlchemyMaintenanceWorkOrderTaskRepository(MaintenanceWorkOrderTaskRepos
         return [maintenance_work_order_task_from_orm(row) for row in rows]
 
 
-class SqlAlchemyMaintenanceWorkOrderTaskStepRepository(MaintenanceWorkOrderTaskStepRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceWorkOrderTaskStepRepository(
+    MaintenanceWorkOrderTaskStepRepository, MaintenanceParentScopedRepositorySupport
+):
+    _repository_label = "Maintenance work order task step repository"
+    _scope_joins = (
+        (MaintenanceWorkOrderTaskORM, MaintenanceWorkOrderTaskStepORM.work_order_task_id == MaintenanceWorkOrderTaskORM.id),
+        (MaintenanceWorkOrderORM, MaintenanceWorkOrderTaskORM.work_order_id == MaintenanceWorkOrderORM.id),
+    )
+    _task_scope_joins = (
+        (MaintenanceWorkOrderORM, MaintenanceWorkOrderTaskORM.work_order_id == MaintenanceWorkOrderORM.id),
+    )
+    _template_scope_joins = (
+        (MaintenanceTaskTemplateORM, MaintenanceTaskStepTemplateORM.task_template_id == MaintenanceTaskTemplateORM.id),
+    )
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, work_order_task_step: MaintenanceWorkOrderTaskStep) -> None:
+        self._require_via_anchor_in_scope(
+            MaintenanceWorkOrderTaskORM,
+            MaintenanceWorkOrderORM,
+            joins=self._task_scope_joins,
+            record_id=work_order_task_step.work_order_task_id,
+            operation_label="add maintenance work order task step",
+            not_found_message="Maintenance work order task not found.",
+        )
+        if work_order_task_step.source_step_template_id:
+            self._require_via_anchor_in_scope(
+                MaintenanceTaskStepTemplateORM,
+                MaintenanceTaskTemplateORM,
+                joins=self._template_scope_joins,
+                record_id=work_order_task_step.source_step_template_id,
+                operation_label="add maintenance work order task step template",
+                not_found_message="Maintenance task step template not found.",
+            )
         self.session.add(maintenance_work_order_task_step_to_orm(work_order_task_step))
 
     def update(self, work_order_task_step: MaintenanceWorkOrderTaskStep) -> None:
+        self._require_via_anchor_in_scope(
+            MaintenanceWorkOrderTaskStepORM,
+            MaintenanceWorkOrderORM,
+            joins=self._scope_joins,
+            record_id=work_order_task_step.id,
+            operation_label="update maintenance work order task step",
+            not_found_message="Maintenance work order task step not found.",
+        )
+        self._require_via_anchor_in_scope(
+            MaintenanceWorkOrderTaskORM,
+            MaintenanceWorkOrderORM,
+            joins=self._task_scope_joins,
+            record_id=work_order_task_step.work_order_task_id,
+            operation_label="update maintenance work order task step task",
+            not_found_message="Maintenance work order task not found.",
+        )
+        if work_order_task_step.source_step_template_id:
+            self._require_via_anchor_in_scope(
+                MaintenanceTaskStepTemplateORM,
+                MaintenanceTaskTemplateORM,
+                joins=self._template_scope_joins,
+                record_id=work_order_task_step.source_step_template_id,
+                operation_label="update maintenance work order task step template",
+                not_found_message="Maintenance task step template not found.",
+            )
         work_order_task_step.version = update_with_version_check(
             self.session,
             MaintenanceWorkOrderTaskStepORM,
@@ -1087,7 +1751,13 @@ class SqlAlchemyMaintenanceWorkOrderTaskStepRepository(MaintenanceWorkOrderTaskS
         )
 
     def get(self, work_order_task_step_id: str) -> MaintenanceWorkOrderTaskStep | None:
-        obj = self.session.get(MaintenanceWorkOrderTaskStepORM, work_order_task_step_id)
+        obj = self._get_via_anchor_in_scope(
+            MaintenanceWorkOrderTaskStepORM,
+            MaintenanceWorkOrderORM,
+            joins=self._scope_joins,
+            record_id=work_order_task_step_id,
+            operation_label="get maintenance work order task step",
+        )
         return maintenance_work_order_task_step_from_orm(obj) if obj else None
 
     def list_for_organization(
@@ -1097,7 +1767,15 @@ class SqlAlchemyMaintenanceWorkOrderTaskStepRepository(MaintenanceWorkOrderTaskS
         work_order_task_id: str | None = None,
         status: str | None = None,
     ) -> list[MaintenanceWorkOrderTaskStep]:
-        stmt = select(MaintenanceWorkOrderTaskStepORM).where(MaintenanceWorkOrderTaskStepORM.organization_id == organization_id)
+        ctx = self._context(operation_label="list maintenance work order task steps")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
+        stmt = self._scoped_stmt_for_anchor(
+            MaintenanceWorkOrderTaskStepORM,
+            MaintenanceWorkOrderORM,
+            joins=self._scope_joins,
+            operation_label="list maintenance work order task steps",
+        ).where(MaintenanceWorkOrderTaskStepORM.organization_id == organization_id)
         if work_order_task_id is not None:
             stmt = stmt.where(MaintenanceWorkOrderTaskStepORM.work_order_task_id == work_order_task_id)
         if status is not None:
@@ -1109,15 +1787,49 @@ class SqlAlchemyMaintenanceWorkOrderTaskStepRepository(MaintenanceWorkOrderTaskS
 
 
 class SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository(
-    MaintenanceWorkOrderMaterialRequirementRepository
+    MaintenanceWorkOrderMaterialRequirementRepository, MaintenanceParentScopedRepositorySupport
 ):
-    def __init__(self, session: Session):
+    _repository_label = "Maintenance material requirement repository"
+    _scope_joins = (
+        (MaintenanceWorkOrderORM, MaintenanceWorkOrderMaterialRequirementORM.work_order_id == MaintenanceWorkOrderORM.id),
+    )
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, material_requirement: MaintenanceWorkOrderMaterialRequirement) -> None:
+        self._require_in_scope(
+            MaintenanceWorkOrderORM,
+            material_requirement.work_order_id,
+            operation_label="add maintenance material requirement",
+            not_found_message="Maintenance work order not found.",
+        )
         self.session.add(maintenance_work_order_material_requirement_to_orm(material_requirement))
 
     def update(self, material_requirement: MaintenanceWorkOrderMaterialRequirement) -> None:
+        self._require_via_anchor_in_scope(
+            MaintenanceWorkOrderMaterialRequirementORM,
+            MaintenanceWorkOrderORM,
+            joins=self._scope_joins,
+            record_id=material_requirement.id,
+            operation_label="update maintenance material requirement",
+            not_found_message="Maintenance material requirement not found.",
+        )
+        self._require_in_scope(
+            MaintenanceWorkOrderORM,
+            material_requirement.work_order_id,
+            operation_label="update maintenance material requirement work order",
+            not_found_message="Maintenance work order not found.",
+        )
         material_requirement.version = update_with_version_check(
             self.session,
             MaintenanceWorkOrderMaterialRequirementORM,
@@ -1145,7 +1857,13 @@ class SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository(
         )
 
     def get(self, material_requirement_id: str) -> MaintenanceWorkOrderMaterialRequirement | None:
-        obj = self.session.get(MaintenanceWorkOrderMaterialRequirementORM, material_requirement_id)
+        obj = self._get_via_anchor_in_scope(
+            MaintenanceWorkOrderMaterialRequirementORM,
+            MaintenanceWorkOrderORM,
+            joins=self._scope_joins,
+            record_id=material_requirement_id,
+            operation_label="get maintenance material requirement",
+        )
         return maintenance_work_order_material_requirement_from_orm(obj) if obj else None
 
     def list_for_organization(
@@ -1157,9 +1875,15 @@ class SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository(
         preferred_storeroom_id: str | None = None,
         stock_item_id: str | None = None,
     ) -> list[MaintenanceWorkOrderMaterialRequirement]:
-        stmt = select(MaintenanceWorkOrderMaterialRequirementORM).where(
-            MaintenanceWorkOrderMaterialRequirementORM.organization_id == organization_id
-        )
+        ctx = self._context(operation_label="list maintenance material requirements")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
+        stmt = self._scoped_stmt_for_anchor(
+            MaintenanceWorkOrderMaterialRequirementORM,
+            MaintenanceWorkOrderORM,
+            joins=self._scope_joins,
+            operation_label="list maintenance material requirements",
+        ).where(MaintenanceWorkOrderMaterialRequirementORM.organization_id == organization_id)
         if work_order_id is not None:
             stmt = stmt.where(MaintenanceWorkOrderMaterialRequirementORM.work_order_id == work_order_id)
         if procurement_status is not None:
@@ -1176,14 +1900,36 @@ class SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository(
         return [maintenance_work_order_material_requirement_from_orm(row) for row in rows]
 
 
-class SqlAlchemyMaintenanceTaskTemplateRepository(MaintenanceTaskTemplateRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceTaskTemplateRepository(
+    MaintenanceTaskTemplateRepository, MaintenanceTenantScopedRepositorySupport
+):
+    _repository_label = "Maintenance task template repository"
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, task_template: MaintenanceTaskTemplate) -> None:
-        self.session.add(maintenance_task_template_to_orm(task_template))
+        ctx = self._context(operation_label="add maintenance task template")
+        orm = maintenance_task_template_to_orm(task_template)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, task_template: MaintenanceTaskTemplate) -> None:
+        self._require_in_scope(
+            MaintenanceTaskTemplateORM,
+            task_template.id,
+            operation_label="update maintenance task template",
+            not_found_message="Maintenance task template not found.",
+        )
         task_template.version = update_with_version_check(
             self.session,
             MaintenanceTaskTemplateORM,
@@ -1210,14 +1956,22 @@ class SqlAlchemyMaintenanceTaskTemplateRepository(MaintenanceTaskTemplateReposit
         )
 
     def get(self, task_template_id: str) -> MaintenanceTaskTemplate | None:
-        obj = self.session.get(MaintenanceTaskTemplateORM, task_template_id)
+        obj = self._get_in_scope(
+            MaintenanceTaskTemplateORM,
+            task_template_id,
+            operation_label="get maintenance task template",
+        )
         return maintenance_task_template_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, task_template_code: str) -> MaintenanceTaskTemplate | None:
+        ctx = self._context(operation_label="get maintenance task template by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(MaintenanceTaskTemplateORM).where(
             MaintenanceTaskTemplateORM.organization_id == organization_id,
             MaintenanceTaskTemplateORM.task_template_code == task_template_code,
         )
+        stmt = self._apply_scope(stmt, MaintenanceTaskTemplateORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_task_template_from_orm(obj) if obj else None
 
@@ -1229,7 +1983,11 @@ class SqlAlchemyMaintenanceTaskTemplateRepository(MaintenanceTaskTemplateReposit
         maintenance_type: str | None = None,
         template_status: str | None = None,
     ) -> list[MaintenanceTaskTemplate]:
+        ctx = self._context(operation_label="list maintenance task templates")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(MaintenanceTaskTemplateORM).where(MaintenanceTaskTemplateORM.organization_id == organization_id)
+        stmt = self._apply_scope(stmt, MaintenanceTaskTemplateORM, ctx)
         if active_only is not None:
             stmt = stmt.where(MaintenanceTaskTemplateORM.is_active == bool(active_only))
         if maintenance_type is not None:
@@ -1242,14 +2000,50 @@ class SqlAlchemyMaintenanceTaskTemplateRepository(MaintenanceTaskTemplateReposit
         return [maintenance_task_template_from_orm(row) for row in rows]
 
 
-class SqlAlchemyMaintenanceTaskStepTemplateRepository(MaintenanceTaskStepTemplateRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenanceTaskStepTemplateRepository(
+    MaintenanceTaskStepTemplateRepository, MaintenanceParentScopedRepositorySupport
+):
+    _repository_label = "Maintenance task step template repository"
+    _scope_joins = (
+        (MaintenanceTaskTemplateORM, MaintenanceTaskStepTemplateORM.task_template_id == MaintenanceTaskTemplateORM.id),
+    )
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, task_step_template: MaintenanceTaskStepTemplate) -> None:
+        self._require_in_scope(
+            MaintenanceTaskTemplateORM,
+            task_step_template.task_template_id,
+            operation_label="add maintenance task step template",
+            not_found_message="Maintenance task template not found.",
+        )
         self.session.add(maintenance_task_step_template_to_orm(task_step_template))
 
     def update(self, task_step_template: MaintenanceTaskStepTemplate) -> None:
+        self._require_via_anchor_in_scope(
+            MaintenanceTaskStepTemplateORM,
+            MaintenanceTaskTemplateORM,
+            joins=self._scope_joins,
+            record_id=task_step_template.id,
+            operation_label="update maintenance task step template",
+            not_found_message="Maintenance task step template not found.",
+        )
+        self._require_in_scope(
+            MaintenanceTaskTemplateORM,
+            task_step_template.task_template_id,
+            operation_label="update maintenance task step template parent",
+            not_found_message="Maintenance task template not found.",
+        )
         task_step_template.version = update_with_version_check(
             self.session,
             MaintenanceTaskStepTemplateORM,
@@ -1277,7 +2071,13 @@ class SqlAlchemyMaintenanceTaskStepTemplateRepository(MaintenanceTaskStepTemplat
         )
 
     def get(self, task_step_template_id: str) -> MaintenanceTaskStepTemplate | None:
-        obj = self.session.get(MaintenanceTaskStepTemplateORM, task_step_template_id)
+        obj = self._get_via_anchor_in_scope(
+            MaintenanceTaskStepTemplateORM,
+            MaintenanceTaskTemplateORM,
+            joins=self._scope_joins,
+            record_id=task_step_template_id,
+            operation_label="get maintenance task step template",
+        )
         return maintenance_task_step_template_from_orm(obj) if obj else None
 
     def list_for_organization(
@@ -1287,9 +2087,15 @@ class SqlAlchemyMaintenanceTaskStepTemplateRepository(MaintenanceTaskStepTemplat
         task_template_id: str | None = None,
         active_only: bool | None = None,
     ) -> list[MaintenanceTaskStepTemplate]:
-        stmt = select(MaintenanceTaskStepTemplateORM).where(
-            MaintenanceTaskStepTemplateORM.organization_id == organization_id
-        )
+        ctx = self._context(operation_label="list maintenance task step templates")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
+        stmt = self._scoped_stmt_for_anchor(
+            MaintenanceTaskStepTemplateORM,
+            MaintenanceTaskTemplateORM,
+            joins=self._scope_joins,
+            operation_label="list maintenance task step templates",
+        ).where(MaintenanceTaskStepTemplateORM.organization_id == organization_id)
         if task_template_id is not None:
             stmt = stmt.where(MaintenanceTaskStepTemplateORM.task_template_id == task_template_id)
         if active_only is not None:
@@ -1302,14 +2108,38 @@ class SqlAlchemyMaintenanceTaskStepTemplateRepository(MaintenanceTaskStepTemplat
             )
         ).scalars().all()
         return [maintenance_task_step_template_from_orm(row) for row in rows]
-class SqlAlchemyMaintenancePreventivePlanRepository(MaintenancePreventivePlanRepository):
-    def __init__(self, session: Session):
+
+
+class SqlAlchemyMaintenancePreventivePlanRepository(
+    MaintenancePreventivePlanRepository, MaintenanceTenantScopedRepositorySupport
+):
+    _repository_label = "Maintenance preventive plan repository"
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ) -> None:
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, preventive_plan: MaintenancePreventivePlan) -> None:
-        self.session.add(maintenance_preventive_plan_to_orm(preventive_plan))
+        ctx = self._context(operation_label="add maintenance preventive plan")
+        orm = maintenance_preventive_plan_to_orm(preventive_plan)
+        self._stamp_scope(ctx, orm)
+        self.session.add(orm)
 
     def update(self, preventive_plan: MaintenancePreventivePlan) -> None:
+        self._require_in_scope(
+            MaintenancePreventivePlanORM,
+            preventive_plan.id,
+            operation_label="update maintenance preventive plan",
+            not_found_message="Maintenance preventive plan not found.",
+        )
         preventive_plan.version = update_with_version_check(
             self.session,
             MaintenancePreventivePlanORM,
@@ -1353,14 +2183,22 @@ class SqlAlchemyMaintenancePreventivePlanRepository(MaintenancePreventivePlanRep
         )
 
     def get(self, preventive_plan_id: str) -> MaintenancePreventivePlan | None:
-        obj = self.session.get(MaintenancePreventivePlanORM, preventive_plan_id)
+        obj = self._get_in_scope(
+            MaintenancePreventivePlanORM,
+            preventive_plan_id,
+            operation_label="get maintenance preventive plan",
+        )
         return maintenance_preventive_plan_from_orm(obj) if obj else None
 
     def get_by_code(self, organization_id: str, plan_code: str) -> MaintenancePreventivePlan | None:
+        ctx = self._context(operation_label="get maintenance preventive plan by code")
+        if not self._organization_in_scope(ctx, organization_id):
+            return None
         stmt = select(MaintenancePreventivePlanORM).where(
             MaintenancePreventivePlanORM.organization_id == organization_id,
             MaintenancePreventivePlanORM.plan_code == plan_code,
         )
+        stmt = self._apply_scope(stmt, MaintenancePreventivePlanORM, ctx)
         obj = self.session.execute(stmt).scalars().first()
         return maintenance_preventive_plan_from_orm(obj) if obj else None
 
@@ -1378,9 +2216,13 @@ class SqlAlchemyMaintenancePreventivePlanRepository(MaintenancePreventivePlanRep
         trigger_mode: str | None = None,
         sensor_id: str | None = None,
     ) -> list[MaintenancePreventivePlan]:
+        ctx = self._context(operation_label="list maintenance preventive plans")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
         stmt = select(MaintenancePreventivePlanORM).where(
             MaintenancePreventivePlanORM.organization_id == organization_id
         )
+        stmt = self._apply_scope(stmt, MaintenancePreventivePlanORM, ctx)
         if active_only is not None:
             stmt = stmt.where(MaintenancePreventivePlanORM.is_active == bool(active_only))
         if site_id is not None:
@@ -1405,14 +2247,76 @@ class SqlAlchemyMaintenancePreventivePlanRepository(MaintenancePreventivePlanRep
         return [maintenance_preventive_plan_from_orm(row) for row in rows]
 
 
-class SqlAlchemyMaintenancePreventivePlanTaskRepository(MaintenancePreventivePlanTaskRepository):
-    def __init__(self, session: Session):
+class SqlAlchemyMaintenancePreventivePlanTaskRepository(
+    MaintenancePreventivePlanTaskRepository, MaintenanceParentScopedRepositorySupport
+):
+    _repository_label = "Maintenance preventive plan task repository"
+    _scope_joins = (
+        (MaintenancePreventivePlanORM, MaintenancePreventivePlanTaskORM.plan_id == MaintenancePreventivePlanORM.id),
+    )
+
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService | None = None,
+    ):
         self.session = session
+        self._tenant_context_service = require_tenant_context_service(
+            tenant_context_service,
+            consumer_label=type(self).__name__,
+        )
 
     def add(self, preventive_plan_task: MaintenancePreventivePlanTask) -> None:
+        self._require_in_scope(
+            MaintenancePreventivePlanORM,
+            preventive_plan_task.plan_id,
+            operation_label="add maintenance preventive plan task",
+            not_found_message="Maintenance preventive plan not found.",
+        )
+        self._require_in_scope(
+            MaintenanceTaskTemplateORM,
+            preventive_plan_task.task_template_id,
+            operation_label="add maintenance preventive plan task template",
+            not_found_message="Maintenance task template not found.",
+        )
+        if preventive_plan_task.sensor_id_override:
+            self._require_in_scope(
+                MaintenanceSensorORM,
+                preventive_plan_task.sensor_id_override,
+                operation_label="add maintenance preventive plan task sensor override",
+                not_found_message="Maintenance sensor not found.",
+            )
         self.session.add(maintenance_preventive_plan_task_to_orm(preventive_plan_task))
 
     def update(self, preventive_plan_task: MaintenancePreventivePlanTask) -> None:
+        self._require_via_anchor_in_scope(
+            MaintenancePreventivePlanTaskORM,
+            MaintenancePreventivePlanORM,
+            joins=self._scope_joins,
+            record_id=preventive_plan_task.id,
+            operation_label="update maintenance preventive plan task",
+            not_found_message="Maintenance preventive plan task not found.",
+        )
+        self._require_in_scope(
+            MaintenancePreventivePlanORM,
+            preventive_plan_task.plan_id,
+            operation_label="update maintenance preventive plan task plan",
+            not_found_message="Maintenance preventive plan not found.",
+        )
+        self._require_in_scope(
+            MaintenanceTaskTemplateORM,
+            preventive_plan_task.task_template_id,
+            operation_label="update maintenance preventive plan task template",
+            not_found_message="Maintenance task template not found.",
+        )
+        if preventive_plan_task.sensor_id_override:
+            self._require_in_scope(
+                MaintenanceSensorORM,
+                preventive_plan_task.sensor_id_override,
+                operation_label="update maintenance preventive plan task sensor override",
+                not_found_message="Maintenance sensor not found.",
+            )
         preventive_plan_task.version = update_with_version_check(
             self.session,
             MaintenancePreventivePlanTaskORM,
@@ -1445,7 +2349,13 @@ class SqlAlchemyMaintenancePreventivePlanTaskRepository(MaintenancePreventivePla
         )
 
     def get(self, preventive_plan_task_id: str) -> MaintenancePreventivePlanTask | None:
-        obj = self.session.get(MaintenancePreventivePlanTaskORM, preventive_plan_task_id)
+        obj = self._get_via_anchor_in_scope(
+            MaintenancePreventivePlanTaskORM,
+            MaintenancePreventivePlanORM,
+            joins=self._scope_joins,
+            record_id=preventive_plan_task_id,
+            operation_label="get maintenance preventive plan task",
+        )
         return maintenance_preventive_plan_task_from_orm(obj) if obj else None
 
     def list_for_organization(
@@ -1455,9 +2365,15 @@ class SqlAlchemyMaintenancePreventivePlanTaskRepository(MaintenancePreventivePla
         plan_id: str | None = None,
         task_template_id: str | None = None,
     ) -> list[MaintenancePreventivePlanTask]:
-        stmt = select(MaintenancePreventivePlanTaskORM).where(
-            MaintenancePreventivePlanTaskORM.organization_id == organization_id
-        )
+        ctx = self._context(operation_label="list maintenance preventive plan tasks")
+        if not self._organization_in_scope(ctx, organization_id):
+            return []
+        stmt = self._scoped_stmt_for_anchor(
+            MaintenancePreventivePlanTaskORM,
+            MaintenancePreventivePlanORM,
+            joins=self._scope_joins,
+            operation_label="list maintenance preventive plan tasks",
+        ).where(MaintenancePreventivePlanTaskORM.organization_id == organization_id)
         if plan_id is not None:
             stmt = stmt.where(MaintenancePreventivePlanTaskORM.plan_id == plan_id)
         if task_template_id is not None:

@@ -20,7 +20,7 @@ Item {
         AppWidgets.ContextualActionToolbar {
             width: parent.width
             title: root._hasResource ? root.resourceDetail.title : "Activity"
-            subtitle: root._hasResource ? "Change history and audit trail for this resource" : ""
+            subtitle: root._hasResource ? "Change history and activity for this resource" : ""
             actions: []
         }
 
