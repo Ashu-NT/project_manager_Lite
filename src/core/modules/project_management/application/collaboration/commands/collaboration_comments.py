@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from src.core.modules.project_management.domain.collaboration import TaskComment, resolve_mentions
+from src.core.modules.project_management.domain.collaboration import (
+    TaskComment,
+    normalize_task_comment_body,
+    resolve_mentions,
+)
 from src.core.modules.project_management.infrastructure.collaboration_attachments import store_task_comment_attachments
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
@@ -27,9 +31,7 @@ class CollaborationCommentCommandMixin:
             "collaboration.manage",
             operation_label="post task collaboration update",
         )
-        text = (body or "").strip()
-        if not text:
-            raise ValidationError("Comment text is required.", code="COLLABORATION_BODY_REQUIRED")
+        text = normalize_task_comment_body(body)
         mention_candidates = self._list_mention_candidates_for_project(task.project_id)
         mentions, mentioned_user_ids, unresolved = resolve_mentions(text=text, candidates=mention_candidates)
         if unresolved:
@@ -52,7 +54,7 @@ class CollaborationCommentCommandMixin:
         comment.attachments = store_task_comment_attachments(
             task_id=task_id,
             comment_id=comment.id,
-            attachments=[str(item) for item in (attachments or []) if str(item).strip()],
+            attachments=list(attachments or []),
         )
         self._comment_repo.add(comment)
         if self._document_integration_service is not None and comment.attachments:

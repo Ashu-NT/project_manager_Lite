@@ -135,6 +135,9 @@ Notes:
 - `CalendarEvent` was migrated in the fifth slice
 - `RegisterEntry` was migrated in the sixth slice
 - `PortfolioIntakeItem`, `PortfolioScenario`, and `PortfolioScoringTemplate` were migrated in the seventh slice
+- `TaskComment` was migrated in the eighth slice
+- `Organization` and `Site` were migrated in the ninth slice
+- `Department` and `Employee` were migrated in the tenth slice
 
 #### Maintenance
 
@@ -402,7 +405,7 @@ Action taken:
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -416,11 +419,17 @@ Service responsibilities:
 - active-tenant / active-organization context rules
 - lifecycle decisions around switching active organization
 
+Notes:
+
+- `tenant_id` pinning and active-organization switching remain in service code
+- duplicate code checks remain repository-aware service rules
+- create/update scalar normalization now lives on the shared write model
+
 #### `Site`
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -437,11 +446,17 @@ Service responsibilities:
 - referenced calendar existence
 - permission and scope filtering
 
+Notes:
+
+- organization-default fallback for timezone/currency/calendar remains in service code because it depends on active context
+- create/update scalar normalization now lives on the shared write model
+- active/inactive transition behavior remains in service code
+
 #### `Department`
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -457,11 +472,17 @@ Service responsibilities:
 - `site_id`, `default_location_id`, `parent_department_id`, and `manager_employee_id` existence
 - cross-site default-location compatibility
 
+Notes:
+
+- create/update scalar normalization now lives on the shared write model
+- active-organization enforcement and duplicate-code checks remain in command/service code
+- site, parent, manager, and default-location validation remain repo-aware service rules
+
 #### `Employee`
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -476,6 +497,12 @@ Service responsibilities:
 - employee-code uniqueness in organization
 - department/site existence resolution
 - linked resource sync and employee-resource business rules
+
+Notes:
+
+- create/update scalar normalization now lives on the shared write model
+- employee-code uniqueness, active-organization enforcement, and department/site resolution remain service rules
+- linked resource synchronization remains service-owned because it is a workflow side effect
 
 #### `Party`
 
@@ -902,7 +929,7 @@ Service responsibilities:
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -916,6 +943,11 @@ Service responsibilities:
 - mention resolution
 - notification fan-out
 - permission and visibility rules
+
+Notes:
+
+- the repo-bound collaboration entity/service path is now migrated
+- the older `TaskCollaborationStore` import/regression path still keeps its own store-level validation and is outside this primary write-model migration slice
 
 ### Maintenance entities
 
@@ -1399,6 +1431,9 @@ Mitigation:
 - [x] Run focused verification for PM CRUD flows
 - [x] Expand to next module slice
 - [x] Migrate PM portfolio intake/scenario/template DTOs
+- [x] Migrate PM task-comment DTOs
+- [x] Migrate platform organization/site DTOs
+- [x] Migrate platform department/employee DTOs
 
 ## Current Implementation Decision
 
