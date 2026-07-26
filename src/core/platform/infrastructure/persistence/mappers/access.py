@@ -27,7 +27,7 @@ def project_membership_from_orm(obj: ProjectMembershipORM) -> ProjectMembership:
         project_id=obj.project_id,
         user_id=obj.user_id,
         scope_role=obj.scope_role,
-        permission_codes=[str(item).strip() for item in permission_codes if str(item).strip()],
+        permission_codes=permission_codes,
         created_at=obj.created_at,
     )
 
@@ -59,7 +59,7 @@ def scoped_access_grant_from_orm(obj: ProjectMembershipORM | ScopedAccessGrantOR
         scope_id=obj.scope_id,
         user_id=obj.user_id,
         scope_role=obj.scope_role,
-        permission_codes=[str(item).strip() for item in permission_codes if str(item).strip()],
+        permission_codes=permission_codes,
         created_at=obj.created_at,
     )
 

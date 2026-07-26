@@ -13,7 +13,11 @@ from src.core.platform.access.contracts import (
     ProjectMembershipRepository,
     ScopedAccessGrantRepository,
 )
-from src.core.platform.access.domain import ProjectMembership, ScopedAccessGrant
+from src.core.platform.access.domain import (
+    ProjectMembership,
+    ScopedAccessGrant,
+    normalize_access_scope_type,
+)
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.infrastructure.persistence.mappers.access import (
     project_membership_from_orm,
@@ -332,10 +336,7 @@ class SqlAlchemyScopedAccessGrantRepository(
 
     @staticmethod
     def _normalize_scope_type(scope_type: str | None) -> str:
-        normalized = str(scope_type or "").strip().lower()
-        if not normalized:
-            raise ValueError("Scope type is required.")
-        return normalized
+        return normalize_access_scope_type(scope_type)
 
 
 __all__ = [

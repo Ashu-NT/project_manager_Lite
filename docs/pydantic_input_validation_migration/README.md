@@ -140,6 +140,7 @@ Notes:
 - `Department` and `Employee` were migrated in the tenth slice
 - `Party` was migrated in the eleventh slice
 - `TimeEntry` and `TimesheetPeriod` were migrated in the twelfth slice
+- `ProjectMembership` and `ScopedAccessGrant` were migrated in the thirteenth slice
 
 #### Maintenance
 
@@ -589,7 +590,7 @@ Notes:
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -603,6 +604,13 @@ Service responsibilities:
 - allowed role-to-permission mapping
 - user existence
 - authorization policy matrix enforcement
+
+Notes:
+
+- create/update scalar normalization now lives on the shared access write models
+- permission-code deduplication now happens on the shared membership/grant DTOs
+- scope existence, user existence, scoped-role resolution, and RBAC/policy enforcement remain service-owned
+- tenant and organization stamping remain persistence-scope concerns
 
 #### `UserAccount`
 
@@ -1456,6 +1464,7 @@ Mitigation:
 - [x] Migrate platform department/employee DTOs
 - [x] Migrate platform party DTO
 - [x] Migrate platform time-entry/timesheet-period DTOs
+- [x] Migrate platform access membership/grant DTOs
 
 ## Current Implementation Decision
 

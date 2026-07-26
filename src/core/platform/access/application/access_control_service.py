@@ -17,6 +17,9 @@ from src.core.platform.access.domain import (
     ScopedAccessGrant,
     ScopedRolePolicy,
     ScopedRolePolicyRegistry,
+    normalize_access_scope_id,
+    normalize_access_scope_type,
+    normalize_access_user_id,
 )
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.contracts import UserRepository
@@ -69,13 +72,14 @@ class AccessControlService:
     def list_scope_grants(self, scope_type: str, scope_id: str) -> list[ScopedAccessGrant]:
         require_permission(self._user_session, "access.manage", operation_label="list scoped access grants")
         normalized_scope_type = self._normalize_scope_type(scope_type)
+        normalized_scope_id = normalize_access_scope_id(scope_id)
         self._require_scope_policy(normalized_scope_type)
         if self._scoped_access_repo is not None:
-            return self._scoped_access_repo.list_by_scope(normalized_scope_type, scope_id)
+            return self._scoped_access_repo.list_by_scope(normalized_scope_type, normalized_scope_id)
         if normalized_scope_type == "project":
             return [
                 membership.as_scoped_access_grant()
-                for membership in self._membership_repo.list_by_project(scope_id)
+                for membership in self._membership_repo.list_by_project(normalized_scope_id)
             ]
         self._raise_unsupported_scope_type(normalized_scope_type)
 
@@ -86,6 +90,7 @@ class AccessControlService:
         scope_type: str | None = None,
     ) -> list[ScopedAccessGrant]:
         require_permission(self._user_session, "access.manage", operation_label="list user scoped access grants")
+        normalized_user_id = normalize_access_user_id(user_id)
         normalized_scope_type = (
             self._normalize_scope_type(scope_type)
             if scope_type is not None
@@ -94,11 +99,11 @@ class AccessControlService:
         if normalized_scope_type is not None:
             self._require_scope_policy(normalized_scope_type)
         if self._scoped_access_repo is not None:
-            return self._scoped_access_repo.list_by_user(user_id, scope_type=normalized_scope_type)
+            return self._scoped_access_repo.list_by_user(normalized_user_id, scope_type=normalized_scope_type)
         if normalized_scope_type in (None, "project"):
             grants = [
                 membership.as_scoped_access_grant()
-                for membership in self._membership_repo.list_by_user(user_id)
+                for membership in self._membership_repo.list_by_user(normalized_user_id)
             ]
             if normalized_scope_type is None:
                 return grants
@@ -127,10 +132,9 @@ class AccessControlService:
     ) -> ScopedAccessGrant:
         require_permission(self._user_session, "access.manage", operation_label="assign scoped access grant")
         normalized_scope_type = self._normalize_scope_type(scope_type)
-        normalized_scope_id = str(scope_id or "").strip()
-        if not normalized_scope_id:
-            raise ValidationError("Scope id is required.", code="SCOPE_ID_REQUIRED")
-        user = self._user_repo.get(user_id)
+        normalized_scope_id = normalize_access_scope_id(scope_id)
+        normalized_user_id = normalize_access_user_id(user_id)
+        user = self._user_repo.get(normalized_user_id)
         if user is None:
             raise NotFoundError("User not found.", code="USER_NOT_FOUND")
         role_name = self._normalize_scope_role(normalized_scope_type, scope_role)
@@ -149,13 +153,13 @@ class AccessControlService:
             grant = self._scoped_access_repo.get_for_scope_user(
                 normalized_scope_type,
                 normalized_scope_id,
-                user_id,
+                normalized_user_id,
             )
             if grant is None:
                 grant = ScopedAccessGrant.create(
                     scope_type=normalized_scope_type,
                     scope_id=normalized_scope_id,
-                    user_id=user_id,
+                    user_id=normalized_user_id,
                     scope_role=role_name,
                     permission_codes=permissions,
                 )
@@ -165,11 +169,11 @@ class AccessControlService:
                 grant.permission_codes = permissions
                 self._scoped_access_repo.update(grant)
         elif normalized_scope_type == "project":
-            membership = self._membership_repo.get_for_project_user(normalized_scope_id, user_id)
+            membership = self._membership_repo.get_for_project_user(normalized_scope_id, normalized_user_id)
             if membership is None:
                 membership = ProjectMembership.create(
                     project_id=normalized_scope_id,
-                    user_id=user_id,
+                    user_id=normalized_user_id,
                     scope_role=role_name,
                     permission_codes=permissions,
                 )
@@ -198,7 +202,7 @@ class AccessControlService:
             },
         )
         domain_events.access_changed.emit(normalized_scope_id)
-        self._refresh_current_session_if_needed(user_id)
+        self._refresh_current_session_if_needed(normalized_user_id)
         return grant
 
     def assign_project_membership(
@@ -221,13 +225,16 @@ class AccessControlService:
         require_permission(self._user_session, "access.manage", operation_label="remove scoped access grant")
         normalized_scope_type = self._normalize_scope_type(scope_type)
         self._require_scope_policy(normalized_scope_type)
-        normalized_scope_id = str(scope_id or "").strip()
-        if not normalized_scope_id:
-            raise ValidationError("Scope id is required.", code="SCOPE_ID_REQUIRED")
+        normalized_scope_id = normalize_access_scope_id(scope_id)
+        normalized_user_id = normalize_access_user_id(user_id)
         if self._scoped_access_repo is not None:
-            grant = self._scoped_access_repo.get_for_scope_user(normalized_scope_type, normalized_scope_id, user_id)
+            grant = self._scoped_access_repo.get_for_scope_user(
+                normalized_scope_type,
+                normalized_scope_id,
+                normalized_user_id,
+            )
         elif normalized_scope_type == "project":
-            membership = self._membership_repo.get_for_project_user(normalized_scope_id, user_id)
+            membership = self._membership_repo.get_for_project_user(normalized_scope_id, normalized_user_id)
             grant = membership.as_scoped_access_grant() if membership is not None else None
         else:
             self._raise_unsupported_scope_type(normalized_scope_type)
@@ -235,7 +242,7 @@ class AccessControlService:
             not_found_code = "PROJECT_MEMBERSHIP_NOT_FOUND" if normalized_scope_type == "project" else "SCOPED_ACCESS_GRANT_NOT_FOUND"
             not_found_label = "Project membership" if normalized_scope_type == "project" else "Scoped access grant"
             raise NotFoundError(f"{not_found_label} not found.", code=not_found_code)
-        user = self._user_repo.get(user_id)
+        user = self._user_repo.get(normalized_user_id)
         if self._scoped_access_repo is not None:
             self._scoped_access_repo.delete(grant.id)
         else:
@@ -253,7 +260,7 @@ class AccessControlService:
                 "action": "access.membership.remove",
                 "scope_type": normalized_scope_type,
                 "scope_id": normalized_scope_id,
-                "username": user.username if user is not None else user_id,
+                "username": user.username if user is not None else normalized_user_id,
                 "scope_role": grant.scope_role,
             },
         )
@@ -285,7 +292,7 @@ class AccessControlService:
         }
 
     def _normalize_scope_type(self, scope_type: str) -> str:
-        return ScopedRolePolicyRegistry.normalize_scope_type(scope_type)
+        return normalize_access_scope_type(scope_type)
 
     def _assert_scope_exists(self, scope_type: str, scope_id: str) -> None:
         resolver = self._scope_exists_resolvers.get(scope_type)
