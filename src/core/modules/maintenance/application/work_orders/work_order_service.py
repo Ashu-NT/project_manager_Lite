@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from calendar import monthrange
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -46,9 +47,6 @@ from src.core.modules.maintenance.application.work_orders.work_order_task_step_s
     MaintenanceWorkOrderTaskStepService,
 )
 from src.core.modules.maintenance.application.common.support import (
-    coerce_priority,
-    coerce_work_order_status,
-    coerce_work_order_type,
     normalize_maintenance_code,
     normalize_optional_text,
 )
@@ -281,79 +279,103 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         self._require_manage("create maintenance work order")
         organization = self._active_organization()
         site = self._get_site(site_id, organization=organization)
-        normalized_code = normalize_maintenance_code(work_order_code, label="Work order code")
-        normalized_work_order_type = coerce_work_order_type(work_order_type)
-        normalized_source_type = normalize_maintenance_code(source_type, label="Source type")
-        if self._work_order_repo.get_by_code(organization.id, normalized_code) is not None:
-            raise ValidationError("Work order code already exists in the active organization.", code="MAINTENANCE_WORK_ORDER_CODE_EXISTS")
-
-        source_request = None
-        if normalized_source_type == "WORK_REQUEST":
-            if not source_id:
-                raise ValidationError(
-                    "Source id is required when creating a work order from a work request.",
-                    code="MAINTENANCE_WORK_ORDER_SOURCE_REQUIRED",
-                )
-            source_request = self._get_work_request(source_id, organization=organization)
-            if source_request.site_id != site.id:
-                raise ValidationError(
-                    "Maintenance work order source must belong to the selected site.",
-                    code="MAINTENANCE_WORK_ORDER_SITE_MISMATCH",
-                )
-            asset_id = asset_id if asset_id is not None else source_request.asset_id
-            component_id = component_id if component_id is not None else source_request.component_id
-            system_id = system_id if system_id is not None else source_request.system_id
-            location_id = location_id if location_id is not None else source_request.location_id
-            if not title:
-                title = source_request.title
-            if not description:
-                description = source_request.description
-            if priority is None:
-                priority = source_request.priority
-            source_request_type = getattr(source_request.source_type, "value", source_request.source_type)
-            if source_request_type == "PREVENTIVE_PLAN":
-                is_preventive = True
-
-        asset_id, component_id, system_id, location_id = self._resolve_context_references(
-            organization=organization,
-            site=site,
-            asset_id=asset_id,
-            component_id=component_id,
-            system_id=system_id,
-            location_id=location_id,
-        )
-
         requested_by_user_id = self._current_user_id()
-
-        work_order = MaintenanceWorkOrder.create(
+        draft = MaintenanceWorkOrder.create(
             organization_id=organization.id,
             site_id=site.id,
-            work_order_code=normalized_code,
-            work_order_type=normalized_work_order_type,
-            source_type=normalized_source_type,
+            work_order_code=work_order_code,
+            work_order_type=work_order_type,
+            source_type=source_type,
             source_id=source_id,
             asset_id=asset_id,
             component_id=component_id,
             system_id=system_id,
             location_id=location_id,
-            title=normalize_optional_text(title),
-            description=normalize_optional_text(description),
-            priority=coerce_priority(priority),
+            title=title,
+            description=description,
+            priority=priority,
             requested_by_user_id=requested_by_user_id,
             assigned_team_id=assigned_team_id,
-            requires_shutdown=bool(requires_shutdown),
-            permit_required=bool(permit_required),
-            approval_required=bool(approval_required),
+            requires_shutdown=requires_shutdown,
+            permit_required=permit_required,
+            approval_required=approval_required,
             vendor_party_id=vendor_party_id,
-            is_preventive=bool(is_preventive),
-            is_emergency=bool(is_emergency),
-            notes=normalize_optional_text(notes),
+            is_preventive=is_preventive,
+            is_emergency=is_emergency,
+            notes=notes,
+        )
+        if self._work_order_repo.get_by_code(organization.id, draft.work_order_code) is not None:
+            raise ValidationError("Work order code already exists in the active organization.", code="MAINTENANCE_WORK_ORDER_CODE_EXISTS")
+
+        source_request = None
+        next_source_id = draft.source_id
+        next_asset_id = asset_id
+        next_component_id = component_id
+        next_system_id = system_id
+        next_location_id = location_id
+        next_title = title
+        next_description = description
+        next_priority = priority
+        next_is_preventive = is_preventive
+        if draft.source_type == "WORK_REQUEST":
+            if not draft.source_id:
+                raise ValidationError(
+                    "Source id is required when creating a work order from a work request.",
+                    code="MAINTENANCE_WORK_ORDER_SOURCE_REQUIRED",
+                )
+            source_request = self._get_work_request(draft.source_id, organization=organization)
+            if source_request.site_id != site.id:
+                raise ValidationError(
+                    "Maintenance work order source must belong to the selected site.",
+                    code="MAINTENANCE_WORK_ORDER_SITE_MISMATCH",
+                )
+            next_asset_id = asset_id if asset_id is not None else source_request.asset_id
+            next_component_id = component_id if component_id is not None else source_request.component_id
+            next_system_id = system_id if system_id is not None else source_request.system_id
+            next_location_id = location_id if location_id is not None else source_request.location_id
+            if not next_title:
+                next_title = source_request.title
+            if not next_description:
+                next_description = source_request.description
+            if next_priority is None:
+                next_priority = source_request.priority
+            source_request_type = getattr(source_request.source_type, "value", source_request.source_type)
+            if source_request_type == "PREVENTIVE_PLAN":
+                next_is_preventive = True
+
+        resolved_asset_id, resolved_component_id, resolved_system_id, resolved_location_id = self._resolve_context_references(
+            organization=organization,
+            site=site,
+            asset_id=next_asset_id,
+            component_id=next_component_id,
+            system_id=next_system_id,
+            location_id=next_location_id,
+        )
+
+        work_order = replace(
+            draft,
+            source_id=next_source_id,
+            asset_id=resolved_asset_id,
+            component_id=resolved_component_id,
+            system_id=resolved_system_id,
+            location_id=resolved_location_id,
+            title=next_title,
+            description=next_description,
+            priority=next_priority,
+            assigned_team_id=assigned_team_id,
+            requires_shutdown=requires_shutdown,
+            permit_required=permit_required,
+            approval_required=approval_required,
+            vendor_party_id=vendor_party_id,
+            is_preventive=next_is_preventive,
+            is_emergency=is_emergency,
+            notes=notes,
         )
         try:
             self._work_order_repo.add(work_order)
             converted_request = self._sync_source_request_conversion(
-                normalized_source_type,
-                source_id=source_id,
+                work_order.source_type,
+                source_id=work_order.source_id,
                 organization=organization,
             )
             self._session.commit()
@@ -408,6 +430,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         self._require_manage("update maintenance work order")
         work_order = self.get_work_order(work_order_id)
         status_completion_changed = False
+        organization = self._active_organization()
 
         if expected_version is not None and work_order.version != expected_version:
             raise ConcurrencyError(
@@ -415,55 +438,15 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
                 code="STALE_WRITE",
             )
 
-            # Validate status transition
-        if status is not None:
-            from src.core.modules.maintenance.domain import MaintenanceWorkOrderStatus
-            prior_status = work_order.status
-            new_status = coerce_work_order_status(status)
-            self._validate_work_order_status_transition(work_order.status, new_status)
-            work_order.status = new_status
-
-            # Set timestamps based on status changes
-            now = datetime.now(timezone.utc)
-            if new_status == MaintenanceWorkOrderStatus.IN_PROGRESS and work_order.actual_start is None:
-                work_order.actual_start = now
-            elif new_status in (MaintenanceWorkOrderStatus.COMPLETED, MaintenanceWorkOrderStatus.CANCELLED) and work_order.actual_end is None:
-                work_order.actual_end = now
-            elif new_status == MaintenanceWorkOrderStatus.CLOSED and work_order.closed_at is None:
-                work_order.closed_at = now
-                current_user_id = self._current_user_id()
-                if current_user_id:
-                    work_order.closed_by_user_id = current_user_id
-            status_completion_changed = (
-                prior_status not in (
-                    MaintenanceWorkOrderStatus.COMPLETED,
-                    MaintenanceWorkOrderStatus.VERIFIED,
-                    MaintenanceWorkOrderStatus.CLOSED,
-                )
-                and new_status
-                in (
-                    MaintenanceWorkOrderStatus.COMPLETED,
-                    MaintenanceWorkOrderStatus.VERIFIED,
-                    MaintenanceWorkOrderStatus.CLOSED,
-                )
-            )
-
-        if work_order_code is not None:
-            normalized_code = normalize_maintenance_code(work_order_code, label="Work order code")
-            existing = self._work_order_repo.get_by_code(work_order.organization_id, normalized_code)
-            if existing is not None and existing.id != work_order.id:
-                raise ValidationError("Work order code already exists in the active organization.", code="MAINTENANCE_WORK_ORDER_CODE_EXISTS")
-            work_order.work_order_code = normalized_code
-
-        if work_order_type is not None:
-            work_order.work_order_type = coerce_work_order_type(work_order_type)
-        if source_id is not None:
-            if work_order.source_type == "WORK_REQUEST":
-                self._get_work_request(source_id, organization=self._active_organization())
-            work_order.source_id = source_id
-
-        organization = self._active_organization()
         site = self._get_site(work_order.site_id, organization=organization)
+        next_source_id = work_order.source_id if source_id is None else source_id
+        if source_id is not None and work_order.source_type == "WORK_REQUEST":
+            source_request = self._get_work_request(next_source_id, organization=organization)
+            if source_request.site_id != site.id:
+                raise ValidationError(
+                    "Maintenance work order source must belong to the selected site.",
+                    code="MAINTENANCE_WORK_ORDER_SITE_MISMATCH",
+                )
         resolved_asset_id, resolved_component_id, resolved_system_id, resolved_location_id = self._resolve_context_references(
             organization=organization,
             site=site,
@@ -472,74 +455,116 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
             system_id=system_id if system_id is not None else work_order.system_id,
             location_id=location_id if location_id is not None else work_order.location_id,
         )
-        work_order.asset_id = resolved_asset_id
-        work_order.component_id = resolved_component_id
-        work_order.system_id = resolved_system_id
-        work_order.location_id = resolved_location_id
-
-        if title is not None:
-            work_order.title = normalize_optional_text(title)
-        if description is not None:
-            work_order.description = normalize_optional_text(description)
-        if priority is not None:
-            work_order.priority = coerce_priority(priority)
-        if planner_user_id is not None:
-            work_order.planner_user_id = planner_user_id
-        if supervisor_user_id is not None:
-            work_order.supervisor_user_id = supervisor_user_id
-        if assigned_team_id is not None:
-            work_order.assigned_team_id = assigned_team_id
-        if assigned_employee_id is not None:
-            work_order.assigned_employee_id = assigned_employee_id
-        if planned_start is not None:
-            work_order.planned_start = planned_start
-        if planned_end is not None:
-            work_order.planned_end = planned_end
-        if requires_shutdown is not None:
-            work_order.requires_shutdown = bool(requires_shutdown)
-        if permit_required is not None:
-            work_order.permit_required = bool(permit_required)
-        if approval_required is not None:
-            work_order.approval_required = bool(approval_required)
-        if failure_code is not None:
-            work_order.failure_code = self._normalize_failure_code(
-                failure_code,
+        now = datetime.now(timezone.utc)
+        updated = replace(
+            work_order,
+            work_order_code=work_order.work_order_code if work_order_code is None else work_order_code,
+            work_order_type=work_order.work_order_type if work_order_type is None else work_order_type,
+            source_id=next_source_id,
+            asset_id=resolved_asset_id,
+            component_id=resolved_component_id,
+            system_id=resolved_system_id,
+            location_id=resolved_location_id,
+            title=work_order.title if title is None else title,
+            description=work_order.description if description is None else description,
+            priority=work_order.priority if priority is None else priority,
+            status=work_order.status if status is None else status,
+            planner_user_id=work_order.planner_user_id if planner_user_id is None else planner_user_id,
+            supervisor_user_id=(
+                work_order.supervisor_user_id
+                if supervisor_user_id is None
+                else supervisor_user_id
+            ),
+            assigned_team_id=work_order.assigned_team_id if assigned_team_id is None else assigned_team_id,
+            assigned_employee_id=(
+                work_order.assigned_employee_id
+                if assigned_employee_id is None
+                else assigned_employee_id
+            ),
+            planned_start=work_order.planned_start if planned_start is None else planned_start,
+            planned_end=work_order.planned_end if planned_end is None else planned_end,
+            requires_shutdown=(
+                work_order.requires_shutdown
+                if requires_shutdown is None
+                else requires_shutdown
+            ),
+            permit_required=work_order.permit_required if permit_required is None else permit_required,
+            approval_required=(
+                work_order.approval_required
+                if approval_required is None
+                else approval_required
+            ),
+            failure_code=work_order.failure_code if failure_code is None else failure_code,
+            root_cause_code=work_order.root_cause_code if root_cause_code is None else root_cause_code,
+            downtime_minutes=(
+                work_order.downtime_minutes if downtime_minutes is None else downtime_minutes
+            ),
+            parts_cost=work_order.parts_cost if parts_cost is None else parts_cost,
+            labor_cost=work_order.labor_cost if labor_cost is None else labor_cost,
+            vendor_party_id=work_order.vendor_party_id if vendor_party_id is None else vendor_party_id,
+            is_preventive=work_order.is_preventive if is_preventive is None else is_preventive,
+            is_emergency=work_order.is_emergency if is_emergency is None else is_emergency,
+            notes=work_order.notes if notes is None else notes,
+            updated_at=now,
+        )
+        updated = replace(
+            updated,
+            failure_code=self._normalize_failure_code(
+                updated.failure_code,
                 organization=organization,
                 expected_type=MaintenanceFailureCodeType.SYMPTOM,
                 label="Failure code",
                 not_found_code="MAINTENANCE_FAILURE_CODE_NOT_FOUND",
                 invalid_code="MAINTENANCE_FAILURE_CODE_INVALID",
-            )
-        if root_cause_code is not None:
-            work_order.root_cause_code = self._normalize_failure_code(
-                root_cause_code,
+            ),
+            root_cause_code=self._normalize_failure_code(
+                updated.root_cause_code,
                 organization=organization,
                 expected_type=MaintenanceFailureCodeType.CAUSE,
                 label="Root cause code",
                 not_found_code="MAINTENANCE_ROOT_CAUSE_CODE_NOT_FOUND",
                 invalid_code="MAINTENANCE_ROOT_CAUSE_CODE_INVALID",
+            ),
+        )
+        if status is not None:
+            prior_status = work_order.status
+            self._validate_work_order_status_transition(work_order.status, updated.status)
+            if updated.status == MaintenanceWorkOrderStatus.IN_PROGRESS and work_order.actual_start is None:
+                updated = replace(updated, actual_start=now)
+            elif (
+                updated.status in (MaintenanceWorkOrderStatus.COMPLETED, MaintenanceWorkOrderStatus.CANCELLED)
+                and work_order.actual_end is None
+            ):
+                updated = replace(updated, actual_end=now)
+            elif updated.status == MaintenanceWorkOrderStatus.CLOSED and work_order.closed_at is None:
+                current_user_id = self._current_user_id()
+                updated = replace(
+                    updated,
+                    closed_at=now,
+                    closed_by_user_id=current_user_id or updated.closed_by_user_id,
+                )
+            status_completion_changed = (
+                prior_status not in (
+                    MaintenanceWorkOrderStatus.COMPLETED,
+                    MaintenanceWorkOrderStatus.VERIFIED,
+                    MaintenanceWorkOrderStatus.CLOSED,
+                )
+                and updated.status
+                in (
+                    MaintenanceWorkOrderStatus.COMPLETED,
+                    MaintenanceWorkOrderStatus.VERIFIED,
+                    MaintenanceWorkOrderStatus.CLOSED,
+                )
             )
-        if downtime_minutes is not None:
-            work_order.downtime_minutes = downtime_minutes
-        if parts_cost is not None:
-            work_order.parts_cost = parts_cost
-        if labor_cost is not None:
-            work_order.labor_cost = labor_cost
-        if vendor_party_id is not None:
-            work_order.vendor_party_id = vendor_party_id
-        if is_preventive is not None:
-            work_order.is_preventive = bool(is_preventive)
-        if is_emergency is not None:
-            work_order.is_emergency = bool(is_emergency)
-        if notes is not None:
-            work_order.notes = normalize_optional_text(notes)
-
-        work_order.updated_at = datetime.now(timezone.utc)
+        if work_order_code is not None:
+            existing = self._work_order_repo.get_by_code(updated.organization_id, updated.work_order_code)
+            if existing is not None and existing.id != updated.id:
+                raise ValidationError("Work order code already exists in the active organization.", code="MAINTENANCE_WORK_ORDER_CODE_EXISTS")
         if status_completion_changed:
-            self._apply_preventive_completion(work_order)
+            self._apply_preventive_completion(updated)
 
         try:
-            self._work_order_repo.update(work_order)
+            self._work_order_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -547,8 +572,8 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_work_order.update", work_order)
-        return work_order
+        self._record_change("maintenance_work_order.update", updated)
+        return updated
 
     def _get_asset(self, asset_id: str, *, organization: Organization) -> MaintenanceAsset:
         asset = self._asset_repo.get(asset_id)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -13,11 +14,7 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceSystemRepository,
 )
 from src.core.modules.maintenance.application.common.support import (
-    coerce_optional_datetime,
-    coerce_optional_decimal_value,
-    coerce_sensor_quality_state,
     normalize_maintenance_code,
-    normalize_maintenance_name,
     normalize_optional_text,
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
@@ -196,9 +193,6 @@ class MaintenanceSensorService:
         self._require_manage("create maintenance sensor")
         organization = self._active_organization()
         site = self._get_site(site_id, organization=organization)
-        normalized_code = normalize_maintenance_code(sensor_code, label="Sensor code")
-        if self._sensor_repo.get_by_code(organization.id, normalized_code) is not None:
-            raise ValidationError("Sensor code already exists in the active organization.", code="MAINTENANCE_SENSOR_CODE_EXISTS")
         asset, component, system = self._resolve_context(
             organization=organization,
             site=site,
@@ -209,23 +203,25 @@ class MaintenanceSensorService:
         sensor = MaintenanceSensor.create(
             organization_id=organization.id,
             site_id=site.id,
-            sensor_code=normalized_code,
-            sensor_name=normalize_maintenance_name(sensor_name, label="Sensor name"),
-            sensor_tag=normalize_optional_text(sensor_tag),
-            sensor_type=normalize_optional_text(sensor_type).upper(),
+            sensor_code=sensor_code,
+            sensor_name=sensor_name,
+            sensor_tag=sensor_tag,
+            sensor_type=sensor_type,
             asset_id=asset.id if asset is not None else None,
             component_id=component.id if component is not None else None,
             system_id=system.id if system is not None else None,
-            source_type=normalize_optional_text(source_type).upper(),
-            source_name=normalize_optional_text(source_name),
-            source_key=normalize_optional_text(source_key),
-            unit=normalize_optional_text(unit).upper(),
-            current_value=coerce_optional_decimal_value(current_value, label="Current value"),
-            last_read_at=coerce_optional_datetime(last_read_at, label="Last read at"),
-            last_quality_state=coerce_sensor_quality_state(last_quality_state),
+            source_type=source_type,
+            source_name=source_name,
+            source_key=source_key,
+            unit=unit,
+            current_value=current_value,
+            last_read_at=last_read_at,
+            last_quality_state=last_quality_state,
             is_active=bool(is_active),
-            notes=normalize_optional_text(notes),
+            notes=notes,
         )
+        if self._sensor_repo.get_by_code(organization.id, sensor.sensor_code) is not None:
+            raise ValidationError("Sensor code already exists in the active organization.", code="MAINTENANCE_SENSOR_CODE_EXISTS")
         try:
             self._sensor_repo.add(sensor)
             self._session.commit()
@@ -274,37 +270,10 @@ class MaintenanceSensorService:
             if site_id is not None
             else self._get_site(sensor.site_id, organization=organization)
         )
-        if sensor_code is not None:
-            normalized_code = normalize_maintenance_code(sensor_code, label="Sensor code")
-            existing = self._sensor_repo.get_by_code(organization.id, normalized_code)
-            if existing is not None and existing.id != sensor.id:
-                raise ValidationError("Sensor code already exists in the active organization.", code="MAINTENANCE_SENSOR_CODE_EXISTS")
-            sensor.sensor_code = normalized_code
-        if sensor_name is not None:
-            sensor.sensor_name = normalize_maintenance_name(sensor_name, label="Sensor name")
-        if sensor_tag is not None:
-            sensor.sensor_tag = normalize_optional_text(sensor_tag)
-        if sensor_type is not None:
-            sensor.sensor_type = normalize_optional_text(sensor_type).upper()
-        if source_type is not None:
-            sensor.source_type = normalize_optional_text(source_type).upper()
-        if source_name is not None:
-            sensor.source_name = normalize_optional_text(source_name)
-        if source_key is not None:
-            sensor.source_key = normalize_optional_text(source_key)
-        if unit is not None:
-            sensor.unit = normalize_optional_text(unit).upper()
-        if current_value is not None:
-            sensor.current_value = coerce_optional_decimal_value(current_value, label="Current value")
-        if last_read_at is not None:
-            sensor.last_read_at = coerce_optional_datetime(last_read_at, label="Last read at")
-        if last_quality_state is not None:
-            sensor.last_quality_state = coerce_sensor_quality_state(last_quality_state)
-        if is_active is not None:
-            sensor.is_active = bool(is_active)
-        if notes is not None:
-            sensor.notes = normalize_optional_text(notes)
-
+        next_site_id = sensor.site_id
+        next_asset_id = sensor.asset_id
+        next_component_id = sensor.component_id
+        next_system_id = sensor.system_id
         if any(value is not None for value in (site_id, asset_id, component_id, system_id)):
             asset, component, system = self._resolve_context(
                 organization=organization,
@@ -313,10 +282,10 @@ class MaintenanceSensorService:
                 component_id=sensor.component_id if component_id is None else (component_id or None),
                 system_id=sensor.system_id if system_id is None else (system_id or None),
             )
-            sensor.site_id = target_site.id
-            sensor.asset_id = asset.id if asset is not None else None
-            sensor.component_id = component.id if component is not None else None
-            sensor.system_id = system.id if system is not None else None
+            next_site_id = target_site.id
+            next_asset_id = asset.id if asset is not None else None
+            next_component_id = component.id if component is not None else None
+            next_system_id = system.id if system is not None else None
         elif target_site.id != sensor.site_id:
             self._resolve_context(
                 organization=organization,
@@ -325,11 +294,34 @@ class MaintenanceSensorService:
                 component_id=sensor.component_id,
                 system_id=sensor.system_id,
             )
-            sensor.site_id = target_site.id
+            next_site_id = target_site.id
 
-        sensor.updated_at = datetime.now(timezone.utc)
+        updated = replace(
+            sensor,
+            site_id=next_site_id,
+            sensor_code=sensor.sensor_code if sensor_code is None else sensor_code,
+            sensor_name=sensor.sensor_name if sensor_name is None else sensor_name,
+            sensor_tag=sensor.sensor_tag if sensor_tag is None else sensor_tag,
+            sensor_type=sensor.sensor_type if sensor_type is None else sensor_type,
+            asset_id=next_asset_id,
+            component_id=next_component_id,
+            system_id=next_system_id,
+            source_type=sensor.source_type if source_type is None else source_type,
+            source_name=sensor.source_name if source_name is None else source_name,
+            source_key=sensor.source_key if source_key is None else source_key,
+            unit=sensor.unit if unit is None else unit,
+            current_value=sensor.current_value if current_value is None else current_value,
+            last_read_at=sensor.last_read_at if last_read_at is None else last_read_at,
+            last_quality_state=sensor.last_quality_state if last_quality_state is None else last_quality_state,
+            is_active=sensor.is_active if is_active is None else bool(is_active),
+            notes=sensor.notes if notes is None else notes,
+            updated_at=datetime.now(timezone.utc),
+        )
+        existing = self._sensor_repo.get_by_code(organization.id, updated.sensor_code)
+        if existing is not None and existing.id != sensor.id:
+            raise ValidationError("Sensor code already exists in the active organization.", code="MAINTENANCE_SENSOR_CODE_EXISTS")
         try:
-            self._sensor_repo.update(sensor)
+            self._sensor_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -337,8 +329,8 @@ class MaintenanceSensorService:
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_sensor.update", sensor)
-        return sensor
+        self._record_change("maintenance_sensor.update", updated)
+        return updated
 
     def _resolve_context(
         self,

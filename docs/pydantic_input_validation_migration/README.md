@@ -1089,6 +1089,13 @@ Service responsibilities:
 - procurement and time-entry integration
 - labor/material planning business rules
 
+Notes:
+
+- write-model validation now lives in the maintenance domain for `MaintenanceWorkRequest`, `MaintenanceWorkOrder`, `MaintenanceWorkOrderTask`, `MaintenanceWorkOrderTaskStep`, and `MaintenanceWorkOrderMaterialRequirement`
+- request/order/task/step DTOs now normalize IDs, codes, type/status enums, timestamps, sequence numbers, notes, and local chronology rules with assignment-time validation
+- material requirement DTO validation now owns stock/non-stock field shape, positive/non-negative quantity checks, and issued-vs-required consistency, while the service still derives stock description/UOM defaults and handles inventory availability/procurement integration
+- work request and work order services now use `replace(...)`-based validated updates while keeping tenant-aware uniqueness checks, source conversion, preventive-plan orchestration, failure-code repository validation, and workflow transitions in the application layer
+
 #### Reliability cluster
 
 Entities:
@@ -1113,6 +1120,15 @@ Service responsibilities:
 - asset/component/site linkage
 - external integration mapping policy
 - exception escalation workflow
+
+Notes:
+
+- write-model validation now lives in the maintenance domain for `MaintenanceSensor`, `MaintenanceIntegrationSource`, `MaintenanceSensorSourceMapping`, `MaintenanceSensorException`, `MaintenanceFailureCode`, and `MaintenanceDowntimeEvent`
+- reliability DTOs now normalize ownership IDs, codes, integration types, sensor units and quality/status enums, mapping keys, timestamps, and notes with assignment-time validation
+- downtime and sensor-exception DTO validation now owns local chronology checks, and failure-code / sensor / source / mapping DTOs now own the scalar cleanup previously duplicated in reliability services
+- reliability services now use `replace(...)`-based validated updates while keeping tenant-aware uniqueness checks, asset/component/system/site linkage, integration/source-mapping consistency, downtime rollup sync, and exception workflow orchestration in the application layer
+- `MaintenanceSensorReading` remains on the existing service-layer validation path for now, but its snapshot refresh continues to write into the validated `MaintenanceSensor` DTO
+- targeted verification completed with `24` passing maintenance tests covering domain validation, sensor/integration foundations, phase-4 exception flow, and persistence/reliability service graphs
 
 #### Preventive cluster
 
@@ -1139,6 +1155,10 @@ Service responsibilities:
 - related asset/system/component/sensor existence
 - generation workflow and approval policy
 - plan-instance lifecycle transitions
+- completed in `src/core/modules/maintenance/domain/preventive/schedule.py` with shared pydantic-backed normalization for task templates, step templates, plans, plan tasks, plan instances, and blackout windows
+- preventive CRUD services now construct validated DTOs first and use `replace(...)` updates while keeping tenant-aware uniqueness checks, scope enforcement, context/sensor linkage, and trigger-policy rules in the application layer
+- preventive scheduler/generation audit writes now keep business timestamps on `due_at`/`generated_at`/`last_generated_at` while using runtime persistence timestamps for `updated_at`, which preserves historical `as_of` generation flows without leaking invalid chronology
+- preventive package exports now include `MaintenanceBlackoutWindow`, and targeted verification completed with `32` passing maintenance tests covering preventive DTO validation, task-template foundations, plan/plan-task services, generation, scheduling, and persistence flows
 
 ### Inventory and procurement entities
 

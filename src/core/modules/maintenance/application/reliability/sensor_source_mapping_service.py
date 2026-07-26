@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -11,7 +12,6 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceSensorRepository,
     MaintenanceSensorSourceMappingRepository,
 )
-from src.core.modules.maintenance.application.common.support import normalize_maintenance_name, normalize_optional_text
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
@@ -116,28 +116,23 @@ class MaintenanceSensorSourceMappingService:
             self._scope_anchor_for_sensor_id(sensor.id),
             operation_label="create maintenance sensor source mapping",
         )
-        normalized_equipment_key = normalize_optional_text(external_equipment_key)
-        normalized_measurement_key = normalize_maintenance_name(
-            external_measurement_key,
-            label="External measurement key",
-        )
-        self._ensure_unique_mapping(
-            organization_id=organization.id,
-            integration_source_id=integration_source_id,
-            sensor_id=sensor.id,
-            external_equipment_key=normalized_equipment_key,
-            external_measurement_key=normalized_measurement_key,
-        )
         mapping = MaintenanceSensorSourceMapping.create(
             organization_id=organization.id,
             integration_source_id=integration_source_id,
             sensor_id=sensor.id,
-            external_equipment_key=normalized_equipment_key,
-            external_measurement_key=normalized_measurement_key,
-            transform_rule=normalize_optional_text(transform_rule),
-            unit_conversion_rule=normalize_optional_text(unit_conversion_rule),
+            external_equipment_key=external_equipment_key,
+            external_measurement_key=external_measurement_key,
+            transform_rule=transform_rule,
+            unit_conversion_rule=unit_conversion_rule,
             is_active=bool(is_active),
-            notes=normalize_optional_text(notes),
+            notes=notes,
+        )
+        self._ensure_unique_mapping(
+            organization_id=organization.id,
+            integration_source_id=mapping.integration_source_id,
+            sensor_id=mapping.sensor_id,
+            external_equipment_key=mapping.external_equipment_key,
+            external_measurement_key=mapping.external_measurement_key,
         )
         try:
             self._sensor_source_mapping_repo.add(mapping)
@@ -176,42 +171,52 @@ class MaintenanceSensorSourceMappingService:
                 "Maintenance sensor source mapping changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
+        next_integration_source_id = mapping.integration_source_id
         if integration_source_id is not None:
             self._get_integration_source(integration_source_id, organization=organization)
-            mapping.integration_source_id = integration_source_id
+            next_integration_source_id = integration_source_id
+        next_sensor_id = mapping.sensor_id
         if sensor_id is not None:
             sensor = self._get_sensor(sensor_id, organization=organization)
             self._require_scope_manage(
                 self._scope_anchor_for_sensor_id(sensor.id),
                 operation_label="update maintenance sensor source mapping",
             )
-            mapping.sensor_id = sensor.id
-        if external_equipment_key is not None:
-            mapping.external_equipment_key = normalize_optional_text(external_equipment_key)
-        if external_measurement_key is not None:
-            mapping.external_measurement_key = normalize_maintenance_name(
-                external_measurement_key,
-                label="External measurement key",
-            )
-        if transform_rule is not None:
-            mapping.transform_rule = normalize_optional_text(transform_rule)
-        if unit_conversion_rule is not None:
-            mapping.unit_conversion_rule = normalize_optional_text(unit_conversion_rule)
-        if is_active is not None:
-            mapping.is_active = bool(is_active)
-        if notes is not None:
-            mapping.notes = normalize_optional_text(notes)
+            next_sensor_id = sensor.id
+        updated = replace(
+            mapping,
+            integration_source_id=next_integration_source_id,
+            sensor_id=next_sensor_id,
+            external_equipment_key=(
+                mapping.external_equipment_key
+                if external_equipment_key is None
+                else external_equipment_key
+            ),
+            external_measurement_key=(
+                mapping.external_measurement_key
+                if external_measurement_key is None
+                else external_measurement_key
+            ),
+            transform_rule=mapping.transform_rule if transform_rule is None else transform_rule,
+            unit_conversion_rule=(
+                mapping.unit_conversion_rule
+                if unit_conversion_rule is None
+                else unit_conversion_rule
+            ),
+            is_active=mapping.is_active if is_active is None else bool(is_active),
+            notes=mapping.notes if notes is None else notes,
+            updated_at=datetime.now(timezone.utc),
+        )
         self._ensure_unique_mapping(
             organization_id=organization.id,
-            integration_source_id=mapping.integration_source_id,
-            sensor_id=mapping.sensor_id,
-            external_equipment_key=mapping.external_equipment_key,
-            external_measurement_key=mapping.external_measurement_key,
-            self_id=mapping.id,
+            integration_source_id=updated.integration_source_id,
+            sensor_id=updated.sensor_id,
+            external_equipment_key=updated.external_equipment_key,
+            external_measurement_key=updated.external_measurement_key,
+            self_id=updated.id,
         )
-        mapping.updated_at = datetime.now(timezone.utc)
         try:
-            self._sensor_source_mapping_repo.update(mapping)
+            self._sensor_source_mapping_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -222,8 +227,8 @@ class MaintenanceSensorSourceMappingService:
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_sensor_source_mapping.update", mapping)
-        return mapping
+        self._record_change("maintenance_sensor_source_mapping.update", updated)
+        return updated
 
     def _ensure_unique_mapping(
         self,

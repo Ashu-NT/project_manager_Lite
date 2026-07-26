@@ -34,10 +34,25 @@ class _OrgRepo(OrganizationRepository):
     def get(self, organization_id: str):
         return self.organization if self.organization.id == organization_id else None
 
+    def get_for_tenant(self, tenant_id: str, organization_id: str):
+        if self.organization.tenant_id != tenant_id:
+            return None
+        return self.get(organization_id)
+
     def get_by_code(self, organization_code: str):
         return self.organization if self.organization.organization_code == organization_code else None
 
+    def get_by_code_for_tenant(self, tenant_id: str, organization_code: str):
+        if self.organization.tenant_id != tenant_id:
+            return None
+        return self.get_by_code(organization_code)
+
     def get_active(self):
+        return self.organization
+
+    def get_active_for_tenant(self, tenant_id: str):
+        if self.organization.tenant_id != tenant_id:
+            return None
         return self.organization
 
     def list_all(self, *, active_only=None):

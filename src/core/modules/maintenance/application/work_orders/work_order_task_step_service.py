@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -21,11 +22,7 @@ from src.core.modules.maintenance.contracts.repositories import (
 from src.core.modules.maintenance.application.work_orders.work_order_task_step_validation import (
     MaintenanceWorkOrderTaskStepValidationMixin,
 )
-from src.core.modules.maintenance.application.common.support import (
-    coerce_work_order_task_step_status,
-    normalize_maintenance_name,
-    normalize_optional_text,
-)
+from src.core.modules.maintenance.domain._validation import normalize_optional_text, normalize_positive_int
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
@@ -131,17 +128,17 @@ class MaintenanceWorkOrderTaskStepService(MaintenanceWorkOrderTaskStepValidation
         step = MaintenanceWorkOrderTaskStep.create(
             organization_id=organization.id,
             work_order_task_id=task.id,
-            source_step_template_id=(str(source_step_template_id or "").strip() or None),
+            source_step_template_id=source_step_template_id,
             step_number=resolved_step_number,
-            instruction=normalize_maintenance_name(instruction, label="Instruction"),
-            expected_result=normalize_optional_text(expected_result),
-            hint_level=normalize_optional_text(hint_level).upper(),
-            hint_text=normalize_optional_text(hint_text),
-            requires_confirmation=bool(requires_confirmation),
-            requires_measurement=bool(requires_measurement),
-            requires_photo=bool(requires_photo),
-            measurement_unit=normalize_optional_text(measurement_unit),
-            notes=normalize_optional_text(notes),
+            instruction=instruction,
+            expected_result=expected_result,
+            hint_level=hint_level,
+            hint_text=hint_text,
+            requires_confirmation=requires_confirmation,
+            requires_measurement=requires_measurement,
+            requires_photo=requires_photo,
+            measurement_unit=measurement_unit,
+            notes=notes,
         )
         try:
             self._work_order_task_step_repo.add(step)
@@ -190,29 +187,7 @@ class MaintenanceWorkOrderTaskStepService(MaintenanceWorkOrderTaskStepValidation
                 code="STALE_WRITE",
             )
 
-        if instruction is not None:
-            step.instruction = normalize_maintenance_name(instruction, label="Instruction")
-        if source_step_template_id is not None:
-            step.source_step_template_id = (str(source_step_template_id or "").strip() or None)
-        if expected_result is not None:
-            step.expected_result = normalize_optional_text(expected_result)
-        if hint_level is not None:
-            step.hint_level = normalize_optional_text(hint_level).upper()
-        if hint_text is not None:
-            step.hint_text = normalize_optional_text(hint_text)
-        if requires_confirmation is not None:
-            step.requires_confirmation = bool(requires_confirmation)
-        if requires_measurement is not None:
-            step.requires_measurement = bool(requires_measurement)
-        if requires_photo is not None:
-            step.requires_photo = bool(requires_photo)
-        if measurement_value is not None:
-            step.measurement_value = normalize_optional_text(measurement_value)
-        if measurement_unit is not None:
-            step.measurement_unit = normalize_optional_text(measurement_unit)
-        if notes is not None:
-            step.notes = normalize_optional_text(notes)
-
+        next_step_number = step.step_number
         if step_number is not None:
             resolved_step_number = self._resolve_step_number(task.id, step_number)
             sibling_rows = self._work_order_task_step_repo.list_for_organization(
@@ -224,59 +199,101 @@ class MaintenanceWorkOrderTaskStepService(MaintenanceWorkOrderTaskStepValidation
                     "Step number already exists on the selected work order task.",
                     code="MAINTENANCE_WORK_ORDER_TASK_STEP_NUMBER_EXISTS",
                 )
-            step.step_number = resolved_step_number
+            next_step_number = resolved_step_number
+
+        now = datetime.now(timezone.utc)
+        updated = replace(
+            step,
+            instruction=step.instruction if instruction is None else instruction,
+            source_step_template_id=(
+                step.source_step_template_id
+                if source_step_template_id is None
+                else source_step_template_id
+            ),
+            step_number=next_step_number,
+            expected_result=step.expected_result if expected_result is None else expected_result,
+            hint_level=step.hint_level if hint_level is None else hint_level,
+            hint_text=step.hint_text if hint_text is None else hint_text,
+            status=step.status if status is None else status,
+            requires_confirmation=(
+                step.requires_confirmation
+                if requires_confirmation is None
+                else requires_confirmation
+            ),
+            requires_measurement=(
+                step.requires_measurement
+                if requires_measurement is None
+                else requires_measurement
+            ),
+            requires_photo=step.requires_photo if requires_photo is None else requires_photo,
+            measurement_value=(
+                step.measurement_value if measurement_value is None else measurement_value
+            ),
+            measurement_unit=step.measurement_unit if measurement_unit is None else measurement_unit,
+            notes=step.notes if notes is None else notes,
+            updated_at=now,
+        )
 
         if status is not None:
-            new_status = coerce_work_order_task_step_status(status)
-            self._validate_work_order_task_step_status_transition(step.status, new_status)
-            if step.requires_measurement and new_status == MaintenanceWorkOrderTaskStepStatus.DONE and not normalize_optional_text(step.measurement_value):
-                raise ValidationError(
-                    "Measurement value is required before completing this step.",
-                    code="MAINTENANCE_WORK_ORDER_TASK_STEP_MEASUREMENT_REQUIRED",
-                )
-            step.status = new_status
-            now = datetime.now(timezone.utc)
+            self._validate_work_order_task_step_status_transition(step.status, updated.status)
             current_user_id = self._current_user_id()
-            if new_status == MaintenanceWorkOrderTaskStepStatus.IN_PROGRESS and task.status == MaintenanceWorkOrderTaskStatus.NOT_STARTED:
-                task.status = MaintenanceWorkOrderTaskStatus.IN_PROGRESS
-                if task.started_at is None:
-                    task.started_at = now
-                task.updated_at = now
-                self._work_order_task_repo.update(task)
-            if new_status in {
+            if (
+                updated.status == MaintenanceWorkOrderTaskStepStatus.IN_PROGRESS
+                and task.status == MaintenanceWorkOrderTaskStatus.NOT_STARTED
+            ):
+                updated_task = replace(
+                    task,
+                    status=MaintenanceWorkOrderTaskStatus.IN_PROGRESS,
+                    started_at=task.started_at or now,
+                    updated_at=now,
+                )
+                self._work_order_task_repo.update(updated_task)
+                task.status = updated_task.status
+                task.started_at = updated_task.started_at
+                task.updated_at = updated_task.updated_at
+                task.version = updated_task.version
+            if updated.status in {
                 MaintenanceWorkOrderTaskStepStatus.DONE,
                 MaintenanceWorkOrderTaskStepStatus.SKIPPED,
             }:
-                if step.completed_at is None:
-                    step.completed_at = now
-                if current_user_id:
-                    step.completed_by_user_id = current_user_id
-            if new_status == MaintenanceWorkOrderTaskStepStatus.FAILED:
-                step.confirmed_at = None
-                step.confirmed_by_user_id = None
+                updated = replace(
+                    updated,
+                    completed_at=step.completed_at or now,
+                    completed_by_user_id=current_user_id or updated.completed_by_user_id,
+                )
+            if updated.status == MaintenanceWorkOrderTaskStepStatus.FAILED:
+                updated = replace(
+                    updated,
+                    confirmed_at=None,
+                    confirmed_by_user_id=None,
+                )
 
         if confirm_completion is not None:
             if confirm_completion:
-                if not step.requires_confirmation:
+                if not updated.requires_confirmation:
                     raise ValidationError(
                         "This step does not require confirmation.",
                         code="MAINTENANCE_WORK_ORDER_TASK_STEP_CONFIRMATION_NOT_REQUIRED",
                     )
-                if step.status != MaintenanceWorkOrderTaskStepStatus.DONE:
+                if updated.status != MaintenanceWorkOrderTaskStepStatus.DONE:
                     raise ValidationError(
                         "Only completed steps can be confirmed.",
                         code="MAINTENANCE_WORK_ORDER_TASK_STEP_CONFIRMATION_INVALID",
                     )
-                step.confirmed_at = datetime.now(timezone.utc)
-                step.confirmed_by_user_id = self._current_user_id()
+                updated = replace(
+                    updated,
+                    confirmed_at=now,
+                    confirmed_by_user_id=self._current_user_id(),
+                )
             else:
-                step.confirmed_at = None
-                step.confirmed_by_user_id = None
-
-        step.updated_at = datetime.now(timezone.utc)
+                updated = replace(
+                    updated,
+                    confirmed_at=None,
+                    confirmed_by_user_id=None,
+                )
 
         try:
-            self._work_order_task_step_repo.update(step)
+            self._work_order_task_step_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -287,8 +304,8 @@ class MaintenanceWorkOrderTaskStepService(MaintenanceWorkOrderTaskStepValidation
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_work_order_task_step.update", step)
-        return step
+        self._record_change("maintenance_work_order_task_step.update", updated)
+        return updated
 
     def _active_organization(self) -> Organization:
         return self._tenant_context_service.require_context(
@@ -315,13 +332,11 @@ class MaintenanceWorkOrderTaskStepService(MaintenanceWorkOrderTaskStepValidation
 
     def _resolve_step_number(self, work_order_task_id: str, step_number: int | str | None) -> int:
         if step_number not in (None, ""):
-            resolved = int(step_number)
-            if resolved <= 0:
-                raise ValidationError(
-                    "Step number must be greater than zero.",
-                    code="MAINTENANCE_WORK_ORDER_TASK_STEP_NUMBER_INVALID",
-                )
-            return resolved
+            return normalize_positive_int(
+                step_number,
+                message="Step number must be greater than zero.",
+                code="MAINTENANCE_WORK_ORDER_TASK_STEP_NUMBER_INVALID",
+            )
         existing_rows = self._work_order_task_step_repo.list_for_organization(
             self._active_organization().id,
             work_order_task_id=work_order_task_id,

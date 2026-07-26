@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -8,9 +9,7 @@ from sqlalchemy.orm import Session
 from src.core.modules.maintenance.domain import MaintenanceFailureCode, MaintenanceFailureCodeType
 from src.core.modules.maintenance.contracts.repositories import MaintenanceFailureCodeRepository
 from src.core.modules.maintenance.application.common.support import (
-    coerce_failure_code_type,
     normalize_maintenance_code,
-    normalize_maintenance_name,
     normalize_optional_text,
 )
 from src.core.shared.activity.activity_recorder import record_activity
@@ -124,27 +123,26 @@ class MaintenanceFailureCodeService:
         self._require_manage("create maintenance failure code")
         self._ensure_org_wide_access("create maintenance failure code")
         organization = self._active_organization()
-        normalized_code = normalize_maintenance_code(failure_code, label="Failure code")
-        if self._failure_code_repo.get_by_code(organization.id, normalized_code) is not None:
+        row = MaintenanceFailureCode.create(
+            organization_id=organization.id,
+            failure_code=failure_code,
+            name=name,
+            description=description,
+            code_type=code_type,
+            parent_code_id=parent_code_id,
+            is_active=bool(is_active),
+        )
+        if self._failure_code_repo.get_by_code(organization.id, row.failure_code) is not None:
             raise ValidationError(
                 "Failure code already exists in the active organization.",
                 code="MAINTENANCE_FAILURE_CODE_EXISTS",
             )
-        resolved_code_type = coerce_failure_code_type(code_type)
         parent = self._resolve_parent_code(
-            normalize_optional_text(parent_code_id) or None,
+            row.parent_code_id,
             organization=organization,
-            code_type=resolved_code_type,
+            code_type=row.code_type,
         )
-        row = MaintenanceFailureCode.create(
-            organization_id=organization.id,
-            failure_code=normalized_code,
-            name=normalize_maintenance_name(name, label="Failure code name"),
-            description=normalize_optional_text(description),
-            code_type=resolved_code_type,
-            parent_code_id=parent.id if parent is not None else None,
-            is_active=bool(is_active),
-        )
+        row = replace(row, parent_code_id=parent.id if parent is not None else None)
         try:
             self._failure_code_repo.add(row)
             self._session.commit()
@@ -181,34 +179,31 @@ class MaintenanceFailureCodeService:
                 "Maintenance failure code changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
-        if failure_code is not None:
-            normalized_code = normalize_maintenance_code(failure_code, label="Failure code")
-            existing = self._failure_code_repo.get_by_code(organization.id, normalized_code)
-            if existing is not None and existing.id != row.id:
-                raise ValidationError(
-                    "Failure code already exists in the active organization.",
-                    code="MAINTENANCE_FAILURE_CODE_EXISTS",
-                )
-            row.failure_code = normalized_code
-        if name is not None:
-            row.name = normalize_maintenance_name(name, label="Failure code name")
-        if description is not None:
-            row.description = normalize_optional_text(description)
-        if is_active is not None:
-            row.is_active = bool(is_active)
-        target_code_type = row.code_type if code_type is None else coerce_failure_code_type(code_type)
-        requested_parent_id = row.parent_code_id if parent_code_id is None else (normalize_optional_text(parent_code_id) or None)
+        updated = replace(
+            row,
+            failure_code=row.failure_code if failure_code is None else failure_code,
+            name=row.name if name is None else name,
+            description=row.description if description is None else description,
+            code_type=row.code_type if code_type is None else code_type,
+            parent_code_id=row.parent_code_id if parent_code_id is None else parent_code_id,
+            is_active=row.is_active if is_active is None else bool(is_active),
+            updated_at=datetime.now(timezone.utc),
+        )
+        existing = self._failure_code_repo.get_by_code(organization.id, updated.failure_code)
+        if existing is not None and existing.id != row.id:
+            raise ValidationError(
+                "Failure code already exists in the active organization.",
+                code="MAINTENANCE_FAILURE_CODE_EXISTS",
+            )
         parent = self._resolve_parent_code(
-            requested_parent_id,
+            updated.parent_code_id,
             organization=organization,
-            code_type=target_code_type,
+            code_type=updated.code_type,
             self_id=row.id,
         )
-        row.code_type = target_code_type
-        row.parent_code_id = parent.id if parent is not None else None
-        row.updated_at = datetime.now(timezone.utc)
+        updated = replace(updated, parent_code_id=parent.id if parent is not None else None)
         try:
-            self._failure_code_repo.update(row)
+            self._failure_code_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -219,8 +214,8 @@ class MaintenanceFailureCodeService:
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_failure_code.update", row)
-        return row
+        self._record_change("maintenance_failure_code.update", updated)
+        return updated
 
     def _active_organization(self) -> Organization:
         return self._tenant_context_service.require_context(

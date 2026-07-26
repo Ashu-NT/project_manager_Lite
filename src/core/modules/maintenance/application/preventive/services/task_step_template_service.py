@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -10,11 +11,7 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceTaskStepTemplateRepository,
     MaintenanceTaskTemplateRepository,
 )
-from src.core.modules.maintenance.application.common.support import (
-    coerce_optional_non_negative_int,
-    normalize_maintenance_name,
-    normalize_optional_text,
-)
+from src.core.modules.maintenance.application.common.support import normalize_optional_text
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
@@ -93,32 +90,26 @@ class MaintenanceTaskStepTemplateService:
         self._ensure_org_wide_access("create maintenance task step template")
         organization = self._active_organization()
         task_template = self._get_task_template(task_template_id, organization=organization)
-        resolved_step_number = self._coerce_positive_int(step_number, label="Step number")
-        self._ensure_unique_step_number(
-            organization.id,
-            task_template_id=task_template.id,
-            step_number=resolved_step_number,
-        )
-        resolved_sort_order = (
-            resolved_step_number
-            if sort_order in (None, "")
-            else self._coerce_positive_int(sort_order, label="Sort order")
-        )
         row = MaintenanceTaskStepTemplate.create(
             organization_id=organization.id,
             task_template_id=task_template.id,
-            step_number=resolved_step_number,
-            instruction=normalize_maintenance_name(instruction, label="Instruction"),
-            expected_result=normalize_optional_text(expected_result),
-            hint_level=normalize_optional_text(hint_level).upper(),
-            hint_text=normalize_optional_text(hint_text),
+            step_number=step_number,
+            instruction=instruction,
+            expected_result=expected_result,
+            hint_level=hint_level,
+            hint_text=hint_text,
             requires_confirmation=bool(requires_confirmation),
             requires_measurement=bool(requires_measurement),
             requires_photo=bool(requires_photo),
-            measurement_unit=normalize_optional_text(measurement_unit).upper(),
-            sort_order=resolved_sort_order,
+            measurement_unit=measurement_unit,
+            sort_order=step_number if sort_order in (None, "") else sort_order,
             is_active=bool(is_active),
-            notes=normalize_optional_text(notes),
+            notes=notes,
+        )
+        self._ensure_unique_step_number(
+            organization.id,
+            task_template_id=task_template.id,
+            step_number=row.step_number,
         )
         try:
             self._task_step_template_repo.add(row)
@@ -162,40 +153,38 @@ class MaintenanceTaskStepTemplateService:
                 "Maintenance task step template changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
-        if step_number is not None:
-            resolved_step_number = self._coerce_positive_int(step_number, label="Step number")
-            self._ensure_unique_step_number(
-                organization.id,
-                task_template_id=row.task_template_id,
-                step_number=resolved_step_number,
-                exclude_id=row.id,
-            )
-            row.step_number = resolved_step_number
-        if instruction is not None:
-            row.instruction = normalize_maintenance_name(instruction, label="Instruction")
-        if expected_result is not None:
-            row.expected_result = normalize_optional_text(expected_result)
-        if hint_level is not None:
-            row.hint_level = normalize_optional_text(hint_level).upper()
-        if hint_text is not None:
-            row.hint_text = normalize_optional_text(hint_text)
-        if requires_confirmation is not None:
-            row.requires_confirmation = bool(requires_confirmation)
-        if requires_measurement is not None:
-            row.requires_measurement = bool(requires_measurement)
-        if requires_photo is not None:
-            row.requires_photo = bool(requires_photo)
-        if measurement_unit is not None:
-            row.measurement_unit = normalize_optional_text(measurement_unit).upper()
-        if sort_order is not None:
-            row.sort_order = self._coerce_positive_int(sort_order, label="Sort order")
-        if is_active is not None:
-            row.is_active = bool(is_active)
-        if notes is not None:
-            row.notes = normalize_optional_text(notes)
-        row.updated_at = datetime.now(timezone.utc)
+        updated = replace(
+            row,
+            step_number=row.step_number if step_number is None else step_number,
+            instruction=row.instruction if instruction is None else instruction,
+            expected_result=row.expected_result if expected_result is None else expected_result,
+            hint_level=row.hint_level if hint_level is None else hint_level,
+            hint_text=row.hint_text if hint_text is None else hint_text,
+            requires_confirmation=(
+                row.requires_confirmation
+                if requires_confirmation is None
+                else bool(requires_confirmation)
+            ),
+            requires_measurement=(
+                row.requires_measurement
+                if requires_measurement is None
+                else bool(requires_measurement)
+            ),
+            requires_photo=row.requires_photo if requires_photo is None else bool(requires_photo),
+            measurement_unit=row.measurement_unit if measurement_unit is None else measurement_unit,
+            sort_order=row.sort_order if sort_order is None else sort_order,
+            is_active=row.is_active if is_active is None else bool(is_active),
+            notes=row.notes if notes is None else notes,
+            updated_at=datetime.now(timezone.utc),
+        )
+        self._ensure_unique_step_number(
+            organization.id,
+            task_template_id=updated.task_template_id,
+            step_number=updated.step_number,
+            exclude_id=row.id,
+        )
         try:
-            self._task_step_template_repo.update(row)
+            self._task_step_template_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -206,8 +195,8 @@ class MaintenanceTaskStepTemplateService:
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_task_step_template.update", row)
-        return row
+        self._record_change("maintenance_task_step_template.update", updated)
+        return updated
 
     def _active_organization(self) -> Organization:
         return self._tenant_context_service.require_context(
@@ -267,15 +256,6 @@ class MaintenanceTaskStepTemplateService:
                 f"Permission denied for {operation_label}. Template libraries require broader maintenance access.",
                 code="PERMISSION_DENIED",
             )
-
-    def _coerce_positive_int(self, value: int | str, *, label: str) -> int:
-        resolved = coerce_optional_non_negative_int(value, label=label)
-        if resolved is None or resolved <= 0:
-            raise ValidationError(
-                f"{label} must be greater than zero.",
-                code=f"{label.upper().replace(' ', '_')}_INVALID",
-            )
-        return resolved
 
     def _record_change(self, action: str, row: MaintenanceTaskStepTemplate) -> None:
         record_activity(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -16,10 +17,6 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceSensorSourceMappingRepository,
 )
 from src.core.modules.maintenance.application.common.support import (
-    coerce_optional_datetime,
-    coerce_sensor_exception_status,
-    coerce_sensor_exception_type,
-    normalize_maintenance_name,
     normalize_optional_text,
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
@@ -133,12 +130,12 @@ class MaintenanceSensorExceptionService:
             sensor_id=sensor_id,
             integration_source_id=integration_source_id,
             source_mapping_id=source_mapping_id,
-            exception_type=coerce_sensor_exception_type(exception_type),
-            message=normalize_maintenance_name(message, label="Exception message"),
-            source_batch_id=normalize_optional_text(source_batch_id),
-            raw_payload_ref=normalize_optional_text(raw_payload_ref),
-            detected_at=coerce_optional_datetime(detected_at, label="Detected at"),
-            notes=normalize_optional_text(notes),
+            exception_type=exception_type,
+            message=message,
+            source_batch_id=source_batch_id,
+            raw_payload_ref=raw_payload_ref,
+            detected_at=detected_at,
+            notes=notes,
         )
         try:
             self._sensor_exception_repo.add(exception)
@@ -167,30 +164,39 @@ class MaintenanceSensorExceptionService:
                 "Maintenance sensor exception changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
-        resolved_status = coerce_sensor_exception_status(status)
         now = datetime.now(timezone.utc)
         current_user_id = self._current_user_id()
-        exception.status = resolved_status
-        if notes is not None:
-            exception.notes = normalize_optional_text(notes)
-        if resolved_status == MaintenanceSensorExceptionStatus.ACKNOWLEDGED:
-            exception.acknowledged_at = now
-            exception.acknowledged_by_user_id = current_user_id
-        if resolved_status in {MaintenanceSensorExceptionStatus.RESOLVED, MaintenanceSensorExceptionStatus.IGNORED}:
-            if exception.acknowledged_at is None:
-                exception.acknowledged_at = now
-                exception.acknowledged_by_user_id = current_user_id
-            exception.resolved_at = now
-            exception.resolved_by_user_id = current_user_id
-        exception.updated_at = now
+        updated = replace(
+            exception,
+            status=status,
+            notes=exception.notes if notes is None else notes,
+            updated_at=now,
+        )
+        if updated.status == MaintenanceSensorExceptionStatus.ACKNOWLEDGED:
+            updated = replace(
+                updated,
+                acknowledged_at=now,
+                acknowledged_by_user_id=current_user_id,
+            )
+        if updated.status in {
+            MaintenanceSensorExceptionStatus.RESOLVED,
+            MaintenanceSensorExceptionStatus.IGNORED,
+        }:
+            updated = replace(
+                updated,
+                acknowledged_at=updated.acknowledged_at or now,
+                acknowledged_by_user_id=updated.acknowledged_by_user_id or current_user_id,
+                resolved_at=now,
+                resolved_by_user_id=current_user_id,
+            )
         try:
-            self._sensor_exception_repo.update(exception)
+            self._sensor_exception_repo.update(updated)
             self._session.commit()
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_sensor_exception.update", exception)
-        return exception
+        self._record_change("maintenance_sensor_exception.update", updated)
+        return updated
 
     def resolve_open_integration_sync_failures(
         self,
@@ -212,13 +218,16 @@ class MaintenanceSensorExceptionService:
         current_user_id = self._current_user_id()
         try:
             for row in rows:
-                row.status = MaintenanceSensorExceptionStatus.RESOLVED
-                row.acknowledged_at = row.acknowledged_at or now
-                row.acknowledged_by_user_id = row.acknowledged_by_user_id or current_user_id
-                row.resolved_at = now
-                row.resolved_by_user_id = current_user_id
-                row.updated_at = now
-                self._sensor_exception_repo.update(row)
+                updated = replace(
+                    row,
+                    status=MaintenanceSensorExceptionStatus.RESOLVED,
+                    acknowledged_at=row.acknowledged_at or now,
+                    acknowledged_by_user_id=row.acknowledged_by_user_id or current_user_id,
+                    resolved_at=now,
+                    resolved_by_user_id=current_user_id,
+                    updated_at=now,
+                )
+                self._sensor_exception_repo.update(updated)
             self._session.commit()
         except Exception:
             self._session.rollback()

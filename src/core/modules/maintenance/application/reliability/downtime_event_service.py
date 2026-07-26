@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -16,7 +17,6 @@ from src.core.modules.maintenance.contracts.repositories import (
 from src.core.modules.maintenance.application.common.support import (
     calculate_downtime_minutes,
     coerce_optional_datetime,
-    normalize_maintenance_name,
     normalize_optional_text,
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
@@ -160,24 +160,20 @@ class MaintenanceDowntimeEventService:
             system_id=system_id,
             operation_label="create maintenance downtime event",
         )
-        resolved_started_at = coerce_optional_datetime(started_at, label="Downtime start")
-        if resolved_started_at is None:
-            raise ValidationError(
-                "Downtime start is required.",
-                code="MAINTENANCE_DOWNTIME_START_REQUIRED",
-            )
-        resolved_ended_at = coerce_optional_datetime(ended_at, label="Downtime end")
         row = MaintenanceDowntimeEvent.create(
             organization_id=organization.id,
             work_order_id=context.work_order.id if context.work_order is not None else None,
             asset_id=context.asset_id,
             system_id=context.system_id,
-            started_at=resolved_started_at,
-            ended_at=resolved_ended_at,
-            duration_minutes=calculate_downtime_minutes(resolved_started_at, resolved_ended_at),
-            downtime_type=normalize_maintenance_name(downtime_type, label="Downtime type").upper(),
-            reason_code=normalize_optional_text(reason_code).upper(),
-            impact_notes=normalize_optional_text(impact_notes),
+            started_at=started_at,
+            ended_at=ended_at,
+            downtime_type=downtime_type,
+            reason_code=reason_code,
+            impact_notes=impact_notes,
+        )
+        row = replace(
+            row,
+            duration_minutes=calculate_downtime_minutes(row.started_at, row.ended_at),
         )
         try:
             self._downtime_event_repo.add(row)
@@ -223,34 +219,24 @@ class MaintenanceDowntimeEventService:
             system_id=row.system_id if system_id is None else system_id,
             operation_label="update maintenance downtime event",
         )
-        row.work_order_id = context.work_order.id if context.work_order is not None else None
-        row.asset_id = context.asset_id
-        row.system_id = context.system_id
-        if started_at is not None:
-            resolved_started_at = coerce_optional_datetime(started_at, label="Downtime start")
-            if resolved_started_at is None:
-                raise ValidationError(
-                    "Downtime start is required.",
-                    code="MAINTENANCE_DOWNTIME_START_REQUIRED",
-                )
-            row.started_at = resolved_started_at
-        if ended_at is not None:
-            row.ended_at = coerce_optional_datetime(ended_at, label="Downtime end")
-        if row.started_at is None:
-            raise ValidationError(
-                "Downtime start is required.",
-                code="MAINTENANCE_DOWNTIME_START_REQUIRED",
-            )
-        row.duration_minutes = calculate_downtime_minutes(row.started_at, row.ended_at)
-        if downtime_type is not None:
-            row.downtime_type = normalize_maintenance_name(downtime_type, label="Downtime type").upper()
-        if reason_code is not None:
-            row.reason_code = normalize_optional_text(reason_code).upper()
-        if impact_notes is not None:
-            row.impact_notes = normalize_optional_text(impact_notes)
-        row.updated_at = datetime.now(timezone.utc)
+        updated = replace(
+            row,
+            work_order_id=context.work_order.id if context.work_order is not None else None,
+            asset_id=context.asset_id,
+            system_id=context.system_id,
+            started_at=row.started_at if started_at is None else started_at,
+            ended_at=row.ended_at if ended_at is None else ended_at,
+            downtime_type=row.downtime_type if downtime_type is None else downtime_type,
+            reason_code=row.reason_code if reason_code is None else reason_code,
+            impact_notes=row.impact_notes if impact_notes is None else impact_notes,
+            updated_at=datetime.now(timezone.utc),
+        )
+        updated = replace(
+            updated,
+            duration_minutes=calculate_downtime_minutes(updated.started_at, updated.ended_at),
+        )
         try:
-            self._downtime_event_repo.update(row)
+            self._downtime_event_repo.update(updated)
             affected_work_orders: list[MaintenanceWorkOrder] = []
             if previous_work_order is not None:
                 affected_work_orders.append(previous_work_order)
@@ -265,8 +251,8 @@ class MaintenanceDowntimeEventService:
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_downtime_event.update", row)
-        return row
+        self._record_change("maintenance_downtime_event.update", updated)
+        return updated
 
     def _resolve_context(
         self,
