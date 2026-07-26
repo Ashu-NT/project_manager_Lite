@@ -1,12 +1,7 @@
 from __future__ import annotations
 
-import re
-
+from src.core.platform.auth.domain import normalize_auth_email
 from src.core.platform.common.exceptions import ValidationError
-
-
-_EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
-
 
 class AuthValidationMixin:
     @staticmethod
@@ -35,15 +30,8 @@ class AuthValidationMixin:
 
     @staticmethod
     def _normalize_email(email: str | None) -> str | None:
-        value = (email or "").strip().lower()
-        return value or None
+        return normalize_auth_email(email)
 
     @staticmethod
     def _validate_email(email: str | None) -> None:
-        if email is None:
-            return
-        if not _EMAIL_RE.match(email):
-            raise ValidationError(
-                "Invalid email format.",
-                code="INVALID_EMAIL",
-            )
+        normalize_auth_email(email)

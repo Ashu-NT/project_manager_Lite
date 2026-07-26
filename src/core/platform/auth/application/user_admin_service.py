@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_any_permission, require_permission
-from src.core.platform.auth.domain import Role, UserAccount
+from src.core.platform.auth.domain import Role, UserAccount, normalize_auth_username
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 
 from .session_service import refresh_current_session_if_user
@@ -91,19 +91,15 @@ def update_user_profile(
     _enforce_user_tenant_boundary(service, user_id, "update profile")
     user = service._require_user(user_id)
     if username is not None:
-        normalized = (username or "").strip().lower()
-        if not normalized:
-            raise ValidationError("Username is required.", code="USERNAME_REQUIRED")
+        normalized = normalize_auth_username(username)
         existing = service._user_repo.get_by_username(normalized)
         if existing and existing.id != user.id:
             raise ValidationError("Username already exists.", code="USERNAME_EXISTS")
-        user.username = normalized
+        user.username = username
     if display_name is not None:
-        user.display_name = (display_name or "").strip() or None
+        user.display_name = display_name
     if email is not None:
-        normalized_email = service._normalize_email(email)
-        service._validate_email(normalized_email)
-        user.email = normalized_email
+        user.email = email
     user.updated_at = datetime.now(timezone.utc)
     try:
         service._user_repo.update(user)

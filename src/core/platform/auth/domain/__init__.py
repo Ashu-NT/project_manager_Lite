@@ -1,10 +1,27 @@
-from src.core.platform.auth.domain.session import AuthSession, UserSessionContext, UserSessionPrincipal
+from src.core.platform.auth.domain.session import (
+    AuthSession,
+    UserSessionContext,
+    UserSessionPrincipal,
+    normalize_auth_session_auth_method,
+    normalize_auth_session_context_id,
+    normalize_auth_session_datetime,
+    normalize_auth_session_user_id,
+)
 from src.core.platform.auth.domain.user import (
     Permission,
     Role,
     RolePermissionBinding,
     UserAccount,
     UserRoleBinding,
+    normalize_auth_device_label,
+    normalize_auth_email,
+    normalize_auth_federated_subject,
+    normalize_auth_identity_provider,
+    normalize_auth_password_hash,
+    normalize_auth_session_revision,
+    normalize_auth_session_timeout_override,
+    normalize_auth_username,
+    validate_auth_email,
 )
 
 __all__ = [
@@ -16,4 +33,17 @@ __all__ = [
     "UserRoleBinding",
     "UserSessionContext",
     "UserSessionPrincipal",
+    "normalize_auth_device_label",
+    "normalize_auth_email",
+    "normalize_auth_federated_subject",
+    "normalize_auth_identity_provider",
+    "normalize_auth_password_hash",
+    "normalize_auth_session_revision",
+    "normalize_auth_session_timeout_override",
+    "normalize_auth_session_auth_method",
+    "normalize_auth_session_context_id",
+    "normalize_auth_session_datetime",
+    "normalize_auth_session_user_id",
+    "normalize_auth_username",
+    "validate_auth_email",
 ]

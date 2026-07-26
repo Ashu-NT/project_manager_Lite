@@ -18,7 +18,7 @@ from .federated_identity_service import (
     validate_federated_identity,
 )
 from .session_service import refresh_current_session_if_user
-from .session_utils import next_session_expiry, normalize_device_label
+from .session_utils import next_session_expiry
 
 if TYPE_CHECKING:
     from src.core.platform.auth.domain import UserAccount
@@ -81,13 +81,13 @@ def complete_successful_authentication(
     user.locked_until = None
     user.last_login_at = occurred_at
     user.last_login_auth_method = auth_method
-    user.last_login_device_label = normalize_device_label(device_label)
+    user.last_login_device_label = device_label
     user.session_expires_at = next_session_expiry(occurred_at, user=user)
     user.updated_at = occurred_at
     if service._auth_session_repo is not None:
         auth_session = AuthSession.create(
             user_id=user.id,
-            session_revision=int(getattr(user, "session_revision", 1) or 1),
+            session_revision=getattr(user, "session_revision", 1),
             auth_method=auth_method,
             expires_at=user.session_expires_at,
             device_label=user.last_login_device_label,

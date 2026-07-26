@@ -83,7 +83,7 @@ def set_user_session_policy(
         operation_label="set user session policy",
     )
     user = service._require_user(user_id)
-    user.session_timeout_minutes_override = validate_session_timeout_override(session_timeout_minutes_override)
+    user.session_timeout_minutes_override = session_timeout_minutes_override
     user.updated_at = datetime.now(timezone.utc)
     rotate_session_revision(user)
     user.session_expires_at = next_session_expiry(user.updated_at, user=user)

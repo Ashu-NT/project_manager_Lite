@@ -1,12 +1,154 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+from pydantic import field_validator, model_validator
+
+from src.core.platform.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
+from src.core.platform.common.pydantic import (
+    normalize_optional_identifier,
+    normalize_optional_text,
+    normalize_required_text,
+    validated_dataclass,
+)
+
+_EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 
 
-@dataclass
+def normalize_auth_username(value: object) -> str:
+    return normalize_required_text(
+        value,
+        message="Username is required.",
+        code="USERNAME_REQUIRED",
+    ).lower()
+
+
+def normalize_auth_password_hash(value: object) -> str:
+    return normalize_required_text(
+        value,
+        message="Password hash is required.",
+        code="PASSWORD_HASH_REQUIRED",
+    )
+
+
+def normalize_auth_optional_text(value: object) -> str | None:
+    normalized = normalize_optional_text(value)
+    return normalized or None
+
+
+def normalize_auth_email(value: object) -> str | None:
+    normalized = normalize_optional_text(value).lower() or None
+    if normalized is None:
+        return None
+    if not _EMAIL_RE.match(normalized):
+        raise ValidationError(
+            "Invalid email format.",
+            code="INVALID_EMAIL",
+        )
+    return normalized
+
+
+def validate_auth_email(value: object) -> None:
+    normalize_auth_email(value)
+
+
+def normalize_auth_identity_provider(value: object) -> str | None:
+    normalized = normalize_optional_text(value).lower()
+    return normalized or None
+
+
+def normalize_auth_federated_subject(value: object) -> str | None:
+    normalized = normalize_optional_text(value)
+    return normalized or None
+
+
+def normalize_auth_device_label(value: object) -> str | None:
+    normalized = normalize_optional_text(value)
+    return normalized or None
+
+
+def normalize_auth_session_timeout_override(value: object) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        normalized = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(
+            "Session timeout override must be an integer number of minutes.",
+            code="AUTH_SESSION_TIMEOUT_INVALID",
+        ) from exc
+    if normalized < 5 or normalized > 1_440:
+        raise ValidationError(
+            "Session timeout override must be between 5 and 1440 minutes.",
+            code="AUTH_SESSION_TIMEOUT_INVALID",
+        )
+    return normalized
+
+
+def normalize_auth_session_revision(value: object) -> int:
+    try:
+        normalized = int(value if value not in (None, "") else 1)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(
+            "Session revision must be a positive integer.",
+            code="AUTH_SESSION_REVISION_INVALID",
+        ) from exc
+    if normalized < 1:
+        raise ValidationError(
+            "Session revision must be a positive integer.",
+            code="AUTH_SESSION_REVISION_INVALID",
+        )
+    return normalized
+
+
+def normalize_auth_failed_login_attempts(value: object) -> int:
+    try:
+        normalized = int(value if value not in (None, "") else 0)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(
+            "Failed login attempts must be zero or greater.",
+            code="AUTH_FAILED_LOGIN_ATTEMPTS_INVALID",
+        ) from exc
+    if normalized < 0:
+        raise ValidationError(
+            "Failed login attempts must be zero or greater.",
+            code="AUTH_FAILED_LOGIN_ATTEMPTS_INVALID",
+        )
+    return normalized
+
+
+def normalize_auth_version(value: object) -> int:
+    try:
+        normalized = int(value if value not in (None, "") else 1)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(
+            "User version must be a positive integer.",
+            code="AUTH_USER_VERSION_INVALID",
+        ) from exc
+    if normalized < 1:
+        raise ValidationError(
+            "User version must be a positive integer.",
+            code="AUTH_USER_VERSION_INVALID",
+        )
+    return normalized
+
+
+def normalize_auth_datetime(value: object, *, code: str) -> datetime | None:
+    if value in (None, ""):
+        return None
+    if not isinstance(value, datetime):
+        raise ValidationError(
+            "Authentication timestamps must be valid datetimes.",
+            code=code,
+        )
+    return ensure_utc_datetime(value)
+
+
+@validated_dataclass
 class UserAccount:
     id: str
     username: str
@@ -33,6 +175,88 @@ class UserAccount:
     version: int = 1
     active_session_id: str | None = None
 
+    @field_validator("username", mode="before")
+    @classmethod
+    def _validate_username(cls, value: object) -> str:
+        return normalize_auth_username(value)
+
+    @field_validator("password_hash", mode="before")
+    @classmethod
+    def _validate_password_hash(cls, value: object) -> str:
+        return normalize_auth_password_hash(value)
+
+    @field_validator("display_name", "mfa_secret", "last_login_auth_method", mode="before")
+    @classmethod
+    def _normalize_optional_text_fields(cls, value: object) -> str | None:
+        return normalize_auth_optional_text(value)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _normalize_email(cls, value: object) -> str | None:
+        return normalize_auth_email(value)
+
+    @field_validator("identity_provider", mode="before")
+    @classmethod
+    def _normalize_identity_provider(cls, value: object) -> str | None:
+        return normalize_auth_identity_provider(value)
+
+    @field_validator("federated_subject", mode="before")
+    @classmethod
+    def _normalize_federated_subject(cls, value: object) -> str | None:
+        return normalize_auth_federated_subject(value)
+
+    @field_validator("last_login_device_label", mode="before")
+    @classmethod
+    def _normalize_device_label(cls, value: object) -> str | None:
+        return normalize_auth_device_label(value)
+
+    @field_validator("session_timeout_minutes_override", mode="before")
+    @classmethod
+    def _validate_session_timeout_override(cls, value: object) -> int | None:
+        return normalize_auth_session_timeout_override(value)
+
+    @field_validator("session_revision", mode="before")
+    @classmethod
+    def _validate_session_revision(cls, value: object) -> int:
+        return normalize_auth_session_revision(value)
+
+    @field_validator("failed_login_attempts", mode="before")
+    @classmethod
+    def _validate_failed_login_attempts(cls, value: object) -> int:
+        return normalize_auth_failed_login_attempts(value)
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        return normalize_auth_version(value)
+
+    @field_validator("active_session_id", mode="before")
+    @classmethod
+    def _normalize_active_session_id(cls, value: object) -> str | None:
+        return normalize_optional_identifier(value)
+
+    @field_validator(
+        "locked_until",
+        "last_login_at",
+        "session_expires_at",
+        "password_changed_at",
+        "created_at",
+        "updated_at",
+        mode="before",
+    )
+    @classmethod
+    def _validate_datetimes(cls, value: object) -> datetime | None:
+        return normalize_auth_datetime(value, code="AUTH_TIMESTAMP_INVALID")
+
+    @model_validator(mode="after")
+    def _validate_federated_identity_pair(self) -> "UserAccount":
+        if bool(self.identity_provider) != bool(self.federated_subject):
+            raise ValidationError(
+                "Identity provider and federated subject must be set together.",
+                code="FEDERATED_IDENTITY_INCOMPLETE",
+            )
+        return self
+
     @staticmethod
     def create(
         username: str,
@@ -40,6 +264,11 @@ class UserAccount:
         display_name: str | None = None,
         email: str | None = None,
         is_active: bool = True,
+        *,
+        identity_provider: str | None = None,
+        federated_subject: str | None = None,
+        session_timeout_minutes_override: int | str | None = None,
+        must_change_password: bool = False,
     ) -> "UserAccount":
         now = datetime.now(timezone.utc)
         return UserAccount(
@@ -48,11 +277,11 @@ class UserAccount:
             password_hash=password_hash,
             display_name=display_name,
             email=email,
-            identity_provider=None,
-            federated_subject=None,
+            identity_provider=identity_provider,
+            federated_subject=federated_subject,
             mfa_secret=None,
             mfa_enabled=False,
-            session_timeout_minutes_override=None,
+            session_timeout_minutes_override=session_timeout_minutes_override,
             session_revision=1,
             last_login_auth_method=None,
             last_login_device_label=None,
@@ -62,7 +291,7 @@ class UserAccount:
             last_login_at=None,
             session_expires_at=None,
             password_changed_at=now,
-            must_change_password=False,
+            must_change_password=must_change_password,
             created_at=now,
             updated_at=now,
             version=1,
@@ -140,4 +369,13 @@ __all__ = [
     "RolePermissionBinding",
     "UserAccount",
     "UserRoleBinding",
+    "normalize_auth_device_label",
+    "normalize_auth_email",
+    "normalize_auth_federated_subject",
+    "normalize_auth_identity_provider",
+    "normalize_auth_password_hash",
+    "normalize_auth_session_revision",
+    "normalize_auth_session_timeout_override",
+    "normalize_auth_username",
+    "validate_auth_email",
 ]

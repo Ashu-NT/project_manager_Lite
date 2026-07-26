@@ -22,6 +22,8 @@ from src.core.platform.auth.domain import (
     RolePermissionBinding,
     UserAccount,
     UserRoleBinding,
+    normalize_auth_session_context_id,
+    normalize_auth_session_datetime,
 )
 from src.core.platform.infrastructure.persistence.mappers.auth import (
     auth_session_from_orm,
@@ -159,9 +161,12 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
         last_active_organization_id: str | None,
         updated_at: datetime,
     ) -> bool:
-        normalized_tenant_id = str(last_active_tenant_id or "").strip() or None
-        normalized_organization_id = str(last_active_organization_id or "").strip() or None
-        normalized_updated_at = ensure_utc_datetime(updated_at)
+        normalized_tenant_id = normalize_auth_session_context_id(last_active_tenant_id)
+        normalized_organization_id = normalize_auth_session_context_id(last_active_organization_id)
+        normalized_updated_at = normalize_auth_session_datetime(
+            updated_at,
+            code="AUTH_SESSION_TIMESTAMP_INVALID",
+        )
         obj = self.session.get(AuthSessionORM, session_id)
         if obj is None:
             return False
@@ -187,14 +192,18 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
         if obj is None:
             return False
         current_validated_at = ensure_utc_datetime(obj.last_validated_at)
+        normalized_validated_at = normalize_auth_session_datetime(
+            validated_at,
+            code="AUTH_SESSION_TIMESTAMP_INVALID",
+        )
         if (
             current_validated_at is not None
             and min_elapsed_seconds > 0
-            and (validated_at - current_validated_at).total_seconds() < min_elapsed_seconds
+            and (normalized_validated_at - current_validated_at).total_seconds() < min_elapsed_seconds
         ):
             return False
-        obj.last_validated_at = validated_at
-        obj.updated_at = validated_at
+        obj.last_validated_at = normalized_validated_at
+        obj.updated_at = normalized_validated_at
         self.session.flush()
         return True
 

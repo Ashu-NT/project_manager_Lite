@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_any_permission
+from src.core.platform.auth.domain import (
+    normalize_auth_federated_subject,
+    normalize_auth_identity_provider,
+)
 from src.core.platform.common.exceptions import ValidationError
 
 if TYPE_CHECKING:
@@ -14,13 +19,11 @@ if TYPE_CHECKING:
 
 
 def normalize_identity_provider(identity_provider: str | None) -> str | None:
-    value = str(identity_provider or "").strip().lower()
-    return value or None
+    return normalize_auth_identity_provider(identity_provider)
 
 
 def normalize_federated_subject(federated_subject: str | None) -> str | None:
-    value = str(federated_subject or "").strip()
-    return value or None
+    return normalize_auth_federated_subject(federated_subject)
 
 
 def validate_federated_identity(
@@ -60,14 +63,17 @@ def link_federated_identity(
             "Federated identity is already linked to another user.",
             code="FEDERATED_IDENTITY_EXISTS",
         )
-    user.identity_provider = normalized_provider
-    user.federated_subject = normalized_subject
-    user.updated_at = datetime.now(timezone.utc)
-    service._user_repo.update(user)
+    updated_user = replace(
+        user,
+        identity_provider=identity_provider,
+        federated_subject=federated_subject,
+        updated_at=datetime.now(timezone.utc),
+    )
+    service._user_repo.update(updated_user)
     service._session.commit()
-    domain_events.auth_changed.emit(user.id)
-    refresh_current_session_if_user(service, user.id)
-    return user
+    domain_events.auth_changed.emit(updated_user.id)
+    refresh_current_session_if_user(service, updated_user.id)
+    return updated_user
 
 
 __all__ = [

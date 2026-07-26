@@ -5,11 +5,65 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Callable
 
+from pydantic import field_validator
+
 from src.core.platform.common.ids import generate_id
 from src.core.platform.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.auth.domain.user import (
+    normalize_auth_device_label,
+    normalize_auth_session_revision,
+)
+from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.pydantic import (
+    normalize_optional_identifier,
+    normalize_optional_text,
+    normalize_required_text,
+    validated_dataclass,
+)
 
 
-@dataclass
+def normalize_auth_session_user_id(value: object) -> str:
+    return normalize_required_text(
+        value,
+        message="User id is required.",
+        code="USER_ID_REQUIRED",
+    )
+
+
+def normalize_auth_session_auth_method(value: object) -> str:
+    return normalize_required_text(
+        value,
+        message="Authentication method is required.",
+        code="AUTH_SESSION_AUTH_METHOD_REQUIRED",
+    ).lower()
+
+
+def normalize_auth_session_context_id(value: object) -> str | None:
+    return normalize_optional_identifier(value)
+
+
+def normalize_auth_session_datetime(
+    value: object,
+    *,
+    code: str,
+    required: bool = False,
+) -> datetime | None:
+    if value in (None, ""):
+        if required:
+            raise ValidationError(
+                "Auth session expiry is required.",
+                code=code,
+            )
+        return None
+    if not isinstance(value, datetime):
+        raise ValidationError(
+            "Auth session timestamps must be valid datetimes.",
+            code=code,
+        )
+    return ensure_utc_datetime(value)
+
+
+@validated_dataclass
 class AuthSession:
     id: str
     user_id: str
@@ -24,6 +78,48 @@ class AuthSession:
     revoked_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    @field_validator("user_id", mode="before")
+    @classmethod
+    def _validate_user_id(cls, value: object) -> str:
+        return normalize_auth_session_user_id(value)
+
+    @field_validator("session_revision", mode="before")
+    @classmethod
+    def _validate_session_revision(cls, value: object) -> int:
+        return normalize_auth_session_revision(value)
+
+    @field_validator("auth_method", mode="before")
+    @classmethod
+    def _validate_auth_method(cls, value: object) -> str:
+        return normalize_auth_session_auth_method(value)
+
+    @field_validator("device_label", mode="before")
+    @classmethod
+    def _normalize_device_label(cls, value: object) -> str | None:
+        return normalize_auth_device_label(value)
+
+    @field_validator("last_active_tenant_id", "last_active_organization_id", mode="before")
+    @classmethod
+    def _normalize_context_ids(cls, value: object) -> str | None:
+        return normalize_auth_session_context_id(value)
+
+    @field_validator("issued_at", "last_validated_at", "revoked_at", "created_at", "updated_at", mode="before")
+    @classmethod
+    def _validate_optional_datetimes(cls, value: object) -> datetime | None:
+        return normalize_auth_session_datetime(
+            value,
+            code="AUTH_SESSION_TIMESTAMP_INVALID",
+        )
+
+    @field_validator("expires_at", mode="before")
+    @classmethod
+    def _validate_expires_at(cls, value: object) -> datetime | None:
+        return normalize_auth_session_datetime(
+            value,
+            code="AUTH_SESSION_EXPIRES_AT_INVALID",
+            required=True,
+        )
 
     @staticmethod
     def create(
@@ -40,11 +136,11 @@ class AuthSession:
         return AuthSession(
             id=generate_id(),
             user_id=user_id,
-            session_revision=max(1, int(session_revision or 1)),
-            auth_method=str(auth_method or "").strip() or "password",
-            device_label=(str(device_label or "").strip() or None),
-            last_active_tenant_id=(str(last_active_tenant_id or "").strip() or None),
-            last_active_organization_id=(str(last_active_organization_id or "").strip() or None),
+            session_revision=session_revision,
+            auth_method=auth_method,
+            device_label=device_label,
+            last_active_tenant_id=last_active_tenant_id,
+            last_active_organization_id=last_active_organization_id,
             issued_at=now,
             expires_at=expires_at,
             last_validated_at=now,
@@ -386,4 +482,12 @@ class UserSessionContext:
         return dict((principal.scoped_access or {}).get(normalized_scope_type, {}))
 
 
-__all__ = ["AuthSession", "UserSessionContext", "UserSessionPrincipal"]
+__all__ = [
+    "AuthSession",
+    "UserSessionContext",
+    "UserSessionPrincipal",
+    "normalize_auth_session_auth_method",
+    "normalize_auth_session_context_id",
+    "normalize_auth_session_datetime",
+    "normalize_auth_session_user_id",
+]

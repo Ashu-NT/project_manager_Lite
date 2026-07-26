@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
-from src.core.platform.auth.domain import UserAccount, UserRoleBinding
+from src.core.platform.auth.domain import UserAccount, UserRoleBinding, normalize_auth_username
 from src.core.platform.auth.passwords import hash_password
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.tenancy.domain.user_tenant_membership import UserTenantMembership
@@ -20,7 +20,6 @@ from .federated_identity_service import (
     normalize_identity_provider,
     validate_federated_identity,
 )
-from .session_utils import validate_session_timeout_override
 from .sod_enforcer import enforce_separation_of_duties
 
 
@@ -50,16 +49,12 @@ def register_user(
 ) -> UserAccount:
     if not bypass_permission:
         require_permission(service._user_session, "auth.manage", operation_label="register user")
-    normalized = (username or "").strip().lower()
+    normalized = normalize_auth_username(username)
     normalized_email = service._normalize_email(email)
     normalized_provider = normalize_identity_provider(identity_provider)
     normalized_subject = normalize_federated_subject(federated_subject)
-    if not normalized:
-        raise ValidationError("Username is required.", code="USERNAME_REQUIRED")
-    service._validate_email(normalized_email)
     service._validate_password(raw_password)
     validate_federated_identity(normalized_provider, normalized_subject)
-    resolved_session_timeout = validate_session_timeout_override(session_timeout_minutes_override)
     if service._user_repo.get_by_username(normalized):
         raise ValidationError("Username already exists.", code="USERNAME_EXISTS")
     if normalized_provider and normalized_subject:
@@ -73,14 +68,14 @@ def register_user(
     user = UserAccount.create(
         username=normalized,
         password_hash=hash_password(raw_password),
-        display_name=(display_name or "").strip() or None,
+        display_name=display_name,
         email=normalized_email,
         is_active=is_active,
+        identity_provider=normalized_provider,
+        federated_subject=normalized_subject,
+        session_timeout_minutes_override=session_timeout_minutes_override,
+        must_change_password=must_change_password,
     )
-    user.must_change_password = bool(must_change_password)
-    user.identity_provider = normalized_provider
-    user.federated_subject = normalized_subject
-    user.session_timeout_minutes_override = resolved_session_timeout
     normalized_tenant_id = str(tenant_id or "").strip() or None
     try:
         with service._session.begin_nested():

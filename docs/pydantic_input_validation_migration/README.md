@@ -141,6 +141,7 @@ Notes:
 - `Party` was migrated in the eleventh slice
 - `TimeEntry` and `TimesheetPeriod` were migrated in the twelfth slice
 - `ProjectMembership` and `ScopedAccessGrant` were migrated in the thirteenth slice
+- `UserAccount` and `AuthSession` were migrated in the fourteenth slice
 
 #### Maintenance
 
@@ -616,7 +617,7 @@ Notes:
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -633,11 +634,17 @@ Service responsibilities:
 - federated identity uniqueness
 - login/lockout/MFA behavior
 
+Notes:
+
+- create/update scalar normalization now lives on the shared user write model
+- email format, federated-identity completeness, device-label normalization, and session-timeout coercion now live on `UserAccount`
+- password strength, hashing, uniqueness checks, MFA, and lockout/session workflow remain service-owned
+
 #### `AuthSession`
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -651,6 +658,12 @@ Service responsibilities:
 - revocation
 - revalidation
 - user/session matching and expiry policy
+
+Notes:
+
+- create/update scalar normalization now lives on the shared auth-session write model
+- user/session identifiers, auth method, context IDs, and UTC datetime normalization now live on `AuthSession`
+- session issuance, revocation, runtime revalidation, and expiry-policy decisions remain service-owned
 
 #### `ApprovalRequest`, `Tenant`, `PlatformEvent`, `RuntimeExecution`
 
@@ -1465,6 +1478,7 @@ Mitigation:
 - [x] Migrate platform party DTO
 - [x] Migrate platform time-entry/timesheet-period DTOs
 - [x] Migrate platform access membership/grant DTOs
+- [x] Migrate platform user-account/auth-session DTOs
 
 ## Current Implementation Decision
 
