@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any
 
@@ -17,9 +18,6 @@ from src.core.modules.inventory_procurement.application.catalog.catalog_context 
 )
 from src.core.modules.inventory_procurement.application.common.support import (
     normalize_inventory_code,
-    normalize_inventory_name,
-    normalize_item_category_type,
-    normalize_optional_text,
 )
 from src.core.modules.inventory_procurement.domain.catalog.item import (
     InventoryItemCategory,
@@ -52,14 +50,13 @@ def create_category(
             "Category code already exists in the active organization.",
             code="INVENTORY_CATEGORY_CODE_EXISTS",
         )
-    resolved_type = normalize_item_category_type(category_type)
     category = InventoryItemCategory.create(
         organization_id=organization.id,
         category_code=normalized_code,
-        name=normalize_inventory_name(name, label="Category name"),
-        description=normalize_optional_text(description),
-        category_type=resolved_type,
-        is_equipment=bool(is_equipment or resolved_type == "EQUIPMENT"),
+        name=name,
+        description=description,
+        category_type=category_type,
+        is_equipment=bool(is_equipment),
         supports_project_usage=bool(supports_project_usage),
         supports_maintenance_usage=bool(supports_maintenance_usage),
         is_active=bool(is_active),
@@ -112,34 +109,35 @@ def update_category(
             "Inventory item category changed since you opened it. Refresh and try again.",
             code="STALE_WRITE",
         )
+    next_category_code = category.category_code
     if category_code is not None:
-        normalized_code = normalize_inventory_code(category_code, label="Category code")
-        existing = owner._category_repo.get_by_code(organization.id, normalized_code)
+        next_category_code = normalize_inventory_code(category_code, label="Category code")
+        existing = owner._category_repo.get_by_code(organization.id, next_category_code)
         if existing is not None and existing.id != category.id:
             raise ValidationError(
                 "Category code already exists in the active organization.",
                 code="INVENTORY_CATEGORY_CODE_EXISTS",
             )
-        category.category_code = normalized_code
-    if name is not None:
-        category.name = normalize_inventory_name(name, label="Category name")
-    if description is not None:
-        category.description = normalize_optional_text(description)
-    next_type = category.category_type
-    if category_type is not None:
-        next_type = normalize_item_category_type(category_type)
-        category.category_type = next_type
-    next_is_equipment = category.is_equipment if is_equipment is None else bool(is_equipment)
-    if next_type == "EQUIPMENT":
-        next_is_equipment = True
-    category.is_equipment = next_is_equipment
-    if supports_project_usage is not None:
-        category.supports_project_usage = bool(supports_project_usage)
-    if supports_maintenance_usage is not None:
-        category.supports_maintenance_usage = bool(supports_maintenance_usage)
-    if is_active is not None:
-        category.is_active = bool(is_active)
-    category.updated_at = datetime.now(timezone.utc)
+    category = replace(
+        category,
+        category_code=next_category_code,
+        name=category.name if name is None else name,
+        description=category.description if description is None else description,
+        category_type=category.category_type if category_type is None else category_type,
+        is_equipment=category.is_equipment if is_equipment is None else bool(is_equipment),
+        supports_project_usage=(
+            category.supports_project_usage
+            if supports_project_usage is None
+            else bool(supports_project_usage)
+        ),
+        supports_maintenance_usage=(
+            category.supports_maintenance_usage
+            if supports_maintenance_usage is None
+            else bool(supports_maintenance_usage)
+        ),
+        is_active=category.is_active if is_active is None else bool(is_active),
+        updated_at=datetime.now(timezone.utc),
+    )
     try:
         owner._category_repo.update(category)
         owner._session.commit()

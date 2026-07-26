@@ -2,9 +2,20 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
 
+from src.core.modules.inventory_procurement.domain._validation import (
+    ITEM_CATEGORY_TYPES,
+    normalize_inventory_code,
+    normalize_inventory_name,
+    normalize_item_category_type,
+    normalize_nonnegative_days,
+    normalize_nonnegative_quantity,
+    normalize_optional_date,
+    normalize_optional_text,
+    normalize_status,
+    normalize_uom,
+)
 from src.core.modules.inventory_procurement.domain.catalog.item import StockItem
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.org.support import normalize_code, normalize_name
 from src.core.platform.party.domain import PartyType
 
 BUSINESS_PARTY_TYPES = {
@@ -20,17 +31,6 @@ ITEM_STATUS_TRANSITIONS = {
     "ACTIVE": {"INACTIVE", "OBSOLETE"},
     "INACTIVE": {"ACTIVE"},
     "OBSOLETE": set(),
-}
-
-ITEM_CATEGORY_TYPES = {
-    "CONSUMABLE",
-    "SPARE",
-    "EQUIPMENT",
-    "TOOL",
-    "CHEMICAL",
-    "MATERIAL",
-    "SERVICE",
-    "OTHER",
 }
 
 STOREROOM_STATUS_TRANSITIONS = {
@@ -95,70 +95,6 @@ MAINTENANCE_SOURCE_REFERENCE_TYPES: tuple[str, ...] = (
     "maintenance_plan",
     "maintenance_material_demand",
 )
-
-
-def normalize_inventory_code(value: str, *, label: str) -> str:
-    return normalize_code(value, label=label)
-
-
-def normalize_inventory_name(value: str | None, *, label: str) -> str:
-    return normalize_name(value, label=label)
-
-
-def normalize_optional_text(value: str | None) -> str:
-    return (value or "").strip()
-
-
-def normalize_optional_date(value: date | str | None, *, label: str) -> date | None:
-    if value in (None, ""):
-        return None
-    if isinstance(value, date) and not isinstance(value, datetime):
-        return value
-    normalized = normalize_optional_text(str(value))
-    if not normalized:
-        return None
-    try:
-        return date.fromisoformat(normalized)
-    except ValueError as exc:
-        raise ValidationError(
-            f"{label} must use ISO date format YYYY-MM-DD.",
-            code="INVENTORY_DATE_INVALID",
-        ) from exc
-
-
-def normalize_uom(value: str | None, *, label: str) -> str:
-    normalized = normalize_optional_text(value).upper()
-    if not normalized:
-        raise ValidationError(f"{label} is required.", code="INVENTORY_UOM_REQUIRED")
-    return normalized
-
-
-def normalize_status(
-    value: str | None,
-    *,
-    default_status: str,
-    allowed_statuses: set[str],
-    label: str,
-) -> str:
-    normalized = normalize_optional_text(value).upper() or default_status
-    if normalized not in allowed_statuses:
-        raise ValidationError(f"{label} is invalid.", code="INVENTORY_STATUS_INVALID")
-    return normalized
-
-
-def normalize_item_category_type(value: str | None, *, label: str = "Item category type") -> str:
-    normalized = normalize_optional_text(value).upper() or "MATERIAL"
-    if normalized not in ITEM_CATEGORY_TYPES:
-        raise ValidationError(f"{label} is invalid.", code="INVENTORY_CATEGORY_TYPE_INVALID")
-    return normalized
-
-
-def normalize_nonnegative_quantity(value: float | int | None, *, label: str) -> float:
-    amount = float(value or 0.0)
-    if amount < 0:
-        raise ValidationError(f"{label} cannot be negative.", code="INVENTORY_QUANTITY_INVALID")
-    return amount
-
 
 def normalize_positive_quantity(value: float | int | None, *, label: str) -> float:
     amount = float(value or 0.0)
@@ -239,16 +175,6 @@ def convert_item_unit_cost_to_stock(
 ) -> float:
     factor = resolve_item_uom_factor(item, uom, label=label)
     return normalize_nonnegative_quantity(unit_cost, label=label) / factor
-
-
-def normalize_nonnegative_days(value: int | None, *, label: str) -> int | None:
-    if value is None:
-        return None
-    days = int(value)
-    if days < 0:
-        raise ValidationError(f"{label} cannot be negative.", code="INVENTORY_DAYS_INVALID")
-    return days
-
 
 def normalize_source_reference_type(value: str | None) -> str:
     normalized = normalize_optional_text(value).lower()
@@ -354,4 +280,3 @@ def validate_transition(
             f"Status transition {current_status} -> {next_status} is not allowed.",
             code="INVENTORY_STATUS_TRANSITION_INVALID",
         )
-

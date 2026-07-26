@@ -1186,6 +1186,12 @@ Service responsibilities:
 - cross-reference existence
 - stock-policy business rules
 - count approval and reconciliation workflow
+- completed in `src/core/modules/inventory_procurement/domain/_validation.py`, `src/core/modules/inventory_procurement/domain/catalog/item.py`, `src/core/modules/inventory_procurement/domain/inventory/stock.py`, and `src/core/modules/inventory_procurement/domain/inventory/foundation.py` with shared pydantic-backed normalization for inventory codes/names, status fields, UOMs, non-negative quantities/days, dates, enums, and local chronology/range checks
+- `src/core/modules/inventory_procurement/application/common/support.py` now delegates shared scalar normalization to the domain helper so catalog, inventory, and downstream stock/procurement services read from a single normalization source
+- catalog and inventory foundation application writes now construct validated DTOs first and use `replace(...)` updates in `category_commands.py`, `item_commands.py`, `inventory/service.py`, and `inventory/foundation_service.py`, while keeping uniqueness, tenant/site/storeroom/category/party existence, status-transition policy, parent-location hierarchy checks, and cycle-count reconciliation workflow in the service layer
+- duplicate catalog-only CRUD validators were reduced to the surviving party-reference guard in `src/core/modules/inventory_procurement/application/catalog/item_validation.py`; reorder-range and UOM-factor duplication now lives only in the shared write models
+- targeted verification completed with `12` passing DTO/service tests in `test_inventory_procurement_domain_validation.py` and `test_inventory_procurement_foundation.py`, plus `10` additional passing regression tests across `test_inv_procurement_tenant_inventory.py`, `test_inventory_procurement_desktop_api_workspace_catalog.py`, `test_inventory_code_generation.py`, and the non-snapshot path in `test_inventory_procurement_desktop_api_inventory.py`
+- additional regression coverage in `test_inventory_procurement_desktop_api_inventory.py` remains blocked by an unrelated module-runtime baseline drift: the runtime currently reports `inventory_procurement` and `maintenance_management` as enabled, which also reproduces outside this slice in `src/tests/platform/test_enterprise_platform_catalog.py` and conflicts with older test expectations that those modules are disabled by default
 
 #### Stock operations cluster
 

@@ -4,6 +4,13 @@ from src.core.modules.inventory_procurement.domain.catalog.item import (
     InventoryItemCategory,
     StockItem,
 )
+from src.core.modules.inventory_procurement.domain.inventory.foundation import (
+    CycleCount,
+    CycleCountStatus,
+    ReorderPolicy,
+    StorageLocation,
+    StorageLocationType,
+)
 from src.core.modules.inventory_procurement.domain.inventory.stock import (
     StockBalance,
     StockReservation,
@@ -39,8 +46,13 @@ __all__ = [
     "ReceiptHeader",
     "ReceiptLine",
     "ReceiptStatus",
+    "CycleCount",
+    "CycleCountStatus",
+    "ReorderPolicy",
     "StockBalance",
     "StockItem",
+    "StorageLocation",
+    "StorageLocationType",
     "StockReservation",
     "StockReservationStatus",
     "StockTransaction",

@@ -4,7 +4,23 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from enum import Enum
 
+from pydantic import field_validator, model_validator
+
+from src.core.modules.inventory_procurement.domain._validation import (
+    STOREROOM_STATUS_VALUES,
+    normalize_inventory_code,
+    normalize_inventory_name,
+    normalize_optional_datetime,
+    normalize_optional_identifier,
+    normalize_optional_text,
+    normalize_optional_upper_text,
+    normalize_positive_int,
+    normalize_required_text,
+    normalize_status,
+)
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
+from src.core.platform.common.pydantic import validated_dataclass
 
 
 class StockTransactionType(str, Enum):
@@ -27,7 +43,7 @@ class StockReservationStatus(str, Enum):
     CANCELLED = "CANCELLED"
 
 
-@dataclass
+@validated_dataclass
 class Storeroom:
     id: str
     organization_id: str
@@ -50,6 +66,87 @@ class Storeroom:
     updated_at: datetime | None = None
     notes: str = ""
     version: int = 1
+
+    @field_validator("id", "organization_id", "site_id", mode="before")
+    @classmethod
+    def _validate_required_ids(cls, value: object, info) -> str:
+        messages = {
+            "id": ("Storeroom ID is required.", "INVENTORY_STOREROOM_ID_REQUIRED"),
+            "organization_id": (
+                "Organization ID is required.",
+                "INVENTORY_STOREROOM_ORGANIZATION_REQUIRED",
+            ),
+            "site_id": ("Site is required.", "INVENTORY_SITE_REQUIRED"),
+        }
+        message, code = messages[info.field_name]
+        return normalize_required_text(value, message=message, code=code)
+
+    @field_validator("storeroom_code", mode="before")
+    @classmethod
+    def _validate_storeroom_code(cls, value: object) -> str:
+        return normalize_inventory_code(value, label="Storeroom code")
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def _validate_name(cls, value: object) -> str:
+        return normalize_inventory_name(value, label="Storeroom name")
+
+    @field_validator("description", "notes", mode="before")
+    @classmethod
+    def _normalize_text_fields(cls, value: object) -> str:
+        return normalize_optional_text(value)
+
+    @field_validator("storeroom_type", "default_currency_code", mode="before")
+    @classmethod
+    def _normalize_upper_text_fields(cls, value: object) -> str:
+        return normalize_optional_upper_text(value)
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _validate_status(cls, value: object) -> str:
+        return normalize_status(
+            value,
+            default_status="DRAFT",
+            allowed_statuses=STOREROOM_STATUS_VALUES,
+            label="Storeroom status",
+        )
+
+    @field_validator("manager_party_id", mode="before")
+    @classmethod
+    def _normalize_manager_party_id(cls, value: object) -> str | None:
+        return normalize_optional_identifier(value)
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def _validate_timestamps(cls, value: object, info) -> datetime | None:
+        return normalize_optional_datetime(
+            value,
+            message=f"Storeroom {info.field_name.replace('_', ' ')} is invalid.",
+            code=f"INVENTORY_STOREROOM_{info.field_name.upper()}_INVALID",
+        )
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        return normalize_positive_int(
+            value,
+            message="Storeroom version must be positive.",
+            code="INVENTORY_STOREROOM_VERSION_INVALID",
+        )
+
+    @model_validator(mode="after")
+    def _validate_ranges(self) -> "Storeroom":
+        if (
+            self.updated_at is not None
+            and self.created_at is not None
+            and self.updated_at < self.created_at
+        ):
+            raise ValidationError(
+                "Updated timestamp cannot be earlier than created timestamp.",
+                code="INVENTORY_STOREROOM_UPDATED_RANGE_INVALID",
+            )
+        object.__setattr__(self, "is_active", self.status == "ACTIVE")
+        return self
 
     @staticmethod
     def create(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -9,10 +10,8 @@ from src.core.modules.inventory_procurement.application.common.support import (
     BUSINESS_PARTY_TYPES,
     STOREROOM_STATUS_TRANSITIONS,
     normalize_inventory_code,
-    normalize_inventory_name,
     normalize_optional_text,
     normalize_status,
-    resolve_active_flag_from_status,
     resolve_status_from_active,
     validate_transition,
 )
@@ -187,21 +186,20 @@ class InventoryService:
         storeroom = Storeroom.create(
             organization_id=organization.id,
             storeroom_code=normalized_code,
-            name=normalize_inventory_name(name, label="Storeroom name"),
+            name=name,
             site_id=site.id,
-            description=normalize_optional_text(description),
+            description=description,
             status=resolved_status,
-            storeroom_type=normalize_optional_text(storeroom_type).upper(),
-            is_active=resolve_active_flag_from_status(resolved_status),
+            storeroom_type=storeroom_type,
             is_internal_supplier=bool(is_internal_supplier),
             allows_issue=bool(allows_issue),
             allows_transfer=bool(allows_transfer),
             allows_receiving=bool(allows_receiving),
             requires_reservation_for_issue=bool(requires_reservation_for_issue),
             requires_supplier_reference_for_receipt=bool(requires_supplier_reference_for_receipt),
-            default_currency_code=(normalize_optional_text(default_currency_code).upper() or site.currency_code or ""),
+            default_currency_code=default_currency_code or site.currency_code or "",
             manager_party_id=self._validate_party_reference(manager_party_id),
-            notes=normalize_optional_text(notes),
+            notes=notes,
         )
         try:
             self._storeroom_repo.add(storeroom)
@@ -271,41 +269,21 @@ class InventoryService:
                 "Storeroom changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
+        next_storeroom_code = storeroom.storeroom_code
         if storeroom_code is not None:
-            normalized_code = normalize_inventory_code(storeroom_code, label="Storeroom code")
-            existing = self._storeroom_repo.get_by_code(organization.id, normalized_code)
+            next_storeroom_code = normalize_inventory_code(storeroom_code, label="Storeroom code")
+            existing = self._storeroom_repo.get_by_code(organization.id, next_storeroom_code)
             if existing is not None and existing.id != storeroom.id:
                 raise ValidationError(
                     "Storeroom code already exists in the active organization.",
                     code="INVENTORY_STOREROOM_CODE_EXISTS",
                 )
-            storeroom.storeroom_code = normalized_code
-        if name is not None:
-            storeroom.name = normalize_inventory_name(name, label="Storeroom name")
+        next_site_id = storeroom.site_id
         if site_id is not None:
-            storeroom.site_id = self._validate_site_reference(site_id).id
-        if description is not None:
-            storeroom.description = normalize_optional_text(description)
-        if storeroom_type is not None:
-            storeroom.storeroom_type = normalize_optional_text(storeroom_type).upper()
-        if is_internal_supplier is not None:
-            storeroom.is_internal_supplier = bool(is_internal_supplier)
-        if allows_issue is not None:
-            storeroom.allows_issue = bool(allows_issue)
-        if allows_transfer is not None:
-            storeroom.allows_transfer = bool(allows_transfer)
-        if allows_receiving is not None:
-            storeroom.allows_receiving = bool(allows_receiving)
-        if requires_reservation_for_issue is not None:
-            storeroom.requires_reservation_for_issue = bool(requires_reservation_for_issue)
-        if requires_supplier_reference_for_receipt is not None:
-            storeroom.requires_supplier_reference_for_receipt = bool(
-                requires_supplier_reference_for_receipt
-            )
-        if default_currency_code is not None:
-            storeroom.default_currency_code = normalize_optional_text(default_currency_code).upper()
+            next_site_id = self._validate_site_reference(site_id).id
+        next_manager_party_id = storeroom.manager_party_id
         if manager_party_id is not None:
-            storeroom.manager_party_id = self._validate_party_reference(manager_party_id)
+            next_manager_party_id = self._validate_party_reference(manager_party_id)
         next_status = storeroom.status
         if status is not None:
             next_status = normalize_status(
@@ -325,11 +303,49 @@ class InventoryService:
                 is_active=bool(is_active),
                 transitions=STOREROOM_STATUS_TRANSITIONS,
             )
-        storeroom.status = next_status
-        storeroom.is_active = resolve_active_flag_from_status(storeroom.status)
-        if notes is not None:
-            storeroom.notes = normalize_optional_text(notes)
-        storeroom.updated_at = datetime.now(timezone.utc)
+        storeroom = replace(
+            storeroom,
+            storeroom_code=next_storeroom_code,
+            name=storeroom.name if name is None else name,
+            site_id=next_site_id,
+            description=storeroom.description if description is None else description,
+            status=next_status,
+            storeroom_type=storeroom.storeroom_type if storeroom_type is None else storeroom_type,
+            is_internal_supplier=(
+                storeroom.is_internal_supplier
+                if is_internal_supplier is None
+                else bool(is_internal_supplier)
+            ),
+            allows_issue=storeroom.allows_issue if allows_issue is None else bool(allows_issue),
+            allows_transfer=(
+                storeroom.allows_transfer
+                if allows_transfer is None
+                else bool(allows_transfer)
+            ),
+            allows_receiving=(
+                storeroom.allows_receiving
+                if allows_receiving is None
+                else bool(allows_receiving)
+            ),
+            requires_reservation_for_issue=(
+                storeroom.requires_reservation_for_issue
+                if requires_reservation_for_issue is None
+                else bool(requires_reservation_for_issue)
+            ),
+            requires_supplier_reference_for_receipt=(
+                storeroom.requires_supplier_reference_for_receipt
+                if requires_supplier_reference_for_receipt is None
+                else bool(requires_supplier_reference_for_receipt)
+            ),
+            default_currency_code=(
+                storeroom.default_currency_code
+                if default_currency_code is None
+                else default_currency_code
+            ),
+            manager_party_id=next_manager_party_id,
+            notes=storeroom.notes if notes is None else notes,
+            updated_at=datetime.now(timezone.utc),
+        )
         try:
             self._storeroom_repo.update(storeroom)
             self._session.commit()
