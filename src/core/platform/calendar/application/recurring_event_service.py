@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, time
 from typing import Any
 
@@ -14,14 +15,8 @@ from src.core.platform.calendar.contracts import (
 )
 from src.core.platform.calendar.domain.enterprise_calendar import (
     CalendarRecurringEvent,
-    ImpactType,
-    RecurringEventType,
 )
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-
-
-_VALID_EVENT_TYPES = {t.value for t in RecurringEventType}
-_VALID_IMPACT_TYPES = {t.value for t in ImpactType}
 
 
 def _validate_rrule(rule_str: str) -> None:
@@ -77,15 +72,13 @@ class RecurringEventService:
             self._user_session, "task.manage", operation_label="add recurring event"
         )
         self._require_calendar(calendar_id)
-        self._validate_event(event_type, impact_type, start_time, end_time, recurrence_rule)
-        if effective_to is not None and effective_to < effective_from:
-            raise ValidationError("effective_to must be after effective_from.")
+        _validate_rrule(recurrence_rule)
 
         event = CalendarRecurringEvent.create(
             calendar_id=calendar_id,
-            title=title.strip(),
+            title=title,
             event_type=event_type,
-            recurrence_rule=recurrence_rule.strip(),
+            recurrence_rule=recurrence_rule,
             start_time=start_time,
             end_time=end_time,
             impact_type=impact_type,
@@ -123,33 +116,30 @@ class RecurringEventService:
         if event is None:
             raise NotFoundError(f"Recurring event '{event_id}' not found.")
 
-        if title is not None:
-            event.title = title.strip()
-        if event_type is not None:
-            event.event_type = event_type
-        if recurrence_rule is not None:
-            _validate_rrule(recurrence_rule)
-            event.recurrence_rule = recurrence_rule.strip()
-        if start_time is not None:
-            event.start_time = start_time
-        if end_time is not None:
-            event.end_time = end_time
-        if impact_type is not None:
-            event.impact_type = impact_type
-        if capacity_impact_percent is not None:
-            event.capacity_impact_percent = capacity_impact_percent
-        if effective_from is not None:
-            event.effective_from = effective_from
-        if effective_to is not None:
-            event.effective_to = effective_to
-        if is_active is not None:
-            event.is_active = is_active
-        if priority is not None:
-            event.priority = priority
+        updated_rule = event.recurrence_rule if recurrence_rule is None else recurrence_rule
+        _validate_rrule(updated_rule)
+        updated = replace(
+            event,
+            title=event.title if title is None else title,
+            event_type=event.event_type if event_type is None else event_type,
+            recurrence_rule=updated_rule,
+            start_time=event.start_time if start_time is None else start_time,
+            end_time=event.end_time if end_time is None else end_time,
+            impact_type=event.impact_type if impact_type is None else impact_type,
+            capacity_impact_percent=(
+                event.capacity_impact_percent
+                if capacity_impact_percent is None
+                else capacity_impact_percent
+            ),
+            effective_from=event.effective_from if effective_from is None else effective_from,
+            effective_to=event.effective_to if effective_to is None else effective_to,
+            is_active=event.is_active if is_active is None else is_active,
+            priority=event.priority if priority is None else priority,
+        )
 
-        self._event_repo.update(event)
+        self._event_repo.update(updated)
         self._session.commit()
-        return event
+        return updated
 
     def delete_recurring_event(self, event_id: str) -> None:
         require_permission(
@@ -183,28 +173,6 @@ class RecurringEventService:
     def _require_calendar(self, calendar_id: str) -> None:
         if self._calendar_repo.get(calendar_id) is None:
             raise NotFoundError(f"Calendar '{calendar_id}' not found.")
-
-    def _validate_event(
-        self,
-        event_type: str,
-        impact_type: str,
-        start_time: time,
-        end_time: time,
-        recurrence_rule: str,
-    ) -> None:
-        if event_type not in _VALID_EVENT_TYPES:
-            raise ValidationError(
-                f"Invalid event_type '{event_type}'. Valid: {sorted(_VALID_EVENT_TYPES)}"
-            )
-        if impact_type not in _VALID_IMPACT_TYPES:
-            raise ValidationError(
-                f"Invalid impact_type '{impact_type}'. Valid: {sorted(_VALID_IMPACT_TYPES)}"
-            )
-        start_min = start_time.hour * 60 + start_time.minute
-        end_min = end_time.hour * 60 + end_time.minute
-        if end_min <= start_min:
-            raise ValidationError("start_time must be before end_time.")
-        _validate_rrule(recurrence_rule)
 
 
 __all__ = ["RecurringEventService"]

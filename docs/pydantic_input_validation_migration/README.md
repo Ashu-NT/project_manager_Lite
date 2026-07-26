@@ -699,7 +699,7 @@ Notes:
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -715,11 +715,17 @@ Service responsibilities:
 - scope ownership/existence
 - default-calendar business rules
 
+Notes:
+
+- create/update scalar normalization now lives on the shared calendar write model
+- update flows use final-state replacement so `effective_from` / `effective_to` pairs validate together
+- historical persisted values still reconstruct cleanly through alias-friendly normalization where needed in adjacent calendar rows
+
 #### `CalendarException`
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -735,11 +741,17 @@ Service responsibilities:
 - approval workflow
 - scope compatibility
 
+Notes:
+
+- create/update scalar normalization now lives on the shared exception write model
+- approval workflow and any future overlap/conflict policy remain service-owned
+- legacy `NON_WORKING` impact rows are normalized to the canonical unavailable impact shape at the write-model boundary
+
 #### `CalendarRecurringEvent`
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -755,11 +767,17 @@ Service responsibilities:
 - overlap/conflict policy
 - scope compatibility
 
+Notes:
+
+- create/update scalar normalization now lives on the shared recurring-event write model
+- RRULE parsing intentionally remains in the service because it depends on scheduling policy and parser behavior outside simple field validation
+- legacy `SHIFT` event rows and `NON_WORKING` impact rows normalize into the canonical persisted shape exposed by the write model
+
 #### `ShiftPattern`
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -773,6 +791,12 @@ Service responsibilities:
 - organization scoping
 - conflict policy
 - references to pattern days and assignments
+
+Notes:
+
+- create/update scalar normalization now lives on the shared shift-pattern write model
+- `ShiftPatternDay` now validates its own local create/save invariants as part of this slice because services directly construct it
+- legacy `FIXED` pattern values normalize to the canonical standard pattern shape for compatibility with seeded tests and repository reconstruction
 
 #### `DocumentStructure` and `Document`
 
@@ -1490,6 +1514,7 @@ Mitigation:
 - [x] Migrate platform access membership/grant DTOs
 - [x] Migrate platform user-account/auth-session DTOs
 - [x] Migrate platform approval/tenant/event/runtime DTOs
+- [x] Migrate platform calendar/shift DTOs
 
 ## Current Implementation Decision
 

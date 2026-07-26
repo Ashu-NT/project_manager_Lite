@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from datetime import date, datetime
 from datetime import timezone as zone
 from typing import Any
@@ -24,7 +25,6 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.tenancy import TenantContextService
 
 
-_VALID_CALENDAR_TYPES = {t.value for t in CalendarType}
 _VALID_GRANULARITIES = {5, 10, 15, 30, 60}
 logger = logging.getLogger(__name__)
 
@@ -113,20 +113,13 @@ class EnterpriseCalendarService:
             self._user_session, "task.manage", operation_label="create calendar"
         )
         org_id = self._active_org_id()
-        self._validate_type(calendar_type)
-        self._validate_effective_dates(effective_from, effective_to)
-
-        existing = self._calendar_repo.get_by_code(org_id, code.strip())
-        if existing is not None:
-            raise ValidationError(f"Calendar code '{code}' already exists.")
-
         username = _resolve_username(self._user_session)
         cal = PlatformCalendar.create(
             organization_id=org_id,
-            code=code.strip(),
-            name=name.strip(),
+            code=code,
+            name=name,
             calendar_type=calendar_type,
-            timezone=timezone or "UTC",
+            timezone=timezone,
             description=description,
             base_calendar_id=base_calendar_id,
             scope_type=scope_type,
@@ -138,6 +131,9 @@ class EnterpriseCalendarService:
             priority=priority,
             created_by=username,
         )
+        existing = self._calendar_repo.get_by_code(org_id, cal.code)
+        if existing is not None:
+            raise ValidationError(f"Calendar code '{cal.code}' already exists.")
         self._calendar_repo.add(cal)
         self._session.commit()
         return cal
@@ -160,38 +156,25 @@ class EnterpriseCalendarService:
             self._user_session, "task.manage", operation_label="update calendar"
         )
         cal = self._require_calendar_in_active_organization(calendar_id)
-
-        if name is not None:
-            cal.name = name.strip()
-        if description is not None:
-            cal.description = description
-        if timezone is not None:
-            cal.timezone = timezone
-        if locale is not None:
-            cal.locale = locale
-        if is_default is not None:
-            cal.is_default = is_default
-        if is_active is not None:
-            cal.is_active = is_active
-        if effective_from is not None or effective_to is not None:
-            self._validate_effective_dates(
-                effective_from or cal.effective_from,
-                effective_to or cal.effective_to,
-            )
-            if effective_from is not None:
-                cal.effective_from = effective_from
-            if effective_to is not None:
-                cal.effective_to = effective_to
-        if priority is not None:
-            cal.priority = priority
-
-        cal.version += 1
-        cal.updated_at = datetime.now(zone.utc)
         username = _resolve_username(self._user_session)
-        cal.updated_by = username
-        self._calendar_repo.update(cal)
+        updated = replace(
+            cal,
+            name=cal.name if name is None else name,
+            description=cal.description if description is None else description,
+            timezone=cal.timezone if timezone is None else timezone,
+            locale=cal.locale if locale is None else locale,
+            is_default=cal.is_default if is_default is None else is_default,
+            is_active=cal.is_active if is_active is None else is_active,
+            effective_from=cal.effective_from if effective_from is None else effective_from,
+            effective_to=cal.effective_to if effective_to is None else effective_to,
+            priority=cal.priority if priority is None else priority,
+            version=cal.version + 1,
+            updated_at=datetime.now(zone.utc),
+            updated_by=username,
+        )
+        self._calendar_repo.update(updated)
         self._session.commit()
-        return cal
+        return updated
 
     def delete_calendar(self, calendar_id: str) -> None:
         require_permission(
@@ -347,27 +330,12 @@ class EnterpriseCalendarService:
             )
             raise
 
-    # ------------------------------------------------------------------
-    # Validators
-    # ------------------------------------------------------------------
-
-    def _validate_type(self, calendar_type: str) -> None:
-        if calendar_type not in _VALID_CALENDAR_TYPES:
-            raise ValidationError(
-                f"Invalid calendar_type '{calendar_type}'. "
-                f"Valid values: {sorted(_VALID_CALENDAR_TYPES)}"
-            )
-
     def _require_calendar_in_active_organization(self, calendar_id: str) -> PlatformCalendar:
         org_id = self._active_org_id()
         cal = self._calendar_repo.get(calendar_id)
         if cal is None or cal.organization_id != org_id:
             raise NotFoundError(f"Calendar '{calendar_id}' not found.")
         return cal
-
-    def _validate_effective_dates(self, effective_from: date | None, effective_to: date | None) -> None:
-        if effective_from and effective_to and effective_from > effective_to:
-            raise ValidationError("effective_from must be before effective_to.")
 
 
 __all__ = ["EnterpriseCalendarService"]
