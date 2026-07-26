@@ -138,6 +138,8 @@ Notes:
 - `TaskComment` was migrated in the eighth slice
 - `Organization` and `Site` were migrated in the ninth slice
 - `Department` and `Employee` were migrated in the tenth slice
+- `Party` was migrated in the eleventh slice
+- `TimeEntry` and `TimesheetPeriod` were migrated in the twelfth slice
 
 #### Maintenance
 
@@ -508,7 +510,7 @@ Notes:
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -523,13 +525,19 @@ Service responsibilities:
 - uniqueness by party code
 - integration-specific referential checks
 
+Notes:
+
+- create/update scalar normalization now lives on the shared write model
+- organization scoping and duplicate-code checks remain service rules
+- integration-specific referential checks remain service-owned
+
 ### Platform time, access, auth, and governance entities
 
 #### `TimeEntry`
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -545,11 +553,17 @@ Service responsibilities:
 - timesheet ownership and approval policy
 - tenant and permission enforcement
 
+Notes:
+
+- create/update scalar normalization now lives on the shared write model
+- work-allocation existence, monthly period generation, and editability rules remain service-owned
+- timesheet workflow, policy, and permission checks remain in service code
+
 #### `TimesheetPeriod`
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -564,6 +578,12 @@ Service responsibilities:
 - period generation policy
 - submit / approve / reject / lock transitions
 - approval actor permissions
+
+Notes:
+
+- create/update scalar normalization now lives on the shared write model
+- monthly period-bound generation remains service-owned
+- submit/approve/reject/lock workflow and permission enforcement remain service rules
 
 #### `ProjectMembership` and `ScopedAccessGrant`
 
@@ -1434,6 +1454,8 @@ Mitigation:
 - [x] Migrate PM task-comment DTOs
 - [x] Migrate platform organization/site DTOs
 - [x] Migrate platform department/employee DTOs
+- [x] Migrate platform party DTO
+- [x] Migrate platform time-entry/timesheet-period DTOs
 
 ## Current Implementation Decision
 

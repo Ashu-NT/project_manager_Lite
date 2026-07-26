@@ -3,6 +3,8 @@ from src.core.platform.time.domain.timesheet_models import (
     TimesheetPeriod,
     TimesheetPeriodStatus,
     WorkEntry,
+    coerce_timesheet_period_status,
+    normalize_time_entry_hours,
 )
 
 __all__ = [
@@ -10,4 +12,6 @@ __all__ = [
     "TimesheetPeriod",
     "TimesheetPeriodStatus",
     "WorkEntry",
+    "coerce_timesheet_period_status",
+    "normalize_time_entry_hours",
 ]

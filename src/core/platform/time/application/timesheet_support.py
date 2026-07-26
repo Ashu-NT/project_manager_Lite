@@ -340,13 +340,6 @@ class TimesheetSupportMixin:
                 details[key] = value
         return details
 
-    @staticmethod
-    def _validate_time_entry_hours(hours: float) -> float:
-        resolved = float(hours or 0.0)
-        if resolved <= 0:
-            raise ValidationError("Time entry hours must be greater than zero.")
-        return resolved
-
     def _require_timesheet_period(self, period_id: str) -> TimesheetPeriod:
         if self._timesheet_period_repo is None:
             raise NotFoundError("Timesheet period repository is not configured.", code="TIMESHEET_PERIOD_REPO_MISSING")

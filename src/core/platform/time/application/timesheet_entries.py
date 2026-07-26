@@ -80,8 +80,8 @@ class TimesheetEntriesMixin:
             work_allocation_id=work_allocation.id,
             assignment_id=self._legacy_assignment_id_for_work_allocation(work_allocation),
             entry_date=entry_date,
-            hours=self._validate_time_entry_hours(hours),
-            note=(note or "").strip(),
+            hours=hours,
+            note=note,
             author_user_id=getattr(getattr(self._user_session, "principal", None), "user_id", None),
             author_username=getattr(getattr(self._user_session, "principal", None), "username", None),
             **self._resolve_work_entry_context(
@@ -184,9 +184,9 @@ class TimesheetEntriesMixin:
         if entry_date is not None:
             entry.entry_date = entry_date
         if hours is not None:
-            entry.hours = self._validate_time_entry_hours(hours)
+            entry.hours = hours
         if note is not None:
-            entry.note = note.strip()
+            entry.note = note
         entry.updated_at = datetime.now(timezone.utc)
         try:
             self._time_entry_repo.update(entry)  # type: ignore[union-attr]
