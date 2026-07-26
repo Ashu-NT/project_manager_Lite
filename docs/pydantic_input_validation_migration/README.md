@@ -802,7 +802,7 @@ Notes:
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
@@ -816,6 +816,12 @@ Service responsibilities:
 - storage backend policy
 - document-type workflow
 - access control and tenant scope
+
+Notes:
+
+- create/update scalar normalization now lives on the shared document-structure and document write models
+- document and structure codes, enum coercion, version validation, timestamp normalization, and review-date ordering are enforced at the DTO/entity boundary
+- active-organization resolution, duplicate-code checks, structure lookup, storage-derived file-name and MIME defaults, link uniqueness, and tenant-scope enforcement remain service-owned
 
 ### Project-management entities
 
@@ -1515,6 +1521,7 @@ Mitigation:
 - [x] Migrate platform user-account/auth-session DTOs
 - [x] Migrate platform approval/tenant/event/runtime DTOs
 - [x] Migrate platform calendar/shift DTOs
+- [x] Migrate platform document DTOs
 
 ## Current Implementation Decision
 

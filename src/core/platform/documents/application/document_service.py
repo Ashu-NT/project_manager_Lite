@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timezone
 from typing import Any
 
@@ -24,34 +25,16 @@ from src.core.platform.documents.domain import (
     DocumentType,
 )
 from src.core.platform.documents.support import (
-    coerce_document_type as _coerce_document_type,
-    coerce_storage_kind as _coerce_storage_kind,
     default_file_name as _default_file_name,
     infer_mime_type as _infer_mime_type,
-    normalize_confidentiality as _normalize_confidentiality,
     normalize_entity_label as _normalize_entity_label,
     normalize_module_code as _normalize_module_code,
     normalize_object_scope as _normalize_object_scope,
     normalize_optional_text as _normalize_optional_text,
-    normalize_structure_code as _normalize_structure_code,
-    normalize_structure_name as _normalize_structure_name,
 )
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
-from src.core.platform.org.support import normalize_code, normalize_name
 from src.core.platform.tenancy import TenantContextService
-
-
-def _normalize_optional_date(value: date | None) -> date | None:
-    return value
-
-
-def _validate_document_dates(*, effective_date: date | None, review_date: date | None) -> None:
-    if effective_date is not None and review_date is not None and review_date < effective_date:
-        raise ValidationError(
-            "Document review date cannot be earlier than the effective date.",
-            code="DOCUMENT_REVIEW_DATE_INVALID",
-        )
 
 
 class DocumentService:
@@ -115,25 +98,24 @@ class DocumentService:
     ) -> DocumentStructure:
         require_permission(self._user_session, "settings.manage", operation_label="create document structure")
         organization = self._active_organization()
-        normalized_code = _normalize_structure_code(structure_code)
-        if self._structure_repo.get_by_code(organization.id, normalized_code) is not None:
+        parent = self._resolve_structure_for_context(parent_structure_id, organization=organization)
+        structure = DocumentStructure.create(
+            organization_id=organization.id,
+            structure_code=structure_code,
+            name=name,
+            description=description,
+            parent_structure_id=parent.id if parent is not None else None,
+            object_scope=object_scope,
+            default_document_type=default_document_type,
+            sort_order=sort_order,
+            is_active=is_active,
+            notes=notes,
+        )
+        if self._structure_repo.get_by_code(organization.id, structure.structure_code) is not None:
             raise ValidationError(
                 "Document structure code already exists in the active organization.",
                 code="DOCUMENT_STRUCTURE_CODE_EXISTS",
             )
-        parent = self._resolve_structure_for_context(parent_structure_id, organization=organization)
-        structure = DocumentStructure.create(
-            organization_id=organization.id,
-            structure_code=normalized_code,
-            name=_normalize_structure_name(name),
-            description=_normalize_optional_text(description),
-            parent_structure_id=parent.id if parent is not None else None,
-            object_scope=_normalize_object_scope(object_scope),
-            default_document_type=_coerce_document_type(default_document_type),
-            sort_order=int(sort_order or 0),
-            is_active=bool(is_active),
-            notes=_normalize_optional_text(notes),
-        )
         try:
             self._structure_repo.add(structure)
             self._session.commit()
@@ -192,36 +174,37 @@ class DocumentService:
                 "Document structure changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
+        next_parent_structure_id = structure.parent_structure_id
+        if parent_structure_id is not None:
+            parent = self._resolve_structure_for_context(parent_structure_id, organization=organization)
+            if parent is not None and parent.id == structure.id:
+                raise ValidationError("A document structure cannot be its own parent.", code="DOCUMENT_STRUCTURE_PARENT_INVALID")
+            next_parent_structure_id = parent.id if parent is not None else None
+        updated = replace(
+            structure,
+            structure_code=structure.structure_code if structure_code is None else structure_code,
+            name=structure.name if name is None else name,
+            description=structure.description if description is None else description,
+            parent_structure_id=next_parent_structure_id,
+            object_scope=structure.object_scope if object_scope is None else object_scope,
+            default_document_type=(
+                structure.default_document_type
+                if default_document_type is None
+                else default_document_type
+            ),
+            sort_order=structure.sort_order if sort_order is None else sort_order,
+            is_active=structure.is_active if is_active is None else is_active,
+            notes=structure.notes if notes is None else notes,
+        )
         if structure_code is not None:
-            normalized_code = _normalize_structure_code(structure_code)
-            existing = self._structure_repo.get_by_code(organization.id, normalized_code)
+            existing = self._structure_repo.get_by_code(organization.id, updated.structure_code)
             if existing is not None and existing.id != structure.id:
                 raise ValidationError(
                     "Document structure code already exists in the active organization.",
                     code="DOCUMENT_STRUCTURE_CODE_EXISTS",
                 )
-            structure.structure_code = normalized_code
-        if name is not None:
-            structure.name = _normalize_structure_name(name)
-        if description is not None:
-            structure.description = _normalize_optional_text(description)
-        if parent_structure_id is not None:
-            parent = self._resolve_structure_for_context(parent_structure_id, organization=organization)
-            if parent is not None and parent.id == structure.id:
-                raise ValidationError("A document structure cannot be its own parent.", code="DOCUMENT_STRUCTURE_PARENT_INVALID")
-            structure.parent_structure_id = parent.id if parent is not None else None
-        if object_scope is not None:
-            structure.object_scope = _normalize_object_scope(object_scope)
-        if default_document_type is not None:
-            structure.default_document_type = _coerce_document_type(default_document_type)
-        if sort_order is not None:
-            structure.sort_order = int(sort_order or 0)
-        if is_active is not None:
-            structure.is_active = bool(is_active)
-        if notes is not None:
-            structure.notes = _normalize_optional_text(notes)
         try:
-            self._structure_repo.update(structure)
+            self._structure_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -236,20 +219,20 @@ class DocumentService:
             self,
             operation="update",
             entity_type="document_structure",
-            entity_id=structure.id,
+            entity_id=updated.id,
             module="platform",
             severity="low",
             metadata={
                 "action": "document_structure.update",
                 "organization_id": organization.id,
-                "structure_code": structure.structure_code,
-                "object_scope": structure.object_scope,
-                "default_document_type": structure.default_document_type.value,
-                "is_active": str(structure.is_active),
+                "structure_code": updated.structure_code,
+                "object_scope": updated.object_scope,
+                "default_document_type": updated.default_document_type.value,
+                "is_active": str(updated.is_active),
             },
         )
-        domain_events.documents_changed.emit(structure.id)
-        return structure
+        domain_events.documents_changed.emit(updated.id)
+        return updated
 
     def create_document(
         self,
@@ -275,44 +258,39 @@ class DocumentService:
         is_current: bool = True,
         notes: str = "",
         is_active: bool = True,
-    ) -> Document:
+        ) -> Document:
         require_permission(self._user_session, "settings.manage", operation_label="create document")
         organization = self._active_organization()
-        normalized_code = normalize_code(document_code, label="Document code")
-        normalized_title = normalize_name(title, label="Document title")
-        normalized_uri = _normalize_entity_label(
-            storage_uri if storage_uri is not None else storage_ref,
-            code="DOCUMENT_STORAGE_REF_REQUIRED",
-            label="Document storage URI",
-        )
-        _validate_document_dates(effective_date=effective_date, review_date=review_date)
-        if self._document_repo.get_by_code(organization.id, normalized_code) is not None:
-            raise ValidationError("Document code already exists in the active organization.", code="DOCUMENT_CODE_EXISTS")
         structure = self._resolve_structure_for_context(document_structure_id, organization=organization)
         principal = self._user_session.principal if self._user_session is not None else None
-        normalized_file_name = _default_file_name(normalized_uri, file_name)
-        normalized_mime_type = _normalize_optional_text(mime_type) or _infer_mime_type(normalized_file_name or normalized_uri)
         document = Document.create(
             organization_id=organization.id,
-            document_code=normalized_code,
-            title=normalized_title,
-            document_type=_coerce_document_type(document_type if document_type is not None else classification),
+            document_code=document_code,
+            title=title,
+            document_type=document_type if document_type is not None else classification,
             document_structure_id=structure.id if structure is not None else None,
-            storage_kind=_coerce_storage_kind(storage_kind),
-            storage_uri=normalized_uri,
-            file_name=normalized_file_name,
-            mime_type=normalized_mime_type,
-            source_system=_normalize_optional_text(source_system) or "platform",
-            uploaded_at=uploaded_at or datetime.now(timezone.utc),
+            storage_kind=storage_kind,
+            storage_uri=storage_uri if storage_uri is not None else storage_ref,
+            file_name=file_name,
+            mime_type=mime_type,
+            source_system=source_system,
+            uploaded_at=uploaded_at,
             uploaded_by_user_id=uploaded_by_user_id or (principal.user_id if principal is not None else None),
-            effective_date=_normalize_optional_date(effective_date),
-            review_date=_normalize_optional_date(review_date),
-            confidentiality_level=_normalize_confidentiality(confidentiality_level),
-            business_version_label=_normalize_optional_text(business_version_label or revision),
-            is_current=bool(is_current),
-            notes=_normalize_optional_text(notes),
-            is_active=bool(is_active),
+            effective_date=effective_date,
+            review_date=review_date,
+            confidentiality_level=confidentiality_level,
+            business_version_label=business_version_label,
+            revision=revision,
+            is_current=is_current,
+            notes=notes,
+            is_active=is_active,
         )
+        if self._document_repo.get_by_code(organization.id, document.document_code) is not None:
+            raise ValidationError("Document code already exists in the active organization.", code="DOCUMENT_CODE_EXISTS")
+        if not document.file_name:
+            document.file_name = _default_file_name(document.storage_uri, None)
+        if not document.mime_type:
+            document.mime_type = _infer_mime_type(document.file_name or document.storage_uri)
         try:
             self._document_repo.add(document)
             self._session.commit()
@@ -376,66 +354,69 @@ class DocumentService:
             raise NotFoundError("Document not found in the active organization.", code="DOCUMENT_NOT_FOUND")
         if expected_version is not None and document.version != expected_version:
             raise ConcurrencyError("Document changed since you opened it. Refresh and try again.", code="STALE_WRITE")
-        if document_code is not None:
-            normalized_code = normalize_code(document_code, label="Document code")
-            existing = self._document_repo.get_by_code(organization.id, normalized_code)
-            if existing is not None and existing.id != document.id:
-                raise ValidationError("Document code already exists in the active organization.", code="DOCUMENT_CODE_EXISTS")
-            document.document_code = normalized_code
-        if title is not None:
-            document.title = normalize_name(title, label="Document title")
-        if document_type is not None or classification is not None:
-            document.document_type = _coerce_document_type(
-                document_type if document_type is not None else classification
-            )
+        next_structure_id = document.document_structure_id
         if document_structure_id is not None:
             structure = self._resolve_structure_for_context(document_structure_id, organization=organization)
-            document.document_structure_id = structure.id if structure is not None else None
-        if storage_kind is not None:
-            document.storage_kind = _coerce_storage_kind(storage_kind)
-        if storage_uri is not None or storage_ref is not None:
-            document.storage_uri = _normalize_entity_label(
-                storage_uri if storage_uri is not None else storage_ref,
-                code="DOCUMENT_STORAGE_REF_REQUIRED",
-                label="Document storage URI",
-            )
+            next_structure_id = structure.id if structure is not None else None
+        updated = replace(
+            document,
+            document_code=document.document_code if document_code is None else document_code,
+            title=document.title if title is None else title,
+            document_type=(
+                document.document_type
+                if document_type is None and classification is None
+                else (document_type if document_type is not None else classification)
+            ),
+            document_structure_id=next_structure_id,
+            storage_kind=document.storage_kind if storage_kind is None else storage_kind,
+            storage_uri=(
+                document.storage_uri
+                if storage_uri is None and storage_ref is None
+                else (storage_uri if storage_uri is not None else storage_ref)
+            ),
+            file_name=document.file_name if file_name is None else file_name,
+            mime_type=document.mime_type if mime_type is None else mime_type,
+            source_system=document.source_system if source_system is None else source_system,
+            uploaded_at=document.uploaded_at if uploaded_at is None else uploaded_at,
+            uploaded_by_user_id=(
+                document.uploaded_by_user_id
+                if uploaded_by_user_id is None
+                else uploaded_by_user_id
+            ),
+            effective_date=document.effective_date if effective_date is None else effective_date,
+            review_date=document.review_date if review_date is None else review_date,
+            confidentiality_level=(
+                document.confidentiality_level
+                if confidentiality_level is None
+                else confidentiality_level
+            ),
+            business_version_label=(
+                document.business_version_label
+                if business_version_label is None and revision is None
+                else (
+                    business_version_label
+                    if business_version_label is not None
+                    else revision
+                )
+            ),
+            is_current=document.is_current if is_current is None else is_current,
+            notes=document.notes if notes is None else notes,
+            is_active=document.is_active if is_active is None else is_active,
+        )
+        if document_code is not None:
+            existing = self._document_repo.get_by_code(organization.id, updated.document_code)
+            if existing is not None and existing.id != document.id:
+                raise ValidationError("Document code already exists in the active organization.", code="DOCUMENT_CODE_EXISTS")
         if file_name is not None:
-            document.file_name = _default_file_name(document.storage_uri, file_name)
+            updated.file_name = _default_file_name(updated.storage_uri, file_name)
         if mime_type is not None:
-            document.mime_type = _normalize_optional_text(mime_type) or _infer_mime_type(
-                document.file_name or document.storage_uri
-            )
-        elif storage_uri is not None or file_name is not None:
-            document.mime_type = _normalize_optional_text(document.mime_type) or _infer_mime_type(
-                document.file_name or document.storage_uri
-            )
-        if source_system is not None:
-            document.source_system = _normalize_optional_text(source_system)
-        if uploaded_at is not None:
-            document.uploaded_at = uploaded_at
-        if uploaded_by_user_id is not None:
-            document.uploaded_by_user_id = _normalize_optional_text(uploaded_by_user_id) or None
-        next_effective_date = effective_date if effective_date is not None else document.effective_date
-        next_review_date = review_date if review_date is not None else document.review_date
-        _validate_document_dates(effective_date=next_effective_date, review_date=next_review_date)
-        if effective_date is not None:
-            document.effective_date = _normalize_optional_date(effective_date)
-        if review_date is not None:
-            document.review_date = _normalize_optional_date(review_date)
-        if confidentiality_level is not None:
-            document.confidentiality_level = _normalize_confidentiality(confidentiality_level)
-        if business_version_label is not None or revision is not None:
-            document.business_version_label = _normalize_optional_text(
-                business_version_label if business_version_label is not None else revision
-            )
-        if is_current is not None:
-            document.is_current = bool(is_current)
-        if notes is not None:
-            document.notes = _normalize_optional_text(notes)
-        if is_active is not None:
-            document.is_active = bool(is_active)
+            if not updated.mime_type:
+                updated.mime_type = _infer_mime_type(updated.file_name or updated.storage_uri)
+        elif storage_uri is not None or storage_ref is not None or file_name is not None:
+            if not updated.mime_type:
+                updated.mime_type = _infer_mime_type(updated.file_name or updated.storage_uri)
         try:
-            self._document_repo.update(document)
+            self._document_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -447,22 +428,22 @@ class DocumentService:
             self,
             operation="update",
             entity_type="document",
-            entity_id=document.id,
+            entity_id=updated.id,
             module="platform",
             severity="low",
             metadata={
                 "action": "document.update",
                 "organization_id": organization.id,
-                "document_code": document.document_code,
-                "title": document.title,
-                "document_type": document.document_type.value,
-                "document_structure_id": document.document_structure_id,
-                "storage_kind": document.storage_kind.value,
-                "is_active": str(document.is_active),
+                "document_code": updated.document_code,
+                "title": updated.title,
+                "document_type": updated.document_type.value,
+                "document_structure_id": updated.document_structure_id,
+                "storage_kind": updated.storage_kind.value,
+                "is_active": str(updated.is_active),
             },
         )
-        domain_events.documents_changed.emit(document.id)
-        return document
+        domain_events.documents_changed.emit(updated.id)
+        return updated
 
     def list_links(self, document_id: str) -> list[DocumentLink]:
         require_permission(self._user_session, "settings.manage", operation_label="list document links")
