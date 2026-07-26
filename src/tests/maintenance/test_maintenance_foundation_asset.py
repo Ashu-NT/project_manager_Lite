@@ -33,6 +33,16 @@ class _OrgRepo(OrganizationRepository):
     def list_all(self, *, active_only=None):
         rows = [self.organization]
         return rows if active_only is None else [r for r in rows if r.is_active == bool(active_only)]
+    def get_for_tenant(self, organization_id, tenant_id):
+        if self.organization.tenant_id != tenant_id:
+            return None
+        return self.get(organization_id)
+    def get_by_code_for_tenant(self, organization_code, tenant_id):
+        if self.organization.tenant_id != tenant_id:
+            return None
+        return self.get_by_code(organization_code)
+    def get_active_for_tenant(self, tenant_id):
+        return self.organization if self.organization.tenant_id == tenant_id else None
     def list_for_tenant(self, tenant_id, *, active_only=None):
         rows = [self.organization] if self.organization.tenant_id == tenant_id else []
         return rows if active_only is None else [r for r in rows if r.is_active == bool(active_only)]

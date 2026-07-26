@@ -1034,6 +1034,10 @@ Notes:
 
 #### Asset and location cluster
 
+Status:
+
+- completed
+
 Entities:
 
 - `MaintenanceLocation`
@@ -1054,6 +1058,12 @@ Service responsibilities:
 - site/system/parent existence
 - cross-module party references
 - hierarchy integrity rules
+
+Notes:
+
+- write-model validation now lives in the maintenance domain for `MaintenanceLocation`, `MaintenanceSystem`, `MaintenanceAsset`, and `MaintenanceAssetComponent`
+- asset/component date windows and non-negative numeric checks moved out of the services into the validated DTO layer
+- create/update services now keep tenant, scope, hierarchy, party, and uniqueness orchestration while using `replace(...)` for validated updates
 
 #### Work request and work order cluster
 

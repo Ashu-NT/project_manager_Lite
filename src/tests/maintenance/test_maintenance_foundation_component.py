@@ -48,6 +48,19 @@ class _OrgRepo(OrganizationRepository):
             return rows
         return [row for row in rows if row.is_active == bool(active_only)]
 
+    def get_for_tenant(self, organization_id: str, tenant_id: str):
+        if self.organization.tenant_id != tenant_id:
+            return None
+        return self.get(organization_id)
+
+    def get_by_code_for_tenant(self, organization_code: str, tenant_id: str):
+        if self.organization.tenant_id != tenant_id:
+            return None
+        return self.get_by_code(organization_code)
+
+    def get_active_for_tenant(self, tenant_id: str):
+        return self.organization if self.organization.tenant_id == tenant_id else None
+
     def list_for_tenant(self, tenant_id: str, *, active_only=None):
         rows = [self.organization] if self.organization.tenant_id == tenant_id else []
         if active_only is None:

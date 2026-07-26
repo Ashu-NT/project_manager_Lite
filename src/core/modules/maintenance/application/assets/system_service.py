@@ -1,20 +1,18 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from src.core.modules.maintenance.domain._validation import normalize_maintenance_code
 from src.core.modules.maintenance.domain import MaintenanceSystem
 from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceLocationRepository,
     MaintenanceSystemRepository,
 )
 from src.core.modules.maintenance.application.common.support import (
-    coerce_criticality,
-    coerce_lifecycle_status,
-    normalize_maintenance_code,
-    normalize_maintenance_name,
     normalize_optional_text,
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
@@ -175,17 +173,19 @@ class MaintenanceSystemService:
         system = MaintenanceSystem.create(
             organization_id=organization.id,
             site_id=site.id,
-            system_code=normalized_code,
-            name=normalize_maintenance_name(name, label="System name"),
+            system_code=system_code,
+            name=name,
             location_id=location.id if location is not None else None,
-            description=normalize_optional_text(description),
+            description=description,
             parent_system_id=parent.id if parent is not None else None,
-            system_type=normalize_optional_text(system_type),
-            criticality=coerce_criticality(criticality),
-            status=coerce_lifecycle_status(status, is_active=bool(is_active)),
-            is_active=bool(is_active),
-            notes=normalize_optional_text(notes),
+            system_type=system_type,
+            criticality=criticality,
+            status=status,
+            is_active=is_active,
+            notes=notes,
         )
+        if self._system_repo.get_by_code(organization.id, system.system_code) is not None:
+            raise ValidationError("System code already exists in the active organization.", code="MAINTENANCE_SYSTEM_CODE_EXISTS")
         try:
             self._system_repo.add(system)
             self._session.commit()
@@ -226,43 +226,49 @@ class MaintenanceSystemService:
         target_site_id = system.site_id
         if site_id is not None:
             target_site_id = self._get_site(site_id, organization=organization).id
+        requested_location_id = (
+            system.location_id
+            if location_id is None
+            else normalize_optional_text(location_id) or None
+        )
+        location = self._resolve_location(
+            requested_location_id,
+            site_id=target_site_id,
+            organization=organization,
+        )
+        requested_parent_id = (
+            system.parent_system_id
+            if parent_system_id is None
+            else normalize_optional_text(parent_system_id) or None
+        )
+        parent = self._resolve_parent(
+            requested_parent_id,
+            site_id=target_site_id,
+            organization=organization,
+            location_id=location.id if location is not None else None,
+            self_id=system.id,
+        )
+        updated = replace(
+            system,
+            site_id=target_site_id,
+            system_code=system.system_code if system_code is None else system_code,
+            name=system.name if name is None else name,
+            location_id=location.id if location is not None else None,
+            description=system.description if description is None else description,
+            parent_system_id=parent.id if parent is not None else None,
+            system_type=system.system_type if system_type is None else system_type,
+            criticality=system.criticality if criticality is None else criticality,
+            status=system.status if status is None and is_active is None else status,
+            is_active=system.is_active if is_active is None else is_active,
+            notes=system.notes if notes is None else notes,
+            updated_at=datetime.now(timezone.utc),
+        )
         if system_code is not None:
-            normalized_code = normalize_maintenance_code(system_code, label="System code")
-            existing = self._system_repo.get_by_code(organization.id, normalized_code)
+            existing = self._system_repo.get_by_code(organization.id, updated.system_code)
             if existing is not None and existing.id != system.id:
                 raise ValidationError("System code already exists in the active organization.", code="MAINTENANCE_SYSTEM_CODE_EXISTS")
-            system.system_code = normalized_code
-        if name is not None:
-            system.name = normalize_maintenance_name(name, label="System name")
-        if description is not None:
-            system.description = normalize_optional_text(description)
-        if system_type is not None:
-            system.system_type = normalize_optional_text(system_type)
-        if criticality is not None:
-            system.criticality = coerce_criticality(criticality)
-        if is_active is not None:
-            system.is_active = bool(is_active)
-        if status is not None or is_active is not None:
-            system.status = coerce_lifecycle_status(status, is_active=system.is_active)
-        if notes is not None:
-            system.notes = normalize_optional_text(notes)
-        if target_site_id != system.site_id:
-            system.site_id = target_site_id
-        if location_id is not None:
-            location = self._resolve_location(location_id, site_id=system.site_id, organization=organization)
-            system.location_id = location.id if location is not None else None
-        if parent_system_id is not None:
-            parent = self._resolve_parent(
-                parent_system_id,
-                site_id=system.site_id,
-                organization=organization,
-                location_id=system.location_id,
-                self_id=system.id,
-            )
-            system.parent_system_id = parent.id if parent is not None else None
-        system.updated_at = datetime.now(timezone.utc)
         try:
-            self._system_repo.update(system)
+            self._system_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -270,8 +276,8 @@ class MaintenanceSystemService:
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_system.update", system)
-        return system
+        self._record_change("maintenance_system.update", updated)
+        return updated
 
     def _resolve_location(
         self,
