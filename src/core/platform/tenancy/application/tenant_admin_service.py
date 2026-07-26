@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.auth.authorization import require_any_permission, require_permission
 from src.core.platform.auth.domain.session import UserSessionContext
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.platform_events.contracts import PlatformEventRepository
 from src.core.platform.platform_events.domain.platform_event import PlatformEvent
 from src.core.platform.tenancy.contracts import TenantRepository, UserTenantMembershipRepository
@@ -170,18 +170,12 @@ class TenantAdminService:
             ["tenant.create", "platform.admin"],
             operation_label="create tenant",
         )
-        normalized_code = str(tenant_code or "").strip().upper()
-        if not normalized_code:
-            raise ValidationError("Tenant code is required.", code="TENANT_CODE_REQUIRED")
-        normalized_name = str(display_name or "").strip()
-        if not normalized_name:
-            raise ValidationError("Display name is required.", code="TENANT_DISPLAY_NAME_REQUIRED")
-        if self._tenant_repo.get_by_code(normalized_code) is not None:
+        tenant = Tenant.create(tenant_code=tenant_code, display_name=display_name)
+        if self._tenant_repo.get_by_code(tenant.tenant_code) is not None:
             raise BusinessRuleError(
-                f"Tenant code '{normalized_code}' is already in use.",
+                f"Tenant code '{tenant.tenant_code}' is already in use.",
                 code="TENANT_CODE_CONFLICT",
             )
-        tenant = Tenant.create(tenant_code=normalized_code, display_name=normalized_name)
         self._tenant_repo.add(tenant)
         user_id = self._current_user_id()
         if user_id:

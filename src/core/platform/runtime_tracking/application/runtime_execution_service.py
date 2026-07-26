@@ -41,8 +41,8 @@ class RuntimeExecutionService:
             module_code=module_code,
             requested_by_user_id=getattr(principal, "user_id", None),
             requested_by_username=str(getattr(principal, "username", "") or "") or None,
-            input_path=str(input_path) if input_path is not None else None,
-            output_path=str(output_path) if output_path is not None else None,
+            input_path=input_path,
+            output_path=output_path,
             retry_of_execution_id=retry_of_execution_id,
             attempt_number=resolved_attempt_number,
         )
@@ -62,13 +62,17 @@ class RuntimeExecutionService:
         error_count: int | None = None,
     ) -> RuntimeExecution:
         execution.status = "COMPLETED"
-        execution.output_path = str(output_path) if output_path is not None else execution.output_path
-        execution.output_file_name = (str(output_file_name or "").strip() or execution.output_file_name)
-        execution.output_media_type = (str(output_media_type or "").strip() or execution.output_media_type)
-        execution.output_metadata = dict(output_metadata or execution.output_metadata or {})
-        execution.created_count = int(created_count or 0)
-        execution.updated_count = int(updated_count or 0)
-        execution.error_count = int(error_count or 0)
+        if output_path is not None:
+            execution.output_path = output_path
+        if str(output_file_name or "").strip():
+            execution.output_file_name = output_file_name
+        if str(output_media_type or "").strip():
+            execution.output_media_type = output_media_type
+        if output_metadata is not None:
+            execution.output_metadata = output_metadata
+        execution.created_count = created_count
+        execution.updated_count = updated_count
+        execution.error_count = error_count
         execution.completed_at = datetime.now(timezone.utc)
         execution.updated_at = execution.completed_at
         self._runtime_execution_repo.update(execution)
@@ -86,10 +90,14 @@ class RuntimeExecutionService:
     ) -> RuntimeExecution:
         execution.status = "FAILED"
         execution.error_message = str(error_message or "").strip() or "Runtime execution failed."
-        execution.output_path = str(output_path) if output_path is not None else execution.output_path
-        execution.output_file_name = (str(output_file_name or "").strip() or execution.output_file_name)
-        execution.output_media_type = (str(output_media_type or "").strip() or execution.output_media_type)
-        execution.output_metadata = dict(output_metadata or execution.output_metadata or {})
+        if output_path is not None:
+            execution.output_path = output_path
+        if str(output_file_name or "").strip():
+            execution.output_file_name = output_file_name
+        if str(output_media_type or "").strip():
+            execution.output_media_type = output_media_type
+        if output_metadata is not None:
+            execution.output_metadata = output_metadata
         execution.completed_at = datetime.now(timezone.utc)
         execution.updated_at = execution.completed_at
         self._runtime_execution_repo.update(execution)

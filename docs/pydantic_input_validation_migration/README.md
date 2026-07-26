@@ -142,6 +142,7 @@ Notes:
 - `TimeEntry` and `TimesheetPeriod` were migrated in the twelfth slice
 - `ProjectMembership` and `ScopedAccessGrant` were migrated in the thirteenth slice
 - `UserAccount` and `AuthSession` were migrated in the fourteenth slice
+- `ApprovalRequest`, `Tenant`, `PlatformEvent`, and `RuntimeExecution` were migrated in the fifteenth slice
 
 #### Maintenance
 
@@ -669,12 +670,13 @@ Notes:
 
 Status:
 
-- pending
+- completed
 
 Entity responsibilities:
 
-- validate required IDs, statuses, timestamps, labels, and free-text fields
-- normalize codes, names, notes, metadata references, and version-like counters
+- require request/resource/tenant identifiers and core operation labels
+- normalize request types, tenant codes, status strings, notes, usernames, metadata dictionaries, and runtime path/media fields
+- validate UTC-capable timestamps plus positive/non-negative version and execution counters
 
 Service responsibilities:
 
@@ -682,6 +684,14 @@ Service responsibilities:
 - bootstrap and provisioning rules
 - retention / replay / execution lifecycle policy
 - actor permission checks
+
+Notes:
+
+- create/update scalar normalization now lives on the shared approval, tenant, platform-event, and runtime-execution write models
+- approval decision workflow, self-decision protection, duplicate-pending checks, and organization scoping remain service-owned
+- tenant uniqueness, self-lockout protection, lifecycle transitions, and membership bootstrapping remain service-owned
+- platform-event emission policy remains in services while the append-only event row now validates its own labels, metadata, and timestamp shape
+- runtime retry sequencing, cancellation flow, and execution lifecycle decisions remain service-owned while counts, metadata, paths, and status normalization now live on `RuntimeExecution`
 
 ### Platform calendar and document entities
 
@@ -1465,7 +1475,7 @@ Mitigation:
 - [x] Identify deeper CRUD DTO boundary
 - [x] Map mutable CRUD entities by module
 - [x] Add shared validated-dataclass foundation
-- [ ] Add `pydantic` to repo dependency declarations
+- [x] Add `pydantic` to repo dependency declarations
 - [x] Migrate PM project/project-resource DTOs
 - [x] Migrate PM task/task-assignment/task-dependency DTOs
 - [x] Remove duplicated PM scalar validation from services where DTOs now own it
@@ -1479,6 +1489,7 @@ Mitigation:
 - [x] Migrate platform time-entry/timesheet-period DTOs
 - [x] Migrate platform access membership/grant DTOs
 - [x] Migrate platform user-account/auth-session DTOs
+- [x] Migrate platform approval/tenant/event/runtime DTOs
 
 ## Current Implementation Decision
 

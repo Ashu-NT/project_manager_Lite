@@ -75,12 +75,12 @@ class ApprovalService:
             )
         principal = self._user_session.principal if self._user_session else None
         request = ApprovalRequest.create(
-            request_type=request_type.strip().lower(),
+            request_type=request_type,
             entity_type=entity_type,
             entity_id=entity_id,
             project_id=project_id,
             organization_id=organization_id,
-            payload=payload or {},
+            payload=payload,
             requested_by_user_id=principal.user_id if principal else None,
             requested_by_username=principal.username if principal else None,
         )
@@ -153,7 +153,7 @@ class ApprovalService:
         request.decided_at = datetime.now(timezone.utc)
         request.decided_by_user_id = principal.user_id if principal else None
         request.decided_by_username = principal.username if principal else None
-        request.decision_note = (note or "").strip() or None
+        request.decision_note = note
         reject_handler = self._reject_handlers.get(request.request_type)
         if reject_handler is not None:
             reject_handler(request)
@@ -194,7 +194,7 @@ class ApprovalService:
         request.decided_at = datetime.now(timezone.utc)
         request.decided_by_user_id = principal.user_id if principal else None
         request.decided_by_username = principal.username if principal else None
-        request.decision_note = (note or "").strip() or None
+        request.decision_note = note
         self._approval_repo.update(request)
         record_audit_entry(
             self,
