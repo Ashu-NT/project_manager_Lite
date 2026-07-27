@@ -53,6 +53,7 @@ from src.core.platform.calendar.application.enterprise_calendar_resolver import 
     EnterpriseCalendarResolver,
 )
 from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
+from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
     EnterpriseResourceAvailabilityService,
 )
@@ -405,3 +406,35 @@ def test_employee_backed_resource_does_not_duplicate_employee_rules(
     )
     ctx = svc.get_availability("res-nodupe", target_date=date(2026, 6, 1))
     assert ctx.available_hours == 8.0  # employee wins, not resource calendar
+
+
+def test_resource_calendar_assignment_service_uses_dto_validation_and_normalization(
+    cal_service, assignment_service, db_session, tenant_context
+):
+    res_cal = cal_service.create_calendar(
+        code="RES-NORMALIZED",
+        name="Normalized Resource Calendar",
+        calendar_type=CalendarType.RESOURCE.value,
+    )
+    _seed_resource(db_session, tenant_context, "res-normalized")
+
+    assignment = assignment_service.assign_resource_calendar(
+        "  res-normalized  ",
+        f"  {res_cal.id}  ",
+        effective_from=date(2026, 1, 1),
+        effective_to=date(2026, 12, 31),
+        priority="3",
+    )
+
+    assert assignment.resource_id == "res-normalized"
+    assert assignment.calendar_id == res_cal.id
+    assert assignment.priority == 3
+
+    with pytest.raises(ValidationError) as exc:
+        assignment_service.assign_resource_calendar(
+            "res-normalized",
+            res_cal.id,
+            effective_from=date(2026, 12, 31),
+            effective_to=date(2026, 1, 1),
+        )
+    assert exc.value.code == "RESOURCE_CALENDAR_ASSIGNMENT_DATE_RANGE_INVALID"

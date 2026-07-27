@@ -148,6 +148,7 @@ Notes:
 - `Role`, `Permission`, `UserRoleBinding`, and `RolePermissionBinding` were migrated in the eighteenth slice
 - `ModuleEntitlementRecord` was migrated in the nineteenth slice
 - `CalendarWorkingRule`, `SiteCalendarAssignment`, `DepartmentCalendarAssignment`, and `EmployeeCalendarAssignment` were migrated in the twentieth slice
+- `ProjectCalendarAssignment` and `ResourceCalendarAssignment` were migrated in the twenty-first slice
 
 #### Maintenance
 
@@ -1042,6 +1043,30 @@ Service responsibilities:
 - resource-code uniqueness
 - employee lookup and employee-resource compatibility
 - active organization context
+
+#### `ProjectCalendarAssignment` and `ResourceCalendarAssignment`
+
+Status:
+
+- completed
+
+Entity responsibilities:
+
+- require owning project/resource and calendar identifiers
+- normalize assignment IDs and priority integers
+- validate assignment effective-date ranges
+
+Service responsibilities:
+
+- active calendar existence and state checks
+- project/resource anchor existence through tenant-scoped repositories
+- enterprise resolver precedence and assignment effectivity lookup
+
+Notes:
+
+- create/save scalar normalization now lives on the shared PM calendar-assignment write models
+- project/resource IDs, calendar IDs, integer priorities, and effective-range checks now validate at the DTO boundary
+- active-calendar policy, tenant/org repository scoping, and employee-vs-resource enterprise calendar resolution behavior remain service- and repository-owned
 
 #### `CostItem`
 
