@@ -186,6 +186,8 @@ Primary inventory/procurement targets:
 - `PurchaseRequisitionLine`
 - `PurchaseOrder`
 - `PurchaseOrderLine`
+- `ReceiptHeader`
+- `ReceiptLine`
 
 ### 2. Secondary migration targets
 
@@ -1101,6 +1103,7 @@ Notes:
 Entities:
 
 - `MaintenanceSensor`
+- `MaintenanceSensorReading`
 - `MaintenanceIntegrationSource`
 - `MaintenanceSensorSourceMapping`
 - `MaintenanceSensorException`
@@ -1123,12 +1126,12 @@ Service responsibilities:
 
 Notes:
 
-- write-model validation now lives in the maintenance domain for `MaintenanceSensor`, `MaintenanceIntegrationSource`, `MaintenanceSensorSourceMapping`, `MaintenanceSensorException`, `MaintenanceFailureCode`, and `MaintenanceDowntimeEvent`
-- reliability DTOs now normalize ownership IDs, codes, integration types, sensor units and quality/status enums, mapping keys, timestamps, and notes with assignment-time validation
+- write-model validation now lives in the maintenance domain for `MaintenanceSensor`, `MaintenanceSensorReading`, `MaintenanceIntegrationSource`, `MaintenanceSensorSourceMapping`, `MaintenanceSensorException`, `MaintenanceFailureCode`, and `MaintenanceDowntimeEvent`
+- reliability DTOs now normalize ownership IDs, codes, integration types, sensor units, reading values, quality/status enums, mapping keys, timestamps, and notes with assignment-time validation
 - downtime and sensor-exception DTO validation now owns local chronology checks, and failure-code / sensor / source / mapping DTOs now own the scalar cleanup previously duplicated in reliability services
-- reliability services now use `replace(...)`-based validated updates while keeping tenant-aware uniqueness checks, asset/component/system/site linkage, integration/source-mapping consistency, downtime rollup sync, and exception workflow orchestration in the application layer
-- `MaintenanceSensorReading` remains on the existing service-layer validation path for now, but its snapshot refresh continues to write into the validated `MaintenanceSensor` DTO
-- targeted verification completed with `24` passing maintenance tests covering domain validation, sensor/integration foundations, phase-4 exception flow, and persistence/reliability service graphs
+- `MaintenanceSensorReading` now validates required sensor/document ownership fields, reading value and unit shape, quality-state coercion, source metadata cleanup, and reading timestamp normalization directly in the repository-bound DTO
+- the sensor-reading create path now constructs the validated reading DTO first and refreshes the parent sensor snapshot with `replace(...)`, while keeping tenant context, scope enforcement, inactive-sensor protection, configured-unit mismatch checks, and exception-escalation workflow in the service layer
+- targeted verification completed with `36` passing maintenance tests across `src/tests/maintenance/test_maintenance_domain_validation.py`, `src/tests/maintenance/test_maintenance_sensor_foundation.py`, `src/tests/maintenance/test_maintenance_phase4_foundation.py`, `src/tests/maintenance/test_maintenance_persistence_materials_sensors.py`, and `src/tests/maintenance/test_repository_tenant_hardening_secondary.py`
 
 #### Preventive cluster
 
@@ -1232,8 +1235,8 @@ Entities:
 Entity responsibilities:
 
 - require owning IDs, supplier/requestor references, and descriptive fields
-- normalize codes, currencies, units, references, and notes
-- validate requested/ordered/received quantities and price amounts
+- normalize codes, currencies, units, references, receipt tracking text, and notes
+- validate requested/ordered/received quantities, receipt unit costs, and processed-quantity coherence
 - validate local date ranges and status-compatible fields
 
 Service responsibilities:
@@ -1243,12 +1246,12 @@ Service responsibilities:
 - duplicate/open-order policy
 - receipt/procurement lifecycle rules
 - completed in `src/core/modules/inventory_procurement/domain/_validation.py`, `src/core/modules/inventory_procurement/domain/procurement/purchasing.py`, `src/core/modules/inventory_procurement/application/procurement/procurement_support.py`, `src/core/modules/inventory_procurement/application/procurement/procurement_lifecycle.py`, `src/core/modules/inventory_procurement/application/procurement/procurement_approval.py`, `src/core/modules/inventory_procurement/application/procurement/purchasing_support.py`, `src/core/modules/inventory_procurement/application/procurement/purchasing_lifecycle.py`, and `src/core/modules/inventory_procurement/application/procurement/purchasing_receiving.py`
-- `PurchaseRequisition`, `PurchaseRequisitionLine`, `PurchaseOrder`, and `PurchaseOrderLine` now validate required IDs and document numbers, procurement priority and currency normalization, UOM and quantity fields, optional supplier/reference identifiers, local source-reference pairing, and local chronology and status-compatible quantity coherence directly in the repository-bound DTOs
+- `PurchaseRequisition`, `PurchaseRequisitionLine`, `PurchaseOrder`, `PurchaseOrderLine`, `ReceiptHeader`, and `ReceiptLine` now validate required IDs and document numbers, procurement priority and currency normalization, UOM and quantity fields, optional supplier/reference identifiers, receipt tracking text, local source-reference pairing, and local chronology and status-compatible quantity coherence directly in the repository-bound DTOs
 - shared procurement priority and currency normalization now lives in the inventory-procurement domain helper and is re-exported through the existing procurement support modules so the application layer and the repository-bound write models use the same scalar normalization rules
-- requisition approval, purchase-order approval, purchase-order sending/closing, receipt posting, requisition-status refresh, and on-order balance adjustment paths now rebuild validated requisitions, purchase orders, lines, and balances with `replace(...)` instead of mutating validated dataclass instances field by field
+- requisition approval, purchase-order approval, purchase-order sending/closing, receipt posting, requisition-status refresh, and on-order balance adjustment paths now rebuild validated requisitions, purchase orders, lines, receipt-adjacent aggregates, and balances with `replace(...)` instead of mutating validated dataclass instances field by field
 - service-layer rules remain focused on tenant and organization scope, active supplier/site/storeroom existence, item purchasing eligibility, approval workflow, remaining requisition demand checks, receipt tracking rules, and on-order or stock movement side effects
 - additional runtime hardening in the same pass fixed the platform-level `SiteService.find_site_by_code` missing `normalize_code` import that was breaking inventory import previews and document imports, and the purchase-order receiving path now keeps aggregate `updated_at` monotonic while still preserving historical imported receipt dates
-- targeted verification completed with `23` passing procurement DTO and workflow regression tests across `src/tests/inventory_procurement/test_inventory_procurement_domain_validation.py`, `src/tests/inventory_procurement/test_inventory_procurement_purchasing_lifecycle.py`, `src/tests/inventory_procurement/test_inventory_procurement_requisition.py`, `src/tests/inventory_procurement/test_inventory_procurement_desktop_api_workspace_catalog.py`, and `src/tests/inventory_procurement/test_qml_inv_procurement_presenters_reservations_procurement.py`, plus `5` passing import/export reporting tests in `src/tests/inventory_procurement/test_inventory_import_export_reporting.py`
+- targeted receipt/procurement verification completed with `24` passing DTO and workflow regression tests across `src/tests/inventory_procurement/test_inventory_procurement_domain_validation.py`, `src/tests/inventory_procurement/test_inventory_procurement_purchasing_submit.py`, `src/tests/inventory_procurement/test_inventory_procurement_purchasing_lifecycle.py`, `src/tests/inventory_procurement/test_inventory_import_export_reporting.py`, `src/tests/inventory_procurement/test_inventory_procurement_desktop_api_reservations_procurement.py`, and `src/tests/inventory_procurement/test_inventory_procurement_desktop_api_pricing.py`
 
 ## Recommended Enterprise Boundary
 

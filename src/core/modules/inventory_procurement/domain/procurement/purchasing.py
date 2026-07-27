@@ -838,7 +838,7 @@ class PurchaseOrderLine:
         )
 
 
-@dataclass
+@validated_dataclass
 class ReceiptHeader:
     id: str
     organization_id: str
@@ -853,6 +853,81 @@ class ReceiptHeader:
     received_by_username: str = ""
     notes: str = ""
     created_at: datetime | None = None
+
+    @field_validator(
+        "id",
+        "organization_id",
+        "purchase_order_id",
+        "received_site_id",
+        "supplier_party_id",
+        mode="before",
+    )
+    @classmethod
+    def _validate_required_ids(cls, value: object, info) -> str:
+        messages = {
+            "id": ("Receipt ID is required.", "INVENTORY_RECEIPT_ID_REQUIRED"),
+            "organization_id": (
+                "Organization ID is required.",
+                "INVENTORY_RECEIPT_ORGANIZATION_REQUIRED",
+            ),
+            "purchase_order_id": (
+                "Purchase order ID is required.",
+                "INVENTORY_PURCHASE_ORDER_REQUIRED",
+            ),
+            "received_site_id": ("Site ID is required.", "INVENTORY_SITE_REQUIRED"),
+            "supplier_party_id": (
+                "Supplier party ID is required.",
+                "INVENTORY_SUPPLIER_REQUIRED",
+            ),
+        }
+        message, code = messages[info.field_name]
+        return normalize_required_text(value, message=message, code=code)
+
+    @field_validator("receipt_number", mode="before")
+    @classmethod
+    def _validate_receipt_number(cls, value: object) -> str:
+        return normalize_inventory_code(value, label="Receipt number")
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _validate_status(cls, value: object) -> ReceiptStatus:
+        return normalize_enum(
+            value,
+            enum_type=ReceiptStatus,
+            default=ReceiptStatus.POSTED,
+            message="Receipt status is invalid.",
+            code="INVENTORY_RECEIPT_STATUS_INVALID",
+        )
+
+    @field_validator("receipt_date", "created_at", mode="before")
+    @classmethod
+    def _validate_timestamps(cls, value: object, info) -> datetime | None:
+        return normalize_optional_datetime(
+            value,
+            message=f"Receipt {info.field_name.replace('_', ' ')} is invalid.",
+            code=f"INVENTORY_RECEIPT_{info.field_name.upper()}_INVALID",
+        )
+
+    @field_validator("received_by_user_id", mode="before")
+    @classmethod
+    def _normalize_optional_user_id(cls, value: object) -> str | None:
+        return normalize_optional_identifier(value)
+
+    @field_validator(
+        "supplier_delivery_reference",
+        "received_by_username",
+        "notes",
+        mode="before",
+    )
+    @classmethod
+    def _normalize_text_fields(cls, value: object) -> str:
+        return normalize_optional_text(value)
+
+    @model_validator(mode="after")
+    def _validate_ranges(self) -> "ReceiptHeader":
+        if self.receipt_date is None and self.created_at is not None:
+            object.__setattr__(self, "receipt_date", self.created_at)
+        return self
 
     @staticmethod
     def create(
@@ -888,7 +963,7 @@ class ReceiptHeader:
         )
 
 
-@dataclass
+@validated_dataclass
 class ReceiptLine:
     id: str
     receipt_header_id: str
@@ -904,6 +979,78 @@ class ReceiptLine:
     serial_number: str = ""
     expiry_date: date | None = None
     notes: str = ""
+
+    @field_validator(
+        "id",
+        "receipt_header_id",
+        "purchase_order_line_id",
+        "stock_item_id",
+        "storeroom_id",
+        mode="before",
+    )
+    @classmethod
+    def _validate_required_ids(cls, value: object, info) -> str:
+        messages = {
+            "id": (
+                "Receipt line ID is required.",
+                "INVENTORY_RECEIPT_LINE_ID_REQUIRED",
+            ),
+            "receipt_header_id": (
+                "Receipt header ID is required.",
+                "INVENTORY_RECEIPT_REQUIRED",
+            ),
+            "purchase_order_line_id": (
+                "Purchase order line ID is required.",
+                "INVENTORY_PURCHASE_ORDER_LINE_REQUIRED",
+            ),
+            "stock_item_id": ("Stock item ID is required.", "INVENTORY_ITEM_REQUIRED"),
+            "storeroom_id": ("Storeroom ID is required.", "INVENTORY_STOREROOM_REQUIRED"),
+        }
+        message, code = messages[info.field_name]
+        return normalize_required_text(value, message=message, code=code)
+
+    @field_validator("line_number", mode="before")
+    @classmethod
+    def _validate_line_number(cls, value: object) -> int:
+        return normalize_positive_int(
+            value,
+            message="Receipt line number must be positive.",
+            code="INVENTORY_RECEIPT_LINE_NUMBER_INVALID",
+        )
+
+    @field_validator("quantity_accepted", "quantity_rejected", "unit_cost", mode="before")
+    @classmethod
+    def _validate_nonnegative_amounts(cls, value: object, info) -> float:
+        labels = {
+            "quantity_accepted": "Accepted quantity",
+            "quantity_rejected": "Rejected quantity",
+            "unit_cost": "Receipt unit cost",
+        }
+        return normalize_nonnegative_quantity(value, label=labels[info.field_name])
+
+    @field_validator("uom", mode="before")
+    @classmethod
+    def _validate_uom(cls, value: object) -> str:
+        return normalize_uom(value, label="Receipt UOM")
+
+    @field_validator("expiry_date", mode="before")
+    @classmethod
+    def _validate_expiry_date(cls, value: object) -> date | None:
+        return normalize_optional_date(value, label="Expiry date")
+
+    @field_validator("lot_number", "serial_number", "notes", mode="before")
+    @classmethod
+    def _normalize_text_fields(cls, value: object) -> str:
+        return normalize_optional_text(value)
+
+    @model_validator(mode="after")
+    def _validate_ranges(self) -> "ReceiptLine":
+        if float(self.quantity_accepted or 0.0) + float(self.quantity_rejected or 0.0) <= 0:
+            raise ValidationError(
+                "Receipt line must accept or reject a positive quantity.",
+                code="INVENTORY_RECEIPT_QUANTITY_REQUIRED",
+            )
+        return self
 
     @staticmethod
     def create(

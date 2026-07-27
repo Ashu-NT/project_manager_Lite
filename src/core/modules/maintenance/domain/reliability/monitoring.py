@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -442,7 +441,7 @@ class MaintenanceSensor:
         )
 
 
-@dataclass
+@validated_dataclass
 class MaintenanceSensorReading:
     id: str
     organization_id: str
@@ -458,18 +457,103 @@ class MaintenanceSensorReading:
     created_at: datetime | None = None
     version: int = 1
 
+    @field_validator("id", "organization_id", "sensor_id", mode="before")
+    @classmethod
+    def _validate_required_ids(cls, value: object, info) -> str:
+        messages = {
+            "id": (
+                "Maintenance sensor reading ID is required.",
+                "MAINTENANCE_SENSOR_READING_ID_REQUIRED",
+            ),
+            "organization_id": (
+                "Organization ID is required.",
+                "MAINTENANCE_SENSOR_READING_ORGANIZATION_REQUIRED",
+            ),
+            "sensor_id": (
+                "Sensor ID is required.",
+                "MAINTENANCE_SENSOR_READING_SENSOR_REQUIRED",
+            ),
+        }
+        message, code = messages[info.field_name]
+        return normalize_required_text(value, message=message, code=code)
+
+    @field_validator("reading_value", mode="before")
+    @classmethod
+    def _validate_reading_value(cls, value: object) -> Decimal:
+        resolved = normalize_optional_decimal_value(value, label="Reading value")
+        if resolved is None:
+            raise ValidationError(
+                "Reading value is required.",
+                code="MAINTENANCE_SENSOR_READING_VALUE_REQUIRED",
+            )
+        return resolved
+
+    @field_validator("reading_unit", mode="before")
+    @classmethod
+    def _validate_reading_unit(cls, value: object) -> str:
+        normalized = normalize_optional_upper_text(value)
+        if not normalized:
+            raise ValidationError(
+                "Reading unit is required.",
+                code="MAINTENANCE_SENSOR_READING_UNIT_REQUIRED",
+            )
+        return normalized
+
+    @field_validator("reading_timestamp", mode="before")
+    @classmethod
+    def _validate_reading_timestamp(cls, value: object) -> datetime:
+        resolved = normalize_optional_datetime(
+            value,
+            message="Maintenance sensor reading timestamp is invalid.",
+            code="MAINTENANCE_SENSOR_READING_TIMESTAMP_INVALID",
+        )
+        if resolved is None:
+            raise ValidationError(
+                "Reading timestamp is required.",
+                code="MAINTENANCE_SENSOR_READING_TIMESTAMP_REQUIRED",
+            )
+        return resolved
+
+    @field_validator("quality_state", mode="before")
+    @classmethod
+    def _validate_quality_state(cls, value: object) -> MaintenanceSensorQualityState:
+        return normalize_sensor_quality_state(value)
+
+    @field_validator("source_name", "source_batch_id", "raw_payload_ref", mode="before")
+    @classmethod
+    def _normalize_text_fields(cls, value: object) -> str:
+        return normalize_optional_text(value)
+
+    @field_validator("received_at", "created_at", mode="before")
+    @classmethod
+    def _validate_timestamps(cls, value: object, info) -> datetime | None:
+        return normalize_optional_datetime(
+            value,
+            message=f"Maintenance sensor reading {info.field_name.replace('_', ' ')} is invalid.",
+            code=f"MAINTENANCE_SENSOR_READING_{info.field_name.upper()}_INVALID",
+        )
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        return normalize_positive_int(
+            value,
+            message="Maintenance sensor reading version must be positive.",
+            code="MAINTENANCE_SENSOR_READING_VERSION_INVALID",
+        )
+
     @staticmethod
     def create(
         *,
         organization_id: str,
         sensor_id: str,
-        reading_value: Decimal,
+        reading_value: Decimal | int | float | str,
         reading_unit: str,
-        reading_timestamp: datetime,
-        quality_state: MaintenanceSensorQualityState = MaintenanceSensorQualityState.VALID,
+        reading_timestamp: datetime | str | None = None,
+        quality_state: MaintenanceSensorQualityState | str | None = MaintenanceSensorQualityState.VALID,
         source_name: str = "",
         source_batch_id: str = "",
-        received_at: datetime | None = None,
+        received_at: datetime | str | None = None,
         raw_payload_ref: str = "",
     ) -> "MaintenanceSensorReading":
         now = datetime.now(timezone.utc)
@@ -479,7 +563,7 @@ class MaintenanceSensorReading:
             sensor_id=sensor_id,
             reading_value=reading_value,
             reading_unit=reading_unit,
-            reading_timestamp=reading_timestamp,
+            reading_timestamp=reading_timestamp or now,
             quality_state=quality_state,
             source_name=source_name,
             source_batch_id=source_batch_id,

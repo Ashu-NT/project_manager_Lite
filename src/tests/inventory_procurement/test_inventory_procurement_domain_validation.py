@@ -16,6 +16,9 @@ from src.core.modules.inventory_procurement.domain import (
     PurchaseRequisitionLine,
     PurchaseRequisitionLineStatus,
     PurchaseRequisitionStatus,
+    ReceiptHeader,
+    ReceiptLine,
+    ReceiptStatus,
     ReorderPolicy,
     StockBalance,
     StockItem,
@@ -534,6 +537,67 @@ def test_inventory_procurement_dtos_normalize_fields_and_validate_ranges() -> No
     assert purchase_order_line.status is PurchaseOrderLineStatus.FULLY_RECEIVED
     assert purchase_order_line.notes == "final receipt"
 
+    receipt = ReceiptHeader(
+        id="  rcv-1  ",
+        organization_id="  org-1  ",
+        receipt_number="  rcv-001  ",
+        purchase_order_id="  po-1  ",
+        received_site_id="  site-1  ",
+        supplier_party_id="  supplier-1  ",
+        status=" posted ",
+        receipt_date="2026-07-24T10:30:00+00:00",
+        supplier_delivery_reference="  del-001  ",
+        received_by_user_id="  user-2  ",
+        received_by_username="  Store Receiver  ",
+        notes="  received complete shipment  ",
+        created_at=datetime(2026, 7, 27, 9, 0, tzinfo=timezone.utc),
+    )
+
+    assert receipt.id == "rcv-1"
+    assert receipt.organization_id == "org-1"
+    assert receipt.receipt_number == "RCV-001"
+    assert receipt.purchase_order_id == "po-1"
+    assert receipt.received_site_id == "site-1"
+    assert receipt.supplier_party_id == "supplier-1"
+    assert receipt.status is ReceiptStatus.POSTED
+    assert receipt.receipt_date == datetime(2026, 7, 24, 10, 30, tzinfo=timezone.utc)
+    assert receipt.supplier_delivery_reference == "del-001"
+    assert receipt.received_by_user_id == "user-2"
+    assert receipt.received_by_username == "Store Receiver"
+    assert receipt.notes == "received complete shipment"
+
+    receipt_line = ReceiptLine(
+        id="  rcv-line-1  ",
+        receipt_header_id="  rcv-1  ",
+        purchase_order_line_id="  po-line-1  ",
+        line_number="1",
+        stock_item_id="  item-1  ",
+        storeroom_id="  store-1  ",
+        quantity_accepted="4",
+        quantity_rejected="1",
+        uom=" ea ",
+        unit_cost="11.0",
+        lot_number="  lot-001  ",
+        serial_number="  ser-001  ",
+        expiry_date="2026-08-31",
+        notes="  QA checked  ",
+    )
+
+    assert receipt_line.id == "rcv-line-1"
+    assert receipt_line.receipt_header_id == "rcv-1"
+    assert receipt_line.purchase_order_line_id == "po-line-1"
+    assert receipt_line.line_number == 1
+    assert receipt_line.stock_item_id == "item-1"
+    assert receipt_line.storeroom_id == "store-1"
+    assert receipt_line.quantity_accepted == 4.0
+    assert receipt_line.quantity_rejected == 1.0
+    assert receipt_line.uom == "EA"
+    assert receipt_line.unit_cost == 11.0
+    assert receipt_line.lot_number == "lot-001"
+    assert receipt_line.serial_number == "ser-001"
+    assert receipt_line.expiry_date == date(2026, 8, 31)
+    assert receipt_line.notes == "QA checked"
+
 
 def test_inventory_procurement_dtos_raise_expected_validation_codes() -> None:
     with pytest.raises(ValidationError) as exc_source:
@@ -597,3 +661,29 @@ def test_inventory_procurement_dtos_raise_expected_validation_codes() -> None:
             uom="EA",
         )
     assert exc_purchase_order_line.value.code == "INVENTORY_PURCHASE_ORDER_LINE_QTY_INVALID"
+
+    with pytest.raises(ValidationError) as exc_receipt_status:
+        ReceiptHeader(
+            id="rcv-2",
+            organization_id="org-1",
+            receipt_number="RCV-002",
+            purchase_order_id="po-1",
+            received_site_id="site-1",
+            supplier_party_id="supplier-1",
+            status="draft",
+        )
+    assert exc_receipt_status.value.code == "INVENTORY_RECEIPT_STATUS_INVALID"
+
+    with pytest.raises(ValidationError) as exc_receipt_line:
+        ReceiptLine(
+            id="rcv-line-2",
+            receipt_header_id="rcv-1",
+            purchase_order_line_id="po-line-1",
+            line_number=1,
+            stock_item_id="item-1",
+            storeroom_id="store-1",
+            quantity_accepted=0,
+            quantity_rejected=0,
+            uom="EA",
+        )
+    assert exc_receipt_line.value.code == "INVENTORY_RECEIPT_QUANTITY_REQUIRED"

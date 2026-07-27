@@ -195,14 +195,16 @@ def test_maintenance_sensor_reading_service_updates_sensor_snapshot(session) -> 
     reading = reading_service.record_reading(
         sensor_id=sensor.id,
         reading_value="82.4",
-        reading_unit="C",
-        source_name="PLC",
-        source_batch_id="BATCH-1",
+        reading_unit=" c ",
+        source_name="  PLC  ",
+        source_batch_id="  BATCH-1  ",
     )
     refreshed_sensor = sensor_repo.get(sensor.id)
     rows = reading_service.list_readings(sensor_id=sensor.id)
 
     assert reading.reading_value == Decimal("82.4")
+    assert reading.reading_unit == "C"
+    assert reading.source_name == "PLC"
     assert reading.source_batch_id == "BATCH-1"
     assert refreshed_sensor is not None
     assert refreshed_sensor.current_value == Decimal("82.4")

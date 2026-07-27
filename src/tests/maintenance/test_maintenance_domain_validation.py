@@ -21,6 +21,7 @@ from src.core.modules.maintenance.domain import (
     MaintenancePreventivePlanTask,
     MaintenanceSensor,
     MaintenanceSensorException,
+    MaintenanceSensorReading,
     MaintenanceSensorSourceMapping,
     MaintenanceSystem,
     MaintenanceTaskStepTemplate,
@@ -687,6 +688,53 @@ def test_maintenance_reliability_dtos_normalize_fields() -> None:
     assert mapping.transform_rule == "x * 1.8 + 32"
     assert mapping.unit_conversion_rule == "C_TO_F"
     assert mapping.notes == "Derived display value"
+
+
+def test_maintenance_sensor_reading_dto_normalizes_fields_and_validates_required_values() -> None:
+    reading = MaintenanceSensorReading.create(
+        organization_id="  org-1  ",
+        sensor_id="  sensor-1  ",
+        reading_value="-12.5",
+        reading_unit="  c  ",
+        reading_timestamp="2026-07-25T10:05:00",
+        quality_state="error",
+        source_name="  PLC  ",
+        source_batch_id="  batch-1  ",
+        received_at="2026-07-25T10:06:00",
+        raw_payload_ref="  payload-1  ",
+    )
+
+    assert reading.organization_id == "org-1"
+    assert reading.sensor_id == "sensor-1"
+    assert reading.reading_value == Decimal("-12.5")
+    assert reading.reading_unit == "C"
+    assert reading.reading_timestamp == datetime(2026, 7, 25, 10, 5, 0, tzinfo=timezone.utc)
+    assert reading.quality_state.value == "ERROR"
+    assert reading.source_name == "PLC"
+    assert reading.source_batch_id == "batch-1"
+    assert reading.received_at == datetime(2026, 7, 25, 10, 6, 0, tzinfo=timezone.utc)
+    assert reading.raw_payload_ref == "payload-1"
+
+    reading.version = "2"
+    assert reading.version == 2
+
+    with pytest.raises(ValidationError) as exc_unit:
+        MaintenanceSensorReading.create(
+            organization_id="org-1",
+            sensor_id="sensor-1",
+            reading_value="1.2",
+            reading_unit="",
+        )
+    assert exc_unit.value.code == "MAINTENANCE_SENSOR_READING_UNIT_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_value:
+        MaintenanceSensorReading.create(
+            organization_id="org-1",
+            sensor_id="sensor-1",
+            reading_value=None,
+            reading_unit="C",
+        )
+    assert exc_value.value.code == "MAINTENANCE_SENSOR_READING_VALUE_REQUIRED"
 
 
 def test_maintenance_reliability_dtos_validate_chronology() -> None:

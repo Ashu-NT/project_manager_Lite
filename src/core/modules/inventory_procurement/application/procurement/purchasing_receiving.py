@@ -6,8 +6,6 @@ from datetime import datetime, timezone
 from src.core.modules.inventory_procurement.application.common.support import (
     PURCHASE_ORDER_STATUS_TRANSITIONS,
     convert_item_quantity,
-    normalize_nonnegative_quantity,
-    normalize_optional_date,
     normalize_optional_text,
     validate_receipt_tracking,
     validate_transition,
@@ -54,20 +52,19 @@ class PurchasingReceivingMixin:
         if not receipt_lines:
             raise ValidationError("At least one receipt line is required.", code="INVENTORY_RECEIPT_LINES_REQUIRED")
         principal = self._user_session.principal if self._user_session is not None else None
-        effective_receipt_date = receipt_date or datetime.now(timezone.utc)
-        normalized_supplier_reference = normalize_optional_text(supplier_delivery_reference)
         receipt = ReceiptHeader.create(
             organization_id=purchase_order.organization_id,
-            receipt_number=normalize_optional_text(receipt_number) or build_receipt_number(),
+            receipt_number=receipt_number or build_receipt_number(),
             purchase_order_id=purchase_order.id,
             received_site_id=purchase_order.site_id,
             supplier_party_id=purchase_order.supplier_party_id,
-            receipt_date=effective_receipt_date,
-            supplier_delivery_reference=normalized_supplier_reference,
+            receipt_date=receipt_date,
+            supplier_delivery_reference=supplier_delivery_reference,
             received_by_user_id=getattr(principal, "user_id", None),
             received_by_username=str(getattr(principal, "username", "") or ""),
-            notes=normalize_optional_text(notes),
+            notes=notes,
         )
+        effective_receipt_date = receipt.receipt_date or datetime.now(timezone.utc)
         created_receipt_lines: list[ReceiptLine] = []
         created_transactions = []
         touched_balance_ids: set[str] = set()
@@ -89,54 +86,45 @@ class PurchasingReceivingMixin:
                     )
                 item = self._item_service.get_item_for_internal_use(po_line.stock_item_id)
                 storeroom = self._inventory_service.get_storeroom(po_line.destination_storeroom_id)
-                if storeroom.requires_supplier_reference_for_receipt and not normalized_supplier_reference:
+                if (
+                    storeroom.requires_supplier_reference_for_receipt
+                    and not receipt.supplier_delivery_reference
+                ):
                     raise ValidationError(
                         "Selected storeroom requires a supplier delivery reference for receipts.",
                         code="INVENTORY_RECEIPT_REFERENCE_REQUIRED",
                     )
-                accepted = normalize_nonnegative_quantity(payload.get("quantity_accepted"), label="Accepted quantity")
-                rejected = normalize_nonnegative_quantity(payload.get("quantity_rejected"), label="Rejected quantity")
-                processed = accepted + rejected
-                if processed <= 0:
-                    raise ValidationError(
-                        "Receipt line must accept or reject a positive quantity.",
-                        code="INVENTORY_RECEIPT_QUANTITY_REQUIRED",
-                    )
-                outstanding = self._line_outstanding_qty(po_line)
-                if processed > outstanding:
-                    raise ValidationError(
-                        "Receipt quantity exceeds the remaining open quantity.",
-                        code="INVENTORY_RECEIPT_EXCEEDS_OPEN_QTY",
-                    )
-                unit_cost = normalize_nonnegative_quantity(
-                    payload.get("unit_cost", po_line.unit_price),
-                    label="Receipt unit cost",
-                )
-                lot_number = normalize_optional_text(str(payload.get("lot_number") or ""))
-                serial_number = normalize_optional_text(str(payload.get("serial_number") or ""))
-                expiry_date = normalize_optional_date(payload.get("expiry_date"), label="Expiry date")
-                validate_receipt_tracking(
-                    item=item,
-                    accepted_quantity=accepted,
-                    lot_number=lot_number,
-                    serial_number=serial_number,
-                    expiry_date=expiry_date,
-                    receipt_date=effective_receipt_date,
-                )
                 receipt_line = ReceiptLine.create(
                     receipt_header_id=receipt.id,
                     purchase_order_line_id=po_line.id,
                     line_number=index,
                     stock_item_id=po_line.stock_item_id,
                     storeroom_id=po_line.destination_storeroom_id,
-                    quantity_accepted=accepted,
-                    quantity_rejected=rejected,
+                    quantity_accepted=payload.get("quantity_accepted"),
+                    quantity_rejected=payload.get("quantity_rejected", 0.0),
                     uom=po_line.uom,
-                    unit_cost=unit_cost,
-                    lot_number=lot_number,
-                    serial_number=serial_number,
-                    expiry_date=expiry_date,
-                    notes=normalize_optional_text(str(payload.get("notes") or "")),
+                    unit_cost=payload.get("unit_cost", po_line.unit_price),
+                    lot_number=str(payload.get("lot_number") or ""),
+                    serial_number=str(payload.get("serial_number") or ""),
+                    expiry_date=payload.get("expiry_date"),
+                    notes=str(payload.get("notes") or ""),
+                )
+                accepted = receipt_line.quantity_accepted
+                rejected = receipt_line.quantity_rejected
+                processed = accepted + rejected
+                outstanding = self._line_outstanding_qty(po_line)
+                if processed > outstanding:
+                    raise ValidationError(
+                        "Receipt quantity exceeds the remaining open quantity.",
+                        code="INVENTORY_RECEIPT_EXCEEDS_OPEN_QTY",
+                    )
+                validate_receipt_tracking(
+                    item=item,
+                    accepted_quantity=accepted,
+                    lot_number=receipt_line.lot_number,
+                    serial_number=receipt_line.serial_number,
+                    expiry_date=receipt_line.expiry_date,
+                    receipt_date=effective_receipt_date,
                 )
                 self._receipt_line_repo.add(receipt_line)
                 created_receipt_lines.append(receipt_line)
@@ -163,7 +151,7 @@ class PurchasingReceivingMixin:
                         quantity=accepted,
                         direction="INCREASE",
                         uom=po_line.uom,
-                        unit_cost=unit_cost,
+                        unit_cost=receipt_line.unit_cost,
                         transaction_at=effective_receipt_date,
                         reference_type="inventory_receipt",
                         reference_id=receipt_line.id,
