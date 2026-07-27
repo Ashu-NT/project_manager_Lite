@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from enum import Enum
 
@@ -336,7 +335,7 @@ class StockBalance:
         )
 
 
-@dataclass
+@validated_dataclass
 class StockTransaction:
     id: str
     organization_id: str
@@ -358,6 +357,109 @@ class StockTransaction:
     lot_number: str = ""
     serial_number: str = ""
 
+    @field_validator("id", "organization_id", "stock_item_id", "storeroom_id", mode="before")
+    @classmethod
+    def _validate_required_ids(cls, value: object, info) -> str:
+        messages = {
+            "id": (
+                "Stock transaction ID is required.",
+                "INVENTORY_STOCK_TRANSACTION_ID_REQUIRED",
+            ),
+            "organization_id": (
+                "Organization ID is required.",
+                "INVENTORY_STOCK_TRANSACTION_ORGANIZATION_REQUIRED",
+            ),
+            "stock_item_id": ("Stock item ID is required.", "INVENTORY_ITEM_REQUIRED"),
+            "storeroom_id": (
+                "Storeroom ID is required.",
+                "INVENTORY_STOREROOM_REQUIRED",
+            ),
+        }
+        message, code = messages[info.field_name]
+        return normalize_required_text(value, message=message, code=code)
+
+    @field_validator("transaction_number", mode="before")
+    @classmethod
+    def _validate_transaction_number(cls, value: object) -> str:
+        return normalize_inventory_code(value, label="Transaction number")
+
+    @field_validator("transaction_type", mode="before")
+    @classmethod
+    def _validate_transaction_type(cls, value: object) -> StockTransactionType:
+        return normalize_enum(
+            value,
+            enum_type=StockTransactionType,
+            default=StockTransactionType.ISSUE,
+            message="Stock transaction type is invalid.",
+            code="INVENTORY_STOCK_TRANSACTION_TYPE_INVALID",
+        )
+
+    @field_validator("quantity", mode="before")
+    @classmethod
+    def _validate_quantity(cls, value: object) -> float:
+        return normalize_positive_quantity(value, label="Transaction quantity")
+
+    @field_validator("uom", mode="before")
+    @classmethod
+    def _validate_uom(cls, value: object) -> str:
+        return normalize_uom(value, label="Transaction UOM")
+
+    @field_validator(
+        "unit_cost",
+        "resulting_on_hand_qty",
+        "resulting_available_qty",
+        mode="before",
+    )
+    @classmethod
+    def _validate_nonnegative_quantities(cls, value: object, info) -> float:
+        labels = {
+            "unit_cost": "Unit cost",
+            "resulting_on_hand_qty": "Resulting on-hand quantity",
+            "resulting_available_qty": "Resulting available quantity",
+        }
+        return normalize_nonnegative_quantity(value, label=labels[info.field_name])
+
+    @field_validator("transaction_at", mode="before")
+    @classmethod
+    def _validate_transaction_at(cls, value: object) -> datetime | None:
+        return normalize_optional_datetime(
+            value,
+            message="Stock transaction timestamp is invalid.",
+            code="INVENTORY_STOCK_TRANSACTION_AT_INVALID",
+        )
+
+    @field_validator("performed_by_user_id", mode="before")
+    @classmethod
+    def _normalize_optional_user_id(cls, value: object) -> str | None:
+        return normalize_optional_identifier(value)
+
+    @field_validator(
+        "reference_type",
+        "reference_id",
+        "performed_by_username",
+        "notes",
+        "lot_number",
+        "serial_number",
+        mode="before",
+    )
+    @classmethod
+    def _normalize_text_fields(cls, value: object) -> str:
+        return normalize_optional_text(value)
+
+    @model_validator(mode="after")
+    def _validate_ranges(self) -> "StockTransaction":
+        if self.transaction_at is None:
+            raise ValidationError(
+                "Stock transaction timestamp is required.",
+                code="INVENTORY_STOCK_TRANSACTION_AT_REQUIRED",
+            )
+        if float(self.resulting_available_qty or 0.0) > float(self.resulting_on_hand_qty or 0.0) + 1e-9:
+            raise ValidationError(
+                "Available quantity cannot exceed on-hand quantity.",
+                code="INVENTORY_STOCK_TRANSACTION_AVAILABLE_INVALID",
+            )
+        return self
+
     @staticmethod
     def create(
         *,
@@ -365,7 +467,7 @@ class StockTransaction:
         transaction_number: str,
         stock_item_id: str,
         storeroom_id: str,
-        transaction_type: StockTransactionType,
+        transaction_type: StockTransactionType | str,
         quantity: float,
         uom: str,
         unit_cost: float = 0.0,

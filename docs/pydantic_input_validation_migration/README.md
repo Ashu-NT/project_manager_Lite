@@ -153,6 +153,7 @@ Notes:
 - `PortfolioProjectDependency` was migrated in the twenty-third slice
 - `ProjectBaseline`, `BaselineTask`, and `BaselineVarianceRecord` were migrated in the twenty-fourth slice
 - `TaskPresence` was migrated in the twenty-fifth slice
+- `StockTransaction` was migrated in the twenty-sixth slice
 
 #### Maintenance
 
@@ -225,7 +226,7 @@ Secondary maintenance targets:
 
 Secondary inventory/procurement targets:
 
-- `StockTransaction`
+- none currently pending
 
 ### 3. Non-target dataclasses
 
@@ -1422,27 +1423,31 @@ Service responsibilities:
 Entities:
 
 - `StockBalance`
+- `StockTransaction`
 - `StockReservation`
 
 Entity responsibilities:
 
 - require owning item/location/storeroom references
-- validate on-hand/available/reserved/issued numeric fields
-- normalize reservation status, references, and notes
+- validate on-hand/available/reserved/issued/transaction numeric fields
+- normalize reservation and transaction status/type/reference/actor/note fields
+- normalize transaction codes, UOMs, and timestamps
 - validate non-negative quantities and local quantity coherence
 
 Service responsibilities:
 
 - reservation lifecycle rules
 - stock availability checks
+- stock math, UOM conversion, cost propagation, and transfer pairing
 - cross-module fulfillment rules
 - completed in `src/core/modules/inventory_procurement/domain/_validation.py`, `src/core/modules/inventory_procurement/domain/inventory/stock.py`, `src/core/modules/inventory_procurement/application/common/support.py`, `src/core/modules/inventory_procurement/application/inventory/stock_control_adjustments.py`, `src/core/modules/inventory_procurement/application/inventory/stock_control_movements.py`, `src/core/modules/inventory_procurement/application/inventory/stock_control_support.py`, and `src/core/modules/inventory_procurement/application/inventory/reservation_service.py`
 - `StockBalance` now validates required stock-position references, UOM, non-negative quantity and cost fields, available-versus-on-hand coherence, and local receipt/issue timestamp ordering directly in the repository-bound DTO
+- `StockTransaction` now validates required stock-position references, transaction number/type normalization, positive quantity and UOM normalization, non-negative unit/resulting quantity fields, transaction timestamp presence, actor/reference/lot/serial text normalization, and available-versus-on-hand coherence directly in the repository-bound DTO
 - `StockReservation` now validates required stock/source references, reservation code and UOM normalization, non-negative quantity fields, status enum normalization, source-reference normalization, closed-state timestamp coherence, and status-compatible issued versus remaining quantity rules directly in the repository-bound DTO
 - shared source-reference and positive-quantity normalization now lives in the domain helper and is re-exported through `application/common/support.py`, removing one more duplicated scalar-validation branch between application services and the write models
-- stock adjustment, movement, and reservation services now rebuild validated balances and reservations with `replace(...)` instead of mutating dataclass instances in place, while keeping reservation transition policy, stock availability protection, existing-balance requirements, and cross-module/reference workflow checks in the service layer
-- duplicate stock/reservation CRUD validation now lives only in the DTOs for local scalar and coherence rules; service-layer checks remain only for tenant-scope, lifecycle, and fulfillment policy decisions
-- targeted verification completed with `5` passing DTO tests in `src/tests/inventory_procurement/test_inventory_procurement_domain_validation.py` and `18` additional passing regression tests across `src/tests/inventory_procurement/test_inventory_procurement_movements.py`, `src/tests/inventory_procurement/test_inventory_procurement_reservations.py`, `src/tests/inventory_procurement/test_inventory_procurement_ledger.py`, `src/tests/inventory_procurement/test_inventory_procurement_desktop_api_reservations_procurement.py`, and `src/tests/inventory_procurement/test_inventory_maintenance_material_contracts.py`
+- stock adjustment, movement, and reservation services now rebuild validated balances and reservations with `replace(...)` and rely on the transaction DTO for final scalar normalization, while keeping reservation transition policy, stock availability protection, existing-balance requirements, stock math, and cross-module/reference workflow checks in the service layer
+- duplicate stock/reservation CRUD validation now lives only in the DTOs for local scalar and coherence rules; service-layer checks remain only for tenant-scope, lifecycle, fulfillment, and inventory-math policy decisions
+- targeted verification completed with `35` passing regression tests across `src/tests/inventory_procurement/test_inventory_procurement_domain_validation.py`, `src/tests/inventory_procurement/test_inventory_procurement_movements.py`, `src/tests/inventory_procurement/test_inventory_procurement_ledger.py`, `src/tests/inventory_procurement/test_inventory_procurement_reservations.py`, `src/tests/inventory_procurement/test_inv_procurement_tenant_inventory.py`, and `src/tests/inventory_procurement/test_repository_tenant_hardening_tenant_context.py`
 
 #### Procurement cluster
 
@@ -1802,6 +1807,7 @@ Mitigation:
 - [x] Migrate PM portfolio dependency DTO
 - [x] Migrate PM baseline snapshot/variance DTOs
 - [x] Migrate PM task-presence DTO
+- [x] Migrate inventory stock-transaction DTO
 
 ## Current Implementation Decision
 

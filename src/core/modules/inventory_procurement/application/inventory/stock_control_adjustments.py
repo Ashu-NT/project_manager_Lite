@@ -269,13 +269,13 @@ class StockControlAdjustmentMixin:
             uom=normalized_uom,
             unit_cost=normalized_unit_cost,
             transaction_at=effective_at,
-            reference_type=normalize_optional_text(reference_type),
-            reference_id=normalize_optional_text(reference_id),
+            reference_type=reference_type,
+            reference_id=reference_id,
             performed_by_user_id=getattr(principal, "user_id", None),
-            performed_by_username=str(getattr(principal, "username", "") or ""),
+            performed_by_username=getattr(principal, "username", ""),
             resulting_on_hand_qty=balance.on_hand_qty,
             resulting_available_qty=balance.available_qty,
-            notes=normalize_optional_text(notes),
+            notes=notes,
         )
         try:
             if is_new_balance:
@@ -382,13 +382,13 @@ class StockControlAdjustmentMixin:
             uom=normalized_uom,
             unit_cost=0.0,
             transaction_at=effective_at,
-            reference_type=normalize_optional_text(reference_type),
-            reference_id=normalize_optional_text(reference_id),
+            reference_type=reference_type,
+            reference_id=reference_id,
             performed_by_user_id=getattr(principal, "user_id", None),
-            performed_by_username=str(getattr(principal, "username", "") or ""),
+            performed_by_username=getattr(principal, "username", ""),
             resulting_on_hand_qty=balance.on_hand_qty,
             resulting_available_qty=balance.available_qty,
-            notes=normalize_optional_text(notes),
+            notes=notes,
         )
         try:
             self._balance_repo.update(balance)

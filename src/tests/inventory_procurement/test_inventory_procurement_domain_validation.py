@@ -24,6 +24,8 @@ from src.core.modules.inventory_procurement.domain import (
     StockItem,
     StockReservation,
     StockReservationStatus,
+    StockTransaction,
+    StockTransactionType,
     StorageLocation,
     StorageLocationType,
     Storeroom,
@@ -319,6 +321,46 @@ def test_inventory_stock_operation_dtos_normalize_fields_and_validate_ranges() -
     assert reservation.remaining_qty == 3.0
     assert reservation.version == 2
 
+    transaction = StockTransaction(
+        id="  txn-1  ",
+        organization_id="  org-1  ",
+        transaction_number="  inv-txn-001  ",
+        stock_item_id="  item-1  ",
+        storeroom_id="  store-1  ",
+        transaction_type=" transfer_out ",
+        quantity="3.5",
+        uom=" ea ",
+        unit_cost="7.25",
+        transaction_at=datetime(2026, 7, 21, 16, 30),
+        reference_type="  task_issue  ",
+        reference_id="  TASK-1  ",
+        performed_by_user_id="  user-2  ",
+        performed_by_username="  Alex Mover  ",
+        resulting_on_hand_qty="9",
+        resulting_available_qty="8",
+        notes="  moved to field crew  ",
+        lot_number="  lot-1  ",
+        serial_number="  sn-9  ",
+    )
+
+    assert transaction.id == "txn-1"
+    assert transaction.organization_id == "org-1"
+    assert transaction.transaction_number == "INV-TXN-001"
+    assert transaction.transaction_type is StockTransactionType.TRANSFER_OUT
+    assert transaction.quantity == 3.5
+    assert transaction.uom == "EA"
+    assert transaction.unit_cost == 7.25
+    assert transaction.transaction_at == datetime(2026, 7, 21, 16, 30, tzinfo=timezone.utc)
+    assert transaction.reference_type == "task_issue"
+    assert transaction.reference_id == "TASK-1"
+    assert transaction.performed_by_user_id == "user-2"
+    assert transaction.performed_by_username == "Alex Mover"
+    assert transaction.resulting_on_hand_qty == 9.0
+    assert transaction.resulting_available_qty == 8.0
+    assert transaction.notes == "moved to field crew"
+    assert transaction.lot_number == "lot-1"
+    assert transaction.serial_number == "sn-9"
+
 
 def test_inventory_stock_operation_dtos_raise_expected_validation_codes() -> None:
     with pytest.raises(ValidationError) as exc_balance:
@@ -385,6 +427,54 @@ def test_inventory_stock_operation_dtos_raise_expected_validation_codes() -> Non
             cancelled_at=datetime(2026, 7, 21, 11, 0, tzinfo=timezone.utc),
     )
     assert exc_closed.value.code == "INVENTORY_RESERVATION_CLOSED_STATE_INVALID"
+
+    with pytest.raises(ValidationError) as exc_transaction_type:
+        StockTransaction(
+            id="txn-2",
+            organization_id="org-1",
+            transaction_number="INV-TXN-002",
+            stock_item_id="item-1",
+            storeroom_id="store-1",
+            transaction_type="unsupported",
+            quantity=1,
+            uom="EA",
+            transaction_at=datetime(2026, 7, 21, 12, 0, tzinfo=timezone.utc),
+            resulting_on_hand_qty=1,
+            resulting_available_qty=1,
+        )
+    assert exc_transaction_type.value.code == "INVENTORY_STOCK_TRANSACTION_TYPE_INVALID"
+
+    with pytest.raises(ValidationError) as exc_transaction_time:
+        StockTransaction(
+            id="txn-3",
+            organization_id="org-1",
+            transaction_number="INV-TXN-003",
+            stock_item_id="item-1",
+            storeroom_id="store-1",
+            transaction_type=StockTransactionType.ISSUE,
+            quantity=1,
+            uom="EA",
+            transaction_at=None,
+            resulting_on_hand_qty=1,
+            resulting_available_qty=1,
+        )
+    assert exc_transaction_time.value.code == "INVENTORY_STOCK_TRANSACTION_AT_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_transaction_available:
+        StockTransaction(
+            id="txn-4",
+            organization_id="org-1",
+            transaction_number="INV-TXN-004",
+            stock_item_id="item-1",
+            storeroom_id="store-1",
+            transaction_type=StockTransactionType.RETURN,
+            quantity=1,
+            uom="EA",
+            transaction_at=datetime(2026, 7, 21, 12, 0, tzinfo=timezone.utc),
+            resulting_on_hand_qty=2,
+            resulting_available_qty=3,
+        )
+    assert exc_transaction_available.value.code == "INVENTORY_STOCK_TRANSACTION_AVAILABLE_INVALID"
 
 
 def test_inventory_procurement_dtos_normalize_fields_and_validate_ranges() -> None:
