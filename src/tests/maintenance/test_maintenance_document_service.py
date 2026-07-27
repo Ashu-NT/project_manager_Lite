@@ -57,16 +57,16 @@ def test_maintenance_document_service_links_and_lists_documents(services):
     service = services["maintenance_document_service"]
 
     asset_link = service.link_existing_document(
-        entity_type="asset",
+        entity_type="  asset  ",
         entity_id=asset.id,
         document_id=document.id,
-        link_role="reference",
+        link_role="  reference  ",
     )
     service.link_existing_document(
-        entity_type="work_order",
+        entity_type="  work_order  ",
         entity_id=work_order.id,
         document_id=document.id,
-        link_role="attachment",
+        link_role="  attachment  ",
     )
 
     rows = service.list_document_records(site_id=site.id)

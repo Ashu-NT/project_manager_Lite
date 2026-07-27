@@ -7,6 +7,7 @@ import pytest
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.documents.domain import (
     Document,
+    DocumentLink,
     DocumentStorageKind,
     DocumentStructure,
     DocumentType,
@@ -110,3 +111,31 @@ def test_document_dto_normalizes_and_validates_fields() -> None:
             storage_uri="  ",
         )
     assert exc_storage.value.code == "DOCUMENT_STORAGE_REF_REQUIRED"
+
+
+def test_document_link_dto_normalizes_and_validates_fields() -> None:
+    link = DocumentLink.create(
+        organization_id="  org-1  ",
+        document_id="  doc-1  ",
+        module_code="  MAINTENANCE_MANAGEMENT  ",
+        entity_type="  asset  ",
+        entity_id="  asset-001  ",
+        link_role="  reference  ",
+    )
+
+    assert link.organization_id == "org-1"
+    assert link.document_id == "doc-1"
+    assert link.module_code == "maintenance_management"
+    assert link.entity_type == "asset"
+    assert link.entity_id == "asset-001"
+    assert link.link_role == "reference"
+
+    with pytest.raises(ValidationError) as exc_module:
+        DocumentLink.create(
+            organization_id="org-1",
+            document_id="doc-1",
+            module_code="  ",
+            entity_type="asset",
+            entity_id="asset-001",
+        )
+    assert exc_module.value.code == "DOCUMENT_MODULE_REQUIRED"

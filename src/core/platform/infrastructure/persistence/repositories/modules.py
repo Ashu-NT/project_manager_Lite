@@ -51,10 +51,10 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
 
     def _to_record(self, row: ModuleEntitlementORM, canonical_code: str) -> ModuleEntitlementRecord:
         return ModuleEntitlementRecord(
-            module_code=canonical_code,
+            module_code=row.module_code,
             licensed=bool(row.licensed),
             enabled=bool(row.enabled and row.licensed),
-            lifecycle_status=str(row.lifecycle_status or "inactive").strip().lower() or "inactive",
+            lifecycle_status=row.lifecycle_status,
         )
 
     def _list_rows_for_codes(
@@ -98,7 +98,7 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
         return [records_by_code[code] for code in sorted(records_by_code)]
 
     def upsert_for_organization(self, organization_id: str, record: ModuleEntitlementRecord, *, tenant_id: str | None = None) -> None:
-        canonical_code = normalize_module_code(record.module_code)
+        canonical_code = record.module_code
         rows = self._list_rows_for_codes(organization_id, canonical_code)
         obj = self._preferred_record(rows, canonical_code)
         extra_rows = [row for row in rows if row is not obj]
@@ -113,7 +113,7 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
                     tenant_id=resolved_tenant_id,
                     licensed=bool(record.licensed),
                     enabled=bool(record.enabled and record.licensed),
-                    lifecycle_status=str(record.lifecycle_status or "inactive").strip().lower() or "inactive",
+                    lifecycle_status=record.lifecycle_status,
                     updated_at=_utc_now_naive(),
                 )
             )
@@ -123,7 +123,7 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
         obj.module_code = canonical_code
         obj.licensed = bool(record.licensed)
         obj.enabled = bool(record.enabled and record.licensed)
-        obj.lifecycle_status = str(record.lifecycle_status or "inactive").strip().lower() or "inactive"
+        obj.lifecycle_status = record.lifecycle_status
         obj.updated_at = _utc_now_naive()
 
     def get(self, module_code: str) -> ModuleEntitlementRecord | None:

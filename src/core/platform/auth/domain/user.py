@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from pydantic import field_validator, model_validator
@@ -146,6 +145,38 @@ def normalize_auth_datetime(value: object, *, code: str) -> datetime | None:
             code=code,
         )
     return ensure_utc_datetime(value)
+
+
+def normalize_auth_role_id(value: object) -> str:
+    return normalize_required_text(
+        value,
+        message="Role id is required.",
+        code="ROLE_ID_REQUIRED",
+    )
+
+
+def normalize_auth_permission_id(value: object) -> str:
+    return normalize_required_text(
+        value,
+        message="Permission id is required.",
+        code="PERMISSION_ID_REQUIRED",
+    )
+
+
+def normalize_auth_role_name(value: object) -> str:
+    return normalize_required_text(
+        value,
+        message="Role name is required.",
+        code="AUTH_ROLE_NAME_REQUIRED",
+    ).lower()
+
+
+def normalize_auth_permission_code(value: object) -> str:
+    return normalize_required_text(
+        value,
+        message="Permission code is required.",
+        code="AUTH_PERMISSION_CODE_REQUIRED",
+    ).lower()
 
 
 @validated_dataclass
@@ -299,12 +330,27 @@ class UserAccount:
         )
 
 
-@dataclass
+@validated_dataclass
 class Role:
     id: str
     name: str
     description: str = ""
     is_system: bool = True
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _validate_id(cls, value: object) -> str:
+        return normalize_auth_role_id(value)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def _validate_name(cls, value: object) -> str:
+        return normalize_auth_role_name(value)
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def _normalize_description(cls, value: object) -> str:
+        return normalize_optional_text(value)
 
     @staticmethod
     def create(name: str, description: str = "", is_system: bool = True) -> "Role":
@@ -316,11 +362,26 @@ class Role:
         )
 
 
-@dataclass
+@validated_dataclass
 class Permission:
     id: str
     code: str
     description: str = ""
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _validate_id(cls, value: object) -> str:
+        return normalize_auth_permission_id(value)
+
+    @field_validator("code", mode="before")
+    @classmethod
+    def _validate_code(cls, value: object) -> str:
+        return normalize_auth_permission_code(value)
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def _normalize_description(cls, value: object) -> str:
+        return normalize_optional_text(value)
 
     @staticmethod
     def create(code: str, description: str = "") -> "Permission":
@@ -331,12 +392,40 @@ class Permission:
         )
 
 
-@dataclass
+@validated_dataclass
 class UserRoleBinding:
     id: str
     user_id: str
     role_id: str
     organization_id: str | None = None
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _validate_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="User-role binding id is required.",
+            code="AUTH_USER_ROLE_BINDING_ID_REQUIRED",
+        )
+
+    @field_validator("user_id", mode="before")
+    @classmethod
+    def _validate_user_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="User id is required.",
+            code="USER_ID_REQUIRED",
+        )
+
+    @field_validator("role_id", mode="before")
+    @classmethod
+    def _validate_role_id(cls, value: object) -> str:
+        return normalize_auth_role_id(value)
+
+    @field_validator("organization_id", mode="before")
+    @classmethod
+    def _normalize_organization_id(cls, value: object) -> str | None:
+        return normalize_optional_identifier(value)
 
     @staticmethod
     def create(user_id: str, role_id: str, organization_id: str | None = None) -> "UserRoleBinding":
@@ -348,11 +437,30 @@ class UserRoleBinding:
         )
 
 
-@dataclass
+@validated_dataclass
 class RolePermissionBinding:
     id: str
     role_id: str
     permission_id: str
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _validate_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Role-permission binding id is required.",
+            code="AUTH_ROLE_PERMISSION_BINDING_ID_REQUIRED",
+        )
+
+    @field_validator("role_id", mode="before")
+    @classmethod
+    def _validate_role_id(cls, value: object) -> str:
+        return normalize_auth_role_id(value)
+
+    @field_validator("permission_id", mode="before")
+    @classmethod
+    def _validate_permission_id(cls, value: object) -> str:
+        return normalize_auth_permission_id(value)
 
     @staticmethod
     def create(role_id: str, permission_id: str) -> "RolePermissionBinding":

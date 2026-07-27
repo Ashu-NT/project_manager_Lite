@@ -10,10 +10,12 @@ Covers:
 """
 from __future__ import annotations
 
+from datetime import datetime
+
 import pytest
 
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.infrastructure.persistence.orm.tenant import TenantORM
 from src.core.platform.infrastructure.persistence.repositories.auth import SqlAlchemyUserRepository
 from src.core.platform.infrastructure.persistence.repositories.tenant import SqlAlchemyTenantRepository
@@ -49,7 +51,7 @@ def _make_principal(user_id: str, *, role_names=frozenset(), permissions=frozens
 # ---------------------------------------------------------------------------
 
 def test_user_tenant_membership_create():
-    m = UserTenantMembership.create(user_id="u1", tenant_id="t1", tenant_role="member")
+    m = UserTenantMembership.create(user_id="  u1  ", tenant_id="  t1  ", tenant_role="  MEMBER  ")
     assert m.user_id == "u1"
     assert m.tenant_id == "t1"
     assert m.is_active is True
@@ -57,6 +59,48 @@ def test_user_tenant_membership_create():
     assert m.created_at is not None
     assert m.joined_at is not None
     assert m.id is not None
+
+
+def test_user_tenant_membership_dto_validates_required_fields_and_datetimes():
+    stamp = datetime(2026, 4, 24, 8, 15, 0)
+    membership = UserTenantMembership(
+        id="  membership-1  ",
+        user_id="  user-1  ",
+        tenant_id="  tenant-1  ",
+        tenant_role="  TENANT_ADMIN  ",
+        invited_at=stamp,
+        joined_at=stamp,
+        created_at=stamp,
+        updated_at=stamp,
+    )
+
+    assert membership.id == "membership-1"
+    assert membership.user_id == "user-1"
+    assert membership.tenant_id == "tenant-1"
+    assert membership.tenant_role == "tenant_admin"
+    assert membership.created_at is not None
+    assert membership.created_at.tzinfo is not None
+
+    membership.tenant_role = "  MEMBER  "
+    assert membership.tenant_role == "member"
+
+    with pytest.raises(ValidationError) as exc_user:
+        UserTenantMembership.create(user_id=" ", tenant_id="tenant-1")
+    assert exc_user.value.code == "USER_ID_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_tenant:
+        UserTenantMembership.create(user_id="user-1", tenant_id=" ")
+    assert exc_tenant.value.code == "TENANT_ID_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_created:
+        UserTenantMembership(
+            id="membership-2",
+            user_id="user-2",
+            tenant_id="tenant-2",
+            created_at="not-a-datetime",
+            updated_at=stamp,
+        )
+    assert exc_created.value.code == "USER_TENANT_MEMBERSHIP_CREATED_AT_INVALID"
 
 
 # ---------------------------------------------------------------------------

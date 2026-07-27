@@ -17,14 +17,18 @@ from src.core.platform.documents.contracts import (
     DocumentStructureRepository,
 )
 from src.core.platform.documents.domain import Document, DocumentLink, DocumentStructure, DocumentType
+from src.core.platform.documents.domain.document_link import (
+    normalize_document_entity_id,
+    normalize_document_entity_type,
+    normalize_document_link_role,
+    normalize_document_module_code,
+)
 from src.core.platform.documents.support import (
     coerce_document_type,
     infer_file_name,
     infer_mime_type,
     infer_storage_kind,
     infer_title,
-    normalize_entity_label,
-    normalize_module_code,
     normalize_optional_text,
 )
 from src.core.platform.org.contracts import OrganizationRepository
@@ -84,19 +88,11 @@ class DocumentIntegrationService:
         if not tokens:
             return []
         organization = self._active_organization()
-        normalized_module = normalize_module_code(module_code)
-        normalized_entity_type = normalize_entity_label(
-            entity_type,
-            code="DOCUMENT_ENTITY_TYPE_REQUIRED",
-            label="Entity type",
-        )
-        normalized_entity_id = normalize_entity_label(
-            entity_id,
-            code="DOCUMENT_ENTITY_ID_REQUIRED",
-            label="Entity id",
-        )
+        normalized_module = normalize_document_module_code(module_code)
+        normalized_entity_type = normalize_document_entity_type(entity_type)
+        normalized_entity_id = normalize_document_entity_id(entity_id)
         structure = self._resolve_structure_for_context(document_structure_id, organization=organization)
-        normalized_role = normalize_optional_text(link_role)
+        normalized_role = normalize_document_link_role(link_role)
         resolved_type = coerce_document_type(document_type)
         principal = self._user_session.principal if self._user_session is not None else None
         uploader = uploaded_by_user_id or getattr(principal, "user_id", None)
@@ -124,16 +120,15 @@ class DocumentIntegrationService:
                 )
                 self._document_repo.add(document)
                 self._session.flush()
-                self._link_repo.add(
-                    DocumentLink.create(
-                        organization_id=organization.id,
-                        document_id=document.id,
-                        module_code=normalized_module,
-                        entity_type=normalized_entity_type,
-                        entity_id=normalized_entity_id,
-                        link_role=normalized_role,
-                    )
+                link = DocumentLink.create(
+                    organization_id=organization.id,
+                    document_id=document.id,
+                    module_code=normalized_module,
+                    entity_type=normalized_entity_type,
+                    entity_id=normalized_entity_id,
+                    link_role=normalized_role,
                 )
+                self._link_repo.add(link)
                 created.append(document)
             self._session.commit()
         except IntegrityError:
@@ -178,9 +173,9 @@ class DocumentIntegrationService:
         organization = self._active_organization()
         links = self._link_repo.list_for_entity(
             organization.id,
-            normalize_module_code(module_code),
-            normalize_entity_label(entity_type, code="DOCUMENT_ENTITY_TYPE_REQUIRED", label="Entity type"),
-            normalize_entity_label(entity_id, code="DOCUMENT_ENTITY_ID_REQUIRED", label="Entity id"),
+            normalize_document_module_code(module_code),
+            normalize_document_entity_type(entity_type),
+            normalize_document_entity_id(entity_id),
         )
         rows: list[Document] = []
         for link in links:
@@ -221,35 +216,23 @@ class DocumentIntegrationService:
             raise NotFoundError("Document not found in the active organization.", code="DOCUMENT_NOT_FOUND")
         if not document.is_active:
             raise ValidationError("Document must be active before it can be linked.", code="DOCUMENT_INACTIVE")
-        normalized_module = normalize_module_code(module_code)
-        normalized_entity_type = normalize_entity_label(
-            entity_type,
-            code="DOCUMENT_ENTITY_TYPE_REQUIRED",
-            label="Entity type",
-        )
-        normalized_entity_id = normalize_entity_label(
-            entity_id,
-            code="DOCUMENT_ENTITY_ID_REQUIRED",
-            label="Entity id",
-        )
-        normalized_role = normalize_optional_text(link_role)
-        existing = self._link_repo.find_existing(
-            document_id=document.id,
-            module_code=normalized_module,
-            entity_type=normalized_entity_type,
-            entity_id=normalized_entity_id,
-            link_role=normalized_role,
-        )
-        if existing is not None:
-            raise ValidationError("Document link already exists.", code="DOCUMENT_LINK_EXISTS")
         link = DocumentLink.create(
             organization_id=organization.id,
             document_id=document.id,
-            module_code=normalized_module,
-            entity_type=normalized_entity_type,
-            entity_id=normalized_entity_id,
-            link_role=normalized_role,
+            module_code=module_code,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            link_role=link_role,
         )
+        existing = self._link_repo.find_existing(
+            document_id=link.document_id,
+            module_code=link.module_code,
+            entity_type=link.entity_type,
+            entity_id=link.entity_id,
+            link_role=link.link_role,
+        )
+        if existing is not None:
+            raise ValidationError("Document link already exists.", code="DOCUMENT_LINK_EXISTS")
         try:
             self._link_repo.add(link)
             self._session.commit()
@@ -268,10 +251,10 @@ class DocumentIntegrationService:
             severity="low",
             metadata={
                 "action": "document.link_existing",
-                "module_code": normalized_module,
-                "entity_type": normalized_entity_type,
-                "entity_id": normalized_entity_id,
-                "link_role": normalized_role,
+                "module_code": link.module_code,
+                "entity_type": link.entity_type,
+                "entity_id": link.entity_id,
+                "link_role": link.link_role,
             },
         )
         domain_events.documents_changed.emit(document.id)
@@ -293,18 +276,10 @@ class DocumentIntegrationService:
         document = self._document_repo.get(document_id)
         if document is None or document.organization_id != organization.id:
             raise NotFoundError("Document not found in the active organization.", code="DOCUMENT_NOT_FOUND")
-        normalized_module = normalize_module_code(module_code)
-        normalized_entity_type = normalize_entity_label(
-            entity_type,
-            code="DOCUMENT_ENTITY_TYPE_REQUIRED",
-            label="Entity type",
-        )
-        normalized_entity_id = normalize_entity_label(
-            entity_id,
-            code="DOCUMENT_ENTITY_ID_REQUIRED",
-            label="Entity id",
-        )
-        normalized_role = normalize_optional_text(link_role)
+        normalized_module = normalize_document_module_code(module_code)
+        normalized_entity_type = normalize_document_entity_type(entity_type)
+        normalized_entity_id = normalize_document_entity_id(entity_id)
+        normalized_role = normalize_document_link_role(link_role)
         existing = self._link_repo.find_existing(
             document_id=document.id,
             module_code=normalized_module,

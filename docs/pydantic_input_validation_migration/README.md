@@ -143,6 +143,10 @@ Notes:
 - `ProjectMembership` and `ScopedAccessGrant` were migrated in the thirteenth slice
 - `UserAccount` and `AuthSession` were migrated in the fourteenth slice
 - `ApprovalRequest`, `Tenant`, `PlatformEvent`, and `RuntimeExecution` were migrated in the fifteenth slice
+- `DocumentLink` was migrated in the sixteenth slice
+- `UserTenantMembership` was migrated in the seventeenth slice
+- `Role`, `Permission`, `UserRoleBinding`, and `RolePermissionBinding` were migrated in the eighteenth slice
+- `ModuleEntitlementRecord` was migrated in the nineteenth slice
 
 #### Maintenance
 
@@ -800,7 +804,7 @@ Notes:
 - `ShiftPatternDay` now validates its own local create/save invariants as part of this slice because services directly construct it
 - legacy `FIXED` pattern values normalize to the canonical standard pattern shape for compatibility with seeded tests and repository reconstruction
 
-#### `DocumentStructure` and `Document`
+#### `DocumentStructure`, `Document`, and `DocumentLink`
 
 Status:
 
@@ -809,7 +813,9 @@ Status:
 Entity responsibilities:
 
 - require owning IDs and names/codes/titles as appropriate
+- require linked document, module, and entity identifiers for relationship rows
 - normalize storage-related text, labels, paths, URLs, notes, and metadata fields
+- normalize linked-module/entity text and optional link roles
 - validate file/structure state and version counters
 
 Service responsibilities:
@@ -821,9 +827,85 @@ Service responsibilities:
 
 Notes:
 
-- create/update scalar normalization now lives on the shared document-structure and document write models
+- create/update scalar normalization now lives on the shared document-structure, document, and document-link write models
 - document and structure codes, enum coercion, version validation, timestamp normalization, and review-date ordering are enforced at the DTO/entity boundary
+- document-link module/entity normalization now comes from `document_link.py`, so platform, maintenance, and inventory document-link flows all share one normalization source
 - active-organization resolution, duplicate-code checks, structure lookup, storage-derived file-name and MIME defaults, link uniqueness, and tenant-scope enforcement remain service-owned
+
+#### `UserTenantMembership`
+
+Status:
+
+- completed
+
+Entity responsibilities:
+
+- require membership, user, and tenant identifiers
+- normalize `tenant_role`
+- normalize UTC-capable membership timestamps
+
+Service responsibilities:
+
+- user and tenant existence
+- bootstrap and registration-driven membership creation
+- tenant accessibility, lifecycle, and privilege policy
+- repository-level uniqueness/idempotency
+
+Notes:
+
+- create/update scalar normalization now lives on the shared user-tenant membership write model
+- membership IDs, user/tenant identifiers, role text, and UTC datetime normalization now live on `UserTenantMembership`
+- bootstrap/backfill policy, tenant-switch access checks, tenant lifecycle behavior, and membership uniqueness/idempotency remain service- and repository-owned
+
+#### `Role`, `Permission`, `UserRoleBinding`, and `RolePermissionBinding`
+
+Status:
+
+- completed
+
+Entity responsibilities:
+
+- require role, permission, user, and binding identifiers
+- normalize role names and permission codes
+- normalize optional descriptions and organization scope identifiers
+
+Service responsibilities:
+
+- privilege ceilings and separation-of-duties policy
+- role and user existence checks
+- global-vs-organization assignment policy
+- bootstrap/default seeding and repository-level deduplication
+
+Notes:
+
+- create/update scalar normalization now lives on the shared RBAC write models
+- role names, permission codes, binding IDs, and optional organization-scope identifiers now normalize at the DTO boundary
+- privilege ceilings, tenant guards, separation-of-duties checks, bootstrap seeding, and duplicate-binding avoidance remain service- and repository-owned
+
+#### `ModuleEntitlementRecord`
+
+Status:
+
+- completed
+
+Entity responsibilities:
+
+- require and normalize canonical module codes
+- normalize lifecycle status values
+- coerce licensed/enabled flags
+
+Service responsibilities:
+
+- licensing availability rules
+- enablement-versus-license policy
+- planned-module restrictions
+- organization-context and provisioning workflow
+
+Notes:
+
+- create/update scalar normalization now lives on the shared module-entitlement write model
+- module-code alias resolution and lifecycle-status normalization now happen on `ModuleEntitlementRecord`
+- planned-stage restrictions, licensing policy, organization-context requirements, and runtime enablement decisions remain service- and repository-owned
 
 ### Project-management entities
 

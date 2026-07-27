@@ -6,7 +6,14 @@ from datetime import datetime
 import pytest
 
 from src.core.platform.auth.application.auth_service import AuthService
-from src.core.platform.auth.domain import AuthSession, Role, UserAccount
+from src.core.platform.auth.domain import (
+    AuthSession,
+    Permission,
+    Role,
+    RolePermissionBinding,
+    UserAccount,
+    UserRoleBinding,
+)
 from src.core.platform.auth.domain.user import normalize_auth_session_timeout_override
 from src.core.platform.common.exceptions import ValidationError
 
@@ -344,6 +351,57 @@ def test_auth_session_dto_normalizes_and_validates_fields():
             expires_at=None,
         )
     assert exc_expires.value.code == "AUTH_SESSION_EXPIRES_AT_INVALID"
+
+
+def test_auth_rbac_dtos_normalize_and_validate_fields():
+    role = Role.create(
+        name="  TENANT_ADMIN  ",
+        description="  Tenant-level administrator  ",
+        is_system="0",
+    )
+    permission = Permission.create(
+        code="  AUDIT.READ  ",
+        description="  Read audit logs  ",
+    )
+    user_role = UserRoleBinding.create(
+        user_id="  user-1  ",
+        role_id="  role-1  ",
+        organization_id="  org-1  ",
+    )
+    role_permission = RolePermissionBinding.create(
+        role_id="  role-1  ",
+        permission_id="  permission-1  ",
+    )
+
+    assert role.name == "tenant_admin"
+    assert role.description == "Tenant-level administrator"
+    assert role.is_system is False
+    assert permission.code == "audit.read"
+    assert permission.description == "Read audit logs"
+    assert user_role.user_id == "user-1"
+    assert user_role.role_id == "role-1"
+    assert user_role.organization_id == "org-1"
+    assert role_permission.role_id == "role-1"
+    assert role_permission.permission_id == "permission-1"
+
+    role.name = "  VIEWER  "
+    assert role.name == "viewer"
+
+    with pytest.raises(ValidationError) as exc_role:
+        Role.create(name=" ", description="x")
+    assert exc_role.value.code == "AUTH_ROLE_NAME_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_permission:
+        Permission.create(code=" ", description="x")
+    assert exc_permission.value.code == "AUTH_PERMISSION_CODE_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_user:
+        UserRoleBinding.create(user_id=" ", role_id="role-1")
+    assert exc_user.value.code == "USER_ID_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_permission_id:
+        RolePermissionBinding.create(role_id="role-1", permission_id=" ")
+    assert exc_permission_id.value.code == "PERMISSION_ID_REQUIRED"
 
 
 def test_auth_service_uses_entity_validation_for_user_and_session_models(

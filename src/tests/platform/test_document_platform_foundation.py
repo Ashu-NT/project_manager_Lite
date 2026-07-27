@@ -61,10 +61,10 @@ def test_document_service_links_documents_to_module_entities(services):
 
     link = document_service.add_link(
         document_id=document.id,
-        module_code="maintenance_management",
-        entity_type="asset",
+        module_code="  MAINTENANCE_MANAGEMENT  ",
+        entity_type="  asset  ",
         entity_id="asset-001",
-        link_role="reference",
+        link_role="  reference  ",
     )
 
     assert link.module_code == "maintenance_management"

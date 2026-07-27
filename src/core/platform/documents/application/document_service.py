@@ -24,11 +24,15 @@ from src.core.platform.documents.domain import (
     DocumentStructure,
     DocumentType,
 )
+from src.core.platform.documents.domain.document_link import (
+    normalize_document_entity_id as _normalize_document_entity_id,
+    normalize_document_entity_type as _normalize_document_entity_type,
+    normalize_document_link_role as _normalize_document_link_role,
+    normalize_document_module_code as _normalize_document_module_code,
+)
 from src.core.platform.documents.support import (
     default_file_name as _default_file_name,
     infer_mime_type as _infer_mime_type,
-    normalize_entity_label as _normalize_entity_label,
-    normalize_module_code as _normalize_module_code,
     normalize_object_scope as _normalize_object_scope,
     normalize_optional_text as _normalize_optional_text,
 )
@@ -461,35 +465,23 @@ class DocumentService:
     ) -> DocumentLink:
         require_permission(self._user_session, "settings.manage", operation_label="link document")
         document = self._require_document_in_context(document_id)
-        normalized_module = _normalize_module_code(module_code)
-        normalized_entity_type = _normalize_entity_label(
-            entity_type,
-            code="DOCUMENT_ENTITY_TYPE_REQUIRED",
-            label="Entity type",
-        )
-        normalized_entity_id = _normalize_entity_label(
-            entity_id,
-            code="DOCUMENT_ENTITY_ID_REQUIRED",
-            label="Entity id",
-        )
-        normalized_role = _normalize_optional_text(link_role)
-        existing = self._link_repo.find_existing(
-            document_id=document.id,
-            module_code=normalized_module,
-            entity_type=normalized_entity_type,
-            entity_id=normalized_entity_id,
-            link_role=normalized_role,
-        )
-        if existing is not None:
-            raise ValidationError("This document link already exists.", code="DOCUMENT_LINK_EXISTS")
         link = DocumentLink.create(
             organization_id=document.organization_id,
             document_id=document.id,
-            module_code=normalized_module,
-            entity_type=normalized_entity_type,
-            entity_id=normalized_entity_id,
-            link_role=normalized_role,
+            module_code=module_code,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            link_role=link_role,
         )
+        existing = self._link_repo.find_existing(
+            document_id=link.document_id,
+            module_code=link.module_code,
+            entity_type=link.entity_type,
+            entity_id=link.entity_id,
+            link_role=link.link_role,
+        )
+        if existing is not None:
+            raise ValidationError("This document link already exists.", code="DOCUMENT_LINK_EXISTS")
         try:
             self._link_repo.add(link)
             self._session.commit()
@@ -551,9 +543,9 @@ class DocumentService:
         organization = self._active_organization()
         return self._link_repo.list_for_entity(
             organization.id,
-            _normalize_module_code(module_code),
-            _normalize_entity_label(entity_type, code="DOCUMENT_ENTITY_TYPE_REQUIRED", label="Entity type"),
-            _normalize_entity_label(entity_id, code="DOCUMENT_ENTITY_ID_REQUIRED", label="Entity id"),
+            _normalize_document_module_code(module_code),
+            _normalize_document_entity_type(entity_type),
+            _normalize_document_entity_id(entity_id),
         )
 
     def _require_document_in_context(self, document_id: str) -> Document:

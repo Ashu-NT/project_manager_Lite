@@ -48,6 +48,8 @@ def bootstrap_admin_env(monkeypatch):
     monkeypatch.setenv("PM_ADMIN_USERNAME", "admin")
     monkeypatch.setenv("PM_ADMIN_PASSWORD", "ChangeMe123!")
     monkeypatch.delenv("PM_ALLOW_DEFAULT_ADMIN_PASSWORD", raising=False)
+    monkeypatch.delenv("PM_ENABLED_MODULES", raising=False)
+    monkeypatch.delenv("PM_LICENSED_MODULES", raising=False)
 
 
 @pytest.fixture
