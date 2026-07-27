@@ -149,6 +149,7 @@ Notes:
 - `ModuleEntitlementRecord` was migrated in the nineteenth slice
 - `CalendarWorkingRule`, `SiteCalendarAssignment`, `DepartmentCalendarAssignment`, and `EmployeeCalendarAssignment` were migrated in the twentieth slice
 - `ProjectCalendarAssignment` and `ResourceCalendarAssignment` were migrated in the twenty-first slice
+- `ResourceSkill`, `ResourceCertification`, and `TaskSkillRequirement` were migrated in the twenty-second slice
 
 #### Maintenance
 
@@ -220,11 +221,6 @@ Secondary platform targets:
 
 Secondary PM targets:
 
-- `ProjectCalendarAssignment`
-- `ResourceCalendarAssignment`
-- `ResourceSkill`
-- `ResourceCertification`
-- `TaskSkillRequirement`
 - `PortfolioProjectDependency`
 - `ProjectBaseline`
 - `BaselineTask`
@@ -235,15 +231,13 @@ Secondary PM targets:
 
 Secondary maintenance targets:
 
-- `MaintenanceSensorReading`
+- none currently pending
 
 #### Inventory / Procurement
 
 Secondary inventory/procurement targets:
 
 - `StockTransaction`
-- `ReceiptHeader`
-- `ReceiptLine`
 
 ### 3. Non-target dataclasses
 
@@ -1068,6 +1062,32 @@ Notes:
 - project/resource IDs, calendar IDs, integer priorities, and effective-range checks now validate at the DTO boundary
 - active-calendar policy, tenant/org repository scoping, and employee-vs-resource enterprise calendar resolution behavior remain service- and repository-owned
 
+#### `ResourceSkill`, `ResourceCertification`, and `TaskSkillRequirement`
+
+Status:
+
+- completed
+
+Entity responsibilities:
+
+- require owning resource/task identifiers plus skill or certification codes and names where applicable
+- normalize canonical skill/certification codes, free-text notes, and issuing-body text
+- normalize proficiency and validation-mode enums at the DTO boundary
+- validate certification issue/expiry chronology
+- validate that task skill requirements target exactly one of skill or certification
+
+Service responsibilities:
+
+- resource and task anchor existence through tenant-scoped repositories
+- assignment-time policy decisions for warn/block/override handling
+- workflow behavior around assignment approval and violation reporting
+
+Notes:
+
+- create/save scalar normalization now lives on the shared PM skill, certification, and task-requirement write models
+- proficiency coercion, validation-mode coercion, code normalization, certification date-range checks, and single-target requirement shape now validate in the repo-bound DTOs
+- resource/task scope enforcement, assignment violation policy, and repository tenant scoping remain service- and repository-owned
+
 #### `CostItem`
 
 Status:
@@ -1711,6 +1731,9 @@ Mitigation:
 - [x] Migrate platform approval/tenant/event/runtime DTOs
 - [x] Migrate platform calendar/shift DTOs
 - [x] Migrate platform document DTOs
+- [x] Migrate platform secondary membership/RBAC/module DTOs
+- [x] Migrate platform and PM calendar-assignment DTOs
+- [x] Migrate PM resource skill/certification/requirement DTOs
 
 ## Current Implementation Decision
 

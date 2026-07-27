@@ -1,10 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 
+from pydantic import field_validator, model_validator
+
 from src.core.modules.project_management.domain.identifiers import generate_id
+from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.pydantic import (
+    normalize_optional_text,
+    normalize_required_text,
+    validated_dataclass,
+)
 
 
 class SkillProficiencyLevel(str, Enum):
@@ -21,7 +28,77 @@ class SkillValidationMode(str, Enum):
     OVERRIDE = "override"  # allow with approval + recorded justification
 
 
-@dataclass
+def _normalize_optional_date(value: object) -> date | None:
+    if value in (None, ""):
+        return None
+    if not isinstance(value, date) or isinstance(value, datetime):
+        raise ValidationError(
+            "Skill and certification dates must be valid dates.",
+            code="RESOURCE_SKILL_DATE_INVALID",
+        )
+    return value
+
+
+def _normalize_optional_code(value: object) -> str | None:
+    normalized = normalize_optional_text(value).lower()
+    return normalized or None
+
+
+def _normalize_required_code(value: object, *, message: str, code: str) -> str:
+    return normalize_required_text(value, message=message, code=code).lower()
+
+
+def _normalize_positive_int(value: object, *, code: str, message: str) -> int:
+    try:
+        normalized = int(value if value not in (None, "") else 1)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(message, code=code) from exc
+    if normalized < 1:
+        raise ValidationError(message, code=code)
+    return normalized
+
+
+def _normalize_proficiency(
+    value: object,
+    *,
+    code: str,
+) -> SkillProficiencyLevel:
+    if value in (None, ""):
+        return SkillProficiencyLevel.INTERMEDIATE
+    if isinstance(value, SkillProficiencyLevel):
+        return value
+    raw = normalize_optional_text(value).lower()
+    try:
+        return SkillProficiencyLevel(raw)
+    except ValueError as exc:
+        raise ValidationError(
+            (
+                "Skill proficiency must be one of: "
+                f"{', '.join(level.value for level in SkillProficiencyLevel)}."
+            ),
+            code=code,
+        ) from exc
+
+
+def _normalize_validation_mode(value: object, *, code: str) -> SkillValidationMode:
+    if value in (None, ""):
+        return SkillValidationMode.WARN
+    if isinstance(value, SkillValidationMode):
+        return value
+    raw = normalize_optional_text(value).lower()
+    try:
+        return SkillValidationMode(raw)
+    except ValueError as exc:
+        raise ValidationError(
+            (
+                "Skill validation mode must be one of: "
+                f"{', '.join(mode.value for mode in SkillValidationMode)}."
+            ),
+            code=code,
+        ) from exc
+
+
+@validated_dataclass
 class ResourceSkill:
     """
     Declares that a resource holds a particular skill at a given proficiency level.
@@ -35,6 +112,64 @@ class ResourceSkill:
     proficiency: SkillProficiencyLevel = SkillProficiencyLevel.INTERMEDIATE
     notes: str = ""
     version: int = 1
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _validate_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Resource skill ID is required.",
+            code="RESOURCE_SKILL_ID_REQUIRED",
+        )
+
+    @field_validator("resource_id", mode="before")
+    @classmethod
+    def _validate_resource_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Resource ID is required.",
+            code="RESOURCE_SKILL_RESOURCE_REQUIRED",
+        )
+
+    @field_validator("skill_code", mode="before")
+    @classmethod
+    def _validate_skill_code(cls, value: object) -> str:
+        return _normalize_required_code(
+            value,
+            message="Skill code is required.",
+            code="RESOURCE_SKILL_CODE_REQUIRED",
+        )
+
+    @field_validator("skill_name", mode="before")
+    @classmethod
+    def _validate_skill_name(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Skill name is required.",
+            code="RESOURCE_SKILL_NAME_REQUIRED",
+        )
+
+    @field_validator("proficiency", mode="before")
+    @classmethod
+    def _validate_proficiency(cls, value: object) -> SkillProficiencyLevel:
+        return _normalize_proficiency(
+            value,
+            code="RESOURCE_SKILL_PROFICIENCY_INVALID",
+        )
+
+    @field_validator("notes", mode="before")
+    @classmethod
+    def _normalize_notes(cls, value: object) -> str:
+        return normalize_optional_text(value)
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        return _normalize_positive_int(
+            value,
+            code="RESOURCE_SKILL_VERSION_INVALID",
+            message="Resource skill version must be positive.",
+        )
 
     @staticmethod
     def create(
@@ -59,7 +194,7 @@ class ResourceSkill:
         return order.index(self.proficiency) >= order.index(required_proficiency)
 
 
-@dataclass
+@validated_dataclass
 class ResourceCertification:
     """
     A time-bounded certification held by a resource.
@@ -76,6 +211,74 @@ class ResourceCertification:
     issuing_body: str = ""
     notes: str = ""
     version: int = 1
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _validate_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Resource certification ID is required.",
+            code="RESOURCE_CERTIFICATION_ID_REQUIRED",
+        )
+
+    @field_validator("resource_id", mode="before")
+    @classmethod
+    def _validate_resource_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Resource ID is required.",
+            code="RESOURCE_CERTIFICATION_RESOURCE_REQUIRED",
+        )
+
+    @field_validator("certification_code", mode="before")
+    @classmethod
+    def _validate_certification_code(cls, value: object) -> str:
+        return _normalize_required_code(
+            value,
+            message="Certification code is required.",
+            code="RESOURCE_CERTIFICATION_CODE_REQUIRED",
+        )
+
+    @field_validator("certification_name", mode="before")
+    @classmethod
+    def _validate_certification_name(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Certification name is required.",
+            code="RESOURCE_CERTIFICATION_NAME_REQUIRED",
+        )
+
+    @field_validator("issued_date", "expiry_date", mode="before")
+    @classmethod
+    def _validate_dates(cls, value: object) -> date | None:
+        return _normalize_optional_date(value)
+
+    @field_validator("issuing_body", "notes", mode="before")
+    @classmethod
+    def _normalize_optional_text_fields(cls, value: object) -> str:
+        return normalize_optional_text(value)
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        return _normalize_positive_int(
+            value,
+            code="RESOURCE_CERTIFICATION_VERSION_INVALID",
+            message="Resource certification version must be positive.",
+        )
+
+    @model_validator(mode="after")
+    def _validate_date_range(self) -> "ResourceCertification":
+        if (
+            self.issued_date is not None
+            and self.expiry_date is not None
+            and self.expiry_date < self.issued_date
+        ):
+            raise ValidationError(
+                "Certification expiry date must be on or after issued date.",
+                code="RESOURCE_CERTIFICATION_DATE_RANGE_INVALID",
+            )
+        return self
 
     @staticmethod
     def create(
@@ -111,7 +314,7 @@ class ResourceCertification:
         return finish <= self.expiry_date
 
 
-@dataclass
+@validated_dataclass
 class TaskSkillRequirement:
     """
     Declares that a task requires a resource with a specific skill or certification.
@@ -130,6 +333,73 @@ class TaskSkillRequirement:
     notes: str = ""
     version: int = 1
 
+    @field_validator("id", mode="before")
+    @classmethod
+    def _validate_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Task skill requirement ID is required.",
+            code="TASK_SKILL_REQUIREMENT_ID_REQUIRED",
+        )
+
+    @field_validator("task_id", mode="before")
+    @classmethod
+    def _validate_task_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Task ID is required.",
+            code="TASK_SKILL_REQUIREMENT_TASK_REQUIRED",
+        )
+
+    @field_validator("skill_code", "certification_code", mode="before")
+    @classmethod
+    def _normalize_optional_codes(cls, value: object) -> str | None:
+        return _normalize_optional_code(value)
+
+    @field_validator("required_proficiency", mode="before")
+    @classmethod
+    def _validate_required_proficiency(cls, value: object) -> SkillProficiencyLevel:
+        return _normalize_proficiency(
+            value,
+            code="TASK_SKILL_REQUIREMENT_PROFICIENCY_INVALID",
+        )
+
+    @field_validator("validation_mode", mode="before")
+    @classmethod
+    def _validate_validation_mode(cls, value: object) -> SkillValidationMode:
+        return _normalize_validation_mode(
+            value,
+            code="TASK_SKILL_REQUIREMENT_MODE_INVALID",
+        )
+
+    @field_validator("notes", mode="before")
+    @classmethod
+    def _normalize_notes(cls, value: object) -> str:
+        return normalize_optional_text(value)
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        return _normalize_positive_int(
+            value,
+            code="TASK_SKILL_REQUIREMENT_VERSION_INVALID",
+            message="Task skill requirement version must be positive.",
+        )
+
+    @model_validator(mode="after")
+    def _validate_requirement_target(self) -> "TaskSkillRequirement":
+        if self.skill_code is None and self.certification_code is None:
+            raise ValidationError(
+                "Task skill requirement requires either skill_code or certification_code.",
+                code="TASK_SKILL_REQUIREMENT_TARGET_REQUIRED",
+            )
+        if self.skill_code is not None and self.certification_code is not None:
+            raise ValidationError(
+                "Task skill requirement cannot define both skill_code and certification_code.",
+                code="TASK_SKILL_REQUIREMENT_TARGET_AMBIGUOUS",
+            )
+        return self
+
     @staticmethod
     def create(
         task_id: str,
@@ -139,8 +409,6 @@ class TaskSkillRequirement:
         validation_mode: SkillValidationMode = SkillValidationMode.WARN,
         notes: str = "",
     ) -> "TaskSkillRequirement":
-        if skill_code is None and certification_code is None:
-            raise ValueError("TaskSkillRequirement requires either skill_code or certification_code.")
         return TaskSkillRequirement(
             id=generate_id(),
             task_id=task_id,
