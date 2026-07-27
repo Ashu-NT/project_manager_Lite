@@ -54,32 +54,7 @@ class WorkingRuleService:
         require_permission(
             self._user_session, "task.manage", operation_label="save working rule"
         )
-        self._require_calendar(calendar_id)
-        if weekday not in range(7):
-            raise ValidationError(f"weekday must be 0-6, got {weekday}.")
-        if is_working_day and start_time and end_time:
-            self._validate_time_window(start_time, end_time)
-        if hours_override is not None and hours_override < 0:
-            raise ValidationError("hours_override must be non-negative.")
-
-        existing = self._rule_repo.get_for_weekday(calendar_id, weekday)
-        if existing:
-            existing.is_working_day = is_working_day
-            existing.start_time = start_time
-            existing.end_time = end_time
-            existing.break_start_time = break_start_time
-            existing.break_end_time = break_end_time
-            existing.break_minutes = break_minutes
-            existing.hours_override = hours_override
-            existing.shift_code = shift_code
-            existing.effective_from = effective_from
-            existing.effective_to = effective_to
-            existing.priority = priority
-            self._rule_repo.save(existing)
-            self._session.commit()
-            return existing
-
-        rule = CalendarWorkingRule.create(
+        candidate = CalendarWorkingRule.create(
             calendar_id=calendar_id,
             weekday=weekday,
             is_working_day=is_working_day,
@@ -94,9 +69,28 @@ class WorkingRuleService:
             effective_to=effective_to,
             priority=priority,
         )
-        self._rule_repo.save(rule)
+        self._require_calendar(candidate.calendar_id)
+
+        existing = self._rule_repo.get_for_weekday(candidate.calendar_id, candidate.weekday)
+        if existing:
+            existing.is_working_day = candidate.is_working_day
+            existing.start_time = candidate.start_time
+            existing.end_time = candidate.end_time
+            existing.break_start_time = candidate.break_start_time
+            existing.break_end_time = candidate.break_end_time
+            existing.break_minutes = candidate.break_minutes
+            existing.hours_override = candidate.hours_override
+            existing.shift_code = candidate.shift_code
+            existing.effective_from = candidate.effective_from
+            existing.effective_to = candidate.effective_to
+            existing.priority = candidate.priority
+            self._rule_repo.save(existing)
+            self._session.commit()
+            return existing
+
+        self._rule_repo.save(candidate)
         self._session.commit()
-        return rule
+        return candidate
 
     def delete_rule(self, rule_id: str) -> None:
         require_permission(

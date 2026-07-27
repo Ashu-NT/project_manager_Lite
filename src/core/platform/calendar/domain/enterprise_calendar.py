@@ -391,7 +391,7 @@ class PlatformCalendar:
         )
 
 
-@dataclass
+@validated_dataclass
 class CalendarWorkingRule:
     id: str
     calendar_id: str
@@ -407,6 +407,100 @@ class CalendarWorkingRule:
     effective_from: date | None = None
     effective_to: date | None = None
     priority: int = 0
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _validate_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Calendar working rule ID is required.",
+            code="CALENDAR_RULE_ID_REQUIRED",
+        )
+
+    @field_validator("calendar_id", mode="before")
+    @classmethod
+    def _validate_calendar_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Calendar ID is required.",
+            code="CALENDAR_RULE_CALENDAR_REQUIRED",
+        )
+
+    @field_validator("weekday", mode="before")
+    @classmethod
+    def _validate_weekday(cls, value: object) -> int:
+        if value in (None, ""):
+            raise ValidationError(
+                "weekday must be between 0 and 6.",
+                code="CALENDAR_RULE_WEEKDAY_INVALID",
+            )
+        normalized = _normalize_int(value, default=0)
+        if normalized not in range(7):
+            raise ValidationError(
+                "weekday must be between 0 and 6.",
+                code="CALENDAR_RULE_WEEKDAY_INVALID",
+            )
+        return normalized
+
+    @field_validator("start_time", "end_time", "break_start_time", "break_end_time", mode="before")
+    @classmethod
+    def _validate_times(cls, value: object) -> time | None:
+        return _normalize_optional_time(value)
+
+    @field_validator("break_minutes", mode="before")
+    @classmethod
+    def _validate_break_minutes(cls, value: object) -> int:
+        return _normalize_non_negative_int(
+            value,
+            code="CALENDAR_RULE_BREAK_MINUTES_INVALID",
+            message="break_minutes must be non-negative.",
+        )
+
+    @field_validator("hours_override", mode="before")
+    @classmethod
+    def _validate_hours_override(cls, value: object) -> float | None:
+        return _normalize_non_negative_float(
+            value,
+            code="CALENDAR_RULE_HOURS_OVERRIDE_INVALID",
+            message="hours_override must be non-negative.",
+        )
+
+    @field_validator("shift_code", mode="before")
+    @classmethod
+    def _normalize_shift_code(cls, value: object) -> str | None:
+        return _normalize_optional_free_text(value)
+
+    @field_validator("effective_from", "effective_to", mode="before")
+    @classmethod
+    def _validate_dates(cls, value: object) -> date | None:
+        return _normalize_optional_date(value)
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def _normalize_priority(cls, value: object) -> int:
+        return _normalize_int(value, default=0)
+
+    @model_validator(mode="after")
+    def _validate_ranges(self) -> "CalendarWorkingRule":
+        if (
+            self.start_time is not None
+            and self.end_time is not None
+            and self.end_time <= self.start_time
+        ):
+            raise ValidationError(
+                "start_time must be before end_time.",
+                code="CALENDAR_RULE_TIME_RANGE_INVALID",
+            )
+        if (
+            self.effective_from is not None
+            and self.effective_to is not None
+            and self.effective_to < self.effective_from
+        ):
+            raise ValidationError(
+                "effective_to must be after effective_from.",
+                code="CALENDAR_RULE_EFFECTIVE_RANGE_INVALID",
+            )
+        return self
 
     @staticmethod
     def create(
@@ -1032,7 +1126,7 @@ class ShiftPatternDay:
         )
 
 
-@dataclass
+@validated_dataclass
 class SiteCalendarAssignment:
     id: str
     site_id: str
@@ -1041,6 +1135,56 @@ class SiteCalendarAssignment:
     effective_to: date | None = None
     is_default: bool = False
     priority: int = 0
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _validate_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Site calendar assignment ID is required.",
+            code="SITE_CALENDAR_ASSIGNMENT_ID_REQUIRED",
+        )
+
+    @field_validator("site_id", mode="before")
+    @classmethod
+    def _validate_site_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Site ID is required.",
+            code="SITE_CALENDAR_ASSIGNMENT_SITE_REQUIRED",
+        )
+
+    @field_validator("calendar_id", mode="before")
+    @classmethod
+    def _validate_calendar_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Calendar ID is required.",
+            code="SITE_CALENDAR_ASSIGNMENT_CALENDAR_REQUIRED",
+        )
+
+    @field_validator("effective_from", "effective_to", mode="before")
+    @classmethod
+    def _validate_dates(cls, value: object) -> date | None:
+        return _normalize_optional_date(value)
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def _normalize_priority(cls, value: object) -> int:
+        return _normalize_int(value, default=0)
+
+    @model_validator(mode="after")
+    def _validate_effective_range(self) -> "SiteCalendarAssignment":
+        if (
+            self.effective_from is not None
+            and self.effective_to is not None
+            and self.effective_to < self.effective_from
+        ):
+            raise ValidationError(
+                "effective_to must be after effective_from.",
+                code="SITE_CALENDAR_ASSIGNMENT_DATE_RANGE_INVALID",
+            )
+        return self
 
     @staticmethod
     def create(
@@ -1063,7 +1207,7 @@ class SiteCalendarAssignment:
         )
 
 
-@dataclass
+@validated_dataclass
 class DepartmentCalendarAssignment:
     id: str
     department_id: str
@@ -1072,6 +1216,56 @@ class DepartmentCalendarAssignment:
     effective_to: date | None = None
     is_default: bool = False
     priority: int = 0
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _validate_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Department calendar assignment ID is required.",
+            code="DEPARTMENT_CALENDAR_ASSIGNMENT_ID_REQUIRED",
+        )
+
+    @field_validator("department_id", mode="before")
+    @classmethod
+    def _validate_department_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Department ID is required.",
+            code="DEPARTMENT_CALENDAR_ASSIGNMENT_DEPARTMENT_REQUIRED",
+        )
+
+    @field_validator("calendar_id", mode="before")
+    @classmethod
+    def _validate_calendar_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Calendar ID is required.",
+            code="DEPARTMENT_CALENDAR_ASSIGNMENT_CALENDAR_REQUIRED",
+        )
+
+    @field_validator("effective_from", "effective_to", mode="before")
+    @classmethod
+    def _validate_dates(cls, value: object) -> date | None:
+        return _normalize_optional_date(value)
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def _normalize_priority(cls, value: object) -> int:
+        return _normalize_int(value, default=0)
+
+    @model_validator(mode="after")
+    def _validate_effective_range(self) -> "DepartmentCalendarAssignment":
+        if (
+            self.effective_from is not None
+            and self.effective_to is not None
+            and self.effective_to < self.effective_from
+        ):
+            raise ValidationError(
+                "effective_to must be after effective_from.",
+                code="DEPARTMENT_CALENDAR_ASSIGNMENT_DATE_RANGE_INVALID",
+            )
+        return self
 
     @staticmethod
     def create(
@@ -1094,7 +1288,7 @@ class DepartmentCalendarAssignment:
         )
 
 
-@dataclass
+@validated_dataclass
 class EmployeeCalendarAssignment:
     id: str
     employee_id: str
@@ -1103,6 +1297,56 @@ class EmployeeCalendarAssignment:
     effective_to: date | None = None
     is_default: bool = False
     priority: int = 0
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _validate_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Employee calendar assignment ID is required.",
+            code="EMPLOYEE_CALENDAR_ASSIGNMENT_ID_REQUIRED",
+        )
+
+    @field_validator("employee_id", mode="before")
+    @classmethod
+    def _validate_employee_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Employee ID is required.",
+            code="EMPLOYEE_CALENDAR_ASSIGNMENT_EMPLOYEE_REQUIRED",
+        )
+
+    @field_validator("calendar_id", mode="before")
+    @classmethod
+    def _validate_calendar_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Calendar ID is required.",
+            code="EMPLOYEE_CALENDAR_ASSIGNMENT_CALENDAR_REQUIRED",
+        )
+
+    @field_validator("effective_from", "effective_to", mode="before")
+    @classmethod
+    def _validate_dates(cls, value: object) -> date | None:
+        return _normalize_optional_date(value)
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def _normalize_priority(cls, value: object) -> int:
+        return _normalize_int(value, default=0)
+
+    @model_validator(mode="after")
+    def _validate_effective_range(self) -> "EmployeeCalendarAssignment":
+        if (
+            self.effective_from is not None
+            and self.effective_to is not None
+            and self.effective_to < self.effective_from
+        ):
+            raise ValidationError(
+                "effective_to must be after effective_from.",
+                code="EMPLOYEE_CALENDAR_ASSIGNMENT_DATE_RANGE_INVALID",
+            )
+        return self
 
     @staticmethod
     def create(

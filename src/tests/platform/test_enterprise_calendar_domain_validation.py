@@ -7,9 +7,13 @@ import pytest
 from src.core.platform.calendar.domain.enterprise_calendar import (
     CalendarException,
     CalendarRecurringEvent,
+    CalendarWorkingRule,
+    DepartmentCalendarAssignment,
+    EmployeeCalendarAssignment,
     PlatformCalendar,
     ShiftPattern,
     ShiftPatternDay,
+    SiteCalendarAssignment,
 )
 from src.core.platform.common.exceptions import ValidationError
 
@@ -181,3 +185,149 @@ def test_shift_pattern_and_day_dto_normalize_aliases_and_validate_ranges() -> No
             day_offset=-1,
         )
     assert exc_day_offset.value.code == "SHIFT_PATTERN_DAY_OFFSET_INVALID"
+
+
+def test_calendar_working_rule_dto_normalizes_and_validates_ranges() -> None:
+    rule = CalendarWorkingRule.create(
+        calendar_id="  cal-1  ",
+        weekday="1",
+        is_working_day=True,
+        start_time=time(8, 0),
+        end_time=time(17, 0),
+        break_start_time=time(12, 0),
+        break_end_time=time(12, 30),
+        break_minutes="30",
+        hours_override="7.5",
+        shift_code="  day  ",
+        effective_from=date(2026, 1, 1),
+        effective_to=date(2026, 12, 31),
+        priority="2",
+    )
+
+    assert rule.calendar_id == "cal-1"
+    assert rule.weekday == 1
+    assert rule.break_minutes == 30
+    assert rule.hours_override == 7.5
+    assert rule.shift_code == "day"
+    assert rule.priority == 2
+
+    with pytest.raises(ValidationError) as exc_id:
+        CalendarWorkingRule(id=" ", calendar_id="cal-1", weekday=1)
+    assert exc_id.value.code == "CALENDAR_RULE_ID_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_weekday:
+        CalendarWorkingRule.create(
+            calendar_id="cal-1",
+            weekday=7,
+        )
+    assert exc_weekday.value.code == "CALENDAR_RULE_WEEKDAY_INVALID"
+
+    with pytest.raises(ValidationError) as exc_hours:
+        CalendarWorkingRule.create(
+            calendar_id="cal-1",
+            weekday=1,
+            hours_override="-1",
+        )
+    assert exc_hours.value.code == "CALENDAR_RULE_HOURS_OVERRIDE_INVALID"
+
+    with pytest.raises(ValidationError) as exc_time:
+        CalendarWorkingRule.create(
+            calendar_id="cal-1",
+            weekday=1,
+            start_time=time(17, 0),
+            end_time=time(8, 0),
+        )
+    assert exc_time.value.code == "CALENDAR_RULE_TIME_RANGE_INVALID"
+
+    with pytest.raises(ValidationError) as exc_range:
+        CalendarWorkingRule.create(
+            calendar_id="cal-1",
+            weekday=1,
+            effective_from=date(2026, 12, 31),
+            effective_to=date(2026, 1, 1),
+        )
+    assert exc_range.value.code == "CALENDAR_RULE_EFFECTIVE_RANGE_INVALID"
+
+
+def test_calendar_assignment_dtos_normalize_and_validate_ranges() -> None:
+    site_assignment = SiteCalendarAssignment.create(
+        site_id="  site-1  ",
+        calendar_id="  cal-1  ",
+        effective_from=date(2026, 1, 1),
+        effective_to=date(2026, 12, 31),
+        priority="2",
+    )
+    department_assignment = DepartmentCalendarAssignment.create(
+        department_id="  dept-1  ",
+        calendar_id="  cal-1  ",
+        effective_from=date(2026, 1, 1),
+        effective_to=date(2026, 12, 31),
+        priority="3",
+    )
+    employee_assignment = EmployeeCalendarAssignment.create(
+        employee_id="  emp-1  ",
+        calendar_id="  cal-1  ",
+        effective_from=date(2026, 1, 1),
+        effective_to=date(2026, 12, 31),
+        priority="4",
+    )
+
+    assert site_assignment.site_id == "site-1"
+    assert site_assignment.calendar_id == "cal-1"
+    assert site_assignment.priority == 2
+    assert department_assignment.department_id == "dept-1"
+    assert department_assignment.priority == 3
+    assert employee_assignment.employee_id == "emp-1"
+    assert employee_assignment.priority == 4
+
+    with pytest.raises(ValidationError) as exc_site_required:
+        SiteCalendarAssignment.create(site_id=" ", calendar_id="cal-1")
+    assert exc_site_required.value.code == "SITE_CALENDAR_ASSIGNMENT_SITE_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_calendar_required:
+        SiteCalendarAssignment.create(site_id="site-1", calendar_id=" ")
+    assert exc_calendar_required.value.code == "SITE_CALENDAR_ASSIGNMENT_CALENDAR_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_site_range:
+        SiteCalendarAssignment.create(
+            site_id="site-1",
+            calendar_id="cal-1",
+            effective_from=date(2026, 12, 31),
+            effective_to=date(2026, 1, 1),
+        )
+    assert exc_site_range.value.code == "SITE_CALENDAR_ASSIGNMENT_DATE_RANGE_INVALID"
+
+    with pytest.raises(ValidationError) as exc_department_required:
+        DepartmentCalendarAssignment.create(department_id=" ", calendar_id="cal-1")
+    assert (
+        exc_department_required.value.code
+        == "DEPARTMENT_CALENDAR_ASSIGNMENT_DEPARTMENT_REQUIRED"
+    )
+
+    with pytest.raises(ValidationError) as exc_department_range:
+        DepartmentCalendarAssignment.create(
+            department_id="dept-1",
+            calendar_id="cal-1",
+            effective_from=date(2026, 12, 31),
+            effective_to=date(2026, 1, 1),
+        )
+    assert (
+        exc_department_range.value.code
+        == "DEPARTMENT_CALENDAR_ASSIGNMENT_DATE_RANGE_INVALID"
+    )
+
+    with pytest.raises(ValidationError) as exc_employee_required:
+        EmployeeCalendarAssignment.create(employee_id=" ", calendar_id="cal-1")
+    assert (
+        exc_employee_required.value.code
+        == "EMPLOYEE_CALENDAR_ASSIGNMENT_EMPLOYEE_REQUIRED"
+    )
+
+    with pytest.raises(ValidationError) as exc_employee_range:
+        EmployeeCalendarAssignment.create(
+            employee_id="emp-1",
+            calendar_id="cal-1",
+            effective_from=date(2026, 12, 31),
+            effective_to=date(2026, 1, 1),
+        )
+    assert exc_employee_range.value.code == "EMPLOYEE_CALENDAR_ASSIGNMENT_DATE_RANGE_INVALID"

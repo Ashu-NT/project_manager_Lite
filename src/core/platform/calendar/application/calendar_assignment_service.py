@@ -65,8 +65,6 @@ class CalendarAssignmentService:
         require_permission(
             self._user_session, "task.manage", operation_label="assign site calendar"
         )
-        self._require_calendar(calendar_id)
-        self._validate_dates(effective_from, effective_to)
         assignment = SiteCalendarAssignment.create(
             site_id=site_id,
             calendar_id=calendar_id,
@@ -75,6 +73,7 @@ class CalendarAssignmentService:
             is_default=is_default,
             priority=priority,
         )
+        self._require_calendar(assignment.calendar_id)
         self._assignment_repo.save_site_assignment(assignment)
         self._session.commit()
         return assignment
@@ -109,8 +108,6 @@ class CalendarAssignmentService:
         require_permission(
             self._user_session, "task.manage", operation_label="assign department calendar"
         )
-        self._require_calendar(calendar_id)
-        self._validate_dates(effective_from, effective_to)
         assignment = DepartmentCalendarAssignment.create(
             department_id=department_id,
             calendar_id=calendar_id,
@@ -119,6 +116,7 @@ class CalendarAssignmentService:
             is_default=is_default,
             priority=priority,
         )
+        self._require_calendar(assignment.calendar_id)
         self._assignment_repo.save_department_assignment(assignment)
         self._session.commit()
         return assignment
@@ -159,8 +157,6 @@ class CalendarAssignmentService:
         require_permission(
             self._user_session, "task.manage", operation_label="assign employee calendar"
         )
-        self._require_calendar(calendar_id)
-        self._validate_dates(effective_from, effective_to)
         assignment = EmployeeCalendarAssignment.create(
             employee_id=employee_id,
             calendar_id=calendar_id,
@@ -169,6 +165,7 @@ class CalendarAssignmentService:
             is_default=is_default,
             priority=priority,
         )
+        self._require_calendar(assignment.calendar_id)
         self._assignment_repo.save_employee_assignment(assignment)
         self._session.commit()
         return assignment

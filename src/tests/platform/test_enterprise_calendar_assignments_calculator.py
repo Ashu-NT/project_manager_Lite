@@ -190,6 +190,42 @@ def test_assignment_removal(assignment_service, global_cal):
     assert fetched is None
 
 
+def test_platform_calendar_assignments_normalize_dto_inputs(
+    assignment_service, global_cal
+):
+    site_assignment = assignment_service.assign_site_calendar(
+        "  site-hamburg  ",
+        f"  {global_cal.id}  ",
+        priority="2",
+    )
+    department_assignment = assignment_service.assign_department_calendar(
+        "  dept-eng  ",
+        f"  {global_cal.id}  ",
+        priority="3",
+    )
+    employee_assignment = assignment_service.assign_employee_calendar(
+        "  emp-jsmith  ",
+        f"  {global_cal.id}  ",
+        priority="4",
+    )
+
+    assert site_assignment.site_id == "site-hamburg"
+    assert site_assignment.calendar_id == global_cal.id
+    assert site_assignment.priority == 2
+
+    assert department_assignment.department_id == "dept-eng"
+    assert department_assignment.calendar_id == global_cal.id
+    assert department_assignment.priority == 3
+
+    assert employee_assignment.employee_id == "emp-jsmith"
+    assert employee_assignment.calendar_id == global_cal.id
+    assert employee_assignment.priority == 4
+
+    assert assignment_service.get_site_calendar("site-hamburg").priority == 2
+    assert assignment_service.get_department_calendar("dept-eng").priority == 3
+    assert assignment_service.get_employee_calendar("emp-jsmith").priority == 4
+
+
 # ---------------------------------------------------------------------------
 # Tests — WorkingTimeCalculator
 # ---------------------------------------------------------------------------

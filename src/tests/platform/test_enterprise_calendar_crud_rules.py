@@ -280,3 +280,30 @@ def test_working_rule_hours_override(rule_service, global_cal):
         hours_override=6.0,
     )
     assert rule.compute_hours() == 6.0
+
+
+def test_working_rule_save_normalizes_dto_inputs(rule_service, global_cal):
+    rule = rule_service.save_rule(
+        f"  {global_cal.id}  ",
+        weekday="1",
+        is_working_day=True,
+        start_time=time(8, 0),
+        end_time=time(17, 0),
+        break_minutes="45",
+        hours_override="7.25",
+        shift_code="  day  ",
+        effective_from=date(2026, 1, 1),
+        effective_to=date(2026, 12, 31),
+        priority="2",
+    )
+
+    assert rule.calendar_id == global_cal.id
+    assert rule.weekday == 1
+    assert rule.break_minutes == 45
+    assert rule.hours_override == 7.25
+    assert rule.shift_code == "day"
+    assert rule.priority == 2
+
+    stored = next(item for item in rule_service.list_rules(global_cal.id) if item.id == rule.id)
+    assert stored.calendar_id == global_cal.id
+    assert stored.weekday == 1

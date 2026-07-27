@@ -147,6 +147,7 @@ Notes:
 - `UserTenantMembership` was migrated in the seventeenth slice
 - `Role`, `Permission`, `UserRoleBinding`, and `RolePermissionBinding` were migrated in the eighteenth slice
 - `ModuleEntitlementRecord` was migrated in the nineteenth slice
+- `CalendarWorkingRule`, `SiteCalendarAssignment`, `DepartmentCalendarAssignment`, and `EmployeeCalendarAssignment` were migrated in the twentieth slice
 
 #### Maintenance
 
@@ -803,6 +804,34 @@ Notes:
 - create/update scalar normalization now lives on the shared shift-pattern write model
 - `ShiftPatternDay` now validates its own local create/save invariants as part of this slice because services directly construct it
 - legacy `FIXED` pattern values normalize to the canonical standard pattern shape for compatibility with seeded tests and repository reconstruction
+
+#### `CalendarWorkingRule`, `SiteCalendarAssignment`, `DepartmentCalendarAssignment`, and `EmployeeCalendarAssignment`
+
+Status:
+
+- completed
+
+Entity responsibilities:
+
+- require owning calendar and scoped assignment identifiers
+- normalize weekday and priority integers
+- normalize optional shift-code text
+- validate non-negative break minutes and hours overrides
+- validate working-rule time windows and effective-date ranges
+
+Service responsibilities:
+
+- calendar existence and active-calendar policy
+- weekday uniqueness per calendar
+- assignment persistence and effectivity lookup behavior
+- PM-side project/resource delegation and tenant-scoped repository policy
+
+Notes:
+
+- create/save scalar normalization now lives on the shared working-rule and platform calendar-assignment write models
+- weekday coercion, shift-code trimming, break-minute and hours-override coercion, and effective-range validation now happen on `CalendarWorkingRule`
+- site, department, and employee assignment identifiers plus assignment priorities and date-range validation now normalize at the DTO boundary
+- calendar existence checks, active/inactive policy, assignment lookup semantics, PM delegation, and repository scoping remain service- and repository-owned
 
 #### `DocumentStructure`, `Document`, and `DocumentLink`
 
