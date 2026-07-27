@@ -4,13 +4,18 @@ from datetime import date, datetime, timedelta, timezone
 
 from src.core.modules.inventory_procurement.domain._validation import (
     ITEM_CATEGORY_TYPES,
+    MAINTENANCE_SOURCE_REFERENCE_TYPES,
+    INVENTORY_SOURCE_REFERENCE_TYPES,
     normalize_inventory_code,
     normalize_inventory_name,
     normalize_item_category_type,
     normalize_nonnegative_days,
     normalize_nonnegative_quantity,
+    normalize_maintenance_source_reference_type,
     normalize_optional_date,
     normalize_optional_text,
+    normalize_positive_quantity,
+    normalize_source_reference_type,
     normalize_status,
     normalize_uom,
 )
@@ -72,36 +77,6 @@ RESERVATION_STATUS_TRANSITIONS = {
     "RELEASED": set(),
     "CANCELLED": set(),
 }
-
-INVENTORY_SOURCE_REFERENCE_TYPES: tuple[str, ...] = (
-    "task",
-    "work_order",
-    "maintenance_task",
-    "maintenance_work_order",
-    "maintenance_request",
-    "maintenance_operation",
-    "maintenance_plan",
-    "maintenance_material_demand",
-    "reservation",
-    "requisition",
-    "purchase_order",
-)
-
-MAINTENANCE_SOURCE_REFERENCE_TYPES: tuple[str, ...] = (
-    "maintenance_task",
-    "maintenance_work_order",
-    "maintenance_request",
-    "maintenance_operation",
-    "maintenance_plan",
-    "maintenance_material_demand",
-)
-
-def normalize_positive_quantity(value: float | int | None, *, label: str) -> float:
-    amount = float(value or 0.0)
-    if amount <= 0:
-        raise ValidationError(f"{label} must be greater than zero.", code="INVENTORY_QUANTITY_REQUIRED")
-    return amount
-
 
 def resolve_configured_uom_ratio(
     *,
@@ -175,33 +150,6 @@ def convert_item_unit_cost_to_stock(
 ) -> float:
     factor = resolve_item_uom_factor(item, uom, label=label)
     return normalize_nonnegative_quantity(unit_cost, label=label) / factor
-
-def normalize_source_reference_type(value: str | None) -> str:
-    normalized = normalize_optional_text(value).lower()
-    if not normalized:
-        return ""
-    if normalized not in INVENTORY_SOURCE_REFERENCE_TYPES:
-        raise ValidationError(
-            "Source reference type is invalid.",
-            code="INVENTORY_SOURCE_REFERENCE_TYPE_INVALID",
-        )
-    return normalized
-
-
-def normalize_maintenance_source_reference_type(value: str | None) -> str:
-    normalized = normalize_optional_text(value).lower()
-    if not normalized:
-        raise ValidationError(
-            "Maintenance source reference type is required.",
-            code="INVENTORY_MAINTENANCE_SOURCE_REFERENCE_REQUIRED",
-        )
-    if normalized not in MAINTENANCE_SOURCE_REFERENCE_TYPES:
-        raise ValidationError(
-            "Maintenance source reference type is invalid.",
-            code="INVENTORY_MAINTENANCE_SOURCE_REFERENCE_INVALID",
-        )
-    return normalized
-
 
 def validate_receipt_tracking(
     *,

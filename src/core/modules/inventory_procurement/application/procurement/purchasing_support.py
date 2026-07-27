@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -13,6 +14,9 @@ from src.core.modules.inventory_procurement.application.common.support import (
     validate_transition,
 )
 from src.core.modules.inventory_procurement.domain.catalog.item import StockItem
+from src.core.modules.inventory_procurement.domain._validation import (
+    normalize_currency_code as domain_normalize_currency_code,
+)
 from src.core.modules.inventory_procurement.domain.inventory.stock import StockBalance
 from src.core.modules.inventory_procurement.domain.procurement.purchasing import (
     PurchaseOrder,
@@ -38,10 +42,7 @@ def build_receipt_number() -> str:
 
 
 def normalize_currency_code(value: str | None, *, fallback: str = "") -> str:
-    normalized = normalize_optional_text(value).upper() or normalize_optional_text(fallback).upper()
-    if not normalized:
-        raise ValidationError("Currency code is required.", code="INVENTORY_CURRENCY_REQUIRED")
-    return normalized
+    return domain_normalize_currency_code(value, fallback=fallback)
 
 
 class PurchasingSupportMixin:
@@ -188,8 +189,11 @@ class PurchasingSupportMixin:
             next_status=next_status.value,
             transitions=REQUISITION_STATUS_TRANSITIONS,
         )
-        requisition.status = next_status
-        requisition.updated_at = datetime.now(timezone.utc)
+        requisition = replace(
+            requisition,
+            status=next_status,
+            updated_at=datetime.now(timezone.utc),
+        )
         self._requisition_repo.update(requisition)
 
     def _adjust_on_order_balance(
@@ -223,9 +227,12 @@ class PurchasingSupportMixin:
         new_on_order = float(balance.on_order_qty or 0.0) + float(delta_in_stock_uom)
         if new_on_order < 0:
             raise ValidationError("On-order quantity cannot become negative.", code="INVENTORY_NEGATIVE_ON_ORDER")
-        balance.on_order_qty = new_on_order
-        balance.uom = item.stock_uom
-        balance.updated_at = effective_at
+        balance = replace(
+            balance,
+            on_order_qty=new_on_order,
+            uom=item.stock_uom,
+            updated_at=effective_at,
+        )
         if is_new_balance:
             self._balance_repo.add(balance)
         else:

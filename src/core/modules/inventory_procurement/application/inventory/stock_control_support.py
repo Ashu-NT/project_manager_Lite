@@ -34,7 +34,7 @@ class StockControlSupportMixin:
         if previous_on_hand <= 0:
             return unit_cost
         previous_average = float(balance.average_cost or 0.0)
-        new_on_hand = float(balance.on_hand_qty or 0.0)
+        new_on_hand = float(previous_on_hand) + float(delta or 0.0)
         if new_on_hand <= 0:
             return unit_cost
         return ((previous_on_hand * previous_average) + (quantity * unit_cost)) / new_on_hand

@@ -8,8 +8,19 @@ from src.core.modules.inventory_procurement.domain import (
     CycleCount,
     CycleCountStatus,
     InventoryItemCategory,
+    PurchaseOrder,
+    PurchaseOrderLine,
+    PurchaseOrderLineStatus,
+    PurchaseOrderStatus,
+    PurchaseRequisition,
+    PurchaseRequisitionLine,
+    PurchaseRequisitionLineStatus,
+    PurchaseRequisitionStatus,
     ReorderPolicy,
+    StockBalance,
     StockItem,
+    StockReservation,
+    StockReservationStatus,
     StorageLocation,
     StorageLocationType,
     Storeroom,
@@ -225,3 +236,364 @@ def test_inventory_catalog_and_foundation_dtos_raise_expected_validation_codes()
             completed_at=created_at - timedelta(minutes=30),
         )
     assert exc_cycle.value.code == "INVENTORY_CYCLE_COUNT_COMPLETED_RANGE_INVALID"
+
+
+def test_inventory_stock_operation_dtos_normalize_fields_and_validate_ranges() -> None:
+    updated_at = datetime(2026, 7, 21, 15, 0, tzinfo=timezone.utc)
+    balance = StockBalance(
+        id="  bal-1  ",
+        organization_id="  org-1  ",
+        stock_item_id="  item-1  ",
+        storeroom_id="  store-1  ",
+        uom=" ea ",
+        on_hand_qty="10",
+        reserved_qty="2.5",
+        available_qty="7.5",
+        on_order_qty="4",
+        committed_qty="1.5",
+        average_cost="12.34",
+        last_receipt_at=datetime(2026, 7, 20, 8, 0, tzinfo=timezone.utc),
+        last_issue_at=datetime(2026, 7, 21, 10, 30, tzinfo=timezone.utc),
+        updated_at=updated_at,
+        version="2",
+    )
+
+    assert balance.id == "bal-1"
+    assert balance.organization_id == "org-1"
+    assert balance.stock_item_id == "item-1"
+    assert balance.storeroom_id == "store-1"
+    assert balance.uom == "EA"
+    assert balance.on_hand_qty == 10.0
+    assert balance.reserved_qty == 2.5
+    assert balance.available_qty == 7.5
+    assert balance.on_order_qty == 4.0
+    assert balance.committed_qty == 1.5
+    assert balance.average_cost == 12.34
+    assert balance.version == 2
+
+    reservation = StockReservation(
+        id="  res-1  ",
+        organization_id="  org-1  ",
+        reservation_number="  inv-res-001  ",
+        stock_item_id="  item-1  ",
+        storeroom_id="  store-1  ",
+        reserved_qty="5",
+        issued_qty="2",
+        remaining_qty="999",
+        uom=" ea ",
+        status=" partially_issued ",
+        need_by_date="2026-07-30",
+        source_reference_type=" work_order ",
+        source_reference_id="  wo-1  ",
+        source_module="  maintenance_management  ",
+        source_entity_type="  work_order  ",
+        source_code_snapshot="  wo-001  ",
+        source_title_snapshot="  Pump Overhaul  ",
+        source_status_snapshot="  approved  ",
+        requested_by_user_id="  user-1  ",
+        requested_by_username="  Alex Planner  ",
+        created_at=datetime(2026, 7, 20, 9, 0, tzinfo=timezone.utc),
+        notes="  reserve for shutdown  ",
+        version="2",
+    )
+
+    assert reservation.id == "res-1"
+    assert reservation.organization_id == "org-1"
+    assert reservation.reservation_number == "INV-RES-001"
+    assert reservation.uom == "EA"
+    assert reservation.status is StockReservationStatus.PARTIALLY_ISSUED
+    assert reservation.need_by_date == date(2026, 7, 30)
+    assert reservation.source_reference_type == "work_order"
+    assert reservation.source_reference_id == "wo-1"
+    assert reservation.source_module == "maintenance_management"
+    assert reservation.source_entity_type == "work_order"
+    assert reservation.source_code_snapshot == "wo-001"
+    assert reservation.source_title_snapshot == "Pump Overhaul"
+    assert reservation.source_status_snapshot == "approved"
+    assert reservation.requested_by_user_id == "user-1"
+    assert reservation.requested_by_username == "Alex Planner"
+    assert reservation.notes == "reserve for shutdown"
+    assert reservation.remaining_qty == 3.0
+    assert reservation.version == 2
+
+
+def test_inventory_stock_operation_dtos_raise_expected_validation_codes() -> None:
+    with pytest.raises(ValidationError) as exc_balance:
+        StockBalance(
+            id="bal-1",
+            organization_id="org-1",
+            stock_item_id="item-1",
+            storeroom_id="store-1",
+            uom="EA",
+            on_hand_qty=10,
+            reserved_qty=3,
+            available_qty=8,
+            updated_at=datetime(2026, 7, 21, 12, 0, tzinfo=timezone.utc),
+        )
+    assert exc_balance.value.code == "INVENTORY_STOCK_BALANCE_AVAILABLE_INVALID"
+
+    with pytest.raises(ValidationError) as exc_source:
+        StockReservation.create(
+            organization_id="org-1",
+            reservation_number="INV-RES-002",
+            stock_item_id="item-1",
+            storeroom_id="store-1",
+            reserved_qty=2,
+            uom="EA",
+            source_reference_type="",
+            source_reference_id="",
+        )
+    assert exc_source.value.code == "INVENTORY_RESERVATION_SOURCE_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_qty:
+        StockReservation(
+            id="res-2",
+            organization_id="org-1",
+            reservation_number="INV-RES-003",
+            stock_item_id="item-1",
+            storeroom_id="store-1",
+            reserved_qty=5,
+            issued_qty=0,
+            remaining_qty=5,
+            uom="EA",
+            status=StockReservationStatus.PARTIALLY_ISSUED,
+            source_reference_type="work_order",
+            source_reference_id="wo-2",
+            created_at=datetime(2026, 7, 21, 8, 0, tzinfo=timezone.utc),
+        )
+    assert exc_qty.value.code == "INVENTORY_RESERVATION_QTY_INVALID"
+
+    with pytest.raises(ValidationError) as exc_closed:
+        StockReservation(
+            id="res-3",
+            organization_id="org-1",
+            reservation_number="INV-RES-004",
+            stock_item_id="item-1",
+            storeroom_id="store-1",
+            reserved_qty=5,
+            issued_qty=5,
+            remaining_qty=0,
+            uom="EA",
+            status=StockReservationStatus.RELEASED,
+            source_reference_type="work_order",
+            source_reference_id="wo-3",
+            created_at=datetime(2026, 7, 21, 8, 0, tzinfo=timezone.utc),
+            released_at=datetime(2026, 7, 21, 10, 0, tzinfo=timezone.utc),
+            cancelled_at=datetime(2026, 7, 21, 11, 0, tzinfo=timezone.utc),
+    )
+    assert exc_closed.value.code == "INVENTORY_RESERVATION_CLOSED_STATE_INVALID"
+
+
+def test_inventory_procurement_dtos_normalize_fields_and_validate_ranges() -> None:
+    requisition = PurchaseRequisition(
+        id="  req-1  ",
+        organization_id="  org-1  ",
+        requisition_number="  req-001  ",
+        requesting_site_id="  site-1  ",
+        requesting_storeroom_id="  store-1  ",
+        requester_user_id="  user-1  ",
+        requester_username="  Buyer One  ",
+        status=" approved ",
+        purpose="  Restock rotating spares  ",
+        needed_by_date="2026-08-15",
+        priority=" high ",
+        approval_request_id="  appr-1  ",
+        source_reference_type=" task ",
+        source_reference_id="  task-1  ",
+        source_module="  project_management  ",
+        source_entity_type="  task  ",
+        source_code_snapshot="  tsk-001  ",
+        source_title_snapshot="  Replace pump seals  ",
+        source_status_snapshot="  approved  ",
+        submitted_at=datetime(2026, 7, 20, 8, 0, tzinfo=timezone.utc),
+        approved_at=datetime(2026, 7, 21, 8, 0, tzinfo=timezone.utc),
+        notes="  expedite  ",
+        created_at=datetime(2026, 7, 19, 8, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 7, 21, 8, 0, tzinfo=timezone.utc),
+        version="2",
+    )
+
+    assert requisition.id == "req-1"
+    assert requisition.requisition_number == "REQ-001"
+    assert requisition.requesting_site_id == "site-1"
+    assert requisition.requesting_storeroom_id == "store-1"
+    assert requisition.requester_user_id == "user-1"
+    assert requisition.requester_username == "Buyer One"
+    assert requisition.status is PurchaseRequisitionStatus.APPROVED
+    assert requisition.purpose == "Restock rotating spares"
+    assert requisition.needed_by_date == date(2026, 8, 15)
+    assert requisition.priority == "HIGH"
+    assert requisition.approval_request_id == "appr-1"
+    assert requisition.source_reference_type == "task"
+    assert requisition.source_reference_id == "task-1"
+    assert requisition.source_module == "project_management"
+    assert requisition.source_entity_type == "task"
+    assert requisition.source_code_snapshot == "tsk-001"
+    assert requisition.source_title_snapshot == "Replace pump seals"
+    assert requisition.source_status_snapshot == "approved"
+    assert requisition.notes == "expedite"
+    assert requisition.version == 2
+
+    requisition_line = PurchaseRequisitionLine(
+        id="  req-line-1  ",
+        purchase_requisition_id="  req-1  ",
+        line_number="1",
+        stock_item_id="  item-1  ",
+        description="  Pump seal kit  ",
+        quantity_requested="5",
+        uom=" ea ",
+        needed_by_date="2026-08-15",
+        estimated_unit_cost="12.5",
+        quantity_sourced="2",
+        suggested_supplier_party_id="  supplier-1  ",
+        status=" partially_sourced ",
+        notes="  primary supplier  ",
+    )
+
+    assert requisition_line.id == "req-line-1"
+    assert requisition_line.purchase_requisition_id == "req-1"
+    assert requisition_line.line_number == 1
+    assert requisition_line.stock_item_id == "item-1"
+    assert requisition_line.description == "Pump seal kit"
+    assert requisition_line.quantity_requested == 5.0
+    assert requisition_line.uom == "EA"
+    assert requisition_line.needed_by_date == date(2026, 8, 15)
+    assert requisition_line.estimated_unit_cost == 12.5
+    assert requisition_line.quantity_sourced == 2.0
+    assert requisition_line.suggested_supplier_party_id == "supplier-1"
+    assert requisition_line.status is PurchaseRequisitionLineStatus.PARTIALLY_SOURCED
+    assert requisition_line.notes == "primary supplier"
+
+    purchase_order = PurchaseOrder(
+        id="  po-1  ",
+        organization_id="  org-1  ",
+        po_number="  po-001  ",
+        site_id="  site-1  ",
+        supplier_party_id="  supplier-1  ",
+        status=" sent ",
+        order_date="2026-07-22",
+        expected_delivery_date="2026-07-24",
+        currency_code=" eur ",
+        approval_request_id="  appr-po-1  ",
+        source_requisition_id="  req-1  ",
+        supplier_reference="  sup-ref-01  ",
+        submitted_at=datetime(2026, 7, 21, 8, 0, tzinfo=timezone.utc),
+        approved_at=datetime(2026, 7, 22, 8, 0, tzinfo=timezone.utc),
+        sent_at=datetime(2026, 7, 22, 10, 0, tzinfo=timezone.utc),
+        notes="  release to vendor  ",
+        created_at=datetime(2026, 7, 20, 8, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 7, 22, 10, 0, tzinfo=timezone.utc),
+        version="3",
+    )
+
+    assert purchase_order.id == "po-1"
+    assert purchase_order.po_number == "PO-001"
+    assert purchase_order.site_id == "site-1"
+    assert purchase_order.supplier_party_id == "supplier-1"
+    assert purchase_order.status is PurchaseOrderStatus.SENT
+    assert purchase_order.order_date == date(2026, 7, 22)
+    assert purchase_order.expected_delivery_date == date(2026, 7, 24)
+    assert purchase_order.currency_code == "EUR"
+    assert purchase_order.approval_request_id == "appr-po-1"
+    assert purchase_order.source_requisition_id == "req-1"
+    assert purchase_order.supplier_reference == "sup-ref-01"
+    assert purchase_order.notes == "release to vendor"
+    assert purchase_order.version == 3
+
+    purchase_order_line = PurchaseOrderLine(
+        id="  po-line-1  ",
+        purchase_order_id="  po-1  ",
+        line_number="1",
+        stock_item_id="  item-1  ",
+        destination_storeroom_id="  store-1  ",
+        description="  Pump seal kit  ",
+        quantity_ordered="5",
+        quantity_received="4",
+        quantity_rejected="1",
+        uom=" ea ",
+        unit_price="11.25",
+        expected_delivery_date="2026-07-24",
+        source_requisition_line_id="  req-line-1  ",
+        status=" fully_received ",
+        notes="  final receipt  ",
+    )
+
+    assert purchase_order_line.id == "po-line-1"
+    assert purchase_order_line.purchase_order_id == "po-1"
+    assert purchase_order_line.line_number == 1
+    assert purchase_order_line.stock_item_id == "item-1"
+    assert purchase_order_line.destination_storeroom_id == "store-1"
+    assert purchase_order_line.description == "Pump seal kit"
+    assert purchase_order_line.quantity_ordered == 5.0
+    assert purchase_order_line.quantity_received == 4.0
+    assert purchase_order_line.quantity_rejected == 1.0
+    assert purchase_order_line.uom == "EA"
+    assert purchase_order_line.unit_price == 11.25
+    assert purchase_order_line.expected_delivery_date == date(2026, 7, 24)
+    assert purchase_order_line.source_requisition_line_id == "req-line-1"
+    assert purchase_order_line.status is PurchaseOrderLineStatus.FULLY_RECEIVED
+    assert purchase_order_line.notes == "final receipt"
+
+
+def test_inventory_procurement_dtos_raise_expected_validation_codes() -> None:
+    with pytest.raises(ValidationError) as exc_source:
+        PurchaseRequisition(
+            id="req-2",
+            organization_id="org-1",
+            requisition_number="REQ-002",
+            requesting_site_id="site-1",
+            requesting_storeroom_id="store-1",
+            source_reference_type="task",
+            source_reference_id="",
+        )
+    assert exc_source.value.code == "INVENTORY_REQUISITION_SOURCE_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_priority:
+        PurchaseRequisition(
+            id="req-3",
+            organization_id="org-1",
+            requisition_number="REQ-003",
+            requesting_site_id="site-1",
+            requesting_storeroom_id="store-1",
+            priority="rush-now",
+        )
+    assert exc_priority.value.code == "INVENTORY_PROCUREMENT_PRIORITY_INVALID"
+
+    with pytest.raises(ValidationError) as exc_requisition_line:
+        PurchaseRequisitionLine(
+            id="req-line-2",
+            purchase_requisition_id="req-1",
+            line_number=1,
+            stock_item_id="item-1",
+            quantity_requested=5,
+            quantity_sourced=6,
+            uom="EA",
+        )
+    assert exc_requisition_line.value.code == "INVENTORY_REQUISITION_LINE_QTY_INVALID"
+
+    with pytest.raises(ValidationError) as exc_purchase_order:
+        PurchaseOrder(
+            id="po-2",
+            organization_id="org-1",
+            po_number="PO-002",
+            site_id="site-1",
+            supplier_party_id="supplier-1",
+            order_date=date(2026, 7, 25),
+            expected_delivery_date=date(2026, 7, 24),
+            currency_code="EUR",
+        )
+    assert exc_purchase_order.value.code == "INVENTORY_PURCHASE_ORDER_DELIVERY_RANGE_INVALID"
+
+    with pytest.raises(ValidationError) as exc_purchase_order_line:
+        PurchaseOrderLine(
+            id="po-line-2",
+            purchase_order_id="po-1",
+            line_number=1,
+            stock_item_id="item-1",
+            destination_storeroom_id="store-1",
+            quantity_ordered=5,
+            quantity_received=4,
+            quantity_rejected=2,
+            uom="EA",
+        )
+    assert exc_purchase_order_line.value.code == "INVENTORY_PURCHASE_ORDER_LINE_QTY_INVALID"

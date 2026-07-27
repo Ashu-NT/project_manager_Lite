@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from src.core.modules.inventory_procurement.application.common.support import (
@@ -40,12 +41,16 @@ class ProcurementApprovalMixin:
             next_status=PurchaseRequisitionStatus.APPROVED.value,
             transitions=REQUISITION_STATUS_TRANSITIONS,
         )
-        requisition.status = PurchaseRequisitionStatus.APPROVED
-        requisition.approved_at = datetime.now(timezone.utc)
-        requisition.updated_at = requisition.approved_at
+        effective_at = datetime.now(timezone.utc)
+        requisition = replace(
+            requisition,
+            status=PurchaseRequisitionStatus.APPROVED,
+            approved_at=effective_at,
+            updated_at=effective_at,
+        )
         self._requisition_repo.update(requisition)
         for line in self._requisition_line_repo.list_for_requisition(requisition.id):
-            line.status = PurchaseRequisitionLineStatus.OPEN
+            line = replace(line, status=PurchaseRequisitionLineStatus.OPEN)
             self._requisition_line_repo.update(line)
         record_activity(
             self,
@@ -83,11 +88,14 @@ class ProcurementApprovalMixin:
             next_status=PurchaseRequisitionStatus.REJECTED.value,
             transitions=REQUISITION_STATUS_TRANSITIONS,
         )
-        requisition.status = PurchaseRequisitionStatus.REJECTED
-        requisition.updated_at = datetime.now(timezone.utc)
+        requisition = replace(
+            requisition,
+            status=PurchaseRequisitionStatus.REJECTED,
+            updated_at=datetime.now(timezone.utc),
+        )
         self._requisition_repo.update(requisition)
         for line in self._requisition_line_repo.list_for_requisition(requisition.id):
-            line.status = PurchaseRequisitionLineStatus.REJECTED
+            line = replace(line, status=PurchaseRequisitionLineStatus.REJECTED)
             self._requisition_line_repo.update(line)
         record_activity(
             self,

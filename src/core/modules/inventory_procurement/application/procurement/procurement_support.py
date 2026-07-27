@@ -6,6 +6,9 @@ from src.core.modules.inventory_procurement.application.common.support import (
     BUSINESS_PARTY_TYPES,
     normalize_optional_text,
 )
+from src.core.modules.inventory_procurement.domain._validation import (
+    normalize_procurement_priority as domain_normalize_procurement_priority,
+)
 from src.core.modules.inventory_procurement.domain.procurement.purchasing import (
     PurchaseRequisition,
     PurchaseRequisitionStatus,
@@ -21,8 +24,7 @@ def build_requisition_number() -> str:
 
 
 def normalize_priority(value: str | None) -> str:
-    normalized = normalize_optional_text(value).upper()
-    return normalized or "NORMAL"
+    return domain_normalize_procurement_priority(value)
 
 
 class ProcurementSupportMixin:

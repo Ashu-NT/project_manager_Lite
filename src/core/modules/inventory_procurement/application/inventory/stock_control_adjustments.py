@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -234,22 +235,29 @@ class StockControlAdjustmentMixin:
                 "Transaction would make available quantity negative.",
                 code="INVENTORY_NEGATIVE_AVAILABLE",
             )
-        balance.on_hand_qty = new_on_hand
-        balance.available_qty = max(0.0, new_on_hand - previous_reserved)
-        balance.uom = item.stock_uom
-        balance.average_cost = self._resolve_average_cost(
+        next_average_cost = self._resolve_average_cost(
             balance=balance,
             previous_on_hand=previous_on_hand,
             delta=delta,
             quantity=stock_quantity,
             unit_cost=stock_unit_cost,
         )
-        if delta > 0:
-            balance.last_receipt_at = effective_at
-        else:
-            balance.last_issue_at = effective_at
-        balance.reorder_required = bool(item.reorder_point and balance.available_qty <= float(item.reorder_point or 0.0))
-        balance.updated_at = effective_at
+        balance = replace(
+            balance,
+            on_hand_qty=new_on_hand,
+            reserved_qty=previous_reserved,
+            available_qty=max(0.0, new_on_hand - previous_reserved),
+            uom=item.stock_uom,
+            average_cost=next_average_cost,
+            last_receipt_at=effective_at if delta > 0 else balance.last_receipt_at,
+            last_issue_at=effective_at if delta <= 0 else balance.last_issue_at,
+            reorder_required=bool(
+                item.reorder_point
+                and max(0.0, new_on_hand - previous_reserved)
+                <= float(item.reorder_point or 0.0)
+            ),
+            updated_at=effective_at,
+        )
         principal = self._user_session.principal if self._user_session is not None else None
         transaction = StockTransaction.create(
             organization_id=organization.id,
@@ -352,11 +360,17 @@ class StockControlAdjustmentMixin:
                 "Reservation would make available quantity negative.",
                 code="INVENTORY_NEGATIVE_AVAILABLE",
             )
-        balance.reserved_qty = new_reserved
-        balance.available_qty = new_available
-        balance.uom = item.stock_uom
-        balance.reorder_required = bool(item.reorder_point and balance.available_qty <= float(item.reorder_point or 0.0))
-        balance.updated_at = effective_at
+        balance = replace(
+            balance,
+            reserved_qty=new_reserved,
+            available_qty=new_available,
+            uom=item.stock_uom,
+            reorder_required=bool(
+                item.reorder_point
+                and new_available <= float(item.reorder_point or 0.0)
+            ),
+            updated_at=effective_at,
+        )
         principal = self._user_session.principal if self._user_session is not None else None
         transaction = StockTransaction.create(
             organization_id=organization.id,

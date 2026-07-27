@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from src.core.modules.inventory_procurement.application.common.support import (
@@ -17,6 +18,7 @@ from src.core.modules.inventory_procurement.application.procurement.purchasing_s
 from src.core.modules.inventory_procurement.domain.procurement.purchasing import (
     PurchaseOrderLineStatus,
     PurchaseOrderStatus,
+    PurchaseRequisitionLineStatus,
     ReceiptHeader,
     ReceiptLine,
 )
@@ -138,9 +140,21 @@ class PurchasingReceivingMixin:
                 )
                 self._receipt_line_repo.add(receipt_line)
                 created_receipt_lines.append(receipt_line)
-                po_line.quantity_received += accepted
-                po_line.quantity_rejected += rejected
-                po_line.status = self._resolve_purchase_order_line_status(po_line, treat_open=True)
+                next_received = float(po_line.quantity_received or 0.0) + accepted
+                next_rejected = float(po_line.quantity_rejected or 0.0) + rejected
+                next_processed = next_received + next_rejected
+                if next_processed <= 0:
+                    next_status = PurchaseOrderLineStatus.OPEN
+                elif next_processed >= float(po_line.quantity_ordered or 0.0):
+                    next_status = PurchaseOrderLineStatus.FULLY_RECEIVED
+                else:
+                    next_status = PurchaseOrderLineStatus.PARTIALLY_RECEIVED
+                po_line = replace(
+                    po_line,
+                    quantity_received=next_received,
+                    quantity_rejected=next_rejected,
+                    status=next_status,
+                )
                 self._purchase_order_line_repo.update(po_line)
                 if accepted > 0:
                     transaction = self._stock_service.post_adjustment(
@@ -179,10 +193,16 @@ class PurchasingReceivingMixin:
                 )
                 if balance is not None:
                     touched_balance_ids.add(balance.id)
-            purchase_order.status = self._resolve_purchase_order_receiving_status(
-                self._purchase_order_line_repo.list_for_purchase_order(purchase_order.id)
+            purchase_order = replace(
+                purchase_order,
+                status=self._resolve_purchase_order_receiving_status(
+                    self._purchase_order_line_repo.list_for_purchase_order(purchase_order.id)
+                ),
+                updated_at=max(
+                    effective_receipt_date,
+                    purchase_order.updated_at or effective_receipt_date,
+                ),
             )
-            purchase_order.updated_at = effective_receipt_date
             self._purchase_order_repo.update(purchase_order)
             self._session.commit()
         except Exception:
@@ -248,15 +268,18 @@ class PurchasingReceivingMixin:
             transitions=PURCHASE_ORDER_STATUS_TRANSITIONS,
         )
         effective_at = datetime.now(timezone.utc)
-        purchase_order.status = PurchaseOrderStatus.APPROVED
-        purchase_order.approved_at = effective_at
-        purchase_order.updated_at = effective_at
+        purchase_order = replace(
+            purchase_order,
+            status=PurchaseOrderStatus.APPROVED,
+            approved_at=effective_at,
+            updated_at=effective_at,
+        )
         self._purchase_order_repo.update(purchase_order)
         lines = self._purchase_order_line_repo.list_for_purchase_order(purchase_order.id)
         touched_requisition_ids: set[str] = set()
         touched_balance_ids: set[str] = set()
         for line in lines:
-            line.status = PurchaseOrderLineStatus.OPEN
+            line = replace(line, status=PurchaseOrderLineStatus.OPEN)
             self._purchase_order_line_repo.update(line)
             self._adjust_on_order_balance(
                 organization_id=purchase_order.organization_id,
@@ -289,8 +312,18 @@ class PurchasingReceivingMixin:
                         "Approved purchase order would oversource the requisition line.",
                         code="INVENTORY_REQUISITION_LINE_OVERSOURCED",
                     )
-                requisition_line.quantity_sourced = new_sourced_qty
-                requisition_line.status = self._resolve_requisition_line_status(requisition_line)
+                requested_qty = float(requisition_line.quantity_requested or 0.0)
+                if new_sourced_qty <= 0:
+                    next_requisition_status = PurchaseRequisitionLineStatus.OPEN
+                elif new_sourced_qty >= requested_qty:
+                    next_requisition_status = PurchaseRequisitionLineStatus.FULLY_SOURCED
+                else:
+                    next_requisition_status = PurchaseRequisitionLineStatus.PARTIALLY_SOURCED
+                requisition_line = replace(
+                    requisition_line,
+                    quantity_sourced=new_sourced_qty,
+                    status=next_requisition_status,
+                )
                 self._requisition_line_repo.update(requisition_line)
                 touched_requisition_ids.add(requisition_line.purchase_requisition_id)
         for requisition_id in touched_requisition_ids:
@@ -338,11 +371,14 @@ class PurchasingReceivingMixin:
             next_status=PurchaseOrderStatus.REJECTED.value,
             transitions=PURCHASE_ORDER_STATUS_TRANSITIONS,
         )
-        purchase_order.status = PurchaseOrderStatus.REJECTED
-        purchase_order.updated_at = datetime.now(timezone.utc)
+        purchase_order = replace(
+            purchase_order,
+            status=PurchaseOrderStatus.REJECTED,
+            updated_at=datetime.now(timezone.utc),
+        )
         self._purchase_order_repo.update(purchase_order)
         for line in self._purchase_order_line_repo.list_for_purchase_order(purchase_order.id):
-            line.status = PurchaseOrderLineStatus.CANCELLED
+            line = replace(line, status=PurchaseOrderLineStatus.CANCELLED)
             self._purchase_order_line_repo.update(line)
         record_activity(
             self,

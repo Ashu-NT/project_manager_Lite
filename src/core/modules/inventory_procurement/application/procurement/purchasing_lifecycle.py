@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -66,8 +67,8 @@ class PurchasingLifecycleMixin:
             source_requisition_id=requisition.id if requisition is not None else None,
             order_date=order_date,
             expected_delivery_date=expected_delivery_date,
-            supplier_reference=normalize_optional_text(supplier_reference),
-            notes=normalize_optional_text(notes),
+            supplier_reference=supplier_reference,
+            notes=notes,
         )
         try:
             self._purchase_order_repo.add(purchase_order)
@@ -140,29 +141,30 @@ class PurchasingLifecycleMixin:
                 "Destination storeroom does not allow receiving.",
                 code="INVENTORY_RECEIVING_FORBIDDEN",
             )
-        normalized_uom = normalize_uom(uom or item.stock_uom, label="Purchase-order line UOM")
-        resolve_item_uom_factor(item, normalized_uom, label="Purchase-order line UOM")
-        source_line = self._validate_source_requisition_line(
-            purchase_order=purchase_order,
-            item=item,
-            source_requisition_line_id=source_requisition_line_id,
-            quantity_ordered=quantity_ordered,
-            quantity_ordered_uom=normalized_uom,
-        )
         next_line_number = len(self._purchase_order_line_repo.list_for_purchase_order(purchase_order.id)) + 1
         line = PurchaseOrderLine.create(
             purchase_order_id=purchase_order.id,
             line_number=next_line_number,
             stock_item_id=item.id,
             destination_storeroom_id=storeroom.id,
-            description=normalize_optional_text(description) or item.name,
-            quantity_ordered=normalize_positive_quantity(quantity_ordered, label="Purchase-order quantity"),
-            uom=normalized_uom,
-            unit_price=normalize_nonnegative_quantity(unit_price, label="Unit price"),
+            description=description or item.name,
+            quantity_ordered=quantity_ordered,
+            uom=uom or item.stock_uom,
+            unit_price=unit_price,
             expected_delivery_date=expected_delivery_date,
-            source_requisition_line_id=source_line.id if source_line is not None else None,
-            notes=normalize_optional_text(notes),
+            source_requisition_line_id=source_requisition_line_id,
+            notes=notes,
         )
+        resolve_item_uom_factor(item, line.uom, label="Purchase-order line UOM")
+        source_line = self._validate_source_requisition_line(
+            purchase_order=purchase_order,
+            item=item,
+            source_requisition_line_id=line.source_requisition_line_id,
+            quantity_ordered=line.quantity_ordered,
+            quantity_ordered_uom=line.uom,
+        )
+        if source_line is not None and line.source_requisition_line_id != source_line.id:
+            line = replace(line, source_requisition_line_id=source_line.id)
         try:
             self._purchase_order_line_repo.add(line)
             self._session.commit()
@@ -235,10 +237,14 @@ class PurchasingLifecycleMixin:
             next_status=PurchaseOrderStatus.SUBMITTED.value,
             transitions=PURCHASE_ORDER_STATUS_TRANSITIONS,
         )
-        purchase_order.status = PurchaseOrderStatus.SUBMITTED
-        purchase_order.approval_request_id = request.id
-        purchase_order.submitted_at = datetime.now(timezone.utc)
-        purchase_order.updated_at = purchase_order.submitted_at
+        effective_at = datetime.now(timezone.utc)
+        purchase_order = replace(
+            purchase_order,
+            status=PurchaseOrderStatus.SUBMITTED,
+            approval_request_id=request.id,
+            submitted_at=effective_at,
+            updated_at=effective_at,
+        )
         self._purchase_order_repo.update(purchase_order)
         self._session.commit()
         record_activity(
@@ -293,19 +299,24 @@ class PurchasingLifecycleMixin:
                 code="INVENTORY_SUPPLIER_SCOPE_INVALID",
             )
         requisition = self._validate_source_requisition(source_requisition_id, organization.id)
-        purchase_order.site_id = site.id
-        purchase_order.supplier_party_id = supplier.id
-        purchase_order.currency_code = normalize_currency_code(
-            currency_code,
-            fallback=getattr(site, "currency_code", ""),
+        purchase_order = replace(
+            purchase_order,
+            site_id=site.id,
+            supplier_party_id=supplier.id,
+            currency_code=normalize_currency_code(
+                currency_code,
+                fallback=getattr(site, "currency_code", ""),
+            ),
+            source_requisition_id=requisition.id if requisition is not None else None,
+            expected_delivery_date=expected_delivery_date,
+            supplier_reference=(
+                purchase_order.supplier_reference
+                if supplier_reference is None
+                else supplier_reference
+            ),
+            notes=purchase_order.notes if notes is None else notes,
+            updated_at=datetime.now(timezone.utc),
         )
-        purchase_order.source_requisition_id = requisition.id if requisition is not None else None
-        purchase_order.expected_delivery_date = expected_delivery_date
-        if supplier_reference is not None:
-            purchase_order.supplier_reference = normalize_optional_text(supplier_reference)
-        if notes is not None:
-            purchase_order.notes = normalize_optional_text(notes)
-        purchase_order.updated_at = datetime.now(timezone.utc)
         try:
             self._purchase_order_repo.update(purchase_order)
             self._session.commit()
@@ -348,12 +359,15 @@ class PurchasingLifecycleMixin:
             transitions=PURCHASE_ORDER_STATUS_TRANSITIONS,
         )
         effective_at = datetime.now(timezone.utc)
-        purchase_order.status = PurchaseOrderStatus.CANCELLED
-        purchase_order.cancelled_at = effective_at
-        purchase_order.updated_at = effective_at
+        purchase_order = replace(
+            purchase_order,
+            status=PurchaseOrderStatus.CANCELLED,
+            cancelled_at=effective_at,
+            updated_at=effective_at,
+        )
         lines = self._purchase_order_line_repo.list_for_purchase_order(purchase_order.id)
         for line in lines:
-            line.status = PurchaseOrderLineStatus.CANCELLED
+            line = replace(line, status=PurchaseOrderLineStatus.CANCELLED)
             self._purchase_order_line_repo.update(line)
         try:
             self._purchase_order_repo.update(purchase_order)
@@ -389,11 +403,17 @@ class PurchasingLifecycleMixin:
             transitions=PURCHASE_ORDER_STATUS_TRANSITIONS,
         )
         effective_at = datetime.now(timezone.utc)
-        purchase_order.status = PurchaseOrderStatus.SENT
-        purchase_order.sent_at = effective_at
-        if purchase_order.order_date is None:
-            purchase_order.order_date = effective_at.date()
-        purchase_order.updated_at = effective_at
+        purchase_order = replace(
+            purchase_order,
+            status=PurchaseOrderStatus.SENT,
+            sent_at=effective_at,
+            order_date=(
+                purchase_order.order_date
+                or purchase_order.expected_delivery_date
+                or effective_at.date()
+            ),
+            updated_at=effective_at,
+        )
         try:
             self._purchase_order_repo.update(purchase_order)
             self._session.commit()
@@ -439,9 +459,12 @@ class PurchasingLifecycleMixin:
             transitions=PURCHASE_ORDER_STATUS_TRANSITIONS,
         )
         effective_at = datetime.now(timezone.utc)
-        purchase_order.status = PurchaseOrderStatus.CLOSED
-        purchase_order.closed_at = effective_at
-        purchase_order.updated_at = effective_at
+        purchase_order = replace(
+            purchase_order,
+            status=PurchaseOrderStatus.CLOSED,
+            closed_at=effective_at,
+            updated_at=effective_at,
+        )
         try:
             self._purchase_order_repo.update(purchase_order)
             self._session.commit()

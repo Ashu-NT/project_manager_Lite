@@ -26,6 +26,28 @@ ITEM_CATEGORY_TYPES = frozenset(
 
 ITEM_STATUS_VALUES = frozenset({"DRAFT", "ACTIVE", "INACTIVE", "OBSOLETE"})
 STOREROOM_STATUS_VALUES = frozenset({"DRAFT", "ACTIVE", "INACTIVE", "CLOSED"})
+PROCUREMENT_PRIORITY_VALUES = frozenset({"LOW", "NORMAL", "HIGH", "URGENT"})
+INVENTORY_SOURCE_REFERENCE_TYPES: tuple[str, ...] = (
+    "task",
+    "work_order",
+    "maintenance_task",
+    "maintenance_work_order",
+    "maintenance_request",
+    "maintenance_operation",
+    "maintenance_plan",
+    "maintenance_material_demand",
+    "reservation",
+    "requisition",
+    "purchase_order",
+)
+MAINTENANCE_SOURCE_REFERENCE_TYPES: tuple[str, ...] = (
+    "maintenance_task",
+    "maintenance_work_order",
+    "maintenance_request",
+    "maintenance_operation",
+    "maintenance_plan",
+    "maintenance_material_demand",
+)
 
 EnumT = TypeVar("EnumT", bound=Enum)
 
@@ -119,6 +141,23 @@ def normalize_uom(value: object, *, label: str) -> str:
     return normalized
 
 
+def normalize_procurement_priority(value: object) -> str:
+    normalized = normalize_optional_upper_text(value) or "NORMAL"
+    if normalized not in PROCUREMENT_PRIORITY_VALUES:
+        raise ValidationError(
+            "Procurement priority is invalid.",
+            code="INVENTORY_PROCUREMENT_PRIORITY_INVALID",
+        )
+    return normalized
+
+
+def normalize_currency_code(value: object, *, fallback: object = "") -> str:
+    normalized = normalize_optional_upper_text(value) or normalize_optional_upper_text(fallback)
+    if not normalized:
+        raise ValidationError("Currency code is required.", code="INVENTORY_CURRENCY_REQUIRED")
+    return normalized
+
+
 def normalize_nonnegative_quantity(value: object, *, label: str) -> float:
     try:
         amount = float(value or 0.0)
@@ -126,6 +165,16 @@ def normalize_nonnegative_quantity(value: object, *, label: str) -> float:
         raise ValidationError(f"{label} is invalid.", code="INVENTORY_QUANTITY_INVALID") from exc
     if amount < 0:
         raise ValidationError(f"{label} cannot be negative.", code="INVENTORY_QUANTITY_INVALID")
+    return amount
+
+
+def normalize_positive_quantity(value: object, *, label: str) -> float:
+    amount = normalize_nonnegative_quantity(value, label=label)
+    if amount <= 0:
+        raise ValidationError(
+            f"{label} must be greater than zero.",
+            code="INVENTORY_QUANTITY_REQUIRED",
+        )
     return amount
 
 
@@ -181,13 +230,45 @@ def normalize_enum(
         raise ValidationError(message, code=code) from exc
 
 
+def normalize_source_reference_type(value: str | None) -> str:
+    normalized = normalize_optional_text(value).lower()
+    if not normalized:
+        return ""
+    if normalized not in INVENTORY_SOURCE_REFERENCE_TYPES:
+        raise ValidationError(
+            "Source reference type is invalid.",
+            code="INVENTORY_SOURCE_REFERENCE_TYPE_INVALID",
+        )
+    return normalized
+
+
+def normalize_maintenance_source_reference_type(value: str | None) -> str:
+    normalized = normalize_optional_text(value).lower()
+    if not normalized:
+        raise ValidationError(
+            "Maintenance source reference type is required.",
+            code="INVENTORY_MAINTENANCE_SOURCE_REFERENCE_REQUIRED",
+        )
+    if normalized not in MAINTENANCE_SOURCE_REFERENCE_TYPES:
+        raise ValidationError(
+            "Maintenance source reference type is invalid.",
+            code="INVENTORY_MAINTENANCE_SOURCE_REFERENCE_INVALID",
+        )
+    return normalized
+
+
 __all__ = [
     "ITEM_CATEGORY_TYPES",
     "ITEM_STATUS_VALUES",
+    "INVENTORY_SOURCE_REFERENCE_TYPES",
+    "MAINTENANCE_SOURCE_REFERENCE_TYPES",
+    "PROCUREMENT_PRIORITY_VALUES",
     "STOREROOM_STATUS_VALUES",
+    "normalize_currency_code",
     "normalize_enum",
     "normalize_inventory_code",
     "normalize_inventory_name",
+    "normalize_maintenance_source_reference_type",
     "normalize_item_category_type",
     "normalize_nonnegative_days",
     "normalize_nonnegative_quantity",
@@ -197,8 +278,11 @@ __all__ = [
     "normalize_optional_nonnegative_quantity",
     "normalize_optional_text",
     "normalize_optional_upper_text",
+    "normalize_procurement_priority",
     "normalize_positive_int",
+    "normalize_positive_quantity",
     "normalize_required_text",
+    "normalize_source_reference_type",
     "normalize_status",
     "normalize_uom",
 ]
