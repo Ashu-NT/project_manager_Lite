@@ -6,9 +6,7 @@ from typing import TYPE_CHECKING
 from src.core.platform.auth.domain import UserRoleBinding
 
 from .default_seed_service import (
-    ensure_default_permissions,
-    ensure_default_roles,
-    ensure_role_permissions,
+    ensure_auth_policy_defaults,
     resolve_bootstrap_admin_password,
 )
 
@@ -19,12 +17,7 @@ if TYPE_CHECKING:
 
 
 def bootstrap_defaults(service: AuthService) -> UserAccount:
-    ensure_default_permissions(service)
-    service._session.flush()
-    role_map = ensure_default_roles(service)
-    service._session.flush()
-    ensure_role_permissions(service, role_map)
-    service._session.flush()
+    role_map = ensure_auth_policy_defaults(service)
 
     admin_username = (os.getenv("PM_ADMIN_USERNAME", "admin").strip() or "admin").lower()
     admin = service._user_repo.get_by_username(admin_username)

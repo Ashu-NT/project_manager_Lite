@@ -30,6 +30,11 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
         orm.organization_id = orm.organization_id or ctx.organization_id
         self.session.add(orm)
 
+    def add_platform(self, entry: AuditEntry) -> None:
+        if entry.tenant_id is not None or entry.organization_id is not None:
+            raise ValueError("Platform audit entries cannot carry customer tenant context.")
+        self.session.add(audit_entry_to_orm(entry))
+
     def list_recent(
         self,
         limit: int = 100,

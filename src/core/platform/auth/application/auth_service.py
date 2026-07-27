@@ -27,6 +27,7 @@ from . import bootstrap_service as _bootstrap
 from . import federated_identity_service as _fed
 from . import mfa_service as _mfa
 from . import password_service as _pw
+from . import platform_owner_provisioning_service as _platform_owner
 from . import principal_builder as _principal
 from . import registration_service as _reg
 from . import role_assignment_service as _roles
@@ -71,6 +72,26 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
 
     def bootstrap_defaults(self) -> UserAccount:
         return _bootstrap.bootstrap_defaults(self)
+
+    def provision_platform_owner(
+        self,
+        *,
+        username: str,
+        raw_password: str,
+        audit_writer: _platform_owner.PlatformAuditWriter,
+        display_name: str = "Platform Owner",
+        email: str | None = None,
+        provisioning_actor: str = "deployment",
+    ) -> _platform_owner.PlatformOwnerProvisioningResult:
+        return _platform_owner.provision_platform_owner(
+            self,
+            username=username,
+            raw_password=raw_password,
+            audit_writer=audit_writer,
+            display_name=display_name,
+            email=email,
+            provisioning_actor=provisioning_actor,
+        )
 
     def register_user(
         self,

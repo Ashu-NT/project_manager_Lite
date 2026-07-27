@@ -1,0 +1,144 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Protocol
+
+from sqlalchemy.exc import IntegrityError
+
+from src.core.platform.audit.domain import AuditEntry
+from src.core.platform.auth.domain import (
+    UserAccount,
+    UserRoleBinding,
+    normalize_auth_username,
+)
+from src.core.platform.auth.passwords import hash_password
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
+
+from .default_seed_service import ensure_auth_policy_defaults
+
+if TYPE_CHECKING:
+    from .auth_service import AuthService
+
+
+LEGACY_PLATFORM_OWNER_ROLE = "admin"
+
+
+class PlatformAuditWriter(Protocol):
+    def add_platform(self, entry: AuditEntry) -> None: ...
+
+
+@dataclass(frozen=True)
+class PlatformOwnerProvisioningResult:
+    user_id: str
+    username: str
+    created: bool
+
+
+def _find_platform_owners(
+    service: AuthService,
+    *,
+    role_id: str,
+) -> list[UserAccount]:
+    return [
+        user
+        for user in service._user_repo.list_all()
+        if service._user_role_repo.exists(user.id, role_id)
+    ]
+
+
+def provision_platform_owner(
+    service: AuthService,
+    *,
+    username: str,
+    raw_password: str,
+    audit_writer: PlatformAuditWriter,
+    display_name: str = "Platform Owner",
+    email: str | None = None,
+    provisioning_actor: str = "deployment",
+) -> PlatformOwnerProvisioningResult:
+    normalized_username = normalize_auth_username(username)
+    normalized_actor = str(provisioning_actor or "").strip() or "deployment"
+    try:
+        with service._session.begin_nested():
+            role_map = ensure_auth_policy_defaults(service)
+            owner_role = role_map[LEGACY_PLATFORM_OWNER_ROLE]
+            owners = _find_platform_owners(service, role_id=owner_role.id)
+            if len(owners) > 1:
+                raise BusinessRuleError(
+                    "Multiple platform owners already exist; provisioning cannot continue.",
+                    code="PLATFORM_OWNER_AMBIGUOUS",
+                )
+            if owners:
+                owner = owners[0]
+                if owner.username != normalized_username:
+                    raise BusinessRuleError(
+                        "A platform owner already exists.",
+                        code="PLATFORM_OWNER_EXISTS",
+                    )
+                result = PlatformOwnerProvisioningResult(
+                    user_id=owner.id,
+                    username=owner.username,
+                    created=False,
+                )
+            else:
+                if service._user_repo.get_by_username(normalized_username) is not None:
+                    raise BusinessRuleError(
+                        "The requested username already exists and will not be promoted.",
+                        code="PLATFORM_OWNER_USERNAME_EXISTS",
+                    )
+                service._validate_password(raw_password)
+                owner = UserAccount.create(
+                    username=normalized_username,
+                    password_hash=hash_password(raw_password),
+                    display_name=display_name,
+                    email=email,
+                    is_active=True,
+                    must_change_password=True,
+                )
+                service._user_repo.add(owner)
+                service._user_role_repo.add(
+                    UserRoleBinding.create(
+                        user_id=owner.id,
+                        role_id=owner_role.id,
+                    )
+                )
+                audit_writer.add_platform(
+                    AuditEntry.create(
+                        operation="platform_owner.provision",
+                        entity_type="user",
+                        entity_id=owner.id,
+                        module="platform",
+                        actor_type="deployment",
+                        actor_username=normalized_actor,
+                        source="provisioning_cli",
+                        severity="critical",
+                        compliance_tag="SOC2",
+                        metadata={
+                            "username": owner.username,
+                            "legacy_role_name": LEGACY_PLATFORM_OWNER_ROLE,
+                            "must_change_password": True,
+                            "provisioning_version": 1,
+                        },
+                    )
+                )
+                result = PlatformOwnerProvisioningResult(
+                    user_id=owner.id,
+                    username=owner.username,
+                    created=True,
+                )
+        service._session.commit()
+        return result
+    except (BusinessRuleError, ValidationError, IntegrityError):
+        service._session.rollback()
+        raise
+    except Exception:
+        service._session.rollback()
+        raise
+
+
+__all__ = [
+    "LEGACY_PLATFORM_OWNER_ROLE",
+    "PlatformAuditWriter",
+    "PlatformOwnerProvisioningResult",
+    "provision_platform_owner",
+]

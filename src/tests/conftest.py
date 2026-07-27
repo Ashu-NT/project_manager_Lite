@@ -45,6 +45,9 @@ def reset_test_domain_events():
 
 @pytest.fixture(autouse=True)
 def bootstrap_admin_env(monkeypatch):
+    monkeypatch.setenv("PM_DEPLOYMENT_ENV", "test")
+    monkeypatch.setenv("PM_TENANCY_MODE", "local_single_tenant")
+    monkeypatch.setenv("PM_AUTHORIZATION_MIGRATION_MODE", "LEGACY_AUTHORITATIVE")
     monkeypatch.setenv("PM_ADMIN_USERNAME", "admin")
     monkeypatch.setenv("PM_ADMIN_PASSWORD", "ChangeMe123!")
     monkeypatch.delenv("PM_ALLOW_DEFAULT_ADMIN_PASSWORD", raising=False)

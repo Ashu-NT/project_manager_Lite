@@ -72,7 +72,18 @@ def ensure_role_permissions(service: AuthService, role_map: dict[str, Role]) -> 
                 )
 
 
+def ensure_auth_policy_defaults(service: AuthService) -> dict[str, Role]:
+    ensure_default_permissions(service)
+    service._session.flush()
+    role_map = ensure_default_roles(service)
+    service._session.flush()
+    ensure_role_permissions(service, role_map)
+    service._session.flush()
+    return role_map
+
+
 __all__ = [
+    "ensure_auth_policy_defaults",
     "ensure_default_permissions",
     "ensure_default_roles",
     "ensure_role_permissions",

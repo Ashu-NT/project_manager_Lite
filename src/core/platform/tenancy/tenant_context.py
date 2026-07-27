@@ -7,6 +7,10 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
 from src.core.platform.tenancy.contracts import TenantRepository, UserTenantMembershipRepository
+from src.core.platform.tenancy.context_policy import (
+    LocalSingleTenantContextPolicy,
+    TenantContextPolicy,
+)
 from src.core.platform.tenancy.domain.tenant import Tenant
 
 
@@ -32,11 +36,13 @@ class TenantContextService:
         organization_repo: OrganizationRepository,
         user_session: UserSessionContext | None = None,
         user_tenant_repo: UserTenantMembershipRepository | None = None,
+        context_policy: TenantContextPolicy | None = None,
     ) -> None:
         self._tenant_repo = tenant_repo
         self._organization_repo = organization_repo
         self._user_session = user_session
         self._user_tenant_repo = user_tenant_repo
+        self._context_policy = context_policy or LocalSingleTenantContextPolicy()
 
     def get_active_tenant_id(self) -> str | None:
         tenant = self.get_active_tenant()
@@ -52,13 +58,10 @@ class TenantContextService:
         return tenant.id
 
     def get_active_tenant(self) -> Tenant | None:
-        tenant_id = self._session_tenant_id()
-        if tenant_id:
-            tenant = self._tenant_repo.get(tenant_id)
-            if tenant is not None and tenant.is_active:
-                return tenant
-        # Fall back to the default (single-tenant desktop mode)
-        return self._tenant_repo.get_default()
+        return self._context_policy.resolve_active_tenant(
+            session_tenant_id=self._session_tenant_id(),
+            tenant_repo=self._tenant_repo,
+        )
 
     def set_active_tenant(self, tenant_id: str) -> Tenant:
         normalized_id = str(tenant_id or "").strip()

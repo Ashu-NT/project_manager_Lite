@@ -36,6 +36,7 @@ from src.core.platform.tenancy import (
     ORGANIZATION_SCOPE_ROLE_CHOICES,
     TenantAdminService,
     TenantContextService,
+    build_tenant_context_policy,
     normalize_organization_scope_role,
     resolve_organization_scope_permissions,
 )
@@ -54,6 +55,10 @@ from src.core.platform.calendar.application.global_calendar_shim import GlobalCa
 from src.core.platform.infrastructure.persistence.repositories.modules import SqlAlchemyModuleEntitlementRepository
 from src.core.platform.infrastructure.persistence.repositories.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
 from src.infra.composition.repositories import RepositoryBundle
+from src.infra.platform.security_config import (
+    RuntimeSecurityConfiguration,
+    load_runtime_security_configuration,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -94,20 +99,36 @@ class PlatformServiceBundle:
     working_time_calculator: WorkingTimeCalculator
     tenant_admin_service: TenantAdminService
     global_calendar_shim: GlobalCalendarShim
+    runtime_security_configuration: RuntimeSecurityConfiguration
 
 
 def build_platform_service_bundle(
     session: Session,
     repositories: RepositoryBundle,
+    *,
+    runtime_security_configuration: RuntimeSecurityConfiguration | None = None,
 ) -> PlatformServiceBundle:
     started = perf_counter()
     logger.debug("Platform service bundle build begin")
+    security_configuration = (
+        runtime_security_configuration or load_runtime_security_configuration()
+    )
+    logger.info(
+        "Runtime security configuration deployment_environment=%s tenancy_mode=%s "
+        "authorization_migration_mode=%s",
+        security_configuration.deployment_environment.value,
+        security_configuration.tenancy_mode.value,
+        security_configuration.authorization_migration_mode.value,
+    )
     user_session = UserSessionContext()
     tenant_context_service = TenantContextService(
         tenant_repo=repositories.tenant_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         user_tenant_repo=repositories.user_tenant_repo,
+        context_policy=build_tenant_context_policy(
+            security_configuration.tenancy_mode
+        ),
     )
     # Wire _tenant_context_service on all repos that support it.
     for _field_name in repositories.__dataclass_fields__:
@@ -466,6 +487,7 @@ def build_platform_service_bundle(
         working_time_calculator=working_time_calculator,
         tenant_admin_service=tenant_admin_service,
         global_calendar_shim=global_calendar_shim,
+        runtime_security_configuration=security_configuration,
     )
     logger.debug(
         "Platform service bundle build complete duration_ms=%.1f",
