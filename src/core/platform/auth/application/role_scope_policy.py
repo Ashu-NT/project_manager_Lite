@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from src.core.platform.auth.domain.role_binding import (
+    ROLE_SCOPE_PLATFORM,
+    ROLE_SCOPE_TENANT,
+)
 
 # Transitional classification for legacy global roles. Canonical role bindings
 # will move this metadata into the role model during the schema migration.
@@ -22,10 +26,20 @@ def is_customer_assignable_role(role_name: str) -> bool:
     )
 
 
+def system_role_scope_type(role_name: str) -> str:
+    normalized = normalize_role_name(role_name)
+    if normalized in PLATFORM_ROLE_NAMES:
+        return ROLE_SCOPE_PLATFORM
+    if normalized == "org_admin":
+        return "organization"
+    return ROLE_SCOPE_TENANT
+
+
 __all__ = [
     "EXPLICIT_SCOPE_ROLE_NAMES",
     "PLATFORM_ROLE_NAMES",
     "is_customer_assignable_role",
     "is_platform_role",
     "normalize_role_name",
+    "system_role_scope_type",
 ]

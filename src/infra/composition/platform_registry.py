@@ -36,6 +36,9 @@ from src.core.platform.tenancy import (
     ORGANIZATION_SCOPE_ROLE_CHOICES,
     TenantAdminService,
     TenantContextService,
+    TenancyMode,
+    Tenant,
+    UserTenantMembership,
     build_tenant_context_policy,
     normalize_organization_scope_role,
     resolve_organization_scope_permissions,
@@ -62,6 +65,73 @@ from src.infra.platform.security_config import (
 
 
 logger = logging.getLogger(__name__)
+
+
+def _bootstrap_local_single_tenant_context(
+    *,
+    session: Session,
+    repositories: RepositoryBundle,
+    user_session: UserSessionContext,
+    organization_service: OrganizationService,
+) -> None:
+    """Preserve explicit local-desktop defaults outside hosted SaaS mode."""
+    default_tenant = repositories.tenant_repo.get_default()
+    if default_tenant is None:
+        existing_organizations = repositories.organization_repo.list_all()
+        tenant_code = (
+            existing_organizations[0].organization_code
+            if existing_organizations
+            else "DEFAULT"
+        )
+        tenant_name = (
+            existing_organizations[0].display_name
+            if existing_organizations
+            else "Default Tenant"
+        )
+        default_tenant = Tenant.create(
+            tenant_code=tenant_code,
+            display_name=tenant_name,
+        )
+        repositories.tenant_repo.add(default_tenant)
+        session.flush()
+        for organization in existing_organizations:
+            if not organization.tenant_id:
+                organization.tenant_id = default_tenant.id
+                repositories.organization_repo.update(organization)
+        session.commit()
+        logger.debug(
+            "Platform local default tenant bootstrapped tenant_id=%s",
+            default_tenant.id,
+        )
+
+    user_session.set_active_tenant_id(default_tenant.id)
+    organization_service.bootstrap_defaults()
+
+    organizations = repositories.organization_repo.list_for_tenant(
+        default_tenant.id,
+        active_only=True,
+    )
+    if not organizations:
+        organizations = repositories.organization_repo.list_for_tenant(
+            default_tenant.id
+        )
+    if organizations:
+        user_session.set_active_organization_id(organizations[0].id)
+
+    for user in repositories.user_repo.list_all():
+        if repositories.user_tenant_repo.is_active_member(
+            user.id,
+            default_tenant.id,
+        ):
+            continue
+        repositories.user_tenant_repo.add(
+            UserTenantMembership.create(
+                user_id=user.id,
+                tenant_id=default_tenant.id,
+                tenant_role="member",
+            )
+        )
+    session.commit()
 
 
 @dataclass(frozen=True)
@@ -174,10 +244,13 @@ def build_platform_service_bundle(
     )
     user_session.set_validator(auth_service.validate_session_principal)
     user_session.set_context_listener(auth_service.persist_session_context)
-    logger.debug("Platform auth service created; bootstrapping defaults")
-    auth_service.bootstrap_defaults()
+    logger.debug("Platform auth service created; bootstrapping policy catalog")
+    if security_configuration.tenancy_mode is TenancyMode.LOCAL_SINGLE_TENANT:
+        auth_service.bootstrap_defaults()
+    else:
+        auth_service.bootstrap_policy_catalog()
     logger.debug(
-        "Platform auth defaults bootstrapped duration_ms=%.1f",
+        "Platform auth policy catalog bootstrapped duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
 
@@ -189,57 +262,19 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
     )
 
-    # H-6: Bootstrap default tenant BEFORE org so that the org is always created
-    # with a non-null tenant_id. organizations.tenant_id is now NOT NULL.
-    if repositories.tenant_repo.get_default() is None:
-        from src.core.platform.tenancy.domain.tenant import Tenant as _Tenant
-        _existing_orgs = repositories.organization_repo.list_all()
-        _tenant_code = _existing_orgs[0].organization_code if _existing_orgs else "DEFAULT"
-        _tenant_name = _existing_orgs[0].display_name if _existing_orgs else "Default Tenant"
-        _default_tenant = _Tenant.create(tenant_code=_tenant_code, display_name=_tenant_name)
-        repositories.tenant_repo.add(_default_tenant)
-        session.flush()
-        # Backfill any existing orgs that pre-date this run (e.g. live DB upgrade path)
-        for _org in _existing_orgs:
-            if not _org.tenant_id:
-                _org.tenant_id = _default_tenant.id
-                repositories.organization_repo.update(_org)
-        session.commit()
-        user_session.set_active_tenant_id(_default_tenant.id)
-        logger.debug("Platform default tenant bootstrapped tenant_id=%s", _default_tenant.id)
-
-    # Set active tenant in the session before org bootstrap so that
-    # organization_service.bootstrap_defaults() creates the org with the correct tenant_id.
-    if user_session.active_tenant_id() is None:
-        _dt = repositories.tenant_repo.get_default()
-        if _dt is not None:
-            user_session.set_active_tenant_id(_dt.id)
-
-    logger.debug("Platform organization service created; bootstrapping defaults")
-    organization_service.bootstrap_defaults()
-
-    if user_session.active_organization_id() is None:
-        # Bootstrap the local/session tenant explicitly after organization
-        # defaults exist. This does not make Organization.is_active a runtime
-        # selector for repositories; it seeds UserSession -> TenantContext.
-        organizations = repositories.organization_repo.list_all(active_only=True)
-        if not organizations:
-            organizations = repositories.organization_repo.list_all()
-        if organizations:
-            user_session.set_active_organization_id(organizations[0].id)
-
-    # Backfill all existing users into the default tenant if they have no membership.
-    # Admin is exempt from the membership check by role, but backfilling ensures
-    # list_for_tenant() returns admin users consistently.
-    _backfill_tenant = repositories.tenant_repo.get_default()
-    if _backfill_tenant is not None:
-        from src.core.platform.tenancy.domain.user_tenant_membership import UserTenantMembership as _UTM
-        for _u in repositories.user_repo.list_all():
-            if not repositories.user_tenant_repo.is_active_member(_u.id, _backfill_tenant.id):
-                repositories.user_tenant_repo.add(
-                    _UTM.create(user_id=_u.id, tenant_id=_backfill_tenant.id, tenant_role="member")
-                )
-        session.flush()
+    if security_configuration.tenancy_mode is TenancyMode.LOCAL_SINGLE_TENANT:
+        logger.debug("Bootstrapping explicit local single-tenant defaults")
+        _bootstrap_local_single_tenant_context(
+            session=session,
+            repositories=repositories,
+            user_session=user_session,
+            organization_service=organization_service,
+        )
+    else:
+        logger.info(
+            "SaaS startup skipped default tenant, organization, context, and "
+            "user-membership bootstrap"
+        )
 
     logger.debug(
         "Platform organization defaults bootstrapped duration_ms=%.1f",

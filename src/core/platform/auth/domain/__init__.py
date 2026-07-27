@@ -1,3 +1,15 @@
+from src.core.platform.auth.domain.policy_reconciliation import (
+    AuthPolicyReconciliation,
+)
+from src.core.platform.auth.domain.role_binding import (
+    RESOURCE_ROLE_SCOPE_TYPES,
+    ROLE_PRINCIPAL_USER,
+    ROLE_SCOPE_PLATFORM,
+    ROLE_SCOPE_TENANT,
+    ROLE_SCOPE_TYPES,
+    RoleBinding,
+    normalize_role_scope_type,
+)
 from src.core.platform.auth.domain.session import (
     AuthSession,
     UserSessionContext,
@@ -25,6 +37,13 @@ from src.core.platform.auth.domain.user import (
 )
 
 __all__ = [
+    "AuthPolicyReconciliation",
+    "RESOURCE_ROLE_SCOPE_TYPES",
+    "ROLE_PRINCIPAL_USER",
+    "ROLE_SCOPE_PLATFORM",
+    "ROLE_SCOPE_TENANT",
+    "ROLE_SCOPE_TYPES",
+    "RoleBinding",
     "AuthSession",
     "Permission",
     "Role",
@@ -45,5 +64,6 @@ __all__ = [
     "normalize_auth_session_datetime",
     "normalize_auth_session_user_id",
     "normalize_auth_username",
+    "normalize_role_scope_type",
     "validate_auth_email",
 ]

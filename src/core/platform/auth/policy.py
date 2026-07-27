@@ -249,9 +249,6 @@ _SUPPORT_ADMIN = {
 }
 
 _TENANT_ADMIN = {
-    "tenant.create",
-    "tenant.manage",
-    "tenant.read",
     "org.create",
     "org.manage",
     "organization.access",
@@ -292,6 +289,9 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "org_admin": set(_ORG_ADMIN),
     "admin": set(DEFAULT_PERMISSIONS.keys()),
 }
+
+SYSTEM_ROLE_POLICY_NAME = "system-role-permissions"
+SYSTEM_ROLE_POLICY_VERSION = 1
 
 
 def login_lockout_threshold() -> int:

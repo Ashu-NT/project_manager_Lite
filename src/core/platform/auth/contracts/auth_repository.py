@@ -4,9 +4,11 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 
 from src.core.platform.auth.domain import (
+    AuthPolicyReconciliation,
     AuthSession,
     Permission,
     Role,
+    RoleBinding,
     RolePermissionBinding,
     UserAccount,
     UserRoleBinding,
@@ -87,6 +89,22 @@ class RoleRepository(ABC):
     def list_all(self) -> list[Role]: ...
 
 
+class RoleBindingRepository(ABC):
+    @abstractmethod
+    def add(self, binding: RoleBinding) -> None: ...
+
+    @abstractmethod
+    def get(self, binding_id: str) -> RoleBinding | None: ...
+
+    @abstractmethod
+    def list_active_for_principal(
+        self,
+        principal_id: str,
+        *,
+        tenant_id: str | None,
+    ) -> list[RoleBinding]: ...
+
+
 class PermissionRepository(ABC):
     @abstractmethod
     def add(self, permission: Permission) -> None: ...
@@ -117,6 +135,9 @@ class UserRoleRepository(ABC):
     def list_role_ids_for_organization(self, user_id: str, organization_id: str) -> list[str]:
         return []
 
+    @abstractmethod
+    def list_user_ids_for_role(self, role_id: str) -> list[str]: ...
+
 
 class RolePermissionRepository(ABC):
     @abstractmethod
@@ -132,10 +153,25 @@ class RolePermissionRepository(ABC):
     def list_permission_ids(self, role_id: str) -> list[str]: ...
 
 
+class AuthPolicyReconciliationRepository(ABC):
+    @abstractmethod
+    def add(self, reconciliation: AuthPolicyReconciliation) -> None: ...
+
+    @abstractmethod
+    def get_latest(
+        self,
+        policy_name: str,
+        *,
+        for_update: bool = False,
+    ) -> AuthPolicyReconciliation | None: ...
+
+
 __all__ = [
+    "AuthPolicyReconciliationRepository",
     "AuthSessionRepository",
     "PermissionRepository",
     "RolePermissionRepository",
+    "RoleBindingRepository",
     "RoleRepository",
     "UserRepository",
     "UserRoleRepository",

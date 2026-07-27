@@ -79,6 +79,9 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
     def bootstrap_defaults(self) -> UserAccount:
         return _bootstrap.bootstrap_defaults(self)
 
+    def bootstrap_policy_catalog(self) -> None:
+        _bootstrap.bootstrap_policy_catalog(self)
+
     def provision_platform_owner(
         self,
         *,

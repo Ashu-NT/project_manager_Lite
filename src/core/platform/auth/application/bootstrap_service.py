@@ -17,6 +17,12 @@ if TYPE_CHECKING:
     from .auth_service import AuthService
 
 
+def bootstrap_policy_catalog(service: AuthService) -> None:
+    """Initialize fixed auth definitions without creating or promoting a user."""
+    ensure_auth_policy_defaults(service)
+    service._session.commit()
+
+
 def bootstrap_defaults(service: AuthService) -> UserAccount:
     role_map = ensure_auth_policy_defaults(service)
 
@@ -42,4 +48,4 @@ def bootstrap_defaults(service: AuthService) -> UserAccount:
     return admin
 
 
-__all__ = ["bootstrap_defaults"]
+__all__ = ["bootstrap_defaults", "bootstrap_policy_catalog"]

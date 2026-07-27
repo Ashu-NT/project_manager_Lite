@@ -58,8 +58,10 @@ from src.core.platform.infrastructure.persistence.repositories.approval import S
 from src.core.platform.infrastructure.persistence.repositories.audit_entry import SqlAlchemyAuditRepository
 from src.core.platform.infrastructure.persistence.repositories.platform_events import SqlAlchemyPlatformEventRepository
 from src.core.platform.infrastructure.persistence.repositories.auth import (
+    SqlAlchemyAuthPolicyReconciliationRepository,
     SqlAlchemyAuthSessionRepository,
     SqlAlchemyPermissionRepository,
+    SqlAlchemyRoleBindingRepository,
     SqlAlchemyRolePermissionRepository,
     SqlAlchemyRoleRepository,
     SqlAlchemyUserRepository,
@@ -119,7 +121,9 @@ class RepositoryBundle:
     project_resource_repo: SqlAlchemyProjectResourceRepository
     user_repo: SqlAlchemyUserRepository
     auth_session_repo: SqlAlchemyAuthSessionRepository
+    auth_policy_reconciliation_repo: SqlAlchemyAuthPolicyReconciliationRepository
     role_repo: SqlAlchemyRoleRepository
+    role_binding_repo: SqlAlchemyRoleBindingRepository
     permission_repo: SqlAlchemyPermissionRepository
     user_role_repo: SqlAlchemyUserRoleRepository
     role_permission_repo: SqlAlchemyRolePermissionRepository
@@ -176,7 +180,11 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         project_resource_repo=SqlAlchemyProjectResourceRepository(session),
         user_repo=SqlAlchemyUserRepository(session),
         auth_session_repo=SqlAlchemyAuthSessionRepository(session),
+        auth_policy_reconciliation_repo=SqlAlchemyAuthPolicyReconciliationRepository(
+            session
+        ),
         role_repo=SqlAlchemyRoleRepository(session),
+        role_binding_repo=SqlAlchemyRoleBindingRepository(session),
         permission_repo=SqlAlchemyPermissionRepository(session),
         user_role_repo=SqlAlchemyUserRoleRepository(session),
         role_permission_repo=SqlAlchemyRolePermissionRepository(session),

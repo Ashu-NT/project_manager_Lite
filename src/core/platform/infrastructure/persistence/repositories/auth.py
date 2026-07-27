@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -8,17 +8,21 @@ from sqlalchemy.orm import Session
 from src.core.platform.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.infrastructure.persistence.orm.user_tenant import UserTenantORM
 from src.core.platform.auth.contracts import (
+    AuthPolicyReconciliationRepository,
     AuthSessionRepository,
     PermissionRepository,
+    RoleBindingRepository,
     RolePermissionRepository,
     RoleRepository,
     UserRepository,
     UserRoleRepository,
 )
 from src.core.platform.auth.domain import (
+    AuthPolicyReconciliation,
     AuthSession,
     Permission,
     Role,
+    RoleBinding,
     RolePermissionBinding,
     UserAccount,
     UserRoleBinding,
@@ -31,13 +35,24 @@ from src.core.platform.infrastructure.persistence.mappers.auth import (
     permission_from_orm,
     permission_to_orm,
     role_from_orm,
+    role_binding_from_orm,
+    role_binding_to_orm,
     role_permission_to_orm,
     role_to_orm,
     user_from_orm,
     user_role_to_orm,
     user_to_orm,
 )
-from src.core.platform.infrastructure.persistence.orm.auth import AuthSessionORM, PermissionORM, RoleORM, RolePermissionORM, UserORM, UserRoleORM
+from src.core.platform.infrastructure.persistence.orm.auth import (
+    AuthPolicyReconciliationORM,
+    AuthSessionORM,
+    PermissionORM,
+    RoleBindingORM,
+    RoleORM,
+    RolePermissionORM,
+    UserORM,
+    UserRoleORM,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
@@ -208,6 +223,57 @@ class SqlAlchemyAuthSessionRepository(AuthSessionRepository):
         return True
 
 
+class SqlAlchemyAuthPolicyReconciliationRepository(
+    AuthPolicyReconciliationRepository
+):
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, reconciliation: AuthPolicyReconciliation) -> None:
+        self.session.add(
+            AuthPolicyReconciliationORM(
+                id=reconciliation.id,
+                policy_name=reconciliation.policy_name,
+                from_version=reconciliation.from_version,
+                to_version=reconciliation.to_version,
+                change_set_hash=reconciliation.change_set_hash,
+                applied_at=reconciliation.applied_at,
+                applied_by_user_id=reconciliation.applied_by_user_id,
+                rollback_json=reconciliation.rollback_json,
+            )
+        )
+
+    def get_latest(
+        self,
+        policy_name: str,
+        *,
+        for_update: bool = False,
+    ) -> AuthPolicyReconciliation | None:
+        stmt = (
+            select(AuthPolicyReconciliationORM)
+            .where(AuthPolicyReconciliationORM.policy_name == policy_name)
+            .order_by(
+                AuthPolicyReconciliationORM.to_version.desc(),
+                AuthPolicyReconciliationORM.applied_at.desc(),
+            )
+        )
+        if for_update:
+            stmt = stmt.with_for_update()
+        row = self.session.execute(stmt).scalars().first()
+        if row is None:
+            return None
+        return AuthPolicyReconciliation(
+            id=row.id,
+            policy_name=row.policy_name,
+            from_version=row.from_version,
+            to_version=row.to_version,
+            change_set_hash=row.change_set_hash,
+            applied_at=ensure_utc_datetime(row.applied_at),
+            applied_by_user_id=row.applied_by_user_id,
+            rollback_json=row.rollback_json,
+        )
+
+
 class SqlAlchemyRoleRepository(RoleRepository):
     session: Session
 
@@ -229,6 +295,48 @@ class SqlAlchemyRoleRepository(RoleRepository):
     def list_all(self) -> list[Role]:
         rows = self.session.execute(select(RoleORM)).scalars().all()
         return [role_from_orm(row) for row in rows]
+
+
+class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, binding: RoleBinding) -> None:
+        self.session.add(role_binding_to_orm(binding))
+
+    def get(self, binding_id: str) -> RoleBinding | None:
+        row = self.session.get(RoleBindingORM, binding_id)
+        return role_binding_from_orm(row) if row is not None else None
+
+    def list_active_for_principal(
+        self,
+        principal_id: str,
+        *,
+        tenant_id: str | None,
+    ) -> list[RoleBinding]:
+        now = datetime.now(timezone.utc)
+        stmt = (
+            select(RoleBindingORM)
+            .where(RoleBindingORM.principal_type == "user")
+            .where(RoleBindingORM.principal_id == principal_id)
+            .where(RoleBindingORM.revoked_at.is_(None))
+            .where(
+                (RoleBindingORM.expires_at.is_(None))
+                | (RoleBindingORM.expires_at > now)
+            )
+        )
+        if tenant_id is None:
+            stmt = stmt.where(RoleBindingORM.tenant_id.is_(None))
+        else:
+            stmt = stmt.where(RoleBindingORM.tenant_id == tenant_id)
+        rows = self.session.execute(
+            stmt.order_by(
+                RoleBindingORM.actual_scope_type,
+                RoleBindingORM.actual_scope_id,
+                RoleBindingORM.role_id,
+            )
+        ).scalars()
+        return [role_binding_from_orm(row) for row in rows]
 
 
 class SqlAlchemyPermissionRepository(PermissionRepository):
@@ -301,6 +409,14 @@ class SqlAlchemyUserRoleRepository(UserRoleRepository):
         )
         return list(self.session.execute(stmt).scalars().all())
 
+    def list_user_ids_for_role(self, role_id: str) -> list[str]:
+        stmt = (
+            select(UserRoleORM.user_id)
+            .where(UserRoleORM.role_id == role_id)
+            .distinct()
+        )
+        return list(self.session.execute(stmt).scalars().all())
+
 
 class SqlAlchemyRolePermissionRepository(RolePermissionRepository):
     session: Session
@@ -332,10 +448,12 @@ class SqlAlchemyRolePermissionRepository(RolePermissionRepository):
 
 
 __all__ = [
+    "SqlAlchemyAuthPolicyReconciliationRepository",
     "SqlAlchemyAuthSessionRepository",
     "SqlAlchemyUserRepository",
     "SqlAlchemyRoleRepository",
     "SqlAlchemyPermissionRepository",
+    "SqlAlchemyRoleBindingRepository",
     "SqlAlchemyUserRoleRepository",
     "SqlAlchemyRolePermissionRepository",
 ]

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.auth.authorization import require_any_permission, require_permission
+from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.platform_events.contracts import PlatformEventRepository
@@ -15,17 +15,14 @@ from src.core.platform.tenancy.domain.tenant import (
     TENANT_STATUS_SUSPENDED,
     Tenant,
 )
-from src.core.platform.tenancy.domain.user_tenant_membership import UserTenantMembership
 
 
 class TenantAdminService:
     """Lifecycle operations for the Tenant aggregate.
 
-    Permission model:
-      tenant.create / platform.admin  → create_tenant()
-      tenant.read   / platform.admin  → get_tenant(), list_tenants()
-      tenant.manage / platform.admin  → suspend_tenant(), archive_tenant()
-      platform.admin only             → restore_tenant()
+    Platform tenant provisioning, global catalog reads, and lifecycle changes
+    require platform.admin. Customer tenant administrators use membership and
+    active-tenant administration workflows instead of this service.
 
     Lifecycle transitions:
       active    → suspended  (suspend_tenant)
@@ -120,17 +117,17 @@ class TenantAdminService:
     # ------------------------------------------------------------------
 
     def get_tenant(self, tenant_id: str) -> Tenant:
-        require_any_permission(
+        require_permission(
             self._user_session,
-            ["tenant.read", "platform.admin"],
+            "platform.admin",
             operation_label="get tenant",
         )
         return self._require_tenant(tenant_id)
 
     def list_tenants(self, *, active_only: bool | None = None) -> list[Tenant]:
-        require_any_permission(
+        require_permission(
             self._user_session,
-            ["tenant.read", "platform.admin"],
+            "platform.admin",
             operation_label="list tenants",
         )
         return self._tenant_repo.list_all(active_only=active_only)
@@ -165,9 +162,9 @@ class TenantAdminService:
     # ------------------------------------------------------------------
 
     def create_tenant(self, tenant_code: str, display_name: str) -> Tenant:
-        require_any_permission(
+        require_permission(
             self._user_session,
-            ["tenant.create", "platform.admin"],
+            "platform.admin",
             operation_label="create tenant",
         )
         tenant = Tenant.create(tenant_code=tenant_code, display_name=display_name)
@@ -177,15 +174,6 @@ class TenantAdminService:
                 code="TENANT_CODE_CONFLICT",
             )
         self._tenant_repo.add(tenant)
-        user_id = self._current_user_id()
-        if user_id:
-            self._user_tenant_repo.add(
-                UserTenantMembership.create(
-                    user_id=user_id,
-                    tenant_id=tenant.id,
-                    tenant_role="tenant_admin",
-                )
-            )
         self._session.flush()
         self._emit_tenant_event("create_tenant", tenant)
         return tenant

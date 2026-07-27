@@ -4,12 +4,21 @@ from src.core.platform.auth.domain import (
     AuthSession,
     Permission,
     Role,
+    RoleBinding,
     RolePermissionBinding,
     UserAccount,
     UserRoleBinding,
 )
 from src.core.platform.auth.datetime_utils import ensure_utc_datetime
-from src.core.platform.infrastructure.persistence.orm.auth import AuthSessionORM, PermissionORM, RoleORM, RolePermissionORM, UserORM, UserRoleORM
+from src.core.platform.infrastructure.persistence.orm.auth import (
+    AuthSessionORM,
+    PermissionORM,
+    RoleBindingORM,
+    RoleORM,
+    RolePermissionORM,
+    UserORM,
+    UserRoleORM,
+)
 
 
 def user_to_orm(user: UserAccount) -> UserORM:
@@ -110,6 +119,14 @@ def role_to_orm(role: Role) -> RoleORM:
         name=role.name,
         description=role.description,
         is_system=role.is_system,
+        tenant_id=role.tenant_id,
+        display_name=role.display_name,
+        allowed_scope_type=role.allowed_scope_type,
+        is_assignable=role.is_assignable,
+        status=role.status,
+        policy_version=role.policy_version,
+        created_at=role.created_at,
+        updated_at=role.updated_at,
     )
 
 
@@ -119,6 +136,48 @@ def role_from_orm(obj: RoleORM) -> Role:
         name=obj.name,
         description=obj.description,
         is_system=obj.is_system,
+        tenant_id=obj.tenant_id,
+        display_name=obj.display_name,
+        allowed_scope_type=obj.allowed_scope_type,
+        is_assignable=obj.is_assignable,
+        status=obj.status,
+        policy_version=obj.policy_version,
+        created_at=ensure_utc_datetime(obj.created_at),
+        updated_at=ensure_utc_datetime(obj.updated_at),
+    )
+
+
+def role_binding_to_orm(binding: RoleBinding) -> RoleBindingORM:
+    return RoleBindingORM(
+        id=binding.id,
+        principal_type=binding.principal_type,
+        principal_id=binding.principal_id,
+        role_id=binding.role_id,
+        tenant_id=binding.tenant_id,
+        actual_scope_type=binding.actual_scope_type,
+        actual_scope_id=binding.actual_scope_id,
+        assigned_by=binding.assigned_by,
+        assigned_at=binding.assigned_at,
+        expires_at=binding.expires_at,
+        revoked_at=binding.revoked_at,
+        version=binding.version,
+    )
+
+
+def role_binding_from_orm(obj: RoleBindingORM) -> RoleBinding:
+    return RoleBinding(
+        id=obj.id,
+        principal_type=obj.principal_type,
+        principal_id=obj.principal_id,
+        role_id=obj.role_id,
+        tenant_id=obj.tenant_id,
+        actual_scope_type=obj.actual_scope_type,
+        actual_scope_id=obj.actual_scope_id,
+        assigned_by=obj.assigned_by,
+        assigned_at=ensure_utc_datetime(obj.assigned_at),
+        expires_at=ensure_utc_datetime(obj.expires_at),
+        revoked_at=ensure_utc_datetime(obj.revoked_at),
+        version=obj.version,
     )
 
 
@@ -179,6 +238,8 @@ __all__ = [
     "user_from_orm",
     "role_to_orm",
     "role_from_orm",
+    "role_binding_to_orm",
+    "role_binding_from_orm",
     "permission_to_orm",
     "permission_from_orm",
     "user_role_to_orm",

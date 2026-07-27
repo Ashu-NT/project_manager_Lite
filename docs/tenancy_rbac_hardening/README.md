@@ -4,8 +4,12 @@ Date: 2026-07-27
 
 Status: Approved target architecture; Phase 1 immediate containment is in progress.
 Configuration, replacement provisioning, explicit-context principal rebuilding, atomic context
-switching, and sensitive target-user boundaries are implemented. Registration, customer-role,
-SaaS startup-fallback, canonical-authority, and legacy-startup cutovers remain pending.
+switching, sensitive target-user boundaries, direct customer onboarding containment, platform
+tenant authority separation, versioned system-role reconciliation, and mode-specific startup
+cutover are implemented. The additive canonical role metadata and role-binding schema
+foundation is implemented without changing decision authority. Existing database policy
+application remains a reviewed deployment action. Canonical backfill/authority and
+invitation-lifecycle cutovers remain pending.
 
 Owners: Platform, Security, Persistence, API, Desktop UI, and module teams.
 
@@ -235,6 +239,16 @@ Required correction:
   platform owner exists
 - hide platform roles from all customer role selectors and APIs
 
+Implementation status:
+
+- Hosted `saas` startup no longer creates or promotes the configured legacy administrator.
+- Hosted `saas` startup no longer creates a default tenant or organization, selects an implicit
+  customer context, or backfills users into customer memberships.
+- `local_single_tenant` retains its explicit desktop initialization behavior as a separate mode.
+- The one-time audited platform-owner command remains the only SaaS owner-creation path.
+- Canonical role naming still uses the transitional `admin` template until the binding-schema
+  migration replaces legacy global role authority.
+
 ### P0-6: Sensitive user-security operations lack a mandatory target-tenant boundary
 
 Evidence:
@@ -390,6 +404,19 @@ Required correction:
 - reconcile additions and removals transactionally
 - report drift before applying changes
 - make customer custom roles separate from managed system roles
+
+Implementation status:
+
+- `SYSTEM_ROLE_POLICY_VERSION` and the managed policy name now version the code-owned policy.
+- `RolePolicyReconciliationService` provides deterministic preview and guarded apply operations.
+- `tools/reconcile_role_policy.py` is dry-run by default and requires the reviewed previous
+  version, change-set hash, and a new rollback-artifact path for apply.
+- `auth_policy_reconciliations` is an append-only application ledger with a unique target
+  version. A successful apply updates bindings, rotates affected users' security revisions,
+  revokes their persisted sessions, and writes the ledger row in the same transaction.
+- Ordinary startup remains additive and never invokes the destructive reconciler.
+- Existing installations still require an explicit operator dry-run and reviewed apply; changing
+  the code constants alone does not remove stale database bindings.
 
 ### P1-8: Organization lifecycle and per-session selection are mixed
 
@@ -909,16 +936,20 @@ mutations when the authoritative and migration stores cannot be kept consistent.
 
 ## System Role Policy Reconciliation
 
-System-role changes must not be silently applied during ordinary startup. Replace additive
-seeding with a deliberate, versioned deployment command:
+System-role changes must not be silently applied during ordinary startup. The implemented
+deployment command is dry-run by default:
 
 ```text
-role_policy_reconcile --dry-run
-role_policy_reconcile --apply --expected-version=3
+python -m tools.reconcile_role_policy --username <platform-operator> --output policy-preview.json
+python -m tools.reconcile_role_policy --apply --username <platform-operator> \
+  --expected-version <preview-version> --expected-hash <preview-sha256> \
+  --rollback-output policy-rollback.json
 ```
 
-The preview must report removed and added permissions, affected bindings, affected active
-users, SoD consequences, and sessions that require invalidation. Applying the change records:
+The preview reports removed and added bindings, affected active users and sessions, missing
+managed definitions, a deterministic change-set hash, and the inverse change set. SoD
+consequence analysis remains part of the later canonical binding/delegation work. Applying the
+change records:
 
 - previous and new policy versions
 - deterministic change-set hash
@@ -926,9 +957,11 @@ users, SoD consequences, and sessions that require invalidation. Applying the ch
 - execution timestamp and outcome
 - rollback artifact or inverse change set
 
-The command must abort on version mismatch or unexpected drift. Removing overpowered
-`tenant_admin` permissions is a reviewed security migration, not a side effect of application
-startup.
+The command aborts on version mismatch, hash mismatch, missing definitions, or unexpected drift.
+It writes the rollback artifact before mutation and refuses to overwrite an existing artifact.
+Removing overpowered `tenant_admin` permissions is a reviewed security migration, not a side
+effect of application startup. The stored inverse artifact is implemented; an automated rollback
+executor remains future deployment tooling.
 
 ## Migration and Retirement Matrix
 
@@ -985,9 +1018,12 @@ Exit criteria:
 
 Status: In progress. Replacement provisioning, the tenant-context policy foundation,
 explicit-context session authority, atomic tenant/organization switching, legacy customer-admin
-containment, sensitive target-user boundaries, direct tenant-user onboarding, and customer
-role/catalog containment are implemented. Canonical authority, invitation lifecycle, policy
-reconciliation, and startup cutovers remain pending.
+containment, sensitive target-user boundaries, direct tenant-user onboarding, customer
+role/catalog containment, platform tenant-authority separation, and reviewed policy
+reconciliation tooling are implemented. SaaS startup no longer creates/promotes a legacy admin
+or creates/selects/backfills customer context; local desktop initialization remains explicitly
+mode-bound. Existing database reconciliation, canonical authority, and invitation lifecycle
+remain pending deployment or implementation.
 
 - Add security regression tests before changing fail-open behavior.
 - Implement and test one-time platform-owner provisioning before changing startup bootstrap.
@@ -1024,7 +1060,9 @@ Exit criteria:
 
 ### Phase 2: Canonical membership and role-binding schema
 
-Status: Not started.
+Status: In progress. Additive role metadata, the structurally constrained `role_bindings`
+table, domain model, persistence mapper/repository, and migration are implemented. No legacy
+binding has been guessed or copied, and authorization remains legacy-authoritative.
 
 - Extend membership lifecycle fields and remove role authority from membership.
 - Add tenant-aware role metadata.
@@ -1043,6 +1081,23 @@ Exit criteria:
 - ambiguous rows have been reviewed rather than guessed
 - canonical and expected legacy decisions match for approved cases
 - canonical denial never falls back to a legacy allow
+
+Current Phase 2 foundation:
+
+- `Role` and `roles` now carry tenant ownership, display name, allowed scope type,
+  assignability, lifecycle status, policy version, and timestamps.
+- Existing system role metadata is deterministically classified during migration:
+  `admin`/`support_admin` are platform-scoped and non-customer-assignable, `org_admin` is
+  organization-scoped, and remaining managed templates are tenant-scoped.
+- `RoleBinding` validates platform, tenant, and resource scope shapes before persistence.
+- `role_bindings` enforces user principals, tenant/resource nullability rules, positive
+  versions, foreign keys, and separate partial unique indexes for active platform, tenant, and
+  resource grants.
+- `RoleBindingRepository` provides exact-context active reads and filters expired/revoked rows.
+- `RepositoryBundle` exposes the canonical repository for later dual-write and shadow phases.
+- `PrincipalBuilder`, `AuthorizationEngine`, assignment services, and customer UI still read
+  only legacy authority. This is deliberate until inventory, backfill, mismatch telemetry, and
+  rollback gates exist.
 
 ### Phase 3: Principal and authorization-engine cutover
 
@@ -1150,16 +1205,18 @@ replacement provisioning is proven.
 | Step | Status | Evidence |
 | --- | --- | --- |
 | Security characterization/regression tests | Implemented for the current containment tranche; broader matrix ongoing | `test_tenancy_rbac_immediate_containment.py` covers cross-tenant account operations, missing context/infrastructure, self-service targeting, onboarding, customer role restrictions, tenant-scoped catalogs, grant replacement, and failed-switch atomicity. |
-| One-time platform-owner provisioning | Implemented; startup cutover pending | `src/core/platform/auth/application/platform_owner_provisioning_service.py` and `tools/provision_platform_owner.py` |
+| One-time platform-owner provisioning | Implemented; SaaS startup cut over | `src/core/platform/auth/application/platform_owner_provisioning_service.py` and `tools/provision_platform_owner.py`; SaaS composition no longer creates/promotes the configured username. |
 | Deployment/tenancy/migration configuration | Implemented | `src/infra/platform/security_config.py` |
 | Single tenant-context policy boundary | Implemented; broader consumers pending | `src/core/platform/tenancy/context_policy.py` and `TenantContextService` |
 | Explicit login/restoration context and atomic principal rebuild | Implemented | `principal_builder.py`, `authentication_service.py`, `session_service.py`, and `TenantContextService` |
-| SaaS missing-context denial and fallback removal | Policy denial implemented; startup fallback removal pending | Login/restoration now supplies validated explicit context; composition bootstrap still requires mode-specific cutover. |
+| SaaS missing-context denial and fallback removal | Implemented | Login/restoration supplies validated explicit context. SaaS composition does not create/select a default tenant or organization and does not backfill user memberships; local desktop behavior is isolated by mode. |
 | Registration bypass removal and membership onboarding | Implemented for direct active-tenant onboarding; invitation lifecycle pending | `AuthService.register_user()` no longer exposes a permission bypass. `onboard_tenant_user()` creates the account, active membership, default `viewer` binding, and forced password change in one transaction. |
 | Sensitive target-user boundary | Implemented | Password, MFA, federated identity, session, user-admin, and role-assignment paths use `target_user_authorization.py`. |
 | Platform-role removal from customer paths | Implemented as containment; canonical role scope metadata pending | Customer desktop/API/QML paths exclude and reject `admin`, `support_admin`, and organization-scoped `org_admin`; customer user catalogs are active-tenant scoped. |
-| Versioned system-role reconciliation | Pending | Design approved; command not implemented |
-| Recurring startup-promotion removal | Pending | Replacement command proven; composition cutover still required |
+| Platform tenant provisioning/catalog authority | Implemented | Tenant create/global get/list and lifecycle operations require `platform.admin`; `tenant_admin` no longer receives `tenant.create`, `tenant.manage`, or `tenant.read`, and provisioning no longer creates a customer membership for the platform operator. |
+| Versioned system-role reconciliation | Implemented; environment apply pending | Policy v1, deterministic preview, guarded transactional apply, session invalidation, append-only ledger migration, rollback artifact, and operator CLI are implemented. Existing databases require reviewed dry-run/apply. |
+| Recurring startup-promotion removal | Implemented for SaaS | Hosted SaaS seeds the fixed auth catalog only. Legacy admin creation/promotion remains solely in explicitly configured `local_single_tenant` mode. |
+| Canonical role metadata/binding schema | Foundation implemented | `RoleBinding`, role scope metadata, ORM/mappers/repository bundle, database scope checks, active-grant uniqueness, and Alembic revision `b5c6d7e8f9a0`; no backfill or authority read cutover yet. |
 
 Implementation ledger, 2026-07-27:
 
@@ -1203,28 +1260,56 @@ Implementation ledger, 2026-07-27:
 - Customer role assignment/revocation now requires both actor authorization and active target
   membership in the selected tenant. Missing `TenantContextService` or membership
   infrastructure denies instead of degrading to an unscoped operation.
+- Tenant provisioning and the global tenant catalog now require `platform.admin` exclusively.
+  The platform operator is no longer added as a customer tenant member merely because they
+  provisioned a tenant.
+- Removed `tenant.create`, `tenant.manage`, and `tenant.read` from the managed `tenant_admin`
+  template. Customer tenant administrators retain tenant-local membership, organization,
+  settings, user, and role administration only.
+- Added policy v1 reconciliation with deterministic drift preview, optimistic version/hash
+  guards, a persisted append-only ledger, inverse rollback JSON, and affected-user session
+  invalidation. The CLI authenticates a platform operator and cannot apply without a separate
+  rollback artifact path.
+- Verified the new Alembic head `a4b5c6d7e8f9` against an isolated migrated SQLite database;
+  the `auth_policy_reconciliations` table and expected columns were created.
+- Added policy-reconciliation tests covering dry-run immutability, exact stale-binding
+  detection, authorization, version/hash rejection, successful apply, ledger persistence,
+  rollback data, session revocation, and idempotent re-preview.
+- Split composition bootstrap by tenancy mode. SaaS now initializes no legacy administrator,
+  default customer tenant, default organization, active customer context, or user membership.
+  The local desktop mode keeps those conveniences behind `local_single_tenant`.
+- Added startup regression tests proving a fresh SaaS database remains customer-context empty,
+  an existing ordinary `admin` username is not promoted or backfilled, and local desktop
+  initialization remains compatible.
+- Added the Phase 2 canonical role-binding foundation. Role definitions now persist explicit
+  scope/ownership metadata, while canonical grants persist tenant and actual resource scope
+  with database constraints and duplicate-active-grant protection.
+- Verified Alembic revision `b5c6d7e8f9a0` from revision zero against an isolated SQLite
+  database, verified the canonical table, role columns, and partial unique indexes, and passed
+  an upgrade/downgrade/re-upgrade round trip.
+- Added eight canonical domain/persistence tests and verified 142 focused authentication,
+  startup, tenant-authority, reconciliation, containment, and canonical-foundation tests.
 - Verified the CLI twice against an isolated migrated database: create followed by idempotent
   no-op.
 - Added nine onboarding/catalog/role-containment regression cases and verified 32 directly
   affected desktop, presenter, QML, and tenancy/RBAC tests.
-- The complete platform suite has 500 passing tests and three unrelated failures in untouched
+- The complete platform suite has 516 passing tests and three unrelated failures in untouched
   code: two site date-time normalization failures and one stale QML route expectation for the
   existing `platform.tenants` route.
-- Legacy bootstrap remains enabled deliberately until the next cutover package.
+- Legacy administrator/default-customer bootstrap remains available only in the explicitly
+  configured local single-tenant mode.
 
 Next containment work package:
 
-1. Remove tenant creation and global tenant listing from `tenant_admin`.
-2. Implement, preview, and deliberately apply reviewed versioned policy reconciliation for
-   overpowered seeded roles.
-3. Remove SaaS startup default-tenant/user-membership fallback after deployment-mode rollback
-   checks pass.
-4. Disable recurring legacy administrator promotion after owner provisioning and startup
-   rollback checks pass.
-5. Implement invitation expiry/acceptance/revocation and canonical tenant-owned role metadata
+1. Run and archive the policy dry-run, security review, and deliberate apply for each deployed
+   environment; code does not perform this operational change automatically.
+2. Implement invitation expiry/acceptance/revocation and canonical tenant-owned role metadata
    in the membership and role-binding schema phases; do not represent these as completed by the
    direct onboarding containment path.
-6. Make security audit writes atomic and add durable denial/context-switch/membership records.
+3. Make security audit writes atomic and add durable denial/context-switch/membership records.
+4. Inventory/classify legacy grants, define quarantine records and rollback snapshots, then
+   implement explicit migration-mode dual-write/shadow comparison before removing
+   `user_roles`.
 
 ## Required Test Matrix
 
@@ -1324,7 +1409,7 @@ This program is complete when:
 | Migration and retirement plan | Complete |
 | Phase 0 safety net | In progress |
 | Phase 1 immediate containment | In progress |
-| Canonical role-binding schema | Not started |
+| Canonical role-binding schema | In progress; additive schema/repository foundation complete |
 | Principal/authorization-engine cutover | Not started |
 | Repository/audit/background hardening | Not started |
 | Custom roles and enterprise identity | Not started |

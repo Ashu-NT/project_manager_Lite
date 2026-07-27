@@ -14,6 +14,10 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
+from src.core.platform.auth.domain.role_binding import (
+    ROLE_SCOPE_TENANT,
+    normalize_role_scope_type,
+)
 
 _EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 
@@ -336,6 +340,14 @@ class Role:
     name: str
     description: str = ""
     is_system: bool = True
+    tenant_id: str | None = None
+    display_name: str = ""
+    allowed_scope_type: str = ROLE_SCOPE_TENANT
+    is_assignable: bool = True
+    status: str = "active"
+    policy_version: int = 1
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     @field_validator("id", mode="before")
     @classmethod
@@ -352,13 +364,102 @@ class Role:
     def _normalize_description(cls, value: object) -> str:
         return normalize_optional_text(value)
 
+    @field_validator("tenant_id", mode="before")
+    @classmethod
+    def _normalize_tenant_id(cls, value: object) -> str | None:
+        return normalize_optional_identifier(value)
+
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def _normalize_display_name(cls, value: object) -> str:
+        return normalize_optional_text(value)
+
+    @field_validator("allowed_scope_type", mode="before")
+    @classmethod
+    def _validate_allowed_scope_type(cls, value: object) -> str:
+        return normalize_role_scope_type(value)
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _validate_status(cls, value: object) -> str:
+        normalized = normalize_required_text(
+            value,
+            message="Role status is required.",
+            code="AUTH_ROLE_STATUS_REQUIRED",
+        ).lower()
+        if normalized not in {"active", "inactive", "retired"}:
+            raise ValidationError(
+                f"Unsupported role status '{normalized}'.",
+                code="AUTH_ROLE_STATUS_INVALID",
+            )
+        return normalized
+
+    @field_validator("policy_version", mode="before")
+    @classmethod
+    def _validate_policy_version(cls, value: object) -> int:
+        try:
+            normalized = int(value if value not in (None, "") else 1)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError(
+                "Role policy version must be a positive integer.",
+                code="AUTH_ROLE_POLICY_VERSION_INVALID",
+            ) from exc
+        if normalized < 1:
+            raise ValidationError(
+                "Role policy version must be a positive integer.",
+                code="AUTH_ROLE_POLICY_VERSION_INVALID",
+            )
+        return normalized
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def _normalize_timestamps(cls, value: object) -> datetime | None:
+        return normalize_auth_datetime(
+            value,
+            code="AUTH_ROLE_TIMESTAMP_INVALID",
+        )
+
+    @model_validator(mode="after")
+    def _initialize_metadata(self) -> "Role":
+        now = datetime.now(timezone.utc)
+        if not self.display_name:
+            object.__setattr__(
+                self,
+                "display_name",
+                self.name.replace("_", " ").title(),
+            )
+        if self.created_at is None:
+            object.__setattr__(self, "created_at", now)
+        if self.updated_at is None:
+            object.__setattr__(self, "updated_at", self.created_at)
+        return self
+
     @staticmethod
-    def create(name: str, description: str = "", is_system: bool = True) -> "Role":
+    def create(
+        name: str,
+        description: str = "",
+        is_system: bool = True,
+        *,
+        tenant_id: str | None = None,
+        display_name: str = "",
+        allowed_scope_type: str = ROLE_SCOPE_TENANT,
+        is_assignable: bool = True,
+        policy_version: int = 1,
+    ) -> "Role":
+        now = datetime.now(timezone.utc)
         return Role(
             id=generate_id(),
             name=name,
             description=description,
             is_system=is_system,
+            tenant_id=tenant_id,
+            display_name=display_name,
+            allowed_scope_type=allowed_scope_type,
+            is_assignable=is_assignable,
+            status="active",
+            policy_version=policy_version,
+            created_at=now,
+            updated_at=now,
         )
 
 

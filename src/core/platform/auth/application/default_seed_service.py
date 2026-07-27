@@ -6,6 +6,10 @@ from typing import TYPE_CHECKING
 
 from src.core.platform.auth.domain import Permission, Role, RolePermissionBinding
 from src.core.platform.auth.policy import DEFAULT_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS
+from src.core.platform.auth.application.role_scope_policy import (
+    is_platform_role,
+    system_role_scope_type,
+)
 
 if TYPE_CHECKING:
     from .auth_service import AuthService
@@ -50,7 +54,13 @@ def ensure_default_roles(service: AuthService) -> dict[str, Role]:
     for role_name in DEFAULT_ROLE_PERMISSIONS:
         role = service._role_repo.get_by_name(role_name)
         if role is None:
-            role = Role.create(name=role_name, description=f"System role: {role_name}", is_system=True)
+            role = Role.create(
+                name=role_name,
+                description=f"System role: {role_name}",
+                is_system=True,
+                allowed_scope_type=system_role_scope_type(role_name),
+                is_assignable=not is_platform_role(role_name),
+            )
             service._role_repo.add(role)
         roles[role_name] = role
     return roles

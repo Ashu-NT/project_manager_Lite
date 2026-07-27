@@ -56,11 +56,11 @@ def test_org_admin_role_is_defined_in_policy():
     assert "org_admin" in DEFAULT_ROLE_PERMISSIONS
 
 
-def test_tenant_admin_has_tenant_permissions():
+def test_tenant_admin_has_customer_tenant_permissions_only():
     perms = DEFAULT_ROLE_PERMISSIONS["tenant_admin"]
-    assert "tenant.create" in perms
-    assert "tenant.manage" in perms
-    assert "tenant.read" in perms
+    assert "tenant.create" not in perms
+    assert "tenant.manage" not in perms
+    assert "tenant.read" not in perms
     assert "org.create" in perms
     assert "org.manage" in perms
     assert "organization.access" in perms
@@ -143,9 +143,9 @@ def test_tenant_admin_role_has_seeded_permissions(services):
     )
     principal = auth.build_principal(user)
 
-    assert "tenant.create" in principal.permissions
-    assert "tenant.manage" in principal.permissions
-    assert "tenant.read" in principal.permissions
+    assert "tenant.create" not in principal.permissions
+    assert "tenant.manage" not in principal.permissions
+    assert "tenant.read" not in principal.permissions
     assert "org.create" in principal.permissions
     assert "org.manage" in principal.permissions
     assert "auth.manage" in principal.permissions
@@ -190,8 +190,8 @@ def test_user_assigned_tenant_admin_gets_correct_permissions(services):
 
     principal = auth.build_principal(user)
     assert "tenant_admin" in principal.role_names
-    assert "tenant.create" in principal.permissions
-    assert "tenant.manage" in principal.permissions
+    assert "tenant.create" not in principal.permissions
+    assert "tenant.manage" not in principal.permissions
     assert "platform.admin" not in principal.permissions
 
 

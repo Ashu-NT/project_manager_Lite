@@ -8,6 +8,7 @@ from typing import Optional
 from sqlalchemy import DateTime
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     Enum as SAEnum,
     Float,
@@ -98,6 +99,26 @@ Index("idx_auth_sessions_expires", AuthSessionORM.expires_at)
 Index("idx_auth_sessions_revoked", AuthSessionORM.revoked_at)
 
 
+class AuthPolicyReconciliationORM(Base):
+    __tablename__ = "auth_policy_reconciliations"
+    __table_args__ = (
+        UniqueConstraint(
+            "policy_name",
+            "to_version",
+            name="ux_auth_policy_reconciliation_version",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    policy_name: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    from_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    to_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    change_set_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    applied_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    applied_by_user_id: Mapped[str] = mapped_column(String, nullable=False)
+    rollback_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class RoleORM(Base):
     __tablename__ = "roles"
 
@@ -105,9 +126,140 @@ class RoleORM(Base):
     name: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
     description: Mapped[str] = mapped_column(String, nullable=False, default="")
     is_system: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    display_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    allowed_scope_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    is_assignable: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default="1",
+    )
+    status: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="active",
+        server_default="active",
+    )
+    policy_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default="1",
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
 Index("idx_roles_name", RoleORM.name, unique=True)
+Index("idx_roles_tenant", RoleORM.tenant_id)
+
+
+class RoleBindingORM(Base):
+    __tablename__ = "role_bindings"
+    __table_args__ = (
+        CheckConstraint(
+            "principal_type = 'user'",
+            name="ck_role_bindings_principal_type",
+        ),
+        CheckConstraint(
+            "("
+            "actual_scope_type = 'platform' AND tenant_id IS NULL "
+            "AND actual_scope_id IS NULL"
+            ") OR ("
+            "actual_scope_type = 'tenant' AND tenant_id IS NOT NULL "
+            "AND actual_scope_id IS NULL"
+            ") OR ("
+            "actual_scope_type NOT IN ('platform', 'tenant') "
+            "AND tenant_id IS NOT NULL AND actual_scope_id IS NOT NULL"
+            ")",
+            name="ck_role_bindings_scope_shape",
+        ),
+        CheckConstraint(
+            "version >= 1",
+            name="ck_role_bindings_version_positive",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    principal_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    principal_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    role_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    actual_scope_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    actual_scope_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    assigned_by: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    assigned_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default="1",
+    )
+
+
+Index("idx_role_bindings_principal", RoleBindingORM.principal_type, RoleBindingORM.principal_id)
+Index("idx_role_bindings_role", RoleBindingORM.role_id)
+Index("idx_role_bindings_tenant", RoleBindingORM.tenant_id)
+Index(
+    "ux_role_bindings_active_platform",
+    RoleBindingORM.principal_type,
+    RoleBindingORM.principal_id,
+    RoleBindingORM.role_id,
+    unique=True,
+    sqlite_where=RoleBindingORM.revoked_at.is_(None)
+    & (RoleBindingORM.actual_scope_type == "platform"),
+    postgresql_where=RoleBindingORM.revoked_at.is_(None)
+    & (RoleBindingORM.actual_scope_type == "platform"),
+)
+Index(
+    "ux_role_bindings_active_tenant",
+    RoleBindingORM.principal_type,
+    RoleBindingORM.principal_id,
+    RoleBindingORM.role_id,
+    RoleBindingORM.tenant_id,
+    unique=True,
+    sqlite_where=RoleBindingORM.revoked_at.is_(None)
+    & (RoleBindingORM.actual_scope_type == "tenant"),
+    postgresql_where=RoleBindingORM.revoked_at.is_(None)
+    & (RoleBindingORM.actual_scope_type == "tenant"),
+)
+Index(
+    "ux_role_bindings_active_resource",
+    RoleBindingORM.principal_type,
+    RoleBindingORM.principal_id,
+    RoleBindingORM.role_id,
+    RoleBindingORM.tenant_id,
+    RoleBindingORM.actual_scope_type,
+    RoleBindingORM.actual_scope_id,
+    unique=True,
+    sqlite_where=RoleBindingORM.revoked_at.is_(None)
+    & RoleBindingORM.actual_scope_type.not_in(("platform", "tenant")),
+    postgresql_where=RoleBindingORM.revoked_at.is_(None)
+    & RoleBindingORM.actual_scope_type.not_in(("platform", "tenant")),
+)
 
 
 class PermissionORM(Base):
