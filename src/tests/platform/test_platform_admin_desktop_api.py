@@ -133,13 +133,30 @@ def test_platform_user_desktop_api_manages_user_dtos_and_roles(services):
             password="StrongPass123",
             display_name="Desktop User",
             email="desktop@example.com",
-            role_names=("viewer",),
         )
     )
 
     assert create_result.ok is True
     assert create_result.data is not None
     assert create_result.data.role_names == ("viewer",)
+    assert create_result.data.must_change_password is True
+    assert services["auth_service"]._user_tenant_repo.is_active_member(
+        create_result.data.id,
+        services["user_session"].active_tenant_id(),
+    )
+
+    roles_result = api.list_roles()
+    assert roles_result.ok is True
+    assert roles_result.data is not None
+    assert {"admin", "support_admin", "org_admin"}.isdisjoint(
+        role.name for role in roles_result.data
+    )
+    denied_assignment = api.assign_role(create_result.data.id, "admin")
+    denied_revocation = api.revoke_role(create_result.data.id, "admin")
+    assert denied_assignment.ok is False
+    assert denied_assignment.error.code == "PLATFORM_ROLE_ASSIGNMENT_DENIED"
+    assert denied_revocation.ok is False
+    assert denied_revocation.error.code == "PLATFORM_ROLE_ASSIGNMENT_DENIED"
 
     assign_result = api.assign_role(create_result.data.id, "planner")
     update_result = api.update_user(

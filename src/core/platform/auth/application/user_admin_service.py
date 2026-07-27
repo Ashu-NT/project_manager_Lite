@@ -12,7 +12,12 @@ from src.core.platform.auth.domain import Role, UserAccount, normalize_auth_user
 from src.core.platform.common.exceptions import ValidationError
 
 from .session_service import refresh_current_session_if_user
-from .target_user_authorization import require_target_user_in_active_tenant
+from .role_scope_policy import is_customer_assignable_role, is_platform_role
+from .target_user_authorization import (
+    is_platform_operator,
+    require_actor_active_tenant,
+    require_target_user_in_active_tenant,
+)
 
 if TYPE_CHECKING:
     from .auth_service import AuthService
@@ -32,7 +37,20 @@ def list_users(service: AuthService) -> list[UserAccount]:
         ("auth.manage", "auth.read", "access.manage", "security.manage"),
         operation_label="list users",
     )
-    return service._user_repo.list_all()
+    if is_platform_operator(service):
+        return service._user_repo.list_all()
+    tenant_id = require_actor_active_tenant(
+        service,
+        operation_label="list tenant users",
+    )
+    return [
+        user
+        for user in service._user_repo.list_for_tenant(tenant_id)
+        if not any(
+            is_platform_role(role_name)
+            for role_name in service.get_user_role_names(user.id)
+        )
+    ]
 
 
 def list_roles(service: AuthService) -> list[Role]:
@@ -42,6 +60,23 @@ def list_roles(service: AuthService) -> list[Role]:
         operation_label="list roles",
     )
     return service._role_repo.list_all()
+
+
+def list_customer_assignable_roles(service: AuthService) -> list[Role]:
+    require_any_permission(
+        service._user_session,
+        ("auth.manage", "auth.read"),
+        operation_label="list tenant-assignable roles",
+    )
+    require_actor_active_tenant(
+        service,
+        operation_label="list tenant-assignable roles",
+    )
+    return [
+        role
+        for role in service._role_repo.list_all()
+        if is_customer_assignable_role(role.name)
+    ]
 
 
 def set_user_active(service: AuthService, user_id: str, is_active: bool) -> UserAccount:
@@ -147,6 +182,7 @@ def unlock_user_account(service: AuthService, user_id: str) -> UserAccount:
 
 
 __all__ = [
+    "list_customer_assignable_roles",
     "list_roles",
     "list_users",
     "set_user_active",

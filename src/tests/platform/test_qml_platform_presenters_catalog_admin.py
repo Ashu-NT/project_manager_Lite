@@ -115,7 +115,7 @@ def test_platform_workspace_catalog_runs_admin_actions() -> None:
             "displayName": "Katherine Johnson",
             "email": "katherine@example.com",
             "password": "secret",
-            "roleNames": ["viewer"],
+            "roleNames": ["admin"],
             "isActive": True,
         }
     )
@@ -173,6 +173,12 @@ def test_platform_workspace_catalog_runs_admin_actions() -> None:
     assert department_by_id["dep-2"]["statusLabel"] == "Active"
     assert "Katherine Johnson" in employee_titles
     assert "Katherine Johnson" in user_titles
+    created_user = next(
+        item
+        for item in catalog.adminWorkspace.users["items"]
+        if item["title"] == "Katherine Johnson"
+    )
+    assert created_user["supportingText"] == "Viewer"
     assert "Orbit Supply" in party_titles
     assert "Safety Policy" in document_titles
     assert catalog.adminWorkspace.feedbackMessage == "Document created."
@@ -188,7 +194,7 @@ def test_platform_workspace_catalog_updates_extended_admin_actions() -> None:
             "displayName": "Grace Hopper",
             "email": "grace@example.com",
             "password": "updated-secret",
-            "roleNames": ["admin"],
+            "roleNames": ["planner"],
             "currentRoleNames": ["viewer"],
             "isActive": True,
             "currentIsActive": False,
@@ -207,7 +213,7 @@ def test_platform_workspace_catalog_updates_extended_admin_actions() -> None:
 
     assert user_by_id["user-2"]["statusLabel"] == "Locked"
     assert user_by_id["user-2"]["state"]["isActive"] is True
-    assert user_by_id["user-2"]["supportingText"] == "Admin"
+    assert user_by_id["user-2"]["supportingText"] == "Planner"
     assert party_by_id["party-2"]["statusLabel"] == "Active"
     assert document_by_id["doc-2"]["state"]["isActive"] is False
     assert catalog.adminWorkspace.feedbackMessage == "Document active state updated."

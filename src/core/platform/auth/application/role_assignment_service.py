@@ -10,7 +10,15 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 from .session_service import refresh_current_session_if_user
 from .sod_enforcer import enforce_separation_of_duties
-from .target_user_authorization import require_target_user_in_active_tenant
+from .role_scope_policy import (
+    EXPLICIT_SCOPE_ROLE_NAMES,
+    PLATFORM_ROLE_NAMES,
+    normalize_role_name,
+)
+from .target_user_authorization import (
+    require_target_user_in_active_tenant,
+    require_target_user_in_customer_tenant,
+)
 
 if TYPE_CHECKING:
     from .auth_service import AuthService
@@ -107,4 +115,54 @@ def revoke_role(service: AuthService, user_id: str, role_name: str) -> None:
     refresh_current_session_if_user(service, user.id)
 
 
-__all__ = ["assign_role", "revoke_role"]
+def _require_customer_assignable_role(role_name: str) -> str:
+    normalized = normalize_role_name(role_name)
+    if normalized in PLATFORM_ROLE_NAMES:
+        raise BusinessRuleError(
+            f"Platform role '{normalized}' cannot be managed through a customer tenant.",
+            code="PLATFORM_ROLE_ASSIGNMENT_DENIED",
+        )
+    if normalized in EXPLICIT_SCOPE_ROLE_NAMES:
+        raise BusinessRuleError(
+            f"Role '{normalized}' requires an explicit organization scope.",
+            code="ROLE_SCOPE_REQUIRED",
+        )
+    return normalized
+
+
+def assign_customer_role(service: AuthService, user_id: str, role_name: str) -> None:
+    require_permission(
+        service._user_session,
+        "auth.manage",
+        operation_label="assign tenant role",
+    )
+    require_target_user_in_customer_tenant(
+        service,
+        user_id,
+        operation_label="assign a tenant role",
+        denial_code="ROLE_CROSS_TENANT_DENIED",
+    )
+    assign_role(service, user_id, _require_customer_assignable_role(role_name))
+
+
+def revoke_customer_role(service: AuthService, user_id: str, role_name: str) -> None:
+    require_permission(
+        service._user_session,
+        "auth.manage",
+        operation_label="revoke tenant role",
+    )
+    require_target_user_in_customer_tenant(
+        service,
+        user_id,
+        operation_label="revoke a tenant role",
+        denial_code="ROLE_CROSS_TENANT_DENIED",
+    )
+    revoke_role(service, user_id, _require_customer_assignable_role(role_name))
+
+
+__all__ = [
+    "assign_customer_role",
+    "assign_role",
+    "revoke_customer_role",
+    "revoke_role",
+]

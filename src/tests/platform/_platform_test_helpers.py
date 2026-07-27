@@ -467,7 +467,11 @@ class FakePlatformUserApi:
         return DesktopApiResult(ok=True, data=tuple(self._rows))
 
     def list_roles(self) -> DesktopApiResult[tuple[RoleDto, ...]]:
-        return DesktopApiResult(ok=True, data=self._roles)
+        blocked_roles = {"admin", "support_admin", "org_admin"}
+        return DesktopApiResult(
+            ok=True,
+            data=tuple(role for role in self._roles if role.name not in blocked_roles),
+        )
 
     def create_user(self, command) -> DesktopApiResult[UserDto]:
         if any(row.username == command.username for row in self._rows):
@@ -490,9 +494,9 @@ class FakePlatformUserApi:
             last_login_device_label=None,
             session_expires_at=None,
             session_timeout_minutes_override=None,
-            must_change_password=False,
+            must_change_password=True,
             version=1,
-            role_names=tuple(sorted(command.role_names)),
+            role_names=("viewer",),
         )
         self._rows.append(user)
         return DesktopApiResult(ok=True, data=user)
@@ -516,9 +520,27 @@ class FakePlatformUserApi:
         )
 
     def assign_role(self, user_id: str, role_name: str) -> DesktopApiResult[UserDto]:
+        if role_name in {"admin", "support_admin", "org_admin"}:
+            return DesktopApiResult(
+                ok=False,
+                error=DesktopApiError(
+                    code="role_scope_denied",
+                    message=f"Role '{role_name}' is not customer assignable.",
+                    category="conflict",
+                ),
+            )
         return self._update_roles(user_id, add=role_name)
 
     def revoke_role(self, user_id: str, role_name: str) -> DesktopApiResult[UserDto]:
+        if role_name in {"admin", "support_admin", "org_admin"}:
+            return DesktopApiResult(
+                ok=False,
+                error=DesktopApiError(
+                    code="role_scope_denied",
+                    message=f"Role '{role_name}' is not customer assignable.",
+                    category="conflict",
+                ),
+            )
         return self._update_roles(user_id, remove=role_name)
 
     def set_user_active(self, user_id: str, is_active: bool) -> DesktopApiResult[UserDto]:
@@ -1051,6 +1073,7 @@ def build_connected_platform_registry() -> SimpleNamespace:
     role_rows = (
         RoleDto(id="role-1", name="admin", description="Platform administrators", is_system=True),
         RoleDto(id="role-2", name="viewer", description="Read-only observers", is_system=False),
+        RoleDto(id="role-3", name="planner", description="Project planners", is_system=True),
     )
     user_rows = (
         UserDto(id="user-1", username="ada", display_name="Ada Lovelace", email="ada@example.com", identity_provider=None, federated_subject=None, is_active=True, failed_login_attempts=0, locked_until=None, last_login_at=None, last_login_auth_method=None, last_login_device_label=None, session_expires_at=None, session_timeout_minutes_override=None, must_change_password=False, version=1, role_names=("admin",)),

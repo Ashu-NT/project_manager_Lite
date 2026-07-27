@@ -9,6 +9,7 @@ from .default_seed_service import (
     ensure_auth_policy_defaults,
     resolve_bootstrap_admin_password,
 )
+from .registration_service import _register_bootstrap_user
 
 if TYPE_CHECKING:
     from src.core.platform.auth.domain import UserAccount
@@ -23,14 +24,14 @@ def bootstrap_defaults(service: AuthService) -> UserAccount:
     admin = service._user_repo.get_by_username(admin_username)
     if admin is None:
         admin_password = resolve_bootstrap_admin_password()
-        admin = service.register_user(
+        admin = _register_bootstrap_user(
+            service,
             username=admin_username,
             raw_password=admin_password,
             display_name="Administrator",
             role_names=["admin"],
             must_change_password=True,
             commit=False,
-            bypass_permission=True,
         )
     else:
         admin_role = role_map.get("admin")

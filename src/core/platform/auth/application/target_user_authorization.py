@@ -39,6 +39,79 @@ def require_self_target(
         )
 
 
+def require_actor_active_tenant(
+    service: AuthService,
+    *,
+    operation_label: str,
+) -> str:
+    principal = _current_principal(service)
+    if service._user_session is None:
+        raise BusinessRuleError(
+            "Authentication context is not configured.",
+            code="AUTHORIZATION_CONTEXT_REQUIRED",
+        )
+    active_tenant_id = str(
+        service._user_session.active_tenant_id() or ""
+    ).strip()
+    if not active_tenant_id:
+        raise BusinessRuleError(
+            f"Active tenant context is required to {operation_label}.",
+            code="TENANT_CONTEXT_REQUIRED",
+        )
+    if service._tenant_context_service is None:
+        raise BusinessRuleError(
+            "Tenant context authorization is not configured.",
+            code="AUTHORIZATION_CONTEXT_REQUIRED",
+        )
+    validated_tenant_id = service._tenant_context_service.require_active_tenant_id(
+        operation_label=operation_label,
+    )
+    if validated_tenant_id != active_tenant_id:
+        raise BusinessRuleError(
+            "The selected tenant context is inconsistent.",
+            code="TENANT_CONTEXT_MISMATCH",
+        )
+    if service._user_tenant_repo is None:
+        raise BusinessRuleError(
+            "Tenant membership authorization is not configured.",
+            code="AUTHORIZATION_CONTEXT_REQUIRED",
+        )
+    if (
+        not is_platform_operator(service)
+        and not service._user_tenant_repo.is_active_member(
+            principal.user_id,
+            active_tenant_id,
+        )
+    ):
+        raise BusinessRuleError(
+            "The authenticated user is not an active member of the selected tenant.",
+            code="TENANT_ACCESS_DENIED",
+        )
+    return active_tenant_id
+
+
+def require_target_user_in_customer_tenant(
+    service: AuthService,
+    target_user_id: str,
+    *,
+    operation_label: str,
+    denial_code: str = "USER_CROSS_TENANT_DENIED",
+) -> str:
+    active_tenant_id = require_actor_active_tenant(
+        service,
+        operation_label=operation_label,
+    )
+    if not service._user_tenant_repo.is_active_member(
+        str(target_user_id or "").strip(),
+        active_tenant_id,
+    ):
+        raise BusinessRuleError(
+            f"Cannot {operation_label} for a user outside the active tenant.",
+            code=denial_code,
+        )
+    return active_tenant_id
+
+
 def require_target_user_in_active_tenant(
     service: AuthService,
     target_user_id: str,
@@ -83,6 +156,8 @@ def require_target_user_in_active_tenant(
 
 __all__ = [
     "is_platform_operator",
+    "require_actor_active_tenant",
     "require_self_target",
+    "require_target_user_in_customer_tenant",
     "require_target_user_in_active_tenant",
 ]

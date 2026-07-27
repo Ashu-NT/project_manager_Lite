@@ -985,8 +985,9 @@ Exit criteria:
 
 Status: In progress. Replacement provisioning, the tenant-context policy foundation,
 explicit-context session authority, atomic tenant/organization switching, legacy customer-admin
-containment, and sensitive target-user boundaries are implemented. Registration, customer-role,
-authority, and startup cutovers remain pending.
+containment, sensitive target-user boundaries, direct tenant-user onboarding, and customer
+role/catalog containment are implemented. Canonical authority, invitation lifecycle, policy
+reconciliation, and startup cutovers remain pending.
 
 - Add security regression tests before changing fail-open behavior.
 - Implement and test one-time platform-owner provisioning before changing startup bootstrap.
@@ -1148,15 +1149,15 @@ replacement provisioning is proven.
 
 | Step | Status | Evidence |
 | --- | --- | --- |
-| Security characterization/regression tests | Implemented for the current containment tranche; broader matrix ongoing | `test_tenancy_rbac_immediate_containment.py` covers cross-tenant account operations, missing context, self-service targeting, grant replacement, and failed-switch atomicity. |
+| Security characterization/regression tests | Implemented for the current containment tranche; broader matrix ongoing | `test_tenancy_rbac_immediate_containment.py` covers cross-tenant account operations, missing context/infrastructure, self-service targeting, onboarding, customer role restrictions, tenant-scoped catalogs, grant replacement, and failed-switch atomicity. |
 | One-time platform-owner provisioning | Implemented; startup cutover pending | `src/core/platform/auth/application/platform_owner_provisioning_service.py` and `tools/provision_platform_owner.py` |
 | Deployment/tenancy/migration configuration | Implemented | `src/infra/platform/security_config.py` |
 | Single tenant-context policy boundary | Implemented; broader consumers pending | `src/core/platform/tenancy/context_policy.py` and `TenantContextService` |
 | Explicit login/restoration context and atomic principal rebuild | Implemented | `principal_builder.py`, `authentication_service.py`, `session_service.py`, and `TenantContextService` |
 | SaaS missing-context denial and fallback removal | Policy denial implemented; startup fallback removal pending | Login/restoration now supplies validated explicit context; composition bootstrap still requires mode-specific cutover. |
-| Registration bypass removal and membership onboarding | Pending | Depends on containment tests |
+| Registration bypass removal and membership onboarding | Implemented for direct active-tenant onboarding; invitation lifecycle pending | `AuthService.register_user()` no longer exposes a permission bypass. `onboard_tenant_user()` creates the account, active membership, default `viewer` binding, and forced password change in one transaction. |
 | Sensitive target-user boundary | Implemented | Password, MFA, federated identity, session, user-admin, and role-assignment paths use `target_user_authorization.py`. |
-| Platform-role removal from customer paths | Pending | Follows target-user and registration containment |
+| Platform-role removal from customer paths | Implemented as containment; canonical role scope metadata pending | Customer desktop/API/QML paths exclude and reject `admin`, `support_admin`, and organization-scoped `org_admin`; customer user catalogs are active-tenant scoped. |
 | Versioned system-role reconciliation | Pending | Design approved; command not implemented |
 | Recurring startup-promotion removal | Pending | Replacement command proven; composition cutover still required |
 
@@ -1187,23 +1188,43 @@ Implementation ledger, 2026-07-27:
   target checks now deny when authentication, active tenant, actor membership, target
   membership, or authorization infrastructure is missing.
 - Self-service password change can target only the authenticated user.
+- Removed role selection from `UserCreateCommand`, the user presenter, and create-mode QML.
+  Customer account creation now uses a dedicated active-tenant onboarding operation, assigns
+  only `viewer`, creates the active membership atomically, and requires password change at first
+  sign-in.
+- Removed the public `bypass_permission` argument. Legacy bootstrap now calls a private,
+  composition-only registration helper while the recurring bootstrap cutover remains pending.
+- Added a transitional role-scope policy. Customer role catalogs and mutations exclude or reject
+  platform roles (`admin`, `support_admin`) and roles requiring a narrower explicit scope
+  (`org_admin`).
+- Tenant-scoped customer user catalogs now use `UserRepository.list_for_tenant()`, require
+  explicit context plus active actor membership, and hide legacy platform operators. Platform
+  operators retain their separate global catalog behavior.
+- Customer role assignment/revocation now requires both actor authorization and active target
+  membership in the selected tenant. Missing `TenantContextService` or membership
+  infrastructure denies instead of degrading to an unscoped operation.
 - Verified the CLI twice against an isolated migrated database: create followed by idempotent
   no-op.
-- Verified 108 focused tests for the current containment package.
-- The complete platform suite has 491 passing tests and three unrelated failures in untouched
+- Added nine onboarding/catalog/role-containment regression cases and verified 32 directly
+  affected desktop, presenter, QML, and tenancy/RBAC tests.
+- The complete platform suite has 500 passing tests and three unrelated failures in untouched
   code: two site date-time normalization failures and one stale QML route expectation for the
   existing `platform.tenants` route.
 - Legacy bootstrap remains enabled deliberately until the next cutover package.
 
 Next containment work package:
 
-1. Remove role selection and the public permission bypass from customer registration.
-2. Require explicit active tenant membership through a dedicated invitation/onboarding path.
-3. Tenant-scope user and role catalogs and remove platform roles from customer API/UI choices.
-4. Remove tenant creation/global tenant listing from `tenant_admin` and implement reviewed
-   versioned policy reconciliation.
-5. Remove SaaS startup default-tenant/user-membership fallback, then disable recurring legacy
-   administrator promotion after rollback and deployment checks pass.
+1. Remove tenant creation and global tenant listing from `tenant_admin`.
+2. Implement, preview, and deliberately apply reviewed versioned policy reconciliation for
+   overpowered seeded roles.
+3. Remove SaaS startup default-tenant/user-membership fallback after deployment-mode rollback
+   checks pass.
+4. Disable recurring legacy administrator promotion after owner provisioning and startup
+   rollback checks pass.
+5. Implement invitation expiry/acceptance/revocation and canonical tenant-owned role metadata
+   in the membership and role-binding schema phases; do not represent these as completed by the
+   direct onboarding containment path.
+6. Make security audit writes atomic and add durable denial/context-switch/membership records.
 
 ## Required Test Matrix
 

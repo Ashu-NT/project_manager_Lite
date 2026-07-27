@@ -114,7 +114,6 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         session_timeout_minutes_override: int | None = None,
         tenant_id: str | None = None,
         commit: bool = True,
-        bypass_permission: bool = False,
     ) -> UserAccount:
         return _reg.register_user(
             self,
@@ -130,7 +129,24 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             session_timeout_minutes_override=session_timeout_minutes_override,
             tenant_id=tenant_id,
             commit=commit,
-            bypass_permission=bypass_permission,
+        )
+
+    def onboard_tenant_user(
+        self,
+        *,
+        username: str,
+        raw_password: str,
+        display_name: str | None = None,
+        email: str | None = None,
+        is_active: bool = True,
+    ) -> UserAccount:
+        return _reg.onboard_tenant_user(
+            self,
+            username=username,
+            raw_password=raw_password,
+            display_name=display_name,
+            email=email,
+            is_active=is_active,
         )
 
     def authenticate(
@@ -174,11 +190,20 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
     def revoke_role(self, user_id: str, role_name: str) -> None:
         _roles.revoke_role(self, user_id, role_name)
 
+    def assign_customer_role(self, user_id: str, role_name: str) -> None:
+        _roles.assign_customer_role(self, user_id, role_name)
+
+    def revoke_customer_role(self, user_id: str, role_name: str) -> None:
+        _roles.revoke_customer_role(self, user_id, role_name)
+
     def list_users(self) -> list[UserAccount]:
         return _users.list_users(self)
 
     def list_roles(self) -> list[Role]:
         return _users.list_roles(self)
+
+    def list_customer_assignable_roles(self) -> list[Role]:
+        return _users.list_customer_assignable_roles(self)
 
     def set_user_active(self, user_id: str, is_active: bool) -> UserAccount:
         return _users.set_user_active(self, user_id, is_active)

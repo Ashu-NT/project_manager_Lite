@@ -40,7 +40,6 @@ class UserCreateCommand:
     display_name: str | None = None
     email: str | None = None
     is_active: bool = True
-    role_names: tuple[str, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)

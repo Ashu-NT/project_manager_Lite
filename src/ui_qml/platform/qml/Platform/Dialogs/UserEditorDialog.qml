@@ -17,7 +17,7 @@ AppWidgets.EntityDialog {
     modal: true
     focus: true
     width: 560
-    title: root.mode === "create" ? "New User" : "Edit User"
+    title: root.mode === "create" ? "New Tenant User" : "Edit User"
 
     primaryText: root.mode === "create" ? "Create" : "Save"
     primaryIcon: root.mode === "create" ? "add" : "save"
@@ -45,7 +45,7 @@ AppWidgets.EntityDialog {
         displayName: displayNameField.text.trim(),
         email: emailField.text.trim(),
         password: passwordField.text,
-        roleNames: _selectedRoleNames(),
+        roleNames: root.mode === "edit" ? _selectedRoleNames() : [],
         currentRoleNames: root.draft.currentRoleNames || root.draft.roleNames || [],
         isActive: activeCheck.checked,
         currentIsActive: root.draft.currentIsActive !== undefined ? root.draft.currentIsActive : activeCheck.checked
@@ -153,7 +153,9 @@ AppWidgets.EntityDialog {
         Layout.fillWidth: true
         label: "Password"
         required: root.mode === "create"
-        helperText: root.mode === "create" ? "" : "Leave blank to keep the current password."
+        helperText: root.mode === "create"
+            ? "The user must change this password at first sign-in."
+            : "Leave blank to keep the current password."
 
         AppControls.TextField {
             id: passwordField
@@ -174,6 +176,7 @@ AppWidgets.EntityDialog {
     ColumnLayout {
         Layout.fillWidth: true
         spacing: Theme.AppTheme.spacingSm
+        visible: root.mode === "edit"
 
         AppControls.Label {
             Layout.fillWidth: true
