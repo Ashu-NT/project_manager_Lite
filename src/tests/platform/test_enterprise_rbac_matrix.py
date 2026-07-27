@@ -88,11 +88,17 @@ def test_access_and_security_admin_capabilities_are_separated(services):
     target = auth.register_user(
         "locked-target", "StrongPass123", role_names=["viewer"], tenant_id=active_tenant_id
     )
-    auth.register_user("access-admin-user", "StrongPass123", role_names=["access_admin"])
+    auth.register_user(
+        "access-admin-user",
+        "StrongPass123",
+        role_names=["access_admin"],
+        tenant_id=active_tenant_id,
+    )
     auth.register_user(
         "security-admin-user",
         "StrongPass123",
         role_names=["security_admin"],
+        tenant_id=active_tenant_id,
     )
 
     access.assign_project_membership(project_id=project.id, user_id=target.id, scope_role="lead")

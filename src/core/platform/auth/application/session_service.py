@@ -14,6 +14,7 @@ from src.core.platform.common.exceptions import ValidationError
 from .audit_recorder import record_auth_event
 from .principal_builder import build_principal
 from .session_utils import next_session_expiry, rotate_session_revision, validate_session_timeout_override
+from .target_user_authorization import require_target_user_in_active_tenant
 
 if TYPE_CHECKING:
     from src.core.platform.auth.domain import UserAccount
@@ -68,7 +69,21 @@ def refresh_current_session_if_user(service: AuthService, user_id: str) -> None:
     if service._auth_session_repo is not None and current_session_id is not None and preferred_session_id is None:
         service._user_session.clear()
         return
-    service._user_session.set_principal(build_principal(service, user, session_id=preferred_session_id))
+    try:
+        rebuilt = build_principal(
+            service,
+            user,
+            session_id=preferred_session_id,
+        )
+    except Exception:
+        logger.warning(
+            "Current session authority refresh denied user_id=%s",
+            user.id,
+            exc_info=True,
+        )
+        service._user_session.clear()
+        return
+    service._user_session.set_principal(rebuilt)
 
 
 def set_user_session_policy(
@@ -81,6 +96,11 @@ def set_user_session_policy(
         service._user_session,
         ("auth.manage", "security.manage"),
         operation_label="set user session policy",
+    )
+    require_target_user_in_active_tenant(
+        service,
+        user_id,
+        operation_label="set session policy",
     )
     user = service._require_user(user_id)
     user.session_timeout_minutes_override = session_timeout_minutes_override
@@ -100,6 +120,11 @@ def revoke_user_sessions(service: AuthService, user_id: str, *, note: str = "") 
         service._user_session,
         ("auth.manage", "security.manage"),
         operation_label="revoke user sessions",
+    )
+    require_target_user_in_active_tenant(
+        service,
+        user_id,
+        operation_label="revoke sessions",
     )
     user = service._require_user(user_id)
     rotate_session_revision(user)
@@ -125,6 +150,11 @@ def list_user_sessions(service: AuthService, user_id: str) -> list[AuthSession]:
         service._user_session,
         ("auth.read", "auth.manage", "security.manage"),
         operation_label="list user sessions",
+    )
+    require_target_user_in_active_tenant(
+        service,
+        user_id,
+        operation_label="list sessions",
     )
     user = service._require_user(user_id)
     if service._auth_session_repo is None:
@@ -183,6 +213,11 @@ def revoke_session(service: AuthService, session_id: str, *, note: str = "") -> 
     auth_session = service._auth_session_repo.get(session_id)
     if auth_session is None:
         raise ValidationError("Session not found.", code="AUTH_SESSION_NOT_FOUND")
+    require_target_user_in_active_tenant(
+        service,
+        auth_session.user_id,
+        operation_label="revoke session",
+    )
     revoked_at = datetime.now(timezone.utc)
     auth_session.revoked_at = revoked_at
     auth_session.updated_at = revoked_at
@@ -219,14 +254,29 @@ def validate_session_principal(service: AuthService, principal: UserSessionPrinc
         if int(auth_session.session_revision or 1) != int(getattr(user, "session_revision", 1) or 1):
             return None
         _touch_session_validation(service, auth_session.id, validated_at=now)
-        if principal_expires_at is None or principal_expires_at != ensure_utc_datetime(auth_session.expires_at):
+        try:
             return build_principal(service, user, session_id=auth_session.id)
-        return build_principal(service, user, session_id=auth_session.id)
+        except Exception:
+            logger.warning(
+                "Session context revalidation denied user_id=%s session_id=%s",
+                user.id,
+                auth_session.id,
+                exc_info=True,
+            )
+            return None
     if principal_expires_at is None or principal_expires_at != current_expires_at:
         return None
     if int(getattr(principal, "session_revision", 1) or 1) != int(getattr(user, "session_revision", 1) or 1):
         return None
-    return build_principal(service, user)
+    try:
+        return build_principal(service, user)
+    except Exception:
+        logger.warning(
+            "Legacy session context revalidation denied user_id=%s",
+            user.id,
+            exc_info=True,
+        )
+        return None
 
 
 __all__ = [

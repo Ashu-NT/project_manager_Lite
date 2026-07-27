@@ -10,6 +10,7 @@ from src.core.platform.auth.mfa import generate_mfa_secret, verify_totp_code
 from src.core.platform.common.exceptions import ValidationError
 
 from .session_service import refresh_current_session_if_user
+from .target_user_authorization import require_target_user_in_active_tenant
 
 if TYPE_CHECKING:
     from src.core.platform.auth.domain import UserAccount
@@ -22,6 +23,11 @@ def provision_mfa_secret(service: AuthService, user_id: str) -> str:
         service._user_session,
         ("auth.manage", "security.manage"),
         operation_label="provision user mfa secret",
+    )
+    require_target_user_in_active_tenant(
+        service,
+        user_id,
+        operation_label="provision MFA",
     )
     user = service._require_user(user_id)
     user.mfa_secret = generate_mfa_secret()
@@ -48,6 +54,11 @@ def enable_user_mfa(service: AuthService, user_id: str, verification_code: str) 
         service._user_session,
         ("auth.manage", "security.manage"),
         operation_label="enable user mfa",
+    )
+    require_target_user_in_active_tenant(
+        service,
+        user_id,
+        operation_label="enable MFA",
     )
     user = service._require_user(user_id)
     if not verify_totp_code(getattr(user, "mfa_secret", None), verification_code):
@@ -78,6 +89,11 @@ def disable_user_mfa(service: AuthService, user_id: str) -> UserAccount:
         service._user_session,
         ("auth.manage", "security.manage"),
         operation_label="disable user mfa",
+    )
+    require_target_user_in_active_tenant(
+        service,
+        user_id,
+        operation_label="disable MFA",
     )
     user = service._require_user(user_id)
     user.mfa_enabled = False

@@ -82,14 +82,25 @@ class _AccessRepositoryScopeSupport:
         return organization_id or None
 
     def _scoped_project_membership_stmt(self, base_stmt):
+        return self._project_membership_stmt_for_context(
+            base_stmt,
+            tenant_id=self._active_tenant_id(),
+            organization_id=self._active_organization_id(),
+        )
+
+    @staticmethod
+    def _project_membership_stmt_for_context(
+        base_stmt,
+        *,
+        tenant_id: str | None,
+        organization_id: str | None,
+    ):
         stmt = base_stmt.select_from(ProjectMembershipORM).join(
             ProjectORM,
             ProjectMembershipORM.project_id == ProjectORM.id,
         )
-        tenant_id = self._active_tenant_id()
         if tenant_id is not None:
             stmt = stmt.where(ProjectORM.tenant_id == tenant_id)
-        organization_id = self._active_organization_id()
         if organization_id is not None:
             stmt = stmt.where(ProjectORM.organization_id == organization_id)
         return stmt
@@ -179,6 +190,21 @@ class SqlAlchemyProjectMembershipRepository(
         stmt = self._scoped_project_membership_stmt(select(ProjectMembershipORM)).where(
             ProjectMembershipORM.user_id == user_id
         )
+        rows = self.session.execute(stmt).scalars().all()
+        return [project_membership_from_orm(row) for row in rows]
+
+    def list_by_user_for_context(
+        self,
+        user_id: str,
+        *,
+        tenant_id: str,
+        organization_id: str | None = None,
+    ) -> list[ProjectMembership]:
+        stmt = self._project_membership_stmt_for_context(
+            select(ProjectMembershipORM),
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+        ).where(ProjectMembershipORM.user_id == user_id)
         rows = self.session.execute(stmt).scalars().all()
         return [project_membership_from_orm(row) for row in rows]
 
@@ -315,6 +341,51 @@ class SqlAlchemyScopedAccessGrantRepository(
                 stmt = stmt.where(ScopedAccessGrantORM.scope_type == normalized_scope_type)
             rows = self.session.execute(stmt).scalars().all()
             grants.extend(_scoped_access_grants_from_rows(rows, source="generic_user"))
+        return grants
+
+    def list_by_user_for_context(
+        self,
+        user_id: str,
+        *,
+        tenant_id: str,
+        organization_id: str | None = None,
+        scope_type: str | None = None,
+    ) -> list[ScopedAccessGrant]:
+        normalized_scope_type = (
+            self._normalize_scope_type(scope_type)
+            if scope_type is not None
+            else None
+        )
+        grants: list[ScopedAccessGrant] = []
+        if normalized_scope_type in (None, "project"):
+            stmt = self._project_membership_stmt_for_context(
+                select(ProjectMembershipORM),
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+            ).where(ProjectMembershipORM.user_id == user_id)
+            rows = self.session.execute(stmt).scalars().all()
+            grants.extend(
+                _scoped_access_grants_from_rows(
+                    rows,
+                    source="project_user_explicit_context",
+                )
+            )
+        if normalized_scope_type != "project":
+            stmt = select(ScopedAccessGrantORM).where(
+                ScopedAccessGrantORM.user_id == user_id,
+                ScopedAccessGrantORM.tenant_id == tenant_id,
+            )
+            if normalized_scope_type is not None:
+                stmt = stmt.where(
+                    ScopedAccessGrantORM.scope_type == normalized_scope_type
+                )
+            rows = self.session.execute(stmt).scalars().all()
+            grants.extend(
+                _scoped_access_grants_from_rows(
+                    rows,
+                    source="generic_user_explicit_context",
+                )
+            )
         return grants
 
     def delete(self, grant_id: str) -> None:

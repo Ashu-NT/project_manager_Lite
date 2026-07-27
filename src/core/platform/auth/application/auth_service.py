@@ -21,6 +21,7 @@ from src.core.platform.auth.contracts import (
 from src.core.platform.auth.domain import AuthSession, Role, UserAccount
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.auth.sod import SeparationOfDutiesPolicy
+from src.core.platform.common.exceptions import BusinessRuleError
 
 from . import authentication_service as _auth
 from . import bootstrap_service as _bootstrap
@@ -37,6 +38,7 @@ from . import user_admin_service as _users
 if TYPE_CHECKING:
     from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.tenancy.contracts import UserTenantMembershipRepository
+    from src.core.platform.tenancy.tenant_context import TenantContextService
 
 
 class AuthService(AuthQueryMixin, AuthValidationMixin):
@@ -55,6 +57,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         enterprise_audit_service: "EnterpriseAuditService | None" = None,
         sod_policy: SeparationOfDutiesPolicy | None = None,
         user_tenant_repo: "UserTenantMembershipRepository | None" = None,
+        tenant_context_service: "TenantContextService | None" = None,
     ):
         self._session: Session = session
         self._user_repo: UserRepository = user_repo
@@ -69,6 +72,9 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._enterprise_audit_service: EnterpriseAuditService | None = enterprise_audit_service
         self._sod_policy = sod_policy or SeparationOfDutiesPolicy()
         self._user_tenant_repo: "UserTenantMembershipRepository | None" = user_tenant_repo
+        self._tenant_context_service: "TenantContextService | None" = (
+            tenant_context_service
+        )
 
     def bootstrap_defaults(self) -> UserAccount:
         return _bootstrap.bootstrap_defaults(self)
@@ -237,6 +243,41 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
 
     def build_principal(self, user: UserAccount, *, session_id: str | None = None) -> UserSessionPrincipal:
         return _principal.build_principal(self, user, session_id=session_id)
+
+    def build_principal_for_context(
+        self,
+        user: UserAccount,
+        *,
+        tenant_id: str | None,
+        organization_id: str | None,
+        session_id: str | None = None,
+    ) -> UserSessionPrincipal:
+        return _principal.build_principal(
+            self,
+            user,
+            session_id=session_id,
+            active_tenant_id=tenant_id,
+            active_organization_id=organization_id,
+        )
+
+    def rebuild_current_principal_for_context(
+        self,
+        tenant_id: str,
+        organization_id: str | None,
+    ) -> UserSessionPrincipal:
+        if self._user_session is None or self._user_session.principal is None:
+            raise BusinessRuleError(
+                "Authentication is required to rebuild tenant authority.",
+                code="AUTHENTICATION_REQUIRED",
+            )
+        current = self._user_session.principal
+        user = self._require_user(current.user_id)
+        return self.build_principal_for_context(
+            user,
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            session_id=current.session_id,
+        )
 
 
 __all__ = ["AuthService"]

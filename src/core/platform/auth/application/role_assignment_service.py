@@ -10,6 +10,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 from .session_service import refresh_current_session_if_user
 from .sod_enforcer import enforce_separation_of_duties
+from .target_user_authorization import require_target_user_in_active_tenant
 
 if TYPE_CHECKING:
     from .auth_service import AuthService
@@ -54,23 +55,12 @@ def _enforce_privilege_ceiling(service: AuthService, role_name: str) -> None:
 # C-2: tenant-scope guard — target user must be a member of the caller's active tenant.
 # Bypassed for admin / platform.admin callers and when no tenant repo is available.
 def _enforce_tenant_membership(service: AuthService, target_user_id: str, operation: str) -> None:
-    if service._user_tenant_repo is None:
-        return
-    if service._user_session is None:
-        return
-    principal = service._user_session.principal
-    if principal is None:
-        return
-    if "admin" in principal.role_names or "platform.admin" in principal.permissions:
-        return
-    caller_tenant_id = str(service._user_session.active_tenant_id() or "").strip() or None
-    if caller_tenant_id is None:
-        return
-    if not service._user_tenant_repo.is_active_member(target_user_id, caller_tenant_id):
-        raise BusinessRuleError(
-            f"Cannot {operation} role for a user outside the active tenant. (ROLE_CROSS_TENANT_DENIED)",
-            code="ROLE_CROSS_TENANT_DENIED",
-        )
+    require_target_user_in_active_tenant(
+        service,
+        target_user_id,
+        operation_label=f"{operation} role",
+        denial_code="ROLE_CROSS_TENANT_DENIED",
+    )
 
 
 def assign_role(service: AuthService, user_id: str, role_name: str) -> None:

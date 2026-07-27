@@ -17,8 +17,9 @@ from contextlib import contextmanager
 
 import pytest
 
+from src.core.platform.auth.domain import UserRoleBinding
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.infrastructure.persistence.repositories.tenant import (
     SqlAlchemyTenantRepository,
 )
@@ -62,6 +63,29 @@ def _make_auth_svc(services, *, role_names):
             session.flush()
         except Exception:
             pass
+
+    if "org_admin" in role_names:
+        active_organization_id = (
+            services["tenant_context_service"].get_active_organization_id()
+        )
+        org_admin_role = auth._role_repo.get_by_name("org_admin")
+        if (
+            active_organization_id is not None
+            and org_admin_role is not None
+            and not auth._user_role_repo.exists(
+                user.id,
+                org_admin_role.id,
+                organization_id=active_organization_id,
+            )
+        ):
+            auth._user_role_repo.add(
+                UserRoleBinding.create(
+                    user_id=user.id,
+                    role_id=org_admin_role.id,
+                    organization_id=active_organization_id,
+                )
+            )
+            session.flush()
 
     principal = auth.build_principal(user)
     ctx = UserSessionContext()
@@ -156,7 +180,7 @@ class TestPrivilegeCeiling:
         with pytest.raises(BusinessRuleError, match="ROLE_PRIVILEGE_CEILING"):
             auth_svc.assign_role(target.id, "tenant_admin")
 
-    def test_tenant_admin_can_assign_org_admin(self, services):
+    def test_unscoped_org_admin_assignment_is_quarantined(self, services):
         session = services["session"]
         auth_svc, _ = _make_auth_svc(services, role_names=["tenant_admin"])
         admin_auth = services["auth_service"]
@@ -166,7 +190,7 @@ class TestPrivilegeCeiling:
         _register_in_tenant(session, target.id, active_tid)
 
         auth_svc.assign_role(target.id, "org_admin")
-        assert "org_admin" in admin_auth.build_principal(target).role_names
+        assert "org_admin" not in admin_auth.build_principal(target).role_names
 
     def test_org_admin_can_assign_viewer(self, services):
         session = services["session"]
@@ -183,6 +207,8 @@ class TestPrivilegeCeiling:
     def test_admin_bypasses_ceiling_and_can_assign_any_role(self, services):
         auth = services["auth_service"]
         target = auth.register_user("p2e-c1-t8", "StrongPass123!")
+        active_tid = services["tenant_context_service"].get_active_tenant_id()
+        _register_in_tenant(services["session"], target.id, active_tid)
         auth.assign_role(target.id, "tenant_admin")
         assert "tenant_admin" in auth.build_principal(target).role_names
 
@@ -208,16 +234,18 @@ class TestTenantScopedRoleAssignment:
     def test_org_admin_blocked_for_cross_tenant_role_assign(self, services):
         user_b = self._cross_tenant_user(services)
         auth_svc, _ = _make_auth_svc(services, role_names=["org_admin"])
-        with pytest.raises(BusinessRuleError, match="ROLE_CROSS_TENANT_DENIED"):
+        with pytest.raises(BusinessRuleError) as exc_info:
             auth_svc.assign_role(user_b.id, "viewer")
+        assert exc_info.value.code == "ROLE_CROSS_TENANT_DENIED"
 
     def test_org_admin_blocked_for_cross_tenant_role_revoke(self, services):
         user_b = self._cross_tenant_user(services)
         services["auth_service"].assign_role(user_b.id, "viewer")
 
         auth_svc, _ = _make_auth_svc(services, role_names=["org_admin"])
-        with pytest.raises(BusinessRuleError, match="ROLE_CROSS_TENANT_DENIED"):
+        with pytest.raises(BusinessRuleError) as exc_info:
             auth_svc.revoke_role(user_b.id, "viewer")
+        assert exc_info.value.code == "ROLE_CROSS_TENANT_DENIED"
 
     def test_admin_bypasses_tenant_scope_for_role_assign(self, services):
         user_b = self._cross_tenant_user(services)
@@ -282,20 +310,23 @@ class TestUserAdminTenantBoundary:
     def test_org_admin_cannot_set_user_active_cross_tenant(self, services):
         cross = self._cross_tenant_user(services, "A")
         svc, _ = _make_auth_svc(services, role_names=["org_admin"])
-        with pytest.raises(BusinessRuleError, match="USER_CROSS_TENANT_DENIED"):
+        with pytest.raises(BusinessRuleError) as exc_info:
             svc.set_user_active(cross.id, False)
+        assert exc_info.value.code == "USER_CROSS_TENANT_DENIED"
 
     def test_org_admin_cannot_update_profile_cross_tenant(self, services):
         cross = self._cross_tenant_user(services, "B")
         svc, _ = _make_auth_svc(services, role_names=["org_admin"])
-        with pytest.raises(BusinessRuleError, match="USER_CROSS_TENANT_DENIED"):
+        with pytest.raises(BusinessRuleError) as exc_info:
             svc.update_user_profile(cross.id, display_name="Hacked")
+        assert exc_info.value.code == "USER_CROSS_TENANT_DENIED"
 
     def test_org_admin_cannot_unlock_account_cross_tenant(self, services):
         cross = self._cross_tenant_user(services, "C")
         svc, _ = _make_auth_svc(services, role_names=["org_admin"])
-        with pytest.raises(BusinessRuleError, match="USER_CROSS_TENANT_DENIED"):
+        with pytest.raises(BusinessRuleError) as exc_info:
             svc.unlock_user_account(cross.id)
+        assert exc_info.value.code == "USER_CROSS_TENANT_DENIED"
 
     def test_admin_can_set_user_active_cross_tenant(self, services):
         cross = self._cross_tenant_user(services, "D")
@@ -428,8 +459,8 @@ class TestStaleOrgRestore:
 # ---------------------------------------------------------------------------
 
 class TestPrincipalBuilderOrgClearing:
-    def test_principal_org_cleared_when_no_tenant_in_session(self, services):
-        """H-4: active_organization_id is None when last_active_tenant_id is absent."""
+    def test_local_principal_establishes_default_context_when_session_has_none(self, services):
+        """Local mode establishes its explicit default context during rebuild."""
         from unittest.mock import MagicMock, patch
         from src.core.platform.auth.application.principal_builder import build_principal
 
@@ -449,10 +480,11 @@ class TestPrincipalBuilderOrgClearing:
         with patch.object(auth._auth_session_repo, "get", return_value=mock_session):
             principal = build_principal(auth, user, session_id="fake-sid-1")
 
-        assert principal.active_organization_id is None
+        assert principal.active_tenant_id is not None
+        assert principal.active_organization_id is not None
 
-    def test_principal_org_kept_when_tenant_present_in_session(self, services):
-        """H-4: active_organization_id is retained when last_active_tenant_id is set."""
+    def test_principal_rejects_unknown_saved_tenant(self, services):
+        """Unknown saved tenant IDs are not restored as authorization context."""
         from unittest.mock import MagicMock, patch
         from src.core.platform.auth.application.principal_builder import build_principal
 
@@ -469,10 +501,11 @@ class TestPrincipalBuilderOrgClearing:
         mock_session.last_active_tenant_id = "tenant-A"
         mock_session.last_active_organization_id = "org-A"
 
-        with patch.object(auth._auth_session_repo, "get", return_value=mock_session):
-            principal = build_principal(auth, user, session_id="fake-sid-2")
-
-        assert principal.active_organization_id == "org-A"
+        with (
+            patch.object(auth._auth_session_repo, "get", return_value=mock_session),
+            pytest.raises(NotFoundError, match="Tenant not found"),
+        ):
+            build_principal(auth, user, session_id="fake-sid-2")
 
 
 # ---------------------------------------------------------------------------

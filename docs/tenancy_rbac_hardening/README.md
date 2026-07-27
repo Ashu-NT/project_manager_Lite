@@ -2,9 +2,10 @@
 
 Date: 2026-07-27
 
-Status: Reconciled target architecture and implementation plan after two team reviews.
-Implementation is in progress. The configuration and provisioning foundation is complete;
-fail-closed tenancy and legacy-startup cutover are not yet active.
+Status: Approved target architecture; Phase 1 immediate containment is in progress.
+Configuration, replacement provisioning, explicit-context principal rebuilding, atomic context
+switching, and sensitive target-user boundaries are implemented. Registration, customer-role,
+SaaS startup-fallback, canonical-authority, and legacy-startup cutovers remain pending.
 
 Owners: Platform, Security, Persistence, API, Desktop UI, and module teams.
 
@@ -982,8 +983,10 @@ Exit criteria:
 
 ### Phase 1: Immediate containment
 
-Status: In progress. Replacement provisioning and the tenant-context policy foundation are
-implemented; authority and startup cutovers remain pending.
+Status: In progress. Replacement provisioning, the tenant-context policy foundation,
+explicit-context session authority, atomic tenant/organization switching, legacy customer-admin
+containment, and sensitive target-user boundaries are implemented. Registration, customer-role,
+authority, and startup cutovers remain pending.
 
 - Add security regression tests before changing fail-open behavior.
 - Implement and test one-time platform-owner provisioning before changing startup bootstrap.
@@ -1145,14 +1148,14 @@ replacement provisioning is proven.
 
 | Step | Status | Evidence |
 | --- | --- | --- |
-| Security characterization/regression tests | In progress | Configuration, provisioning, authorization, auth/session restoration, tenant switching, audit, and existing RBAC suites pass; new containment-denial tests remain pending. |
+| Security characterization/regression tests | Implemented for the current containment tranche; broader matrix ongoing | `test_tenancy_rbac_immediate_containment.py` covers cross-tenant account operations, missing context, self-service targeting, grant replacement, and failed-switch atomicity. |
 | One-time platform-owner provisioning | Implemented; startup cutover pending | `src/core/platform/auth/application/platform_owner_provisioning_service.py` and `tools/provision_platform_owner.py` |
 | Deployment/tenancy/migration configuration | Implemented | `src/infra/platform/security_config.py` |
 | Single tenant-context policy boundary | Implemented; broader consumers pending | `src/core/platform/tenancy/context_policy.py` and `TenantContextService` |
-| Explicit login/restoration context and atomic principal rebuild | Pending | Next containment work package |
-| SaaS missing-context denial and fallback removal | Pending | Depends on explicit login/restoration context |
+| Explicit login/restoration context and atomic principal rebuild | Implemented | `principal_builder.py`, `authentication_service.py`, `session_service.py`, and `TenantContextService` |
+| SaaS missing-context denial and fallback removal | Policy denial implemented; startup fallback removal pending | Login/restoration now supplies validated explicit context; composition bootstrap still requires mode-specific cutover. |
 | Registration bypass removal and membership onboarding | Pending | Depends on containment tests |
-| Sensitive target-user boundary | Pending | Next containment work package |
+| Sensitive target-user boundary | Implemented | Password, MFA, federated identity, session, user-admin, and role-assignment paths use `target_user_authorization.py`. |
 | Platform-role removal from customer paths | Pending | Follows target-user and registration containment |
 | Versioned system-role reconciliation | Pending | Design approved; command not implemented |
 | Recurring startup-promotion removal | Pending | Replacement command proven; composition cutover still required |
@@ -1169,13 +1172,38 @@ Implementation ledger, 2026-07-27:
   platform-level audit row in the owner-creation transaction.
 - Added platform audit persistence without customer tenant context specifically for platform
   provisioning.
+- Added explicit-target tenant repository reads for scoped grants and project memberships;
+  principal construction no longer derives authority from mutable current-session repository
+  scope.
+- Login and session restoration now validate saved tenant/organization ownership, select the
+  single valid initial context when appropriate, clear an invalid organization gracefully, and
+  reject an invalid tenant context.
+- Tenant and organization switching now build target authority first and replace principal plus
+  context in one session operation. A failed rebuild preserves the prior principal and context.
+- Legacy `tenant_admin` is effective only for one unambiguous active membership; multiple
+  memberships deny switching. Legacy `org_admin` is effective only with an explicit
+  organization binding or grant in the target tenant.
+- Password, MFA, federated identity, persisted-session, user-administration, and role-assignment
+  target checks now deny when authentication, active tenant, actor membership, target
+  membership, or authorization infrastructure is missing.
+- Self-service password change can target only the authenticated user.
 - Verified the CLI twice against an isolated migrated database: create followed by idempotent
   no-op.
-- Verified 89 focused tests.
-- The complete platform suite has 477 passing tests and three unrelated failures in untouched
+- Verified 108 focused tests for the current containment package.
+- The complete platform suite has 491 passing tests and three unrelated failures in untouched
   code: two site date-time normalization failures and one stale QML route expectation for the
   existing `platform.tenants` route.
 - Legacy bootstrap remains enabled deliberately until the next cutover package.
+
+Next containment work package:
+
+1. Remove role selection and the public permission bypass from customer registration.
+2. Require explicit active tenant membership through a dedicated invitation/onboarding path.
+3. Tenant-scope user and role catalogs and remove platform roles from customer API/UI choices.
+4. Remove tenant creation/global tenant listing from `tenant_admin` and implement reviewed
+   versioned policy reconciliation.
+5. Remove SaaS startup default-tenant/user-membership fallback, then disable recurring legacy
+   administrator promotion after rollback and deployment checks pass.
 
 ## Required Test Matrix
 

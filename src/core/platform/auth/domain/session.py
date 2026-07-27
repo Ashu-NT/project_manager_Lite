@@ -401,8 +401,7 @@ class UserSessionContext:
             current_tenant_id = str(self._active_tenant_id or "").strip() or None
             if current_tenant_id is None or current_tenant_id == principal_tenant_id:
                 return principal_organization_id
-        organization_ids = sorted(self.organization_ids())
-        return organization_ids[0] if len(organization_ids) == 1 else None
+        return None
 
     def stored_active_organization_id(self) -> str | None:
         return str(self._active_organization_id or "").strip() or None
@@ -449,22 +448,14 @@ class UserSessionContext:
     ) -> None:
         if principal is None:
             return
-        principal_tenant_id = str(
+        tenant_id = str(
             getattr(principal, "active_tenant_id", "") or ""
         ).strip() or None
-        principal_organization_id = str(
+        organization_id = str(
             getattr(principal, "active_organization_id", "") or ""
         ).strip() or None
-        if principal_tenant_id is not None:
-            self._active_tenant_id = principal_tenant_id
-        if principal_organization_id is not None:
-            # H-3: only restore org when the tenant context is consistent.
-            # After switch_to_tenant(), _active_tenant_id is updated before this runs.
-            # If the stored tenant differs from the principal's tenant, skipping the org
-            # restore prevents a stale cross-tenant org reference being reinstated.
-            current_tenant = str(self._active_tenant_id or "").strip() or None
-            if current_tenant is None or current_tenant == principal_tenant_id:
-                self._active_organization_id = principal_organization_id
+        self._active_tenant_id = tenant_id
+        self._active_organization_id = organization_id if tenant_id else None
 
     def _notify_context_changed(self) -> None:
         listener = self._context_listener

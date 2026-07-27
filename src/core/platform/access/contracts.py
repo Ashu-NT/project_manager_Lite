@@ -24,6 +24,21 @@ class ProjectMembershipRepository(ABC):
     @abstractmethod
     def list_by_user(self, user_id: str) -> list[ProjectMembership]: ...
 
+    def list_by_user_for_context(
+        self,
+        user_id: str,
+        *,
+        tenant_id: str,
+        organization_id: str | None = None,
+    ) -> list[ProjectMembership]:
+        """Read memberships against an explicit target context.
+
+        Runtime principal construction must not infer this scope from mutable
+        session state. Repositories without an explicit implementation are not
+        safe for that path.
+        """
+        raise NotImplementedError
+
     @abstractmethod
     def delete(self, membership_id: str) -> None: ...
 
@@ -56,6 +71,17 @@ class ScopedAccessGrantRepository(ABC):
         *,
         scope_type: str | None = None,
     ) -> list[ScopedAccessGrant]: ...
+
+    def list_by_user_for_context(
+        self,
+        user_id: str,
+        *,
+        tenant_id: str,
+        organization_id: str | None = None,
+        scope_type: str | None = None,
+    ) -> list[ScopedAccessGrant]:
+        """Read grants against an explicit target context."""
+        raise NotImplementedError
 
     @abstractmethod
     def delete(self, grant_id: str) -> None: ...

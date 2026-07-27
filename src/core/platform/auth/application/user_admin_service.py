@@ -9,33 +9,21 @@ from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_any_permission, require_permission
 from src.core.platform.auth.domain import Role, UserAccount, normalize_auth_username
-from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.common.exceptions import ValidationError
 
 from .session_service import refresh_current_session_if_user
+from .target_user_authorization import require_target_user_in_active_tenant
 
 if TYPE_CHECKING:
     from .auth_service import AuthService
 
 
 def _enforce_user_tenant_boundary(service: AuthService, target_user_id: str, operation: str) -> None:
-    """H-8: Prevent cross-tenant user admin operations for non-admin callers."""
-    if service._user_tenant_repo is None:
-        return
-    if service._user_session is None:
-        return
-    principal = service._user_session.principal
-    if principal is None:
-        return
-    if "admin" in principal.role_names or "platform.admin" in principal.permissions:
-        return
-    caller_tenant_id = str(service._user_session.active_tenant_id() or "").strip() or None
-    if caller_tenant_id is None:
-        return
-    if not service._user_tenant_repo.is_active_member(target_user_id, caller_tenant_id):
-        raise BusinessRuleError(
-            f"Cannot {operation} for a user outside the active tenant. (USER_CROSS_TENANT_DENIED)",
-            code="USER_CROSS_TENANT_DENIED",
-        )
+    require_target_user_in_active_tenant(
+        service,
+        target_user_id,
+        operation_label=operation,
+    )
 
 
 def list_users(service: AuthService) -> list[UserAccount]:

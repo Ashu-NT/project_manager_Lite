@@ -12,6 +12,8 @@ from src.core.platform.auth.domain import (
 )
 from src.core.platform.common.exceptions import ValidationError
 
+from .target_user_authorization import require_target_user_in_active_tenant
+
 if TYPE_CHECKING:
     from src.core.platform.auth.domain import UserAccount
 
@@ -51,6 +53,11 @@ def link_federated_identity(
     require_any_permission(
         service._user_session,
         ("auth.manage", "security.manage"),
+        operation_label="link federated identity",
+    )
+    require_target_user_in_active_tenant(
+        service,
+        user_id,
         operation_label="link federated identity",
     )
     user = service._require_user(user_id)

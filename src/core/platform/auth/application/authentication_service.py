@@ -57,15 +57,66 @@ def _preferred_restore_session(service: AuthService, user: UserAccount) -> AuthS
 
 def _resolve_last_active_context(service: AuthService, user: UserAccount) -> tuple[str | None, str | None]:
     active_tenant_id, active_organization_id = _current_session_context_for_user(service, user.id)
+    if active_tenant_id is None and active_organization_id is None:
+        restore_session = _preferred_restore_session(service, user)
+        if restore_session is not None:
+            active_tenant_id = (
+                str(
+                    getattr(restore_session, "last_active_tenant_id", "") or ""
+                ).strip()
+                or None
+            )
+            active_organization_id = (
+                str(
+                    getattr(
+                        restore_session,
+                        "last_active_organization_id",
+                        "",
+                    )
+                    or ""
+                ).strip()
+                or None
+            )
+
+    candidates: list[tuple[str | None, str | None]] = []
     if active_tenant_id is not None or active_organization_id is not None:
-        return active_tenant_id, active_organization_id
-    restore_session = _preferred_restore_session(service, user)
-    if restore_session is None:
-        return None, None
-    return (
-        str(getattr(restore_session, "last_active_tenant_id", "") or "").strip() or None,
-        str(getattr(restore_session, "last_active_organization_id", "") or "").strip() or None,
-    )
+        candidates.append((active_tenant_id, active_organization_id))
+    if service._tenant_context_service is not None:
+        initial_tenant_id = (
+            service._tenant_context_service.initial_tenant_id_for_user(user.id)
+        )
+        initial_organization_id = (
+            service._tenant_context_service.initial_organization_id_for_tenant(
+                initial_tenant_id
+            )
+            if initial_tenant_id is not None
+            else None
+        )
+        initial_context = (initial_tenant_id, initial_organization_id)
+        if initial_context not in candidates:
+            candidates.append(initial_context)
+    candidates.append((None, None))
+
+    for tenant_id, organization_id in candidates:
+        try:
+            principal = service.build_principal_for_context(
+                user,
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                session_id=None,
+            )
+        except Exception:
+            logger.warning(
+                "Rejected saved authentication context user_id=%s tenant_id=%s "
+                "organization_id=%s",
+                user.id,
+                tenant_id,
+                organization_id,
+                exc_info=True,
+            )
+            continue
+        return principal.active_tenant_id, principal.active_organization_id
+    return None, None
 
 
 def complete_successful_authentication(

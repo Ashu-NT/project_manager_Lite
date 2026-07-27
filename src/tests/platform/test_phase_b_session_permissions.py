@@ -267,6 +267,8 @@ def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
         hours=2.0,
         note="Admin seed entry",
     )
+    active_tenant_id = user_session.active_tenant_id()
+    active_organization_id = user_session.active_organization_id()
 
     user_session.set_validator(None)
     user_session.set_principal(
@@ -276,6 +278,8 @@ def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
             display_name="Time Reader",
             role_names=frozenset({"time_reader"}),
             permissions=frozenset({"time.read"}),
+            active_tenant_id=active_tenant_id,
+            active_organization_id=active_organization_id,
         )
     )
     visible = timesheet_service.list_time_entries_for_assignment(assignment.id)
@@ -288,6 +292,8 @@ def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
             display_name="Time Manager",
             role_names=frozenset({"time_manager"}),
             permissions=frozenset({"time.manage", "time.read"}),
+            active_tenant_id=active_tenant_id,
+            active_organization_id=active_organization_id,
         )
     )
     second = timesheet_service.add_work_entry(

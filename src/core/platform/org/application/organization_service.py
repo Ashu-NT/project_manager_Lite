@@ -27,6 +27,7 @@ from src.core.platform.org.support import (
 if TYPE_CHECKING:
     from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth.domain.session import UserSessionContext
+    from src.core.platform.tenancy.tenant_context import TenantContextService
 
 
 class OrganizationService:
@@ -37,11 +38,13 @@ class OrganizationService:
         *,
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
+        tenant_context_service: TenantContextService | None = None,
     ):
         self._session = session
         self._organization_repo = organization_repo
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
+        self._tenant_context_service = tenant_context_service
 
     # ------------------------------------------------------------------
     # Tenant context — the single gateway for all runtime methods.
@@ -279,7 +282,9 @@ class OrganizationService:
                 "display_name": candidate.display_name,
             },
         )
-        if self._user_session is not None:
+        if self._tenant_context_service is not None:
+            self._tenant_context_service.set_active_organization(candidate.id)
+        elif self._user_session is not None:
             self._user_session.set_active_organization_id(candidate.id)
         domain_events.organizations_changed.emit(candidate.id)
         return candidate

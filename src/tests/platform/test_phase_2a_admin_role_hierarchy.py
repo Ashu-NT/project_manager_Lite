@@ -21,6 +21,29 @@ from src.core.platform.auth.domain.user import UserRoleBinding
 from src.core.platform.auth.policy import DEFAULT_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS
 
 
+def _active_context_ids(services) -> tuple[str, str]:
+    tenant_context = services["tenant_context_service"]
+    tenant_id = tenant_context.get_active_tenant_id()
+    organization_id = tenant_context.get_active_organization_id()
+    assert tenant_id is not None
+    assert organization_id is not None
+    return tenant_id, organization_id
+
+
+def _bind_org_admin(services, user_id: str, organization_id: str) -> None:
+    auth = services["auth_service"]
+    role = auth._role_repo.get_by_name("org_admin")
+    assert role is not None
+    auth._user_role_repo.add(
+        UserRoleBinding.create(
+            user_id=user_id,
+            role_id=role.id,
+            organization_id=organization_id,
+        )
+    )
+    services["session"].flush()
+
+
 # ---------------------------------------------------------------------------
 # 1–6. Policy-level unit tests (no DB required)
 # ---------------------------------------------------------------------------
@@ -111,7 +134,13 @@ def test_tenant_admin_role_has_seeded_permissions(services):
     """The seeded tenant_admin role has its expected permissions wired."""
     auth = services["auth_service"]
 
-    user = auth.register_user("p2a-tadmin-perms", "StrongPass123!", role_names=["tenant_admin"])
+    tenant_id, _ = _active_context_ids(services)
+    user = auth.register_user(
+        "p2a-tadmin-perms",
+        "StrongPass123!",
+        role_names=["tenant_admin"],
+        tenant_id=tenant_id,
+    )
     principal = auth.build_principal(user)
 
     assert "tenant.create" in principal.permissions
@@ -126,7 +155,14 @@ def test_org_admin_role_has_seeded_permissions(services):
     """The seeded org_admin role has its expected permissions wired."""
     auth = services["auth_service"]
 
-    user = auth.register_user("p2a-oadmin-perms", "StrongPass123!", role_names=["org_admin"])
+    tenant_id, organization_id = _active_context_ids(services)
+    user = auth.register_user(
+        "p2a-oadmin-perms",
+        "StrongPass123!",
+        role_names=["org_admin"],
+        tenant_id=tenant_id,
+    )
+    _bind_org_admin(services, user.id, organization_id)
     principal = auth.build_principal(user)
 
     assert "org.manage" in principal.permissions
@@ -142,8 +178,14 @@ def test_org_admin_role_has_seeded_permissions(services):
 
 def test_user_assigned_tenant_admin_gets_correct_permissions(services):
     auth = services["auth_service"]
+    tenant_id, _ = _active_context_ids(services)
 
-    user = auth.register_user("p2a-assign-tadmin", "StrongPass123!", role_names=["viewer"])
+    user = auth.register_user(
+        "p2a-assign-tadmin",
+        "StrongPass123!",
+        role_names=["viewer"],
+        tenant_id=tenant_id,
+    )
     auth.assign_role(user.id, "tenant_admin")
 
     principal = auth.build_principal(user)
@@ -155,9 +197,16 @@ def test_user_assigned_tenant_admin_gets_correct_permissions(services):
 
 def test_user_assigned_org_admin_gets_correct_permissions(services):
     auth = services["auth_service"]
+    tenant_id, organization_id = _active_context_ids(services)
 
-    user = auth.register_user("p2a-assign-oadmin", "StrongPass123!", role_names=["viewer"])
+    user = auth.register_user(
+        "p2a-assign-oadmin",
+        "StrongPass123!",
+        role_names=["viewer"],
+        tenant_id=tenant_id,
+    )
     auth.assign_role(user.id, "org_admin")
+    _bind_org_admin(services, user.id, organization_id)
 
     principal = auth.build_principal(user)
     assert "org_admin" in principal.role_names

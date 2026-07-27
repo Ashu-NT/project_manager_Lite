@@ -218,6 +218,14 @@ def _make_auth_service(monkeypatch: pytest.MonkeyPatch) -> AuthService:
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
+        "src.core.platform.auth.application.user_admin_service.require_target_user_in_active_tenant",
+        lambda *args, **kwargs: "",
+    )
+    monkeypatch.setattr(
+        "src.core.platform.auth.application.session_service.require_target_user_in_active_tenant",
+        lambda *args, **kwargs: "",
+    )
+    monkeypatch.setattr(
         "src.core.platform.auth.application.registration_service.record_audit_entry",
         lambda *args, **kwargs: None,
     )

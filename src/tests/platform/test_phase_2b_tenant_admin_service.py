@@ -55,9 +55,15 @@ def _make_svc(services, *, role_names=None, permissions=None) -> TenantAdminServ
         # Use the bootstrapped admin session directly
         return services["tenant_admin_service"]
 
+    main_tenant_id = services["tenant_context_service"].get_active_tenant_id()
     username = f"p2b-user-{''.join(sorted(role_names or []))}"
     try:
-        user = auth.register_user(username, "StrongPass123!", role_names=list(role_names or []))
+        user = auth.register_user(
+            username,
+            "StrongPass123!",
+            role_names=list(role_names or []),
+            tenant_id=main_tenant_id,
+        )
     except Exception:
         user = auth.authenticate(username, "StrongPass123!")
 
@@ -66,7 +72,6 @@ def _make_svc(services, *, role_names=None, permissions=None) -> TenantAdminServ
     ctx.set_principal(principal)
 
     # Copy active tenant/org from main session so context is valid
-    main_tenant_id = services["tenant_context_service"].get_active_tenant_id()
     if main_tenant_id:
         ctx.set_active_tenant_id(main_tenant_id)
 
@@ -156,12 +161,17 @@ def test_create_tenant_code_normalized_to_uppercase(services):
 def test_create_tenant_seeds_caller_membership(services):
     session = services["session"]
     auth = services["auth_service"]
-    user = auth.register_user("p2b-create-member", "StrongPass123!", role_names=["tenant_admin"])
+    main_tenant_id = services["tenant_context_service"].get_active_tenant_id()
+    user = auth.register_user(
+        "p2b-create-member",
+        "StrongPass123!",
+        role_names=["tenant_admin"],
+        tenant_id=main_tenant_id,
+    )
     principal = auth.build_principal(user)
     ctx = UserSessionContext()
     ctx.set_principal(principal)
 
-    main_tenant_id = services["tenant_context_service"].get_active_tenant_id()
     if main_tenant_id:
         ctx.set_active_tenant_id(main_tenant_id)
 
