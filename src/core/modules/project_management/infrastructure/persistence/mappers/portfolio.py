@@ -15,9 +15,6 @@ from src.core.modules.project_management.infrastructure.persistence.orm.portfoli
     PortfolioScoringTemplateORM,
     PortfolioScenarioORM,
 )
-from src.core.modules.project_management.domain.enums import DependencyType
-
-
 def portfolio_intake_to_orm(item: PortfolioIntakeItem) -> PortfolioIntakeItemORM:
     return PortfolioIntakeItemORM(
         id=item.id,
@@ -160,7 +157,7 @@ def portfolio_project_dependency_from_orm(obj: PortfolioProjectDependencyORM) ->
         id=obj.id,
         predecessor_project_id=obj.predecessor_project_id,
         successor_project_id=obj.successor_project_id,
-        dependency_type=DependencyType(obj.dependency_type),
+        dependency_type=obj.dependency_type,
         summary=obj.summary,
         created_at=obj.created_at,
         updated_at=obj.updated_at,

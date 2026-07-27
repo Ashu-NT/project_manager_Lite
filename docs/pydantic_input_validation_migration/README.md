@@ -150,6 +150,9 @@ Notes:
 - `CalendarWorkingRule`, `SiteCalendarAssignment`, `DepartmentCalendarAssignment`, and `EmployeeCalendarAssignment` were migrated in the twentieth slice
 - `ProjectCalendarAssignment` and `ResourceCalendarAssignment` were migrated in the twenty-first slice
 - `ResourceSkill`, `ResourceCertification`, and `TaskSkillRequirement` were migrated in the twenty-second slice
+- `PortfolioProjectDependency` was migrated in the twenty-third slice
+- `ProjectBaseline`, `BaselineTask`, and `BaselineVarianceRecord` were migrated in the twenty-fourth slice
+- `TaskPresence` was migrated in the twenty-fifth slice
 
 #### Maintenance
 
@@ -204,28 +207,13 @@ These are persisted entities too, but they are lower priority because they are c
 
 Secondary platform targets:
 
-- `CalendarWorkingRule`
-- `ShiftPatternDay`
-- `SiteCalendarAssignment`
-- `DepartmentCalendarAssignment`
-- `EmployeeCalendarAssignment`
-- `DocumentLink`
-- `UserTenantMembership`
-- `ModuleEntitlementRecord`
-- `Role`
-- `Permission`
-- `UserRoleBinding`
-- `RolePermissionBinding`
+- none currently pending
 
 #### Project Management
 
 Secondary PM targets:
 
-- `PortfolioProjectDependency`
-- `ProjectBaseline`
-- `BaselineTask`
-- `BaselineVarianceRecord`
-- `TaskPresence`
+- none currently pending
 
 #### Maintenance
 
@@ -1088,6 +1076,57 @@ Notes:
 - proficiency coercion, validation-mode coercion, code normalization, certification date-range checks, and single-target requirement shape now validate in the repo-bound DTOs
 - resource/task scope enforcement, assignment violation policy, and repository tenant scoping remain service- and repository-owned
 
+#### `PortfolioProjectDependency`
+
+Status:
+
+- completed
+
+Entity responsibilities:
+
+- require dependency, predecessor-project, and successor-project identifiers
+- normalize optional summary text and dependency-type values at the DTO boundary
+- validate that the predecessor and successor are different projects
+- validate dependency timestamps on reconstruction from persistence
+
+Service responsibilities:
+
+- active organization enforcement for portfolio operations
+- accessible-project scope checks for both linked projects
+- duplicate dependency prevention and portfolio activity logging
+
+Notes:
+
+- create/save scalar normalization now lives on the shared portfolio-dependency write model
+- project ID trimming, dependency-type coercion, summary normalization, and non-self-link validation now happen in `PortfolioProjectDependency`
+- accessible-project scope checks, duplicate-link prevention, activity emission, and repository tenant scoping remain service- and repository-owned
+
+#### `ProjectBaseline`, `BaselineTask`, and `BaselineVarianceRecord`
+
+Status:
+
+- completed
+
+Entity responsibilities:
+
+- require owning project, baseline, and task identifiers across the baseline snapshot write models
+- normalize baseline names, submission and approval actors, notes, and optional task names
+- validate baseline lifecycle status coercion plus submission and approval metadata coherence
+- validate baseline-task date ranges, non-negative duration and planned-cost fields, and numeric variance shapes
+
+Service responsibilities:
+
+- project existence, project-scope permission checks, and approval-governance routing
+- schedule recomputation, cost and labor snapshot allocation, approved-baseline supersession, and variance-log creation
+- repository-level optimistic concurrency and tenant-scoped baseline access
+
+Notes:
+
+- create/update scalar normalization now lives on the shared baseline, baseline-task, and baseline-variance write models
+- baseline status coercion, actor/note trimming, submission and approval metadata requirements, baseline-task date/cost guards, and variance numeric coercion now validate at the DTO boundary
+- the same slice hardened CPM result building so validated `Task` rows are rebuilt atomically during schedule recomputation instead of mutating `start_date` and `end_date` one field at a time
+- approval workflow, scope enforcement, baseline supersession policy, and variance generation remain service- and repository-owned
+
 #### `CostItem`
 
 Status:
@@ -1187,6 +1226,32 @@ Notes:
 
 - the repo-bound collaboration entity/service path is now migrated
 - the older `TaskCollaborationStore` import/regression path still keeps its own store-level validation and is outside this primary write-model migration slice
+
+#### `TaskPresence`
+
+Status:
+
+- completed
+
+Entity responsibilities:
+
+- require presence, task, and username identifiers
+- normalize optional user/display identity and activity text
+- normalize presence timestamps to UTC-aware datetimes
+- validate that `last_seen_at` is not earlier than `started_at`
+
+Service responsibilities:
+
+- task existence and project-scope collaboration permission checks
+- principal identity resolution, active-presence TTL policy, and collaboration event emission
+- tenant-scoped presence upsert and active-presence query filtering
+
+Notes:
+
+- create/touch scalar normalization now lives on the shared task-presence write model
+- username normalization, activity normalization, UTC timestamp coercion, and last-seen chronology checks now validate in `TaskPresence`
+- the repository touch path now rebuilds validated presence rows instead of hand-trimming username, display name, and activity fields, and the active-presence query now uses UTC timestamps consistently with the DTO
+- collaboration permission checks, principal lookup, TTL behavior, and tenant-scoped persistence remain service- and repository-owned
 
 ### Maintenance entities
 
@@ -1734,6 +1799,9 @@ Mitigation:
 - [x] Migrate platform secondary membership/RBAC/module DTOs
 - [x] Migrate platform and PM calendar-assignment DTOs
 - [x] Migrate PM resource skill/certification/requirement DTOs
+- [x] Migrate PM portfolio dependency DTO
+- [x] Migrate PM baseline snapshot/variance DTOs
+- [x] Migrate PM task-presence DTO
 
 ## Current Implementation Decision
 

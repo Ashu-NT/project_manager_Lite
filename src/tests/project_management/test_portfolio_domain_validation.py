@@ -8,6 +8,9 @@ import pytest
 from src.core.modules.project_management.application.portfolio.commands.portfolio_intake import (
     PortfolioIntakeCommandMixin,
 )
+from src.core.modules.project_management.application.portfolio.commands.portfolio_dependencies import (
+    PortfolioDependencyCommandMixin,
+)
 from src.core.modules.project_management.application.portfolio.commands.portfolio_scenarios import (
     PortfolioScenarioCommandMixin,
 )
@@ -20,9 +23,11 @@ from src.core.modules.project_management.application.portfolio.utils.portfolio_s
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
+    PortfolioProjectDependency,
     PortfolioScenario,
     PortfolioScoringTemplate,
 )
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
 
@@ -45,7 +50,7 @@ class _FakeTenantContext:
 class _FakeProjectRepo:
     def __init__(self, project_ids: list[str] | None = None) -> None:
         self._projects = {
-            project_id: SimpleNamespace(id=project_id)
+            project_id: SimpleNamespace(id=project_id, name=f"Project {project_id}")
             for project_id in (project_ids or ["proj-1", "proj-2"])
         }
 
@@ -120,8 +125,26 @@ class _FakeTemplateRepo:
         return list(self._templates.values())
 
 
+class _FakeDependencyRepo:
+    def __init__(self) -> None:
+        self._dependencies: dict[str, PortfolioProjectDependency] = {}
+
+    def add(self, dependency: PortfolioProjectDependency) -> None:
+        self._dependencies[dependency.id] = dependency
+
+    def get(self, dependency_id: str) -> PortfolioProjectDependency | None:
+        return self._dependencies.get(dependency_id)
+
+    def list(self) -> list[PortfolioProjectDependency]:
+        return list(self._dependencies.values())
+
+    def delete(self, dependency_id: str) -> None:
+        self._dependencies.pop(dependency_id, None)
+
+
 class _PortfolioHarness(
     PortfolioIntakeCommandMixin,
+    PortfolioDependencyCommandMixin,
     PortfolioScenarioCommandMixin,
     PortfolioSupportMixin,
     PortfolioTemplateCommandMixin,
@@ -136,6 +159,7 @@ class _PortfolioHarness(
         self._intake_repo = _FakeIntakeRepo()
         self._scenario_repo = _FakeScenarioRepo()
         self._scoring_template_repo = _FakeTemplateRepo()
+        self._dependency_repo = _FakeDependencyRepo()
         self._project_repo = _FakeProjectRepo(project_ids=project_ids)
         self._tenant_context_service = _FakeTenantContext()
         self._user_session = object()
@@ -156,6 +180,10 @@ def _make_service(
     )
     monkeypatch.setattr(
         "src.core.modules.project_management.application.portfolio.commands.portfolio_templates.require_permission",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "src.core.modules.project_management.application.portfolio.commands.portfolio_dependencies.require_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
@@ -284,6 +312,35 @@ def test_portfolio_entities_reject_invalid_local_fields():
         )
     assert exc_mix.value.code == "PORTFOLIO_TEMPLATE_EMPTY"
 
+    with pytest.raises(ValidationError) as exc_dependency_type:
+        PortfolioProjectDependency.create(
+            predecessor_project_id="proj-1",
+            successor_project_id="proj-2",
+            dependency_type="bad",
+        )
+    assert exc_dependency_type.value.code == "PORTFOLIO_DEPENDENCY_TYPE_INVALID"
+
+    with pytest.raises(ValidationError) as exc_dependency_pair:
+        PortfolioProjectDependency.create(
+            predecessor_project_id="proj-1",
+            successor_project_id="proj-1",
+        )
+    assert exc_dependency_pair.value.code == "PORTFOLIO_DEPENDENCY_SAME_PROJECT"
+
+
+def test_portfolio_dependency_entity_normalizes_local_fields():
+    dependency = PortfolioProjectDependency.create(
+        predecessor_project_id="  proj-1  ",
+        successor_project_id="  proj-2  ",
+        dependency_type="fs",
+        summary="  Alpha must finish before Beta starts.  ",
+    )
+
+    assert dependency.predecessor_project_id == "proj-1"
+    assert dependency.successor_project_id == "proj-2"
+    assert dependency.dependency_type == DependencyType.FINISH_TO_START
+    assert dependency.summary == "Alpha must finish before Beta starts."
+
 
 def test_portfolio_intake_service_update_validates_final_state(monkeypatch: pytest.MonkeyPatch):
     service = _make_service(monkeypatch)
@@ -376,6 +433,39 @@ def test_portfolio_scenario_service_normalizes_ids_and_enforces_scope(
     with pytest.raises(ValidationError) as exc:
         service.update_scenario(scenario.id, project_ids=["proj-unknown"])
     assert exc.value.code == "PORTFOLIO_PROJECT_SCOPE_INVALID"
+
+
+def test_portfolio_dependency_service_keeps_scope_and_duplicate_rules_in_service(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    service = _make_service(monkeypatch, project_ids=["proj-1", "proj-2"])
+
+    created = service.create_project_dependency(
+        predecessor_project_id="  proj-1  ",
+        successor_project_id="  proj-2  ",
+        dependency_type="fs",
+        summary="  Alpha gates Beta launch.  ",
+    )
+
+    assert created.predecessor_project_id == "proj-1"
+    assert created.successor_project_id == "proj-2"
+    assert created.dependency_type == DependencyType.FINISH_TO_START
+    assert created.summary == "Alpha gates Beta launch."
+
+    with pytest.raises(ValidationError) as exc_duplicate:
+        service.create_project_dependency(
+            predecessor_project_id="proj-1",
+            successor_project_id="proj-2",
+            dependency_type="FS",
+        )
+    assert exc_duplicate.value.code == "PORTFOLIO_DEPENDENCY_DUPLICATE"
+
+    with pytest.raises(ValidationError) as exc_scope:
+        service.create_project_dependency(
+            predecessor_project_id="proj-1",
+            successor_project_id="proj-9",
+        )
+    assert exc_scope.value.code == "PORTFOLIO_DEPENDENCY_PROJECT_REQUIRED"
 
 
 def test_portfolio_template_service_keeps_duplicate_check_in_service(

@@ -75,8 +75,8 @@ def task_presence_from_orm(obj: TaskPresenceORM) -> TaskPresence:
         username=obj.username,
         display_name=obj.display_name,
         activity=obj.activity,
-        started_at=_coerce_utc_datetime(obj.started_at),
-        last_seen_at=_coerce_utc_datetime(obj.last_seen_at),
+        started_at=obj.started_at,
+        last_seen_at=obj.last_seen_at,
     )
 
 
