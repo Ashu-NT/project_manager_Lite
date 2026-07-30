@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.platform.auth.domain import UserAccount
+from src.core.platform.auth.domain import RolePermissionBinding, UserAccount
 from src.core.platform.auth.passwords import hash_password
 from src.core.platform.auth.policy import DEFAULT_ROLE_PERMISSIONS
 from src.core.platform.tenancy import Tenant, TenancyMode
@@ -40,6 +40,47 @@ def test_saas_startup_does_not_create_customer_context_or_legacy_admin(session) 
     assert {
         role.name for role in repositories.role_repo.list_all()
     } == set(DEFAULT_ROLE_PERMISSIONS)
+    assert all(
+        repositories.role_permission_repo.list_permission_ids(role.id)
+        == []
+        for role in repositories.role_repo.list_all()
+    )
+
+
+def test_saas_restart_preserves_reviewed_role_permissions(session) -> None:
+    repositories = build_repository_bundle(session)
+    configuration = _security_configuration(TenancyMode.SAAS)
+    build_platform_service_bundle(
+        session,
+        repositories,
+        runtime_security_configuration=configuration,
+    )
+    admin_role = repositories.role_repo.get_by_name("admin")
+    permission = repositories.permission_repo.get_by_code("platform.admin")
+    assert admin_role is not None
+    assert permission is not None
+    repositories.role_permission_repo.add(
+        RolePermissionBinding.create(
+            role_id=admin_role.id,
+            permission_id=permission.id,
+        )
+    )
+    session.commit()
+
+    build_platform_service_bundle(
+        session,
+        repositories,
+        runtime_security_configuration=configuration,
+    )
+
+    assert repositories.role_permission_repo.list_permission_ids(
+        admin_role.id
+    ) == [permission.id]
+    assert all(
+        repositories.role_permission_repo.list_permission_ids(role.id) == []
+        for role in repositories.role_repo.list_all()
+        if role.id != admin_role.id
+    )
 
 
 def test_saas_startup_does_not_promote_or_backfill_existing_user(session) -> None:
@@ -97,3 +138,6 @@ def test_local_single_tenant_startup_retains_explicit_desktop_defaults(session) 
     assert repositories.organization_repo.list_for_tenant(tenant.id)
     assert bundle.user_session.active_tenant_id() == tenant.id
     assert bundle.user_session.active_organization_id() is not None
+    assert "auth.role.assign" in bundle.auth_service.build_principal(
+        admin
+    ).permissions

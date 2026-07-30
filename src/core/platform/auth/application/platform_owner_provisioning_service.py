@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from src.core.platform.audit.domain import AuditEntry
 from src.core.platform.auth.domain import (
+    RolePermissionBinding,
     UserAccount,
     UserRoleBinding,
     normalize_auth_username,
@@ -14,13 +15,14 @@ from src.core.platform.auth.domain import (
 from src.core.platform.auth.passwords import hash_password
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 
-from .default_seed_service import ensure_auth_policy_defaults
+from .default_seed_service import ensure_auth_policy_definitions
 
 if TYPE_CHECKING:
     from .auth_service import AuthService
 
 
 LEGACY_PLATFORM_OWNER_ROLE = "admin"
+PLATFORM_OWNER_BOOTSTRAP_PERMISSION = "platform.admin"
 
 
 class PlatformAuditWriter(Protocol):
@@ -60,8 +62,16 @@ def provision_platform_owner(
     normalized_actor = str(provisioning_actor or "").strip() or "deployment"
     try:
         with service._session.begin_nested():
-            role_map = ensure_auth_policy_defaults(service)
+            role_map = ensure_auth_policy_definitions(service)
             owner_role = role_map[LEGACY_PLATFORM_OWNER_ROLE]
+            bootstrap_permission = service._permission_repo.get_by_code(
+                PLATFORM_OWNER_BOOTSTRAP_PERMISSION
+            )
+            if bootstrap_permission is None:
+                raise BusinessRuleError(
+                    "Platform-owner bootstrap permission is unavailable.",
+                    code="PLATFORM_OWNER_BOOTSTRAP_POLICY_MISSING",
+                )
             owners = _find_platform_owners(service, role_id=owner_role.id)
             if len(owners) > 1:
                 raise BusinessRuleError(
@@ -74,6 +84,15 @@ def provision_platform_owner(
                     raise BusinessRuleError(
                         "A platform owner already exists.",
                         code="PLATFORM_OWNER_EXISTS",
+                    )
+                if not service._role_permission_repo.exists(
+                    owner_role.id,
+                    bootstrap_permission.id,
+                ):
+                    raise BusinessRuleError(
+                        "The existing platform owner lacks bootstrap policy "
+                        "authority and requires operator recovery.",
+                        code="PLATFORM_OWNER_BOOTSTRAP_AUTHORITY_MISSING",
                     )
                 result = PlatformOwnerProvisioningResult(
                     user_id=owner.id,
@@ -96,6 +115,16 @@ def provision_platform_owner(
                     must_change_password=True,
                 )
                 service._user_repo.add(owner)
+                if not service._role_permission_repo.exists(
+                    owner_role.id,
+                    bootstrap_permission.id,
+                ):
+                    service._role_permission_repo.add(
+                        RolePermissionBinding.create(
+                            role_id=owner_role.id,
+                            permission_id=bootstrap_permission.id,
+                        )
+                    )
                 service._user_role_repo.add(
                     UserRoleBinding.create(
                         user_id=owner.id,
@@ -116,6 +145,9 @@ def provision_platform_owner(
                         metadata={
                             "username": owner.username,
                             "legacy_role_name": LEGACY_PLATFORM_OWNER_ROLE,
+                            "bootstrap_permission_code": (
+                                PLATFORM_OWNER_BOOTSTRAP_PERMISSION
+                            ),
                             "must_change_password": True,
                             "provisioning_version": 1,
                         },
@@ -138,6 +170,7 @@ def provision_platform_owner(
 
 __all__ = [
     "LEGACY_PLATFORM_OWNER_ROLE",
+    "PLATFORM_OWNER_BOOTSTRAP_PERMISSION",
     "PlatformAuditWriter",
     "PlatformOwnerProvisioningResult",
     "provision_platform_owner",

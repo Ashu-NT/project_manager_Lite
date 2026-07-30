@@ -344,6 +344,23 @@ class SqlAlchemyRoleRepository(RoleRepository):
         ).scalars()
         return [role_from_orm(row) for row in rows]
 
+    def set_policy_version(
+        self,
+        role_id: str,
+        *,
+        policy_version: int,
+        updated_at: datetime,
+    ) -> bool:
+        result = self.session.execute(
+            update(RoleORM)
+            .where(RoleORM.id == role_id)
+            .values(
+                policy_version=policy_version,
+                updated_at=updated_at,
+            )
+        )
+        return bool(result.rowcount)
+
     def list_all(self) -> list[Role]:
         rows = self.session.execute(select(RoleORM)).scalars().all()
         return [role_from_orm(row) for row in rows]

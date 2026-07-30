@@ -150,7 +150,10 @@ class RolePolicyReconciliationService:
                 role_map = {
                     role.name: role
                     for role in self._role_repo.list_all()
-                    if role.is_system
+                    if (
+                        role.is_system
+                        and role.name in DEFAULT_ROLE_PERMISSIONS
+                    )
                 }
                 permission_map = {
                     permission.code: permission
@@ -172,6 +175,17 @@ class RolePolicyReconciliationService:
                     )
 
                 applied_at = datetime.now(timezone.utc)
+                for role in role_map.values():
+                    if not self._role_repo.set_policy_version(
+                        role.id,
+                        policy_version=plan.target_version,
+                        updated_at=applied_at,
+                    ):
+                        raise BusinessRuleError(
+                            "Managed system role changed during policy "
+                            "reconciliation.",
+                            code="ROLE_POLICY_CONCURRENT_ROLE_CHANGE",
+                        )
                 revoked_session_count = self._invalidate_affected_users(
                     plan.affected_user_ids,
                     revoked_at=applied_at,

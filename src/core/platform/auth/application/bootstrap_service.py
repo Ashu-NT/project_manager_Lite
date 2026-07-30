@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from src.core.platform.auth.domain import UserRoleBinding
 
 from .default_seed_service import (
+    ensure_auth_policy_definitions,
     ensure_auth_policy_defaults,
     resolve_bootstrap_admin_password,
 )
@@ -18,8 +19,8 @@ if TYPE_CHECKING:
 
 
 def bootstrap_policy_catalog(service: AuthService) -> None:
-    """Initialize fixed auth definitions without creating or promoting a user."""
-    ensure_auth_policy_defaults(service)
+    """Initialize definitions without mutating reviewed role permissions."""
+    ensure_auth_policy_definitions(service)
     service._session.commit()
 
 

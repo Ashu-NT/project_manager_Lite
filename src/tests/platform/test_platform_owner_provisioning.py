@@ -54,6 +54,18 @@ def test_provision_platform_owner_creates_audited_owner_without_membership(sessi
     assert result.username == "platform-owner"
     assert auth_service.get_user_role_names(result.user_id) == {"admin"}
     assert repositories.user_tenant_repo.list_tenant_ids_for_user(result.user_id) == []
+    owner_role = repositories.role_repo.get_by_name("admin")
+    bootstrap_permission = repositories.permission_repo.get_by_code(
+        "platform.admin"
+    )
+    assert owner_role is not None
+    assert bootstrap_permission is not None
+    assert repositories.role_permission_repo.list_permission_ids(
+        owner_role.id
+    ) == [bootstrap_permission.id]
+    assert auth_service.build_principal(
+        repositories.user_repo.get(result.user_id)
+    ).permissions == frozenset({"platform.admin"})
 
     audit_row = session.execute(
         select(AuditEntryORM).where(
@@ -67,6 +79,7 @@ def test_provision_platform_owner_creates_audited_owner_without_membership(sessi
     assert audit_row.severity == "critical"
     audit_metadata = json.loads(audit_row.metadata_json)
     assert audit_metadata["username"] == "platform-owner"
+    assert audit_metadata["bootstrap_permission_code"] == "platform.admin"
     assert {"password", "raw_password", "password_hash"}.isdisjoint(audit_metadata)
 
 
@@ -95,6 +108,39 @@ def test_provision_platform_owner_is_idempotent_for_same_username(session) -> No
             .where(AuditEntryORM.operation == "platform_owner.provision")
         )
         == 1
+    )
+
+
+def test_existing_owner_missing_bootstrap_authority_requires_recovery(
+    session,
+) -> None:
+    auth_service, repositories = _build_auth_service(session)
+    result = auth_service.provision_platform_owner(
+        username="platform-owner",
+        raw_password="OwnerStrong123!",
+        audit_writer=repositories.audit_entry_repo,
+    )
+    owner_role = repositories.role_repo.get_by_name("admin")
+    bootstrap_permission = repositories.permission_repo.get_by_code(
+        "platform.admin"
+    )
+    assert owner_role is not None
+    assert bootstrap_permission is not None
+    repositories.role_permission_repo.delete(
+        owner_role.id,
+        bootstrap_permission.id,
+    )
+    session.commit()
+
+    with pytest.raises(BusinessRuleError) as exc_info:
+        auth_service.provision_platform_owner(
+            username=result.username,
+            raw_password="UnusedStrong123!",
+            audit_writer=repositories.audit_entry_repo,
+        )
+
+    assert exc_info.value.code == (
+        "PLATFORM_OWNER_BOOTSTRAP_AUTHORITY_MISSING"
     )
 
 

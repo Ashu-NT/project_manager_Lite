@@ -1,12 +1,23 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 
 import pytest
 
 from src.core.platform.auth.application import RolePolicyReconciliationService
-from src.core.platform.auth.domain import RolePermissionBinding
+from src.core.platform.auth.domain import (
+    AuthPolicyReconciliation,
+    Role,
+    RolePermissionBinding,
+)
+from src.core.platform.auth.policy import (
+    DEFAULT_ROLE_PERMISSIONS,
+    SYSTEM_ROLE_POLICY_NAME,
+    SYSTEM_ROLE_POLICY_VERSION,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.ids import generate_id
 from src.core.platform.infrastructure.persistence.repositories.auth import (
     SqlAlchemyAuthPolicyReconciliationRepository,
 )
@@ -88,7 +99,7 @@ def test_reconciliation_preview_is_deterministic_and_startup_is_non_destructive(
     second = service.preview()
 
     assert first.current_version == 0
-    assert first.target_version == 1
+    assert first.target_version == SYSTEM_ROLE_POLICY_VERSION
     assert first.change_set_hash == second.change_set_hash
     assert {
         (change.role_name, change.permission_code)
@@ -151,6 +162,12 @@ def test_reconciliation_apply_removes_drift_records_rollback_and_revokes_session
         username="policy-apply-tenant-admin",
     )
     auth = services["auth_service"]
+    unmanaged_role = Role.create(
+        name="integration_admin",
+        description="Owned by a separate platform policy.",
+    )
+    auth._role_repo.add(unmanaged_role)
+    services["session"].commit()
     before_revision = auth._user_repo.get(user.id).session_revision
     service = _reconciliation_service(services)
     plan = service.preview()
@@ -169,6 +186,15 @@ def test_reconciliation_apply_removes_drift_records_rollback_and_revokes_session
         )
     updated_user = auth._user_repo.get(user.id)
     assert updated_user.session_revision == before_revision + 1
+    assert all(
+        managed_role.policy_version == SYSTEM_ROLE_POLICY_VERSION
+        for managed_role in auth._role_repo.list_all()
+        if (
+            managed_role.is_system
+            and managed_role.name in DEFAULT_ROLE_PERMISSIONS
+        )
+    )
+    assert auth._role_repo.get(unmanaged_role.id).policy_version == 1
     assert auth._auth_session_repo.get(session_id).revoked_at is not None
     assert _REMOVED_TENANT_ADMIN_PERMISSIONS.isdisjoint(
         auth.build_principal(updated_user).permissions
@@ -179,7 +205,7 @@ def test_reconciliation_apply_removes_drift_records_rollback_and_revokes_session
     ).get_latest(plan.policy_name)
     assert latest is not None
     assert latest.from_version == 0
-    assert latest.to_version == 1
+    assert latest.to_version == SYSTEM_ROLE_POLICY_VERSION
     assert latest.change_set_hash == plan.change_set_hash
     assert json.loads(latest.rollback_json)["forward_change_set_hash"] == (
         plan.change_set_hash
@@ -221,3 +247,48 @@ def test_tenant_admin_cannot_preview_platform_policy_reconciliation(
         _reconciliation_service(services).preview()
 
     assert exc_info.value.code == "PERMISSION_DENIED"
+
+
+def test_policy_v1_preview_requires_reviewed_role_assignment_additions(
+    services,
+) -> None:
+    auth = services["auth_service"]
+    permission = auth._permission_repo.get_by_code("auth.role.assign")
+    assert permission is not None
+    expected_role_names = {"admin", "tenant_admin", "org_admin"}
+    role_map = {
+        role.name: role
+        for role in auth._role_repo.list_all()
+        if role.name in expected_role_names
+    }
+    for role in role_map.values():
+        auth._role_permission_repo.delete(role.id, permission.id)
+
+    reconciliation_repo = SqlAlchemyAuthPolicyReconciliationRepository(
+        services["session"]
+    )
+    reconciliation_repo.add(
+        AuthPolicyReconciliation(
+            id=generate_id(),
+            policy_name=SYSTEM_ROLE_POLICY_NAME,
+            from_version=0,
+            to_version=1,
+            change_set_hash="a" * 64,
+            applied_at=datetime.now(timezone.utc),
+            applied_by_user_id=services["user_session"].principal.user_id,
+            rollback_json="{}",
+        )
+    )
+    services["session"].commit()
+
+    plan = _reconciliation_service(services).preview()
+
+    assert plan.current_version == 1
+    assert plan.target_version == SYSTEM_ROLE_POLICY_VERSION
+    assert {
+        (change.role_name, change.permission_code)
+        for change in plan.additions
+    } == {
+        (role_name, "auth.role.assign")
+        for role_name in expected_role_names
+    }

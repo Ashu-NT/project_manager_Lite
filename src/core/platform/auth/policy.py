@@ -51,6 +51,7 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "settings.manage": "Manage app settings",
     "auth.read": "View user and role directory data",
     "auth.manage": "Manage users and roles",
+    "auth.role.assign": "Assign reviewed roles through explicit delegation policy",
     "security.manage": "Manage login security, lockouts, and session controls",
     "organization.access": "Access tenant organization context",
     "org.create": "Create organizations within a tenant",
@@ -255,6 +256,7 @@ _TENANT_ADMIN = {
     "settings.manage",
     "auth.read",
     "auth.manage",
+    "auth.role.assign",
 }
 
 _ORG_ADMIN = {
@@ -265,6 +267,7 @@ _ORG_ADMIN = {
     "settings.manage",
     "auth.read",
     "auth.manage",
+    "auth.role.assign",
 }
 
 DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
@@ -291,7 +294,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
 }
 
 SYSTEM_ROLE_POLICY_NAME = "system-role-permissions"
-SYSTEM_ROLE_POLICY_VERSION = 1
+SYSTEM_ROLE_POLICY_VERSION = 2
 
 
 def login_lockout_threshold() -> int:

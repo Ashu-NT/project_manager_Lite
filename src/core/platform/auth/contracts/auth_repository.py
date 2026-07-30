@@ -104,6 +104,15 @@ class RoleRepository(ABC):
     ) -> list[Role]: ...
 
     @abstractmethod
+    def set_policy_version(
+        self,
+        role_id: str,
+        *,
+        policy_version: int,
+        updated_at: datetime,
+    ) -> bool: ...
+
+    @abstractmethod
     def list_all(self) -> list[Role]: ...
 
 
