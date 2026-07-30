@@ -5,13 +5,13 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_any_permission, require_permission
 from src.core.platform.auth.domain import Role, UserAccount, normalize_auth_username
 from src.core.platform.common.exceptions import ValidationError
 
 from .session_service import refresh_current_session_if_user
+from .security_audit import add_atomic_security_audit
 from .role_scope_policy import is_customer_assignable_role, is_platform_role
 from .target_user_authorization import (
     is_platform_operator,
@@ -93,20 +93,26 @@ def set_user_active(service: AuthService, user_id: str, is_active: bool) -> User
     require_permission(service._user_session, "auth.manage", operation_label="set user active")
     _enforce_user_tenant_boundary(service, user_id, "set active status")
     user = service._require_user(user_id)
+    previous_is_active = user.is_active
     user.is_active = bool(is_active)
     user.updated_at = datetime.now(timezone.utc)
-    service._user_repo.update(user)
-    service._session.commit()
-    record_audit_entry(
-        service,
-        operation="update",
-        entity_type="user",
-        entity_id=user.id,
-        module="platform",
-        severity="medium",
-        field="is_active",
-        metadata={"action": "user.set_active", "is_active": str(is_active)},
-    )
+    try:
+        service._user_repo.update(user)
+        add_atomic_security_audit(
+            service,
+            operation="update",
+            entity_type="user",
+            entity_id=user.id,
+            action="user.set_active",
+            severity="medium",
+            field="is_active",
+            old_value=str(previous_is_active),
+            new_value=str(user.is_active),
+        )
+        service._session.commit()
+    except Exception:
+        service._session.rollback()
+        raise
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return user
@@ -136,6 +142,15 @@ def update_user_profile(
     user.updated_at = datetime.now(timezone.utc)
     try:
         service._user_repo.update(user)
+        add_atomic_security_audit(
+            service,
+            operation="update",
+            entity_type="user",
+            entity_id=user.id,
+            action="user.update_profile",
+            severity="low",
+            field="profile",
+        )
         service._session.commit()
     except IntegrityError as exc:
         service._session.rollback()
@@ -148,16 +163,6 @@ def update_user_profile(
     except Exception:
         service._session.rollback()
         raise
-    record_audit_entry(
-        service,
-        operation="update",
-        entity_type="user",
-        entity_id=user.id,
-        module="platform",
-        severity="low",
-        field="profile",
-        metadata={"action": "user.update_profile"},
-    )
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return user
@@ -171,21 +176,28 @@ def unlock_user_account(service: AuthService, user_id: str) -> UserAccount:
     )
     _enforce_user_tenant_boundary(service, user_id, "unlock account")
     user = service._require_user(user_id)
+    previous_failed_attempts = user.failed_login_attempts
     user.failed_login_attempts = 0
     user.locked_until = None
     user.updated_at = datetime.now(timezone.utc)
-    service._user_repo.update(user)
-    service._session.commit()
-    record_audit_entry(
-        service,
-        operation="update",
-        entity_type="user",
-        entity_id=user.id,
-        module="platform",
-        severity="medium",
-        field="locked_until",
-        metadata={"action": "user.unlock_account"},
-    )
+    try:
+        service._user_repo.update(user)
+        add_atomic_security_audit(
+            service,
+            operation="update",
+            entity_type="user",
+            entity_id=user.id,
+            action="user.unlock_account",
+            severity="medium",
+            field="locked_until",
+            metadata={
+                "previous_failed_login_attempts": previous_failed_attempts,
+            },
+        )
+        service._session.commit()
+    except Exception:
+        service._session.rollback()
+        raise
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return user

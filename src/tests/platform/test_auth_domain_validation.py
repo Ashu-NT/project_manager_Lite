@@ -230,7 +230,7 @@ def _make_auth_service(monkeypatch: pytest.MonkeyPatch) -> AuthService:
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.user_admin_service.record_audit_entry",
+        "src.core.platform.auth.application.user_admin_service.add_atomic_security_audit",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(

@@ -3,13 +3,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_any_permission
 from src.core.platform.auth.mfa import generate_mfa_secret, verify_totp_code
 from src.core.platform.common.exceptions import ValidationError
 
 from .session_service import refresh_current_session_if_user
+from .security_audit import add_atomic_security_audit
 from .target_user_authorization import require_target_user_in_active_tenant
 
 if TYPE_CHECKING:
@@ -33,16 +33,11 @@ def provision_mfa_secret(service: AuthService, user_id: str) -> str:
     user.mfa_secret = generate_mfa_secret()
     user.mfa_enabled = False
     user.updated_at = datetime.now(timezone.utc)
-    service._user_repo.update(user)
-    service._session.commit()
-    record_audit_entry(
+    _persist_mfa_mutation(
         service,
-        operation="update",
-        entity_type="user",
-        entity_id=user.id,
-        module="platform",
+        user,
+        action="mfa.provision",
         severity="high",
-        metadata={"action": "mfa.provision"},
     )
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
@@ -68,16 +63,11 @@ def enable_user_mfa(service: AuthService, user_id: str, verification_code: str) 
         )
     user.mfa_enabled = True
     user.updated_at = datetime.now(timezone.utc)
-    service._user_repo.update(user)
-    service._session.commit()
-    record_audit_entry(
+    _persist_mfa_mutation(
         service,
-        operation="update",
-        entity_type="user",
-        entity_id=user.id,
-        module="platform",
+        user,
+        action="mfa.enable",
         severity="medium",
-        metadata={"action": "mfa.enable"},
     )
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
@@ -98,20 +88,39 @@ def disable_user_mfa(service: AuthService, user_id: str) -> UserAccount:
     user = service._require_user(user_id)
     user.mfa_enabled = False
     user.updated_at = datetime.now(timezone.utc)
-    service._user_repo.update(user)
-    service._session.commit()
-    record_audit_entry(
+    _persist_mfa_mutation(
         service,
-        operation="update",
-        entity_type="user",
-        entity_id=user.id,
-        module="platform",
+        user,
+        action="mfa.disable",
         severity="high",
-        metadata={"action": "mfa.disable"},
     )
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return user
+
+
+def _persist_mfa_mutation(
+    service: AuthService,
+    user: UserAccount,
+    *,
+    action: str,
+    severity: str,
+) -> None:
+    try:
+        service._user_repo.update(user)
+        add_atomic_security_audit(
+            service,
+            operation="update",
+            entity_type="user",
+            entity_id=user.id,
+            action=action,
+            severity=severity,
+            field="mfa",
+        )
+        service._session.commit()
+    except Exception:
+        service._session.rollback()
+        raise
 
 
 __all__ = ["disable_user_mfa", "enable_user_mfa", "provision_mfa_secret"]

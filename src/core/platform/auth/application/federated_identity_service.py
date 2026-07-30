@@ -12,6 +12,7 @@ from src.core.platform.auth.domain import (
 )
 from src.core.platform.common.exceptions import ValidationError
 
+from .security_audit import add_atomic_security_audit
 from .target_user_authorization import require_target_user_in_active_tenant
 
 if TYPE_CHECKING:
@@ -76,8 +77,23 @@ def link_federated_identity(
         federated_subject=federated_subject,
         updated_at=datetime.now(timezone.utc),
     )
-    service._user_repo.update(updated_user)
-    service._session.commit()
+    try:
+        service._user_repo.update(updated_user)
+        add_atomic_security_audit(
+            service,
+            operation="update",
+            entity_type="user",
+            entity_id=updated_user.id,
+            action="federated_identity.link",
+            severity="high",
+            field="identity_provider",
+            old_value=user.identity_provider,
+            new_value=updated_user.identity_provider,
+        )
+        service._session.commit()
+    except Exception:
+        service._session.rollback()
+        raise
     domain_events.auth_changed.emit(updated_user.id)
     refresh_current_session_if_user(service, updated_user.id)
     return updated_user

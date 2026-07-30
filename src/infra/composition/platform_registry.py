@@ -248,6 +248,7 @@ def build_platform_service_bundle(
         project_membership_repo=repositories.project_membership_repo,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
+        security_audit_repo=repositories.audit_entry_repo,
         user_tenant_repo=repositories.user_tenant_repo,
         tenant_context_service=tenant_context_service,
     )

@@ -103,6 +103,8 @@ def _make_auth_svc(services, *, role_names):
         auth_session_repo=auth._auth_session_repo,
         user_tenant_repo=user_tenant_repo,
         user_session=ctx,
+        security_audit_repo=auth._security_audit_repo,
+        tenant_context_service=services["tenant_context_service"],
     )
     return svc, user
 

@@ -37,6 +37,7 @@ from . import user_admin_service as _users
 
 if TYPE_CHECKING:
     from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.audit.contracts import AuditRepository
     from src.core.platform.tenancy.contracts import UserTenantMembershipRepository
     from src.core.platform.tenancy.tenant_context import TenantContextService
 
@@ -55,6 +56,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         project_membership_repo: ProjectMembershipRepository | None = None,
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: "EnterpriseAuditService | None" = None,
+        security_audit_repo: "AuditRepository | None" = None,
         sod_policy: SeparationOfDutiesPolicy | None = None,
         user_tenant_repo: "UserTenantMembershipRepository | None" = None,
         tenant_context_service: "TenantContextService | None" = None,
@@ -70,6 +72,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._project_membership_repo: ProjectMembershipRepository | None = project_membership_repo
         self._user_session: UserSessionContext | None = user_session
         self._enterprise_audit_service: EnterpriseAuditService | None = enterprise_audit_service
+        self._security_audit_repo: AuditRepository | None = security_audit_repo
         self._sod_policy = sod_policy or SeparationOfDutiesPolicy()
         self._user_tenant_repo: "UserTenantMembershipRepository | None" = user_tenant_repo
         self._tenant_context_service: "TenantContextService | None" = (
