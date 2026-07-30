@@ -5,6 +5,7 @@ from src.core.platform.auth.domain import (
     Permission,
     Role,
     RoleBinding,
+    RoleDelegationPolicy,
     RolePermissionBinding,
     UserAccount,
     UserRoleBinding,
@@ -14,6 +15,7 @@ from src.core.platform.infrastructure.persistence.orm.auth import (
     AuthSessionORM,
     PermissionORM,
     RoleBindingORM,
+    RoleDelegationPolicyORM,
     RoleORM,
     RolePermissionORM,
     UserORM,
@@ -181,6 +183,40 @@ def role_binding_from_orm(obj: RoleBindingORM) -> RoleBinding:
     )
 
 
+def role_delegation_policy_to_orm(
+    policy: RoleDelegationPolicy,
+) -> RoleDelegationPolicyORM:
+    return RoleDelegationPolicyORM(
+        id=policy.id,
+        tenant_id=policy.tenant_id,
+        actor_role_id=policy.actor_role_id,
+        assignable_role_id=policy.assignable_role_id,
+        target_scope_type=policy.target_scope_type,
+        assignable_role_policy_version=policy.assignable_role_policy_version,
+        assignable_permission_set_hash=policy.assignable_permission_set_hash,
+        created_by=policy.created_by,
+        created_at=policy.created_at,
+        revoked_at=policy.revoked_at,
+    )
+
+
+def role_delegation_policy_from_orm(
+    obj: RoleDelegationPolicyORM,
+) -> RoleDelegationPolicy:
+    return RoleDelegationPolicy(
+        id=obj.id,
+        tenant_id=obj.tenant_id,
+        actor_role_id=obj.actor_role_id,
+        assignable_role_id=obj.assignable_role_id,
+        target_scope_type=obj.target_scope_type,
+        assignable_role_policy_version=obj.assignable_role_policy_version,
+        assignable_permission_set_hash=obj.assignable_permission_set_hash,
+        created_by=obj.created_by,
+        created_at=ensure_utc_datetime(obj.created_at),
+        revoked_at=ensure_utc_datetime(obj.revoked_at),
+    )
+
+
 def permission_to_orm(permission: Permission) -> PermissionORM:
     return PermissionORM(
         id=permission.id,
@@ -240,6 +276,8 @@ __all__ = [
     "role_from_orm",
     "role_binding_to_orm",
     "role_binding_from_orm",
+    "role_delegation_policy_to_orm",
+    "role_delegation_policy_from_orm",
     "permission_to_orm",
     "permission_from_orm",
     "user_role_to_orm",

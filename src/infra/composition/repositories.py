@@ -62,6 +62,7 @@ from src.core.platform.infrastructure.persistence.repositories.auth import (
     SqlAlchemyAuthSessionRepository,
     SqlAlchemyPermissionRepository,
     SqlAlchemyRoleBindingRepository,
+    SqlAlchemyRoleDelegationPolicyRepository,
     SqlAlchemyRolePermissionRepository,
     SqlAlchemyRoleRepository,
     SqlAlchemyUserRepository,
@@ -124,6 +125,7 @@ class RepositoryBundle:
     auth_policy_reconciliation_repo: SqlAlchemyAuthPolicyReconciliationRepository
     role_repo: SqlAlchemyRoleRepository
     role_binding_repo: SqlAlchemyRoleBindingRepository
+    role_delegation_policy_repo: SqlAlchemyRoleDelegationPolicyRepository
     permission_repo: SqlAlchemyPermissionRepository
     user_role_repo: SqlAlchemyUserRoleRepository
     role_permission_repo: SqlAlchemyRolePermissionRepository
@@ -185,6 +187,9 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         ),
         role_repo=SqlAlchemyRoleRepository(session),
         role_binding_repo=SqlAlchemyRoleBindingRepository(session),
+        role_delegation_policy_repo=SqlAlchemyRoleDelegationPolicyRepository(
+            session
+        ),
         permission_repo=SqlAlchemyPermissionRepository(session),
         user_role_repo=SqlAlchemyUserRoleRepository(session),
         role_permission_repo=SqlAlchemyRolePermissionRepository(session),

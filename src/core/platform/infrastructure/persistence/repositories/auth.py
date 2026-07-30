@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
 from src.core.platform.auth.datetime_utils import ensure_utc_datetime
@@ -12,6 +12,7 @@ from src.core.platform.auth.contracts import (
     AuthSessionRepository,
     PermissionRepository,
     RoleBindingRepository,
+    RoleDelegationPolicyRepository,
     RolePermissionRepository,
     RoleRepository,
     UserRepository,
@@ -23,6 +24,7 @@ from src.core.platform.auth.domain import (
     Permission,
     Role,
     RoleBinding,
+    RoleDelegationPolicy,
     RolePermissionBinding,
     UserAccount,
     UserRoleBinding,
@@ -37,6 +39,8 @@ from src.core.platform.infrastructure.persistence.mappers.auth import (
     role_from_orm,
     role_binding_from_orm,
     role_binding_to_orm,
+    role_delegation_policy_from_orm,
+    role_delegation_policy_to_orm,
     role_permission_to_orm,
     role_to_orm,
     user_from_orm,
@@ -48,6 +52,7 @@ from src.core.platform.infrastructure.persistence.orm.auth import (
     AuthSessionORM,
     PermissionORM,
     RoleBindingORM,
+    RoleDelegationPolicyORM,
     RoleORM,
     RolePermissionORM,
     UserORM,
@@ -292,9 +297,52 @@ class SqlAlchemyRoleRepository(RoleRepository):
         return role_from_orm(obj) if obj else None
 
     def get_by_name(self, name: str) -> Role | None:
-        stmt = select(RoleORM).where(RoleORM.name == name)
+        stmt = select(RoleORM).where(
+            RoleORM.name == str(name or "").strip().lower(),
+            RoleORM.tenant_id.is_(None),
+        )
         obj = self.session.execute(stmt).scalars().first()
         return role_from_orm(obj) if obj else None
+
+    def get_for_tenant_by_name(
+        self,
+        tenant_id: str,
+        name: str,
+        *,
+        include_system: bool = True,
+    ) -> Role | None:
+        normalized_tenant_id = str(tenant_id or "").strip()
+        normalized_name = str(name or "").strip().lower()
+        stmt = select(RoleORM).where(
+            RoleORM.name == normalized_name,
+            RoleORM.tenant_id == normalized_tenant_id,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        if obj is not None or not include_system:
+            return role_from_orm(obj) if obj is not None else None
+        return self.get_by_name(normalized_name)
+
+    def list_for_tenant(
+        self,
+        tenant_id: str,
+        *,
+        include_system: bool = True,
+    ) -> list[Role]:
+        normalized_tenant_id = str(tenant_id or "").strip()
+        stmt = select(RoleORM)
+        if include_system:
+            stmt = stmt.where(
+                or_(
+                    RoleORM.tenant_id == normalized_tenant_id,
+                    RoleORM.tenant_id.is_(None),
+                )
+            )
+        else:
+            stmt = stmt.where(RoleORM.tenant_id == normalized_tenant_id)
+        rows = self.session.execute(
+            stmt.order_by(RoleORM.name, RoleORM.tenant_id)
+        ).scalars()
+        return [role_from_orm(row) for row in rows]
 
     def list_all(self) -> list[Role]:
         rows = self.session.execute(select(RoleORM)).scalars().all()
@@ -342,6 +390,91 @@ class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
         ).scalars()
         return [role_binding_from_orm(row) for row in rows]
 
+    def get_active_for_assignment(
+        self,
+        *,
+        principal_id: str,
+        role_id: str,
+        tenant_id: str | None,
+        actual_scope_type: str,
+        actual_scope_id: str | None,
+    ) -> RoleBinding | None:
+        now = datetime.now(timezone.utc)
+        stmt = (
+            select(RoleBindingORM)
+            .where(RoleBindingORM.principal_type == "user")
+            .where(RoleBindingORM.principal_id == principal_id)
+            .where(RoleBindingORM.role_id == role_id)
+            .where(RoleBindingORM.actual_scope_type == actual_scope_type)
+            .where(RoleBindingORM.revoked_at.is_(None))
+            .where(
+                (RoleBindingORM.expires_at.is_(None))
+                | (RoleBindingORM.expires_at > now)
+            )
+        )
+        if tenant_id is None:
+            stmt = stmt.where(RoleBindingORM.tenant_id.is_(None))
+        else:
+            stmt = stmt.where(RoleBindingORM.tenant_id == tenant_id)
+        if actual_scope_id is None:
+            stmt = stmt.where(RoleBindingORM.actual_scope_id.is_(None))
+        else:
+            stmt = stmt.where(
+                RoleBindingORM.actual_scope_id == actual_scope_id
+            )
+        row = self.session.execute(stmt).scalars().first()
+        return role_binding_from_orm(row) if row is not None else None
+
+    def revoke_expired_for_assignment(
+        self,
+        *,
+        principal_id: str,
+        role_id: str,
+        tenant_id: str | None,
+        actual_scope_type: str,
+        actual_scope_id: str | None,
+        as_of: datetime,
+    ) -> int:
+        stmt = (
+            update(RoleBindingORM)
+            .where(RoleBindingORM.principal_type == "user")
+            .where(RoleBindingORM.principal_id == principal_id)
+            .where(RoleBindingORM.role_id == role_id)
+            .where(RoleBindingORM.actual_scope_type == actual_scope_type)
+            .where(RoleBindingORM.revoked_at.is_(None))
+            .where(RoleBindingORM.expires_at.is_not(None))
+            .where(RoleBindingORM.expires_at <= as_of)
+        )
+        if tenant_id is None:
+            stmt = stmt.where(RoleBindingORM.tenant_id.is_(None))
+        else:
+            stmt = stmt.where(RoleBindingORM.tenant_id == tenant_id)
+        if actual_scope_id is None:
+            stmt = stmt.where(RoleBindingORM.actual_scope_id.is_(None))
+        else:
+            stmt = stmt.where(
+                RoleBindingORM.actual_scope_id == actual_scope_id
+            )
+        result = self.session.execute(
+            stmt.values(
+                revoked_at=as_of,
+                version=RoleBindingORM.version + 1,
+            )
+        )
+        return int(result.rowcount or 0)
+
+    def revoke(self, binding_id: str, *, revoked_at: datetime) -> bool:
+        result = self.session.execute(
+            update(RoleBindingORM)
+            .where(RoleBindingORM.id == binding_id)
+            .where(RoleBindingORM.revoked_at.is_(None))
+            .values(
+                revoked_at=revoked_at,
+                version=RoleBindingORM.version + 1,
+            )
+        )
+        return bool(result.rowcount)
+
     def revoke_active_for_principal_tenant(
         self,
         principal_id: str,
@@ -355,9 +488,119 @@ class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
             .where(RoleBindingORM.principal_id == principal_id)
             .where(RoleBindingORM.tenant_id == tenant_id)
             .where(RoleBindingORM.revoked_at.is_(None))
-            .values(revoked_at=revoked_at)
+            .values(
+                revoked_at=revoked_at,
+                version=RoleBindingORM.version + 1,
+            )
         )
         return int(result.rowcount or 0)
+
+
+class SqlAlchemyRoleDelegationPolicyRepository(
+    RoleDelegationPolicyRepository
+):
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, policy: RoleDelegationPolicy) -> None:
+        self.session.add(role_delegation_policy_to_orm(policy))
+
+    def get(self, policy_id: str) -> RoleDelegationPolicy | None:
+        row = self.session.get(RoleDelegationPolicyORM, policy_id)
+        return (
+            role_delegation_policy_from_orm(row)
+            if row is not None
+            else None
+        )
+
+    def get_active_exact(
+        self,
+        *,
+        actor_role_id: str,
+        assignable_role_id: str,
+        tenant_id: str | None,
+        target_scope_type: str,
+    ) -> RoleDelegationPolicy | None:
+        stmt = (
+            select(RoleDelegationPolicyORM)
+            .where(
+                RoleDelegationPolicyORM.actor_role_id == actor_role_id
+            )
+            .where(
+                RoleDelegationPolicyORM.assignable_role_id
+                == assignable_role_id
+            )
+            .where(
+                RoleDelegationPolicyORM.target_scope_type
+                == target_scope_type
+            )
+            .where(RoleDelegationPolicyORM.revoked_at.is_(None))
+        )
+        if tenant_id is None:
+            stmt = stmt.where(
+                RoleDelegationPolicyORM.tenant_id.is_(None)
+            )
+        else:
+            stmt = stmt.where(
+                RoleDelegationPolicyORM.tenant_id == tenant_id
+            )
+        row = self.session.execute(stmt).scalars().first()
+        return (
+            role_delegation_policy_from_orm(row)
+            if row is not None
+            else None
+        )
+
+    def find_active(
+        self,
+        *,
+        actor_role_ids: set[str],
+        assignable_role_id: str,
+        tenant_id: str,
+        target_scope_type: str,
+    ) -> RoleDelegationPolicy | None:
+        if not actor_role_ids:
+            return None
+        base_stmt = (
+            select(RoleDelegationPolicyORM)
+            .where(
+                RoleDelegationPolicyORM.actor_role_id.in_(
+                    sorted(actor_role_ids)
+                )
+            )
+            .where(
+                RoleDelegationPolicyORM.assignable_role_id
+                == assignable_role_id
+            )
+            .where(
+                RoleDelegationPolicyORM.target_scope_type
+                == target_scope_type
+            )
+            .where(RoleDelegationPolicyORM.revoked_at.is_(None))
+        )
+        tenant_stmt = base_stmt.where(
+            RoleDelegationPolicyORM.tenant_id == tenant_id
+        )
+        row = self.session.execute(tenant_stmt).scalars().first()
+        if row is None:
+            system_stmt = base_stmt.where(
+                RoleDelegationPolicyORM.tenant_id.is_(None)
+            )
+            row = self.session.execute(system_stmt).scalars().first()
+        return (
+            role_delegation_policy_from_orm(row)
+            if row is not None
+            else None
+        )
+
+    def revoke(self, policy_id: str, *, revoked_at: datetime) -> bool:
+        result = self.session.execute(
+            update(RoleDelegationPolicyORM)
+            .where(RoleDelegationPolicyORM.id == policy_id)
+            .where(RoleDelegationPolicyORM.revoked_at.is_(None))
+            .values(revoked_at=revoked_at)
+        )
+        return bool(result.rowcount)
 
 
 class SqlAlchemyPermissionRepository(PermissionRepository):
@@ -475,6 +718,7 @@ __all__ = [
     "SqlAlchemyRoleRepository",
     "SqlAlchemyPermissionRepository",
     "SqlAlchemyRoleBindingRepository",
+    "SqlAlchemyRoleDelegationPolicyRepository",
     "SqlAlchemyUserRoleRepository",
     "SqlAlchemyRolePermissionRepository",
 ]

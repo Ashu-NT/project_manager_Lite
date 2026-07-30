@@ -10,6 +10,10 @@ from src.core.platform.auth.application.role_policy_reconciliation_service impor
     RolePolicyReconciliationResult,
     RolePolicyReconciliationService,
 )
+from src.core.platform.auth.application.role_governance_service import (
+    ROLE_ASSIGN_PERMISSION,
+    RoleGovernanceService,
+)
 
 __all__ = [
     "AuthQueryMixin",
@@ -17,6 +21,8 @@ __all__ = [
     "AuthValidationMixin",
     "PlatformOwnerProvisioningResult",
     "RolePermissionChange",
+    "ROLE_ASSIGN_PERMISSION",
+    "RoleGovernanceService",
     "RolePolicyReconciliationPlan",
     "RolePolicyReconciliationResult",
     "RolePolicyReconciliationService",

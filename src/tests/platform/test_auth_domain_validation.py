@@ -366,6 +366,7 @@ def test_auth_rbac_dtos_normalize_and_validate_fields():
         name="  TENANT_ADMIN  ",
         description="  Tenant-level administrator  ",
         is_system="0",
+        tenant_id="  tenant-1  ",
     )
     permission = Permission.create(
         code="  AUDIT.READ  ",
@@ -384,6 +385,7 @@ def test_auth_rbac_dtos_normalize_and_validate_fields():
     assert role.name == "tenant_admin"
     assert role.description == "Tenant-level administrator"
     assert role.is_system is False
+    assert role.tenant_id == "tenant-1"
     assert permission.code == "audit.read"
     assert permission.description == "Read audit logs"
     assert user_role.user_id == "user-1"

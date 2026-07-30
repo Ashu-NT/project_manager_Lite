@@ -9,6 +9,7 @@ from src.core.platform.auth.domain import (
     Permission,
     Role,
     RoleBinding,
+    RoleDelegationPolicy,
     RolePermissionBinding,
     UserAccount,
     UserRoleBinding,
@@ -86,6 +87,23 @@ class RoleRepository(ABC):
     def get_by_name(self, name: str) -> Role | None: ...
 
     @abstractmethod
+    def get_for_tenant_by_name(
+        self,
+        tenant_id: str,
+        name: str,
+        *,
+        include_system: bool = True,
+    ) -> Role | None: ...
+
+    @abstractmethod
+    def list_for_tenant(
+        self,
+        tenant_id: str,
+        *,
+        include_system: bool = True,
+    ) -> list[Role]: ...
+
+    @abstractmethod
     def list_all(self) -> list[Role]: ...
 
 
@@ -105,6 +123,32 @@ class RoleBindingRepository(ABC):
     ) -> list[RoleBinding]: ...
 
     @abstractmethod
+    def get_active_for_assignment(
+        self,
+        *,
+        principal_id: str,
+        role_id: str,
+        tenant_id: str | None,
+        actual_scope_type: str,
+        actual_scope_id: str | None,
+    ) -> RoleBinding | None: ...
+
+    @abstractmethod
+    def revoke_expired_for_assignment(
+        self,
+        *,
+        principal_id: str,
+        role_id: str,
+        tenant_id: str | None,
+        actual_scope_type: str,
+        actual_scope_id: str | None,
+        as_of: datetime,
+    ) -> int: ...
+
+    @abstractmethod
+    def revoke(self, binding_id: str, *, revoked_at: datetime) -> bool: ...
+
+    @abstractmethod
     def revoke_active_for_principal_tenant(
         self,
         principal_id: str,
@@ -112,6 +156,37 @@ class RoleBindingRepository(ABC):
         *,
         revoked_at: datetime,
     ) -> int: ...
+
+
+class RoleDelegationPolicyRepository(ABC):
+    @abstractmethod
+    def add(self, policy: RoleDelegationPolicy) -> None: ...
+
+    @abstractmethod
+    def get(self, policy_id: str) -> RoleDelegationPolicy | None: ...
+
+    @abstractmethod
+    def get_active_exact(
+        self,
+        *,
+        actor_role_id: str,
+        assignable_role_id: str,
+        tenant_id: str | None,
+        target_scope_type: str,
+    ) -> RoleDelegationPolicy | None: ...
+
+    @abstractmethod
+    def find_active(
+        self,
+        *,
+        actor_role_ids: set[str],
+        assignable_role_id: str,
+        tenant_id: str,
+        target_scope_type: str,
+    ) -> RoleDelegationPolicy | None: ...
+
+    @abstractmethod
+    def revoke(self, policy_id: str, *, revoked_at: datetime) -> bool: ...
 
 
 class PermissionRepository(ABC):
@@ -181,6 +256,7 @@ __all__ = [
     "PermissionRepository",
     "RolePermissionRepository",
     "RoleBindingRepository",
+    "RoleDelegationPolicyRepository",
     "RoleRepository",
     "UserRepository",
     "UserRoleRepository",

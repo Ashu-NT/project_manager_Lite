@@ -121,9 +121,20 @@ class AuthPolicyReconciliationORM(Base):
 
 class RoleORM(Base):
     __tablename__ = "roles"
+    __table_args__ = (
+        CheckConstraint(
+            "(is_system AND tenant_id IS NULL) OR "
+            "(NOT is_system AND tenant_id IS NOT NULL)",
+            name="ck_roles_ownership",
+        ),
+        CheckConstraint(
+            "is_system OR allowed_scope_type <> 'platform'",
+            name="ck_roles_custom_scope",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    name: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
     description: Mapped[str] = mapped_column(String, nullable=False, default="")
     is_system: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     tenant_id: Mapped[Optional[str]] = mapped_column(
@@ -155,8 +166,22 @@ class RoleORM(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
-Index("idx_roles_name", RoleORM.name, unique=True)
 Index("idx_roles_tenant", RoleORM.tenant_id)
+Index(
+    "ux_roles_system_name",
+    RoleORM.name,
+    unique=True,
+    sqlite_where=RoleORM.tenant_id.is_(None),
+    postgresql_where=RoleORM.tenant_id.is_(None),
+)
+Index(
+    "ux_roles_tenant_name",
+    RoleORM.tenant_id,
+    RoleORM.name,
+    unique=True,
+    sqlite_where=RoleORM.tenant_id.is_not(None),
+    postgresql_where=RoleORM.tenant_id.is_not(None),
+)
 
 
 class RoleBindingORM(Base):
@@ -259,6 +284,89 @@ Index(
     & RoleBindingORM.actual_scope_type.not_in(("platform", "tenant")),
     postgresql_where=RoleBindingORM.revoked_at.is_(None)
     & RoleBindingORM.actual_scope_type.not_in(("platform", "tenant")),
+)
+
+
+class RoleDelegationPolicyORM(Base):
+    __tablename__ = "role_delegation_policies"
+    __table_args__ = (
+        CheckConstraint(
+            "assignable_role_policy_version >= 1",
+            name="ck_role_delegation_policy_version_positive",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    actor_role_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    assignable_role_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    target_scope_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    assignable_role_policy_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+    )
+    assignable_permission_set_hash: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+    )
+    created_by: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
+
+
+Index(
+    "idx_role_delegation_actor",
+    RoleDelegationPolicyORM.actor_role_id,
+)
+Index(
+    "idx_role_delegation_assignable",
+    RoleDelegationPolicyORM.assignable_role_id,
+)
+Index(
+    "idx_role_delegation_tenant",
+    RoleDelegationPolicyORM.tenant_id,
+)
+Index(
+    "ux_role_delegation_active_system",
+    RoleDelegationPolicyORM.actor_role_id,
+    RoleDelegationPolicyORM.assignable_role_id,
+    RoleDelegationPolicyORM.target_scope_type,
+    unique=True,
+    sqlite_where=RoleDelegationPolicyORM.revoked_at.is_(None)
+    & RoleDelegationPolicyORM.tenant_id.is_(None),
+    postgresql_where=RoleDelegationPolicyORM.revoked_at.is_(None)
+    & RoleDelegationPolicyORM.tenant_id.is_(None),
+)
+Index(
+    "ux_role_delegation_active_tenant",
+    RoleDelegationPolicyORM.tenant_id,
+    RoleDelegationPolicyORM.actor_role_id,
+    RoleDelegationPolicyORM.assignable_role_id,
+    RoleDelegationPolicyORM.target_scope_type,
+    unique=True,
+    sqlite_where=RoleDelegationPolicyORM.revoked_at.is_(None)
+    & RoleDelegationPolicyORM.tenant_id.is_not(None),
+    postgresql_where=RoleDelegationPolicyORM.revoked_at.is_(None)
+    & RoleDelegationPolicyORM.tenant_id.is_not(None),
 )
 
 

@@ -15,6 +15,11 @@ class AuditRepository(ABC):
         ...
 
     @abstractmethod
+    def add_platform(self, entry: AuditEntry) -> None:
+        """Persist an explicitly platform-scoped security event."""
+        ...
+
+    @abstractmethod
     def list_recent(
         self,
         limit: int = 100,

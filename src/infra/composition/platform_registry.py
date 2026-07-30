@@ -19,7 +19,7 @@ from src.core.platform.access import AccessControlService, ScopedRolePolicy, Sco
 from src.core.platform.activity import ActivityService
 from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import EnterpriseAuditService
-from src.core.platform.auth import AuthService
+from src.core.platform.auth import AuthService, RoleGovernanceService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.documents import DocumentIntegrationService, DocumentService
 from src.core.platform.data_exchange import MasterDataExchangeService
@@ -148,6 +148,7 @@ class PlatformServiceBundle:
     module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
     auth_service: AuthService
+    role_governance_service: RoleGovernanceService
     organization_service: OrganizationService
     document_service: DocumentService
     document_integration_service: DocumentIntegrationService
@@ -394,6 +395,22 @@ def build_platform_service_bundle(
         runtime_execution_repo=SqlAlchemyRuntimeExecutionRepository(session),
         user_session=user_session,
     )
+    scope_exists_resolvers = {
+        "organization": lambda tenant_id, organization_id: (
+            repositories.organization_repo.get_for_tenant(
+                organization_id,
+                tenant_id,
+            )
+            is not None
+        ),
+        "site": lambda tenant_id, site_id: (
+            tenant_context_service.require_active_tenant_id(
+                operation_label="validate site access scope"
+            )
+            == tenant_id
+            and repositories.site_repo.get(site_id) is not None
+        ),
+    }
     access_service = AccessControlService(
         session=session,
         membership_repo=repositories.project_membership_repo,
@@ -416,26 +433,26 @@ def build_platform_service_bundle(
             )
         ),
         scoped_access_repo=repositories.scoped_access_repo,
-        scope_exists_resolvers={
-            "organization": lambda tenant_id, organization_id: (
-                repositories.organization_repo.get_for_tenant(
-                    organization_id,
-                    tenant_id,
-                )
-                is not None
-            ),
-            "site": lambda tenant_id, site_id: (
-                tenant_context_service.require_active_tenant_id(
-                    operation_label="validate site access scope"
-                )
-                == tenant_id
-                and repositories.site_repo.get(site_id) is not None
-            ),
-        },
+        scope_exists_resolvers=scope_exists_resolvers,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         user_tenant_repo=repositories.user_tenant_repo,
         tenant_context_service=tenant_context_service,
+    )
+    role_governance_service = RoleGovernanceService(
+        session=session,
+        role_repo=repositories.role_repo,
+        role_binding_repo=repositories.role_binding_repo,
+        delegation_repo=repositories.role_delegation_policy_repo,
+        role_permission_repo=repositories.role_permission_repo,
+        permission_repo=repositories.permission_repo,
+        user_repo=repositories.user_repo,
+        tenant_repo=repositories.tenant_repo,
+        membership_repo=repositories.user_tenant_repo,
+        audit_repo=repositories.audit_entry_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        scope_exists_resolvers=scope_exists_resolvers,
     )
     employee_service = EmployeeService(
         session=session,
@@ -537,6 +554,7 @@ def build_platform_service_bundle(
         module_runtime_service=module_runtime_service,
         module_catalog_service=module_catalog_service,
         auth_service=auth_service,
+        role_governance_service=role_governance_service,
         organization_service=organization_service,
         document_service=document_service,
         document_integration_service=document_integration_service,

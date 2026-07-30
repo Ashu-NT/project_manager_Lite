@@ -59,7 +59,13 @@ def list_roles(service: AuthService) -> list[Role]:
         ("auth.manage", "auth.read"),
         operation_label="list roles",
     )
-    return service._role_repo.list_all()
+    if is_platform_operator(service):
+        return service._role_repo.list_all()
+    tenant_id = require_actor_active_tenant(
+        service,
+        operation_label="list tenant roles",
+    )
+    return service._role_repo.list_for_tenant(tenant_id)
 
 
 def list_customer_assignable_roles(service: AuthService) -> list[Role]:
@@ -68,14 +74,18 @@ def list_customer_assignable_roles(service: AuthService) -> list[Role]:
         ("auth.manage", "auth.read"),
         operation_label="list tenant-assignable roles",
     )
-    require_actor_active_tenant(
+    tenant_id = require_actor_active_tenant(
         service,
         operation_label="list tenant-assignable roles",
     )
     return [
         role
-        for role in service._role_repo.list_all()
-        if is_customer_assignable_role(role.name)
+        for role in service._role_repo.list_for_tenant(tenant_id)
+        if role.is_system
+        and role.status == "active"
+        and role.is_assignable
+        and role.allowed_scope_type == "tenant"
+        and is_customer_assignable_role(role.name)
     ]
 
 

@@ -10,6 +10,7 @@ from src.core.platform.auth.domain.role_binding import (
     RoleBinding,
     normalize_role_scope_type,
 )
+from src.core.platform.auth.domain.role_delegation import RoleDelegationPolicy
 from src.core.platform.auth.domain.session import (
     AuthSession,
     UserSessionContext,
@@ -44,6 +45,7 @@ __all__ = [
     "ROLE_SCOPE_TENANT",
     "ROLE_SCOPE_TYPES",
     "RoleBinding",
+    "RoleDelegationPolicy",
     "AuthSession",
     "Permission",
     "Role",

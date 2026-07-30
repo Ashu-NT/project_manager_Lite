@@ -269,7 +269,7 @@ def test_membership_lifecycle_migration_builds_production_shape(tmp_path) -> Non
     finally:
         engine.dispose()
 
-    assert revision == "7a2b3c4d5e6f"
+    assert revision == "8b3c4d5e6f7a"
     assert {
         "status",
         "invited_by_user_id",

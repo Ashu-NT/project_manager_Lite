@@ -15,6 +15,7 @@ from src.core.platform.common.pydantic import (
     validated_dataclass,
 )
 from src.core.platform.auth.domain.role_binding import (
+    ROLE_SCOPE_PLATFORM,
     ROLE_SCOPE_TENANT,
     normalize_role_scope_type,
 )
@@ -421,6 +422,21 @@ class Role:
 
     @model_validator(mode="after")
     def _initialize_metadata(self) -> "Role":
+        if self.is_system and self.tenant_id is not None:
+            raise ValidationError(
+                "System role definitions cannot be tenant-owned.",
+                code="AUTH_SYSTEM_ROLE_TENANT_INVALID",
+            )
+        if not self.is_system and self.tenant_id is None:
+            raise ValidationError(
+                "Custom role definitions require tenant ownership.",
+                code="AUTH_CUSTOM_ROLE_TENANT_REQUIRED",
+            )
+        if not self.is_system and self.allowed_scope_type == ROLE_SCOPE_PLATFORM:
+            raise ValidationError(
+                "Tenant-owned roles cannot use platform scope.",
+                code="AUTH_CUSTOM_ROLE_SCOPE_INVALID",
+            )
         now = datetime.now(timezone.utc)
         if not self.display_name:
             object.__setattr__(

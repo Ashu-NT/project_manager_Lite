@@ -18,7 +18,7 @@ from src.core.platform.integration.resolver import IntegrationResolver
 from src.core.platform.activity.application.activity_service import ActivityService
 from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import EnterpriseAuditService
-from src.core.platform.auth import AuthService
+from src.core.platform.auth import AuthService, RoleGovernanceService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.data_exchange import MasterDataExchangeService
 from src.core.platform.documents import DocumentService
@@ -141,6 +141,7 @@ class ServiceGraph:
     integration_resolver: IntegrationResolver
     time_service: TimeService
     auth_service: AuthService
+    role_governance_service: RoleGovernanceService
     organization_service: OrganizationService
     tenant_context_service: TenantContextService
     tenant_admin_service: TenantAdminService
@@ -235,6 +236,7 @@ class ServiceGraph:
             "integration_resolver": self.integration_resolver,
             "time_service": self.time_service,
             "auth_service": self.auth_service,
+            "role_governance_service": self.role_governance_service,
             "organization_service": self.organization_service,
             "tenant_context_service": self.tenant_context_service,
             "tenant_admin_service": self.tenant_admin_service,
@@ -369,6 +371,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         integration_resolver=_integration_resolver,
         time_service=project_management_services.time_service,
         auth_service=platform_services.auth_service,
+        role_governance_service=platform_services.role_governance_service,
         organization_service=platform_services.organization_service,
         tenant_context_service=platform_services.tenant_context_service,
         tenant_admin_service=platform_services.tenant_admin_service,
