@@ -1067,15 +1067,18 @@ Exit criteria:
 Status: In progress. Additive role metadata, tenant-safe role namespaces, the structurally
 constrained `role_bindings` table, explicit delegation persistence and guarded mutation,
 membership lifecycle, and internal authorized invitation orchestration are implemented. No
-legacy binding has been guessed or copied, no external delivery or public invitation/role
-adapter has been enabled, `auth.role.assign` is defined in code policy v2 but has not been
-applied to deployed environments, and authorization remains legacy-authoritative.
+legacy binding has been guessed or copied; internal tenant custom-role lifecycle commands are
+implemented, but no external delivery or public invitation/role adapter has been enabled.
+`auth.role.assign` is defined in code policy v2 but has not been applied to deployed
+environments, and authorization remains legacy-authoritative.
 
 - Extend membership lifecycle fields. Implemented additively with internal token issuance,
   authenticated acceptance, administrative transitions, targeted session invalidation, and
   atomic membership audit. External delivery and public adapters remain pending.
 - Remove role authority from membership. Pending canonical binding cutover.
 - Add tenant-aware role metadata.
+- Add tenant custom-role commands with curated permission ceilings, optimistic updates,
+  non-destructive retirement, targeted session invalidation, and atomic audit.
 - Add canonical role-binding table and constraints.
 - Backfill platform, tenant, organization, and resource bindings.
 - Quarantine ambiguous global role rows for operator review.
@@ -1140,11 +1143,16 @@ Current Phase 2 foundation:
   reassignment, and successful mutations are atomically audited.
 - `RepositoryBundle` exposes canonical binding and delegation repositories for later
   dual-write and shadow phases.
+- `TenantRoleAdministrationService` provides internal tenant-scope custom-role create, list,
+  full-replacement update, and retirement commands. Managed system names are reserved;
+  platform-only permissions and SoD conflicts are denied; changes advance `policy_version`;
+  permission changes revoke affected tenant sessions; retirement revokes active canonical
+  bindings; and each mutation commits with its tenant audit event.
 - `PrincipalBuilder`, `AuthorizationEngine`, assignment services, and customer UI still read
   only legacy authority. This is deliberate until inventory, backfill, mismatch telemetry, and
-  rollback gates exist. The new guarded service has no transport adapter and remains dormant
-  until versioned policy v2 is deliberately applied and explicit delegation policies are
-  approved.
+  rollback gates exist. The guarded role services have no transport adapters and remain
+  dormant until versioned policy v2 is deliberately applied and explicit delegation policies
+  are approved.
 
 ### Phase 3: Principal and authorization-engine cutover
 
@@ -1266,7 +1274,7 @@ replacement provisioning is proven.
 | Platform tenant provisioning/catalog authority | Implemented | Tenant create/global get/list and lifecycle operations require `platform.admin`; `tenant_admin` no longer receives `tenant.create`, `tenant.manage`, or `tenant.read`, and provisioning no longer creates a customer membership for the platform operator. |
 | Versioned system-role reconciliation | Implemented; policy-v2 environment apply pending | Policy v2 adds reviewed `auth.role.assign` authority, while deterministic preview, guarded transactional apply, system-role version stamping, session invalidation, append-only ledger migration, rollback artifact, and operator CLI are implemented. Existing databases require reviewed dry-run/apply. |
 | Recurring startup-promotion removal | Implemented for SaaS | Hosted SaaS creates immutable permission/role definitions only and never mutates reviewed role-permission bindings during startup. Legacy admin creation and full additive policy seeding remain solely in explicitly configured `local_single_tenant` mode. |
-| Canonical role metadata/binding schema | Foundation implemented; activation pending | `RoleBinding`, role scope/ownership metadata, system and per-tenant role namespaces, explicit version/hash-pinned delegation policy, guarded canonical assignment/revocation, exact-scope expiry materialization, ORM/mappers/repositories, database checks, and revisions `b5c6d7e8f9a0`/`8b3c4d5e6f7a`; policy-v2 code is prepared, but no environment activation, customer custom-role API, backfill, or authority read cutover has occurred. |
+| Canonical role metadata/binding schema | Foundation and internal custom-role lifecycle implemented; activation pending | `RoleBinding`, role scope/ownership metadata, system and per-tenant role namespaces, curated tenant custom-role commands, optimistic role policy versions, explicit version/hash-pinned delegation policy, guarded canonical assignment/revocation, exact-scope expiry materialization, ORM/mappers/repositories, database checks, and revisions `b5c6d7e8f9a0`/`8b3c4d5e6f7a`; policy-v2 code is prepared, but no environment activation, customer role adapter, backfill, or authority read cutover has occurred. |
 
 Implementation ledger, 2026-07-27:
 
@@ -1475,6 +1483,38 @@ Role-governance implementation ledger, 2026-07-30:
   unrelated baseline failures documented above: two site naive/aware datetime failures and
   one stale QML platform-route expectation.
 
+Tenant custom-role administration ledger, 2026-07-30:
+
+- Added an internal `TenantRoleAdministrationService`; no QML presenter, desktop API, HTTP
+  route, or public invitation adapter resolves these commands.
+- Custom roles are tenant-owned and tenant-scope only in this tranche. Names are immutable,
+  managed system names are reserved, and platform operators are denied from the ordinary
+  customer path without a future governed support context.
+- Role administrators require both `auth.manage` and policy-v2 `auth.role.assign`, active
+  tenant context, an active tenant, active actor membership, and an active canonical
+  tenant-scope binding whose role carries both permissions. Organization-scoped or legacy-only
+  authority cannot administer tenant-wide roles. This keeps the service dormant until policy
+  v2 and canonical role preparation are deliberately completed.
+- The assignable permission ceiling is the reviewed union of non-platform system-role
+  permissions. Unknown codes, platform-only authority, and role-level SoD conflicts are
+  rejected before persistence.
+- Updates use full permission-set replacement and compare-and-swap `policy_version`. Every
+  accepted definition change advances the version, conservatively invalidating prior
+  version/hash-pinned delegation review.
+- Permission changes revoke persisted sessions currently operating in the affected tenant for
+  active role holders. Retirement is non-destructive, disables assignment, advances policy
+  version, and revokes all unrevoked canonical bindings for that tenant role.
+- Create, update, and retirement audit events are tenant-scoped SOC 2 records in the same
+  transaction as role, permission, binding, and session changes. Audit failure rolls the
+  aggregate mutation back.
+- No schema revision was required because the role ownership, lifecycle, policy version,
+  permission binding, and canonical role-binding columns already exist at Alembic head
+  `8b3c4d5e6f7a`.
+- Verified 14 direct tenant custom-role tests and 206 broader tenancy/RBAC tests. The complete
+  platform suite has 573 passing tests and only the same three unrelated baseline failures
+  documented above. All 10 applicable service architecture guards pass; the separately
+  reported PM task-lifecycle size budget (`400 > 360`) remains an unrelated baseline failure.
+
 ### Repository re-audit, 2026-07-29
 
 Phases 0, 1, and 2 all remain in progress. The current snapshot was re-audited across domain
@@ -1492,7 +1532,7 @@ The earlier containment work is real, but it does not yet constitute canonical a
 | Scoped grants | Legacy grant operations now require active tenant context, target membership, and tenant-aware resource ownership resolution. Repository reads and writes fail closed when tenant context is absent. | Keep this containment covered while migrating grants to canonical bindings; add delegation and durable audit semantics before legacy retirement. |
 | Organization selection | Creating, updating, or selecting one active organization deactivates the tenant's other organizations. | Separate organization lifecycle from per-session selection; several organizations may remain enabled concurrently. |
 | Membership lifecycle | Additive state, one-time token hashes, authenticated internal acceptance, administrative transitions, optimistic persistence, targeted session invalidation, atomic membership audit, and fixed `viewer` binding orchestration are implemented. `is_active` and `tenant_role` remain transitional, and no external delivery or public adapter exists. | Add reviewed delivery/account-onboarding adapters and custom-role delegation, then retire membership role authority during canonical cutover. |
-| Canonical role metadata | System and per-tenant name namespaces plus role ownership checks are implemented. Tenant custom-role CRUD and permission-subset administration are not exposed. | Add reviewed custom-role commands/adapters only after delegation permission activation and transactionally audited permission changes. |
+| Canonical role metadata | System and per-tenant name namespaces, role ownership checks, and internal audited tenant custom-role lifecycle commands are implemented. They require canonical tenant-scope administrative authority and enforce a curated customer permission ceiling, SoD, optimistic policy versions, session invalidation, and non-destructive retirement. No adapter is exposed. | After environment policy-v2 activation, canonical role preparation, and security review, add a request-scoped adapter; keep raw repositories and unrestricted permission mutation private. |
 | Canonical binding uniqueness | Partial indexes still define persisted activity as unrevoked, but the guarded canonical assignment path now revokes an expired exact-scope row before reassignment. | Add scheduled/bulk expiry maintenance and require imports/backfill to use the same canonical orchestration before declaring this complete. |
 | Principal authority | A fail-closed canonical assignment/revocation service and explicit delegation relation now exist. `auth.role.assign` is defined in policy v2 but is not active until an environment applies that policy; `PrincipalBuilder`, `AuthQueryMixin`, legacy assignment, SoD, and `SessionAuthorizationEngine` remain legacy-authoritative with role-name/rank/admin shortcuts. | Do not claim Phase 2 cutover; dry-run and deliberately apply policy v2 per environment, approve explicit delegations, then implement dual-write, shadow telemetry, and canonical authority without fallback. |
 | Audit | Membership workflow success events are atomic with their mutations. Most other privileged services still commit before best-effort audit recording, and failures may be swallowed. | Extend transactionally durable audit intent to authorization, denial, and context-switch paths. |
@@ -1537,10 +1577,10 @@ Remaining work, in order:
    evidence under ADR-003 ownership.
 2. Run and archive the policy-v2 dry-run, security review, and deliberate apply for each
    deployed environment; code does not perform this operational change automatically.
-3. Add a reviewed invitation delivery/account-onboarding adapter. Complete customer
-   custom-role commands and, only after policy-v2 environment activation, expose guarded
-   delegation through a request-scoped administration adapter. Do not expose raw invitation
-   tokens through generic desktop or HTTP surfaces.
+3. Add a reviewed invitation delivery/account-onboarding adapter. Internal customer
+   custom-role commands are implemented; only after policy-v2 environment activation should
+   they and guarded delegation be exposed through a request-scoped administration adapter. Do
+   not expose raw invitation tokens through generic desktop or HTTP surfaces.
 4. Make security audit writes atomic and add durable denial/context-switch/membership records.
 5. Define quarantine records and rollback snapshots, then implement explicit migration-mode
    dual-write/shadow comparison before removing `user_roles`.

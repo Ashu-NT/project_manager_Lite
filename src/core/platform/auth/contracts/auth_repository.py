@@ -104,6 +104,14 @@ class RoleRepository(ABC):
     ) -> list[Role]: ...
 
     @abstractmethod
+    def update_custom(
+        self,
+        role: Role,
+        *,
+        expected_policy_version: int,
+    ) -> bool: ...
+
+    @abstractmethod
     def set_policy_version(
         self,
         role_id: str,
@@ -129,6 +137,14 @@ class RoleBindingRepository(ABC):
         principal_id: str,
         *,
         tenant_id: str | None,
+    ) -> list[RoleBinding]: ...
+
+    @abstractmethod
+    def list_active_for_role(
+        self,
+        role_id: str,
+        *,
+        tenant_id: str,
     ) -> list[RoleBinding]: ...
 
     @abstractmethod
@@ -161,6 +177,15 @@ class RoleBindingRepository(ABC):
     def revoke_active_for_principal_tenant(
         self,
         principal_id: str,
+        tenant_id: str,
+        *,
+        revoked_at: datetime,
+    ) -> int: ...
+
+    @abstractmethod
+    def revoke_active_for_role(
+        self,
+        role_id: str,
         tenant_id: str,
         *,
         revoked_at: datetime,

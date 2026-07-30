@@ -19,7 +19,11 @@ from src.core.platform.access import AccessControlService, ScopedRolePolicy, Sco
 from src.core.platform.activity import ActivityService
 from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import EnterpriseAuditService
-from src.core.platform.auth import AuthService, RoleGovernanceService
+from src.core.platform.auth import (
+    AuthService,
+    RoleGovernanceService,
+    TenantRoleAdministrationService,
+)
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.documents import DocumentIntegrationService, DocumentService
 from src.core.platform.data_exchange import MasterDataExchangeService
@@ -149,6 +153,7 @@ class PlatformServiceBundle:
     module_catalog_service: ModuleCatalogService
     auth_service: AuthService
     role_governance_service: RoleGovernanceService
+    tenant_role_administration_service: TenantRoleAdministrationService
     organization_service: OrganizationService
     document_service: DocumentService
     document_integration_service: DocumentIntegrationService
@@ -454,6 +459,19 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         scope_exists_resolvers=scope_exists_resolvers,
     )
+    tenant_role_administration_service = TenantRoleAdministrationService(
+        session=session,
+        role_repo=repositories.role_repo,
+        role_binding_repo=repositories.role_binding_repo,
+        role_permission_repo=repositories.role_permission_repo,
+        permission_repo=repositories.permission_repo,
+        auth_session_repo=repositories.auth_session_repo,
+        tenant_repo=repositories.tenant_repo,
+        membership_repo=repositories.user_tenant_repo,
+        audit_repo=repositories.audit_entry_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+    )
     employee_service = EmployeeService(
         session=session,
         employee_repo=repositories.employee_repo,
@@ -555,6 +573,9 @@ def build_platform_service_bundle(
         module_catalog_service=module_catalog_service,
         auth_service=auth_service,
         role_governance_service=role_governance_service,
+        tenant_role_administration_service=(
+            tenant_role_administration_service
+        ),
         organization_service=organization_service,
         document_service=document_service,
         document_integration_service=document_integration_service,

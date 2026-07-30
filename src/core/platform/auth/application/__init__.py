@@ -14,6 +14,11 @@ from src.core.platform.auth.application.role_governance_service import (
     ROLE_ASSIGN_PERMISSION,
     RoleGovernanceService,
 )
+from src.core.platform.auth.application.tenant_role_administration_service import (
+    CUSTOMER_CUSTOM_ROLE_PERMISSION_CODES,
+    RESERVED_CUSTOM_ROLE_NAMES,
+    TenantRoleAdministrationService,
+)
 
 __all__ = [
     "AuthQueryMixin",
@@ -22,8 +27,11 @@ __all__ = [
     "PlatformOwnerProvisioningResult",
     "RolePermissionChange",
     "ROLE_ASSIGN_PERMISSION",
+    "CUSTOMER_CUSTOM_ROLE_PERMISSION_CODES",
+    "RESERVED_CUSTOM_ROLE_NAMES",
     "RoleGovernanceService",
     "RolePolicyReconciliationPlan",
     "RolePolicyReconciliationResult",
     "RolePolicyReconciliationService",
+    "TenantRoleAdministrationService",
 ]

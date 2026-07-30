@@ -344,6 +344,29 @@ class SqlAlchemyRoleRepository(RoleRepository):
         ).scalars()
         return [role_from_orm(row) for row in rows]
 
+    def update_custom(
+        self,
+        role: Role,
+        *,
+        expected_policy_version: int,
+    ) -> bool:
+        result = self.session.execute(
+            update(RoleORM)
+            .where(RoleORM.id == role.id)
+            .where(RoleORM.tenant_id == role.tenant_id)
+            .where(RoleORM.is_system.is_(False))
+            .where(RoleORM.policy_version == expected_policy_version)
+            .values(
+                description=role.description,
+                display_name=role.display_name,
+                is_assignable=role.is_assignable,
+                status=role.status,
+                policy_version=role.policy_version,
+                updated_at=role.updated_at,
+            )
+        )
+        return bool(result.rowcount)
+
     def set_policy_version(
         self,
         role_id: str,
@@ -404,6 +427,27 @@ class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
                 RoleBindingORM.actual_scope_id,
                 RoleBindingORM.role_id,
             )
+        ).scalars()
+        return [role_binding_from_orm(row) for row in rows]
+
+    def list_active_for_role(
+        self,
+        role_id: str,
+        *,
+        tenant_id: str,
+    ) -> list[RoleBinding]:
+        now = datetime.now(timezone.utc)
+        rows = self.session.execute(
+            select(RoleBindingORM)
+            .where(RoleBindingORM.principal_type == "user")
+            .where(RoleBindingORM.role_id == role_id)
+            .where(RoleBindingORM.tenant_id == tenant_id)
+            .where(RoleBindingORM.revoked_at.is_(None))
+            .where(
+                (RoleBindingORM.expires_at.is_(None))
+                | (RoleBindingORM.expires_at > now)
+            )
+            .order_by(RoleBindingORM.principal_id)
         ).scalars()
         return [role_binding_from_orm(row) for row in rows]
 
@@ -503,6 +547,26 @@ class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
             update(RoleBindingORM)
             .where(RoleBindingORM.principal_type == "user")
             .where(RoleBindingORM.principal_id == principal_id)
+            .where(RoleBindingORM.tenant_id == tenant_id)
+            .where(RoleBindingORM.revoked_at.is_(None))
+            .values(
+                revoked_at=revoked_at,
+                version=RoleBindingORM.version + 1,
+            )
+        )
+        return int(result.rowcount or 0)
+
+    def revoke_active_for_role(
+        self,
+        role_id: str,
+        tenant_id: str,
+        *,
+        revoked_at: datetime,
+    ) -> int:
+        result = self.session.execute(
+            update(RoleBindingORM)
+            .where(RoleBindingORM.principal_type == "user")
+            .where(RoleBindingORM.role_id == role_id)
             .where(RoleBindingORM.tenant_id == tenant_id)
             .where(RoleBindingORM.revoked_at.is_(None))
             .values(
