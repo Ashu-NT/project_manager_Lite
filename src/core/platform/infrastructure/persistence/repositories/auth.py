@@ -53,6 +53,9 @@ from src.core.platform.infrastructure.persistence.orm.auth import (
     UserORM,
     UserRoleORM,
 )
+from src.core.platform.tenancy.domain.user_tenant_membership import (
+    MEMBERSHIP_STATUS_ACTIVE,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
@@ -127,6 +130,7 @@ class SqlAlchemyUserRepository(UserRepository):
             select(UserORM)
             .join(UserTenantORM, UserTenantORM.user_id == UserORM.id)
             .where(UserTenantORM.tenant_id == tenant_id)
+            .where(UserTenantORM.status == MEMBERSHIP_STATUS_ACTIVE)
             .where(UserTenantORM.is_active.is_(True))
         )
         rows = self.session.execute(stmt).scalars().all()

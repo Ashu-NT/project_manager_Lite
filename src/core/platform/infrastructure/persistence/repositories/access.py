@@ -18,7 +18,7 @@ from src.core.platform.access.domain import (
     ScopedAccessGrant,
     normalize_access_scope_type,
 )
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.infrastructure.persistence.mappers.access import (
     project_membership_from_orm,
     project_membership_to_orm,
@@ -60,15 +60,15 @@ class _AccessRepositoryScopeSupport:
     session: Session
     _tenant_context_service = None
 
-    def _active_tenant_id(self) -> str | None:
+    def _active_tenant_id(self) -> str:
         if self._tenant_context_service is None:
-            return None
-        user_session = getattr(self._tenant_context_service, "_user_session", None)
-        if user_session is not None:
-            tenant_id = str(getattr(user_session, "_active_tenant_id", "") or "").strip()
-            if tenant_id:
-                return tenant_id
-        return self._tenant_context_service.get_active_tenant_id()
+            raise BusinessRuleError(
+                "Scoped access repository requires TenantContextService.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_active_tenant_id(
+            operation_label="access scoped grants"
+        )
 
     def _active_organization_id(self) -> str | None:
         if self._tenant_context_service is None:
@@ -92,30 +92,39 @@ class _AccessRepositoryScopeSupport:
     def _project_membership_stmt_for_context(
         base_stmt,
         *,
-        tenant_id: str | None,
+        tenant_id: str,
         organization_id: str | None,
     ):
+        normalized_tenant_id = (
+            _AccessRepositoryScopeSupport._require_explicit_tenant_id(tenant_id)
+        )
         stmt = base_stmt.select_from(ProjectMembershipORM).join(
             ProjectORM,
             ProjectMembershipORM.project_id == ProjectORM.id,
         )
-        if tenant_id is not None:
-            stmt = stmt.where(ProjectORM.tenant_id == tenant_id)
+        stmt = stmt.where(ProjectORM.tenant_id == normalized_tenant_id)
         if organization_id is not None:
             stmt = stmt.where(ProjectORM.organization_id == organization_id)
         return stmt
 
+    @staticmethod
+    def _require_explicit_tenant_id(tenant_id: str) -> str:
+        normalized = str(tenant_id or "").strip()
+        if normalized:
+            return normalized
+        raise BusinessRuleError(
+            "Explicit access scope reads require a tenant id.",
+            code="TENANT_CONTEXT_REQUIRED",
+        )
+
     def _scoped_generic_grant_stmt(self, base_stmt):
         tenant_id = self._active_tenant_id()
-        if tenant_id is None:
-            return base_stmt
         return base_stmt.where(ScopedAccessGrantORM.tenant_id == tenant_id)
 
     def _require_project_in_scope(self, project_id: str) -> ProjectORM:
         stmt = select(ProjectORM).where(ProjectORM.id == project_id)
         tenant_id = self._active_tenant_id()
-        if tenant_id is not None:
-            stmt = stmt.where(ProjectORM.tenant_id == tenant_id)
+        stmt = stmt.where(ProjectORM.tenant_id == tenant_id)
         organization_id = self._active_organization_id()
         if organization_id is not None:
             stmt = stmt.where(ProjectORM.organization_id == organization_id)
@@ -351,6 +360,7 @@ class SqlAlchemyScopedAccessGrantRepository(
         organization_id: str | None = None,
         scope_type: str | None = None,
     ) -> list[ScopedAccessGrant]:
+        normalized_tenant_id = self._require_explicit_tenant_id(tenant_id)
         normalized_scope_type = (
             self._normalize_scope_type(scope_type)
             if scope_type is not None
@@ -360,7 +370,7 @@ class SqlAlchemyScopedAccessGrantRepository(
         if normalized_scope_type in (None, "project"):
             stmt = self._project_membership_stmt_for_context(
                 select(ProjectMembershipORM),
-                tenant_id=tenant_id,
+                tenant_id=normalized_tenant_id,
                 organization_id=organization_id,
             ).where(ProjectMembershipORM.user_id == user_id)
             rows = self.session.execute(stmt).scalars().all()
@@ -373,7 +383,7 @@ class SqlAlchemyScopedAccessGrantRepository(
         if normalized_scope_type != "project":
             stmt = select(ScopedAccessGrantORM).where(
                 ScopedAccessGrantORM.user_id == user_id,
-                ScopedAccessGrantORM.tenant_id == tenant_id,
+                ScopedAccessGrantORM.tenant_id == normalized_tenant_id,
             )
             if normalized_scope_type is not None:
                 stmt = stmt.where(

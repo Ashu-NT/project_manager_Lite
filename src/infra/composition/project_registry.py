@@ -120,7 +120,13 @@ def build_project_management_service_bundle(
     )
     platform_services.access_service.register_scope_exists_resolver(
         "project",
-        lambda project_id: repositories.project_repo.get(project_id) is not None,
+        lambda tenant_id, project_id: (
+            platform_services.tenant_context_service.require_active_tenant_id(
+                operation_label="validate project access scope"
+            )
+            == tenant_id
+            and repositories.project_repo.get(project_id) is not None
+        ),
     )
     logger.debug("Project Management platform registrations complete")
     logger.debug("Project Management core services build begin")

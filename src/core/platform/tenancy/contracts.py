@@ -33,6 +33,9 @@ class UserTenantMembershipRepository(ABC):
     def add(self, membership: UserTenantMembership) -> None: ...
 
     @abstractmethod
+    def update(self, membership: UserTenantMembership) -> None: ...
+
+    @abstractmethod
     def get(self, user_id: str, tenant_id: str) -> UserTenantMembership | None: ...
 
     @abstractmethod

@@ -240,10 +240,19 @@ def build_maintenance_service_bundle(
     )
     platform_services.access_service.register_scope_exists_resolver(
         "maintenance",
-        lambda entity_id: (
-            location_repo.get(entity_id) is not None
-            or system_repo.get(entity_id) is not None
-            or asset_repo.get(entity_id) is not None
+        lambda tenant_id, entity_id: (
+            platform_services.tenant_context_service.require_active_tenant_id(
+                operation_label="validate maintenance access scope"
+            )
+            == tenant_id
+            and any(
+                entity is not None
+                for entity in (
+                    location_repo.get(entity_id),
+                    system_repo.get(entity_id),
+                    asset_repo.get(entity_id),
+                )
+            )
         ),
     )
     logger.debug("Maintenance platform registrations complete")

@@ -6,7 +6,11 @@ from typing import TYPE_CHECKING
 from sqlalchemy.orm import Session
 
 from src.core.shared.audit import record_audit_entry
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.access.contracts import (
     ProjectMembershipRepository,
@@ -28,6 +32,11 @@ if TYPE_CHECKING:
     from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth import UserSessionContext
     from src.core.platform.auth.application.auth_service import AuthService
+    from src.core.platform.tenancy.contracts import UserTenantMembershipRepository
+    from src.core.platform.tenancy.tenant_context import TenantContextService
+
+
+ScopeExistsResolver = Callable[[str, str], bool]
 
 
 class AccessControlService:
@@ -40,9 +49,11 @@ class AccessControlService:
         auth_service: "AuthService",
         policy_registry: ScopedRolePolicyRegistry | None = None,
         scoped_access_repo: ScopedAccessGrantRepository | None = None,
-        scope_exists_resolvers: dict[str, Callable[[str], bool]] | None = None,
+        scope_exists_resolvers: dict[str, ScopeExistsResolver] | None = None,
         user_session: "UserSessionContext | None" = None,
         enterprise_audit_service: "EnterpriseAuditService | None" = None,
+        user_tenant_repo: "UserTenantMembershipRepository | None" = None,
+        tenant_context_service: "TenantContextService | None" = None,
     ) -> None:
         self._session = session
         self._membership_repo = membership_repo
@@ -56,11 +67,17 @@ class AccessControlService:
         }
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
+        self._user_tenant_repo = user_tenant_repo
+        self._tenant_context_service = tenant_context_service
 
     def register_scope_policy(self, policy: ScopedRolePolicy) -> None:
         self._policy_registry.register(policy)
 
-    def register_scope_exists_resolver(self, scope_type: str, resolver: Callable[[str], bool]) -> None:
+    def register_scope_exists_resolver(
+        self,
+        scope_type: str,
+        resolver: ScopeExistsResolver,
+    ) -> None:
         self._scope_exists_resolvers[self._normalize_scope_type(scope_type)] = resolver
 
     def list_supported_scope_types(self) -> tuple[str, ...]:
@@ -71,9 +88,17 @@ class AccessControlService:
 
     def list_scope_grants(self, scope_type: str, scope_id: str) -> list[ScopedAccessGrant]:
         require_permission(self._user_session, "access.manage", operation_label="list scoped access grants")
+        tenant_id = self._require_active_tenant_id(
+            operation_label="list scoped access grants"
+        )
         normalized_scope_type = self._normalize_scope_type(scope_type)
         normalized_scope_id = normalize_access_scope_id(scope_id)
         self._require_scope_policy(normalized_scope_type)
+        self._assert_scope_exists(
+            normalized_scope_type,
+            normalized_scope_id,
+            tenant_id=tenant_id,
+        )
         if self._scoped_access_repo is not None:
             return self._scoped_access_repo.list_by_scope(normalized_scope_type, normalized_scope_id)
         if normalized_scope_type == "project":
@@ -90,7 +115,16 @@ class AccessControlService:
         scope_type: str | None = None,
     ) -> list[ScopedAccessGrant]:
         require_permission(self._user_session, "access.manage", operation_label="list user scoped access grants")
+        tenant_id = self._require_active_tenant_id(
+            operation_label="list user scoped access grants"
+        )
         normalized_user_id = normalize_access_user_id(user_id)
+        self._require_target_membership(
+            normalized_user_id,
+            tenant_id=tenant_id,
+            active_only=False,
+            operation_label="list scoped access grants",
+        )
         normalized_scope_type = (
             self._normalize_scope_type(scope_type)
             if scope_type is not None
@@ -131,18 +165,31 @@ class AccessControlService:
         scope_role: str,
     ) -> ScopedAccessGrant:
         require_permission(self._user_session, "access.manage", operation_label="assign scoped access grant")
+        tenant_id = self._require_active_tenant_id(
+            operation_label="assign scoped access grant"
+        )
         normalized_scope_type = self._normalize_scope_type(scope_type)
         normalized_scope_id = normalize_access_scope_id(scope_id)
         normalized_user_id = normalize_access_user_id(user_id)
         user = self._user_repo.get(normalized_user_id)
         if user is None:
             raise NotFoundError("User not found.", code="USER_NOT_FOUND")
+        self._require_target_membership(
+            normalized_user_id,
+            tenant_id=tenant_id,
+            active_only=True,
+            operation_label="assign scoped access",
+        )
         role_name = self._normalize_scope_role(normalized_scope_type, scope_role)
         permissions = sorted(self._resolve_scope_permissions(normalized_scope_type, role_name))
         if not permissions:
             raise ValidationError("Scope role must resolve to at least one permission.")
 
-        self._assert_scope_exists(normalized_scope_type, normalized_scope_id)
+        self._assert_scope_exists(
+            normalized_scope_type,
+            normalized_scope_id,
+            tenant_id=tenant_id,
+        )
         entity_type = (
             "project_membership"
             if normalized_scope_type == "project"
@@ -223,10 +270,24 @@ class AccessControlService:
 
     def remove_scope_grant(self, *, scope_type: str, scope_id: str, user_id: str) -> None:
         require_permission(self._user_session, "access.manage", operation_label="remove scoped access grant")
+        tenant_id = self._require_active_tenant_id(
+            operation_label="remove scoped access grant"
+        )
         normalized_scope_type = self._normalize_scope_type(scope_type)
         self._require_scope_policy(normalized_scope_type)
         normalized_scope_id = normalize_access_scope_id(scope_id)
         normalized_user_id = normalize_access_user_id(user_id)
+        self._require_target_membership(
+            normalized_user_id,
+            tenant_id=tenant_id,
+            active_only=False,
+            operation_label="remove scoped access",
+        )
+        self._assert_scope_exists(
+            normalized_scope_type,
+            normalized_scope_id,
+            tenant_id=tenant_id,
+        )
         if self._scoped_access_repo is not None:
             grant = self._scoped_access_repo.get_for_scope_user(
                 normalized_scope_type,
@@ -294,13 +355,58 @@ class AccessControlService:
     def _normalize_scope_type(self, scope_type: str) -> str:
         return normalize_access_scope_type(scope_type)
 
-    def _assert_scope_exists(self, scope_type: str, scope_id: str) -> None:
+    def _assert_scope_exists(
+        self,
+        scope_type: str,
+        scope_id: str,
+        *,
+        tenant_id: str,
+    ) -> None:
         resolver = self._scope_exists_resolvers.get(scope_type)
         if resolver is None:
-            return
-        if resolver(scope_id):
+            raise BusinessRuleError(
+                f"Tenant ownership validation is not configured for {scope_type}.",
+                code="AUTHORIZATION_SCOPE_RESOLVER_REQUIRED",
+            )
+        if resolver(tenant_id, scope_id):
             return
         raise NotFoundError(f"{scope_type.title()} not found.", code=f"{scope_type.upper()}_NOT_FOUND")
+
+    def _require_active_tenant_id(self, *, operation_label: str) -> str:
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "Tenant context authorization is not configured.",
+                code="AUTHORIZATION_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_active_tenant_id(
+            operation_label=operation_label
+        )
+
+    def _require_target_membership(
+        self,
+        user_id: str,
+        *,
+        tenant_id: str,
+        active_only: bool,
+        operation_label: str,
+    ) -> None:
+        if self._user_tenant_repo is None:
+            raise BusinessRuleError(
+                "Tenant membership authorization is not configured.",
+                code="AUTHORIZATION_CONTEXT_REQUIRED",
+            )
+        membership = self._user_tenant_repo.get(user_id, tenant_id)
+        has_membership = membership is not None and (
+            not active_only or bool(membership.is_active)
+        )
+        if has_membership:
+            return
+        qualifier = "active " if active_only else ""
+        raise BusinessRuleError(
+            f"Cannot {operation_label} for a user without {qualifier}membership "
+            "in the active tenant.",
+            code="ACCESS_TARGET_TENANT_DENIED",
+        )
 
     @staticmethod
     def _raise_unsupported_scope_type(scope_type: str) -> None:
@@ -320,4 +426,4 @@ class AccessControlService:
         self._user_session.set_principal(self._auth_service.build_principal(user))
 
 
-__all__ = ["AccessControlService"]
+__all__ = ["AccessControlService", "ScopeExistsResolver"]

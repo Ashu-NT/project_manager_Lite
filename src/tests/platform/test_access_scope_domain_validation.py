@@ -11,7 +11,7 @@ from src.core.platform.access.domain import (
     ScopedRolePolicy,
     ScopedRolePolicyRegistry,
 )
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 
 
 class _FakeSession:
@@ -34,6 +34,32 @@ class _FakeUserRepo:
 
     def get(self, user_id: str) -> _FakeUser | None:
         return self._rows.get(user_id)
+
+
+@dataclass
+class _FakeTenantMembership:
+    user_id: str
+    tenant_id: str
+    is_active: bool = True
+
+
+class _FakeUserTenantRepo:
+    def __init__(self) -> None:
+        self.membership = _FakeTenantMembership("user-1", "tenant-1")
+
+    def get(self, user_id: str, tenant_id: str) -> _FakeTenantMembership | None:
+        if (
+            self.membership.user_id == user_id
+            and self.membership.tenant_id == tenant_id
+        ):
+            return self.membership
+        return None
+
+
+class _FakeTenantContextService:
+    def require_active_tenant_id(self, *, operation_label: str) -> str:
+        del operation_label
+        return "tenant-1"
 
 
 class _FakeMembershipRepo:
@@ -158,10 +184,16 @@ def _make_service(monkeypatch: pytest.MonkeyPatch) -> AccessControlService:
         policy_registry=_make_policy_registry(),
         scoped_access_repo=_FakeScopedAccessRepo(),
         scope_exists_resolvers={
-            "project": lambda scope_id: scope_id == "project-1",
-            "site": lambda scope_id: scope_id == "site-1",
+            "project": lambda tenant_id, scope_id: (
+                tenant_id == "tenant-1" and scope_id == "project-1"
+            ),
+            "site": lambda tenant_id, scope_id: (
+                tenant_id == "tenant-1" and scope_id == "site-1"
+            ),
         },
         user_session=None,
+        user_tenant_repo=_FakeUserTenantRepo(),
+        tenant_context_service=_FakeTenantContextService(),
     )
 
 
@@ -271,3 +303,37 @@ def test_access_service_uses_entity_validation_for_memberships_and_grants(
             scope_role="viewer",
         )
     assert exc_scope.value.code == "SCOPE_ID_REQUIRED"
+
+
+def test_access_service_denies_missing_scope_ownership_resolver(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    service = _make_service(monkeypatch)
+    service._scope_exists_resolvers.pop("site")
+
+    with pytest.raises(BusinessRuleError) as exc_info:
+        service.assign_scope_grant(
+            scope_type="site",
+            scope_id="site-1",
+            user_id="user-1",
+            scope_role="viewer",
+        )
+
+    assert exc_info.value.code == "AUTHORIZATION_SCOPE_RESOLVER_REQUIRED"
+
+
+def test_access_service_denies_target_without_active_tenant_membership(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    service = _make_service(monkeypatch)
+    service._user_tenant_repo.membership.is_active = False
+
+    with pytest.raises(BusinessRuleError) as exc_info:
+        service.assign_scope_grant(
+            scope_type="site",
+            scope_id="site-1",
+            user_id="user-1",
+            scope_role="viewer",
+        )
+
+    assert exc_info.value.code == "ACCESS_TARGET_TENANT_DENIED"

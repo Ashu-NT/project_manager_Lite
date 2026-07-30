@@ -53,21 +53,26 @@ def test_production_requires_explicit_tenancy_mode() -> None:
         load_runtime_security_configuration({"PM_DEPLOYMENT_ENV": "production"})
 
 
-def test_explicit_saas_and_shadow_mode_are_parsed() -> None:
-    configuration = load_runtime_security_configuration(
-        {
-            "PM_DEPLOYMENT_ENV": "production",
-            "PM_TENANCY_MODE": "saas",
-            "PM_AUTHORIZATION_MIGRATION_MODE": "canonical_shadow",
-        }
-    )
-
-    assert configuration.deployment_environment is DeploymentEnvironment.PRODUCTION
-    assert configuration.tenancy_mode is TenancyMode.SAAS
-    assert (
-        configuration.authorization_migration_mode
-        is AuthorizationMigrationMode.CANONICAL_SHADOW
-    )
+@pytest.mark.parametrize(
+    "mode",
+    (
+        "CANONICAL_SHADOW",
+        "CANONICAL_AUTHORITATIVE",
+        "CANONICAL_ONLY",
+    ),
+)
+def test_reserved_authorization_mode_fails_until_implemented(mode: str) -> None:
+    with pytest.raises(
+        RuntimeSecurityConfigurationError,
+        match="reserved but not operationally implemented",
+    ):
+        load_runtime_security_configuration(
+            {
+                "PM_DEPLOYMENT_ENV": "production",
+                "PM_TENANCY_MODE": "saas",
+                "PM_AUTHORIZATION_MIGRATION_MODE": mode,
+            }
+        )
 
 
 @pytest.mark.parametrize(

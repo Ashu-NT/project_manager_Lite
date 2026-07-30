@@ -9,7 +9,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.project 
     ProjectORM,
 )
 from src.core.platform.access.domain import ProjectMembership, ScopedAccessGrant
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.infrastructure.persistence.orm.access import (
     ProjectMembershipORM,
     ScopedAccessGrantORM,
@@ -272,3 +272,24 @@ def test_access_repositories_stamp_scope_metadata_and_reject_foreign_projects(
                 permission_codes=["task.read"],
             )
         )
+
+
+def test_explicit_access_repository_reads_reject_blank_tenant_context(
+    services,
+) -> None:
+    membership_repo = services["access_service"]._membership_repo
+    grant_repo = services["access_service"]._scoped_access_repo
+
+    with pytest.raises(BusinessRuleError) as membership_error:
+        membership_repo.list_by_user_for_context(
+            "user-id",
+            tenant_id="",
+        )
+    with pytest.raises(BusinessRuleError) as grant_error:
+        grant_repo.list_by_user_for_context(
+            "user-id",
+            tenant_id="",
+        )
+
+    assert membership_error.value.code == "TENANT_CONTEXT_REQUIRED"
+    assert grant_error.value.code == "TENANT_CONTEXT_REQUIRED"

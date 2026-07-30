@@ -60,6 +60,7 @@ from src.core.platform.infrastructure.persistence.repositories.runtime_tracking 
 from src.infra.composition.repositories import RepositoryBundle
 from src.infra.platform.security_config import (
     RuntimeSecurityConfiguration,
+    ensure_operational_authorization_migration_mode,
     load_runtime_security_configuration,
 )
 
@@ -119,10 +120,10 @@ def _bootstrap_local_single_tenant_context(
         user_session.set_active_organization_id(organizations[0].id)
 
     for user in repositories.user_repo.list_all():
-        if repositories.user_tenant_repo.is_active_member(
+        if repositories.user_tenant_repo.get(
             user.id,
             default_tenant.id,
-        ):
+        ) is not None:
             continue
         repositories.user_tenant_repo.add(
             UserTenantMembership.create(
@@ -182,6 +183,9 @@ def build_platform_service_bundle(
     logger.debug("Platform service bundle build begin")
     security_configuration = (
         runtime_security_configuration or load_runtime_security_configuration()
+    )
+    ensure_operational_authorization_migration_mode(
+        security_configuration.authorization_migration_mode
     )
     logger.info(
         "Runtime security configuration deployment_environment=%s tenancy_mode=%s "
@@ -398,11 +402,25 @@ def build_platform_service_bundle(
         ),
         scoped_access_repo=repositories.scoped_access_repo,
         scope_exists_resolvers={
-            "organization": lambda organization_id: repositories.organization_repo.get(organization_id) is not None,
-            "site": lambda site_id: repositories.site_repo.get(site_id) is not None,
+            "organization": lambda tenant_id, organization_id: (
+                repositories.organization_repo.get_for_tenant(
+                    organization_id,
+                    tenant_id,
+                )
+                is not None
+            ),
+            "site": lambda tenant_id, site_id: (
+                tenant_context_service.require_active_tenant_id(
+                    operation_label="validate site access scope"
+                )
+                == tenant_id
+                and repositories.site_repo.get(site_id) is not None
+            ),
         },
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
+        user_tenant_repo=repositories.user_tenant_repo,
+        tenant_context_service=tenant_context_service,
     )
     employee_service = EmployeeService(
         session=session,

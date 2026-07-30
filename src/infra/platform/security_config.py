@@ -25,11 +25,28 @@ class AuthorizationMigrationMode(str, Enum):
     CANONICAL_ONLY = "CANONICAL_ONLY"
 
 
+OPERATIONAL_AUTHORIZATION_MIGRATION_MODES = frozenset(
+    {AuthorizationMigrationMode.LEGACY_AUTHORITATIVE}
+)
+
+
 @dataclass(frozen=True)
 class RuntimeSecurityConfiguration:
     deployment_environment: DeploymentEnvironment
     tenancy_mode: TenancyMode
     authorization_migration_mode: AuthorizationMigrationMode
+
+
+def ensure_operational_authorization_migration_mode(
+    mode: AuthorizationMigrationMode,
+) -> None:
+    if mode in OPERATIONAL_AUTHORIZATION_MIGRATION_MODES:
+        return
+    raise RuntimeSecurityConfigurationError(
+        "PM_AUTHORIZATION_MIGRATION_MODE="
+        f"{mode.value} is reserved but not operationally implemented. "
+        "Use LEGACY_AUTHORITATIVE until its transition gates are implemented."
+    )
 
 
 def _parse_enum(
@@ -81,6 +98,9 @@ def load_runtime_security_configuration(
         variable_name="PM_AUTHORIZATION_MIGRATION_MODE",
         uppercase=True,
     )
+    ensure_operational_authorization_migration_mode(
+        authorization_migration_mode
+    )
     return RuntimeSecurityConfiguration(
         deployment_environment=deployment_environment,
         tenancy_mode=tenancy_mode,
@@ -91,7 +111,9 @@ def load_runtime_security_configuration(
 __all__ = [
     "AuthorizationMigrationMode",
     "DeploymentEnvironment",
+    "OPERATIONAL_AUTHORIZATION_MIGRATION_MODES",
     "RuntimeSecurityConfiguration",
     "RuntimeSecurityConfigurationError",
+    "ensure_operational_authorization_migration_mode",
     "load_runtime_security_configuration",
 ]

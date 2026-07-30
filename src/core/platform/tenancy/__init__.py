@@ -19,12 +19,24 @@ from src.core.platform.tenancy.domain.tenant import (
     VALID_TENANT_STATUSES,
     Tenant,
 )
-from src.core.platform.tenancy.domain.user_tenant_membership import UserTenantMembership
+from src.core.platform.tenancy.domain.user_tenant_membership import (
+    MEMBERSHIP_STATUSES,
+    MEMBERSHIP_STATUS_ACTIVE,
+    MEMBERSHIP_STATUS_INVITED,
+    MEMBERSHIP_STATUS_REMOVED,
+    MEMBERSHIP_STATUS_SUSPENDED,
+    UserTenantMembership,
+)
 from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
 
 __all__ = [
     "ORGANIZATION_SCOPE_ROLE_CHOICES",
     "LocalSingleTenantContextPolicy",
+    "MEMBERSHIP_STATUSES",
+    "MEMBERSHIP_STATUS_ACTIVE",
+    "MEMBERSHIP_STATUS_INVITED",
+    "MEMBERSHIP_STATUS_REMOVED",
+    "MEMBERSHIP_STATUS_SUSPENDED",
     "SaaSTenantContextPolicy",
     "TENANT_STATUS_ACTIVE",
     "TENANT_STATUS_ARCHIVED",

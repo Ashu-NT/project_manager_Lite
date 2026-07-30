@@ -2,7 +2,7 @@
 
 Date: 2026-07-27
 
-Status: Approved target architecture; Phase 1 immediate containment is in progress.
+Status: Approved target architecture; Phases 0, 1, and 2 are all in progress.
 Configuration, replacement provisioning, explicit-context principal rebuilding, atomic context
 switching, sensitive target-user boundaries, direct customer onboarding containment, platform
 tenant authority separation, versioned system-role reconciliation, and mode-specific startup
@@ -12,6 +12,9 @@ application remains a reviewed deployment action. Canonical backfill/authority a
 invitation-lifecycle cutovers remain pending.
 
 Owners: Platform, Security, Persistence, API, Desktop UI, and module teams.
+
+Governing decision:
+[ADR-003: Tenancy and Authorization Authority](../architecture_decisions/ADR-003-tenancy-and-authorization-authority.md).
 
 ## Executive Decision
 
@@ -1022,8 +1025,8 @@ containment, sensitive target-user boundaries, direct tenant-user onboarding, cu
 role/catalog containment, platform tenant-authority separation, and reviewed policy
 reconciliation tooling are implemented. SaaS startup no longer creates/promotes a legacy admin
 or creates/selects/backfills customer context; local desktop initialization remains explicitly
-mode-bound. Existing database reconciliation, canonical authority, and invitation lifecycle
-remain pending deployment or implementation.
+mode-bound. Existing database reconciliation, canonical authority, and public invitation
+orchestration remain pending deployment or implementation.
 
 - Add security regression tests before changing fail-open behavior.
 - Implement and test one-time platform-owner provisioning before changing startup bootstrap.
@@ -1061,10 +1064,13 @@ Exit criteria:
 ### Phase 2: Canonical membership and role-binding schema
 
 Status: In progress. Additive role metadata, the structurally constrained `role_bindings`
-table, domain model, persistence mapper/repository, and migration are implemented. No legacy
-binding has been guessed or copied, and authorization remains legacy-authoritative.
+table, and the additive membership-lifecycle domain/schema foundations are implemented. No
+legacy binding has been guessed or copied, no public invitation workflow has been enabled, and
+authorization remains legacy-authoritative.
 
-- Extend membership lifecycle fields and remove role authority from membership.
+- Extend membership lifecycle fields. Implemented additively; application orchestration and
+  session/audit integration remain pending.
+- Remove role authority from membership. Pending canonical binding cutover.
 - Add tenant-aware role metadata.
 - Add canonical role-binding table and constraints.
 - Backfill platform, tenant, organization, and resource bindings.
@@ -1084,6 +1090,18 @@ Exit criteria:
 
 Current Phase 2 foundation:
 
+- `UserTenantMembership` now validates `invited`, `active`, `suspended`, and `removed` states,
+  invitation issuer/expiry/acceptance/revocation metadata, transition legality, and positive
+  optimistic versions.
+- Membership reinvitation, acceptance, suspension, reactivation, revocation, and removal reuse
+  the one `(user_id, tenant_id)` row. Duplicate repository `add()` now fails explicitly rather
+  than silently ignoring a lifecycle conflict.
+- Membership repository admission and customer user catalogs require `status=active` together
+  with the compatibility `is_active` flag. The latter and `tenant_role` remain transitional
+  columns until canonical cutover.
+- Alembic revision `6f1a9c2e8d4b` adds lifecycle metadata and constraints, conservatively maps
+  legacy inactive rows to `suspended`, and has migration-created upgrade, backfill,
+  downgrade, and re-upgrade coverage on SQLite.
 - `Role` and `roles` now carry tenant ownership, display name, allowed scope type,
   assignability, lifecycle status, policy version, and timestamps.
 - Existing system role metadata is deterministically classified during migration:
@@ -1210,8 +1228,11 @@ replacement provisioning is proven.
 | Single tenant-context policy boundary | Implemented; broader consumers pending | `src/core/platform/tenancy/context_policy.py` and `TenantContextService` |
 | Explicit login/restoration context and atomic principal rebuild | Implemented | `principal_builder.py`, `authentication_service.py`, `session_service.py`, and `TenantContextService` |
 | SaaS missing-context denial and fallback removal | Implemented | Login/restoration supplies validated explicit context. SaaS composition does not create/select a default tenant or organization and does not backfill user memberships; local desktop behavior is isolated by mode. |
-| Registration bypass removal and membership onboarding | Implemented for direct active-tenant onboarding; invitation lifecycle pending | `AuthService.register_user()` no longer exposes a permission bypass. `onboard_tenant_user()` creates the account, active membership, default `viewer` binding, and forced password change in one transaction. |
+| Registration bypass removal and membership onboarding | Implemented for direct active-tenant onboarding; invitation orchestration pending | `AuthService.register_user()` no longer exposes a permission bypass. `onboard_tenant_user()` creates the account, active membership, default `viewer` binding, and forced password change in one transaction. |
 | Sensitive target-user boundary | Implemented | Password, MFA, federated identity, session, user-admin, and role-assignment paths use `target_user_authorization.py`. |
+| Scoped-grant containment | Implemented for legacy grant operations; canonical migration pending | Grant reads and mutations require active tenant context, target membership, and a tenant-aware resource resolver. Missing context or resolver infrastructure denies instead of broadening access. |
+| Schema-aware authorization inventory | Tooling implemented; environment archive/review remains Phase 0 work | `python -m tools.inventory_tenancy_rbac` performs read-only schema/data classification across legacy and canonical database shapes, emits a deterministic snapshot hash, and supports guarded CI thresholds. |
+| Membership lifecycle schema | Additive foundation implemented; public orchestration pending | Explicit states and metadata, validated transitions, one-row reinvitation/reactivation, optimistic updates, active-status admission, schema constraints, and Alembic revision `6f1a9c2e8d4b` are implemented. Invitation API/token delivery, session invalidation, durable audit, and role-binding orchestration remain gated. |
 | Platform-role removal from customer paths | Implemented as containment; canonical role scope metadata pending | Customer desktop/API/QML paths exclude and reject `admin`, `support_admin`, and organization-scoped `org_admin`; customer user catalogs are active-tenant scoped. |
 | Platform tenant provisioning/catalog authority | Implemented | Tenant create/global get/list and lifecycle operations require `platform.admin`; `tenant_admin` no longer receives `tenant.create`, `tenant.manage`, or `tenant.read`, and provisioning no longer creates a customer membership for the platform operator. |
 | Versioned system-role reconciliation | Implemented; environment apply pending | Policy v1, deterministic preview, guarded transactional apply, session invalidation, append-only ledger migration, rollback artifact, and operator CLI are implemented. Existing databases require reviewed dry-run/apply. |
@@ -1293,23 +1314,129 @@ Implementation ledger, 2026-07-27:
   no-op.
 - Added nine onboarding/catalog/role-containment regression cases and verified 32 directly
   affected desktop, presenter, QML, and tenancy/RBAC tests.
-- The complete platform suite has 516 passing tests and three unrelated failures in untouched
-  code: two site date-time normalization failures and one stale QML route expectation for the
-  existing `platform.tenants` route.
+- At the 2026-07-27 checkpoint, the complete platform suite had 516 passing tests and three
+  unrelated failures in untouched code: two site date-time normalization failures and one
+  stale QML route expectation for the existing `platform.tenants` route.
 - Legacy administrator/default-customer bootstrap remains available only in the explicitly
   configured local single-tenant mode.
 
+Implementation ledger, 2026-07-29:
+
+- Re-audited tenancy and authorization authority across platform and module services,
+  repositories, composition, desktop and HTTP adapters, QML, sessions, migrations, runtime
+  execution, activity, entitlements, audit, and security tests. Phases 0, 1, and 2 remain in
+  progress.
+- Made legacy scoped-grant reads and mutations fail closed on missing tenant context, missing
+  target membership, missing resolver infrastructure, and cross-tenant resource ownership.
+  Organization, site, project, storeroom, and maintenance resolvers now receive and validate
+  the active tenant explicitly.
+- Added `python -m tools.inventory_tenancy_rbac`, a read-only, schema-aware inventory command
+  with deterministic snapshot hashing, legacy-binding classification, canonical/schema
+  capability reporting, scoped-grant ownership findings, guarded CI thresholds, and
+  non-overwriting artifact output.
+- Ran the inventory against the configured desktop database without applying migrations. It
+  confirmed revision `z3a4b5c6d7e8`, no deployed canonical binding table, no critical data
+  finding, and the three high-severity review findings recorded below.
+- Accepted ADR-003 for deployment modes, administrative boundaries, canonical scopes,
+  transition gates, evidence ownership, rollback, and audit retention. Acceptance freezes the
+  target decision but does not complete the operational Phase 0 evidence.
+- Restricted authorization migration configuration to the only implemented mode,
+  `LEGACY_AUTHORITATIVE`. The three reserved canonical modes now fail at configuration load
+  and again at service composition rather than silently behaving as legacy authority.
+- Verified 38 focused security, startup, inventory, access, and desktop API tests. The complete
+  platform suite now has 525 passing tests and the same three unrelated failures in untouched
+  code: two site date-time normalization failures and one stale QML route expectation for the
+  existing `platform.tenants` route.
+
+Implementation ledger, 2026-07-30:
+
+- Added the additive tenant-membership lifecycle foundation while preserving legacy decision
+  authority. Membership state now supports `invited`, `active`, `suspended`, and `removed`
+  with issuer, expiry, acceptance, suspension, revocation, removal, and optimistic-version
+  metadata.
+- Added validated one-row transitions for invite acceptance, suspension, reactivation,
+  invitation revocation, removal, and reinvitation. Expired invitations deny acceptance.
+- Changed duplicate membership creation from a silent no-op to an explicit
+  `USER_TENANT_MEMBERSHIP_EXISTS` conflict. Local single-tenant bootstrap now checks row
+  existence and does not implicitly reactivate a suspended row.
+- Made membership admission and tenant-scoped user catalogs require lifecycle `active` status
+  as well as the transitional `is_active` flag.
+- Added revision `6f1a9c2e8d4b` with lifecycle checks, invitation issuer foreign-key integrity,
+  conservative legacy backfill, and indexed status/expiry queries. Verified migration creation
+  from revision zero and a legacy-row upgrade/downgrade/re-upgrade round trip.
+- Updated the authorization inventory to report partial lifecycle schemas accurately and to
+  classify active memberships using lifecycle status when deployed.
+- Verified 99 focused membership, migration, login-context, tenant-switch, containment, SaaS
+  startup, and platform-owner tests. Public invitation orchestration, session invalidation,
+  durable membership audit, and role-binding assignment are intentionally not claimed.
+- The complete platform suite has 531 passing tests and the same three unrelated baseline
+  failures: two site-domain offset-naive/offset-aware datetime comparisons and one stale QML
+  route expectation that omits the existing `platform.tenants` route.
+
+### Repository re-audit, 2026-07-29
+
+Phases 0, 1, and 2 all remain in progress. The current snapshot was re-audited across domain
+models, repositories, migrations, composition, desktop and HTTP adapters, QML callers, session
+restoration, scoped access, entitlements, runtime execution, activity, audit, and security tests.
+The earlier containment work is real, but it does not yet constitute canonical authorization.
+
+| Area | Verified state | Required follow-up |
+| --- | --- | --- |
+| Authorization migration mode | Only `LEGACY_AUTHORITATIVE` is operational. Configuration and composition reject the three reserved modes because no write, shadow-comparison, or cutover behavior consumes them yet. | Implement and test each mode's semantics and gates before making that mode operational. |
+| Security ADR | ADR-003 now freezes deployment mode, platform authority, canonical scope types, migration gates, evidence ownership, rollback, and retention policy. | Keep implementation status explicit; the accepted ADR does not complete operational Phase 0 gates. |
+| Legacy role writes | Direct `user_roles` mutations remain in local bootstrap, one-time platform-owner provisioning, registration/onboarding, and role assignment. | Give each path an explicit migration owner; preserve the first two as mode/platform-only and migrate the latter two to guarded dual-write. |
+| Registration surface | Desktop customer creation uses safe active-tenant onboarding, but public `AuthService.register_user()` still accepts arbitrary role names and optional tenant context. Tests use it as a broad fixture helper. | Separate test/bootstrap identity creation from production customer onboarding; do not expose the broad method through a future HTTP transport. |
+| Session context | Login, restore, and normal tenant switching validate context and rebuild the legacy principal. Public session ID setters and a fallback organization path can still replace IDs without rebuilding authority. | Restrict raw setters to composition/context internals and remove the fallback after callers use `TenantContextService`. |
+| Scoped grants | Legacy grant operations now require active tenant context, target membership, and tenant-aware resource ownership resolution. Repository reads and writes fail closed when tenant context is absent. | Keep this containment covered while migrating grants to canonical bindings; add delegation and durable audit semantics before legacy retirement. |
+| Organization selection | Creating, updating, or selecting one active organization deactivates the tenant's other organizations. | Separate organization lifecycle from per-session selection; several organizations may remain enabled concurrently. |
+| Membership lifecycle | Additive state, metadata, domain transitions, optimistic persistence, status-based admission, and schema migration are implemented. `is_active` and `tenant_role` remain transitional, and no authorized public invitation/session/audit orchestration exists yet. | Add actor/target authorization, secure delivery or authenticated acceptance, session invalidation, durable audit, and canonical role-binding orchestration; then retire membership role authority. |
+| Canonical role metadata | Additive metadata and `role_bindings` exist, but role names remain globally unique even for tenant-owned roles. | Introduce a platform/tenant namespace-safe uniqueness strategy before customer custom roles. |
+| Canonical binding uniqueness | Partial indexes treat every unrevoked row as active, including an expired row. | Define expiry/revocation maintenance or a replacement strategy so expired grants do not permanently block reassignment. |
+| Principal authority | `PrincipalBuilder`, `AuthQueryMixin`, assignment, SoD, and `SessionAuthorizationEngine` remain legacy-authoritative and still contain role-name/rank/admin shortcuts. | Do not claim Phase 2 cutover; implement dual-write, shadow telemetry, delegation, then canonical authority without fallback. |
+| Audit | Most privileged services commit before best-effort audit recording; failures may be swallowed. | Add transactionally durable audit intent and explicit denial/context/membership records. |
+| Entitlements/activity/runtime | Entitlement composition omits its tenant provider; activity can become global with missing context; runtime executions have no tenant/organization and global control reads. | Keep these as open isolation work and block hosted completion until tenant-qualified. |
+| Transport boundary | Desktop customer role/onboarding paths are constrained. The HTTP adapter has no per-request principal/tenant extraction boundary and reuses application service state. | Require request-scoped identity and tenant context before treating HTTP as a hosted SaaS boundary. |
+| Schema verification | Most tests still use `Base.metadata.create_all()`. The Alembic graph has one head, `6f1a9c2e8d4b`; membership lifecycle now has migration-created SQLite round-trip coverage, but hosted PostgreSQL migration tests are absent. | Expand migration-created coverage across authorization schema profiles and add hosted PostgreSQL. |
+
+The configured desktop database was inspected read-only both manually and with
+`python -m tools.inventory_tenancy_rbac`. It was at revision `z3a4b5c6d7e8`, three revisions
+behind the current head, and contained 9 users, 9 active memberships, 9 global legacy role
+bindings, 2 legacy `admin` bindings, no duplicate global bindings, no privileged user without
+an active membership, and no canonical `role_bindings` table. The tool emitted no critical
+data finding and three high-severity review findings: incomplete canonical schema, missing
+membership lifecycle schema, and two platform-role holders that also have customer
+memberships. This is evidence for that one environment only, not a production-wide result.
+The `a4b5c6d7e8f9` policy ledger, `b5c6d7e8f9a0` canonical binding foundation, and
+`6f1a9c2e8d4b` membership lifecycle foundation must be backed up, migrated, inventoried again,
+and reviewed before policy apply, invitation enablement, or binding backfill. Inventory
+artifacts contain security-sensitive opaque identifiers and must be stored in the controlled
+deployment evidence store, not committed to source control.
+
 Next containment work package:
 
-1. Run and archive the policy dry-run, security review, and deliberate apply for each deployed
+Completed in the current containment tranche:
+
+- Closed scoped-grant tenant, membership, and ownership-resolver fail-open paths and added
+  cross-tenant mutation regression tests.
+- Added deterministic, schema-aware, read-only inventory tooling for memberships, legacy
+  roles, canonical bindings, and scoped grants. Environment-specific archival and review remain
+  operational Phase 0 work.
+- Added the lifecycle domain/schema/repository foundation with explicit transitions and
+  migration round-trip coverage. Public invitation and security-event orchestration remain
+  disabled.
+
+Remaining work, in order:
+
+1. Add operational backup, rollback rehearsal, audit-retention, and environment policy-apply
+   evidence under ADR-003 ownership.
+2. Run and archive the policy dry-run, security review, and deliberate apply for each deployed
    environment; code does not perform this operational change automatically.
-2. Implement invitation expiry/acceptance/revocation and canonical tenant-owned role metadata
-   in the membership and role-binding schema phases; do not represent these as completed by the
-   direct onboarding containment path.
-3. Make security audit writes atomic and add durable denial/context-switch/membership records.
-4. Inventory/classify legacy grants, define quarantine records and rollback snapshots, then
-   implement explicit migration-mode dual-write/shadow comparison before removing
-   `user_roles`.
+3. Implement authorized invitation delivery/acceptance/revocation, affected-session
+   invalidation, durable membership audit, and canonical tenant-owned role metadata. Do not
+   expose the domain foundation as a complete invitation workflow.
+4. Make security audit writes atomic and add durable denial/context-switch/membership records.
+5. Define quarantine records and rollback snapshots, then implement explicit migration-mode
+   dual-write/shadow comparison before removing `user_roles`.
 
 ## Required Test Matrix
 
@@ -1404,12 +1531,12 @@ This program is complete when:
 | --- | --- |
 | First team review reconciled with code | Complete |
 | Second team doubts reconciled with code | Complete |
-| End-to-end tenancy/RBAC source scan and targeted re-audit | Complete |
+| End-to-end tenancy/RBAC source scan and targeted re-audit | Complete for the 2026-07-29 snapshot; repeat after each tranche |
 | Target model and security invariants | Complete |
 | Migration and retirement plan | Complete |
-| Phase 0 safety net | In progress |
-| Phase 1 immediate containment | In progress |
-| Canonical role-binding schema | In progress; additive schema/repository foundation complete |
+| Phase 0 safety net | In progress; ADR and read-only inventory tooling implemented, all-environment evidence/rehearsal pending |
+| Phase 1 immediate containment | In progress; scoped-grant fail-closed containment implemented |
+| Phase 2 canonical membership and role-binding schema | In progress; additive role-binding and membership-lifecycle foundations complete, invitation orchestration/backfill/cutover pending |
 | Principal/authorization-engine cutover | Not started |
 | Repository/audit/background hardening | Not started |
 | Custom roles and enterprise identity | Not started |
