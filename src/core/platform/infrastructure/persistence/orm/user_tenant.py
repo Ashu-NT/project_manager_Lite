@@ -35,6 +35,11 @@ class UserTenantORM(Base):
             "version >= 1",
             name="ck_user_tenants_version_positive",
         ),
+        CheckConstraint(
+            "(status = 'invited' AND invitation_token_hash IS NOT NULL) OR "
+            "(status <> 'invited' AND invitation_token_hash IS NULL)",
+            name="ck_user_tenants_invitation_token_state",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -62,6 +67,9 @@ class UserTenantORM(Base):
     invitation_expires_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime, nullable=True
     )
+    invitation_token_hash: Mapped[Optional[str]] = mapped_column(
+        String(64), nullable=True
+    )
     accepted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     joined_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     suspended_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -81,6 +89,13 @@ Index("idx_user_tenants_status", UserTenantORM.status)
 Index(
     "idx_user_tenants_invitation_expiry",
     UserTenantORM.invitation_expires_at,
+)
+Index(
+    "ux_user_tenants_invitation_token_hash",
+    UserTenantORM.invitation_token_hash,
+    unique=True,
+    sqlite_where=UserTenantORM.invitation_token_hash.is_not(None),
+    postgresql_where=UserTenantORM.invitation_token_hash.is_not(None),
 )
 
 

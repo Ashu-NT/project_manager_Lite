@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from src.core.platform.auth.datetime_utils import ensure_utc_datetime
@@ -341,6 +341,23 @@ class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
             )
         ).scalars()
         return [role_binding_from_orm(row) for row in rows]
+
+    def revoke_active_for_principal_tenant(
+        self,
+        principal_id: str,
+        tenant_id: str,
+        *,
+        revoked_at: datetime,
+    ) -> int:
+        result = self.session.execute(
+            update(RoleBindingORM)
+            .where(RoleBindingORM.principal_type == "user")
+            .where(RoleBindingORM.principal_id == principal_id)
+            .where(RoleBindingORM.tenant_id == tenant_id)
+            .where(RoleBindingORM.revoked_at.is_(None))
+            .values(revoked_at=revoked_at)
+        )
+        return int(result.rowcount or 0)
 
 
 class SqlAlchemyPermissionRepository(PermissionRepository):

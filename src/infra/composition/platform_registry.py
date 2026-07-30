@@ -35,6 +35,7 @@ from src.core.platform.site.access_policy import (
 from src.core.platform.tenancy import (
     ORGANIZATION_SCOPE_ROLE_CHOICES,
     TenantAdminService,
+    TenantMembershipService,
     TenantContextService,
     TenancyMode,
     Tenant,
@@ -169,6 +170,7 @@ class PlatformServiceBundle:
     enterprise_calendar_resolver: EnterpriseCalendarResolver
     working_time_calculator: WorkingTimeCalculator
     tenant_admin_service: TenantAdminService
+    tenant_membership_service: TenantMembershipService
     global_calendar_shim: GlobalCalendarShim
     runtime_security_configuration: RuntimeSecurityConfiguration
 
@@ -290,6 +292,19 @@ def build_platform_service_bundle(
         user_tenant_repo=repositories.user_tenant_repo,
         user_session=user_session,
         platform_event_repo=repositories.platform_event_repo,
+    )
+    tenant_membership_service = TenantMembershipService(
+        session=session,
+        tenant_repo=repositories.tenant_repo,
+        membership_repo=repositories.user_tenant_repo,
+        user_repo=repositories.user_repo,
+        role_repo=repositories.role_repo,
+        role_binding_repo=repositories.role_binding_repo,
+        user_role_repo=repositories.user_role_repo,
+        auth_session_repo=repositories.auth_session_repo,
+        audit_repo=repositories.audit_entry_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
     )
     document_service = DocumentService(
         session=session,
@@ -544,6 +559,7 @@ def build_platform_service_bundle(
         enterprise_calendar_resolver=enterprise_calendar_resolver,
         working_time_calculator=working_time_calculator,
         tenant_admin_service=tenant_admin_service,
+        tenant_membership_service=tenant_membership_service,
         global_calendar_shim=global_calendar_shim,
         runtime_security_configuration=security_configuration,
     )

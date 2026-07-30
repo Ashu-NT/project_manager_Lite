@@ -10,6 +10,11 @@ class AuditRepository(ABC):
     def add(self, entry: AuditEntry) -> None: ...
 
     @abstractmethod
+    def add_for_tenant(self, entry: AuditEntry, tenant_id: str) -> None:
+        """Persist an explicitly scoped security event without organization context."""
+        ...
+
+    @abstractmethod
     def list_recent(
         self,
         limit: int = 100,

@@ -43,6 +43,7 @@ class SqlAlchemyUserTenantMembershipRepository(UserTenantMembershipRepository):
                 "invited_by_user_id": membership.invited_by_user_id,
                 "invited_at": membership.invited_at,
                 "invitation_expires_at": membership.invitation_expires_at,
+                "invitation_token_hash": membership.invitation_token_hash,
                 "accepted_at": membership.accepted_at,
                 "joined_at": membership.joined_at,
                 "suspended_at": membership.suspended_at,
@@ -62,6 +63,19 @@ class SqlAlchemyUserTenantMembershipRepository(UserTenantMembershipRepository):
         stmt = select(UserTenantORM).where(
             UserTenantORM.user_id == user_id,
             UserTenantORM.tenant_id == tenant_id,
+        )
+        obj = self._session.execute(stmt).scalars().first()
+        return user_tenant_from_orm(obj) if obj else None
+
+    def get_by_invitation_token_hash(
+        self,
+        invitation_token_hash: str,
+    ) -> UserTenantMembership | None:
+        normalized = str(invitation_token_hash or "").strip().lower()
+        if not normalized:
+            return None
+        stmt = select(UserTenantORM).where(
+            UserTenantORM.invitation_token_hash == normalized
         )
         obj = self._session.execute(stmt).scalars().first()
         return user_tenant_from_orm(obj) if obj else None

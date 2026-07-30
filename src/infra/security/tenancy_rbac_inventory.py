@@ -20,6 +20,7 @@ _MEMBERSHIP_LIFECYCLE_COLUMNS = frozenset(
         "invited_by_user_id",
         "invited_at",
         "invitation_expires_at",
+        "invitation_token_hash",
         "accepted_at",
         "suspended_at",
         "revoked_at",

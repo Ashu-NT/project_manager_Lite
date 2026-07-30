@@ -104,6 +104,15 @@ class RoleBindingRepository(ABC):
         tenant_id: str | None,
     ) -> list[RoleBinding]: ...
 
+    @abstractmethod
+    def revoke_active_for_principal_tenant(
+        self,
+        principal_id: str,
+        tenant_id: str,
+        *,
+        revoked_at: datetime,
+    ) -> int: ...
+
 
 class PermissionRepository(ABC):
     @abstractmethod

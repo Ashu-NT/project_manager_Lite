@@ -157,9 +157,10 @@ must produce durable security evidence.
 - `[x]` schema-aware read-only inventory tooling is available
 - `[~]` environment inventory review and policy reconciliation are operationally pending
 - `[x]` unsupported authorization migration modes are rejected at configuration and composition
-- `[~]` additive membership lifecycle state and transitions are implemented; public invitation,
-  session invalidation, durable audit, role orchestration, and legacy-column retirement remain
-  pending
+- `[~]` additive membership lifecycle, one-time token issuance, authenticated internal
+  acceptance, targeted session invalidation, atomic membership audit, and fixed `viewer`
+  orchestration are implemented; external delivery, public adapters, custom-role delegation,
+  and legacy-column retirement remain pending
 - `[ ]` dual-write, quarantine, shadow comparison, and promotion gates are implemented
 - `[ ]` canonical authorization is decision authority
 - `[ ]` successful privileged audit intent is atomic with each mutation

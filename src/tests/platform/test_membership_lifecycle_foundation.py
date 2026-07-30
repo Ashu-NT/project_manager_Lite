@@ -86,6 +86,7 @@ def test_membership_domain_enforces_explicit_lifecycle_transitions() -> None:
         invited_by_user_id="admin-1",
         invited_at=invited_at,
         expires_at=invited_at + timedelta(days=2),
+        invitation_token_hash="a" * 64,
     )
 
     assert membership.status == MEMBERSHIP_STATUS_INVITED
@@ -109,6 +110,7 @@ def test_membership_domain_enforces_explicit_lifecycle_transitions() -> None:
 
     assert accepted.status == MEMBERSHIP_STATUS_ACTIVE
     assert accepted.is_active is True
+    assert accepted.invitation_token_hash is None
     assert suspended.status == MEMBERSHIP_STATUS_SUSPENDED
     assert suspended.is_active is False
     assert reactivated.status == MEMBERSHIP_STATUS_ACTIVE
@@ -126,6 +128,7 @@ def test_expired_invitation_denies_acceptance_and_can_be_reinvited() -> None:
         invited_by_user_id="admin-1",
         invited_at=invited_at,
         expires_at=invited_at + timedelta(hours=1),
+        invitation_token_hash="a" * 64,
     )
 
     with pytest.raises(BusinessRuleError) as expired_error:
@@ -140,6 +143,7 @@ def test_expired_invitation_denies_acceptance_and_can_be_reinvited() -> None:
         invited_by_user_id="admin-2",
         invited_at=invited_at + timedelta(hours=3),
         expires_at=invited_at + timedelta(days=1),
+        invitation_token_hash="b" * 64,
     )
 
     assert expired_error.value.code == (
@@ -187,6 +191,7 @@ def test_membership_repository_persists_lifecycle_and_rejects_stale_update(
         invited_by_user_id="membership-admin",
         invited_at=invited_at,
         expires_at=invited_at + timedelta(days=2),
+        invitation_token_hash="a" * 64,
     )
     repository.add(membership)
     session.flush()
@@ -195,6 +200,10 @@ def test_membership_repository_persists_lifecycle_and_rejects_stale_update(
         "membership-user",
         "membership-tenant",
     ) is False
+    assert (
+        repository.get_by_invitation_token_hash("a" * 64).id
+        == membership.id
+    )
 
     accepted = membership.accept_invitation(
         accepted_at=invited_at + timedelta(hours=1)
@@ -207,6 +216,7 @@ def test_membership_repository_persists_lifecycle_and_rejects_stale_update(
         "membership-user",
         "membership-tenant",
     ) is True
+    assert repository.get_by_invitation_token_hash("a" * 64) is None
     assert [
         user.id
         for user in user_repository.list_for_tenant("membership-tenant")
@@ -259,11 +269,12 @@ def test_membership_lifecycle_migration_builds_production_shape(tmp_path) -> Non
     finally:
         engine.dispose()
 
-    assert revision == "6f1a9c2e8d4b"
+    assert revision == "7a2b3c4d5e6f"
     assert {
         "status",
         "invited_by_user_id",
         "invitation_expires_at",
+        "invitation_token_hash",
         "accepted_at",
         "suspended_at",
         "revoked_at",
@@ -274,10 +285,12 @@ def test_membership_lifecycle_migration_builds_production_shape(tmp_path) -> Non
         "ck_user_tenants_status",
         "ck_user_tenants_active_status",
         "ck_user_tenants_version_positive",
+        "ck_user_tenants_invitation_token_state",
     } <= checks
     assert {
         "idx_user_tenants_status",
         "idx_user_tenants_invitation_expiry",
+        "ux_user_tenants_invitation_token_hash",
     } <= indexes
 
 
@@ -368,3 +381,73 @@ def test_membership_lifecycle_migration_backfills_and_round_trips(
     assert "version" not in downgraded_columns
 
     command.upgrade(config, "head")
+
+
+def test_token_migration_retires_unverifiable_legacy_invitations(
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "membership-token-upgrade.db"
+    database_url = f"sqlite:///{database_path.as_posix()}"
+    config = _alembic_config(database_url)
+    command.upgrade(config, "6f1a9c2e8d4b")
+    stamp = "2026-07-30 08:00:00"
+
+    engine = create_engine(database_url, future=True)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO users "
+                    "(id, username, password_hash, is_active, created_at, "
+                    "updated_at, version) VALUES "
+                    "('legacy-invite-user', 'legacy_invite_user', 'x', 1, "
+                    ":stamp, :stamp, 1), "
+                    "('legacy-invite-admin', 'legacy_invite_admin', 'x', 1, "
+                    ":stamp, :stamp, 1)"
+                ),
+                {"stamp": stamp},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO tenants "
+                    "(id, tenant_code, display_name, tenant_status, "
+                    "is_active, version) VALUES "
+                    "('legacy-invite-tenant', 'LEGACY-INVITE', "
+                    "'Legacy Invite', 'active', 1, 1)"
+                )
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO user_tenants "
+                    "(id, user_id, tenant_id, status, is_active, tenant_role, "
+                    "invited_by_user_id, invited_at, invitation_expires_at, "
+                    "accepted_at, joined_at, suspended_at, revoked_at, "
+                    "removed_at, created_at, updated_at, version) VALUES "
+                    "('legacy-invitation', 'legacy-invite-user', "
+                    "'legacy-invite-tenant', 'invited', 0, 'member', "
+                    "'legacy-invite-admin', :stamp, '2026-08-01 08:00:00', "
+                    "NULL, NULL, NULL, NULL, NULL, :stamp, :stamp, 1)"
+                ),
+                {"stamp": stamp},
+            )
+    finally:
+        engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url, future=True)
+    try:
+        with engine.connect() as connection:
+            row = connection.execute(
+                text(
+                    "SELECT status, invitation_token_hash, revoked_at, "
+                    "removed_at FROM user_tenants "
+                    "WHERE id = 'legacy-invitation'"
+                )
+            ).mappings().one()
+    finally:
+        engine.dispose()
+
+    assert row["status"] == MEMBERSHIP_STATUS_REMOVED
+    assert row["invitation_token_hash"] is None
+    assert row["revoked_at"] is not None
+    assert row["removed_at"] is not None

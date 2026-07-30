@@ -39,6 +39,12 @@ class UserTenantMembershipRepository(ABC):
     def get(self, user_id: str, tenant_id: str) -> UserTenantMembership | None: ...
 
     @abstractmethod
+    def get_by_invitation_token_hash(
+        self,
+        invitation_token_hash: str,
+    ) -> UserTenantMembership | None: ...
+
+    @abstractmethod
     def is_active_member(self, user_id: str, tenant_id: str) -> bool: ...
 
     @abstractmethod

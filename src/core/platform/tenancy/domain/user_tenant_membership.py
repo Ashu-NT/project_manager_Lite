@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import datetime, timezone
+import re
 
 from pydantic import field_validator, model_validator
 
@@ -28,6 +29,7 @@ MEMBERSHIP_STATUSES = frozenset(
         MEMBERSHIP_STATUS_REMOVED,
     }
 )
+_INVITATION_TOKEN_HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 
 def normalize_user_tenant_membership_id(value: object) -> str:
@@ -72,6 +74,18 @@ def normalize_user_tenant_membership_status(value: object) -> str:
     return normalized
 
 
+def normalize_membership_invitation_token_hash(value: object) -> str | None:
+    normalized = normalize_optional_text(value).lower() or None
+    if normalized is not None and not _INVITATION_TOKEN_HASH_PATTERN.fullmatch(
+        normalized
+    ):
+        raise ValidationError(
+            "Invitation token hash must be a SHA-256 hexadecimal digest.",
+            code="USER_TENANT_MEMBERSHIP_INVITATION_TOKEN_HASH_INVALID",
+        )
+    return normalized
+
+
 def normalize_user_tenant_membership_datetime(
     value: object,
     *,
@@ -104,6 +118,7 @@ class UserTenantMembership:
     invited_by_user_id: str | None = None
     invited_at: datetime | None = None
     invitation_expires_at: datetime | None = None
+    invitation_token_hash: str | None = None
     accepted_at: datetime | None = None
     joined_at: datetime | None = None
     suspended_at: datetime | None = None
@@ -142,6 +157,11 @@ class UserTenantMembership:
     @classmethod
     def _normalize_invited_by_user_id(cls, value: object) -> str | None:
         return normalize_optional_identifier(value)
+
+    @field_validator("invitation_token_hash", mode="before")
+    @classmethod
+    def _normalize_invitation_token_hash(cls, value: object) -> str | None:
+        return normalize_membership_invitation_token_hash(value)
 
     @field_validator(
         "invited_at",
@@ -209,9 +229,10 @@ class UserTenantMembership:
                 self.invited_by_user_id is None
                 or self.invited_at is None
                 or self.invitation_expires_at is None
+                or self.invitation_token_hash is None
             ):
                 raise ValidationError(
-                    "Invited memberships require issuer, invitation, and expiry metadata.",
+                    "Invited memberships require issuer, invitation, expiry, and token metadata.",
                     code="USER_TENANT_MEMBERSHIP_INVITATION_REQUIRED",
                 )
             if self.invitation_expires_at <= self.invited_at:
@@ -224,6 +245,11 @@ class UserTenantMembership:
                     "An invited membership cannot already be accepted.",
                     code="USER_TENANT_MEMBERSHIP_INVITATION_STATE_INVALID",
                 )
+        elif self.invitation_token_hash is not None:
+            raise ValidationError(
+                "Only invited memberships can retain an invitation token hash.",
+                code="USER_TENANT_MEMBERSHIP_INVITATION_TOKEN_STATE_INVALID",
+            )
 
         if self.status in {
             MEMBERSHIP_STATUS_ACTIVE,
@@ -293,6 +319,7 @@ class UserTenantMembership:
             invited_by_user_id=None,
             invited_at=None,
             invitation_expires_at=None,
+            invitation_token_hash=None,
             accepted_at=now,
             joined_at=now,
             suspended_at=None if is_active else now,
@@ -310,6 +337,7 @@ class UserTenantMembership:
         *,
         invited_by_user_id: str,
         expires_at: datetime,
+        invitation_token_hash: str,
         invited_at: datetime | None = None,
     ) -> "UserTenantMembership":
         now = invited_at or datetime.now(timezone.utc)
@@ -323,6 +351,7 @@ class UserTenantMembership:
             invited_by_user_id=invited_by_user_id,
             invited_at=now,
             invitation_expires_at=expires_at,
+            invitation_token_hash=invitation_token_hash,
             accepted_at=None,
             joined_at=None,
             suspended_at=None,
@@ -361,6 +390,7 @@ class UserTenantMembership:
             is_active=True,
             accepted_at=now,
             joined_at=now,
+            invitation_token_hash=None,
             suspended_at=None,
             revoked_at=None,
             removed_at=None,
@@ -420,6 +450,7 @@ class UserTenantMembership:
             self,
             status=MEMBERSHIP_STATUS_REMOVED,
             is_active=False,
+            invitation_token_hash=None,
             revoked_at=now,
             removed_at=now,
             updated_at=now,
@@ -453,6 +484,7 @@ class UserTenantMembership:
         *,
         invited_by_user_id: str,
         expires_at: datetime,
+        invitation_token_hash: str,
         invited_at: datetime | None = None,
     ) -> "UserTenantMembership":
         if self.status not in {
@@ -471,6 +503,7 @@ class UserTenantMembership:
             invited_by_user_id=invited_by_user_id,
             invited_at=now,
             invitation_expires_at=expires_at,
+            invitation_token_hash=invitation_token_hash,
             accepted_at=None,
             joined_at=None,
             suspended_at=None,
@@ -489,6 +522,7 @@ __all__ = [
     "UserTenantMembership",
     "normalize_user_tenant_membership_datetime",
     "normalize_user_tenant_membership_id",
+    "normalize_membership_invitation_token_hash",
     "normalize_user_tenant_membership_role",
     "normalize_user_tenant_membership_status",
     "normalize_user_tenant_membership_tenant_id",

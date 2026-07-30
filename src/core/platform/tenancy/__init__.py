@@ -4,6 +4,10 @@ from src.core.platform.tenancy.access_policy import (
     resolve_organization_scope_permissions,
 )
 from src.core.platform.tenancy.application.tenant_admin_service import TenantAdminService
+from src.core.platform.tenancy.application.tenant_membership_service import (
+    IssuedTenantInvitation,
+    TenantMembershipService,
+)
 from src.core.platform.tenancy.contracts import TenantRepository, UserTenantMembershipRepository
 from src.core.platform.tenancy.context_policy import (
     LocalSingleTenantContextPolicy,
@@ -32,6 +36,7 @@ from src.core.platform.tenancy.tenant_context import TenantContext, TenantContex
 __all__ = [
     "ORGANIZATION_SCOPE_ROLE_CHOICES",
     "LocalSingleTenantContextPolicy",
+    "IssuedTenantInvitation",
     "MEMBERSHIP_STATUSES",
     "MEMBERSHIP_STATUS_ACTIVE",
     "MEMBERSHIP_STATUS_INVITED",
@@ -44,6 +49,7 @@ __all__ = [
     "VALID_TENANT_STATUSES",
     "Tenant",
     "TenantAdminService",
+    "TenantMembershipService",
     "TenantContext",
     "TenantContextPolicy",
     "TenantContextService",
