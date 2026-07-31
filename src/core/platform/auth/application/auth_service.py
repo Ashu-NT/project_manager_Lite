@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable
+from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
@@ -25,6 +26,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 from . import authentication_service as _auth
 from . import bootstrap_service as _bootstrap
+from . import context_switch_service as _context_switch
 from . import federated_identity_service as _fed
 from . import mfa_service as _mfa
 from . import password_service as _pw
@@ -60,6 +62,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         sod_policy: SeparationOfDutiesPolicy | None = None,
         user_tenant_repo: "UserTenantMembershipRepository | None" = None,
         tenant_context_service: "TenantContextService | None" = None,
+        request_id_provider: Callable[[], str | None] | None = None,
     ):
         self._session: Session = session
         self._user_repo: UserRepository = user_repo
@@ -78,6 +81,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._tenant_context_service: "TenantContextService | None" = (
             tenant_context_service
         )
+        self._request_id_provider = request_id_provider
 
     def bootstrap_defaults(self) -> UserAccount:
         return _bootstrap.bootstrap_defaults(self)
@@ -271,6 +275,17 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
 
     def persist_session_context(self, session_context: UserSessionContext) -> None:
         _sessions.persist_session_context(self, session_context)
+
+    def commit_context_switch(
+        self,
+        target_principal: UserSessionPrincipal,
+        switch_type: str,
+    ) -> None:
+        _context_switch.commit_context_switch(
+            self,
+            target_principal,
+            switch_type=switch_type,
+        )
 
     def build_principal(self, user: UserAccount, *, session_id: str | None = None) -> UserSessionPrincipal:
         return _principal.build_principal(self, user, session_id=session_id)

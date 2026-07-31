@@ -4,12 +4,11 @@ from typing import TYPE_CHECKING, Iterable
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.domain import UserAccount, UserRoleBinding, normalize_auth_username
 from src.core.platform.auth.passwords import hash_password
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.tenancy.domain.user_tenant_membership import UserTenantMembership
 
 if TYPE_CHECKING:
@@ -20,15 +19,31 @@ from .federated_identity_service import (
     normalize_identity_provider,
     validate_federated_identity,
 )
+from .security_audit import (
+    add_atomic_security_audit,
+    add_atomic_system_security_audit,
+)
 from .sod_enforcer import enforce_separation_of_duties
 from .target_user_authorization import require_actor_active_tenant
 
 
-def _assign_roles_for_user(service: AuthService, user_id: str, role_names: Iterable[str]) -> None:
+def _assign_roles_for_user(
+    service: AuthService,
+    user_id: str,
+    role_names: Iterable[str],
+) -> tuple[str, ...]:
+    assigned_role_names: list[str] = []
     for role_name in role_names:
         role = service._require_role_by_name(role_name)
         if not service._user_role_repo.exists(user_id, role.id):
-            service._user_role_repo.add(UserRoleBinding.create(user_id=user_id, role_id=role.id))
+            service._user_role_repo.add(
+                UserRoleBinding.create(
+                    user_id=user_id,
+                    role_id=role.id,
+                )
+            )
+        assigned_role_names.append(role.name)
+    return tuple(assigned_role_names)
 
 
 def _create_user(
@@ -47,6 +62,7 @@ def _create_user(
     tenant_id: str | None = None,
     commit: bool = True,
     audit_action: str = "user.register",
+    system_audit_actor: str | None = None,
 ) -> UserAccount:
     normalized = normalize_auth_username(username)
     normalized_email = service._normalize_email(email)
@@ -76,17 +92,55 @@ def _create_user(
         must_change_password=must_change_password,
     )
     normalized_tenant_id = str(tenant_id or "").strip() or None
+    if normalized_tenant_id and service._user_tenant_repo is None:
+        raise BusinessRuleError(
+            "Tenant membership persistence is required for tenant user creation.",
+            code="AUTHORIZATION_CONTEXT_REQUIRED",
+        )
     try:
         with service._session.begin_nested():
             service._user_repo.add(user)
-            _assign_roles_for_user(service, user.id, resolved_role_names)
-            if normalized_tenant_id and service._user_tenant_repo is not None:
+            assigned_role_names = _assign_roles_for_user(
+                service,
+                user.id,
+                resolved_role_names,
+            )
+            if normalized_tenant_id:
                 membership = UserTenantMembership.create(
                     user_id=user.id,
                     tenant_id=normalized_tenant_id,
                     tenant_role="member",
                 )
                 service._user_tenant_repo.add(membership)
+            audit_metadata: dict[str, object] = {
+                "username": user.username,
+                "role_names": list(assigned_role_names),
+                "must_change_password": user.must_change_password,
+            }
+            if normalized_provider is not None:
+                audit_metadata["identity_provider"] = normalized_provider
+            if system_audit_actor is not None:
+                add_atomic_system_security_audit(
+                    service,
+                    operation="create",
+                    entity_type="user",
+                    entity_id=user.id,
+                    action=audit_action,
+                    severity="critical",
+                    actor_username=system_audit_actor,
+                    metadata=audit_metadata,
+                )
+            else:
+                add_atomic_security_audit(
+                    service,
+                    operation="create",
+                    entity_type="user",
+                    entity_id=user.id,
+                    action=audit_action,
+                    severity="high",
+                    metadata=audit_metadata,
+                    scope_tenant_id=normalized_tenant_id,
+                )
         if commit:
             service._session.commit()
     except IntegrityError as exc:
@@ -100,21 +154,8 @@ def _create_user(
     except Exception:
         service._session.rollback()
         raise
-    record_audit_entry(
-        service,
-        operation="create",
-        entity_type="user",
-        entity_id=user.id,
-        module="platform",
-        severity="high",
-        compliance_tag="SOC2",
-        metadata={
-            "action": audit_action,
-            "username": user.username,
-            "tenant_id": normalized_tenant_id,
-        },
-    )
-    domain_events.auth_changed.emit(user.id)
+    if commit:
+        domain_events.auth_changed.emit(user.id)
     return user
 
 
@@ -205,6 +246,7 @@ def _register_bootstrap_user(
         must_change_password,
         commit=commit,
         audit_action="bootstrap.user.register",
+        system_audit_actor="local_startup",
     )
 
 

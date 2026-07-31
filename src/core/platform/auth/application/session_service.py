@@ -11,8 +11,8 @@ from src.core.platform.auth.domain import AuthSession
 from src.core.platform.auth.domain.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import ValidationError
 
-from .audit_recorder import record_auth_event
 from .principal_builder import build_principal
+from .security_audit import add_atomic_security_audit
 from .session_utils import next_session_expiry, rotate_session_revision, validate_session_timeout_override
 from .target_user_authorization import require_target_user_in_active_tenant
 
@@ -103,13 +103,42 @@ def set_user_session_policy(
         operation_label="set session policy",
     )
     user = service._require_user(user_id)
+    previous_timeout = user.session_timeout_minutes_override
+    previous_revision = user.session_revision
     user.session_timeout_minutes_override = session_timeout_minutes_override
     user.updated_at = datetime.now(timezone.utc)
     rotate_session_revision(user)
     user.session_expires_at = next_session_expiry(user.updated_at, user=user)
     revoke_all_persisted_sessions(service, user, revoked_at=user.updated_at)
-    service._user_repo.update(user)
-    service._session.commit()
+    try:
+        service._user_repo.update(user)
+        add_atomic_security_audit(
+            service,
+            operation="auth.session.policy.update",
+            entity_type="user",
+            entity_id=user.id,
+            action="auth.session.policy.update",
+            severity="high",
+            field="session_timeout_minutes_override",
+            old_value=(
+                str(previous_timeout)
+                if previous_timeout is not None
+                else None
+            ),
+            new_value=(
+                str(user.session_timeout_minutes_override)
+                if user.session_timeout_minutes_override is not None
+                else None
+            ),
+            metadata={
+                "previous_session_revision": previous_revision,
+                "session_revision": user.session_revision,
+            },
+        )
+        service._session.commit()
+    except Exception:
+        service._session.rollback()
+        raise
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return user
@@ -127,20 +156,33 @@ def revoke_user_sessions(service: AuthService, user_id: str, *, note: str = "") 
         operation_label="revoke sessions",
     )
     user = service._require_user(user_id)
+    previous_revision = user.session_revision
     rotate_session_revision(user)
     user.session_expires_at = datetime.now(timezone.utc)
     user.updated_at = user.session_expires_at
     revoke_all_persisted_sessions(service, user, revoked_at=user.updated_at)
-    service._user_repo.update(user)
-    service._session.commit()
+    try:
+        service._user_repo.update(user)
+        add_atomic_security_audit(
+            service,
+            operation="auth.session.revoked",
+            entity_type="user",
+            entity_id=user.id,
+            action="auth.session.revoked",
+            severity="high",
+            field="session_revision",
+            old_value=str(previous_revision),
+            new_value=str(user.session_revision),
+            metadata={
+                "scope": "all",
+                "note": note.strip(),
+            },
+        )
+        service._session.commit()
+    except Exception:
+        service._session.rollback()
+        raise
     domain_events.auth_changed.emit(user.id)
-    record_auth_event(
-        service,
-        action="auth.session.revoked",
-        username=user.username,
-        user_id=user.id,
-        details={"note": note.strip()},
-    )
     refresh_current_session_if_user(service, user.id)
     return user
 
@@ -218,18 +260,39 @@ def revoke_session(service: AuthService, session_id: str, *, note: str = "") -> 
         auth_session.user_id,
         operation_label="revoke session",
     )
+    if auth_session.revoked_at is not None:
+        refresh_current_session_if_user(service, auth_session.user_id)
+        return auth_session
     revoked_at = datetime.now(timezone.utc)
+    previous_revoked_at = auth_session.revoked_at
     auth_session.revoked_at = revoked_at
     auth_session.updated_at = revoked_at
-    service._auth_session_repo.update(auth_session)
-    service._session.commit()
-    record_auth_event(
-        service,
-        action="auth.session.revoked",
-        username="",
-        user_id=auth_session.user_id,
-        details={"note": note.strip(), "session_id": auth_session.id},
-    )
+    try:
+        service._auth_session_repo.update(auth_session)
+        add_atomic_security_audit(
+            service,
+            operation="auth.session.revoked",
+            entity_type="auth_session",
+            entity_id=auth_session.id,
+            action="auth.session.revoked",
+            severity="high",
+            field="revoked_at",
+            old_value=(
+                previous_revoked_at.isoformat()
+                if previous_revoked_at is not None
+                else None
+            ),
+            new_value=revoked_at.isoformat(),
+            metadata={
+                "scope": "single",
+                "target_user_id": auth_session.user_id,
+                "note": note.strip(),
+            },
+        )
+        service._session.commit()
+    except Exception:
+        service._session.rollback()
+        raise
     refresh_current_session_if_user(service, auth_session.user_id)
     return auth_session
 

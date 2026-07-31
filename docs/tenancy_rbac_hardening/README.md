@@ -1264,6 +1264,7 @@ replacement provisioning is proven.
 | Deployment/tenancy/migration configuration | Implemented | `src/infra/platform/security_config.py` |
 | Single tenant-context policy boundary | Implemented; broader consumers pending | `src/core/platform/tenancy/context_policy.py` and `TenantContextService` |
 | Explicit login/restoration context and atomic principal rebuild | Implemented | `principal_builder.py`, `authentication_service.py`, `session_service.py`, and `TenantContextService` |
+| Authorization denial/context-switch evidence | Shared boundaries implemented; explicit post-gate denials pending | Permission and scoped-permission denials use an isolated typed writer. Tenant/organization session persistence and success audit commit before principal replacement; denial and writer-failure semantics preserve fail-closed outcomes. |
 | SaaS missing-context denial and fallback removal | Implemented | Login/restoration supplies validated explicit context. SaaS composition does not create/select a default tenant or organization and does not backfill user memberships; local desktop behavior is isolated by mode. |
 | Registration bypass removal and membership onboarding | Implemented for direct onboarding and internal existing-user invitations; delivery pending | `AuthService.register_user()` no longer exposes a permission bypass. `onboard_tenant_user()` creates the account, active membership, default `viewer` binding, and forced password change in one transaction. The internal invitation service is authenticated and atomic but is not a delivery or public onboarding adapter. |
 | Sensitive target-user boundary | Implemented | Password, MFA, federated identity, session, user-admin, and role-assignment paths use `target_user_authorization.py`. |
@@ -1305,6 +1306,12 @@ Implementation ledger, 2026-07-27:
 - Password, MFA, federated identity, account activation/profile, and account-unlock success
   mutations now persist explicitly scoped security audit rows in the same transaction. Audit
   infrastructure or scope failure rolls the mutation back.
+- Registration, tenant onboarding, local bootstrap account/role repair, and legacy role
+  assignment/revocation now persist their security audit rows inside the owning transaction.
+  Idempotent role no-ops do not emit misleading mutation events.
+- Login success, known-user failure counters/lockout, standalone authentication denials, session
+  policy changes, and persisted-session revocation now use explicit transaction-owned security
+  audit writes with denial-preserving failure behavior.
 - Self-service password change can target only the authenticated user.
 - Removed role selection from `UserCreateCommand`, the user presenter, and create-mode QML.
   Customer account creation now uses a dedicated active-tenant onboarding operation, assigns
@@ -1535,10 +1542,10 @@ Credential and account-security audit ledger, 2026-07-30:
 - Events include actor, target entity, tenant/organization or platform scope, action, outcome,
   severity, and SOC 2 classification. Password material, MFA secrets, and federated subjects
   are never included in metadata.
-- This is a bounded partial cutover. Registration/onboarding, legacy `user_roles` assignment,
-  login success/failure and lockout, session administration, authorization denials, and
-  tenant/organization context switches still use best-effort audit or have no durable security
-  event and remain pending.
+- Registration/onboarding, legacy `user_roles` assignment, login success/failure and lockout,
+  and session administration were moved to atomic writers in the following tranches. General
+  authorization denials and tenant/organization context switches still have no durable
+  security event and remain pending.
 - No schema revision was required; the existing `audit_entries` table and explicit
   tenant/platform repository methods support the transactional path.
 - Verified 8 direct atomic security-audit tests and a 170-test auth, session, tenancy,
@@ -1549,6 +1556,106 @@ Credential and account-security audit ledger, 2026-07-30:
 - Source compilation and diff-integrity checks are clean, Alembic still has the single head
   `8b3c4d5e6f7a`, and the combined service architecture run has 17 passing checks with only the
   previously documented PM task-lifecycle size-budget failure (`400 > 360`).
+
+Registration, bootstrap, and legacy-role audit ledger, 2026-07-30:
+
+- User registration now stages the user, requested legacy role bindings, optional tenant
+  membership, and SOC 2 audit event in one transaction. Tenant onboarding therefore cannot
+  leave an account, role, or membership behind when audit persistence fails.
+- An explicit registration tenant is retained as the event tenant. A different active context
+  can target that scope only for the canonical platform operator; organization scope is cleared
+  rather than copied from another tenant.
+- The local first-start administrator event uses an explicit `system` actor and platform scope.
+  The private `commit=False` bootstrap path no longer triggers a hidden audit commit; startup
+  owns the final transaction and emits the authority-change event only after commit.
+- Repairing a missing local bootstrap `admin` role is also platform-scoped and atomic. Audit
+  failure leaves the pre-repair state unchanged.
+- Legacy `user_roles` assignment and revocation add the audit row before commit, roll back the
+  binding on failure, record role old/new semantics, and emit domain events only after commit.
+  Existing assignment and absent revocation are idempotent no-ops without false audit events.
+- Events contain the actor, target user, canonical role names, tenant/platform scope, outcome,
+  and severity. Password values and hashes, MFA material, and federated subjects are excluded.
+- This closes the transaction-durability gap but does not make `user_roles` tenant-aware or
+  canonical. The broad internal `register_user()` fixture/bootstrap surface also remains
+  separate from the reviewed tenant onboarding adapter and must not become a hosted HTTP API.
+- No schema revision was required. Verified 10 direct rollback/scope/system-actor tests and an
+  expanded 180-test security matrix. The complete platform suite has 591 passing tests and only
+  the same three unrelated baseline failures documented above.
+
+Authentication and session audit ledger, 2026-07-30:
+
+- Replaced the best-effort `record_auth_event()` path with a dedicated transaction-owned
+  authentication writer. It does not require or fabricate an authenticated principal: the
+  credential claimant is recorded as an `authentication_subject`.
+- Successful password and federated authentication now stage user login state, persisted
+  session, and `auth.login.success` together. Audit or transaction failure rolls everything
+  back and returns the safe `AUTH_AUDIT_UNAVAILABLE` domain error instead of exposing a raw
+  repository exception to QML.
+- Known-user password and MFA failures stage the failure counter, lockout timestamp, and
+  `auth.login.failed` event together. If audit persistence fails, those writes roll back but the
+  original `AUTH_FAILED`, `AUTH_MFA_REQUIRED`, or `AUTH_MFA_FAILED` denial is preserved.
+- Unknown-user, inactive-user, and already-locked attempts perform a separate durable denial
+  write because there is no successful business transaction to join. Writer failure is logged,
+  rolled back, and can never convert the denial into an authenticated session.
+- Known subjects use their validated restorable tenant/organization scope. Unknown subjects are
+  platform-scoped. Federated audit identity uses the normalized provider or known username and
+  never records the federated subject, password, MFA secret, or submitted MFA code.
+- Expired lock reset is no longer committed as a separate pre-authentication mutation; it joins
+  the eventual successful-login or failed-attempt transaction.
+- Session timeout-policy changes, revoke-all, and single persisted-session revocation now add
+  their SOC 2 event before commit and roll back user revisions and session rows on failure.
+  Repeating an already completed single-session revocation is an idempotent no-op without a
+  duplicate event.
+- Session context persistence and validation heartbeats remain operational state rather than
+  privileged audit events. Explicit tenant/organization context-switch auditing remains a
+  separate pending package.
+- Authentication entry-point decisions remain in `authentication_service.py`; transaction,
+  context-restoration, lockout-state, persisted-session, and audit orchestration are isolated in
+  `authentication_transactions.py`. This keeps the public service API stable without returning
+  to a monolithic authentication module.
+- No schema revision was required. Verified 11 direct authentication/session rollback,
+  denial-preservation, scope, and redaction tests; the expanded security matrix has 191 passing
+  tests. The complete platform suite has 602 passing tests and only the same three unrelated
+  baseline failures. Both external PM lockout/session integration tests pass; three other tests
+  in that file retain their unrelated missing-tenant-membership fixture failures.
+- Architecture verification has 96 passing checks. Its two open size-budget failures are outside
+  this package: the 400-line PM task lifecycle exceeds its 360-line migration budget, and the
+  1,388-line enterprise calendar domain exceeds the 1,200-line hard limit.
+
+Authorization-denial and context-switch audit ledger, 2026-07-30:
+
+- Added a typed `SecurityDenialEvent` at the shared authorization boundary.
+  `require_permission()`, `require_any_permission()`, and scoped permission checks now emit
+  actor, session, current tenant/organization, required permissions, operation label, reason,
+  and attempted scope before preserving the existing denial code and message.
+- Production composition wires those events to `DurableSecurityDenialRecorder`. It opens an
+  isolated SQLAlchemy session, writes an explicitly tenant- or platform-scoped SOC 2 event,
+  includes the current trace ID when available, commits independently, and closes the session.
+  It never calls commit or rollback on the caller's business session.
+- Denial-audit failure is logged at critical severity and never changes deny to allow. Missing
+  recorder wiring is also a critical operational condition, while lightweight session adapters
+  that do not implement the audit capability retain their existing fail-closed behavior.
+- Tenant and organization authority rebuilds now pass through
+  `AuthService.commit_context_switch()`. Persisted auth-session context and the target-scoped
+  success event commit together before the in-memory principal changes. Audit/session failure
+  rolls back and returns the safe `CONTEXT_SWITCH_AUDIT_UNAVAILABLE` domain error.
+- Switch success records old/new tenant and organization IDs, actor, session, target scope,
+  outcome, SOC 2 classification, and trace ID. Repeating the same effective context refreshes
+  authority without producing a false duplicate switch event.
+- Failed tenant/organization attempts use the isolated denial writer, preserve the original
+  `TENANT_ACCESS_DENIED`, `PERMISSION_DENIED`, context, lifecycle, or authentication error, and
+  retain the attempted scope only as denial metadata. SaaS mode refuses a successful switch
+  when the audited context committer is not configured.
+- This tranche covers shared permission gates, shared scoped-permission gates, and all
+  `TenantContextService` tenant/organization switch outcomes. Explicit authorization-coded
+  rejections raised after custom module resource, membership, delegation, or SoD checks remain
+  an inventoried follow-up; they must migrate to the typed denial emitter without duplicate
+  events at transport boundaries.
+- No schema revision was required. Verified 10 direct scope, trace, redaction, durability,
+  failure-preservation, idempotency, and rollback tests; the expanded security matrix has 201
+  passing tests. The complete platform suite has 612 passing tests and only the same three
+  unrelated baseline failures. Architecture verification remains at 96 passing checks with the
+  same two unrelated size-budget failures.
 
 ### Repository re-audit, 2026-07-29
 
@@ -1564,13 +1671,14 @@ The earlier containment work is real, but it does not yet constitute canonical a
 | Legacy role writes | Direct `user_roles` mutations remain in local bootstrap, one-time platform-owner provisioning, registration/onboarding, and role assignment. | Give each path an explicit migration owner; preserve the first two as mode/platform-only and migrate the latter two to guarded dual-write. |
 | Registration surface | Desktop customer creation uses safe active-tenant onboarding, but public `AuthService.register_user()` still accepts arbitrary role names and optional tenant context. Tests use it as a broad fixture helper. | Separate test/bootstrap identity creation from production customer onboarding; do not expose the broad method through a future HTTP transport. |
 | Session context | Login, restore, and normal tenant switching validate context and rebuild the legacy principal. Public session ID setters and a fallback organization path can still replace IDs without rebuilding authority. | Restrict raw setters to composition/context internals and remove the fallback after callers use `TenantContextService`. |
+| Local default tenant | Local mode resolves `get_default()` as the lexicographically first active tenant. Creating an earlier-sorting tenant can therefore change fallback selection even though explicit session and membership context remain intact. SaaS mode does not use this fallback. | Add an explicit immutable/default designation or deployment setting; do not infer security context from tenant code ordering. |
 | Scoped grants | Legacy grant operations now require active tenant context, target membership, and tenant-aware resource ownership resolution. Repository reads and writes fail closed when tenant context is absent. | Keep this containment covered while migrating grants to canonical bindings; add delegation and durable audit semantics before legacy retirement. |
 | Organization selection | Creating, updating, or selecting one active organization deactivates the tenant's other organizations. | Separate organization lifecycle from per-session selection; several organizations may remain enabled concurrently. |
 | Membership lifecycle | Additive state, one-time token hashes, authenticated internal acceptance, administrative transitions, optimistic persistence, targeted session invalidation, atomic membership audit, and fixed `viewer` binding orchestration are implemented. `is_active` and `tenant_role` remain transitional, and no external delivery or public adapter exists. | Add reviewed delivery/account-onboarding adapters and custom-role delegation, then retire membership role authority during canonical cutover. |
 | Canonical role metadata | System and per-tenant name namespaces, role ownership checks, and internal audited tenant custom-role lifecycle commands are implemented. They require canonical tenant-scope administrative authority and enforce a curated customer permission ceiling, SoD, optimistic policy versions, session invalidation, and non-destructive retirement. No adapter is exposed. | After environment policy-v2 activation, canonical role preparation, and security review, add a request-scoped adapter; keep raw repositories and unrestricted permission mutation private. |
 | Canonical binding uniqueness | Partial indexes still define persisted activity as unrevoked, but the guarded canonical assignment path now revokes an expired exact-scope row before reassignment. | Add scheduled/bulk expiry maintenance and require imports/backfill to use the same canonical orchestration before declaring this complete. |
 | Principal authority | A fail-closed canonical assignment/revocation service and explicit delegation relation now exist. `auth.role.assign` is defined in policy v2 but is not active until an environment applies that policy; `PrincipalBuilder`, `AuthQueryMixin`, legacy assignment, SoD, and `SessionAuthorizationEngine` remain legacy-authoritative with role-name/rank/admin shortcuts. | Do not claim Phase 2 cutover; dry-run and deliberately apply policy v2 per environment, approve explicit delegations, then implement dual-write, shadow telemetry, and canonical authority without fallback. |
-| Audit | Membership, canonical role governance, tenant custom roles, platform-owner provisioning, and selected credential/account-security successes are atomic with their mutations. Registration, legacy role assignment, login/session events, denials, and context switching remain best-effort or missing. | Continue the transaction-owned audit cutover; add separate durable denial and context-switch semantics without ever converting a denial into an allow. |
+| Audit | Membership, canonical role governance, tenant custom roles, platform-owner provisioning, credential/account security, registration/onboarding, local bootstrap account/role repair, legacy role assignment, authentication success/failure/lockout, session administration, shared permission/scope denials, and tenant/organization context switching now have explicit transaction semantics. Module-specific post-gate authorization rejections remain uneven. | Route explicit resource, membership, delegation, SoD, and support-access denials through the typed isolated writer; prevent duplicate records at future transport boundaries. |
 | Entitlements/activity/runtime | Entitlement composition omits its tenant provider; activity can become global with missing context; runtime executions have no tenant/organization and global control reads. | Keep these as open isolation work and block hosted completion until tenant-qualified. |
 | Transport boundary | Desktop customer role/onboarding paths are constrained. The HTTP adapter has no per-request principal/tenant extraction boundary and reuses application service state. | Require request-scoped identity and tenant context before treating HTTP as a hosted SaaS boundary. |
 | Schema verification | Most tests still use `Base.metadata.create_all()`. The Alembic graph has one head, `8b3c4d5e6f7a`; membership lifecycle, token, role namespace, and delegation upgrades have migration-created SQLite coverage, but hosted PostgreSQL migration tests are absent. | Expand migration-created coverage across authorization schema profiles and add hosted PostgreSQL. |
@@ -1616,10 +1724,10 @@ Remaining work, in order:
    custom-role commands are implemented; only after policy-v2 environment activation should
    they and guarded delegation be exposed through a request-scoped administration adapter. Do
    not expose raw invitation tokens through generic desktop or HTTP surfaces.
-4. Continue making security audit writes atomic for registration, legacy role, login, and
-   session paths; then add durable denial and context-switch records. Membership, role
-   governance, custom-role, owner-provisioning, and selected credential/account successes are
-   already atomic.
+4. Migrate module-specific post-gate resource, membership, delegation, SoD, and support-access
+   denials to the typed isolated denial writer. Shared permission/scope gates and
+   tenant/organization context switches are now covered; writer failure never changes denial
+   to allow, and audited switch success is transaction-owned.
 5. Define quarantine records and rollback snapshots, then implement explicit migration-mode
    dual-write/shadow comparison before removing `user_roles`.
 

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.domain import UserRoleBinding
 from src.core.platform.common.exceptions import BusinessRuleError
 
 from .session_service import refresh_current_session_if_user
+from .security_audit import add_atomic_security_audit
 from .sod_enforcer import enforce_separation_of_duties
 from .role_scope_policy import (
     EXPLICIT_SCOPE_ROLE_NAMES,
@@ -80,17 +80,31 @@ def assign_role(service: AuthService, user_id: str, role_name: str) -> None:
     enforce_separation_of_duties(service, tuple(existing_role_names) + (role_name,))
     role = service._require_role_by_name(role_name)
     if not service._user_role_repo.exists(user.id, role.id):
-        service._user_role_repo.add(UserRoleBinding.create(user_id=user.id, role_id=role.id))
-        service._session.commit()
-        record_audit_entry(
-            service,
-            operation="permission_change",
-            entity_type="user_role_binding",
-            entity_id=user.id,
-            module="platform",
-            severity="medium",
-            metadata={"action": "role.assign", "role_name": role_name, "user_id": user.id},
-        )
+        try:
+            service._user_role_repo.add(
+                UserRoleBinding.create(
+                    user_id=user.id,
+                    role_id=role.id,
+                )
+            )
+            add_atomic_security_audit(
+                service,
+                operation="permission_change",
+                entity_type="user_role_binding",
+                entity_id=user.id,
+                action="role.assign",
+                severity="high",
+                field="role",
+                new_value=role.name,
+                metadata={
+                    "role_name": role.name,
+                    "target_user_id": user.id,
+                },
+            )
+            service._session.commit()
+        except Exception:
+            service._session.rollback()
+            raise
         domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
 
@@ -100,18 +114,28 @@ def revoke_role(service: AuthService, user_id: str, role_name: str) -> None:
     user = service._require_user(user_id)
     _enforce_tenant_membership(service, user.id, "revoke")
     role = service._require_role_by_name(role_name)
-    service._user_role_repo.delete(user.id, role.id)
-    service._session.commit()
-    record_audit_entry(
-        service,
-        operation="delete",
-        entity_type="user_role_binding",
-        entity_id=user.id,
-        module="platform",
-        severity="medium",
-        metadata={"action": "role.revoke", "role_name": role_name, "user_id": user.id},
-    )
-    domain_events.auth_changed.emit(user.id)
+    if service._user_role_repo.exists(user.id, role.id):
+        try:
+            service._user_role_repo.delete(user.id, role.id)
+            add_atomic_security_audit(
+                service,
+                operation="delete",
+                entity_type="user_role_binding",
+                entity_id=user.id,
+                action="role.revoke",
+                severity="high",
+                field="role",
+                old_value=role.name,
+                metadata={
+                    "role_name": role.name,
+                    "target_user_id": user.id,
+                },
+            )
+            service._session.commit()
+        except Exception:
+            service._session.rollback()
+            raise
+        domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
 
 

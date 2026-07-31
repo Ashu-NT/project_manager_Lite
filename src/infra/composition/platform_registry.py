@@ -63,6 +63,10 @@ from src.core.platform.calendar.application.global_calendar_shim import GlobalCa
 from src.core.platform.infrastructure.persistence.repositories.modules import SqlAlchemyModuleEntitlementRepository
 from src.core.platform.infrastructure.persistence.repositories.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
 from src.infra.composition.repositories import RepositoryBundle
+from src.infra.platform.operational_support import current_trace_id
+from src.infra.platform.security_audit_recorder import (
+    DurableSecurityDenialRecorder,
+)
 from src.infra.platform.security_config import (
     RuntimeSecurityConfiguration,
     ensure_operational_authorization_migration_mode,
@@ -203,6 +207,13 @@ def build_platform_service_bundle(
         security_configuration.authorization_migration_mode.value,
     )
     user_session = UserSessionContext()
+    security_denial_recorder = DurableSecurityDenialRecorder.for_session(
+        session,
+        trace_id_provider=current_trace_id,
+    )
+    user_session.set_security_denial_listener(
+        security_denial_recorder.record
+    )
     tenant_context_service = TenantContextService(
         tenant_repo=repositories.tenant_repo,
         organization_repo=repositories.organization_repo,
@@ -251,9 +262,13 @@ def build_platform_service_bundle(
         security_audit_repo=repositories.audit_entry_repo,
         user_tenant_repo=repositories.user_tenant_repo,
         tenant_context_service=tenant_context_service,
+        request_id_provider=current_trace_id,
     )
     tenant_context_service.set_principal_rebuilder(
         auth_service.rebuild_current_principal_for_context
+    )
+    tenant_context_service.set_context_switch_committer(
+        auth_service.commit_context_switch
     )
     user_session.set_validator(auth_service.validate_session_principal)
     user_session.set_context_listener(auth_service.persist_session_context)

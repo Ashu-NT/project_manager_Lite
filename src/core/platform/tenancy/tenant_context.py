@@ -4,8 +4,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from src.core.platform.auth.authorization import record_authorization_denial
 from src.core.platform.auth.domain.session import UserSessionContext
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    DomainError,
+    NotFoundError,
+)
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
 from src.core.platform.tenancy.contracts import TenantRepository, UserTenantMembershipRepository
@@ -52,12 +57,21 @@ class TenantContextService:
         self._principal_rebuilder: (
             Callable[[str, str | None], "UserSessionPrincipal"] | None
         ) = None
+        self._context_switch_committer: (
+            Callable[["UserSessionPrincipal", str], None] | None
+        ) = None
 
     def set_principal_rebuilder(
         self,
         rebuilder: Callable[[str, str | None], "UserSessionPrincipal"] | None,
     ) -> None:
         self._principal_rebuilder = rebuilder
+
+    def set_context_switch_committer(
+        self,
+        committer: Callable[["UserSessionPrincipal", str], None] | None,
+    ) -> None:
+        self._context_switch_committer = committer
 
     @property
     def tenancy_mode(self) -> TenancyMode:
@@ -106,17 +120,27 @@ class TenantContextService:
         )
 
     def set_active_tenant(self, tenant_id: str) -> Tenant:
+        if self._context_policy.mode is TenancyMode.SAAS:
+            return self.switch_to_tenant(tenant_id)
         if (
             self._user_session is not None
             and self._user_session.principal is not None
             and self._principal_rebuilder is not None
         ):
             return self.switch_to_tenant(tenant_id)
-        tenant = self._require_available_tenant(tenant_id)
-        self._require_current_principal_tenant_access(tenant.id)
-        if self._user_session is not None:
-            self._user_session.set_active_tenant_id(tenant.id)
-        return tenant
+        try:
+            tenant = self._require_available_tenant(tenant_id)
+            self._require_current_principal_tenant_access(tenant.id)
+            if self._user_session is not None:
+                self._user_session.set_active_tenant_id(tenant.id)
+            return tenant
+        except DomainError as exc:
+            self._record_context_switch_denial(
+                switch_type="tenant",
+                target_scope_id=tenant_id,
+                error=exc,
+            )
+            raise
 
     def _require_available_tenant(self, tenant_id: str) -> Tenant:
         normalized_id = str(tenant_id or "").strip()
@@ -249,6 +273,25 @@ class TenantContextService:
         return None
 
     def set_active_organization(self, organization_id: str) -> Organization:
+        try:
+            return self._set_active_organization(organization_id)
+        except DomainError as exc:
+            self._record_context_switch_denial(
+                switch_type="organization",
+                target_scope_id=organization_id,
+                error=exc,
+            )
+            raise
+
+    def _set_active_organization(self, organization_id: str) -> Organization:
+        if self._context_policy.mode is TenancyMode.SAAS and (
+            self._user_session is None
+            or self._user_session.principal is None
+        ):
+            raise BusinessRuleError(
+                "Authentication is required to switch organizations.",
+                code="AUTHENTICATION_REQUIRED",
+            )
         normalized_id = str(organization_id or "").strip()
         if not normalized_id:
             raise BusinessRuleError(
@@ -275,9 +318,27 @@ class TenantContextService:
                     operation_label="switch organization"
                 )
                 rebuilt = self._principal_rebuilder(tenant_id, organization.id)
-                self._user_session.set_principal(rebuilt)
+                self._activate_rebuilt_context(
+                    rebuilt,
+                    switch_type="organization",
+                )
+            elif self._context_policy.mode is TenancyMode.SAAS:
+                if principal is None:
+                    raise BusinessRuleError(
+                        "Authentication is required to switch organizations.",
+                        code="AUTHENTICATION_REQUIRED",
+                    )
+                raise BusinessRuleError(
+                    "Principal rebuilding is required for organization switching.",
+                    code="PRINCIPAL_REBUILD_REQUIRED",
+                )
             else:
                 self._user_session.set_active_organization_id(organization.id)
+        elif self._context_policy.mode is TenancyMode.SAAS:
+            raise BusinessRuleError(
+                "Authentication is required to switch organizations.",
+                code="AUTHENTICATION_REQUIRED",
+            )
         return organization
 
     def switch_to_tenant(self, tenant_id: str) -> Tenant:
@@ -286,6 +347,25 @@ class TenantContextService:
         A failed authority rebuild leaves the previous principal and context
         untouched.
         """
+        try:
+            return self._switch_to_tenant(tenant_id)
+        except DomainError as exc:
+            self._record_context_switch_denial(
+                switch_type="tenant",
+                target_scope_id=tenant_id,
+                error=exc,
+            )
+            raise
+
+    def _switch_to_tenant(self, tenant_id: str) -> Tenant:
+        if self._context_policy.mode is TenancyMode.SAAS and (
+            self._user_session is None
+            or self._user_session.principal is None
+        ):
+            raise BusinessRuleError(
+                "Authentication is required to switch tenants.",
+                code="AUTHENTICATION_REQUIRED",
+            )
         tenant = self._require_available_tenant(tenant_id)
         if self._user_session is None:
             return tenant
@@ -317,8 +397,42 @@ class TenantContextService:
                 code="PRINCIPAL_REBUILD_REQUIRED",
             )
         rebuilt = self._principal_rebuilder(tenant.id, organization_id)
-        self._user_session.set_principal(rebuilt)
+        self._activate_rebuilt_context(rebuilt, switch_type="tenant")
         return tenant
+
+    def _activate_rebuilt_context(
+        self,
+        principal: "UserSessionPrincipal",
+        *,
+        switch_type: str,
+    ) -> None:
+        committer = self._context_switch_committer
+        if committer is not None:
+            committer(principal, switch_type)
+            return
+        if self._context_policy.mode is TenancyMode.SAAS:
+            raise BusinessRuleError(
+                "Audited context switching is not configured.",
+                code="CONTEXT_SWITCH_AUDIT_REQUIRED",
+            )
+        if self._user_session is not None:
+            self._user_session.set_principal(principal)
+
+    def _record_context_switch_denial(
+        self,
+        *,
+        switch_type: str,
+        target_scope_id: str,
+        error: DomainError,
+    ) -> None:
+        record_authorization_denial(
+            self._user_session,
+            operation_label=f"switch {switch_type} context",
+            reason_code=getattr(error, "code", error.__class__.__name__),
+            target_scope_type=switch_type,
+            target_scope_id=target_scope_id,
+            operation=f"auth.context.{switch_type}.switch.denied",
+        )
 
     def require_context(self, *, operation_label: str) -> TenantContext:
         tenant = self.get_active_tenant()

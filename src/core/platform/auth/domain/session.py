@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from pydantic import field_validator
 
@@ -20,6 +20,9 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
+
+if TYPE_CHECKING:
+    from src.core.platform.authorization import SecurityDenialEvent
 
 
 def normalize_auth_session_user_id(value: object) -> str:
@@ -214,12 +217,18 @@ class UserSessionContext:
     def __init__(
         self,
         *,
-        principal_validator: Callable[[UserSessionPrincipal], UserSessionPrincipal | None] | None = None,
+        principal_validator: (
+            Callable[[UserSessionPrincipal], UserSessionPrincipal | None] | None
+        ) = None,
         context_listener: Callable[["UserSessionContext"], None] | None = None,
+        security_denial_listener: (
+            Callable[["SecurityDenialEvent"], None] | None
+        ) = None,
     ):
         self._principal: UserSessionPrincipal | None = None
         self._principal_validator = principal_validator
         self._context_listener = context_listener
+        self._security_denial_listener = security_denial_listener
         self._active_tenant_id: str | None = None
         self._active_organization_id: str | None = None
 
@@ -244,6 +253,19 @@ class UserSessionContext:
         listener: Callable[["UserSessionContext"], None] | None,
     ) -> None:
         self._context_listener = listener
+
+    def set_security_denial_listener(
+        self,
+        listener: Callable[["SecurityDenialEvent"], None] | None,
+    ) -> None:
+        self._security_denial_listener = listener
+
+    def record_security_denial(self, event: "SecurityDenialEvent") -> bool:
+        listener = self._security_denial_listener
+        if listener is None:
+            return False
+        listener(event)
+        return True
 
     def _normalize_principal(self, principal: UserSessionPrincipal) -> UserSessionPrincipal:
         normalized_scoped_access = _normalize_scoped_access(

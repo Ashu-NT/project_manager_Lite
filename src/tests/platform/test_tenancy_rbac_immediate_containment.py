@@ -58,6 +58,7 @@ def _customer_auth_service(
             scoped_access_repo=auth._scoped_access_repo,
             project_membership_repo=auth._project_membership_repo,
             user_session=context,
+            security_audit_repo=auth._security_audit_repo,
             user_tenant_repo=auth._user_tenant_repo,
             tenant_context_service=services["tenant_context_service"],
         ),
