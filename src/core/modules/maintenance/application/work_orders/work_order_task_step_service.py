@@ -19,6 +19,9 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceWorkOrderTaskRepository,
     MaintenanceWorkOrderTaskStepRepository,
 )
+from src.core.modules.maintenance.application.common.scope_authorization import (
+    deny_maintenance_scope_access,
+)
 from src.core.modules.maintenance.application.work_orders.work_order_task_step_validation import (
     MaintenanceWorkOrderTaskStepValidationMixin,
 )
@@ -377,9 +380,13 @@ class MaintenanceWorkOrderTaskStepService(MaintenanceWorkOrderTaskStepValidation
             )
             return
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(
-                f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.",
-                code="PERMISSION_DENIED",
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. The record is "
+                    "not anchored to a maintenance scope grant."
+                ),
             )
 
     def _current_user_id(self) -> str | None:

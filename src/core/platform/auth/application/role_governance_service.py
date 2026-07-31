@@ -11,7 +11,11 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.audit.contracts import AuditRepository
 from src.core.platform.audit.domain import AuditEntry
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import (
+    authorization_denied,
+    record_authorization_denial,
+    require_permission,
+)
 from src.core.platform.auth.contracts import (
     PermissionRepository,
     RoleBindingRepository,
@@ -142,10 +146,17 @@ class RoleGovernanceService:
                 == permission_hash
             ):
                 return existing
-            raise BusinessRuleError(
-                "The active delegation policy no longer matches the role "
-                "definition and must be explicitly replaced.",
+            authorization_denied(
+                self._user_session,
+                message=(
+                    "The active delegation policy no longer matches the role "
+                    "definition and must be explicitly replaced."
+                ),
                 code="ROLE_DELEGATION_POLICY_REVIEW_REQUIRED",
+                operation_label="create role delegation policy",
+                target_scope_type="role",
+                target_scope_id=assignable_role.id,
+                operation="authorization.delegation.denied",
             )
 
         policy = RoleDelegationPolicy.create(
@@ -250,10 +261,17 @@ class RoleGovernanceService:
         role = self._require_role(role_id)
         scope_type = role.allowed_scope_type
         if scope_type == ROLE_SCOPE_PLATFORM:
-            raise BusinessRuleError(
-                "Platform roles cannot be assigned through a customer "
-                "tenant operation.",
+            authorization_denied(
+                self._user_session,
+                message=(
+                    "Platform roles cannot be assigned through a customer "
+                    "tenant operation."
+                ),
                 code="PLATFORM_ROLE_ASSIGNMENT_DENIED",
+                operation_label="assign a canonical role",
+                target_scope_type="role",
+                target_scope_id=role.id,
+                operation="authorization.permission_ceiling.denied",
             )
         role = self._require_assignable_role(
             role.id,
@@ -420,10 +438,16 @@ class RoleGovernanceService:
         )
         actor = self._require_principal()
         if "platform.admin" in actor.permissions:
-            raise BusinessRuleError(
-                "Platform operators cannot perform ordinary customer role "
-                "assignments without a governed support context.",
+            authorization_denied(
+                self._user_session,
+                message=(
+                    "Platform operators cannot perform ordinary customer role "
+                    "assignments without a governed support context."
+                ),
                 code="PLATFORM_CUSTOMER_OPERATION_DENIED",
+                operation_label=operation_label,
+                target_scope_type="tenant",
+                operation="authorization.support_access.denied",
             )
         tenant_id = self._tenant_context_service.require_active_tenant_id(
             operation_label=operation_label
@@ -455,9 +479,14 @@ class RoleGovernanceService:
     ) -> None:
         if self._membership_repo.is_active_member(user_id, tenant_id):
             return
-        raise BusinessRuleError(
-            "The user is not an active member of the selected tenant.",
+        authorization_denied(
+            self._user_session,
+            message="The user is not an active member of the selected tenant.",
             code=code,
+            operation_label="govern a canonical role binding",
+            target_scope_type="user",
+            target_scope_id=user_id,
+            operation="authorization.membership.denied",
         )
 
     def _require_role(self, role_id: str) -> Role:
@@ -475,24 +504,38 @@ class RoleGovernanceService:
     ) -> Role:
         role = self._require_role(role_id)
         if role.status != "active" or not role.is_assignable:
-            raise BusinessRuleError(
-                "The selected role is not assignable.",
+            authorization_denied(
+                self._user_session,
+                message="The selected role is not assignable.",
                 code="ROLE_NOT_ASSIGNABLE",
+                operation_label="assign or delegate a canonical role",
+                target_scope_type="role",
+                target_scope_id=role.id,
+                operation="authorization.delegation.denied",
             )
         if role.allowed_scope_type != target_scope_type:
-            raise BusinessRuleError(
-                "The role cannot be assigned at the requested scope.",
+            authorization_denied(
+                self._user_session,
+                message="The role cannot be assigned at the requested scope.",
                 code="ROLE_SCOPE_MISMATCH",
+                operation_label="assign or delegate a canonical role",
+                target_scope_type=target_scope_type,
+                operation="authorization.resource_scope.denied",
             )
         if role.tenant_id is not None and role.tenant_id != tenant_id:
-            raise BusinessRuleError(
-                "A tenant-owned role cannot be used outside its tenant.",
+            authorization_denied(
+                self._user_session,
+                message="A tenant-owned role cannot be used outside its tenant.",
                 code="ROLE_CROSS_TENANT_DENIED",
+                operation_label="assign or delegate a canonical role",
+                target_scope_type="role",
+                target_scope_id=role.id,
+                operation="authorization.tenant_boundary.denied",
             )
         return role
 
-    @staticmethod
     def _validate_delegation_namespace(
+        self,
         actor_role: Role,
         assignable_role: Role,
         *,
@@ -503,22 +546,37 @@ class RoleGovernanceService:
             actor_role.tenant_id not in allowed_tenant_ids
             or assignable_role.tenant_id not in allowed_tenant_ids
         ):
-            raise BusinessRuleError(
-                "Delegation roles do not belong to the policy tenant.",
+            authorization_denied(
+                self._user_session,
+                message="Delegation roles do not belong to the policy tenant.",
                 code="ROLE_DELEGATION_CROSS_TENANT_DENIED",
+                operation_label="validate role delegation namespace",
+                target_scope_type="role",
+                target_scope_id=assignable_role.id,
+                operation="authorization.delegation.denied",
             )
         if tenant_id is None and (
             actor_role.tenant_id is not None
             or assignable_role.tenant_id is not None
         ):
-            raise BusinessRuleError(
-                "Global delegation policies may reference only system roles.",
+            authorization_denied(
+                self._user_session,
+                message="Global delegation policies may reference only system roles.",
                 code="ROLE_DELEGATION_NAMESPACE_INVALID",
+                operation_label="validate role delegation namespace",
+                target_scope_type="role",
+                target_scope_id=assignable_role.id,
+                operation="authorization.delegation.denied",
             )
         if actor_role.status != "active":
-            raise BusinessRuleError(
-                "The delegating actor role is not active.",
+            authorization_denied(
+                self._user_session,
+                message="The delegating actor role is not active.",
                 code="ROLE_DELEGATION_ACTOR_INACTIVE",
+                operation_label="validate role delegation namespace",
+                target_scope_type="role",
+                target_scope_id=actor_role.id,
+                operation="authorization.delegation.denied",
             )
 
     def _validate_target_scope(
@@ -542,10 +600,17 @@ class RoleGovernanceService:
             )
         resolver = self._scope_exists_resolvers.get(scope_type)
         if resolver is None:
-            raise BusinessRuleError(
-                f"Tenant ownership validation is not configured for "
-                f"{scope_type}.",
+            authorization_denied(
+                self._user_session,
+                message=(
+                    f"Tenant ownership validation is not configured for "
+                    f"{scope_type}."
+                ),
                 code="AUTHORIZATION_SCOPE_RESOLVER_REQUIRED",
+                operation_label="validate canonical role target scope",
+                target_scope_type=scope_type,
+                target_scope_id=scope_id,
+                operation="authorization.infrastructure.denied",
             )
         if not resolver(tenant_id, scope_id):
             raise NotFoundError(
@@ -583,18 +648,28 @@ class RoleGovernanceService:
             target_scope_type=scope_type,
         )
         if policy is None:
-            raise BusinessRuleError(
-                "No explicit delegation policy permits this role assignment.",
+            authorization_denied(
+                self._user_session,
+                message="No explicit delegation policy permits this role assignment.",
                 code="ROLE_DELEGATION_DENIED",
+                operation_label="govern a canonical role binding",
+                target_scope_type=scope_type,
+                target_scope_id=scope_id,
+                operation="authorization.delegation.denied",
             )
         if enforce_permission_snapshot and (
             policy.assignable_role_policy_version != role.policy_version
             or policy.assignable_permission_set_hash
             != self._permission_set_hash(role.id)
         ):
-            raise BusinessRuleError(
-                "The delegated role changed after policy approval.",
+            authorization_denied(
+                self._user_session,
+                message="The delegated role changed after policy approval.",
                 code="ROLE_DELEGATION_POLICY_STALE",
+                operation_label="govern a canonical role binding",
+                target_scope_type="role",
+                target_scope_id=role.id,
+                operation="authorization.delegation.denied",
             )
         return policy
 
@@ -654,6 +729,15 @@ class RoleGovernanceService:
         }
         conflicts = self._sod_policy.find_conflicts(permission_codes)
         if conflicts:
+            record_authorization_denial(
+                self._user_session,
+                operation_label="validate canonical role separation of duties",
+                reason_code="ROLE_CONFLICT",
+                required_permissions=permission_codes,
+                target_scope_type="user",
+                target_scope_id=target_user_id,
+                operation="authorization.sod.denied",
+            )
             raise ValidationError(
                 f"Role assignment violates separation of duties. "
                 f"{conflicts[0]}",

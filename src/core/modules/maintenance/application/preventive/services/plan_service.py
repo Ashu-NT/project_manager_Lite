@@ -31,11 +31,14 @@ from src.core.modules.maintenance.application.common.support import (
     normalize_maintenance_code,
     normalize_optional_text,
 )
+from src.core.modules.maintenance.application.common.scope_authorization import (
+    deny_maintenance_scope_access,
+)
 from src.core.modules.maintenance.application.preventive.utils.date_utils import advance_calendar_due
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
 from src.core.platform.tenancy.tenant_context import (
@@ -603,14 +606,28 @@ class MaintenancePreventivePlanService:
             require_scope_permission(self._user_session, "maintenance", scope_id, "maintenance.read", operation_label=operation_label)
             return
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.", code="PERMISSION_DENIED")
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. The record is "
+                    "not anchored to a maintenance scope grant."
+                ),
+            )
 
     def _require_scope_manage(self, scope_id: str, *, operation_label: str) -> None:
         if scope_id:
             require_scope_permission(self._user_session, "maintenance", scope_id, "maintenance.manage", operation_label=operation_label)
             return
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.", code="PERMISSION_DENIED")
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. The record is "
+                    "not anchored to a maintenance scope grant."
+                ),
+            )
 
     def _record_change(self, action: str, row: MaintenancePreventivePlan) -> None:
         record_activity(self, action=action, entity_type="maintenance_preventive_plan", entity_id=row.id,

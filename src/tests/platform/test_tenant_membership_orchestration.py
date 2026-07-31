@@ -349,6 +349,8 @@ def test_last_effective_tenant_administrator_cannot_be_suspended(
         role_names=("tenant_admin",),
         tenant_id=tenant_id,
     )
+    events = []
+    services["user_session"].set_security_denial_listener(events.append)
 
     with pytest.raises(BusinessRuleError) as last_admin_error:
         membership_service.suspend_member(target.id)
@@ -358,3 +360,7 @@ def test_last_effective_tenant_administrator_cannot_be_suspended(
         target.id,
         tenant_id,
     )
+    assert len(events) == 1
+    assert events[0].operation == "authorization.sod.denied"
+    assert events[0].reason_code == "TENANT_LAST_ADMIN_REQUIRED"
+    assert events[0].target_scope_id == target.id

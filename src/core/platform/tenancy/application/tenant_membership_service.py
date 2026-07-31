@@ -10,7 +10,10 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.audit.contracts import AuditRepository
 from src.core.platform.audit.domain import AuditEntry
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import (
+    authorization_denied,
+    require_permission,
+)
 from src.core.platform.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.auth.contracts import (
     AuthSessionRepository,
@@ -181,14 +184,22 @@ class TenantMembershipService:
                 token_hash,
             )
         ):
-            raise BusinessRuleError(
-                "The tenant invitation is invalid or no longer available.",
+            authorization_denied(
+                self._user_session,
+                message="The tenant invitation is invalid or no longer available.",
                 code="TENANT_INVITATION_INVALID",
+                operation_label="accept a tenant invitation",
+                operation="authorization.invitation.denied",
             )
         if membership.user_id != actor.user_id:
-            raise BusinessRuleError(
-                "The tenant invitation belongs to a different user.",
+            authorization_denied(
+                self._user_session,
+                message="The tenant invitation belongs to a different user.",
                 code="TENANT_INVITATION_TARGET_MISMATCH",
+                operation_label="accept a tenant invitation",
+                target_scope_type="user",
+                target_scope_id=membership.user_id,
+                operation="authorization.membership.denied",
             )
 
         target = self._require_active_user(membership.user_id)
@@ -391,9 +402,14 @@ class TenantMembershipService:
                 tenant_id,
             )
         ):
-            raise BusinessRuleError(
-                "The authenticated user is not an active member of the selected tenant.",
+            authorization_denied(
+                self._user_session,
+                message="The authenticated user is not an active member of the selected tenant.",
                 code="TENANT_ACCESS_DENIED",
+                operation_label=operation_label,
+                target_scope_type="tenant",
+                target_scope_id=tenant_id,
+                operation="authorization.membership.denied",
             )
         return actor, tenant_id
 
@@ -437,9 +453,16 @@ class TenantMembershipService:
             else self._require_user(user_id)
         )
         if target.id == actor.user_id:
-            raise BusinessRuleError(
-                f"Cannot {operation_label} the authenticated user's own membership.",
+            authorization_denied(
+                self._user_session,
+                message=(
+                    f"Cannot {operation_label} the authenticated user's own membership."
+                ),
                 code="TENANT_MEMBERSHIP_SELF_LOCKOUT",
+                operation_label=f"{operation_label} tenant membership",
+                target_scope_type="user",
+                target_scope_id=target.id,
+                operation="authorization.membership.denied",
             )
         roles = self._roles_for_user(target.id)
         if any(
@@ -447,9 +470,17 @@ class TenantMembershipService:
             or role.allowed_scope_type == ROLE_SCOPE_PLATFORM
             for role in roles
         ):
-            raise BusinessRuleError(
-                "Platform operators cannot be managed through a customer membership path.",
+            authorization_denied(
+                self._user_session,
+                message=(
+                    "Platform operators cannot be managed through a customer "
+                    "membership path."
+                ),
                 code="TENANT_MEMBERSHIP_PLATFORM_TARGET_DENIED",
+                operation_label=f"{operation_label} tenant membership",
+                target_scope_type="user",
+                target_scope_id=target.id,
+                operation="authorization.support_access.denied",
             )
         if require_invitation_safe_roles:
             self._require_invitation_safe_roles(target, roles=roles)
@@ -474,14 +505,30 @@ class TenantMembershipService:
             or role.allowed_scope_type == ROLE_SCOPE_PLATFORM
             for role in resolved_roles
         ):
-            raise BusinessRuleError(
-                "Platform operators cannot be invited through a customer membership path.",
+            authorization_denied(
+                self._user_session,
+                message=(
+                    "Platform operators cannot be invited through a customer "
+                    "membership path."
+                ),
                 code="TENANT_MEMBERSHIP_PLATFORM_TARGET_DENIED",
+                operation_label="validate tenant invitation roles",
+                target_scope_type="user",
+                target_scope_id=user.id,
+                operation="authorization.support_access.denied",
             )
         if any(role.name != _DEFAULT_INVITATION_ROLE for role in resolved_roles):
-            raise BusinessRuleError(
-                "The user's legacy roles require canonical migration review before invitation.",
+            authorization_denied(
+                self._user_session,
+                message=(
+                    "The user's legacy roles require canonical migration review "
+                    "before invitation."
+                ),
                 code="TENANT_INVITATION_LEGACY_ROLE_AMBIGUOUS",
+                operation_label="validate tenant invitation roles",
+                target_scope_type="user",
+                target_scope_id=user.id,
+                operation="authorization.permission_ceiling.denied",
             )
 
     def _guard_last_tenant_administrator(
@@ -505,9 +552,17 @@ class TenantMembershipService:
             )
         )
         if active_admin_count <= 1:
-            raise BusinessRuleError(
-                "Transfer tenant administration before removing the last administrator.",
+            authorization_denied(
+                self._user_session,
+                message=(
+                    "Transfer tenant administration before removing the last "
+                    "administrator."
+                ),
                 code="TENANT_LAST_ADMIN_REQUIRED",
+                operation_label="remove or suspend a tenant administrator",
+                target_scope_type="user",
+                target_scope_id=target_user_id,
+                operation="authorization.sod.denied",
             )
 
     def _is_effective_legacy_tenant_administrator(
@@ -579,9 +634,14 @@ class TenantMembershipService:
             or role.allowed_scope_type != ROLE_SCOPE_TENANT
             or role.tenant_id not in {None, tenant_id}
         ):
-            raise BusinessRuleError(
-                "The default tenant invitation role is not safely assignable.",
+            authorization_denied(
+                self._user_session,
+                message="The default tenant invitation role is not safely assignable.",
                 code="TENANT_INVITATION_DEFAULT_ROLE_INVALID",
+                operation_label="assign the default tenant invitation role",
+                target_scope_type="tenant",
+                target_scope_id=tenant_id,
+                operation="authorization.infrastructure.denied",
             )
         return role
 

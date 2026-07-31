@@ -190,6 +190,8 @@ def test_canonical_assignment_requires_explicit_delegation(services) -> None:
         target_role_name="team_member",
         create_policy=False,
     )
+    events = []
+    services["user_session"].set_security_denial_listener(events.append)
 
     with pytest.raises(BusinessRuleError) as exc_info:
         services["role_governance_service"].assign_role(
@@ -198,6 +200,10 @@ def test_canonical_assignment_requires_explicit_delegation(services) -> None:
         )
 
     assert exc_info.value.code == "ROLE_DELEGATION_DENIED"
+    assert len(events) == 1
+    assert events[0].operation == "authorization.delegation.denied"
+    assert events[0].reason_code == "ROLE_DELEGATION_DENIED"
+    assert events[0].target_scope_type == ROLE_SCOPE_TENANT
 
 
 def test_canonical_assignment_is_tenant_scoped_and_audited(services) -> None:
@@ -359,6 +365,8 @@ def test_canonical_assignment_enforces_separation_of_duties(
         )
     )
     services["session"].commit()
+    events = []
+    services["user_session"].set_security_denial_listener(events.append)
 
     with pytest.raises(ValidationError) as exc_info:
         services["role_governance_service"].assign_role(
@@ -367,6 +375,10 @@ def test_canonical_assignment_enforces_separation_of_duties(
         )
 
     assert exc_info.value.code == "ROLE_CONFLICT"
+    assert len(events) == 1
+    assert events[0].operation == "authorization.sod.denied"
+    assert events[0].reason_code == "ROLE_CONFLICT"
+    assert events[0].target_scope_id == target.id
 
 
 def test_canonical_binding_revocation_uses_same_delegation_guard(

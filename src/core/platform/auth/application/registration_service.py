@@ -5,10 +5,13 @@ from typing import TYPE_CHECKING, Iterable
 from sqlalchemy.exc import IntegrityError
 
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import (
+    authorization_denied,
+    require_permission,
+)
 from src.core.platform.auth.domain import UserAccount, UserRoleBinding, normalize_auth_username
 from src.core.platform.auth.passwords import hash_password
-from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.tenancy.domain.user_tenant_membership import UserTenantMembership
 
 if TYPE_CHECKING:
@@ -93,9 +96,17 @@ def _create_user(
     )
     normalized_tenant_id = str(tenant_id or "").strip() or None
     if normalized_tenant_id and service._user_tenant_repo is None:
-        raise BusinessRuleError(
-            "Tenant membership persistence is required for tenant user creation.",
+        authorization_denied(
+            service._user_session,
+            message=(
+                "Tenant membership persistence is required for tenant user "
+                "creation."
+            ),
             code="AUTHORIZATION_CONTEXT_REQUIRED",
+            operation_label="create a tenant user",
+            target_scope_type="tenant",
+            target_scope_id=normalized_tenant_id,
+            operation="authorization.infrastructure.denied",
         )
     try:
         with service._session.begin_nested():

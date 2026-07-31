@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from typing import NoReturn
 
 from src.core.platform.authorization import get_authorization_engine
 from src.core.platform.authorization.domain import SecurityDenialEvent
@@ -134,6 +135,30 @@ def record_authorization_denial(
         )
 
 
+def authorization_denied(
+    user_session: UserSessionContext | None,
+    *,
+    message: str,
+    code: str,
+    operation_label: str,
+    required_permissions: Iterable[str] = (),
+    target_scope_type: str | None = None,
+    target_scope_id: str | None = None,
+    operation: str = "authorization.denied",
+) -> NoReturn:
+    """Record a post-gate authorization decision and preserve its domain error."""
+    record_authorization_denial(
+        user_session,
+        operation_label=operation_label,
+        reason_code=code,
+        required_permissions=required_permissions,
+        target_scope_type=target_scope_type,
+        target_scope_id=target_scope_id,
+        operation=operation,
+    )
+    raise BusinessRuleError(message, code=code)
+
+
 def _clean_text(value: object, *, fallback: str) -> str:
     return str(value or "").strip()[:255] or fallback
 
@@ -156,6 +181,7 @@ def _stored_context_id(
 
 
 __all__ = [
+    "authorization_denied",
     "is_admin_session",
     "record_authorization_denial",
     "require_any_permission",

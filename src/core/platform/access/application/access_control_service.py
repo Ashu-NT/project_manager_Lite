@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import (
-    BusinessRuleError,
     NotFoundError,
     ValidationError,
 )
@@ -25,7 +24,10 @@ from src.core.platform.access.domain import (
     normalize_access_scope_type,
     normalize_access_user_id,
 )
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import (
+    authorization_denied,
+    require_permission,
+)
 from src.core.platform.auth.contracts import UserRepository
 
 if TYPE_CHECKING:
@@ -364,9 +366,14 @@ class AccessControlService:
     ) -> None:
         resolver = self._scope_exists_resolvers.get(scope_type)
         if resolver is None:
-            raise BusinessRuleError(
-                f"Tenant ownership validation is not configured for {scope_type}.",
+            authorization_denied(
+                self._user_session,
+                message=f"Tenant ownership validation is not configured for {scope_type}.",
                 code="AUTHORIZATION_SCOPE_RESOLVER_REQUIRED",
+                operation_label=f"validate {scope_type} tenant ownership",
+                target_scope_type=scope_type,
+                target_scope_id=scope_id,
+                operation="authorization.infrastructure.denied",
             )
         if resolver(tenant_id, scope_id):
             return
@@ -374,9 +381,12 @@ class AccessControlService:
 
     def _require_active_tenant_id(self, *, operation_label: str) -> str:
         if self._tenant_context_service is None:
-            raise BusinessRuleError(
-                "Tenant context authorization is not configured.",
+            authorization_denied(
+                self._user_session,
+                message="Tenant context authorization is not configured.",
                 code="AUTHORIZATION_CONTEXT_REQUIRED",
+                operation_label=operation_label,
+                operation="authorization.infrastructure.denied",
             )
         return self._tenant_context_service.require_active_tenant_id(
             operation_label=operation_label
@@ -391,9 +401,14 @@ class AccessControlService:
         operation_label: str,
     ) -> None:
         if self._user_tenant_repo is None:
-            raise BusinessRuleError(
-                "Tenant membership authorization is not configured.",
+            authorization_denied(
+                self._user_session,
+                message="Tenant membership authorization is not configured.",
                 code="AUTHORIZATION_CONTEXT_REQUIRED",
+                operation_label=operation_label,
+                target_scope_type="user",
+                target_scope_id=user_id,
+                operation="authorization.infrastructure.denied",
             )
         membership = self._user_tenant_repo.get(user_id, tenant_id)
         has_membership = membership is not None and (
@@ -402,10 +417,17 @@ class AccessControlService:
         if has_membership:
             return
         qualifier = "active " if active_only else ""
-        raise BusinessRuleError(
-            f"Cannot {operation_label} for a user without {qualifier}membership "
-            "in the active tenant.",
+        authorization_denied(
+            self._user_session,
+            message=(
+                f"Cannot {operation_label} for a user without {qualifier}membership "
+                "in the active tenant."
+            ),
             code="ACCESS_TARGET_TENANT_DENIED",
+            operation_label=operation_label,
+            target_scope_type="user",
+            target_scope_id=user_id,
+            operation="authorization.membership.denied",
         )
 
     @staticmethod

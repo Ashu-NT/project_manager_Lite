@@ -25,6 +25,9 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceWorkOrderMaterialRequirementRepository,
     MaintenanceWorkOrderRepository,
 )
+from src.core.modules.maintenance.application.common.scope_authorization import (
+    deny_maintenance_scope_access,
+)
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
@@ -520,9 +523,13 @@ class MaintenanceWorkOrderMaterialRequirementService:
             )
             return
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(
-                f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.",
-                code="PERMISSION_DENIED",
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. The record is "
+                    "not anchored to a maintenance scope grant."
+                ),
             )
 
     def _record_change(self, action: str, requirement: MaintenanceWorkOrderMaterialRequirement) -> None:

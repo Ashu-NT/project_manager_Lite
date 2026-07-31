@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import (
+    authorization_denied,
+    require_permission,
+)
 from src.core.platform.auth.domain import UserRoleBinding
-from src.core.platform.common.exceptions import BusinessRuleError
 
 from .session_service import refresh_current_session_if_user
 from .security_audit import add_atomic_security_audit
@@ -54,9 +56,17 @@ def _enforce_privilege_ceiling(service: AuthService, role_name: str) -> None:
     if caller_rank >= 100:
         return  # admin bypasses ceiling
     if _role_rank(role_name) >= caller_rank:
-        raise BusinessRuleError(
-            f"Cannot assign role '{role_name}': insufficient privilege level. (ROLE_PRIVILEGE_CEILING)",
+        authorization_denied(
+            service._user_session,
+            message=(
+                f"Cannot assign role '{role_name}': insufficient privilege "
+                "level. (ROLE_PRIVILEGE_CEILING)"
+            ),
             code="ROLE_PRIVILEGE_CEILING",
+            operation_label="assign role",
+            target_scope_type="role",
+            target_scope_id=role_name,
+            operation="authorization.permission_ceiling.denied",
         )
 
 
@@ -139,17 +149,33 @@ def revoke_role(service: AuthService, user_id: str, role_name: str) -> None:
     refresh_current_session_if_user(service, user.id)
 
 
-def _require_customer_assignable_role(role_name: str) -> str:
+def _require_customer_assignable_role(
+    service: AuthService,
+    role_name: str,
+) -> str:
     normalized = normalize_role_name(role_name)
     if normalized in PLATFORM_ROLE_NAMES:
-        raise BusinessRuleError(
-            f"Platform role '{normalized}' cannot be managed through a customer tenant.",
+        authorization_denied(
+            service._user_session,
+            message=(
+                f"Platform role '{normalized}' cannot be managed through a "
+                "customer tenant."
+            ),
             code="PLATFORM_ROLE_ASSIGNMENT_DENIED",
+            operation_label="manage a customer tenant role",
+            target_scope_type="role",
+            target_scope_id=normalized,
+            operation="authorization.permission_ceiling.denied",
         )
     if normalized in EXPLICIT_SCOPE_ROLE_NAMES:
-        raise BusinessRuleError(
-            f"Role '{normalized}' requires an explicit organization scope.",
+        authorization_denied(
+            service._user_session,
+            message=f"Role '{normalized}' requires an explicit organization scope.",
             code="ROLE_SCOPE_REQUIRED",
+            operation_label="manage a customer tenant role",
+            target_scope_type="role",
+            target_scope_id=normalized,
+            operation="authorization.resource_scope.denied",
         )
     return normalized
 
@@ -166,7 +192,11 @@ def assign_customer_role(service: AuthService, user_id: str, role_name: str) -> 
         operation_label="assign a tenant role",
         denial_code="ROLE_CROSS_TENANT_DENIED",
     )
-    assign_role(service, user_id, _require_customer_assignable_role(role_name))
+    assign_role(
+        service,
+        user_id,
+        _require_customer_assignable_role(service, role_name),
+    )
 
 
 def revoke_customer_role(service: AuthService, user_id: str, role_name: str) -> None:
@@ -181,7 +211,11 @@ def revoke_customer_role(service: AuthService, user_id: str, role_name: str) -> 
         operation_label="revoke a tenant role",
         denial_code="ROLE_CROSS_TENANT_DENIED",
     )
-    revoke_role(service, user_id, _require_customer_assignable_role(role_name))
+    revoke_role(
+        service,
+        user_id,
+        _require_customer_assignable_role(service, role_name),
+    )
 
 
 __all__ = [

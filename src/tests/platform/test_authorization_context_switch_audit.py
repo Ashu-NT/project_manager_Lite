@@ -6,8 +6,14 @@ import logging
 import pytest
 from sqlalchemy import func, select
 
+from src.core.modules.maintenance.application.common.scope_authorization import (
+    deny_maintenance_scope_access,
+)
 from src.core.platform.access.authorization import require_scope_permission
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import (
+    authorization_denied,
+    require_permission,
+)
 from src.core.platform.auth.domain.session import (
     UserSessionContext,
     UserSessionPrincipal,
@@ -137,6 +143,57 @@ def test_scope_denial_records_target_scope_without_changing_error() -> None:
     assert event.target_scope_type == "project"
     assert event.target_scope_id == "project-b"
     assert event.required_permissions == ("project.read",)
+
+
+def test_post_gate_denial_preserves_code_and_records_one_typed_event() -> None:
+    events = []
+    user_session = UserSessionContext(
+        security_denial_listener=events.append,
+    )
+    user_session.set_principal(_principal())
+
+    with pytest.raises(BusinessRuleError) as exc:
+        authorization_denied(
+            user_session,
+            message="The target user is outside the active tenant.",
+            code="USER_CROSS_TENANT_DENIED",
+            operation_label="change a tenant user",
+            target_scope_type="user",
+            target_scope_id="user-b",
+            operation="authorization.membership.denied",
+        )
+
+    assert exc.value.code == "USER_CROSS_TENANT_DENIED"
+    assert str(exc.value) == "The target user is outside the active tenant."
+    assert len(events) == 1
+    event = events[0]
+    assert event.operation == "authorization.membership.denied"
+    assert event.reason_code == "USER_CROSS_TENANT_DENIED"
+    assert event.target_scope_type == "user"
+    assert event.target_scope_id == "user-b"
+
+
+def test_maintenance_scope_denial_uses_shared_post_gate_boundary() -> None:
+    events = []
+    user_session = UserSessionContext(
+        security_denial_listener=events.append,
+    )
+    user_session.set_principal(_principal())
+
+    with pytest.raises(BusinessRuleError) as exc:
+        deny_maintenance_scope_access(
+            user_session,
+            operation_label="view an unanchored work order",
+            message="Permission denied for unanchored work order.",
+        )
+
+    assert exc.value.code == "PERMISSION_DENIED"
+    assert len(events) == 1
+    event = events[0]
+    assert event.operation == "authorization.resource_scope.denied"
+    assert event.reason_code == "PERMISSION_DENIED"
+    assert event.target_scope_type == "maintenance"
+    assert event.target_scope_id is None
 
 
 def test_composed_denial_writer_persists_scope_and_trace(services) -> None:

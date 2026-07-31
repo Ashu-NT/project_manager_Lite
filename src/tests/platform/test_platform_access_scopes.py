@@ -334,6 +334,17 @@ def test_maintenance_scoped_access_filters_locations(services):
     visible_locations = services["maintenance_location_service"].list_locations()
     assert [location.id for location in visible_locations] == [accessible.id]
 
+    events = []
+    services["user_session"].set_security_denial_listener(events.append)
+    with pytest.raises(BusinessRuleError) as exc_info:
+        services["maintenance_task_template_service"].list_task_templates()
+
+    assert exc_info.value.code == "PERMISSION_DENIED"
+    assert len(events) == 1
+    assert events[0].operation == "authorization.resource_scope.denied"
+    assert events[0].reason_code == "PERMISSION_DENIED"
+    assert events[0].target_scope_type == "maintenance"
+
 
 def test_storeroom_scoped_access_filters_inventory_and_stock_queries(services):
     auth = services["auth_service"]

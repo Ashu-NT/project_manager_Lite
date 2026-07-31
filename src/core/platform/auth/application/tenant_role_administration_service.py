@@ -9,7 +9,11 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.audit.contracts import AuditRepository
 from src.core.platform.audit.domain import AuditEntry
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import (
+    authorization_denied,
+    record_authorization_denial,
+    require_permission,
+)
 from src.core.platform.auth.contracts import (
     AuthSessionRepository,
     PermissionRepository,
@@ -348,10 +352,16 @@ class TenantRoleAdministrationService:
                 code="AUTHENTICATION_REQUIRED",
             )
         if "platform.admin" in actor.permissions:
-            raise BusinessRuleError(
-                "Platform operators cannot administer customer roles without "
-                "a governed support context.",
+            authorization_denied(
+                self._user_session,
+                message=(
+                    "Platform operators cannot administer customer roles without "
+                    "a governed support context."
+                ),
                 code="PLATFORM_CUSTOMER_OPERATION_DENIED",
+                operation_label=operation_label,
+                target_scope_type="tenant",
+                operation="authorization.support_access.denied",
             )
         tenant_id = self._tenant_context_service.require_active_tenant_id(
             operation_label=operation_label
@@ -368,10 +378,17 @@ class TenantRoleAdministrationService:
             actor.user_id,
             tenant_id,
         ):
-            raise BusinessRuleError(
-                "Active tenant membership is required for custom-role "
-                "administration.",
+            authorization_denied(
+                self._user_session,
+                message=(
+                    "Active tenant membership is required for custom-role "
+                    "administration."
+                ),
                 code="TENANT_ACCESS_DENIED",
+                operation_label=operation_label,
+                target_scope_type="tenant",
+                target_scope_id=tenant_id,
+                operation="authorization.membership.denied",
             )
         self._require_tenant_administration_scope(
             actor.user_id,
@@ -401,10 +418,18 @@ class TenantRoleAdministrationService:
                 )
             ):
                 return
-        raise BusinessRuleError(
-            "A canonical tenant-scope administrative role is required for "
-            "custom-role administration.",
+        authorization_denied(
+            self._user_session,
+            message=(
+                "A canonical tenant-scope administrative role is required for "
+                "custom-role administration."
+            ),
             code="CUSTOM_ROLE_TENANT_SCOPE_REQUIRED",
+            operation_label="administer tenant custom roles",
+            required_permissions=required_permissions,
+            target_scope_type="tenant",
+            target_scope_id=tenant_id,
+            operation="authorization.resource_scope.denied",
         )
 
     def _require_available_name(self, role_name: str, *, tenant_id: str) -> None:
@@ -464,13 +489,28 @@ class TenantRoleAdministrationService:
             CUSTOMER_CUSTOM_ROLE_PERMISSION_CODES
         )
         if denied_codes:
-            raise BusinessRuleError(
-                "Custom roles cannot receive platform permission codes: "
-                + ", ".join(sorted(denied_codes)),
+            authorization_denied(
+                self._user_session,
+                message=(
+                    "Custom roles cannot receive platform permission codes: "
+                    + ", ".join(sorted(denied_codes))
+                ),
                 code="CUSTOM_ROLE_PERMISSION_DENIED",
+                operation_label="validate custom-role permissions",
+                required_permissions=denied_codes,
+                target_scope_type="role",
+                operation="authorization.permission_ceiling.denied",
             )
         conflicts = self._sod_policy.find_conflicts(normalized_codes)
         if conflicts:
+            record_authorization_denial(
+                self._user_session,
+                operation_label="validate custom-role separation of duties",
+                reason_code="CUSTOM_ROLE_PERMISSION_CONFLICT",
+                required_permissions=normalized_codes,
+                target_scope_type="role",
+                operation="authorization.sod.denied",
+            )
             raise ValidationError(
                 f"Custom role violates separation of duties. {conflicts[0]}",
                 code="CUSTOM_ROLE_PERMISSION_CONFLICT",

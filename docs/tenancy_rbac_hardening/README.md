@@ -1264,7 +1264,7 @@ replacement provisioning is proven.
 | Deployment/tenancy/migration configuration | Implemented | `src/infra/platform/security_config.py` |
 | Single tenant-context policy boundary | Implemented; broader consumers pending | `src/core/platform/tenancy/context_policy.py` and `TenantContextService` |
 | Explicit login/restoration context and atomic principal rebuild | Implemented | `principal_builder.py`, `authentication_service.py`, `session_service.py`, and `TenantContextService` |
-| Authorization denial/context-switch evidence | Shared boundaries implemented; explicit post-gate denials pending | Permission and scoped-permission denials use an isolated typed writer. Tenant/organization session persistence and success audit commit before principal replacement; denial and writer-failure semantics preserve fail-closed outcomes. |
+| Authorization denial/context-switch evidence | Shared and inventoried post-gate boundaries implemented | Permission, scoped-permission, resource-anchor, target membership, delegation, permission-ceiling, SoD, support-context, and tenant/organization switch denials use the typed isolated writer. Switch success commits persisted session context and audit before principal replacement; writer failure never changes deny to allow. |
 | SaaS missing-context denial and fallback removal | Implemented | Login/restoration supplies validated explicit context. SaaS composition does not create/select a default tenant or organization and does not backfill user memberships; local desktop behavior is isolated by mode. |
 | Registration bypass removal and membership onboarding | Implemented for direct onboarding and internal existing-user invitations; delivery pending | `AuthService.register_user()` no longer exposes a permission bypass. `onboard_tenant_user()` creates the account, active membership, default `viewer` binding, and forced password change in one transaction. The internal invitation service is authenticated and atomic but is not a delivery or public onboarding adapter. |
 | Sensitive target-user boundary | Implemented | Password, MFA, federated identity, session, user-admin, and role-assignment paths use `target_user_authorization.py`. |
@@ -1647,15 +1647,51 @@ Authorization-denial and context-switch audit ledger, 2026-07-30:
   retain the attempted scope only as denial metadata. SaaS mode refuses a successful switch
   when the audited context committer is not configured.
 - This tranche covers shared permission gates, shared scoped-permission gates, and all
-  `TenantContextService` tenant/organization switch outcomes. Explicit authorization-coded
-  rejections raised after custom module resource, membership, delegation, or SoD checks remain
-  an inventoried follow-up; they must migrate to the typed denial emitter without duplicate
-  events at transport boundaries.
+  `TenantContextService` tenant/organization switch outcomes. The inventoried explicit
+  post-gate resource, membership, delegation, SoD, permission-ceiling, and support-context
+  decisions are completed in the 2026-07-31 ledger below.
 - No schema revision was required. Verified 10 direct scope, trace, redaction, durability,
   failure-preservation, idempotency, and rollback tests; the expanded security matrix has 201
   passing tests. The complete platform suite has 612 passing tests and only the same three
   unrelated baseline failures. Architecture verification remains at 96 passing checks with the
   same two unrelated size-budget failures.
+
+Post-gate authorization-denial ledger, 2026-07-31:
+
+- Added `authorization_denied()` as the single audit-and-raise boundary for explicit decisions
+  that occur after a shared permission gate. It emits exactly one typed event and then preserves
+  the existing `BusinessRuleError` message and code; `record_authorization_denial()` remains
+  available where the existing contract is a `ValidationError`, including SoD.
+- Migrated active-tenant actor and target-user membership checks, self-service targeting,
+  scoped-grant membership/resolver infrastructure, tenant membership self-lockout and
+  last-administrator safeguards, invitation target/role safety, registration membership-writer
+  availability, customer/platform role ceilings, canonical role scope and delegation policy,
+  custom-role permission ceilings, and legacy/canonical SoD decisions.
+- Platform operators attempting ordinary customer role administration now produce explicit
+  `authorization.support_access.denied` evidence. This does not introduce support impersonation
+  or customer access; governed support sessions remain a later capability and the operation
+  continues to fail closed.
+- Added a shared maintenance resource-scope denial helper and migrated all 17 services that
+  reject unanchored records or organization-wide libraries for scope-restricted principals:
+  documents, preventive plans/tasks/templates, downtime, failure codes, integration sources,
+  sensors/readings/mappings/exceptions, work requests, work orders/tasks/steps, and material
+  requirements.
+- Events identify actor/session and stored tenant/organization context, operation, reason, and
+  only the opaque attempted target or scope. Invitation tokens, passwords, MFA values,
+  delegation hashes, and other submitted secrets are not recorded. Isolated-writer failure is
+  still logged critically and never converts a denial to an allow.
+- Not-found, malformed-input, inactive-record lifecycle, concurrency, and invitation-expiry
+  failures remain ordinary domain outcomes rather than authorization evidence. Principal-build
+  explicit-context failures remain owned by the enclosing audited login/restoration/context
+  boundaries, preventing duplicate records.
+- No schema revision was required. Direct authorization, canonical governance, and membership
+  verification has 36 passing tests; the expanded scoped-access/RBAC/containment matrix has 88
+  passing tests. The complete platform suite has 614 passing tests and only the same three
+  unrelated baseline failures: two Site naive/aware datetime comparisons and the stale QML
+  route expectation that omits implemented `platform.tenants`. The maintenance suite has 168
+  passing tests and one unrelated end-of-month floating-schedule assertion (`October 30`
+  versus `October 31`). Architecture verification remains at 96 passing checks with the same
+  two unrelated size-budget failures.
 
 ### Repository re-audit, 2026-07-29
 
@@ -1678,7 +1714,7 @@ The earlier containment work is real, but it does not yet constitute canonical a
 | Canonical role metadata | System and per-tenant name namespaces, role ownership checks, and internal audited tenant custom-role lifecycle commands are implemented. They require canonical tenant-scope administrative authority and enforce a curated customer permission ceiling, SoD, optimistic policy versions, session invalidation, and non-destructive retirement. No adapter is exposed. | After environment policy-v2 activation, canonical role preparation, and security review, add a request-scoped adapter; keep raw repositories and unrestricted permission mutation private. |
 | Canonical binding uniqueness | Partial indexes still define persisted activity as unrevoked, but the guarded canonical assignment path now revokes an expired exact-scope row before reassignment. | Add scheduled/bulk expiry maintenance and require imports/backfill to use the same canonical orchestration before declaring this complete. |
 | Principal authority | A fail-closed canonical assignment/revocation service and explicit delegation relation now exist. `auth.role.assign` is defined in policy v2 but is not active until an environment applies that policy; `PrincipalBuilder`, `AuthQueryMixin`, legacy assignment, SoD, and `SessionAuthorizationEngine` remain legacy-authoritative with role-name/rank/admin shortcuts. | Do not claim Phase 2 cutover; dry-run and deliberately apply policy v2 per environment, approve explicit delegations, then implement dual-write, shadow telemetry, and canonical authority without fallback. |
-| Audit | Membership, canonical role governance, tenant custom roles, platform-owner provisioning, credential/account security, registration/onboarding, local bootstrap account/role repair, legacy role assignment, authentication success/failure/lockout, session administration, shared permission/scope denials, and tenant/organization context switching now have explicit transaction semantics. Module-specific post-gate authorization rejections remain uneven. | Route explicit resource, membership, delegation, SoD, and support-access denials through the typed isolated writer; prevent duplicate records at future transport boundaries. |
+| Audit | Membership, canonical role governance, tenant custom roles, platform-owner provisioning, credential/account security, registration/onboarding, local bootstrap account/role repair, legacy role assignment, authentication success/failure/lockout, session administration, shared permission/scope denials, tenant/organization context switching, and inventoried post-gate resource/membership/delegation/SoD/support denials now have explicit evidence semantics. | Preserve one-event ownership at application authorization boundaries and prevent duplicate records when future desktop/HTTP transports add request-scoped middleware. |
 | Entitlements/activity/runtime | Entitlement composition omits its tenant provider; activity can become global with missing context; runtime executions have no tenant/organization and global control reads. | Keep these as open isolation work and block hosted completion until tenant-qualified. |
 | Transport boundary | Desktop customer role/onboarding paths are constrained. The HTTP adapter has no per-request principal/tenant extraction boundary and reuses application service state. | Require request-scoped identity and tenant context before treating HTTP as a hosted SaaS boundary. |
 | Schema verification | Most tests still use `Base.metadata.create_all()`. The Alembic graph has one head, `8b3c4d5e6f7a`; membership lifecycle, token, role namespace, and delegation upgrades have migration-created SQLite coverage, but hosted PostgreSQL migration tests are absent. | Expand migration-created coverage across authorization schema profiles and add hosted PostgreSQL. |
@@ -1713,6 +1749,9 @@ Completed in the current containment tranche:
 - Added internal authorized token issuance/acceptance/revocation, membership administration,
   targeted session invalidation, atomic membership audit, and fixed `viewer` binding
   orchestration. External delivery and public adapters remain disabled.
+- Migrated inventoried post-gate resource, membership, delegation, SoD, permission-ceiling, and
+  support-context denials to the typed isolated writer without changing their public error
+  contracts.
 
 Remaining work, in order:
 
@@ -1724,11 +1763,7 @@ Remaining work, in order:
    custom-role commands are implemented; only after policy-v2 environment activation should
    they and guarded delegation be exposed through a request-scoped administration adapter. Do
    not expose raw invitation tokens through generic desktop or HTTP surfaces.
-4. Migrate module-specific post-gate resource, membership, delegation, SoD, and support-access
-   denials to the typed isolated denial writer. Shared permission/scope gates and
-   tenant/organization context switches are now covered; writer failure never changes denial
-   to allow, and audited switch success is transaction-owned.
-5. Define quarantine records and rollback snapshots, then implement explicit migration-mode
+4. Define quarantine records and rollback snapshots, then implement explicit migration-mode
    dual-write/shadow comparison before removing `user_roles`.
 
 ## Required Test Matrix

@@ -13,9 +13,12 @@ from src.core.modules.maintenance.application.common.support import (
     normalize_maintenance_code,
     normalize_optional_text,
 )
+from src.core.modules.maintenance.application.common.scope_authorization import (
+    deny_maintenance_scope_access,
+)
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.tenancy.tenant_context import (
     TenantContextService,
@@ -260,9 +263,13 @@ class MaintenanceTaskTemplateService:
 
     def _ensure_org_wide_access(self, operation_label: str) -> None:
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(
-                f"Permission denied for {operation_label}. Template libraries require broader maintenance access.",
-                code="PERMISSION_DENIED",
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. Template "
+                    "libraries require broader maintenance access."
+                ),
             )
 
     def _record_change(self, action: str, row: MaintenanceTaskTemplate) -> None:
