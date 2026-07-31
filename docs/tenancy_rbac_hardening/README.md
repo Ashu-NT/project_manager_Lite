@@ -2150,6 +2150,34 @@ Maintenance-scope cutover ledger, 2026-07-31:
   Maintenance-role assignment stays fail-closed pending deliberate delegation-policy
   provisioning, same as project, site, and storeroom scope.
 
+Local dev delegation-policy provisioning ledger, 2026-07-31:
+
+- Provisioned the reviewed `access_admin` → project/site/storeroom/maintenance delegation
+  catalog (13 entries) against the local desktop development database for the first time,
+  closing out the fail-closed gate in this one environment. Other environments (staging,
+  production, or any teammate's separate local database) still need the same explicit,
+  reviewed dry-run/apply run before their assignment stops being fail-closed — this is a
+  per-environment action, not a one-time code change.
+- The local database itself predated the entire canonical `role_bindings` schema (it was at
+  Alembic revision `z3a4b5c6d7e8`, exactly the "six revisions behind" state this README already
+  documented on 2026-07-29, and had not been touched since). Backed it up, ran the six pending
+  migrations in place (preserving existing data; these migrations already have tested
+  legacy-row upgrade/downgrade/re-upgrade coverage), then ran ordinary local-single-tenant
+  startup composition once to additively seed every role definition added during this session's
+  five scope cutovers. No new migration was required — the schema for all of this already
+  existed before this session's work began; only new `roles`/`role_permissions` rows needed
+  seeding.
+- Found and fixed a real bug surfaced by actually running the tool end-to-end for the first
+  time: `tools/provision_scope_delegations.py`'s `AuthService` construction omitted
+  `security_audit_repo`, so the very first successful login failed at the mandatory
+  login-audit write and rolled the whole authentication back
+  (`BusinessRuleError: Authentication audit persistence is required.`). Added
+  `security_audit_repo=repositories.audit_entry_repo`. Found the identical bug in the
+  pre-existing `tools/reconcile_role_policy.py` (same missing parameter, same failure mode)
+  and fixed it the same way; confirmed no regressions in its focused test suite.
+- No production database was touched. No dev-database reset was performed — data was migrated
+  in place, not recreated from scratch, per this session's choice for this specific database.
+
 ### Repository re-audit, 2026-07-29
 
 Phases 0, 1, and 2 all remain in progress. The current snapshot was re-audited across domain
@@ -2240,9 +2268,13 @@ No scope remains on the legacy `ScopedAccessGrant`/`ProjectMembership` path.** R
 no longer per-scope; it is:
 
 1. Provision the reviewed `access_admin` → project-, site-, storeroom-, and maintenance-role
-   delegation policies (`tools/provision_scope_delegations.py --apply`) in each deployed
-   environment once reviewed, so assignment through the desktop API stops being fail-closed for
-   all four resource scopes.
+   delegation policies (`tools/provision_scope_delegations.py --apply`) in each remaining
+   deployed environment once reviewed, so assignment through the desktop API stops being
+   fail-closed there. Done for the local desktop development database on 2026-07-31 (13
+   policies applied); still pending for every other environment. That local database also
+   needed its 6 pending Alembic migrations applied first, plus one ordinary startup pass to
+   seed the new role rows — check any other environment's migration state before assuming the
+   delegation-provisioning tool alone is sufficient.
 2. Add the reviewed invitation delivery/account-onboarding adapter without exposing raw tokens
    through generic transports.
 3. Update fixtures and seed data, run migration-created and cross-tenant tests, explicitly reset

@@ -207,6 +207,7 @@ def main(argv: list[str] | None = None) -> int:
             user_session=user_session,
             user_tenant_repo=repositories.user_tenant_repo,
             role_binding_repo=repositories.role_binding_repo,
+            security_audit_repo=repositories.audit_entry_repo,
         )
         actor = auth_service.authenticate(
             args.username,
