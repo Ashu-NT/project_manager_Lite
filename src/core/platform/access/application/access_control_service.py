@@ -47,7 +47,7 @@ ScopeExistsResolver = Callable[[str, str], bool]
 # ScopedAccessGrant-shaped translation below exists only so the legacy
 # desktop API/QML contract keeps working; delete it once those adapters
 # consume canonical role names directly, one scope type at a time.
-_CANONICAL_SCOPE_TYPES = frozenset({"project", "site"})
+_CANONICAL_SCOPE_TYPES = frozenset({"project", "site", "storeroom", "maintenance"})
 
 
 class AccessControlService:
@@ -412,12 +412,26 @@ class AccessControlService:
             )
         return self._role_governance_service, self._role_repo, self._role_binding_repo
 
-    @staticmethod
-    def _canonical_role_name(scope_type: str, scope_role: str) -> str:
-        return f"{scope_type}_{scope_role}"
+    # "maintenance_manager" already names a pre-existing tenant-wide role;
+    # the resource-scoped canonical name must differ to avoid colliding with
+    # it in the system role namespace.
+    _CANONICAL_ROLE_NAME_OVERRIDES = {
+        ("maintenance", "manager"): "maintenance_scope_manager",
+    }
 
-    @staticmethod
-    def _scope_role_from_canonical_role_name(scope_type: str, role_name: str) -> str:
+    @classmethod
+    def _canonical_role_name(cls, scope_type: str, scope_role: str) -> str:
+        return cls._CANONICAL_ROLE_NAME_OVERRIDES.get(
+            (scope_type, scope_role), f"{scope_type}_{scope_role}"
+        )
+
+    @classmethod
+    def _scope_role_from_canonical_role_name(cls, scope_type: str, role_name: str) -> str:
+        for (candidate_scope_type, scope_role), canonical_name in (
+            cls._CANONICAL_ROLE_NAME_OVERRIDES.items()
+        ):
+            if candidate_scope_type == scope_type and canonical_name == role_name:
+                return scope_role
         prefix = f"{scope_type}_"
         return role_name[len(prefix):] if role_name.startswith(prefix) else role_name
 

@@ -317,6 +317,30 @@ _SITE_MANAGER = _SITE_OPERATOR | {
     "report.export",
 }
 
+_STOREROOM_VIEWER = {
+    "inventory.read",
+}
+
+_STOREROOM_OPERATOR = _STOREROOM_VIEWER | {
+    "inventory.manage",
+}
+
+_STOREROOM_MANAGER = _STOREROOM_OPERATOR | {
+    "report.view",
+}
+
+_MAINTENANCE_VIEWER = {
+    "maintenance.read",
+}
+
+_MAINTENANCE_OPERATOR = _MAINTENANCE_VIEWER | {
+    "maintenance.manage",
+}
+
+_MAINTENANCE_SCOPE_MANAGER = _MAINTENANCE_OPERATOR | {
+    "report.view",
+}
+
 DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "viewer": set(_VIEWER),
     "team_member": set(_TEAM_MEMBER),
@@ -346,11 +370,17 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "site_viewer": set(_SITE_VIEWER),
     "site_operator": set(_SITE_OPERATOR),
     "site_manager": set(_SITE_MANAGER),
+    "storeroom_viewer": set(_STOREROOM_VIEWER),
+    "storeroom_operator": set(_STOREROOM_OPERATOR),
+    "storeroom_manager": set(_STOREROOM_MANAGER),
+    "maintenance_viewer": set(_MAINTENANCE_VIEWER),
+    "maintenance_operator": set(_MAINTENANCE_OPERATOR),
+    "maintenance_scope_manager": set(_MAINTENANCE_SCOPE_MANAGER),
     "admin": set(DEFAULT_PERMISSIONS.keys()),
 }
 
 SYSTEM_ROLE_POLICY_NAME = "system-role-permissions"
-SYSTEM_ROLE_POLICY_VERSION = 5
+SYSTEM_ROLE_POLICY_VERSION = 7
 
 
 def login_lockout_threshold() -> int:

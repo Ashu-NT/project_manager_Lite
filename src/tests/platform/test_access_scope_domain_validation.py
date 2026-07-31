@@ -150,6 +150,20 @@ def _make_policy_registry() -> ScopedRolePolicyRegistry:
             return ("inventory.read", "inventory.manage")
         return ("inventory.read",)
 
+    def _maintenance_permissions(role: str) -> tuple[str, ...]:
+        if role == "editor":
+            return ("maintenance.read", "maintenance.manage")
+        return ("maintenance.read",)
+
+    # "department" is a registered RESOURCE_ROLE_SCOPE_TYPES member with no
+    # ScopedRolePolicy ever wired in production composition, so it is a
+    # permanent, never-cut-over legacy example scope for this fake harness
+    # once organization/project/site/storeroom/maintenance are all canonical.
+    def _department_permissions(role: str) -> tuple[str, ...]:
+        if role == "editor":
+            return ("department.read", "department.manage")
+        return ("department.read",)
+
     return ScopedRolePolicyRegistry(
         (
             ScopedRolePolicy(
@@ -169,6 +183,18 @@ def _make_policy_registry() -> ScopedRolePolicyRegistry:
                 role_choices=("viewer", "editor"),
                 normalize_role=_normalize_role,
                 resolve_permissions=_storeroom_permissions,
+            ),
+            ScopedRolePolicy(
+                scope_type="maintenance",
+                role_choices=("viewer", "editor"),
+                normalize_role=_normalize_role,
+                resolve_permissions=_maintenance_permissions,
+            ),
+            ScopedRolePolicy(
+                scope_type="department",
+                role_choices=("viewer", "editor"),
+                normalize_role=_normalize_role,
+                resolve_permissions=_department_permissions,
             ),
         )
     )
@@ -203,6 +229,12 @@ def _make_service(monkeypatch: pytest.MonkeyPatch) -> AccessControlService:
             ),
             "storeroom": lambda tenant_id, scope_id: (
                 tenant_id == "tenant-1" and scope_id == "storeroom-1"
+            ),
+            "maintenance": lambda tenant_id, scope_id: (
+                tenant_id == "tenant-1" and scope_id == "maintenance-1"
+            ),
+            "department": lambda tenant_id, scope_id: (
+                tenant_id == "tenant-1" and scope_id == "department-1"
             ),
         },
         user_session=None,
@@ -274,36 +306,38 @@ def test_access_service_uses_entity_validation_for_memberships_and_grants(
 ):
     service = _make_service(monkeypatch)
 
-    # Project and site scope now route through canonical role_bindings and are
-    # covered end-to-end (with real role_repo/role_binding_repo) in
-    # test_platform_access_scopes.py; this fake service has no canonical
-    # dependencies wired, so entity-validation coverage here uses storeroom,
-    # a scope type still on the legacy ScopedAccessGrant path.
+    # Project, site, storeroom, and maintenance scope now all route through
+    # canonical role_bindings and are covered end-to-end (with real
+    # role_repo/role_binding_repo) in test_platform_access_scopes.py; this
+    # fake service has no canonical dependencies wired, so entity-validation
+    # coverage here uses the synthetic "department" scope, which is never
+    # registered with a live ScopedRolePolicy in production and so never
+    # gets cut over.
     grant = service.assign_scope_grant(
-        scope_type="  storeroom  ",
-        scope_id="  storeroom-1  ",
+        scope_type="  department  ",
+        scope_id="  department-1  ",
         user_id="  user-1  ",
         scope_role="  editor  ",
     )
 
-    assert grant.scope_type == "storeroom"
-    assert grant.scope_id == "storeroom-1"
+    assert grant.scope_type == "department"
+    assert grant.scope_id == "department-1"
     assert grant.user_id == "user-1"
     assert grant.scope_role == "editor"
-    assert grant.permission_codes == ["inventory.manage", "inventory.read"]
+    assert grant.permission_codes == ["department.manage", "department.read"]
 
     updated = service.assign_scope_grant(
-        scope_type="storeroom",
-        scope_id="storeroom-1",
+        scope_type="department",
+        scope_id="department-1",
         user_id="user-1",
         scope_role="viewer",
     )
     assert updated.id == grant.id
-    assert updated.permission_codes == ["inventory.read"]
+    assert updated.permission_codes == ["department.read"]
 
     with pytest.raises(ValidationError) as exc_scope:
         service.assign_scope_grant(
-            scope_type="storeroom",
+            scope_type="department",
             scope_id=" ",
             user_id="user-1",
             scope_role="viewer",

@@ -18,6 +18,12 @@ DEFAULT_SCOPE_DELEGATIONS: tuple[tuple[str, str, str], ...] = (
     ("access_admin", "site_viewer", "site"),
     ("access_admin", "site_operator", "site"),
     ("access_admin", "site_manager", "site"),
+    ("access_admin", "storeroom_viewer", "storeroom"),
+    ("access_admin", "storeroom_operator", "storeroom"),
+    ("access_admin", "storeroom_manager", "storeroom"),
+    ("access_admin", "maintenance_viewer", "maintenance"),
+    ("access_admin", "maintenance_operator", "maintenance"),
+    ("access_admin", "maintenance_scope_manager", "maintenance"),
 )
 
 

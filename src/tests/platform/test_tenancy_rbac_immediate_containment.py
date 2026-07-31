@@ -391,29 +391,30 @@ def test_tenant_switch_rebuilds_only_target_tenant_grants(services) -> None:
     SqlAlchemyOrganizationRepository(session).add(target_organization)
     now = datetime.now(timezone.utc)
     current_user_id = user_session.principal.user_id
-    # Storeroom scope remains on the legacy ScopedAccessGrant path (unlike
-    # organization/project/site, already cut over to canonical role_bindings),
-    # so it still exercises this containment behavior.
+    # "department" is a registered RESOURCE_ROLE_SCOPE_TYPES member with no
+    # live ScopedRolePolicy ever wired in production composition, so it is a
+    # permanent legacy example scope now that organization/project/site/
+    # storeroom/maintenance are all cut over to canonical role_bindings.
     session.add_all(
         [
             ScopedAccessGrantORM(
                 id="containment-grant-current",
                 tenant_id=current_tenant_id,
-                scope_type="storeroom",
-                scope_id="storeroom-current",
+                scope_type="department",
+                scope_id="department-current",
                 user_id=current_user_id,
                 scope_role="viewer",
-                permission_codes_json='["inventory.read"]',
+                permission_codes_json='["department.read"]',
                 created_at=now,
             ),
             ScopedAccessGrantORM(
                 id="containment-grant-target",
                 tenant_id=target_tenant.id,
-                scope_type="storeroom",
-                scope_id="storeroom-target",
+                scope_type="department",
+                scope_id="department-target",
                 user_id=current_user_id,
                 scope_role="viewer",
-                permission_codes_json='["inventory.read"]',
+                permission_codes_json='["department.read"]',
                 created_at=now,
             ),
         ]
@@ -428,7 +429,7 @@ def test_tenant_switch_rebuilds_only_target_tenant_grants(services) -> None:
             session_id=user_session.principal.session_id,
         )
     )
-    assert "storeroom-current" in user_session.principal.scoped_access["storeroom"]
+    assert "department-current" in user_session.principal.scoped_access["department"]
 
     tenant_context.switch_to_tenant(target_tenant.id)
 
@@ -436,8 +437,8 @@ def test_tenant_switch_rebuilds_only_target_tenant_grants(services) -> None:
     assert switched is not None
     assert switched.active_tenant_id == target_tenant.id
     assert switched.active_organization_id == target_organization.id
-    assert "storeroom-target" in switched.scoped_access["storeroom"]
-    assert "storeroom-current" not in switched.scoped_access["storeroom"]
+    assert "department-target" in switched.scoped_access["department"]
+    assert "department-current" not in switched.scoped_access["department"]
 
 
 def test_tenant_switch_does_not_leak_canonical_tenant_admin_authority(

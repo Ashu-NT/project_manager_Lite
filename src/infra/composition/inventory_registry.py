@@ -321,6 +321,12 @@ def build_inventory_procurement_service_bundle(
         )
 
     platform_services.access_service.register_scope_exists_resolver("storeroom", _storeroom_exists)
+    platform_services.role_governance_service.register_scope_exists_resolver(
+        "storeroom", _storeroom_exists
+    )
+    platform_services.auth_service.register_canonical_scope_tenant_resolver(
+        "storeroom", _storeroom_exists
+    )
 
     logger.debug(
         "Inventory/Procurement service bundle build complete duration_ms=%.1f",

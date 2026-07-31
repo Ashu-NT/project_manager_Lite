@@ -1131,12 +1131,16 @@ implemented, but no external delivery or public invitation/role adapter has been
 Canonical `org_viewer`/`org_member` role definitions and their direct cutover are implemented,
 retiring the legacy organization scoped-grant path entirely. Canonical project-scope roles
 (`project_viewer`/`project_contributor`/`project_lead`/`project_owner`) and their direct cutover
-are also implemented. Canonical site-scope roles (`site_viewer`/`site_operator`/`site_manager`)
-and their direct cutover are implemented too; project- and site-role assignment both remain
-fail-closed pending deliberate delegation-policy provisioning
-(`tools/provision_scope_delegations.py`). Generic storeroom/maintenance resource authority
-remain legacy-authoritative until their own direct scoped cutover packages replace them without
-fallback.
+are also implemented. Canonical site-scope roles (`site_viewer`/`site_operator`/`site_manager`),
+canonical storeroom-scope roles (`storeroom_viewer`/`storeroom_operator`/`storeroom_manager`),
+and canonical maintenance-scope roles (`maintenance_viewer`/`maintenance_operator`/
+`maintenance_scope_manager`) and their direct cutovers are all implemented too. **Every resource
+scope this program identified (organization, project, site, storeroom, maintenance) is now
+canonical; none remain on the legacy `ScopedAccessGrant`/`ProjectMembership` path.**
+Project-, site-, storeroom-, and maintenance-role assignment all remain fail-closed pending
+deliberate delegation-policy provisioning (`tools/provision_scope_delegations.py`) — that
+provisioning step, external invitation delivery, and final legacy/transition-code deletion are
+the remaining work in this program.
 
 - Extend membership lifecycle fields. Implemented additively with internal token issuance,
   authenticated acceptance, administrative transitions, targeted session invalidation, and
@@ -1231,17 +1235,22 @@ Current Phase 2 foundation:
   path is retired. `CanonicalRoleResolver.resolve_principal_authority()` now also resolves
   project scope, `AccessControlService` writes/reads project grants through
   `RoleGovernanceService` instead of `ScopedAccessGrant`/`ProjectMembership`. The same is now
-  true for site scope, which had no `ProjectMembership`-style dual-table trick to unwind.
-  `project_viewer`/`project_contributor`/`project_lead`/`project_owner` and
-  `site_viewer`/`site_operator`/`site_manager` delegation both remain fail-closed pending
-  reviewed provisioning. Generic storeroom/maintenance resource grants remain the next targets.
+  true for site and storeroom scope, neither of which had a `ProjectMembership`-style dual-table
+  trick to unwind. `project_viewer`/`project_contributor`/`project_lead`/`project_owner`,
+  `site_viewer`/`site_operator`/`site_manager`, and `storeroom_viewer`/`storeroom_operator`/
+  `storeroom_manager` delegation all remain fail-closed pending reviewed provisioning. Generic
+  maintenance resource grants are the last remaining target.
 
 ### Phase 3: Principal and authorization-engine cutover
 
 Status: In progress. The complete legacy/canonical dependency map, permanent canonical
 effective-authority resolver, and platform/tenant/organization-role (including
-`org_viewer`/`org_member`) plus project- and site-role authority cutovers are implemented.
-Generic storeroom/maintenance resource principal cutovers remain.
+`org_viewer`/`org_member`) plus project-, site-, storeroom-, and maintenance-role authority
+cutovers are all implemented. Every resource scope this program identified now resolves
+principal authority exclusively from canonical `role_bindings`. What remains for this phase is
+no longer about additional scope types — it is the deliberate delegation-policy provisioning
+that keeps assignment fail-closed today, and the final deletion of every `RBAC-TRANSITION-ONLY`
+component once that provisioning and a development-database reset/reseed are complete.
 
 - Replace the containment builder with principal construction over canonical bindings and
   explicit tenant and organization context.
@@ -2048,6 +2057,99 @@ Site-scope cutover ledger, 2026-07-31:
   Site-role assignment stays fail-closed pending deliberate delegation-policy provisioning, same
   as project scope.
 
+Storeroom-scope cutover ledger, 2026-07-31:
+
+- Added canonical `storeroom_viewer`/`storeroom_operator`/`storeroom_manager` role definitions
+  (policy version bumped to 6), copied verbatim from `STOREROOM_SCOPE_ROLE_PERMISSIONS` in
+  `src/core/modules/inventory_procurement/access/policy.py`. `EXPLICIT_SCOPE_ROLE_NAMES`/
+  `system_role_scope_type` now also recognize the three storeroom-scoped names.
+- Storeroom's `ScopedRolePolicy` is registered in `src/infra/composition/inventory_registry.py`
+  (a module-specific registry, like project's, not directly in `platform_registry.py` like
+  site's). That same file already registered a `"storeroom"` `scope_exists_resolver` on
+  `AccessControlService` only; found and fixed the same gap the project cutover already fixed
+  once for project — added the matching `role_governance_service.register_scope_exists_resolver`
+  and `auth_service.register_canonical_scope_tenant_resolver` calls, reusing the existing
+  `_storeroom_exists` closure for both.
+- Extended `DEFAULT_SCOPE_DELEGATIONS` with `access_admin` → `storeroom_viewer`/
+  `storeroom_operator`/`storeroom_manager`, global (`tenant_id=None`) policies.
+- Added `"storeroom"` to `AccessControlService._CANONICAL_SCOPE_TYPES` and
+  `principal_builder._CUTOVER_RESOURCE_SCOPE_TYPES` — both already generic from the project
+  cutover, so no new branching logic was needed.
+- An exhaustive downstream-consumer search found no hidden bypass and no dual-table trick for
+  storeroom (same as site); every inventory/procurement module read goes through the shared
+  `filter_scope_rows`/`SessionAuthorizationEngine` path, not a direct repository query.
+- Found and fixed two test-only regressions, both self-inflicted: during the site cutover we'd
+  picked `scope_type="storeroom"` as the "still-legacy" example scope for
+  `test_access_scope_domain_validation.py`'s fake-harness entity-validation test and for
+  `test_tenancy_rbac_immediate_containment.py`'s tenant-switch containment test (which inserts
+  raw `ScopedAccessGrantORM` rows). Both needed to move once storeroom itself became canonical.
+  Migrated both to `scope_type="maintenance"` — the one remaining legacy resource scope — adding
+  a fake `maintenance` `ScopedRolePolicy`/resolver to the domain-validation test's harness.
+- Added policy-level, seeding, `build_principal`, storeroom-scope-isolation, and legacy-grant
+  no-authority regression tests mirroring the site-scope tranche, plus `RoleGovernanceService`
+  storeroom-assignment and unresolvable-scope tests. Verified 157 focused tests across every
+  directly and indirectly affected file with no other regressions; the same pre-existing
+  `pmenv/` virtualenv line-count artifact noted in prior ledger entries is unrelated to this
+  work.
+- No application database was migrated, reset, backfilled, or otherwise modified by this work.
+  Storeroom-role assignment stays fail-closed pending deliberate delegation-policy provisioning,
+  same as project and site scope. **Maintenance is now the only remaining legacy resource
+  scope.**
+
+Maintenance-scope cutover ledger, 2026-07-31:
+
+- **This closes the resource-scope cutover: organization, project, site, storeroom, and
+  maintenance are all now canonical.** Maintenance was the last remaining scope on the legacy
+  `ScopedAccessGrant` path.
+- Found a genuinely new gap this cutover's research surfaced (not present for any earlier
+  scope): `RESOURCE_ROLE_SCOPE_TYPES` in `src/core/platform/auth/domain/role_binding.py` did not
+  include `"maintenance"` at all — confirmed by direct grep, not just the research agent's word,
+  before acting on it. Without this, `CanonicalRoleResolver._require_resource_ownership` would
+  reject every maintenance role binding with `AUTH_ROLE_BINDING_SCOPE_INVALID`. Added
+  `"maintenance"` to the frozenset.
+- Found a second genuinely new problem: the naming convention `{scope_type}_{scope_role}` used
+  to mint canonical role names for every prior scope collides for maintenance specifically —
+  `"maintenance_manager"` already names a pre-existing, unrelated, tenant-wide system role (a
+  broader operational role, distinct from `_MAINTENANCE_MANAGER`/`_MAINTENANCE_ADMIN`'s existing
+  permission set). Renaming or touching that existing role was out of scope for this cutover.
+  Instead: named the new resource-scoped roles `maintenance_viewer`/`maintenance_operator`/
+  `maintenance_scope_manager` (only the top tier needed to diverge), and added a small
+  `_CANONICAL_ROLE_NAME_OVERRIDES` lookup to `AccessControlService` so the external `scope_role`
+  string API (`"viewer"`/`"operator"`/`"manager"`, unchanged, still validated by the untouched
+  `MAINTENANCE_SCOPE_ROLE_CHOICES` policy) still maps correctly to the differently-named
+  canonical role under the hood. Verified permission sets are disjoint from the pre-existing
+  tenant-wide role and that it isn't customer-assignable through the generic path.
+- Maintenance's module registry (`src/infra/composition/maintenance_registry.py`) had the exact
+  same gap the storeroom cutover already found and fixed once: only `AccessControlService` had a
+  `"maintenance"` scope-existence resolver registered, not `RoleGovernanceService` or
+  `AuthService`/`CanonicalRoleResolver`. Extracted the existing inline lambda into a named
+  `_maintenance_entity_exists` function and registered it on all three.
+- Extended `DEFAULT_SCOPE_DELEGATIONS` with `access_admin` → `maintenance_viewer`/
+  `maintenance_operator`/`maintenance_scope_manager`, global (`tenant_id=None`) policies. Added
+  `"maintenance"` to `AccessControlService._CANONICAL_SCOPE_TYPES` and
+  `principal_builder._CUTOVER_RESOURCE_SCOPE_TYPES` — both already generic, no new branching
+  logic needed.
+- An exhaustive downstream-consumer search across the (large) maintenance module — work orders,
+  work requests, assets, sensors, preventive plans, downtime events — found every service
+  correctly routes through the shared `filter_scope_rows`/`require_scope_permission` helpers,
+  same as site and storeroom. No hidden bypass, no dual-table trick.
+- Since maintenance was the last real resource scope, its two "still-legacy example scope" test
+  uses (inherited from storeroom, which had itself inherited them from site) had nowhere left to
+  move to. Migrated both permanently to `"department"` — a `RESOURCE_ROLE_SCOPE_TYPES` member
+  with no `ScopedRolePolicy` ever registered in production composition, so it can never be
+  cut over and serves as a stable, indefinite legacy-path example for
+  `test_access_scope_domain_validation.py`'s fake harness and
+  `test_tenancy_rbac_immediate_containment.py`'s tenant-switch containment test.
+- Added policy-level, seeding, `build_principal`, maintenance-scope-isolation, legacy-grant
+  no-authority, and naming-collision regression tests mirroring the storeroom-scope tranche,
+  plus `RoleGovernanceService` maintenance-assignment and unresolvable-scope tests. Verified 185
+  focused tests across every directly and indirectly affected file with no other regressions;
+  the same pre-existing `pmenv/` virtualenv line-count artifact noted in every prior ledger
+  entry in this program is unrelated to this work.
+- No application database was migrated, reset, backfilled, or otherwise modified by this work.
+  Maintenance-role assignment stays fail-closed pending deliberate delegation-policy
+  provisioning, same as project, site, and storeroom scope.
+
 ### Repository re-audit, 2026-07-29
 
 Phases 0, 1, and 2 all remain in progress. The current snapshot was re-audited across domain
@@ -2133,21 +2235,38 @@ Completed in the current containment tranche:
 
 Remaining work, in order:
 
-1. Provision the reviewed `access_admin` → project-role and site-role delegation policies
-   (`tools/provision_scope_delegations.py --apply`) in each deployed environment once reviewed,
-   so project- and site-role assignment through the desktop API stop being fail-closed.
-2. Define deterministic canonical role definitions for each remaining storeroom/maintenance
-   scope choice, including explicit unrestricted-vs-scoped permission semantics. Then replace
-   their scoped-grant/project-membership decision sources one scope at a time without fallback,
-   following the organization-, project-, and site-scope cutovers already done. Audit each
-   scope's consumers for the same class of direct-legacy-repository read the project-scope
-   cutover found in `CollaborationSupportMixin` before assuming a scope is fully cut over —
-   confirmed absent for site scope by an explicit codebase-wide search, but re-verify per scope.
-3. Add the reviewed invitation delivery/account-onboarding adapter without exposing raw tokens
+**Every resource scope (organization, project, site, storeroom, maintenance) is now canonical.
+No scope remains on the legacy `ScopedAccessGrant`/`ProjectMembership` path.** Remaining work is
+no longer per-scope; it is:
+
+1. Provision the reviewed `access_admin` → project-, site-, storeroom-, and maintenance-role
+   delegation policies (`tools/provision_scope_delegations.py --apply`) in each deployed
+   environment once reviewed, so assignment through the desktop API stops being fail-closed for
+   all four resource scopes.
+2. Add the reviewed invitation delivery/account-onboarding adapter without exposing raw tokens
    through generic transports.
-4. Update fixtures and seed data, run migration-created and cross-tenant tests, explicitly reset
-   development databases, then delete every transition-only and legacy-authority component and
-   apply a cleanup migration before the first release.
+3. Update fixtures and seed data, run migration-created and cross-tenant tests, explicitly reset
+   development databases, then delete every transition-only and legacy-authority component
+   (including the `AccessControlService._CANONICAL_SCOPE_TYPES`/`_CANONICAL_ROLE_NAME_OVERRIDES`
+   translation shim, `principal_builder`'s legacy scoped-access merge, and the exact
+   `RBAC-TRANSITION-ONLY` decommission register) and apply a cleanup migration before the first
+   release.
+
+Lessons this program's per-scope work surfaced, worth keeping in mind for any future scope
+additions:
+- A hidden direct-legacy-repository bypass is possible even when `AccessControlService` itself
+  is fully cut over — found once, in PM collaboration mention resolution reading
+  `ProjectMembershipRepository` directly. Always search the whole codebase for direct
+  `scoped_access_repo`/repo-specific reads before declaring a scope's cutover complete, not just
+  its `AccessControlService` call sites.
+- Module registries can wire a scope-existence resolver onto `AccessControlService` alone and
+  forget `RoleGovernanceService`/`CanonicalRoleResolver` — found twice (storeroom, then
+  maintenance repeating the identical gap in a different registry file). Both registrations
+  must be added together.
+- `RESOURCE_ROLE_SCOPE_TYPES` and the canonical role-naming convention
+  (`{scope_type}_{scope_role}`) are not guaranteed to already support a new scope or be
+  collision-free with pre-existing tenant-wide role names — verify both directly rather than
+  assume, as maintenance needed both a new frozenset entry and a role-name override.
 
 ## Required Test Matrix
 
@@ -2246,9 +2365,9 @@ This program is complete when:
 | Target model and security invariants | Complete |
 | Migration and retirement plan | Complete; revised for direct prelaunch cutover on 2026-07-31 |
 | Phase 0 safety net | In progress; ADR, inventory, and characterization coverage exist; production-preservation evidence tooling is superseded and scheduled for deletion |
-| Phase 1 immediate containment | In progress; scoped-grant containment and canonical platform/tenant/explicit-organization-role boundaries implemented; generic scoped cutover and cleanup pending |
-| Phase 2 canonical membership and role-binding schema | In progress; permanent canonical foundations and platform/tenant/explicit-organization-role authority cutovers complete; generic scoped authority, external delivery, development reseed, legacy schema removal, and transition-code deletion pending |
-| Principal/authorization-engine cutover | In progress; canonical resolver and platform/tenant/explicit-organization-role principal authority complete; organization viewer/member and resource authority pending |
+| Phase 1 immediate containment | In progress; scoped-grant containment and canonical platform/tenant/explicit-organization-role boundaries implemented; all resource-scope cutovers (organization/project/site/storeroom/maintenance) complete; delegation-policy provisioning, external delivery, and cleanup pending |
+| Phase 2 canonical membership and role-binding schema | In progress; permanent canonical foundations and platform/tenant/org/project/site/storeroom/maintenance-role authority cutovers all complete; external delivery, development reseed, legacy schema removal, and transition-code deletion pending |
+| Principal/authorization-engine cutover | In progress; canonical resolver and platform/tenant/organization/project/site/storeroom/maintenance-role principal authority all complete — every identified resource scope is canonical; delegation-policy provisioning, invitation delivery, and legacy cleanup remain |
 | Repository/audit/background hardening | Not started |
 | Custom roles and enterprise identity | Not started |
 | Hosted PostgreSQL RLS | Deferred |

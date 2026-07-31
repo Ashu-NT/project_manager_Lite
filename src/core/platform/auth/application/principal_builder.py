@@ -18,7 +18,7 @@ _CONTEXT_UNSET = object()
 # role_bindings. Grows one entry at a time as project/site/storeroom/
 # maintenance each replace their legacy scoped-grant decision source; delete
 # this constant and the pop loop below once every resource scope is cut over.
-_CUTOVER_RESOURCE_SCOPE_TYPES = frozenset({"project", "site"})
+_CUTOVER_RESOURCE_SCOPE_TYPES = frozenset({"project", "site", "storeroom", "maintenance"})
 
 
 # RBAC-TRANSITION-ONLY: Remove this legacy scoped-grant/project-membership

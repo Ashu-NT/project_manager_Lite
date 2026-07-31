@@ -22,6 +22,7 @@ RESOURCE_ROLE_SCOPE_TYPES = frozenset(
         "department",
         "project",
         "storeroom",
+        "maintenance",
     }
 )
 ROLE_SCOPE_TYPES = frozenset(
