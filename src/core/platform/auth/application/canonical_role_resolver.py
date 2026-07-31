@@ -59,6 +59,13 @@ class CanonicalRoleResolver:
             allow_platform_customer_context
         )
 
+    def register_scope_tenant_resolver(
+        self,
+        scope_type: str,
+        resolver: ScopeTenantResolver,
+    ) -> None:
+        self._scope_tenant_resolvers[str(scope_type or "").strip().lower()] = resolver
+
     def resolve(
         self,
         principal_id: str,
@@ -103,6 +110,30 @@ class CanonicalRoleResolver:
             organization_id=organization_id,
             included_scope_types=frozenset(
                 {ROLE_SCOPE_PLATFORM, ROLE_SCOPE_TENANT, "organization"}
+            ),
+        )
+
+    def resolve_principal_authority(
+        self,
+        principal_id: str,
+        *,
+        tenant_id: str | None,
+        organization_id: str | None,
+        cutover_resource_scope_types: frozenset[str] = frozenset(),
+    ) -> EffectiveRoleAuthority:
+        """Resolve platform/tenant/organization plus already cut-over resource scopes.
+
+        `cutover_resource_scope_types` grows one entry at a time as each
+        resource scope (project, site, storeroom, maintenance) replaces its
+        legacy scoped-grant/project-membership decision source.
+        """
+        return self._resolve(
+            principal_id,
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            included_scope_types=frozenset(
+                {ROLE_SCOPE_PLATFORM, ROLE_SCOPE_TENANT, "organization"}
+                | cutover_resource_scope_types
             ),
         )
 

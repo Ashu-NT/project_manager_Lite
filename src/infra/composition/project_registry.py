@@ -118,15 +118,26 @@ def build_project_management_service_bundle(
             resolve_permissions=resolve_project_scope_permissions,
         )
     )
-    platform_services.access_service.register_scope_exists_resolver(
-        "project",
-        lambda tenant_id, project_id: (
+    def _project_belongs_to_tenant(tenant_id: str, project_id: str) -> bool:
+        return (
             platform_services.tenant_context_service.require_active_tenant_id(
                 operation_label="validate project access scope"
             )
             == tenant_id
             and repositories.project_repo.get(project_id) is not None
-        ),
+        )
+
+    platform_services.access_service.register_scope_exists_resolver(
+        "project",
+        _project_belongs_to_tenant,
+    )
+    platform_services.role_governance_service.register_scope_exists_resolver(
+        "project",
+        _project_belongs_to_tenant,
+    )
+    platform_services.auth_service.register_canonical_scope_tenant_resolver(
+        "project",
+        _project_belongs_to_tenant,
     )
     logger.debug("Project Management platform registrations complete")
     logger.debug("Project Management core services build begin")
@@ -295,6 +306,8 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
         tenant_context_service=platform_services.tenant_context_service,
+        role_repo=repositories.role_repo,
+        role_binding_repo=repositories.role_binding_repo,
     )
     portfolio_service = PortfolioService(
         session=session,

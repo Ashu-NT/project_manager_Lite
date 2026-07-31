@@ -18,6 +18,13 @@ from src.core.platform.auth.application.role_governance_service import (
     ROLE_ASSIGN_PERMISSION,
     RoleGovernanceService,
 )
+from src.core.platform.auth.application.scope_delegation_provisioning_service import (
+    DEFAULT_SCOPE_DELEGATIONS,
+    ScopeDelegationApplyResult,
+    ScopeDelegationPlan,
+    ScopeDelegationPlanEntry,
+    ScopeDelegationProvisioningService,
+)
 from src.core.platform.auth.application.tenant_role_administration_service import (
     CUSTOMER_CUSTOM_ROLE_PERMISSION_CODES,
     RESERVED_CUSTOM_ROLE_NAMES,
@@ -40,4 +47,9 @@ __all__ = [
     "RolePolicyReconciliationResult",
     "RolePolicyReconciliationService",
     "TenantRoleAdministrationService",
+    "DEFAULT_SCOPE_DELEGATIONS",
+    "ScopeDelegationApplyResult",
+    "ScopeDelegationPlan",
+    "ScopeDelegationPlanEntry",
+    "ScopeDelegationProvisioningService",
 ]

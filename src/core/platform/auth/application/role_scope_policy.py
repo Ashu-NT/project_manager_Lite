@@ -8,7 +8,11 @@ from src.core.platform.auth.domain.role_binding import (
 # Transitional classification for legacy global roles. Canonical role bindings
 # will move this metadata into the role model during the schema migration.
 PLATFORM_ROLE_NAMES = frozenset({"admin", "support_admin"})
-EXPLICIT_SCOPE_ROLE_NAMES = frozenset({"org_admin", "org_viewer", "org_member"})
+_ORGANIZATION_SCOPE_ROLE_NAMES = frozenset({"org_admin", "org_viewer", "org_member"})
+_PROJECT_SCOPE_ROLE_NAMES = frozenset(
+    {"project_viewer", "project_contributor", "project_lead", "project_owner"}
+)
+EXPLICIT_SCOPE_ROLE_NAMES = _ORGANIZATION_SCOPE_ROLE_NAMES | _PROJECT_SCOPE_ROLE_NAMES
 
 
 def normalize_role_name(role_name: str) -> str:
@@ -30,8 +34,10 @@ def system_role_scope_type(role_name: str) -> str:
     normalized = normalize_role_name(role_name)
     if normalized in PLATFORM_ROLE_NAMES:
         return ROLE_SCOPE_PLATFORM
-    if normalized in EXPLICIT_SCOPE_ROLE_NAMES:
+    if normalized in _ORGANIZATION_SCOPE_ROLE_NAMES:
         return "organization"
+    if normalized in _PROJECT_SCOPE_ROLE_NAMES:
+        return "project"
     return ROLE_SCOPE_TENANT
 
 

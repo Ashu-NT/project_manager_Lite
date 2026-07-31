@@ -441,6 +441,26 @@ def build_platform_service_bundle(
             and repositories.site_repo.get(site_id) is not None
         ),
     }
+    role_governance_service = RoleGovernanceService(
+        session=session,
+        role_repo=repositories.role_repo,
+        role_binding_repo=repositories.role_binding_repo,
+        delegation_repo=repositories.role_delegation_policy_repo,
+        role_permission_repo=repositories.role_permission_repo,
+        permission_repo=repositories.permission_repo,
+        user_repo=repositories.user_repo,
+        tenant_repo=repositories.tenant_repo,
+        membership_repo=repositories.user_tenant_repo,
+        audit_repo=repositories.audit_entry_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        scope_exists_resolvers=scope_exists_resolvers,
+        allow_platform_customer_context=(
+            security_configuration.tenancy_mode
+            is TenancyMode.LOCAL_SINGLE_TENANT
+        ),
+    )
+    auth_service.set_role_governance_service(role_governance_service)
     access_service = AccessControlService(
         session=session,
         membership_repo=repositories.project_membership_repo,
@@ -462,27 +482,10 @@ def build_platform_service_bundle(
         enterprise_audit_service=enterprise_audit_service,
         user_tenant_repo=repositories.user_tenant_repo,
         tenant_context_service=tenant_context_service,
-    )
-    role_governance_service = RoleGovernanceService(
-        session=session,
+        role_governance_service=role_governance_service,
         role_repo=repositories.role_repo,
         role_binding_repo=repositories.role_binding_repo,
-        delegation_repo=repositories.role_delegation_policy_repo,
-        role_permission_repo=repositories.role_permission_repo,
-        permission_repo=repositories.permission_repo,
-        user_repo=repositories.user_repo,
-        tenant_repo=repositories.tenant_repo,
-        membership_repo=repositories.user_tenant_repo,
-        audit_repo=repositories.audit_entry_repo,
-        user_session=user_session,
-        tenant_context_service=tenant_context_service,
-        scope_exists_resolvers=scope_exists_resolvers,
-        allow_platform_customer_context=(
-            security_configuration.tenancy_mode
-            is TenancyMode.LOCAL_SINGLE_TENANT
-        ),
     )
-    auth_service.set_role_governance_service(role_governance_service)
     tenant_role_administration_service = TenantRoleAdministrationService(
         session=session,
         role_repo=repositories.role_repo,

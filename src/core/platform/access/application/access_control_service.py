@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 from sqlalchemy.orm import Session
 
@@ -34,11 +34,20 @@ if TYPE_CHECKING:
     from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth import UserSessionContext
     from src.core.platform.auth.application.auth_service import AuthService
+    from src.core.platform.auth.application.role_governance_service import RoleGovernanceService
+    from src.core.platform.auth.contracts import RoleBindingRepository, RoleRepository
     from src.core.platform.tenancy.contracts import UserTenantMembershipRepository
     from src.core.platform.tenancy.tenant_context import TenantContextService
 
 
 ScopeExistsResolver = Callable[[str, str], bool]
+
+# RBAC-TRANSITION-ONLY: scope types in this set write/read canonical
+# role_bindings instead of ScopedAccessGrant/ProjectMembership. The
+# ScopedAccessGrant-shaped translation below exists only so the legacy
+# desktop API/QML contract keeps working; delete it once those adapters
+# consume canonical role names directly, one scope type at a time.
+_CANONICAL_SCOPE_TYPES = frozenset({"project"})
 
 
 class AccessControlService:
@@ -56,6 +65,9 @@ class AccessControlService:
         enterprise_audit_service: "EnterpriseAuditService | None" = None,
         user_tenant_repo: "UserTenantMembershipRepository | None" = None,
         tenant_context_service: "TenantContextService | None" = None,
+        role_governance_service: "RoleGovernanceService | None" = None,
+        role_repo: "RoleRepository | None" = None,
+        role_binding_repo: "RoleBindingRepository | None" = None,
     ) -> None:
         self._session = session
         self._membership_repo = membership_repo
@@ -70,6 +82,9 @@ class AccessControlService:
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._user_tenant_repo = user_tenant_repo
+        self._role_governance_service = role_governance_service
+        self._role_repo = role_repo
+        self._role_binding_repo = role_binding_repo
         self._tenant_context_service = tenant_context_service
 
     def register_scope_policy(self, policy: ScopedRolePolicy) -> None:
@@ -101,6 +116,12 @@ class AccessControlService:
             normalized_scope_id,
             tenant_id=tenant_id,
         )
+        if normalized_scope_type in _CANONICAL_SCOPE_TYPES:
+            return self._list_canonical_scope_grants_for_scope(
+                normalized_scope_type,
+                normalized_scope_id,
+                tenant_id=tenant_id,
+            )
         if self._scoped_access_repo is not None:
             return self._scoped_access_repo.list_by_scope(normalized_scope_type, normalized_scope_id)
         if normalized_scope_type == "project":
@@ -134,17 +155,34 @@ class AccessControlService:
         )
         if normalized_scope_type is not None:
             self._require_scope_policy(normalized_scope_type)
+            if normalized_scope_type in _CANONICAL_SCOPE_TYPES:
+                return self._list_canonical_scope_grants_for_user(
+                    normalized_scope_type,
+                    normalized_user_id,
+                    tenant_id=tenant_id,
+                )
         if self._scoped_access_repo is not None:
-            return self._scoped_access_repo.list_by_user(normalized_user_id, scope_type=normalized_scope_type)
-        if normalized_scope_type in (None, "project"):
-            grants = [
+            legacy_grants = self._scoped_access_repo.list_by_user(normalized_user_id, scope_type=normalized_scope_type)
+        elif normalized_scope_type in (None, "project"):
+            legacy_grants = [
                 membership.as_scoped_access_grant()
                 for membership in self._membership_repo.list_by_user(normalized_user_id)
             ]
-            if normalized_scope_type is None:
-                return grants
-            return [grant for grant in grants if grant.scope_type == normalized_scope_type]
-        self._raise_unsupported_scope_type(normalized_scope_type)
+            if normalized_scope_type is not None:
+                legacy_grants = [grant for grant in legacy_grants if grant.scope_type == normalized_scope_type]
+        else:
+            self._raise_unsupported_scope_type(normalized_scope_type)
+        if normalized_scope_type is None:
+            legacy_grants = [grant for grant in legacy_grants if grant.scope_type not in _CANONICAL_SCOPE_TYPES]
+            for canonical_scope_type in _CANONICAL_SCOPE_TYPES:
+                legacy_grants.extend(
+                    self._list_canonical_scope_grants_for_user(
+                        canonical_scope_type,
+                        normalized_user_id,
+                        tenant_id=tenant_id,
+                    )
+                )
+        return legacy_grants
 
     def list_project_memberships(self, project_id: str) -> list[ProjectMembership]:
         return [
@@ -192,6 +230,18 @@ class AccessControlService:
             normalized_scope_id,
             tenant_id=tenant_id,
         )
+        if normalized_scope_type in _CANONICAL_SCOPE_TYPES:
+            grant = self._assign_canonical_scope_grant(
+                scope_type=normalized_scope_type,
+                scope_id=normalized_scope_id,
+                user_id=normalized_user_id,
+                role_name=role_name,
+                permissions=permissions,
+            )
+            domain_events.access_changed.emit(normalized_scope_id)
+            self._refresh_current_session_if_needed(normalized_user_id)
+            return grant
+
         entity_type = (
             "project_membership"
             if normalized_scope_type == "project"
@@ -290,6 +340,16 @@ class AccessControlService:
             normalized_scope_id,
             tenant_id=tenant_id,
         )
+        if normalized_scope_type in _CANONICAL_SCOPE_TYPES:
+            self._remove_canonical_scope_grant(
+                scope_type=normalized_scope_type,
+                scope_id=normalized_scope_id,
+                user_id=normalized_user_id,
+                tenant_id=tenant_id,
+            )
+            domain_events.access_changed.emit(normalized_scope_id)
+            self._refresh_current_session_if_needed(user_id)
+            return
         if self._scoped_access_repo is not None:
             grant = self._scoped_access_repo.get_for_scope_user(
                 normalized_scope_type,
@@ -332,6 +392,156 @@ class AccessControlService:
 
     def remove_project_membership(self, *, project_id: str, user_id: str) -> None:
         self.remove_scope_grant(scope_type="project", scope_id=project_id, user_id=user_id)
+
+    # RBAC-TRANSITION-ONLY: this block routes _CANONICAL_SCOPE_TYPES scopes to
+    # role_bindings while translating results back to the legacy
+    # ScopedAccessGrant shape. Delete it once the desktop API/QML adapters
+    # consume canonical role names directly for every cut-over scope type.
+    def _require_canonical_services(self):
+        if (
+            self._role_governance_service is None
+            or self._role_repo is None
+            or self._role_binding_repo is None
+        ):
+            authorization_denied(
+                self._user_session,
+                message="Canonical role-governance infrastructure is not configured.",
+                code="AUTHORIZATION_INFRASTRUCTURE_REQUIRED",
+                operation_label="govern a canonical scope-role grant",
+                operation="authorization.infrastructure.denied",
+            )
+        return self._role_governance_service, self._role_repo, self._role_binding_repo
+
+    @staticmethod
+    def _canonical_role_name(scope_type: str, scope_role: str) -> str:
+        return f"{scope_type}_{scope_role}"
+
+    @staticmethod
+    def _scope_role_from_canonical_role_name(scope_type: str, role_name: str) -> str:
+        prefix = f"{scope_type}_"
+        return role_name[len(prefix):] if role_name.startswith(prefix) else role_name
+
+    def _canonical_role_names_for_scope(self, scope_type: str) -> tuple[str, ...]:
+        return tuple(
+            self._canonical_role_name(scope_type, scope_role)
+            for scope_role in self.list_scope_role_choices(scope_type)
+        )
+
+    def _require_canonical_role(self, role_repo, scope_type: str, scope_role: str):
+        role = role_repo.get_by_name(self._canonical_role_name(scope_type, scope_role))
+        if role is None:
+            authorization_denied(
+                self._user_session,
+                message=(
+                    f"No canonical role is defined for {scope_type} scope role "
+                    f"'{scope_role}'."
+                ),
+                code="AUTHORIZATION_SCOPE_ROLE_UNDEFINED",
+                operation_label="govern a canonical scope-role grant",
+                target_scope_type=scope_type,
+                operation="authorization.infrastructure.denied",
+            )
+        return role
+
+    def _binding_to_scoped_access_grant(self, binding, *, scope_type: str, role) -> ScopedAccessGrant:
+        scope_role = self._scope_role_from_canonical_role_name(scope_type, role.name)
+        return ScopedAccessGrant(
+            id=binding.id,
+            scope_type=scope_type,
+            scope_id=binding.actual_scope_id or "",
+            user_id=binding.principal_id,
+            scope_role=scope_role,
+            permission_codes=sorted(self._resolve_scope_permissions(scope_type, scope_role)),
+            created_at=binding.assigned_at,
+        )
+
+    def _assign_canonical_scope_grant(
+        self,
+        *,
+        scope_type: str,
+        scope_id: str,
+        user_id: str,
+        role_name: str,
+        permissions: list[str],
+    ) -> ScopedAccessGrant:
+        role_governance_service, role_repo, _ = self._require_canonical_services()
+        role = self._require_canonical_role(role_repo, scope_type, role_name)
+        binding = role_governance_service.assign_role(
+            target_user_id=user_id,
+            role_id=role.id,
+            actual_scope_id=scope_id,
+        )
+        return ScopedAccessGrant(
+            id=binding.id,
+            scope_type=scope_type,
+            scope_id=scope_id,
+            user_id=user_id,
+            scope_role=role_name,
+            permission_codes=permissions,
+            created_at=binding.assigned_at,
+        )
+
+    def _remove_canonical_scope_grant(
+        self,
+        *,
+        scope_type: str,
+        scope_id: str,
+        user_id: str,
+        tenant_id: str,
+    ) -> None:
+        role_governance_service, _, role_binding_repo = self._require_canonical_services()
+        bindings = [
+            binding
+            for binding in role_binding_repo.list_active_for_principal(user_id, tenant_id=tenant_id)
+            if binding.actual_scope_type == scope_type and binding.actual_scope_id == scope_id
+        ]
+        if not bindings:
+            raise NotFoundError(
+                f"{scope_type.title()} membership not found.",
+                code=f"{scope_type.upper()}_MEMBERSHIP_NOT_FOUND",
+            )
+        for binding in bindings:
+            role_governance_service.revoke_role_binding(binding.id)
+
+    def _list_canonical_scope_grants_for_scope(
+        self,
+        scope_type: str,
+        scope_id: str,
+        *,
+        tenant_id: str,
+    ) -> list[ScopedAccessGrant]:
+        _, role_repo, role_binding_repo = self._require_canonical_services()
+        grants: list[ScopedAccessGrant] = []
+        for role_name in self._canonical_role_names_for_scope(scope_type):
+            role = role_repo.get_by_name(role_name)
+            if role is None:
+                continue
+            for binding in role_binding_repo.list_active_for_role(role.id, tenant_id=tenant_id):
+                if binding.actual_scope_type == scope_type and binding.actual_scope_id == scope_id:
+                    grants.append(
+                        self._binding_to_scoped_access_grant(binding, scope_type=scope_type, role=role)
+                    )
+        return grants
+
+    def _list_canonical_scope_grants_for_user(
+        self,
+        scope_type: str,
+        user_id: str,
+        *,
+        tenant_id: str,
+    ) -> list[ScopedAccessGrant]:
+        _, role_repo, role_binding_repo = self._require_canonical_services()
+        grants: list[ScopedAccessGrant] = []
+        for binding in role_binding_repo.list_active_for_principal(user_id, tenant_id=tenant_id):
+            if binding.actual_scope_type != scope_type:
+                continue
+            role = role_repo.get(binding.role_id)
+            if role is None:
+                continue
+            grants.append(
+                self._binding_to_scoped_access_grant(binding, scope_type=scope_type, role=role)
+            )
+        return grants
 
     def _require_scope_policy(self, scope_type: str) -> ScopedRolePolicy:
         return self._policy_registry.get(scope_type)
@@ -431,7 +641,7 @@ class AccessControlService:
         )
 
     @staticmethod
-    def _raise_unsupported_scope_type(scope_type: str) -> None:
+    def _raise_unsupported_scope_type(scope_type: str) -> NoReturn:
         raise ValidationError(
             f"Unsupported scope type '{scope_type}'.",
             code="UNSUPPORTED_SCOPE_TYPE",

@@ -71,6 +71,8 @@ class CollaborationService(
         user_session=None,
         module_catalog_service=None,
         tenant_context_service=None,
+        role_repo=None,
+        role_binding_repo=None,
     ) -> None:
         self._session = session
         self._comment_repo = comment_repo
@@ -84,6 +86,8 @@ class CollaborationService(
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
+        self._role_repo = role_repo
+        self._role_binding_repo = role_binding_repo
         self._presence_ttl_seconds = max(int(os.getenv("PM_TASK_PRESENCE_TTL_SECONDS", "900") or 900), 60)
 
 

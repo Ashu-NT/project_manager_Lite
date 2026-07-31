@@ -1039,6 +1039,8 @@ allowed. Closing the migration includes a dedicated dead-code removal change; re
 | --- | --- | --- |
 | `UserRoleBinding`, `UserRoleORM`, `UserRoleRepository`, and their SQLAlchemy adapter | Canonical resource fixtures/adapters and isolation tests pass; superseded preparation tooling is deleted; no source reference remains | Nothing; no customer migration evidence exists |
 | Legacy scoped-grant/project-membership projection in principal construction | Canonical bindings own organization viewer/member and resource authority as well as login, restore, tenant switch, and organization switch | Permanent canonical resolver and platform/tenant/organization-role regression tests |
+| `AccessControlService`'s `ScopedAccessGrant`-shaped translation for `_CANONICAL_SCOPE_TYPES` (project, and each following cut-over scope) | Desktop API/QML adapters consume canonical role names directly for every cut-over scope type | Permanent `RoleGovernanceService`/`CanonicalRoleResolver` cutover and their regression tests |
+| `CollaborationSupportMixin`'s legacy `project_membership_repo` fallback in `_list_mention_candidates_for_project` | Every `CollaborationService` construction site supplies `role_repo`/`role_binding_repo` | Canonical project-membership mention resolution |
 | `AuthorizationMigrationMode`, `PM_AUTHORIZATION_MIGRATION_MODE`, and mode-gating branches/tests | Every runtime decision is canonical and configuration no longer consumes the switch | Nothing |
 | `AuthorizationMigrationBatch`, `LegacyRoleBindingMigrationRecord`, their ORM/repository adapters, and runtime tables | Direct cutover no longer imports legacy rows; cleanup revision is ready | Alembic revision history only |
 | Legacy binding migration planner, preparation service, operator CLI, and focused tests | Canonical fixture/seed paths are complete and direct cutover tests pass | Nothing |
@@ -1127,9 +1129,12 @@ membership lifecycle, internal authorized invitation orchestration, and direct p
 plus explicit organization-role authority cutover are implemented. Internal tenant custom-role lifecycle commands are
 implemented, but no external delivery or public invitation/role adapter has been enabled.
 Canonical `org_viewer`/`org_member` role definitions and their direct cutover are implemented,
-retiring the legacy organization scoped-grant path entirely. Generic project/site/storeroom/
-maintenance resource authority remain legacy-authoritative until their own direct scoped
-cutover packages replace them without fallback.
+retiring the legacy organization scoped-grant path entirely. Canonical project-scope roles
+(`project_viewer`/`project_contributor`/`project_lead`/`project_owner`) and their direct cutover
+are also implemented; project-role assignment remains fail-closed pending deliberate delegation-
+policy provisioning (`tools/provision_scope_delegations.py`). Generic site/storeroom/maintenance
+resource authority remain legacy-authoritative until their own direct scoped cutover packages
+replace them without fallback.
 
 - Extend membership lifecycle fields. Implemented additively with internal token issuance,
   authenticated acceptance, administrative transitions, targeted session invalidation, and
@@ -1221,15 +1226,19 @@ Current Phase 2 foundation:
   canonical platform/tenant authority without legacy fallback. Explicit organization roles are
   also canonical and generic registration/role APIs reject them without an explicit scope.
   `org_viewer`/`org_member` are now canonical too, and the legacy organization scoped-grant
-  path is retired; generic project/site/storeroom/maintenance resource grants remain the next
-  targets.
+  path is retired. `CanonicalRoleResolver.resolve_principal_authority()` now also resolves
+  project scope, `AccessControlService` writes/reads project grants through
+  `RoleGovernanceService` instead of `ScopedAccessGrant`/`ProjectMembership`, and
+  `project_viewer`/`project_contributor`/`project_lead`/`project_owner` delegation remains
+  fail-closed pending reviewed provisioning. Generic site/storeroom/maintenance resource grants
+  remain the next targets.
 
 ### Phase 3: Principal and authorization-engine cutover
 
 Status: In progress. The complete legacy/canonical dependency map, permanent canonical
-effective-authority resolver, and platform/tenant plus explicit organization-role (including
-`org_viewer`/`org_member`) authority cutovers are implemented. Generic resource principal
-cutovers (project/site/storeroom/maintenance) remain.
+effective-authority resolver, and platform/tenant/organization-role (including
+`org_viewer`/`org_member`) plus project-role authority cutovers are implemented. Generic
+site/storeroom/maintenance resource principal cutovers remain.
 
 - Replace the containment builder with principal construction over canonical bindings and
   explicit tenant and organization context.
@@ -1936,6 +1945,65 @@ Organization viewer/member cutover ledger, 2026-07-31:
   and indirectly affected files with no regressions.
 - No application database was migrated, reset, backfilled, or otherwise modified by this work.
 
+Project-scope cutover ledger, 2026-07-31:
+
+- Added canonical `project_viewer`/`project_contributor`/`project_lead`/`project_owner` role
+  definitions (policy version bumped to 4), copied verbatim from the existing
+  `PROJECT_SCOPE_ROLE_PERMISSIONS` sets in `src/core/modules/project_management/access/policy.py`
+  so the effective permission grants are unchanged. `EXPLICIT_SCOPE_ROLE_NAMES`/
+  `system_role_scope_type` now split explicitly between organization-scoped and
+  project-scoped names.
+- Unlike organization scope, project-scope assignment is a real, live desktop feature
+  (project_service.list_projects() is wired into the Admin Console's Roles & Access screen) with
+  a real downstream dependency: PM collaboration `@mention` resolution reads project membership
+  directly. `RoleGovernanceService.assign_role` requires an active `RoleDelegationPolicy`, and no
+  delegation policy is auto-seeded anywhere in this codebase, so a naive redirect would have
+  fail-closed every existing project-assignment action.
+- Added a reviewed, dry-run-by-default provisioning mechanism instead of auto-seeding:
+  `ScopeDelegationProvisioningService` (preview/apply, hash-pinned against a code-owned
+  `DEFAULT_SCOPE_DELEGATIONS` catalog) and `tools/provision_scope_delegations.py`, mirroring the
+  existing system-role-policy reconciliation tool's discipline. The catalog currently covers
+  `access_admin` (today's only customer-facing `access.manage` holder) delegating each of the
+  four project roles, as global (`tenant_id=None`) policies — `RoleDelegationPolicyRepository`
+  already falls back to global policies when no tenant-specific one exists, so one policy per
+  role pair covers every tenant.
+- Registered a `"project"` scope-tenant resolver on both `RoleGovernanceService` and
+  `CanonicalRoleResolver` (via a new `register_scope_tenant_resolver`/
+  `register_canonical_scope_tenant_resolver` pair, reusing the same tenant-ownership lambda
+  already registered on `AccessControlService`), since only `AccessControlService` had one before.
+- Cut over `AccessControlService.assign_scope_grant`/`remove_scope_grant`/`list_scope_grants`/
+  `list_user_scope_grants` for `scope_type="project"` to read/write canonical `role_bindings`
+  through `RoleGovernanceService`, translating results back into the legacy
+  `ScopedAccessGrant` shape so the existing desktop API/QML contract keeps working unchanged
+  (`_CANONICAL_SCOPE_TYPES` marks which scope types have cut over; the translation itself is
+  `RBAC-TRANSITION-ONLY` and will be deleted once the adapters consume canonical role names
+  directly).
+- Added `CanonicalRoleResolver.resolve_principal_authority()` (platform/tenant/organization plus
+  an explicit `cutover_resource_scope_types` set) and switched `principal_builder.build_principal`
+  to it, dropping legacy `"project"` scoped-access rows before merging so canonical bindings are
+  project scope's sole authority source. `resolve_organization_authority` is left unchanged for
+  its existing callers/tests.
+- Found and fixed a real regression during verification: `CollaborationSupportMixin._list_mention_
+  candidates_for_project` read project membership directly from the legacy
+  `ProjectMembershipRepository` (`project_memberships` table), which
+  `SqlAlchemyScopedAccessGrantRepository.add()` used to keep in sync via an internal redirect for
+  `scope_type="project"`. That redirect is bypassed entirely once assignment writes
+  `role_bindings` instead. Added canonical `role_repo`/`role_binding_repo` reads to
+  `CollaborationService`, used whenever both are wired (real composition always wires them now);
+  the legacy read remains only for test-double constructions that do not.
+- Added policy-level, seeding, `build_principal`, project-scope-isolation, and legacy-grant
+  (`ScopedAccessGrant` and `ProjectMembership`) no-authority regression tests mirroring the
+  organization-scope tranche, plus `RoleGovernanceService` project-assignment and
+  unresolvable-scope tests, plus delegation-provisioning preview/apply/hash-mismatch/
+  missing-role tests. Verified 109 focused tests across every directly and indirectly affected
+  file (including the fixed collaboration regression) with no other regressions; the one
+  remaining failure encountered (`test_no_python_module_exceeds_hard_line_limit` picking up the
+  local `pmenv/` virtualenv) is a pre-existing environmental artifact unrelated to this work.
+- No application database was migrated, reset, backfilled, or otherwise modified by this work.
+  Delegation policies remain unprovisioned until an operator deliberately runs
+  `tools/provision_scope_delegations.py --apply`; project-role assignment stays fail-closed until
+  then, matching the fail-closed-until-reviewed posture used throughout this program.
+
 ### Repository re-audit, 2026-07-29
 
 Phases 0, 1, and 2 all remain in progress. The current snapshot was re-audited across domain
@@ -2006,16 +2074,33 @@ Completed in the current containment tranche:
   `RoleGovernanceService.assign_role` is the sole assignment path for all three organization
   roles. No adapter/UI is wired yet (matching the existing `org_admin` state); the legacy
   desktop panel never exposed organization scope, so nothing customer-visible changed.
+- Defined canonical `project_viewer`/`project_contributor`/`project_lead`/`project_owner` role
+  definitions and directly cut over project scope, a live desktop feature unlike organization
+  scope. `AccessControlService` now writes/reads project grants exclusively through
+  `RoleGovernanceService`/`role_bindings`, translating results back to the legacy
+  `ScopedAccessGrant` shape so the existing desktop API/QML contract is unchanged.
+  `principal_builder` no longer merges legacy project-scope rows. Because project-role
+  assignment is live and no delegation policy is auto-seeded, added a reviewed
+  dry-run/apply provisioning tool (`tools/provision_scope_delegations.py`,
+  `ScopeDelegationProvisioningService`) instead of redirecting the write path unconditionally;
+  assignment stays fail-closed until an operator deliberately runs it. Found and fixed one real
+  regression along the way: PM collaboration `@mention` resolution read project membership
+  directly from the legacy `ProjectMembershipRepository`, bypassing the cutover entirely.
 
 Remaining work, in order:
 
-1. Define deterministic canonical role definitions for each remaining
-   project/site/storeroom/maintenance scope choice, including explicit unrestricted-vs-scoped
-   permission semantics. Then replace scoped-grant/project-membership decision sources one
-   scope at a time without fallback, following the organization-scope cutover already done.
-2. Add the reviewed invitation delivery/account-onboarding adapter without exposing raw tokens
+1. Provision the reviewed `access_admin` → project-role delegation policies
+   (`tools/provision_scope_delegations.py --apply`) in each deployed environment once reviewed,
+   so project-role assignment through the desktop API stops being fail-closed.
+2. Define deterministic canonical role definitions for each remaining site/storeroom/maintenance
+   scope choice, including explicit unrestricted-vs-scoped permission semantics. Then replace
+   their scoped-grant/project-membership decision sources one scope at a time without fallback,
+   following the organization- and project-scope cutovers already done. Audit each scope's
+   consumers for the same class of direct-legacy-repository read the project-scope cutover found
+   in `CollaborationSupportMixin` before assuming a scope is fully cut over.
+3. Add the reviewed invitation delivery/account-onboarding adapter without exposing raw tokens
    through generic transports.
-3. Update fixtures and seed data, run migration-created and cross-tenant tests, explicitly reset
+4. Update fixtures and seed data, run migration-created and cross-tenant tests, explicitly reset
    development databases, then delete every transition-only and legacy-authority component and
    apply a cleanup migration before the first release.
 

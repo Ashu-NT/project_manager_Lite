@@ -109,6 +109,15 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         )
         self._role_governance_service: RoleGovernanceService | None = None
 
+    def register_canonical_scope_tenant_resolver(
+        self,
+        scope_type: str,
+        resolver: ScopeTenantResolver,
+    ) -> None:
+        self._require_canonical_role_resolver().register_scope_tenant_resolver(
+            scope_type, resolver
+        )
+
     def _require_canonical_role_resolver(self) -> CanonicalRoleResolver:
         if self._canonical_role_resolver is None:
             raise BusinessRuleError(

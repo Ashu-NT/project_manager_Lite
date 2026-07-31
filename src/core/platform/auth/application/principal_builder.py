@@ -14,6 +14,12 @@ if TYPE_CHECKING:
 
 _CONTEXT_UNSET = object()
 
+# RBAC-TRANSITION-ONLY: resource scope types already cut over to canonical
+# role_bindings. Grows one entry at a time as project/site/storeroom/
+# maintenance each replace their legacy scoped-grant decision source; delete
+# this constant and the pop loop below once every resource scope is cut over.
+_CUTOVER_RESOURCE_SCOPE_TYPES = frozenset({"project"})
+
 
 # RBAC-TRANSITION-ONLY: Remove this legacy scoped-grant/project-membership
 # projection after each resource policy writes canonical role bindings.
@@ -216,10 +222,11 @@ def build_principal(
             code="PLATFORM_CUSTOMER_CONTEXT_DENIED",
         )
     canonical_authority = (
-        service._require_canonical_role_resolver().resolve_organization_authority(
+        service._require_canonical_role_resolver().resolve_principal_authority(
             user.id,
             tenant_id=resolved_tenant_id,
             organization_id=resolved_organization_id,
+            cutover_resource_scope_types=_CUTOVER_RESOURCE_SCOPE_TYPES,
         )
     )
     transitional_scoped_access = _load_scoped_access(
@@ -228,9 +235,12 @@ def build_principal(
         tenant_id=resolved_tenant_id,
         organization_id=resolved_organization_id,
     )
-    # RBAC-TRANSITION-ONLY: organization scope is canonical-only; drop any
-    # legacy row so a stale scoped_access_grants row grants no authority.
+    # RBAC-TRANSITION-ONLY: organization and cut-over resource scopes are
+    # canonical-only; drop any legacy row so a stale scoped_access_grants
+    # row grants no authority.
     transitional_scoped_access.pop("organization", None)
+    for scope_type in _CUTOVER_RESOURCE_SCOPE_TYPES:
+        transitional_scoped_access.pop(scope_type, None)
     scoped_access = _merge_scoped_access(
         canonical_authority.scoped_access,
         transitional_scoped_access,

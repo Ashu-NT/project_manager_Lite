@@ -28,14 +28,32 @@ class CollaborationSupportMixin:
             tasks.extend(self._task_repo.list_by_project(project.id))
         return tasks, project_name_by_id
 
+    # RBAC-TRANSITION-ONLY: the `else` branch below reads legacy
+    # project_memberships directly for test doubles that do not wire
+    # role_repo/role_binding_repo. Delete it once every such construction
+    # site supplies the canonical dependencies.
     def _list_mention_candidates_for_project(self, project_id: str) -> list[CollaborationMentionCandidate]:
         candidates: list[CollaborationMentionCandidate] = []
         seen_user_ids: set[str] = set()
-        for membership in self._project_membership_repo.list_by_project(project_id):
-            permissions = {str(code).strip() for code in membership.permission_codes}
+        tenant_id = (
+            self._tenant_context_service.get_active_tenant_id()
+            if self._tenant_context_service is not None
+            else None
+        )
+        if tenant_id is not None and self._role_repo is not None and self._role_binding_repo is not None:
+            membership_rows = list(
+                self._canonical_project_membership_rows(project_id, tenant_id=tenant_id)
+            )
+        else:
+            membership_rows = [
+                (membership.user_id, membership.scope_role, tuple(membership.permission_codes))
+                for membership in self._project_membership_repo.list_by_project(project_id)
+            ]
+        for user_id, scope_role, permission_codes in membership_rows:
+            permissions = {str(code).strip() for code in permission_codes}
             if permissions.isdisjoint({"collaboration.read", "collaboration.manage"}):
                 continue
-            user = self._user_repo.get(membership.user_id)
+            user = self._user_repo.get(user_id)
             if user is None or not user.is_active:
                 continue
             if user.id in seen_user_ids:
@@ -46,7 +64,7 @@ class CollaborationSupportMixin:
                     user_id=user.id,
                     username=user.username,
                     display_name=user.display_name,
-                    scope_role=membership.scope_role,
+                    scope_role=scope_role,
                 )
             )
 
@@ -66,6 +84,19 @@ class CollaborationSupportMixin:
                     )
 
         return sorted(candidates, key=lambda item: ((item.display_name or item.username).lower(), item.username.lower()))
+
+    def _canonical_project_membership_rows(self, project_id: str, *, tenant_id: str):
+        for role_name in ("project_viewer", "project_contributor", "project_lead", "project_owner"):
+            role = self._role_repo.get_by_name(role_name)
+            if role is None:
+                continue
+            for binding in self._role_binding_repo.list_active_for_role(role.id, tenant_id=tenant_id):
+                if binding.actual_scope_type == "project" and binding.actual_scope_id == project_id:
+                    yield (
+                        binding.principal_id,
+                        role_name.removeprefix("project_"),
+                        ("collaboration.read",),
+                    )
 
     def _principal_can_access_project(self, project_id: str | None) -> bool:
         if not project_id or self._user_session is None:

@@ -273,6 +273,35 @@ _ORG_ADMIN = {
 _ORG_VIEWER = set(_VIEWER)
 _ORG_MEMBER = set(_TEAM_MEMBER)
 
+_PROJECT_VIEWER = {
+    "project.read",
+    "task.read",
+    "cost.read",
+    "register.read",
+    "report.view",
+    "collaboration.read",
+}
+
+_PROJECT_CONTRIBUTOR = _PROJECT_VIEWER | {
+    "task.manage",
+    "collaboration.manage",
+    "timesheet.submit",
+}
+
+_PROJECT_LEAD = _PROJECT_CONTRIBUTOR | {
+    "cost.manage",
+    "baseline.manage",
+    "register.manage",
+    "report.export",
+    "approval.request",
+}
+
+_PROJECT_OWNER = _PROJECT_LEAD | {
+    "project.manage",
+    "timesheet.approve",
+    "timesheet.lock",
+}
+
 DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "viewer": set(_VIEWER),
     "team_member": set(_TEAM_MEMBER),
@@ -295,11 +324,15 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "org_admin": set(_ORG_ADMIN),
     "org_viewer": set(_ORG_VIEWER),
     "org_member": set(_ORG_MEMBER),
+    "project_viewer": set(_PROJECT_VIEWER),
+    "project_contributor": set(_PROJECT_CONTRIBUTOR),
+    "project_lead": set(_PROJECT_LEAD),
+    "project_owner": set(_PROJECT_OWNER),
     "admin": set(DEFAULT_PERMISSIONS.keys()),
 }
 
 SYSTEM_ROLE_POLICY_NAME = "system-role-permissions"
-SYSTEM_ROLE_POLICY_VERSION = 3
+SYSTEM_ROLE_POLICY_VERSION = 4
 
 
 def login_lockout_threshold() -> int:

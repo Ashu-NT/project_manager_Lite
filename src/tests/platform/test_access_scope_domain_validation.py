@@ -282,18 +282,10 @@ def test_access_service_uses_entity_validation_for_memberships_and_grants(
     assert updated.id == grant.id
     assert updated.permission_codes == ["site.read"]
 
-    membership = service.assign_project_membership(
-        project_id="  project-1  ",
-        user_id="  user-1  ",
-        scope_role="  lead  ",
-    )
-    assert membership.project_id == "project-1"
-    assert membership.user_id == "user-1"
-    assert membership.scope_role == "lead"
-    assert membership.permission_codes == ["project.manage", "project.read"]
-
-    listed = service.list_user_memberships("  user-1  ")
-    assert [row.project_id for row in listed] == ["project-1"]
+    # Project scope now routes through canonical role_bindings and is covered
+    # end-to-end (with real role_repo/role_binding_repo) in
+    # test_platform_access_scopes.py; this fake service has no canonical
+    # dependencies wired, matching every other scope type this file exercises.
 
     with pytest.raises(ValidationError) as exc_scope:
         service.assign_scope_grant(
