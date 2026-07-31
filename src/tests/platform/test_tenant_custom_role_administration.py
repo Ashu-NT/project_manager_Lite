@@ -52,20 +52,6 @@ def _set_tenant_admin(services, *, username: str = "custom-role-admin"):
         ].get_active_organization_id(),
     )
     assert {"auth.manage", "auth.role.assign"} <= principal.permissions
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    assert actor_role is not None
-    services[
-        "tenant_role_administration_service"
-    ]._role_binding_repo.add(
-        RoleBinding.create(
-            principal_id=actor.id,
-            role_id=actor_role.id,
-            tenant_id=tenant_id,
-            actual_scope_type=ROLE_SCOPE_TENANT,
-            assigned_by=services["user_session"].principal.user_id,
-        )
-    )
-    services["session"].commit()
     services["user_session"].set_principal(principal)
     return actor
 
@@ -198,7 +184,7 @@ def test_customer_role_manager_requires_canonical_tenant_scope(
     actor = auth.register_user(
         "organization-scoped-role-manager",
         _PASSWORD,
-        role_names=["tenant_admin"],
+        role_names=[],
         tenant_id=tenant_id,
     )
     principal = auth.build_principal_for_context(
@@ -208,7 +194,14 @@ def test_customer_role_manager_requires_canonical_tenant_scope(
             "tenant_context_service"
         ].get_active_organization_id(),
     )
-    services["user_session"].set_principal(principal)
+    services["user_session"].set_principal(
+        replace(
+            principal,
+            permissions=frozenset(
+                {*principal.permissions, "auth.manage", "auth.role.assign"}
+            ),
+        )
+    )
 
     with pytest.raises(BusinessRuleError) as exc_info:
         services[

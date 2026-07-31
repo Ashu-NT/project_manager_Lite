@@ -180,6 +180,15 @@ def test_resolves_tenant_and_resource_authority(services) -> None:
         "project": {"project-1": frozenset({"task.manage"})}
     }
 
+    tenant_authority = _resolver(services).resolve_tenant_authority(
+        user.id,
+        tenant_id=tenant_id,
+    )
+    assert tenant_authority.role_names == {"viewer"}
+    assert "project.read" in tenant_authority.permissions
+    assert "task.manage" not in tenant_authority.permissions
+    assert tenant_authority.scoped_access == {}
+
 
 def test_organization_role_is_effective_only_in_active_organization(services) -> None:
     repositories = _role_repositories(services)

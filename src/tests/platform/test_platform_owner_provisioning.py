@@ -32,7 +32,6 @@ def _build_auth_service(session) -> tuple[AuthService, RepositoryBundle]:
             user_repo=repositories.user_repo,
             role_repo=repositories.role_repo,
             permission_repo=repositories.permission_repo,
-            user_role_repo=repositories.user_role_repo,
             role_permission_repo=repositories.role_permission_repo,
             role_binding_repo=repositories.role_binding_repo,
             auth_session_repo=repositories.auth_session_repo,

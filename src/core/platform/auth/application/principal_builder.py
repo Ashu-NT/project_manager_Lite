@@ -15,38 +15,8 @@ if TYPE_CHECKING:
 _CONTEXT_UNSET = object()
 
 
-def _permissions_for_role_ids(
-    service: AuthService,
-    role_ids: set[str],
-) -> set[str]:
-    permission_ids: set[str] = set()
-    for role_id in role_ids:
-        permission_ids.update(
-            service._role_permission_repo.list_permission_ids(role_id)
-        )
-    permission_codes = {
-        permission.id: permission.code
-        for permission in service._permission_repo.list_all()
-    }
-    return {
-        permission_codes[permission_id]
-        for permission_id in permission_ids
-        if permission_id in permission_codes
-    }
-
-
-def _role_names_by_id(
-    service: AuthService,
-    role_ids: set[str],
-) -> dict[str, str]:
-    names: dict[str, str] = {}
-    for role_id in role_ids:
-        role = service._role_repo.get(role_id)
-        if role is not None:
-            names[role_id] = role.name
-    return names
-
-
+# RBAC-TRANSITION-ONLY: Remove this legacy scoped-grant/project-membership
+# projection after each resource policy writes canonical role bindings.
 def _load_scoped_access(
     service: AuthService,
     user_id: str,
@@ -112,6 +82,22 @@ def _load_scoped_access(
     return scoped_access
 
 
+def _merge_scoped_access(
+    *sources: dict[str, dict[str, frozenset[str]]],
+) -> dict[str, dict[str, frozenset[str]]]:
+    merged: dict[str, dict[str, frozenset[str]]] = {}
+    for source in sources:
+        for scope_type, scope_rows in source.items():
+            target_rows = merged.setdefault(scope_type, {})
+            for scope_id, permissions in scope_rows.items():
+                target_rows[scope_id] = frozenset(
+                    set(target_rows.get(scope_id, frozenset())).union(
+                        permissions
+                    )
+                )
+    return merged
+
+
 def build_principal(
     service: AuthService,
     user: UserAccount,
@@ -120,8 +106,6 @@ def build_principal(
     active_tenant_id: str | None | object = _CONTEXT_UNSET,
     active_organization_id: str | None | object = _CONTEXT_UNSET,
 ) -> UserSessionPrincipal:
-    # RBAC-TRANSITION-ONLY: Legacy-authoritative principal construction.
-    # Remove after canonical building owns login, restore, and context switching.
     context_is_explicit = (
         active_tenant_id is not _CONTEXT_UNSET
         or active_organization_id is not _CONTEXT_UNSET
@@ -141,12 +125,6 @@ def build_principal(
         resolved_session_id = None
 
     platform_authority = service._canonical_platform_authority(user.id)
-    global_role_ids = service._legacy_customer_role_ids(user.id)
-    global_role_names = _role_names_by_id(service, global_role_ids)
-    global_permissions = _permissions_for_role_ids(
-        service,
-        global_role_ids,
-    ).union(platform_authority.permissions)
     is_platform_operator = (
         "platform.admin" in platform_authority.permissions
     )
@@ -237,89 +215,30 @@ def build_principal(
             "Platform authority cannot enter ordinary customer context.",
             code="PLATFORM_CUSTOMER_CONTEXT_DENIED",
         )
-    scoped_access = _load_scoped_access(
+    canonical_authority = (
+        service._require_canonical_role_resolver().resolve_organization_authority(
+            user.id,
+            tenant_id=resolved_tenant_id,
+            organization_id=resolved_organization_id,
+        )
+    )
+    transitional_scoped_access = _load_scoped_access(
         service,
         user.id,
         tenant_id=resolved_tenant_id,
         organization_id=resolved_organization_id,
     )
-
-    membership_ids = (
-        service._user_tenant_repo.list_tenant_ids_for_user(user.id)
-        if service._user_tenant_repo is not None
-        else []
+    scoped_access = _merge_scoped_access(
+        canonical_authority.scoped_access,
+        transitional_scoped_access,
     )
-    effective_role_ids = set(global_role_ids)
-    tenant_admin_ids = {
-        role_id
-        for role_id, role_name in global_role_names.items()
-        if role_name == "tenant_admin"
-    }
-    if tenant_admin_ids and not is_platform_operator:
-        is_unambiguous_tenant_admin = (
-            len(membership_ids) == 1
-            and resolved_tenant_id == membership_ids[0]
-        )
-        if resolved_tenant_id is not None and len(membership_ids) > 1:
-            raise BusinessRuleError(
-                "Legacy tenant administrator scope is ambiguous and requires migration.",
-                code="LEGACY_TENANT_ADMIN_AMBIGUOUS",
-            )
-        if not is_unambiguous_tenant_admin:
-            effective_role_ids.difference_update(tenant_admin_ids)
-
-    organization_role_ids: set[str] = set()
-    if resolved_organization_id is not None:
-        organization_role_ids.update(
-            service._user_role_repo.list_role_ids_for_organization(
-                user.id,
-                resolved_organization_id,
-            )
-        )
-        effective_role_ids.update(organization_role_ids)
-
-    effective_role_names = _role_names_by_id(service, effective_role_ids)
-    global_org_admin_ids = {
-        role_id
-        for role_id, role_name in global_role_names.items()
-        if role_name == "org_admin"
-    }
-    organization_scope_ids = set(
-        scoped_access.get("organization", {}).keys()
-    )
-    has_explicit_org_admin_scope = (
-        resolved_organization_id is not None
-        and (
-            resolved_organization_id in organization_scope_ids
-            or any(
-                effective_role_names.get(role_id) == "org_admin"
-                for role_id in organization_role_ids
-            )
-        )
-    )
-    if (
-        global_org_admin_ids
-        and not is_platform_operator
-        and not has_explicit_org_admin_scope
-    ):
-        effective_role_ids.difference_update(global_org_admin_ids)
-        effective_role_names = _role_names_by_id(service, effective_role_ids)
-
     project_access = dict(scoped_access.get("project", {}))
     return UserSessionPrincipal(
         user_id=user.id,
         username=user.username,
         display_name=user.display_name,
-        role_names=frozenset(
-            set(effective_role_names.values()).union(
-                platform_authority.role_names
-            )
-        ),
-        permissions=frozenset(
-            _permissions_for_role_ids(service, effective_role_ids).union(
-                platform_authority.permissions
-            )
-        ),
+        role_names=canonical_authority.role_names,
+        permissions=canonical_authority.permissions,
         scoped_access=scoped_access,
         project_access=project_access,
         session_expires_at=ensure_utc_datetime(

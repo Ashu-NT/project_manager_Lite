@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.infrastructure.persistence.orm.audit_entry import AuditEntryORM
+from src.core.platform.infrastructure.persistence.orm.auth import UserRoleORM
 from src.core.platform.tenancy import (
     MEMBERSHIP_STATUS_ACTIVE,
     MEMBERSHIP_STATUS_INVITED,
@@ -24,7 +25,6 @@ def _register_user(services, username: str):
         username,
         _PASSWORD,
         display_name=username,
-        role_names=("viewer",),
     )
 
 
@@ -90,7 +90,12 @@ def test_invitation_acceptance_is_self_scoped_atomic_and_one_time(
         )
     )
     assert any(binding.role_id == viewer.id for binding in active_bindings)
-    assert membership_service._user_role_repo.exists(target.id, viewer.id)
+    assert session.execute(
+        select(UserRoleORM.id).where(
+            UserRoleORM.user_id == target.id,
+            UserRoleORM.role_id == viewer.id,
+        )
+    ).scalar_one_or_none() is None
     assert _audit_actions(session, accepted.id) == [
         "tenant.membership.invitation_issued",
         "tenant.membership.invitation_accepted",
@@ -298,12 +303,12 @@ def test_membership_administration_requires_permission_and_blocks_self_lockout(
     assert issued.membership.status == MEMBERSHIP_STATUS_INVITED
 
 
-def test_invitation_denies_ambiguous_legacy_role_activation(
+def test_invitation_rejects_an_existing_canonical_tenant_member(
     services,
 ) -> None:
     membership_service = services["tenant_membership_service"]
     tenant_id = services["tenant_context_service"].require_active_tenant_id(
-        operation_label="test ambiguous invitation role"
+        operation_label="test existing canonical member"
     )
     target = services["auth_service"].register_user(
         "ambiguous_role_target",
@@ -311,14 +316,17 @@ def test_invitation_denies_ambiguous_legacy_role_activation(
         role_names=("planner",),
     )
 
-    with pytest.raises(BusinessRuleError) as ambiguous_error:
+    with pytest.raises(BusinessRuleError) as membership_error:
         membership_service.issue_invitation(
             target.id,
             expires_at=datetime.now(timezone.utc) + timedelta(days=1),
         )
 
-    assert ambiguous_error.value.code == "TENANT_INVITATION_LEGACY_ROLE_AMBIGUOUS"
-    assert membership_service._membership_repo.get(target.id, tenant_id) is None
+    assert membership_error.value.code == "TENANT_MEMBERSHIP_ALREADY_ACTIVE"
+    assert membership_service._membership_repo.is_active_member(
+        target.id,
+        tenant_id,
+    )
 
 
 def test_invitation_expiry_is_bounded(

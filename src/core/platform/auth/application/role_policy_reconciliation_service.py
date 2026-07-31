@@ -17,7 +17,6 @@ from src.core.platform.auth.contracts import (
     RolePermissionRepository,
     RoleRepository,
     UserRepository,
-    UserRoleRepository,
 )
 from src.core.platform.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.auth.domain import (
@@ -77,7 +76,6 @@ class RolePolicyReconciliationService:
         role_repo: RoleRepository,
         permission_repo: PermissionRepository,
         role_permission_repo: RolePermissionRepository,
-        user_role_repo: UserRoleRepository,
         user_repo: UserRepository,
         auth_session_repo: AuthSessionRepository,
         reconciliation_repo: AuthPolicyReconciliationRepository,
@@ -88,7 +86,6 @@ class RolePolicyReconciliationService:
         self._role_repo = role_repo
         self._permission_repo = permission_repo
         self._role_permission_repo = role_permission_repo
-        self._user_role_repo = user_role_repo
         self._user_repo = user_repo
         self._auth_session_repo = auth_session_repo
         self._reconciliation_repo = reconciliation_repo
@@ -288,9 +285,14 @@ class RolePolicyReconciliationService:
                         tenant_id=None,
                     )
                 )
-            else:
+            elif role is not None:
                 affected_users.update(
-                    self._user_role_repo.list_user_ids_for_role(role_id)
+                    binding.principal_id
+                    for binding in (
+                        self._role_binding_repo.list_active_for_role_across_tenants(
+                            role_id
+                        )
+                    )
                 )
         affected_user_ids = tuple(sorted(affected_users))
         active_session_ids = tuple(

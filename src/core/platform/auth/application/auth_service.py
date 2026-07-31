@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
@@ -18,7 +18,6 @@ from src.core.platform.auth.contracts import (
     RolePermissionRepository,
     RoleRepository,
     UserRepository,
-    UserRoleRepository,
 )
 from src.core.platform.auth.domain import AuthSession, Role, UserAccount
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
@@ -37,13 +36,15 @@ from . import registration_service as _reg
 from . import role_assignment_service as _roles
 from . import session_service as _sessions
 from . import user_admin_service as _users
-from .canonical_role_resolver import CanonicalRoleResolver
+from .canonical_role_resolver import CanonicalRoleResolver, ScopeTenantResolver
 
 if TYPE_CHECKING:
     from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.audit.contracts import AuditRepository
     from src.core.platform.tenancy.contracts import UserTenantMembershipRepository
     from src.core.platform.tenancy.tenant_context import TenantContextService
+
+    from .role_governance_service import RoleGovernanceService
 
 
 class AuthService(AuthQueryMixin, AuthValidationMixin):
@@ -53,7 +54,6 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         user_repo: UserRepository,
         role_repo: RoleRepository,
         permission_repo: PermissionRepository,
-        user_role_repo: UserRoleRepository,
         role_permission_repo: RolePermissionRepository,
         auth_session_repo: AuthSessionRepository | None = None,
         scoped_access_repo: ScopedAccessGrantRepository | None = None,
@@ -66,13 +66,16 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         tenant_context_service: "TenantContextService | None" = None,
         request_id_provider: Callable[[], str | None] | None = None,
         role_binding_repo: RoleBindingRepository | None = None,
+        canonical_scope_tenant_resolvers: Mapping[
+            str,
+            ScopeTenantResolver,
+        ] | None = None,
         allow_platform_customer_context: bool = False,
     ):
         self._session: Session = session
         self._user_repo: UserRepository = user_repo
         self._role_repo: RoleRepository = role_repo
         self._permission_repo: PermissionRepository = permission_repo
-        self._user_role_repo: UserRoleRepository = user_role_repo
         self._role_permission_repo: RolePermissionRepository = role_permission_repo
         self._auth_session_repo: AuthSessionRepository | None = auth_session_repo
         self._scoped_access_repo: ScopedAccessGrantRepository | None = scoped_access_repo
@@ -96,7 +99,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
                 role_repo=role_repo,
                 role_permission_repo=role_permission_repo,
                 permission_repo=permission_repo,
-                scope_tenant_resolvers={},
+                scope_tenant_resolvers=(canonical_scope_tenant_resolvers or {}),
                 allow_platform_customer_context=(
                     self._allow_platform_customer_context
                 ),
@@ -104,6 +107,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             if role_binding_repo is not None
             else None
         )
+        self._role_governance_service: RoleGovernanceService | None = None
 
     def _require_canonical_role_resolver(self) -> CanonicalRoleResolver:
         if self._canonical_role_resolver is None:
@@ -112,6 +116,20 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
                 code="AUTHORIZATION_CANONICAL_REPOSITORY_REQUIRED",
             )
         return self._canonical_role_resolver
+
+    def set_role_governance_service(
+        self,
+        role_governance_service: RoleGovernanceService,
+    ) -> None:
+        self._role_governance_service = role_governance_service
+
+    def _require_role_governance_service(self) -> RoleGovernanceService:
+        if self._role_governance_service is None:
+            raise BusinessRuleError(
+                "Canonical role governance is not configured.",
+                code="AUTHORIZATION_GOVERNANCE_REQUIRED",
+            )
+        return self._role_governance_service
 
     def bootstrap_defaults(self) -> UserAccount:
         return _bootstrap.bootstrap_defaults(self)

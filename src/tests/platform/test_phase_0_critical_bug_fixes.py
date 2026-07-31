@@ -14,6 +14,9 @@ from src.core.platform.auth.domain.user import UserRoleBinding
 from src.core.platform.auth.policy import DEFAULT_PERMISSIONS
 from src.core.platform.infrastructure.persistence.orm.auth import UserRoleORM
 from src.core.platform.infrastructure.persistence.orm.tenant import TenantORM
+from src.core.platform.infrastructure.persistence.repositories.auth import (
+    SqlAlchemyUserRoleRepository,
+)
 from src.core.platform.infrastructure.persistence.repositories.org import (
     SqlAlchemyOrganizationRepository,
 )
@@ -213,7 +216,7 @@ def test_user_role_allows_global_and_org_scoped_assignment(services):
     current_org = org_service.get_active_organization()
     viewer_role = next(r for r in auth.list_roles() if r.name == "viewer")
 
-    repo = auth._user_role_repo
+    repo = SqlAlchemyUserRoleRepository(session)
 
     # Add global binding (organization_id=None)
     global_binding = UserRoleBinding.create(user_id=user.id, role_id=viewer_role.id)
@@ -244,7 +247,7 @@ def test_user_role_still_prevents_duplicate_global_assignment(services):
     user = auth.register_user("dup-global-user", "StrongPass123", role_names=[])
     viewer_role = next(r for r in auth.list_roles() if r.name == "viewer")
 
-    repo = auth._user_role_repo
+    repo = SqlAlchemyUserRoleRepository(session)
 
     b1 = UserRoleBinding.create(user_id=user.id, role_id=viewer_role.id)
     b2 = UserRoleBinding.create(user_id=user.id, role_id=viewer_role.id)

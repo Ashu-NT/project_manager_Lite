@@ -48,7 +48,9 @@ def list_users(service: AuthService) -> list[UserAccount]:
         for user in service._user_repo.list_for_tenant(tenant_id)
         if not any(
             is_platform_role(role_name)
-            for role_name in service.get_user_role_names(user.id)
+            for role_name in service._canonical_platform_authority(
+                user.id
+            ).role_names
         )
     ]
 

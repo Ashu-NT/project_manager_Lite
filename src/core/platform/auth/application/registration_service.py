@@ -11,9 +11,9 @@ from src.core.platform.auth.authorization import (
 )
 from src.core.platform.auth.domain import (
     ROLE_SCOPE_PLATFORM,
+    ROLE_SCOPE_TENANT,
     RoleBinding,
     UserAccount,
-    UserRoleBinding,
     normalize_auth_username,
 )
 from src.core.platform.auth.passwords import hash_password
@@ -42,12 +42,18 @@ def _assign_roles_for_user(
     role_names: Iterable[str],
     *,
     allow_platform_roles: bool,
+    tenant_id: str | None,
+    assigned_by: str | None,
 ) -> tuple[str, ...]:
-    # RBAC-TRANSITION-ONLY: Non-platform compatibility write. The direct
-    # tenant cutover replaces this branch with canonical bindings.
     assigned_role_names: list[str] = []
     for role_name in role_names:
-        role = service._require_role_by_name(role_name)
+        role = (
+            service._role_repo.get_for_tenant_by_name(tenant_id, role_name)
+            if tenant_id is not None
+            else service._role_repo.get_by_name(role_name)
+        )
+        if role is None:
+            raise ValidationError("Role not found.", code="ROLE_NOT_FOUND")
         if role.allowed_scope_type == ROLE_SCOPE_PLATFORM:
             if not allow_platform_roles:
                 authorization_denied(
@@ -84,14 +90,48 @@ def _assign_roles_for_user(
                 )
             assigned_role_names.append(role.name)
             continue
-        if not service._user_role_repo.exists(user_id, role.id):
-            service._user_role_repo.add(
-                UserRoleBinding.create(
-                    user_id=user_id,
-                    role_id=role.id,
+        if role.allowed_scope_type == ROLE_SCOPE_TENANT:
+            if tenant_id is None:
+                raise BusinessRuleError(
+                    "Tenant roles require explicit tenant context.",
+                    code="TENANT_CONTEXT_REQUIRED",
                 )
-            )
-        assigned_role_names.append(role.name)
+            role_binding_repo = service._role_binding_repo
+            if role_binding_repo is None:
+                raise BusinessRuleError(
+                    "Canonical role-binding persistence is not configured.",
+                    code="AUTHORIZATION_CANONICAL_REPOSITORY_REQUIRED",
+                )
+            if role_binding_repo.get_active_for_assignment(
+                principal_id=user_id,
+                role_id=role.id,
+                tenant_id=tenant_id,
+                actual_scope_type=ROLE_SCOPE_TENANT,
+                actual_scope_id=None,
+            ) is None:
+                role_binding_repo.add(
+                    RoleBinding.create(
+                        principal_id=user_id,
+                        role_id=role.id,
+                        tenant_id=tenant_id,
+                        actual_scope_type=ROLE_SCOPE_TENANT,
+                        assigned_by=assigned_by,
+                    )
+                )
+            assigned_role_names.append(role.name)
+            continue
+        authorization_denied(
+            service._user_session,
+            message=(
+                f"Role '{role.name}' requires an explicit "
+                f"{role.allowed_scope_type} scope."
+            ),
+            code="ROLE_SCOPE_REQUIRED",
+            operation_label="register a scoped role holder",
+            target_scope_type="role",
+            target_scope_id=role.id,
+            operation="authorization.resource_scope.denied",
+        )
     return tuple(assigned_role_names)
 
 
@@ -127,7 +167,13 @@ def _create_user(
                 "Federated identity is already linked to another user.",
                 code="FEDERATED_IDENTITY_EXISTS",
             )
-    resolved_role_names = tuple(role_names or ("viewer",))
+    resolved_role_names = tuple(
+        dict.fromkeys(
+            normalized_role_name
+            for role_name in (role_names or ())
+            if (normalized_role_name := str(role_name or "").strip().lower())
+        )
+    )
     enforce_separation_of_duties(service, resolved_role_names)
     if system_audit_actor is None:
         for role_name in resolved_role_names:
@@ -145,6 +191,22 @@ def _create_user(
                     target_scope_id=role.id,
                     operation="authorization.platform_role.denied",
                 )
+            if role.allowed_scope_type not in {
+                ROLE_SCOPE_PLATFORM,
+                ROLE_SCOPE_TENANT,
+            }:
+                authorization_denied(
+                    service._user_session,
+                    message=(
+                        f"Role '{role.name}' requires an explicit "
+                        f"{role.allowed_scope_type} scope."
+                    ),
+                    code="ROLE_SCOPE_REQUIRED",
+                    operation_label="register a scoped role holder",
+                    target_scope_type="role",
+                    target_scope_id=role.id,
+                    operation="authorization.resource_scope.denied",
+                )
     user = UserAccount.create(
         username=normalized,
         password_hash=hash_password(raw_password),
@@ -157,6 +219,20 @@ def _create_user(
         must_change_password=must_change_password,
     )
     normalized_tenant_id = str(tenant_id or "").strip() or None
+    if normalized_tenant_id is None:
+        requires_tenant = any(
+            (
+                role := service._role_repo.get_by_name(role_name)
+            ) is not None
+            and role.allowed_scope_type != ROLE_SCOPE_PLATFORM
+            for role_name in resolved_role_names
+        )
+        if requires_tenant and service._tenant_context_service is not None:
+            normalized_tenant_id = (
+                service._tenant_context_service.require_active_tenant_id(
+                    operation_label="create a tenant user"
+                )
+            )
     if normalized_tenant_id and service._user_tenant_repo is None:
         authorization_denied(
             service._user_session,
@@ -174,12 +250,6 @@ def _create_user(
         with service._session.begin_nested():
             service._user_repo.add(user)
             service._session.flush()
-            assigned_role_names = _assign_roles_for_user(
-                service,
-                user.id,
-                resolved_role_names,
-                allow_platform_roles=system_audit_actor is not None,
-            )
             if normalized_tenant_id:
                 membership = UserTenantMembership.create(
                     user_id=user.id,
@@ -187,6 +257,19 @@ def _create_user(
                     tenant_role="member",
                 )
                 service._user_tenant_repo.add(membership)
+            actor = (
+                service._user_session.principal
+                if service._user_session is not None
+                else None
+            )
+            assigned_role_names = _assign_roles_for_user(
+                service,
+                user.id,
+                resolved_role_names,
+                allow_platform_roles=system_audit_actor is not None,
+                tenant_id=normalized_tenant_id,
+                assigned_by=actor.user_id if actor is not None else None,
+            )
             audit_metadata: dict[str, object] = {
                 "username": user.username,
                 "role_names": list(assigned_role_names),

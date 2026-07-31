@@ -112,36 +112,6 @@ class _FakePermissionRepo:
         return []
 
 
-class _FakeUserRoleRepo:
-    def __init__(self) -> None:
-        self._rows: list[tuple[str, str, str | None]] = []
-
-    def add(self, binding) -> None:
-        row = (binding.user_id, binding.role_id, binding.organization_id)
-        if row not in self._rows:
-            self._rows.append(row)
-
-    def delete(self, user_id: str, role_id: str, organization_id: str | None = None) -> None:
-        self._rows = [
-            row
-            for row in self._rows
-            if row != (user_id, role_id, organization_id)
-        ]
-
-    def exists(self, user_id: str, role_id: str, organization_id: str | None = None) -> bool:
-        return (user_id, role_id, organization_id) in self._rows
-
-    def list_role_ids(self, user_id: str) -> list[str]:
-        return [role_id for row_user_id, role_id, org_id in self._rows if row_user_id == user_id and org_id is None]
-
-    def list_role_ids_for_organization(self, user_id: str, organization_id: str) -> list[str]:
-        return [
-            role_id
-            for row_user_id, role_id, org_id in self._rows
-            if row_user_id == user_id and org_id == organization_id
-        ]
-
-
 class _FakeRolePermissionRepo:
     def add(self, binding) -> None:
         return None
@@ -278,7 +248,6 @@ def _make_auth_service(monkeypatch: pytest.MonkeyPatch) -> AuthService:
         user_repo=_FakeUserRepo(),
         role_repo=_FakeRoleRepo(),
         permission_repo=_FakePermissionRepo(),
-        user_role_repo=_FakeUserRoleRepo(),
         role_permission_repo=_FakeRolePermissionRepo(),
         auth_session_repo=_FakeAuthSessionRepo(),
         scoped_access_repo=None,
@@ -427,7 +396,7 @@ def test_auth_service_uses_entity_validation_for_user_and_session_models(
         "StrongPass123",
         display_name="  Alice Admin  ",
         email="  USER.Name@Example.COM  ",
-        role_names=["viewer"],
+        role_names=[],
         must_change_password=True,
         identity_provider="  AzureAD  ",
         federated_subject="  oidc-user-1  ",

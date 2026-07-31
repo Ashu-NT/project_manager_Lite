@@ -37,7 +37,6 @@ def _reconciliation_service(services) -> RolePolicyReconciliationService:
         role_repo=auth._role_repo,
         permission_repo=auth._permission_repo,
         role_permission_repo=auth._role_permission_repo,
-        user_role_repo=auth._user_role_repo,
         user_repo=auth._user_repo,
         auth_session_repo=auth._auth_session_repo,
         reconciliation_repo=SqlAlchemyAuthPolicyReconciliationRepository(

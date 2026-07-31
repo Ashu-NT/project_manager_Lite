@@ -66,6 +66,54 @@ class CanonicalRoleResolver:
         tenant_id: str | None,
         organization_id: str | None,
     ) -> EffectiveRoleAuthority:
+        return self._resolve(
+            principal_id,
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            included_scope_types=None,
+        )
+
+    def resolve_tenant_authority(
+        self,
+        principal_id: str,
+        *,
+        tenant_id: str | None,
+    ) -> EffectiveRoleAuthority:
+        """Resolve only platform and tenant bindings for tenant-level decisions."""
+        return self._resolve(
+            principal_id,
+            tenant_id=tenant_id,
+            organization_id=None,
+            included_scope_types=frozenset(
+                {ROLE_SCOPE_PLATFORM, ROLE_SCOPE_TENANT}
+            ),
+        )
+
+    def resolve_organization_authority(
+        self,
+        principal_id: str,
+        *,
+        tenant_id: str | None,
+        organization_id: str | None,
+    ) -> EffectiveRoleAuthority:
+        """Resolve platform, tenant, and organization bindings only."""
+        return self._resolve(
+            principal_id,
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            included_scope_types=frozenset(
+                {ROLE_SCOPE_PLATFORM, ROLE_SCOPE_TENANT, "organization"}
+            ),
+        )
+
+    def _resolve(
+        self,
+        principal_id: str,
+        *,
+        tenant_id: str | None,
+        organization_id: str | None,
+        included_scope_types: frozenset[str] | None,
+    ) -> EffectiveRoleAuthority:
         normalized_principal_id = str(principal_id or "").strip()
         if not normalized_principal_id:
             raise BusinessRuleError(
@@ -104,6 +152,11 @@ class CanonicalRoleResolver:
             )
 
         for binding in bindings:
+            if (
+                included_scope_types is not None
+                and binding.actual_scope_type not in included_scope_types
+            ):
+                continue
             role = self._validate_binding(
                 binding,
                 requested_tenant_id=normalized_tenant_id,

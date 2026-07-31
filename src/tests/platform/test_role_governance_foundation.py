@@ -61,24 +61,13 @@ def _prepare_canonical_assignment(
     target = auth.register_user(
         f"canonical-target-{target_role_name}",
         "CanonicalTarget123!",
-        role_names=["viewer"],
+        role_names=[],
         tenant_id=tenant_id,
     )
     actor_role = auth._role_repo.get_by_name("tenant_admin")
     target_role = auth._role_repo.get_by_name(target_role_name)
     assert actor_role is not None
     assert target_role is not None
-    services["role_governance_service"]._role_binding_repo.add(
-        RoleBinding.create(
-            principal_id=actor.id,
-            role_id=actor_role.id,
-            tenant_id=tenant_id,
-            actual_scope_type=ROLE_SCOPE_TENANT,
-            assigned_by=services["user_session"].principal.user_id,
-        )
-    )
-    session.commit()
-
     if create_policy:
         services["role_governance_service"].create_delegation_policy(
             actor_role_id=actor_role.id,
@@ -450,6 +439,9 @@ def test_platform_operator_cannot_use_customer_assignment_path(
     )
     role = auth._role_repo.get_by_name("viewer")
     assert role is not None
+    services[
+        "role_governance_service"
+    ]._allow_platform_customer_context = False
     principal = services["user_session"].principal
     services["user_session"].set_principal(
         replace(

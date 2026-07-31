@@ -150,6 +150,12 @@ class RoleBindingRepository(ABC):
     ) -> list[RoleBinding]: ...
 
     @abstractmethod
+    def list_active_for_role_across_tenants(
+        self,
+        role_id: str,
+    ) -> list[RoleBinding]: ...
+
+    @abstractmethod
     def get_active_for_assignment(
         self,
         *,

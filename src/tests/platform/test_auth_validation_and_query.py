@@ -43,7 +43,15 @@ def test_auth_query_requires_existing_user_and_role(services):
 
 def test_auth_query_returns_roles_and_permissions(services):
     auth = services["auth_service"]
-    user = auth.register_user("query-target", "StrongPass123")
+    tenant_id = services[
+        "tenant_context_service"
+    ].require_active_tenant_id(operation_label="test canonical auth query")
+    user = auth.register_user(
+        "query-target",
+        "StrongPass123",
+        role_names=["viewer"],
+        tenant_id=tenant_id,
+    )
 
     auth.assign_role(user.id, "planner")
 

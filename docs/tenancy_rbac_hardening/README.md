@@ -1037,8 +1037,8 @@ allowed. Closing the migration includes a dedicated dead-code removal change; re
 
 | Transition-only component | Removal gate | What must be preserved |
 | --- | --- | --- |
-| `UserRoleBinding`, `UserRoleORM`, `UserRoleRepository`, SQLAlchemy adapter, legacy assignment module, registration compatibility writes, and membership compatibility writes | Canonical reads/writes, bootstrap, adapters, and isolation tests pass; no source reference remains | Nothing; no customer migration evidence exists |
-| Legacy `AuthQueryMixin` role resolution and legacy-authoritative principal construction | Canonical principal owns login, restore, tenant switch, and organization switch | Permanent canonical resolver and regression tests |
+| `UserRoleBinding`, `UserRoleORM`, `UserRoleRepository`, and their SQLAlchemy adapter | Canonical resource fixtures/adapters and isolation tests pass; superseded preparation tooling is deleted; no source reference remains | Nothing; no customer migration evidence exists |
+| Legacy scoped-grant/project-membership projection in principal construction | Canonical bindings own organization viewer/member and resource authority as well as login, restore, tenant switch, and organization switch | Permanent canonical resolver and platform/tenant/organization-role regression tests |
 | `AuthorizationMigrationMode`, `PM_AUTHORIZATION_MIGRATION_MODE`, and mode-gating branches/tests | Every runtime decision is canonical and configuration no longer consumes the switch | Nothing |
 | `AuthorizationMigrationBatch`, `LegacyRoleBindingMigrationRecord`, their ORM/repository adapters, and runtime tables | Direct cutover no longer imports legacy rows; cleanup revision is ready | Alembic revision history only |
 | Legacy binding migration planner, preparation service, operator CLI, and focused tests | Canonical fixture/seed paths are complete and direct cutover tests pass | Nothing |
@@ -1077,13 +1077,14 @@ Exit criteria:
 ### Phase 1: Immediate containment
 
 Status: In progress. Replacement provisioning, the tenant-context policy foundation,
-explicit-context session authority, atomic tenant/organization switching, legacy customer-admin
+explicit-context session authority, atomic tenant/organization switching, customer-admin
 containment, sensitive target-user boundaries, direct tenant-user onboarding, customer
-role/catalog containment, platform tenant-authority separation, and reviewed policy
+role/catalog containment, canonical platform/tenant and explicit organization-role authority,
+and reviewed policy
 reconciliation tooling are implemented. SaaS startup no longer creates/promotes a legacy admin
 or creates/selects/backfills customer context; local desktop initialization remains explicitly
-mode-bound. Existing database reconciliation, canonical authority, and public invitation
-orchestration remain pending deployment or implementation.
+mode-bound. Generic organization/resource grant cutover, external invitation delivery,
+development reseed, and final legacy/transition cleanup remain pending.
 
 - Add security regression tests before changing fail-open behavior.
 - Implement and test one-time platform-owner provisioning before changing startup bootstrap.
@@ -1122,16 +1123,17 @@ Exit criteria:
 
 Status: In progress. Additive role metadata, tenant-safe role namespaces, the structurally
 constrained `role_bindings` table, explicit delegation persistence and guarded mutation,
-membership lifecycle, and internal authorized invitation orchestration are implemented.
-Internal tenant custom-role lifecycle commands are implemented, but no external delivery or
-public invitation/role adapter has been enabled. `auth.role.assign` is defined in code policy v2
-but has not been deliberately activated. Runtime authorization remains legacy-authoritative
-until the direct, scope-complete cutover packages replace it.
+membership lifecycle, internal authorized invitation orchestration, and direct platform/tenant
+plus explicit organization-role authority cutover are implemented. Internal tenant custom-role lifecycle commands are
+implemented, but no external delivery or public invitation/role adapter has been enabled.
+Generic organization viewer/member grants and resource authority remain legacy-authoritative
+until the next direct scoped cutover package replaces them without fallback.
 
 - Extend membership lifecycle fields. Implemented additively with internal token issuance,
   authenticated acceptance, administrative transitions, targeted session invalidation, and
   atomic membership audit. External delivery and public adapters remain pending.
-- Remove role authority from membership. Pending canonical binding cutover.
+- Remove role authority from membership. Implemented for authorization; compatibility columns
+  remain persisted only until the cleanup migration.
 - Add tenant-aware role metadata.
 - Add tenant custom-role commands with curated permission ceilings, optimistic updates,
   non-destructive retirement, targeted session invalidation, and atomic audit.
@@ -1140,7 +1142,9 @@ until the direct, scope-complete cutover packages replace it.
   execute it against development data; delete it after permanent canonical fixture/seed and
   authority paths are complete.
 - Implement the permanent canonical resolver and direct platform, tenant, organization, and
-  resource cutover packages without dual-write or fallback.
+  resource cutover packages without dual-write or fallback. Platform and tenant packages are
+  complete for platform, tenant, and explicit organization roles; generic scoped-grant and
+  resource packages remain.
 - Reset/reseed development databases explicitly after code cutover, then drop legacy and
   transition runtime schemas before first release.
 
@@ -1163,7 +1167,7 @@ Current Phase 2 foundation:
   than silently ignoring a lifecycle conflict.
 - Membership repository admission and customer user catalogs require `status=active` together
   with the compatibility `is_active` flag. The latter and `tenant_role` remain transitional
-  columns until canonical cutover.
+  persisted columns until cleanup, but `tenant_role` is no longer read as authorization.
 - Alembic revision `6f1a9c2e8d4b` adds lifecycle metadata and constraints, conservatively maps
   legacy inactive rows to `suspended`, and has migration-created upgrade, backfill,
   downgrade, and re-upgrade coverage on SQLite.
@@ -1173,9 +1177,8 @@ Current Phase 2 foundation:
   suspend/reactivate/remove against active tenant context, actor membership, target identity,
   customer/platform boundaries, and self-lockout protection.
 - Invitation acceptance is authenticated-user scoped, clears the token hash, and atomically
-  creates the canonical tenant `viewer` binding plus the transitional legacy `viewer` binding.
-  Custom invitation roles remain gated until custom-role commands and reviewed delegation
-  permission activation exist.
+  creates only the canonical tenant `viewer` binding. Custom invitation roles remain gated
+  until reviewed delegation permission activation and an approved adapter exist.
 - Suspension and removal revoke persisted sessions whose active context is the affected tenant;
   removal also revokes unrevoked canonical bindings for that tenant.
 - Membership mutations and their tenant-level SOC 2 audit entries commit together. The service
@@ -1211,16 +1214,17 @@ Current Phase 2 foundation:
   platform-only permissions and SoD conflicts are denied; changes advance `policy_version`;
   permission changes revoke affected tenant sessions; retirement revokes active canonical
   bindings; and each mutation commits with its tenant audit event.
-- `PrincipalBuilder`, `AuthorizationEngine`, assignment services, and customer UI still read
-  legacy authority. They are the next direct-cutover targets. The guarded role services have no
-  transport adapters and remain dormant until versioned policy v2 is deliberately applied and
-  explicit delegation policies are approved.
+- `PrincipalBuilder`, tenant query methods, customer tenant-role assignment/revocation, login,
+  restore, tenant switching, organization switching, and runtime session revalidation now use
+  canonical platform/tenant authority without legacy fallback. Explicit organization roles are
+  also canonical and generic registration/role APIs reject them without an explicit scope.
+  Generic organization viewer/member grants and resource grants remain the next targets.
 
 ### Phase 3: Principal and authorization-engine cutover
 
 Status: In progress. The complete legacy/canonical dependency map, permanent canonical
-effective-authority resolver, and platform authority cutover are implemented. Tenant,
-organization, and resource principal cutovers remain.
+effective-authority resolver, and platform/tenant plus explicit organization-role authority
+cutovers are implemented. Generic organization grants and resource principal cutovers remain.
 
 - Replace the containment builder with principal construction over canonical bindings and
   explicit tenant and organization context.
@@ -1847,6 +1851,57 @@ Direct canonical resolver and platform-authority ledger, 2026-07-31:
   route expectation.
 - No application database was migrated, reset, backfilled, or otherwise modified by this work.
 
+Direct tenant-authority cutover ledger, 2026-07-31:
+
+- Added tenant-only canonical resolution that consumes active platform/tenant bindings but
+  deliberately ignores organization/resource bindings until their ownership-aware cutover.
+- Broad registration is identity-only by default. Direct tenant onboarding creates explicit
+  membership and canonical tenant authority; invitation acceptance creates only its canonical
+  `viewer` binding. Membership `tenant_role` is compatibility data, not an authorization source.
+- Customer tenant-role assignment and revocation route through `RoleGovernanceService`, require
+  active target membership, enforce delegation, SoD, scope, audit, and session invalidation, and
+  never mutate or fall back to `user_roles` for tenant authority.
+- Tenant role and permission queries, principal construction, login, restore, tenant and
+  organization switching, and runtime session revalidation resolve canonical tenant authority.
+  A stale or cross-tenant legacy role cannot grant tenant permission during those paths.
+- Local single-tenant platform administration enters the same governed customer-role mutation
+  path through an explicit composition policy. SaaS platform operators remain unable to use
+  ordinary customer context or customer role administration.
+- `TenantMembershipService` has no remaining transition authority dependency and was removed
+  from the exact transition-component registry. Explicit organization/resource role reads and
+  writes remain marked transition-only for the next tranche.
+- The platform suite passes 642 tests with three known unrelated baseline tests deselected: two
+  Site naive/aware datetime failures and one stale platform QML route expectation. The exact
+  transition inventory guard passes separately after removal of the stale membership entry.
+- No application database was migrated, reset, backfilled, or otherwise modified by this work.
+
+Direct organization-role cutover ledger, 2026-07-31:
+
+- Added an organization-only canonical resolution path. It validates organization ownership,
+  exposes every canonical organization scope for context selection, and activates the role and
+  its permissions only when that organization is the active context. Other resource bindings
+  are ignored until their dedicated resolvers and role catalogs are ready.
+- Principal construction now combines canonical platform, tenant, and explicit organization
+  roles. Login, restore, organization switching, and runtime revalidation therefore rebuild
+  `org_admin` from canonical bindings without any `user_roles` read or fallback.
+- Generic registration and role assignment/revocation now reject organization/resource roles
+  with `ROLE_SCOPE_REQUIRED`. Explicit scoped assignment remains owned by
+  `RoleGovernanceService`, which validates tenant ownership, target membership, delegation,
+  SoD, audit, and session invalidation.
+- Removed `UserRoleRepository` from `AuthService`, `AuthQueryMixin`, registration, role mutation,
+  principal construction, and policy reconciliation. Reconciliation now discovers holders of
+  every non-platform role through canonical bindings across tenants.
+- Removed `AuthQueryMixin`, registration, and role-assignment components from the exact
+  transition registry. Principal construction remains registered only because generic
+  scoped-grant/project-membership projection is still transitional.
+- Organization characterization passes 22 tests, including active-vs-other-organization
+  authority and proof that a forged legacy organization row grants neither `org_admin` nor
+  `org.manage`. The extended platform suite passes 644 tests with the three known unrelated
+  baseline tests deselected and 12 SQLite datetime-adapter deprecation warnings. Architecture
+  verification passes 99 checks; its two failures are the existing PM task-lifecycle 360-line
+  growth budget and enterprise-calendar 1,200-line hard limit.
+- No application database was migrated, reset, backfilled, or otherwise modified by this work.
+
 ### Repository re-audit, 2026-07-29
 
 Phases 0, 1, and 2 all remain in progress. The current snapshot was re-audited across domain
@@ -1856,19 +1911,19 @@ The earlier containment work is real, but it does not yet constitute canonical a
 
 | Area | Verified state | Required follow-up |
 | --- | --- | --- |
-| Authorization migration mode | Only `LEGACY_AUTHORITATIVE` is operational in the current snapshot. | Delete all migration modes after direct canonical cutover; do not implement the reserved modes. |
+| Authorization migration mode | The configuration switch remains, but canonical platform/tenant/explicit-organization-role decisions do not use it. Generic scoped-grant/resource projection remains legacy-authoritative. | Delete all migration modes after the scoped direct cutover; do not implement the reserved modes. |
 | Security ADR | ADR-003 defines deployment mode, platform authority, and canonical scope types, but its production-data migration evidence sections predate the prelaunch decision. | Update the ADR during cutover to remove staged customer-data migration requirements while preserving security invariants. |
-| Legacy role writes | Platform provisioning/bootstrap is canonical. Direct `user_roles` mutations remain in customer registration/onboarding, membership compatibility, and legacy customer role assignment. | Convert the complete tenant authority slice directly to canonical writes; never dual-write. |
-| Registration surface | Desktop customer creation uses safe active-tenant onboarding, but public `AuthService.register_user()` still accepts arbitrary role names and optional tenant context. Tests use it as a broad fixture helper. | Separate test/bootstrap identity creation from production customer onboarding; do not expose the broad method through a future HTTP transport. |
-| Session context | Login, restore, and normal tenant switching validate context and rebuild the legacy principal. Public session ID setters and a fallback organization path can still replace IDs without rebuilding authority. | Restrict raw setters to composition/context internals and remove the fallback after callers use `TenantContextService`. |
+| Legacy role writes | Runtime platform, tenant, and explicit organization-role mutations are canonical; generic auth APIs have no `user_roles` mutation path. The legacy model/repository remains only for superseded migration tooling, schema history compatibility, and deletion-focused tests. | Delete the superseded tooling and runtime schema during final cleanup after resource fixtures are canonical; never dual-write. |
+| Registration surface | Broad registration is identity-only by default; explicit tenant onboarding creates membership and canonical authority. Scoped roles are rejected because registration has no resource identifier. | Separate fixture/bootstrap identity creation from production adapters and keep scoped assignment in governed scope-aware commands. |
+| Session context | Login, restore, tenant switching, organization switching, and runtime revalidation rebuild canonical platform/tenant/explicit-organization-role authority. Public session ID setters and a fallback organization path can still replace IDs without rebuilding authority. | Restrict raw setters to composition/context internals and remove the fallback after callers use `TenantContextService`; add canonical resource authority. |
 | Local default tenant | Local mode resolves `get_default()` as the lexicographically first active tenant. Creating an earlier-sorting tenant can therefore change fallback selection even though explicit session and membership context remain intact. SaaS mode does not use this fallback. | Add an explicit immutable/default designation or deployment setting; do not infer security context from tenant code ordering. |
 | Scoped grants | Legacy grant operations now require active tenant context, target membership, and tenant-aware resource ownership resolution. Repository reads and writes fail closed when tenant context is absent. | Keep this containment covered while migrating grants to canonical bindings; add delegation and durable audit semantics before legacy retirement. |
 | Organization selection | Creating, updating, or selecting one active organization deactivates the tenant's other organizations. | Separate organization lifecycle from per-session selection; several organizations may remain enabled concurrently. |
-| Membership lifecycle | Additive state, one-time token hashes, authenticated internal acceptance, administrative transitions, optimistic persistence, targeted session invalidation, atomic membership audit, and fixed `viewer` binding orchestration are implemented. `is_active` and `tenant_role` remain transitional, and no external delivery or public adapter exists. | Add reviewed delivery/account-onboarding adapters and custom-role delegation, then retire membership role authority during canonical cutover. |
+| Membership lifecycle | Additive state, one-time token hashes, authenticated internal acceptance, administrative transitions, optimistic persistence, targeted session invalidation, atomic membership audit, and canonical-only fixed `viewer` binding orchestration are implemented. `is_active` and `tenant_role` remain persisted compatibility columns but are not role authority; no external delivery or public adapter exists. | Add reviewed delivery/account-onboarding adapters and remove compatibility columns in the final cleanup migration. |
 | Canonical role metadata | System and per-tenant name namespaces, role ownership checks, and internal audited tenant custom-role lifecycle commands are implemented. They require canonical tenant-scope administrative authority and enforce a curated customer permission ceiling, SoD, optimistic policy versions, session invalidation, and non-destructive retirement. No adapter is exposed. | After environment policy-v2 activation, canonical role preparation, and security review, add a request-scoped adapter; keep raw repositories and unrestricted permission mutation private. |
 | Canonical binding uniqueness | Partial indexes still define persisted activity as unrevoked, but the guarded canonical assignment path now revokes an expired exact-scope row before reassignment. | Add scheduled/bulk expiry maintenance and require fixtures/imports to use the same canonical orchestration before declaring this complete. |
-| Principal authority | The permanent resolver and canonical platform-role principal/query path are implemented. Tenant, organization, and resource principal authority, legacy assignment, SoD, and parts of `SessionAuthorizationEngine` remain legacy-authoritative with role-name/rank shortcuts. | Cut over the complete tenant and scoped packages without fallback, then delete the legacy builder/query/assignment paths. |
-| Audit | Membership, canonical role governance, tenant custom roles, platform-owner provisioning, credential/account security, registration/onboarding, local bootstrap account/role repair, legacy role assignment, authentication success/failure/lockout, session administration, shared permission/scope denials, tenant/organization context switching, and inventoried post-gate resource/membership/delegation/SoD/support denials now have explicit evidence semantics. | Preserve one-event ownership at application authorization boundaries and prevent duplicate records when future desktop/HTTP transports add request-scoped middleware. |
+| Principal authority | The permanent resolver and canonical platform/tenant/explicit-organization-role principal paths are implemented. Generic organization viewer/member and resource grants still enter through the scoped-grant/project-membership projection. | Define deterministic canonical scope-role catalogs, cut over each generic scope package without fallback, then delete the projection. |
+| Audit | Membership, canonical role governance and customer tenant-role mutation, tenant custom roles, platform-owner provisioning, credential/account security, registration/onboarding, local bootstrap account/role repair, authentication success/failure/lockout, session administration, shared permission/scope denials, tenant/organization context switching, and inventoried post-gate resource/membership/delegation/SoD/support denials now have explicit evidence semantics. | Preserve one-event ownership at application authorization boundaries and prevent duplicate records when future desktop/HTTP transports add request-scoped middleware. |
 | Entitlements/activity/runtime | Entitlement composition omits its tenant provider; activity can become global with missing context; runtime executions have no tenant/organization and global control reads. | Keep these as open isolation work and block hosted completion until tenant-qualified. |
 | Transport boundary | Desktop customer role/onboarding paths are constrained. The HTTP adapter has no per-request principal/tenant extraction boundary and reuses application service state. | Require request-scoped identity and tenant context before treating HTTP as a hosted SaaS boundary. |
 | Schema verification | Most tests still use `Base.metadata.create_all()`. The Alembic graph has one head, `9c4d5e6f7a8b`; membership lifecycle, token, role namespace, delegation, and reversible migration-record upgrades have migration-created SQLite coverage, but hosted PostgreSQL migration tests are absent. | Expand migration-created coverage across authorization schema profiles and add hosted PostgreSQL. |
@@ -1900,19 +1955,26 @@ Completed in the current containment tranche:
 - Added the lifecycle domain/schema/repository foundation with explicit transitions and
   migration round-trip coverage.
 - Added internal authorized token issuance/acceptance/revocation, membership administration,
-  targeted session invalidation, atomic membership audit, and fixed `viewer` binding
+  targeted session invalidation, atomic membership audit, and canonical-only fixed `viewer` binding
   orchestration. External delivery and public adapters remain disabled.
+- Directly cut over tenant onboarding/membership, customer tenant-role mutation, tenant
+  principal/query authority, context switching, and session revalidation without dual-write or
+  legacy fallback. Broad registration now creates identity only by default.
+- Directly cut over explicit organization-role authority. Runtime auth no longer reads or writes
+  `user_roles`; stale legacy organization rows grant nothing, and generic APIs require a
+  scope-aware governance command.
 - Migrated inventoried post-gate resource, membership, delegation, SoD, permission-ceiling, and
   support-context denials to the typed isolated writer without changing their public error
   contracts.
 
 Remaining work, in order:
 
-1. Directly cut over tenant onboarding/membership, customer role mutation, tenant principal
-   construction, context switching, and session revalidation. Add the reviewed invitation
-   delivery/account-onboarding adapter without exposing raw tokens through generic transports.
-2. Cut over organization/resource authority and replace legacy scoped-grant/project-membership
-   decision sources with canonical scoped bindings.
+1. Define deterministic canonical role definitions for organization viewer/member and each
+   project/site/storeroom/maintenance scope choice, including explicit unrestricted-vs-scoped
+   permission semantics. Then replace scoped-grant/project-membership decision sources one
+   scope at a time without fallback.
+2. Add the reviewed invitation delivery/account-onboarding adapter without exposing raw tokens
+   through generic transports.
 3. Update fixtures and seed data, run migration-created and cross-tenant tests, explicitly reset
    development databases, then delete every transition-only and legacy-authority component and
    apply a cleanup migration before the first release.
@@ -2014,9 +2076,9 @@ This program is complete when:
 | Target model and security invariants | Complete |
 | Migration and retirement plan | Complete; revised for direct prelaunch cutover on 2026-07-31 |
 | Phase 0 safety net | In progress; ADR, inventory, and characterization coverage exist; production-preservation evidence tooling is superseded and scheduled for deletion |
-| Phase 1 immediate containment | In progress; scoped-grant fail-closed containment implemented |
-| Phase 2 canonical membership and role-binding schema | In progress; permanent canonical foundations and platform authority cutover complete; tenant/scoped authority, external delivery, development reseed, legacy schema removal, and transition-code deletion pending |
-| Principal/authorization-engine cutover | In progress; canonical resolver and platform principal authority complete; tenant, organization, and resource authority pending |
+| Phase 1 immediate containment | In progress; scoped-grant containment and canonical platform/tenant/explicit-organization-role boundaries implemented; generic scoped cutover and cleanup pending |
+| Phase 2 canonical membership and role-binding schema | In progress; permanent canonical foundations and platform/tenant/explicit-organization-role authority cutovers complete; generic scoped authority, external delivery, development reseed, legacy schema removal, and transition-code deletion pending |
+| Principal/authorization-engine cutover | In progress; canonical resolver and platform/tenant/explicit-organization-role principal authority complete; organization viewer/member and resource authority pending |
 | Repository/audit/background hardening | Not started |
 | Custom roles and enterprise identity | Not started |
 | Hosted PostgreSQL RLS | Deferred |

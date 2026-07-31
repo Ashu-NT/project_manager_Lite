@@ -58,7 +58,6 @@ def _customer_auth_service(
             user_repo=auth._user_repo,
             role_repo=auth._role_repo,
             permission_repo=auth._permission_repo,
-            user_role_repo=auth._user_role_repo,
             role_permission_repo=auth._role_permission_repo,
             role_binding_repo=auth._role_binding_repo,
             auth_session_repo=auth._auth_session_repo,
@@ -438,7 +437,7 @@ def test_tenant_switch_rebuilds_only_target_tenant_grants(services) -> None:
     assert "site-current" not in switched.scoped_access["site"]
 
 
-def test_ambiguous_legacy_tenant_admin_switch_preserves_old_principal(
+def test_tenant_switch_does_not_leak_canonical_tenant_admin_authority(
     services,
 ) -> None:
     auth = services["auth_service"]
@@ -473,9 +472,10 @@ def test_ambiguous_legacy_tenant_admin_switch_preserves_old_principal(
     )
     services["session"].flush()
 
-    with pytest.raises(BusinessRuleError) as exc_info:
-        tenant_context.switch_to_tenant(target_tenant.id)
+    tenant_context.switch_to_tenant(target_tenant.id)
 
-    assert exc_info.value.code == "LEGACY_TENANT_ADMIN_AMBIGUOUS"
-    assert user_session.principal == original
-    assert user_session.stored_active_tenant_id() == current_tenant_id
+    switched = user_session.principal
+    assert switched is not None
+    assert switched.active_tenant_id == target_tenant.id
+    assert "tenant_admin" not in switched.role_names
+    assert "auth.manage" not in switched.permissions

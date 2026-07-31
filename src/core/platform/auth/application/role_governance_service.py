@@ -71,6 +71,7 @@ class RoleGovernanceService:
         tenant_context_service: TenantContextService,
         scope_exists_resolvers: dict[str, ScopeExistsResolver] | None = None,
         sod_policy: SeparationOfDutiesPolicy | None = None,
+        allow_platform_customer_context: bool = False,
     ) -> None:
         self._session = session
         self._role_repo = role_repo
@@ -91,6 +92,9 @@ class RoleGovernanceService:
             ).items()
         }
         self._sod_policy = sod_policy or SeparationOfDutiesPolicy()
+        self._allow_platform_customer_context = bool(
+            allow_platform_customer_context
+        )
 
     def register_scope_exists_resolver(
         self,
@@ -437,7 +441,10 @@ class RoleGovernanceService:
             operation_label=operation_label,
         )
         actor = self._require_principal()
-        if "platform.admin" in actor.permissions:
+        if (
+            "platform.admin" in actor.permissions
+            and not self._allow_platform_customer_context
+        ):
             authorization_denied(
                 self._user_session,
                 message=(
@@ -627,7 +634,14 @@ class RoleGovernanceService:
         scope_type: str,
         scope_id: str | None,
         enforce_permission_snapshot: bool,
-    ) -> RoleDelegationPolicy:
+    ) -> RoleDelegationPolicy | None:
+        principal = self._require_principal()
+        if (
+            principal.user_id == actor_user_id
+            and "platform.admin" in principal.permissions
+            and self._allow_platform_customer_context
+        ):
+            return None
         actor_bindings = self._role_binding_repo.list_active_for_principal(
             actor_user_id,
             tenant_id=tenant_id,

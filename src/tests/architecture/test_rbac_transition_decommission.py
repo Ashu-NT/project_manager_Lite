@@ -11,10 +11,7 @@ _REGISTER = "### Transition-code decommission register"
 _README_PATH = "docs/tenancy_rbac_hardening/README.md"
 _TRANSITION_COMPONENT_PATHS = (
     "docs/tenancy_rbac_hardening/ADR-003_OPERATIONAL_EVIDENCE.md",
-    "src/core/platform/auth/application/auth_query.py",
     "src/core/platform/auth/application/principal_builder.py",
-    "src/core/platform/auth/application/registration_service.py",
-    "src/core/platform/auth/application/role_assignment_service.py",
     "src/core/platform/auth/contracts/__init__.py",
     "src/core/platform/auth/contracts/auth_repository.py",
     "src/core/platform/auth/domain/__init__.py",
@@ -23,7 +20,6 @@ _TRANSITION_COMPONENT_PATHS = (
     "src/core/platform/infrastructure/persistence/mappers/auth.py",
     "src/core/platform/infrastructure/persistence/orm/auth.py",
     "src/core/platform/infrastructure/persistence/repositories/auth.py",
-    "src/core/platform/tenancy/application/tenant_membership_service.py",
     "src/infra/composition/repositories.py",
     "src/infra/platform/security_config.py",
     "src/infra/security/__init__.py",

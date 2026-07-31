@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-import pytest
+from sqlalchemy import select
+
+from src.core.platform.infrastructure.persistence.orm.audit_entry import (
+    AuditEntryORM,
+)
 
 
 def _login_admin(services):
@@ -11,8 +15,24 @@ def _login_admin(services):
 
 
 def _get_recent_audit_operations(services, limit: int = 50) -> list[str]:
-    eas = services["enterprise_audit_service"]
-    return [e.operation for e in eas.list_recent(limit=limit)]
+    rows = services["session"].execute(
+        select(AuditEntryORM.operation)
+        .order_by(AuditEntryORM.timestamp.desc())
+        .limit(limit)
+    ).scalars()
+    return list(rows)
+
+
+def _register_tenant_identity(services, username: str):
+    tenant_id = services[
+        "tenant_context_service"
+    ].require_active_tenant_id(operation_label="test role audit")
+    return services["auth_service"].register_user(
+        username,
+        "TestPass123!",
+        role_names=[],
+        tenant_id=tenant_id,
+    )
 
 
 def test_register_user_records_high_severity_audit(services):
@@ -29,19 +49,15 @@ def test_register_user_records_high_severity_audit(services):
 def test_assign_role_records_permission_change(services):
     _login_admin(services)
     auth = services["auth_service"]
-    eas = services["enterprise_audit_service"]
-    user = auth.register_user("role_assign_user", "TestPass123!")
+    user = _register_tenant_identity(services, "role_assign_user")
     auth.assign_role(user.id, "team_member")
-    entries = eas.list_recent(limit=50)
-    perm_change_entries = [e for e in entries if e.operation == "permission_change"]
-    assert len(perm_change_entries) >= 1
+    assert "permission_change" in _get_recent_audit_operations(services)
 
 
 def test_revoke_role_records_delete_operation(services):
     _login_admin(services)
     auth = services["auth_service"]
-    eas = services["enterprise_audit_service"]
-    user = auth.register_user("role_revoke_user", "TestPass123!")
+    user = _register_tenant_identity(services, "role_revoke_user")
     auth.assign_role(user.id, "team_member")
     auth.revoke_role(user.id, "team_member")
     operations = _get_recent_audit_operations(services)

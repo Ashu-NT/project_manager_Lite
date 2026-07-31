@@ -20,14 +20,12 @@ from src.core.platform.auth.contracts import (
     RoleBindingRepository,
     RoleRepository,
     UserRepository,
-    UserRoleRepository,
 )
 from src.core.platform.auth.domain import (
     ROLE_SCOPE_PLATFORM,
     ROLE_SCOPE_TENANT,
     RoleBinding,
     UserAccount,
-    UserRoleBinding,
     UserSessionContext,
 )
 from src.core.platform.common.exceptions import (
@@ -73,7 +71,6 @@ class TenantMembershipService:
         user_repo: UserRepository,
         role_repo: RoleRepository,
         role_binding_repo: RoleBindingRepository,
-        user_role_repo: UserRoleRepository,
         auth_session_repo: AuthSessionRepository,
         audit_repo: AuditRepository,
         user_session: UserSessionContext,
@@ -85,7 +82,6 @@ class TenantMembershipService:
         self._user_repo = user_repo
         self._role_repo = role_repo
         self._role_binding_repo = role_binding_repo
-        self._user_role_repo = user_role_repo
         self._auth_session_repo = auth_session_repo
         self._audit_repo = audit_repo
         self._user_session = user_session
@@ -464,7 +460,7 @@ class TenantMembershipService:
                 target_scope_id=target.id,
                 operation="authorization.membership.denied",
             )
-        roles = self._roles_for_user(target.id)
+        roles = self._platform_roles_for_user(target.id)
         if any(
             role.name in _PLATFORM_ROLE_NAMES
             or role.allowed_scope_type == ROLE_SCOPE_PLATFORM
@@ -486,14 +482,8 @@ class TenantMembershipService:
             self._require_invitation_safe_roles(target, roles=roles)
         return target
 
-    def _roles_for_user(self, user_id: str):
-        legacy_roles = [
-            role
-            for role_id in self._user_role_repo.list_role_ids(user_id)
-            if (role := self._role_repo.get(role_id)) is not None
-            and role.allowed_scope_type != ROLE_SCOPE_PLATFORM
-        ]
-        platform_roles = [
+    def _platform_roles_for_user(self, user_id: str):
+        return [
             role
             for binding in self._role_binding_repo.list_active_for_principal(
                 user_id,
@@ -502,15 +492,17 @@ class TenantMembershipService:
             if (role := self._role_repo.get(binding.role_id)) is not None
             and role.allowed_scope_type == ROLE_SCOPE_PLATFORM
         ]
-        return [*legacy_roles, *platform_roles]
-
     def _require_invitation_safe_roles(
         self,
         user: UserAccount,
         *,
         roles=None,
     ) -> None:
-        resolved_roles = roles if roles is not None else self._roles_for_user(user.id)
+        resolved_roles = (
+            roles
+            if roles is not None
+            else self._platform_roles_for_user(user.id)
+        )
         if any(
             role.name in _PLATFORM_ROLE_NAMES
             or role.allowed_scope_type == ROLE_SCOPE_PLATFORM
@@ -528,26 +520,13 @@ class TenantMembershipService:
                 target_scope_id=user.id,
                 operation="authorization.support_access.denied",
             )
-        if any(role.name != _DEFAULT_INVITATION_ROLE for role in resolved_roles):
-            authorization_denied(
-                self._user_session,
-                message=(
-                    "The user's legacy roles require canonical migration review "
-                    "before invitation."
-                ),
-                code="TENANT_INVITATION_LEGACY_ROLE_AMBIGUOUS",
-                operation_label="validate tenant invitation roles",
-                target_scope_type="user",
-                target_scope_id=user.id,
-                operation="authorization.permission_ceiling.denied",
-            )
 
     def _guard_last_tenant_administrator(
         self,
         target_user_id: str,
         tenant_id: str,
     ) -> None:
-        if not self._is_effective_legacy_tenant_administrator(
+        if not self._is_effective_tenant_administrator(
             target_user_id,
             tenant_id,
         ):
@@ -557,7 +536,7 @@ class TenantMembershipService:
             for membership in self._membership_repo.list_users_for_tenant(
                 tenant_id
             )
-            if self._is_effective_legacy_tenant_administrator(
+            if self._is_effective_tenant_administrator(
                 membership.user_id,
                 tenant_id,
             )
@@ -576,18 +555,22 @@ class TenantMembershipService:
                 operation="authorization.sod.denied",
             )
 
-    def _is_effective_legacy_tenant_administrator(
+    def _is_effective_tenant_administrator(
         self,
         user_id: str,
         tenant_id: str,
     ) -> bool:
         if not self._membership_repo.is_active_member(user_id, tenant_id):
             return False
-        if self._membership_repo.list_tenant_ids_for_user(user_id) != [tenant_id]:
-            return False
         return any(
-            role.name == "tenant_admin"
-            for role in self._roles_for_user(user_id)
+            binding.actual_scope_type == ROLE_SCOPE_TENANT
+            and binding.actual_scope_id is None
+            and (role := self._role_repo.get(binding.role_id)) is not None
+            and role.name == "tenant_admin"
+            for binding in self._role_binding_repo.list_active_for_principal(
+                user_id,
+                tenant_id=tenant_id,
+            )
         )
 
     def _require_membership(
@@ -630,12 +613,6 @@ class TenantMembershipService:
                     tenant_id=tenant_id,
                     assigned_by=assigned_by,
                 )
-            )
-        if not self._user_role_repo.exists(user.id, role.id):
-            # RBAC-TRANSITION-ONLY: Remove this compatibility write when
-            # canonical role bindings become the sole assignment store.
-            self._user_role_repo.add(
-                UserRoleBinding.create(user_id=user.id, role_id=role.id)
             )
 
     def _require_default_invitation_role(self, tenant_id: str):

@@ -252,7 +252,6 @@ def build_platform_service_bundle(
         user_repo=repositories.user_repo,
         role_repo=repositories.role_repo,
         permission_repo=repositories.permission_repo,
-        user_role_repo=repositories.user_role_repo,
         role_permission_repo=repositories.role_permission_repo,
         auth_session_repo=repositories.auth_session_repo,
         scoped_access_repo=repositories.scoped_access_repo,
@@ -264,6 +263,15 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         request_id_provider=current_trace_id,
         role_binding_repo=repositories.role_binding_repo,
+        canonical_scope_tenant_resolvers={
+            "organization": lambda tenant_id, organization_id: (
+                repositories.organization_repo.get_for_tenant(
+                    organization_id,
+                    tenant_id,
+                )
+                is not None
+            ),
+        },
         allow_platform_customer_context=(
             security_configuration.tenancy_mode
             is TenancyMode.LOCAL_SINGLE_TENANT
@@ -327,7 +335,6 @@ def build_platform_service_bundle(
         user_repo=repositories.user_repo,
         role_repo=repositories.role_repo,
         role_binding_repo=repositories.role_binding_repo,
-        user_role_repo=repositories.user_role_repo,
         auth_session_repo=repositories.auth_session_repo,
         audit_repo=repositories.audit_entry_repo,
         user_session=user_session,
@@ -479,7 +486,12 @@ def build_platform_service_bundle(
         user_session=user_session,
         tenant_context_service=tenant_context_service,
         scope_exists_resolvers=scope_exists_resolvers,
+        allow_platform_customer_context=(
+            security_configuration.tenancy_mode
+            is TenancyMode.LOCAL_SINGLE_TENANT
+        ),
     )
+    auth_service.set_role_governance_service(role_governance_service)
     tenant_role_administration_service = TenantRoleAdministrationService(
         session=session,
         role_repo=repositories.role_repo,
