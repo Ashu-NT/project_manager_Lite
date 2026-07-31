@@ -208,6 +208,12 @@ class RoleBindingMigrationRepository(ABC):
     ) -> AuthorizationMigrationBatch | None: ...
 
     @abstractmethod
+    def get_batch_by_inventory_sha256(
+        self,
+        source_inventory_sha256: str,
+    ) -> AuthorizationMigrationBatch | None: ...
+
+    @abstractmethod
     def add_record(
         self,
         record: LegacyRoleBindingMigrationRecord,

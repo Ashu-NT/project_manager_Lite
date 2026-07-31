@@ -27,11 +27,15 @@ _TRANSITION_COMPONENT_PATHS = (
     "src/infra/platform/security_config.py",
     "src/infra/security/__init__.py",
     "src/infra/security/authorization_transition_evidence.py",
+    "src/infra/security/role_binding_migration_plan.py",
+    "src/infra/security/role_binding_migration_preparation.py",
     "src/tests/architecture/test_rbac_transition_decommission.py",
     "src/tests/platform/test_authorization_transition_evidence.py",
     "src/tests/platform/test_role_binding_migration_foundation.py",
+    "src/tests/platform/test_role_binding_migration_planning.py",
     "src/tests/platform/test_role_policy_reconciliation_cli_evidence.py",
     "tools/verify_authorization_transition_evidence.py",
+    "tools/prepare_role_binding_migration.py",
 )
 
 

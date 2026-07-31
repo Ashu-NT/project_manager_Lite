@@ -121,9 +121,13 @@ def test_ready_record_requires_reviewed_tenant_scope() -> None:
 
 def test_migration_repository_persists_batch_and_quarantine(session) -> None:
     repositories = build_repository_bundle(session)
+    reviewed_at = datetime.now(timezone.utc)
     batch = AuthorizationMigrationBatch.create(
         source_inventory_sha256=_INVENTORY_HASH,
         source_record_count=1,
+        reviewed_plan_sha256="c" * 64,
+        reviewer_id="security-reviewer",
+        reviewed_at=reviewed_at,
         created_by="migration-operator",
     )
     record = _record(batch_id=batch.id)
@@ -146,9 +150,13 @@ def test_migration_repository_persists_batch_and_quarantine(session) -> None:
 
 def test_database_rejects_unreviewed_ready_record(session) -> None:
     repositories = build_repository_bundle(session)
+    reviewed_at = datetime.now(timezone.utc)
     batch = AuthorizationMigrationBatch.create(
         source_inventory_sha256=_INVENTORY_HASH,
         source_record_count=1,
+        reviewed_plan_sha256="c" * 64,
+        reviewer_id="security-reviewer",
+        reviewed_at=reviewed_at,
         created_by="migration-operator",
     )
     repositories.role_binding_migration_repo.add_batch(batch)

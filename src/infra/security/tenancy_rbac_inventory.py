@@ -36,6 +36,9 @@ _SECURITY_TABLES = (
     "user_roles",
     "user_tenants",
     "role_bindings",
+    "role_delegation_policies",
+    "authorization_migration_batches",
+    "legacy_role_binding_migration_records",
     "role_permissions",
     "scoped_access_grants",
     "project_memberships",
@@ -197,6 +200,10 @@ def _schema_snapshot(reader: _SchemaReader) -> dict[str, Any]:
                 "tenant_id" in reader.columns("scoped_access_grants")
             ),
             "canonical_role_bindings": "role_bindings" in reader.tables,
+            "role_binding_migration_records": (
+                "authorization_migration_batches" in reader.tables
+                and "legacy_role_binding_migration_records" in reader.tables
+            ),
             "canonical_active_unique_indexes": sorted(
                 binding_indexes
                 & {
@@ -309,7 +316,9 @@ def _inventory_data(
         )
         role = roles_by_id.get(role_id, {})
         role_name = str(role.get("name") or "").strip().lower()
+        role_tenant_id = str(role.get("tenant_id") or "").strip() or None
         allowed_scope = str(role.get("allowed_scope_type") or "").strip().lower()
+        role_status = str(role.get("status") or "").strip().lower()
         active_tenants = sorted(active_tenants_by_user.get(user_id, set()))
         duplicate_keys[(user_id, role_id, organization_id)].append(binding_id)
 
@@ -374,8 +383,17 @@ def _inventory_data(
                 "user_id": user_id,
                 "role_id": role_id,
                 "role_name": role_name,
+                "role_tenant_id": role_tenant_id,
+                "role_allowed_scope_type": allowed_scope,
+                "role_status": role_status,
+                "role_is_assignable": (
+                    _is_true(role.get("is_assignable"))
+                    if "is_assignable" in role
+                    else None
+                ),
                 "organization_id": organization_id,
                 "candidate_tenant_id": candidate_tenant_id,
+                "active_tenant_ids": active_tenants,
                 "classification": classification,
             }
         )

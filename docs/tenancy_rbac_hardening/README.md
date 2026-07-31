@@ -8,8 +8,9 @@ switching, sensitive target-user boundaries, direct customer onboarding containm
 tenant authority separation, versioned system-role reconciliation, and mode-specific startup
 cutover are implemented. The additive canonical role metadata, tenant-safe role namespaces,
 role-binding schema, and explicit version/hash-pinned delegation foundation are implemented
-without changing decision authority. Additive quarantine and immutable source-snapshot records
-now prepare reversible legacy-binding backfill without guessing tenant scope. Existing database
+without changing decision authority. Deterministic classification, independent review, and
+additive immutable preparation records now stage reversible legacy-binding backfill without
+guessing tenant scope. Existing database
 policy application remains a reviewed deployment action. Canonical backfill/authority, customer
 custom-role administration, and invitation-lifecycle cutovers remain pending.
 
@@ -1011,6 +1012,7 @@ allowed. Closing the migration includes a dedicated dead-code removal change; re
 | `AuthorizationMigrationMode` and mode-gating branches | `CANONICAL_ONLY` is irreversible for all deployed environments and rollback is formally closed | Final authority-mode approval and deployment records |
 | Dual-write and shadow-comparison code to be introduced later | Canonical-only writes and decisions have passed the observation window | Aggregated mismatch and reconciliation evidence |
 | `AuthorizationMigrationBatch`, `LegacyRoleBindingMigrationRecord`, their ORM/repository adapters, and runtime tables | Every batch is closed, rollback is prohibited, required records are exported, and retention ownership is accepted | Exported immutable snapshots, hashes, approvals, and audit records |
+| Legacy binding migration planner, preparation service, operator CLI, and focused tests | Every reviewed batch is closed, canonical backfill no longer consumes the planner, and retained artifacts have been exported | Inventory, preview, reviewed-plan, preparation-receipt, and platform-audit evidence |
 | Transition-evidence manifest verifier, CLI, focused tests, and runbook | Final promotion accepted and a reproducible verifier package/version is archived outside product runtime | Existing receipts and the archived verifier digest for the retention period |
 | Legacy-specific probes in the tenancy/RBAC inventory | Legacy tables are dropped and the final post-drop inventory is accepted | General tenant-isolation inventory remains supported |
 
@@ -1105,8 +1107,10 @@ environments, and authorization remains legacy-authoritative.
 - Add tenant custom-role commands with curated permission ceilings, optimistic updates,
   non-destructive retirement, targeted session invalidation, and atomic audit.
 - Add canonical role-binding table and constraints.
-- Backfill platform, tenant, organization, and resource bindings.
-- Quarantine ambiguous global role rows for operator review.
+- Generate and persist reviewed platform, tenant, and organization preparation records.
+  Implemented without canonical writes; applying those records remains pending.
+- Quarantine ambiguous global role rows for operator review. Deterministic mandatory
+  quarantine and independent review are implemented; environment review remains pending.
 - Enter `LEGACY_AUTHORITATIVE`, then dual-write new assignments while legacy reads remain
   authoritative.
 - Enter `CANONICAL_SHADOW` and classify every decision mismatch.
@@ -1161,6 +1165,15 @@ Current Phase 2 foundation:
   additive transition state. Each row preserves the exact legacy source fields and digest;
   ambiguous rows remain quarantined without a claimed scope, while migration-ready rows require
   explicit review. Revision `9c4d5e6f7a8b` creates the runtime tables without backfilling data.
+- The offline migration planner verifies the full inventory artifact, hashes only the legacy
+  rows and classification inputs for apply-time drift protection, and permits only exact
+  inventory-derived platform, tenant, or organization scopes. Duplicate, inactive,
+  cross-tenant, metadata-deficient, and multi-tenant-ambiguous rows are non-overridable
+  quarantines.
+- The preparation service requires `platform.admin`, a reviewer distinct from the applying
+  operator, an exact reviewed-plan hash, live source/classification parity, atomic platform
+  audit, and one immutable plan per source snapshot. It stores preparation evidence only and
+  never creates canonical bindings or changes authorization mode.
 - System role names are unique in the platform namespace; custom role names are unique per
   tenant. Explicit repository methods prevent tenant roles from changing legacy system-role
   lookup semantics.
@@ -1299,7 +1312,7 @@ replacement provisioning is proven.
 | Sensitive target-user boundary | Implemented | Password, MFA, federated identity, session, user-admin, and role-assignment paths use `target_user_authorization.py`. |
 | Scoped-grant containment | Implemented for legacy grant operations; canonical migration pending | Grant reads and mutations require active tenant context, target membership, and a tenant-aware resource resolver. Missing context or resolver infrastructure denies instead of broadening access. |
 | Schema-aware authorization inventory and transition evidence | Tooling implemented; environment execution/archive/review remains Phase 0 work | `python -m tools.inventory_tenancy_rbac` performs read-only schema/data classification. `python -m tools.verify_authorization_transition_evidence` validates strict ADR-003 backup, rehearsal, retention, approval, inventory, and policy artifacts offline without changing a database. |
-| Reversible binding migration records | Additive foundation implemented; classifier/backfill execution pending | `AuthorizationMigrationBatch` and `LegacyRoleBindingMigrationRecord` preserve inventory and per-row source hashes, distinguish reviewed mappings from quarantined ambiguity, and reserve applied/rolled-back states. Revision `9c4d5e6f7a8b` adds constrained runtime tables without reading or changing authorization authority. |
+| Reversible binding migration preparation | Deterministic classifier, review contract, and guarded evidence persistence implemented; canonical backfill pending | Inventory-derived proposals force unsafe rows into non-overridable quarantine. Independent review, live source/preview drift checks, exact plan-hash confirmation, idempotent preparation, constrained records, and platform audit are implemented. Revision `9c4d5e6f7a8b` remains additive and no preparation path writes canonical authority. |
 | Membership lifecycle schema | Internal orchestration implemented; delivery and cutover pending | Explicit states, one-time token hashes, one-row transitions, optimistic updates, active-status admission, internal authorization, authenticated acceptance, targeted session invalidation, atomic membership audit, default `viewer` dual-write, and revisions `6f1a9c2e8d4b`/`7a2b3c4d5e6f` are implemented. External delivery, public adapters, custom-role delegation, and canonical authority remain gated. |
 | Platform-role removal from customer paths | Implemented as containment; canonical role scope metadata pending | Customer desktop/API/QML paths exclude and reject `admin`, `support_admin`, and organization-scoped `org_admin`; customer user catalogs are active-tenant scoped. |
 | Platform tenant provisioning/catalog authority | Implemented | Tenant create/global get/list and lifecycle operations require `platform.admin`; `tenant_admin` no longer receives `tenant.create`, `tenant.manage`, or `tenant.read`, and provisioning no longer creates a customer membership for the platform operator. |
@@ -1773,6 +1786,56 @@ Reversible binding-migration foundation ledger, 2026-07-31:
   has 61 passing tests. Architecture verification is now 98 passing checks with the same
   two unrelated baseline size failures.
 
+Reviewed binding-migration preparation ledger, 2026-07-31:
+
+- Extended the read-only inventory rows with role ownership/scope/status metadata and each
+  user's exact active-tenant set. Migration evidence-table capability is reported without
+  making those mutable table counts part of the migration source hash.
+- Added deterministic preview artifacts. Only exact platform, single-tenant, and
+  organization-owned mappings become review candidates; duplicates, missing metadata,
+  inactive roles, missing memberships, multi-tenant ambiguity, scope mismatch, role-tenant
+  mismatch, and cross-tenant organizations are mandatory quarantines.
+- Separated the full inventory-report digest from the source-only digest. The full digest
+  proves the original artifact, while the source digest covers every classification input and
+  remains stable when unrelated audit/evidence rows are added. This prevents preparation from
+  invalidating its own idempotent retry guard.
+- Added strict review and reviewed-plan artifacts. Decisions must cover every review candidate
+  exactly, cannot override mandatory quarantine, and cannot invent a scope. The plan digest
+  binds the source, original report, preview, reviewer, review time, records, and dispositions.
+- Added guarded preparation persistence requiring authenticated `platform.admin`, independent
+  reviewer/apply identities, an explicit expected plan digest, live source and proposal parity,
+  one plan per source snapshot, atomic immutable records, and one platform security audit.
+  Same-plan retries recover a missing receipt idempotently; a different reviewed plan for the
+  same source is rejected.
+- The service enforces that the artifact's declared reviewer differs from the authenticated
+  applying user's ID and username. The controlled Security approval/evidence system remains
+  responsible for authenticating that reviewer and protecting the review artifact; an unsigned
+  JSON identity is not treated as external identity proof.
+- Added `python -m tools.prepare_role_binding_migration` with exclusive preview, reviewed-plan,
+  and apply-receipt artifacts. Its apply mode persists preparation evidence only; it has no
+  canonical-binding write or authorization-mode promotion operation.
+- Added nine planning/preparation/CLI tests. Together with migration-foundation and inventory
+  coverage, the focused selection has 17 passing tests. No environment migration, review,
+  preparation apply, canonical backfill, dual-write, or authority cutover was performed.
+
+Reviewed preparation operator order:
+
+```powershell
+python -m tools.inventory_tenancy_rbac --output .security-evidence/binding-inventory.json
+python -m tools.prepare_role_binding_migration --inventory .security-evidence/binding-inventory.json --output .security-evidence/binding-preview.json
+python -m tools.prepare_role_binding_migration --inventory .security-evidence/binding-inventory.json --review .security-evidence/binding-review.json --output .security-evidence/binding-reviewed-plan.json
+python -m tools.prepare_role_binding_migration --apply --plan .security-evidence/binding-reviewed-plan.json --expected-hash <reviewed-plan-sha256> --receipt .security-evidence/binding-preparation-receipt.json
+```
+
+The Security-owned review JSON must copy `inventory_report_sha256`,
+`source_inventory_sha256`, and `preview_sha256` from the preview, identify `reviewer_id` and an
+offset-aware `reviewed_at`, and contain one `{binding_id, decision, reason_code}` entry for every
+row where `review_required=true`. `approve` requires a null/omitted reason; `quarantine`
+requires a reason. Rows already marked `review_required=false` are mandatory quarantines and
+must not appear in reviewer decisions. Preview, review, plan, and receipt paths are exclusive;
+reruns must use new paths, except a missing post-commit receipt can be recreated by rerunning
+the same apply with the same plan and hash.
+
 ### Repository re-audit, 2026-07-29
 
 Phases 0, 1, and 2 all remain in progress. The current snapshot was re-audited across domain
@@ -1797,7 +1860,7 @@ The earlier containment work is real, but it does not yet constitute canonical a
 | Audit | Membership, canonical role governance, tenant custom roles, platform-owner provisioning, credential/account security, registration/onboarding, local bootstrap account/role repair, legacy role assignment, authentication success/failure/lockout, session administration, shared permission/scope denials, tenant/organization context switching, and inventoried post-gate resource/membership/delegation/SoD/support denials now have explicit evidence semantics. | Preserve one-event ownership at application authorization boundaries and prevent duplicate records when future desktop/HTTP transports add request-scoped middleware. |
 | Entitlements/activity/runtime | Entitlement composition omits its tenant provider; activity can become global with missing context; runtime executions have no tenant/organization and global control reads. | Keep these as open isolation work and block hosted completion until tenant-qualified. |
 | Transport boundary | Desktop customer role/onboarding paths are constrained. The HTTP adapter has no per-request principal/tenant extraction boundary and reuses application service state. | Require request-scoped identity and tenant context before treating HTTP as a hosted SaaS boundary. |
-| Schema verification | Most tests still use `Base.metadata.create_all()`. The Alembic graph has one head, `8b3c4d5e6f7a`; membership lifecycle, token, role namespace, and delegation upgrades have migration-created SQLite coverage, but hosted PostgreSQL migration tests are absent. | Expand migration-created coverage across authorization schema profiles and add hosted PostgreSQL. |
+| Schema verification | Most tests still use `Base.metadata.create_all()`. The Alembic graph has one head, `9c4d5e6f7a8b`; membership lifecycle, token, role namespace, delegation, and reversible migration-record upgrades have migration-created SQLite coverage, but hosted PostgreSQL migration tests are absent. | Expand migration-created coverage across authorization schema profiles and add hosted PostgreSQL. |
 
 The configured desktop database was inspected read-only both manually and with
 `python -m tools.inventory_tenancy_rbac`. It was at revision `z3a4b5c6d7e8`, now six revisions
@@ -1845,9 +1908,12 @@ Remaining work, in order:
    custom-role commands are implemented; only after policy-v2 environment activation should
    they and guarded delegation be exposed through a request-scoped administration adapter. Do
    not expose raw invitation tokens through generic desktop or HTTP surfaces.
-4. Generate reviewed quarantine/mapping records from a fresh inventory using the implemented
-   `9c4d5e6f7a8b` foundation. Then implement explicit migration-mode dual-write and shadow
-   comparison before removing `user_roles`; no classifier may infer an ambiguous tenant.
+4. For each environment, generate a fresh preview, obtain independent Security review, and
+   deliberately persist the reviewed preparation with its exact plan hash. The planner and
+   guarded preparation path are implemented, but no environment apply is claimed.
+5. Implement explicit migration-mode dual-write, canonical backfill consumption with rollback,
+   and shadow comparison before removing `user_roles`. Preparation records are evidence and
+   input only; they are not authorization authority, and no ambiguous tenant may be inferred.
 
 ## Required Test Matrix
 
@@ -1947,7 +2013,7 @@ This program is complete when:
 | Migration and retirement plan | Complete |
 | Phase 0 safety net | In progress; ADR, read-only inventory, and strict operational-evidence verification tooling implemented; all-environment execution/archive/rehearsal pending |
 | Phase 1 immediate containment | In progress; scoped-grant fail-closed containment implemented |
-| Phase 2 canonical membership and role-binding schema | In progress; internal invitation/lifecycle orchestration, tenant role namespaces, delegation persistence, and guarded canonical mutations implemented; permission activation, customer custom-role administration, external delivery, backfill, and cutover pending |
+| Phase 2 canonical membership and role-binding schema | In progress; internal invitation/lifecycle orchestration, tenant role namespaces, delegation persistence, guarded canonical mutations, and reviewed legacy-binding preparation implemented; environment review/apply, permission activation, external delivery, canonical backfill, dual-write/shadow comparison, and cutover pending |
 | Principal/authorization-engine cutover | Not started |
 | Repository/audit/background hardening | Not started |
 | Custom roles and enterprise identity | Not started |

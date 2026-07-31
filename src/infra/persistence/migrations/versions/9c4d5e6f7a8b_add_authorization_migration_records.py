@@ -26,6 +26,13 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("source_record_count", sa.Integer(), nullable=False),
+        sa.Column(
+            "reviewed_plan_sha256",
+            sa.String(length=64),
+            nullable=False,
+        ),
+        sa.Column("reviewer_id", sa.String(), nullable=False),
+        sa.Column("reviewed_at", sa.DateTime(), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False),
         sa.Column("created_by", sa.String(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
@@ -54,6 +61,10 @@ def upgrade() -> None:
             name="ck_authorization_migration_batches_hash_length",
         ),
         sa.CheckConstraint(
+            "length(reviewed_plan_sha256) = 64",
+            name="ck_authorization_migration_batches_plan_hash_length",
+        ),
+        sa.CheckConstraint(
             "("
             "status = 'prepared' AND applied_at IS NULL "
             "AND rolled_back_at IS NULL"
@@ -67,6 +78,10 @@ def upgrade() -> None:
             name="ck_authorization_migration_batches_lifecycle",
         ),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint(
+            "source_inventory_sha256",
+            name="ux_authorization_migration_batches_inventory",
+        ),
     )
     op.create_index(
         "idx_authorization_migration_batches_status",

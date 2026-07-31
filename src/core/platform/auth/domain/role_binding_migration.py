@@ -124,6 +124,9 @@ class AuthorizationMigrationBatch:
     id: str
     source_inventory_sha256: str
     source_record_count: int
+    reviewed_plan_sha256: str
+    reviewer_id: str
+    reviewed_at: datetime
     status: str
     created_by: str
     created_at: datetime
@@ -131,7 +134,7 @@ class AuthorizationMigrationBatch:
     rolled_back_at: datetime | None = None
     version: int = 1
 
-    @field_validator("id", "created_by", mode="before")
+    @field_validator("id", "created_by", "reviewer_id", mode="before")
     @classmethod
     def _validate_required_ids(cls, value: object) -> str:
         return normalize_required_text(
@@ -146,6 +149,14 @@ class AuthorizationMigrationBatch:
         return _normalize_sha256(
             value,
             code="AUTH_MIGRATION_INVENTORY_HASH_INVALID",
+        )
+
+    @field_validator("reviewed_plan_sha256", mode="before")
+    @classmethod
+    def _validate_plan_hash(cls, value: object) -> str:
+        return _normalize_sha256(
+            value,
+            code="AUTH_MIGRATION_PLAN_HASH_INVALID",
         )
 
     @field_validator("source_record_count", mode="before")
@@ -189,6 +200,15 @@ class AuthorizationMigrationBatch:
             required=True,
         )
 
+    @field_validator("reviewed_at", mode="before")
+    @classmethod
+    def _validate_reviewed_at(cls, value: object) -> datetime:
+        return _normalize_migration_datetime(
+            value,
+            code="AUTH_MIGRATION_BATCH_REVIEWED_AT_REQUIRED",
+            required=True,
+        )
+
     @field_validator("applied_at", "rolled_back_at", mode="before")
     @classmethod
     def _validate_optional_timestamps(cls, value: object) -> datetime | None:
@@ -216,6 +236,11 @@ class AuthorizationMigrationBatch:
 
     @model_validator(mode="after")
     def _validate_lifecycle(self) -> "AuthorizationMigrationBatch":
+        if self.reviewed_at > self.created_at:
+            raise ValidationError(
+                "Migration batch review cannot postdate batch creation.",
+                code="AUTH_MIGRATION_BATCH_REVIEW_INVALID",
+            )
         if self.status == AUTHORIZATION_MIGRATION_BATCH_PREPARED:
             if self.applied_at is not None or self.rolled_back_at is not None:
                 raise ValidationError(
@@ -257,12 +282,18 @@ class AuthorizationMigrationBatch:
         *,
         source_inventory_sha256: str,
         source_record_count: int,
+        reviewed_plan_sha256: str,
+        reviewer_id: str,
+        reviewed_at: datetime,
         created_by: str,
     ) -> "AuthorizationMigrationBatch":
         return AuthorizationMigrationBatch(
             id=generate_id(),
             source_inventory_sha256=source_inventory_sha256,
             source_record_count=source_record_count,
+            reviewed_plan_sha256=reviewed_plan_sha256,
+            reviewer_id=reviewer_id,
+            reviewed_at=reviewed_at,
             status=AUTHORIZATION_MIGRATION_BATCH_PREPARED,
             created_by=created_by,
             created_at=datetime.now(timezone.utc),
@@ -413,9 +444,9 @@ class LegacyRoleBindingMigrationRecord:
                 "Migration reviewer and review timestamp must be recorded together.",
                 code="AUTH_MIGRATION_REVIEW_INVALID",
             )
-        if self.reviewed_at is not None and self.reviewed_at < self.created_at:
+        if self.reviewed_at is not None and self.reviewed_at > self.created_at:
             raise ValidationError(
-                "Migration review cannot predate record creation.",
+                "Migration review cannot postdate record creation.",
                 code="AUTH_MIGRATION_REVIEW_INVALID",
             )
 

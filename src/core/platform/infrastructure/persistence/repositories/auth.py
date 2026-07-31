@@ -605,6 +605,20 @@ class SqlAlchemyRoleBindingMigrationRepository(
             return None
         return authorization_migration_batch_from_orm(row)
 
+    def get_batch_by_inventory_sha256(
+        self,
+        source_inventory_sha256: str,
+    ) -> AuthorizationMigrationBatch | None:
+        row = self.session.execute(
+            select(AuthorizationMigrationBatchORM).where(
+                AuthorizationMigrationBatchORM.source_inventory_sha256
+                == source_inventory_sha256
+            )
+        ).scalars().first()
+        if row is None:
+            return None
+        return authorization_migration_batch_from_orm(row)
+
     def add_record(
         self,
         record: LegacyRoleBindingMigrationRecord,

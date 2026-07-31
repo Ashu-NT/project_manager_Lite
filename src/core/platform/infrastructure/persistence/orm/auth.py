@@ -291,6 +291,10 @@ class AuthorizationMigrationBatchORM(Base):
     # RBAC-TRANSITION-ONLY: Drop after CANONICAL_ONLY and evidence retention.
     __tablename__ = "authorization_migration_batches"
     __table_args__ = (
+        UniqueConstraint(
+            "source_inventory_sha256",
+            name="ux_authorization_migration_batches_inventory",
+        ),
         CheckConstraint(
             "status IN ('prepared', 'applied', 'rolled_back')",
             name="ck_authorization_migration_batches_status",
@@ -306,6 +310,10 @@ class AuthorizationMigrationBatchORM(Base):
         CheckConstraint(
             "length(source_inventory_sha256) = 64",
             name="ck_authorization_migration_batches_hash_length",
+        ),
+        CheckConstraint(
+            "length(reviewed_plan_sha256) = 64",
+            name="ck_authorization_migration_batches_plan_hash_length",
         ),
         CheckConstraint(
             "("
@@ -328,6 +336,12 @@ class AuthorizationMigrationBatchORM(Base):
         nullable=False,
     )
     source_record_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    reviewed_plan_sha256: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+    )
+    reviewer_id: Mapped[str] = mapped_column(String, nullable=False)
+    reviewed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     created_by: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
