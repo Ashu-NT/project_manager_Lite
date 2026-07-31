@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from src.core.platform.auth.domain import (
+    AuthorizationMigrationBatch,
     AuthSession,
+    LegacyRoleBindingMigrationRecord,
     Permission,
     Role,
     RoleBinding,
@@ -12,7 +14,9 @@ from src.core.platform.auth.domain import (
 )
 from src.core.platform.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.infrastructure.persistence.orm.auth import (
+    AuthorizationMigrationBatchORM,
     AuthSessionORM,
+    LegacyRoleBindingMigrationRecordORM,
     PermissionORM,
     RoleBindingORM,
     RoleDelegationPolicyORM,
@@ -183,6 +187,89 @@ def role_binding_from_orm(obj: RoleBindingORM) -> RoleBinding:
     )
 
 
+# RBAC-TRANSITION-ONLY: Remove these migration-state mappers at decommission.
+def authorization_migration_batch_to_orm(
+    batch: AuthorizationMigrationBatch,
+) -> AuthorizationMigrationBatchORM:
+    return AuthorizationMigrationBatchORM(
+        id=batch.id,
+        source_inventory_sha256=batch.source_inventory_sha256,
+        source_record_count=batch.source_record_count,
+        status=batch.status,
+        created_by=batch.created_by,
+        created_at=batch.created_at,
+        applied_at=batch.applied_at,
+        rolled_back_at=batch.rolled_back_at,
+        version=batch.version,
+    )
+
+
+def authorization_migration_batch_from_orm(
+    obj: AuthorizationMigrationBatchORM,
+) -> AuthorizationMigrationBatch:
+    return AuthorizationMigrationBatch(
+        id=obj.id,
+        source_inventory_sha256=obj.source_inventory_sha256,
+        source_record_count=obj.source_record_count,
+        status=obj.status,
+        created_by=obj.created_by,
+        created_at=ensure_utc_datetime(obj.created_at),
+        applied_at=ensure_utc_datetime(obj.applied_at),
+        rolled_back_at=ensure_utc_datetime(obj.rolled_back_at),
+        version=obj.version,
+    )
+
+
+def legacy_role_binding_migration_record_to_orm(
+    record: LegacyRoleBindingMigrationRecord,
+) -> LegacyRoleBindingMigrationRecordORM:
+    return LegacyRoleBindingMigrationRecordORM(
+        id=record.id,
+        batch_id=record.batch_id,
+        legacy_binding_id=record.legacy_binding_id,
+        source_user_id=record.source_user_id,
+        source_role_id=record.source_role_id,
+        source_organization_id=record.source_organization_id,
+        source_snapshot_sha256=record.source_snapshot_sha256,
+        status=record.status,
+        quarantine_reason_code=record.quarantine_reason_code,
+        resolved_tenant_id=record.resolved_tenant_id,
+        resolved_scope_type=record.resolved_scope_type,
+        resolved_scope_id=record.resolved_scope_id,
+        canonical_binding_id=record.canonical_binding_id,
+        reviewed_by=record.reviewed_by,
+        reviewed_at=record.reviewed_at,
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+        version=record.version,
+    )
+
+
+def legacy_role_binding_migration_record_from_orm(
+    obj: LegacyRoleBindingMigrationRecordORM,
+) -> LegacyRoleBindingMigrationRecord:
+    return LegacyRoleBindingMigrationRecord(
+        id=obj.id,
+        batch_id=obj.batch_id,
+        legacy_binding_id=obj.legacy_binding_id,
+        source_user_id=obj.source_user_id,
+        source_role_id=obj.source_role_id,
+        source_organization_id=obj.source_organization_id,
+        source_snapshot_sha256=obj.source_snapshot_sha256,
+        status=obj.status,
+        quarantine_reason_code=obj.quarantine_reason_code,
+        resolved_tenant_id=obj.resolved_tenant_id,
+        resolved_scope_type=obj.resolved_scope_type,
+        resolved_scope_id=obj.resolved_scope_id,
+        canonical_binding_id=obj.canonical_binding_id,
+        reviewed_by=obj.reviewed_by,
+        reviewed_at=ensure_utc_datetime(obj.reviewed_at),
+        created_at=ensure_utc_datetime(obj.created_at),
+        updated_at=ensure_utc_datetime(obj.updated_at),
+        version=obj.version,
+    )
+
+
 def role_delegation_policy_to_orm(
     policy: RoleDelegationPolicy,
 ) -> RoleDelegationPolicyORM:
@@ -234,6 +321,7 @@ def permission_from_orm(obj: PermissionORM) -> Permission:
 
 
 def user_role_to_orm(binding: UserRoleBinding) -> UserRoleORM:
+    # RBAC-TRANSITION-ONLY: Remove with the legacy user_roles adapter.
     return UserRoleORM(
         id=binding.id,
         user_id=binding.user_id,
@@ -268,8 +356,12 @@ def role_permission_from_orm(obj: RolePermissionORM) -> RolePermissionBinding:
 
 
 __all__ = [
+    "authorization_migration_batch_from_orm",
+    "authorization_migration_batch_to_orm",
     "auth_session_from_orm",
     "auth_session_to_orm",
+    "legacy_role_binding_migration_record_from_orm",
+    "legacy_role_binding_migration_record_to_orm",
     "user_to_orm",
     "user_from_orm",
     "role_to_orm",

@@ -511,6 +511,8 @@ class Permission:
 
 @validated_dataclass
 class UserRoleBinding:
+    # RBAC-TRANSITION-ONLY: Remove after canonical bindings are authoritative,
+    # legacy writes are disabled, and rollback evidence is retained.
     id: str
     user_id: str
     role_id: str

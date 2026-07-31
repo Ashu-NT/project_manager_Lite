@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 
 from src.core.platform.auth.domain import (
+    AuthorizationMigrationBatch,
     AuthPolicyReconciliation,
     AuthSession,
     Permission,
@@ -13,6 +14,7 @@ from src.core.platform.auth.domain import (
     RolePermissionBinding,
     UserAccount,
     UserRoleBinding,
+    LegacyRoleBindingMigrationRecord,
 )
 
 
@@ -192,6 +194,32 @@ class RoleBindingRepository(ABC):
     ) -> int: ...
 
 
+class RoleBindingMigrationRepository(ABC):
+    """Persistence boundary for reversible legacy-binding migration state."""
+
+    # RBAC-TRANSITION-ONLY: Remove after all batches and rollback retention close.
+    @abstractmethod
+    def add_batch(self, batch: AuthorizationMigrationBatch) -> None: ...
+
+    @abstractmethod
+    def get_batch(
+        self,
+        batch_id: str,
+    ) -> AuthorizationMigrationBatch | None: ...
+
+    @abstractmethod
+    def add_record(
+        self,
+        record: LegacyRoleBindingMigrationRecord,
+    ) -> None: ...
+
+    @abstractmethod
+    def list_records(
+        self,
+        batch_id: str,
+    ) -> list[LegacyRoleBindingMigrationRecord]: ...
+
+
 class RoleDelegationPolicyRepository(ABC):
     @abstractmethod
     def add(self, policy: RoleDelegationPolicy) -> None: ...
@@ -238,6 +266,7 @@ class PermissionRepository(ABC):
 
 
 class UserRoleRepository(ABC):
+    # RBAC-TRANSITION-ONLY: Remove after CANONICAL_ONLY disables user_roles.
     @abstractmethod
     def add(self, binding: UserRoleBinding) -> None: ...
 
@@ -290,6 +319,7 @@ __all__ = [
     "PermissionRepository",
     "RolePermissionRepository",
     "RoleBindingRepository",
+    "RoleBindingMigrationRepository",
     "RoleDelegationPolicyRepository",
     "RoleRepository",
     "UserRepository",

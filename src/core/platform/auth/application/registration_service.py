@@ -35,6 +35,8 @@ def _assign_roles_for_user(
     user_id: str,
     role_names: Iterable[str],
 ) -> tuple[str, ...]:
+    # RBAC-TRANSITION-ONLY: Bootstrap/test compatibility write. Customer
+    # onboarding must use canonical bindings before CANONICAL_ONLY.
     assigned_role_names: list[str] = []
     for role_name in role_names:
         role = service._require_role_by_name(role_name)

@@ -4,6 +4,7 @@ from src.core.platform.auth.contracts.auth_repository import (
     PermissionRepository,
     RolePermissionRepository,
     RoleBindingRepository,
+    RoleBindingMigrationRepository,  # RBAC-TRANSITION-ONLY
     RoleDelegationPolicyRepository,
     RoleRepository,
     UserRepository,
@@ -16,6 +17,7 @@ __all__ = [
     "PermissionRepository",
     "RolePermissionRepository",
     "RoleBindingRepository",
+    "RoleBindingMigrationRepository",
     "RoleDelegationPolicyRepository",
     "RoleRepository",
     "UserRepository",

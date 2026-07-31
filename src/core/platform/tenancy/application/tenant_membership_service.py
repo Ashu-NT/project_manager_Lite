@@ -621,6 +621,8 @@ class TenantMembershipService:
                 )
             )
         if not self._user_role_repo.exists(user.id, role.id):
+            # RBAC-TRANSITION-ONLY: Remove this compatibility write when
+            # canonical role bindings become the sole assignment store.
             self._user_role_repo.add(
                 UserRoleBinding.create(user_id=user.id, role_id=role.id)
             )

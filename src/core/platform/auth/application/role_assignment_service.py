@@ -25,6 +25,9 @@ from .target_user_authorization import (
 if TYPE_CHECKING:
     from .auth_service import AuthService
 
+# RBAC-TRANSITION-ONLY: This module mutates legacy user_roles. Replace callers
+# with canonical governance, then remove after CANONICAL_ONLY observation.
+
 # C-1: privilege ceiling — roles ranked higher than the caller cannot be assigned.
 # admin (100) > tenant_admin (80) > org_admin (70) > everything else (10).
 _PRIVILEGE_RANK: dict[str, int] = {

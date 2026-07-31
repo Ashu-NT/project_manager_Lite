@@ -12,6 +12,8 @@ from src.core.platform.auth.domain import Role, UserAccount
 
 
 class AuthQueryMixin:
+    # RBAC-TRANSITION-ONLY: Legacy role/permission reads are replaced by the
+    # canonical principal query path before CANONICAL_AUTHORITATIVE.
     _user_repo: UserRepository
     _role_repo: RoleRepository
     _permission_repo: PermissionRepository

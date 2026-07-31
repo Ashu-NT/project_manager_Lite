@@ -155,13 +155,18 @@ must produce durable security evidence.
 - `[x]` canonical role metadata and role-binding foundation are additive
 - `[x]` legacy scoped-grant operations fail closed on context, membership, and ownership
 - `[x]` schema-aware read-only inventory tooling is available
-- `[~]` environment inventory review and policy reconciliation are operationally pending
+- `[x]` strict offline operational-evidence manifest and artifact-integrity verification tooling
+  is available for backup, restore, rollback, retention, approval, inventory, and policy
+  evidence
+- `[~]` environment evidence execution, archival, inventory review, and policy reconciliation
+  are operationally pending
 - `[x]` unsupported authorization migration modes are rejected at configuration and composition
 - `[~]` additive membership lifecycle, one-time token issuance, authenticated internal
   acceptance, targeted session invalidation, atomic membership audit, and fixed `viewer`
   orchestration are implemented; external delivery, public adapters, custom-role delegation,
   and legacy-column retirement remain pending
-- `[ ]` dual-write, quarantine, shadow comparison, and promotion gates are implemented
+- `[~]` constrained quarantine and rollback-snapshot persistence is implemented additively;
+  classifier execution, dual-write, shadow comparison, and promotion gates remain pending
 - `[ ]` canonical authorization is decision authority
 - `[ ]` successful privileged audit intent is atomic with each mutation
 - `[ ]` hosted PostgreSQL migration and isolation evidence is in CI

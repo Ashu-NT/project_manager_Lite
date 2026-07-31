@@ -120,6 +120,8 @@ def build_principal(
     active_tenant_id: str | None | object = _CONTEXT_UNSET,
     active_organization_id: str | None | object = _CONTEXT_UNSET,
 ) -> UserSessionPrincipal:
+    # RBAC-TRANSITION-ONLY: Legacy-authoritative principal construction.
+    # Remove after canonical building owns login, restore, and context switching.
     context_is_explicit = (
         active_tenant_id is not _CONTEXT_UNSET
         or active_organization_id is not _CONTEXT_UNSET

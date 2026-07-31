@@ -19,6 +19,8 @@ class DeploymentEnvironment(str, Enum):
 
 
 class AuthorizationMigrationMode(str, Enum):
+    # RBAC-TRANSITION-ONLY: Collapse this switch after CANONICAL_ONLY has
+    # completed its observation and evidence-retention gates.
     LEGACY_AUTHORITATIVE = "LEGACY_AUTHORITATIVE"
     CANONICAL_SHADOW = "CANONICAL_SHADOW"
     CANONICAL_AUTHORITATIVE = "CANONICAL_AUTHORITATIVE"

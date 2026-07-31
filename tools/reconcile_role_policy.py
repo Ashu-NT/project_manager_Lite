@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import hashlib
 import json
 import os
 import sys
@@ -44,7 +45,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output",
         type=Path,
-        help="Optional dry-run JSON output path.",
+        help=(
+            "Optional dry-run artifact path. Required with --apply and used "
+            "for the immutable apply receipt."
+        ),
     )
     parser.add_argument(
         "--rollback-output",
@@ -98,12 +102,53 @@ def _write_json(
     path: Path,
     payload: dict[str, object],
     *,
-    exclusive: bool = False,
-) -> None:
+    exclusive: bool = True,
+) -> Path:
     resolved = path.expanduser().resolve()
     resolved.parent.mkdir(parents=True, exist_ok=True)
     with resolved.open("x" if exclusive else "w", encoding="utf-8") as stream:
         stream.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    return resolved
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _runtime_security_payload(configuration) -> dict[str, str]:
+    return {
+        "deployment_environment": configuration.deployment_environment.value,
+        "tenancy_mode": configuration.tenancy_mode.value,
+        "authorization_migration_mode": (
+            configuration.authorization_migration_mode.value
+        ),
+    }
+
+
+def _build_apply_receipt(
+    payload: dict[str, object],
+    result,
+    *,
+    rollback_path: Path,
+    rollback_sha256: str,
+) -> dict[str, object]:
+    return {
+        **payload,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "result": {
+            "applied": result.applied,
+            "change_set_hash": result.plan.change_set_hash,
+            "from_version": result.plan.current_version,
+            "to_version": result.plan.target_version,
+            "revoked_session_count": result.revoked_session_count,
+            "rollback_artifact_reference": str(rollback_path),
+            "rollback_artifact_sha256": rollback_sha256,
+        },
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -114,25 +159,38 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--expected-version is required with --apply")
     if args.apply and not str(args.expected_hash or "").strip():
         parser.error("--expected-hash is required with --apply")
+    if args.apply and args.output is None:
+        parser.error("--output is required with --apply for the apply receipt")
     if args.apply and args.rollback_output is None:
         parser.error("--rollback-output is required with --apply")
+    if (
+        args.output is not None
+        and args.rollback_output is not None
+        and args.output.expanduser().resolve()
+        == args.rollback_output.expanduser().resolve()
+    ):
+        parser.error("--output and --rollback-output must be different paths")
+    for artifact_path in (args.output, args.rollback_output):
+        if (
+            artifact_path is not None
+            and artifact_path.expanduser().resolve().exists()
+        ):
+            parser.error(f"artifact already exists: {artifact_path}")
 
     from src.core.platform.auth import AuthService
     from src.core.platform.auth.application import RolePolicyReconciliationService
     from src.core.platform.auth.domain import UserSessionContext
     from src.infra.composition.repositories import build_repository_bundle
-    from src.infra.persistence.db.engine import get_db_url
     from src.infra.persistence.db.session_factory import SessionLocal
-    from src.infra.persistence.migrations.runner import run_migrations
     from src.infra.platform.logging_config import setup_logging
     from src.infra.platform.security_config import (
         load_runtime_security_configuration,
     )
+    from src.infra.platform.version import get_app_version
 
     setup_logging()
-    load_runtime_security_configuration()
+    security_configuration = load_runtime_security_configuration()
     password = _resolve_password()
-    run_migrations(get_db_url())
     session = SessionLocal()
     try:
         repositories = build_repository_bundle(session)
@@ -170,13 +228,18 @@ def main(argv: list[str] | None = None) -> int:
         )
         plan = service.preview()
         payload = {
+            "schema_version": 1,
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "mode": "apply" if args.apply else "dry-run",
+            "application_version": get_app_version(),
+            "runtime_security": _runtime_security_payload(
+                security_configuration
+            ),
             "plan": _plan_payload(plan),
         }
-        if args.output is not None:
-            _write_json(args.output, payload)
         if not args.apply:
+            if args.output is not None:
+                _write_json(args.output, payload)
             print(json.dumps(payload, indent=2, sort_keys=True))
             return 0
 
@@ -184,22 +247,24 @@ def main(argv: list[str] | None = None) -> int:
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "reviewed_plan": _plan_payload(plan),
         }
-        _write_json(args.rollback_output, rollback_payload, exclusive=True)
+        rollback_path = _write_json(args.rollback_output, rollback_payload)
+        rollback_sha256 = _sha256_file(rollback_path)
         result = service.apply(
             expected_version=args.expected_version,
             expected_change_set_hash=args.expected_hash,
         )
+        receipt = _build_apply_receipt(
+            payload,
+            result,
+            rollback_path=rollback_path,
+            rollback_sha256=rollback_sha256,
+        )
+        receipt_path = _write_json(args.output, receipt)
         print(
             json.dumps(
                 {
-                    "applied": result.applied,
-                    "change_set_hash": result.plan.change_set_hash,
-                    "from_version": result.plan.current_version,
-                    "to_version": result.plan.target_version,
-                    "revoked_session_count": result.revoked_session_count,
-                    "rollback_artifact": str(
-                        args.rollback_output.expanduser().resolve()
-                    ),
+                    **receipt,
+                    "receipt_artifact": str(receipt_path),
                 },
                 indent=2,
                 sort_keys=True,

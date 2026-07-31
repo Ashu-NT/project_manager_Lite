@@ -62,6 +62,7 @@ from src.core.platform.infrastructure.persistence.repositories.auth import (
     SqlAlchemyAuthSessionRepository,
     SqlAlchemyPermissionRepository,
     SqlAlchemyRoleBindingRepository,
+    SqlAlchemyRoleBindingMigrationRepository,
     SqlAlchemyRoleDelegationPolicyRepository,
     SqlAlchemyRolePermissionRepository,
     SqlAlchemyRoleRepository,
@@ -125,6 +126,8 @@ class RepositoryBundle:
     auth_policy_reconciliation_repo: SqlAlchemyAuthPolicyReconciliationRepository
     role_repo: SqlAlchemyRoleRepository
     role_binding_repo: SqlAlchemyRoleBindingRepository
+    # RBAC-TRANSITION-ONLY: Remove after migration records are exported/retired.
+    role_binding_migration_repo: SqlAlchemyRoleBindingMigrationRepository
     role_delegation_policy_repo: SqlAlchemyRoleDelegationPolicyRepository
     permission_repo: SqlAlchemyPermissionRepository
     user_role_repo: SqlAlchemyUserRoleRepository
@@ -187,6 +190,9 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         ),
         role_repo=SqlAlchemyRoleRepository(session),
         role_binding_repo=SqlAlchemyRoleBindingRepository(session),
+        role_binding_migration_repo=SqlAlchemyRoleBindingMigrationRepository(
+            session
+        ),
         role_delegation_policy_repo=SqlAlchemyRoleDelegationPolicyRepository(
             session
         ),
