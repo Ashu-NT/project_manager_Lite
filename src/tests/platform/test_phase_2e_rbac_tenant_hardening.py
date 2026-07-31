@@ -100,6 +100,7 @@ def _make_auth_svc(services, *, role_names):
         permission_repo=auth._permission_repo,
         user_role_repo=auth._user_role_repo,
         role_permission_repo=auth._role_permission_repo,
+        role_binding_repo=auth._role_binding_repo,
         auth_session_repo=auth._auth_session_repo,
         user_tenant_repo=user_tenant_repo,
         user_session=ctx,
@@ -155,8 +156,9 @@ class TestPrivilegeCeiling:
     def test_org_admin_cannot_assign_admin_role(self, services):
         auth_svc, _ = _make_auth_svc(services, role_names=["org_admin"])
         target = services["auth_service"].register_user("p2e-c1-t1", "StrongPass123!")
-        with pytest.raises(BusinessRuleError, match="ROLE_PRIVILEGE_CEILING"):
+        with pytest.raises(BusinessRuleError) as exc_info:
             auth_svc.assign_role(target.id, "admin")
+        assert exc_info.value.code == "PLATFORM_ROLE_ASSIGNMENT_DENIED"
 
     def test_org_admin_cannot_assign_tenant_admin_role(self, services):
         auth_svc, _ = _make_auth_svc(services, role_names=["org_admin"])
@@ -173,8 +175,9 @@ class TestPrivilegeCeiling:
     def test_tenant_admin_cannot_assign_admin_role(self, services):
         auth_svc, _ = _make_auth_svc(services, role_names=["tenant_admin"])
         target = services["auth_service"].register_user("p2e-c1-t4", "StrongPass123!")
-        with pytest.raises(BusinessRuleError, match="ROLE_PRIVILEGE_CEILING"):
+        with pytest.raises(BusinessRuleError) as exc_info:
             auth_svc.assign_role(target.id, "admin")
+        assert exc_info.value.code == "PLATFORM_ROLE_ASSIGNMENT_DENIED"
 
     def test_tenant_admin_cannot_assign_tenant_admin(self, services):
         auth_svc, _ = _make_auth_svc(services, role_names=["tenant_admin"])

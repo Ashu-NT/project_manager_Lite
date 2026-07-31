@@ -13,6 +13,7 @@ from src.core.platform.auth.contracts import (
     AuthPolicyReconciliationRepository,
     AuthSessionRepository,
     PermissionRepository,
+    RoleBindingRepository,
     RolePermissionRepository,
     RoleRepository,
     UserRepository,
@@ -81,6 +82,7 @@ class RolePolicyReconciliationService:
         auth_session_repo: AuthSessionRepository,
         reconciliation_repo: AuthPolicyReconciliationRepository,
         user_session: UserSessionContext,
+        role_binding_repo: RoleBindingRepository,
     ) -> None:
         self._session = session
         self._role_repo = role_repo
@@ -91,6 +93,7 @@ class RolePolicyReconciliationService:
         self._auth_session_repo = auth_session_repo
         self._reconciliation_repo = reconciliation_repo
         self._user_session = user_session
+        self._role_binding_repo = role_binding_repo
 
     def preview(self) -> RolePolicyReconciliationPlan:
         require_permission(
@@ -274,17 +277,22 @@ class RolePolicyReconciliationService:
                 removals.append(RolePermissionChange(role_name, code))
                 changed_role_ids.add(role.id)
 
-        affected_user_ids = tuple(
-            sorted(
-                {
-                    user_id
-                    for role_id in changed_role_ids
-                    for user_id in self._user_role_repo.list_user_ids_for_role(
-                        role_id
+        affected_users: set[str] = set()
+        for role_id in changed_role_ids:
+            role = self._role_repo.get(role_id)
+            if role is not None and role.allowed_scope_type == "platform":
+                affected_users.update(
+                    binding.principal_id
+                    for binding in self._role_binding_repo.list_active_for_role(
+                        role_id,
+                        tenant_id=None,
                     )
-                }
-            )
-        )
+                )
+            else:
+                affected_users.update(
+                    self._user_role_repo.list_user_ids_for_role(role_id)
+                )
+        affected_user_ids = tuple(sorted(affected_users))
         active_session_ids = tuple(
             sorted(self._active_session_ids(affected_user_ids))
         )

@@ -7,7 +7,13 @@ from inspect import signature
 import pytest
 
 from src.core.platform.auth import AuthService
+from src.core.platform.auth.domain import (
+    ROLE_SCOPE_PLATFORM,
+    RoleBinding,
+    UserAccount,
+)
 from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.auth.passwords import hash_password
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.infrastructure.persistence.orm.access import (
     ScopedAccessGrantORM,
@@ -54,6 +60,7 @@ def _customer_auth_service(
             permission_repo=auth._permission_repo,
             user_role_repo=auth._user_role_repo,
             role_permission_repo=auth._role_permission_repo,
+            role_binding_repo=auth._role_binding_repo,
             auth_session_repo=auth._auth_session_repo,
             scoped_access_repo=auth._scoped_access_repo,
             project_membership_repo=auth._project_membership_repo,
@@ -230,12 +237,22 @@ def test_customer_user_catalog_is_tenant_scoped_and_hides_platform_users(
         "StrongPass123!",
         tenant_id=tenant_id,
     )
-    platform_support = services["auth_service"].register_user(
-        "containment-catalog-support",
-        "StrongPass123!",
-        role_names=["support_admin"],
-        tenant_id=tenant_id,
+    platform_support = UserAccount.create(
+        username="containment-catalog-support",
+        password_hash=hash_password("StrongPass123!"),
     )
+    customer_auth._user_repo.add(platform_support)
+    services["session"].flush()
+    support_role = customer_auth._role_repo.get_by_name("support_admin")
+    assert support_role is not None
+    customer_auth._role_binding_repo.add(
+        RoleBinding.create(
+            principal_id=platform_support.id,
+            role_id=support_role.id,
+            actual_scope_type=ROLE_SCOPE_PLATFORM,
+        )
+    )
+    services["session"].commit()
     cross_tenant_user = _cross_tenant_user(
         services,
         username="containment-catalog-cross",

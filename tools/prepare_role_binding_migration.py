@@ -174,6 +174,7 @@ def _apply_stage(args: argparse.Namespace) -> dict[str, object]:
             project_membership_repo=repositories.project_membership_repo,
             user_session=user_session,
             user_tenant_repo=repositories.user_tenant_repo,
+            role_binding_repo=repositories.role_binding_repo,
         )
         actor = auth_service.authenticate(
             args.username,

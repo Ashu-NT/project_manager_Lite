@@ -80,7 +80,7 @@ def test_platform_approval_desktop_api_lists_and_approves_requests(services):
     services["auth_service"].register_user(
         "approval-approver-desktop",
         "StrongPass123",
-        role_names=["admin"],
+        role_names=["approver"],
     )
 
     login_as(services, "approval-requester-desktop", "StrongPass123")

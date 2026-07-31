@@ -8,8 +8,9 @@ from sqlalchemy.exc import IntegrityError
 from src.core.platform.audit.domain import AuditEntry
 from src.core.platform.auth.domain import (
     RolePermissionBinding,
+    ROLE_SCOPE_PLATFORM,
+    RoleBinding,
     UserAccount,
-    UserRoleBinding,
     normalize_auth_username,
 )
 from src.core.platform.auth.passwords import hash_password
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
     from .auth_service import AuthService
 
 
-LEGACY_PLATFORM_OWNER_ROLE = "admin"
+PLATFORM_OWNER_ROLE = "admin"
 PLATFORM_OWNER_BOOTSTRAP_PERMISSION = "platform.admin"
 
 
@@ -41,11 +42,20 @@ def _find_platform_owners(
     *,
     role_id: str,
 ) -> list[UserAccount]:
-    return [
-        user
-        for user in service._user_repo.list_all()
-        if service._user_role_repo.exists(user.id, role_id)
-    ]
+    if service._role_binding_repo is None:
+        raise BusinessRuleError(
+            "Canonical role-binding persistence is not configured.",
+            code="AUTHORIZATION_CANONICAL_REPOSITORY_REQUIRED",
+        )
+    owners: list[UserAccount] = []
+    for binding in service._role_binding_repo.list_active_for_role(
+        role_id,
+        tenant_id=None,
+    ):
+        user = service._user_repo.get(binding.principal_id)
+        if user is not None:
+            owners.append(user)
+    return owners
 
 
 def provision_platform_owner(
@@ -63,7 +73,7 @@ def provision_platform_owner(
     try:
         with service._session.begin_nested():
             role_map = ensure_auth_policy_definitions(service)
-            owner_role = role_map[LEGACY_PLATFORM_OWNER_ROLE]
+            owner_role = role_map[PLATFORM_OWNER_ROLE]
             bootstrap_permission = service._permission_repo.get_by_code(
                 PLATFORM_OWNER_BOOTSTRAP_PERMISSION
             )
@@ -115,6 +125,7 @@ def provision_platform_owner(
                     must_change_password=True,
                 )
                 service._user_repo.add(owner)
+                service._session.flush()
                 if not service._role_permission_repo.exists(
                     owner_role.id,
                     bootstrap_permission.id,
@@ -125,10 +136,16 @@ def provision_platform_owner(
                             permission_id=bootstrap_permission.id,
                         )
                     )
-                service._user_role_repo.add(
-                    UserRoleBinding.create(
-                        user_id=owner.id,
+                if service._role_binding_repo is None:
+                    raise BusinessRuleError(
+                        "Canonical role-binding persistence is not configured.",
+                        code="AUTHORIZATION_CANONICAL_REPOSITORY_REQUIRED",
+                    )
+                service._role_binding_repo.add(
+                    RoleBinding.create(
+                        principal_id=owner.id,
                         role_id=owner_role.id,
+                        actual_scope_type=ROLE_SCOPE_PLATFORM,
                     )
                 )
                 audit_writer.add_platform(
@@ -144,12 +161,12 @@ def provision_platform_owner(
                         compliance_tag="SOC2",
                         metadata={
                             "username": owner.username,
-                            "legacy_role_name": LEGACY_PLATFORM_OWNER_ROLE,
+                            "role_name": PLATFORM_OWNER_ROLE,
                             "bootstrap_permission_code": (
                                 PLATFORM_OWNER_BOOTSTRAP_PERMISSION
                             ),
                             "must_change_password": True,
-                            "provisioning_version": 1,
+                            "provisioning_version": 2,
                         },
                     )
                 )
@@ -169,7 +186,7 @@ def provision_platform_owner(
 
 
 __all__ = [
-    "LEGACY_PLATFORM_OWNER_ROLE",
+    "PLATFORM_OWNER_ROLE",
     "PLATFORM_OWNER_BOOTSTRAP_PERMISSION",
     "PlatformAuditWriter",
     "PlatformOwnerProvisioningResult",

@@ -146,7 +146,7 @@ class RoleBindingRepository(ABC):
         self,
         role_id: str,
         *,
-        tenant_id: str,
+        tenant_id: str | None,
     ) -> list[RoleBinding]: ...
 
     @abstractmethod

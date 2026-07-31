@@ -9,9 +9,15 @@ from src.core.platform.auth.authorization import (
     authorization_denied,
     require_permission,
 )
-from src.core.platform.auth.domain import UserAccount, UserRoleBinding, normalize_auth_username
+from src.core.platform.auth.domain import (
+    ROLE_SCOPE_PLATFORM,
+    RoleBinding,
+    UserAccount,
+    UserRoleBinding,
+    normalize_auth_username,
+)
 from src.core.platform.auth.passwords import hash_password
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.tenancy.domain.user_tenant_membership import UserTenantMembership
 
 if TYPE_CHECKING:
@@ -34,12 +40,50 @@ def _assign_roles_for_user(
     service: AuthService,
     user_id: str,
     role_names: Iterable[str],
+    *,
+    allow_platform_roles: bool,
 ) -> tuple[str, ...]:
-    # RBAC-TRANSITION-ONLY: Bootstrap/test compatibility write. Customer
-    # onboarding must use canonical bindings before CANONICAL_ONLY.
+    # RBAC-TRANSITION-ONLY: Non-platform compatibility write. The direct
+    # tenant cutover replaces this branch with canonical bindings.
     assigned_role_names: list[str] = []
     for role_name in role_names:
         role = service._require_role_by_name(role_name)
+        if role.allowed_scope_type == ROLE_SCOPE_PLATFORM:
+            if not allow_platform_roles:
+                authorization_denied(
+                    service._user_session,
+                    message=(
+                        "Platform roles require the dedicated provisioning "
+                        "workflow."
+                    ),
+                    code="PLATFORM_ROLE_ASSIGNMENT_DENIED",
+                    operation_label="register a platform role holder",
+                    target_scope_type="role",
+                    target_scope_id=role.id,
+                    operation="authorization.platform_role.denied",
+                )
+            role_binding_repo = service._role_binding_repo
+            if role_binding_repo is None:
+                raise BusinessRuleError(
+                    "Canonical role-binding persistence is not configured.",
+                    code="AUTHORIZATION_CANONICAL_REPOSITORY_REQUIRED",
+                )
+            if role_binding_repo.get_active_for_assignment(
+                principal_id=user_id,
+                role_id=role.id,
+                tenant_id=None,
+                actual_scope_type=ROLE_SCOPE_PLATFORM,
+                actual_scope_id=None,
+            ) is None:
+                role_binding_repo.add(
+                    RoleBinding.create(
+                        principal_id=user_id,
+                        role_id=role.id,
+                        actual_scope_type=ROLE_SCOPE_PLATFORM,
+                    )
+                )
+            assigned_role_names.append(role.name)
+            continue
         if not service._user_role_repo.exists(user_id, role.id):
             service._user_role_repo.add(
                 UserRoleBinding.create(
@@ -85,6 +129,22 @@ def _create_user(
             )
     resolved_role_names = tuple(role_names or ("viewer",))
     enforce_separation_of_duties(service, resolved_role_names)
+    if system_audit_actor is None:
+        for role_name in resolved_role_names:
+            role = service._require_role_by_name(role_name)
+            if role.allowed_scope_type == ROLE_SCOPE_PLATFORM:
+                authorization_denied(
+                    service._user_session,
+                    message=(
+                        "Platform roles require the dedicated provisioning "
+                        "workflow."
+                    ),
+                    code="PLATFORM_ROLE_ASSIGNMENT_DENIED",
+                    operation_label="register a platform role holder",
+                    target_scope_type="role",
+                    target_scope_id=role.id,
+                    operation="authorization.platform_role.denied",
+                )
     user = UserAccount.create(
         username=normalized,
         password_hash=hash_password(raw_password),
@@ -113,10 +173,12 @@ def _create_user(
     try:
         with service._session.begin_nested():
             service._user_repo.add(user)
+            service._session.flush()
             assigned_role_names = _assign_roles_for_user(
                 service,
                 user.id,
                 resolved_role_names,
+                allow_platform_roles=system_audit_actor is not None,
             )
             if normalized_tenant_id:
                 membership = UserTenantMembership.create(

@@ -443,21 +443,25 @@ class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
         self,
         role_id: str,
         *,
-        tenant_id: str,
+        tenant_id: str | None,
     ) -> list[RoleBinding]:
         now = datetime.now(timezone.utc)
-        rows = self.session.execute(
+        stmt = (
             select(RoleBindingORM)
             .where(RoleBindingORM.principal_type == "user")
             .where(RoleBindingORM.role_id == role_id)
-            .where(RoleBindingORM.tenant_id == tenant_id)
             .where(RoleBindingORM.revoked_at.is_(None))
             .where(
                 (RoleBindingORM.expires_at.is_(None))
                 | (RoleBindingORM.expires_at > now)
             )
             .order_by(RoleBindingORM.principal_id)
-        ).scalars()
+        )
+        if tenant_id is None:
+            stmt = stmt.where(RoleBindingORM.tenant_id.is_(None))
+        else:
+            stmt = stmt.where(RoleBindingORM.tenant_id == tenant_id)
+        rows = self.session.execute(stmt).scalars()
         return [role_binding_from_orm(row) for row in rows]
 
     def get_active_for_assignment(

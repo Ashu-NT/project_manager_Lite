@@ -44,6 +44,9 @@ def _reconciliation_service(services) -> RolePolicyReconciliationService:
             services["session"]
         ),
         user_session=services["user_session"],
+        role_binding_repo=services[
+            "role_governance_service"
+        ]._role_binding_repo,
     )
 
 

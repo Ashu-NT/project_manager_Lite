@@ -8,6 +8,7 @@ from src.tests.path_rewrites import REPO_ROOT
 
 _MARKER = "RBAC-TRANSITION-ONLY"
 _REGISTER = "### Transition-code decommission register"
+_README_PATH = "docs/tenancy_rbac_hardening/README.md"
 _TRANSITION_COMPONENT_PATHS = (
     "docs/tenancy_rbac_hardening/ADR-003_OPERATIONAL_EVIDENCE.md",
     "src/core/platform/auth/application/auth_query.py",
@@ -39,6 +40,24 @@ _TRANSITION_COMPONENT_PATHS = (
 )
 
 
+def _discover_transition_components() -> set[str]:
+    discovered: set[str] = set()
+    for root_name in ("docs", "src", "tools"):
+        root = REPO_ROOT / root_name
+        for path in root.rglob("*"):
+            if not path.is_file():
+                continue
+            try:
+                content = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            if _MARKER in content:
+                relative_path = path.relative_to(REPO_ROOT).as_posix()
+                if relative_path != _README_PATH:
+                    discovered.add(relative_path)
+    return discovered
+
+
 def test_rbac_transition_components_remain_marked_for_decommission() -> None:
     missing_files: list[str] = []
     missing_markers: list[str] = []
@@ -57,6 +76,17 @@ def test_rbac_transition_components_remain_marked_for_decommission() -> None:
     assert not missing_markers, (
         "Transition components lost their decommission marker: "
         f"{missing_markers}"
+    )
+
+
+def test_rbac_transition_component_inventory_is_complete() -> None:
+    registered = set(_TRANSITION_COMPONENT_PATHS)
+    discovered = _discover_transition_components()
+
+    assert discovered == registered, (
+        "Keep the RBAC transition inventory exact. "
+        f"Unregistered markers: {sorted(discovered - registered)}; "
+        f"stale registry entries: {sorted(registered - discovered)}"
     )
 
 

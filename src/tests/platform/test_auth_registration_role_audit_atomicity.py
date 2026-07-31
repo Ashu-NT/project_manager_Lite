@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import func, select
 
 from src.core.platform.auth.application import AuthService
+from src.core.platform.auth.domain import ROLE_SCOPE_PLATFORM
 from src.core.platform.infrastructure.persistence.orm.audit_entry import (
     AuditEntryORM,
 )
@@ -56,6 +57,7 @@ def _build_bootstrap_auth(
         permission_repo=repositories.permission_repo,
         user_role_repo=repositories.user_role_repo,
         role_permission_repo=repositories.role_permission_repo,
+        role_binding_repo=repositories.role_binding_repo,
         security_audit_repo=repositories.audit_entry_repo,
     )
     return auth, repositories
@@ -243,7 +245,18 @@ def test_bootstrap_role_repair_rolls_back_when_system_audit_fails(
     admin = auth._user_repo.get_by_username("admin")
     admin_role = auth._require_role_by_name("admin")
     assert admin is not None
-    auth._user_role_repo.delete(admin.id, admin_role.id)
+    binding = auth._role_binding_repo.get_active_for_assignment(
+        principal_id=admin.id,
+        role_id=admin_role.id,
+        tenant_id=None,
+        actual_scope_type=ROLE_SCOPE_PLATFORM,
+        actual_scope_id=None,
+    )
+    assert binding is not None
+    auth._role_binding_repo.revoke(
+        binding.id,
+        revoked_at=binding.assigned_at,
+    )
     services["session"].commit()
 
     def _raise(*_args, **_kwargs) -> None:
@@ -254,7 +267,13 @@ def test_bootstrap_role_repair_rolls_back_when_system_audit_fails(
     with pytest.raises(RuntimeError, match="platform security audit unavailable"):
         auth.bootstrap_defaults()
 
-    assert auth._user_role_repo.exists(admin.id, admin_role.id) is False
+    assert auth._role_binding_repo.get_active_for_assignment(
+        principal_id=admin.id,
+        role_id=admin_role.id,
+        tenant_id=None,
+        actual_scope_type=ROLE_SCOPE_PLATFORM,
+        actual_scope_id=None,
+    ) is None
 
 
 def test_idempotent_legacy_role_operations_do_not_emit_audit(services) -> None:

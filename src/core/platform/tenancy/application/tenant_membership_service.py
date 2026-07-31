@@ -487,11 +487,22 @@ class TenantMembershipService:
         return target
 
     def _roles_for_user(self, user_id: str):
-        return [
+        legacy_roles = [
             role
             for role_id in self._user_role_repo.list_role_ids(user_id)
             if (role := self._role_repo.get(role_id)) is not None
+            and role.allowed_scope_type != ROLE_SCOPE_PLATFORM
         ]
+        platform_roles = [
+            role
+            for binding in self._role_binding_repo.list_active_for_principal(
+                user_id,
+                tenant_id=None,
+            )
+            if (role := self._role_repo.get(binding.role_id)) is not None
+            and role.allowed_scope_type == ROLE_SCOPE_PLATFORM
+        ]
+        return [*legacy_roles, *platform_roles]
 
     def _require_invitation_safe_roles(
         self,

@@ -140,12 +140,15 @@ def build_principal(
         resolved_session = None
         resolved_session_id = None
 
-    global_role_ids = set(service._user_role_repo.list_role_ids(user.id))
+    platform_authority = service._canonical_platform_authority(user.id)
+    global_role_ids = service._legacy_customer_role_ids(user.id)
     global_role_names = _role_names_by_id(service, global_role_ids)
-    global_permissions = _permissions_for_role_ids(service, global_role_ids)
+    global_permissions = _permissions_for_role_ids(
+        service,
+        global_role_ids,
+    ).union(platform_authority.permissions)
     is_platform_operator = (
-        "admin" in global_role_names.values()
-        and "platform.admin" in global_permissions
+        "platform.admin" in platform_authority.permissions
     )
 
     if active_tenant_id is _CONTEXT_UNSET:
@@ -192,6 +195,14 @@ def build_principal(
                     resolved_tenant_id
                 )
             )
+            resolved_tenant_id, resolved_organization_id = (
+                service._tenant_context_service.validate_principal_context(
+                    user_id=user.id,
+                    is_platform_operator=is_platform_operator,
+                    tenant_id=resolved_tenant_id,
+                    organization_id=resolved_organization_id,
+                )
+            )
     else:
         resolved_organization_id = (
             str(active_organization_id or "").strip() or None
@@ -207,6 +218,7 @@ def build_principal(
                     organization_id=resolved_organization_id,
                 )
             )
+
         except BusinessRuleError:
             if context_is_explicit or resolved_tenant_id is None:
                 raise
@@ -215,15 +227,16 @@ def build_principal(
                     resolved_tenant_id
                 )
             )
-            resolved_tenant_id, resolved_organization_id = (
-                service._tenant_context_service.validate_principal_context(
-                    user_id=user.id,
-                    is_platform_operator=is_platform_operator,
-                    tenant_id=resolved_tenant_id,
-                    organization_id=resolved_organization_id,
-                )
-            )
 
+    if (
+        is_platform_operator
+        and resolved_tenant_id is not None
+        and not service._allow_platform_customer_context
+    ):
+        raise BusinessRuleError(
+            "Platform authority cannot enter ordinary customer context.",
+            code="PLATFORM_CUSTOMER_CONTEXT_DENIED",
+        )
     scoped_access = _load_scoped_access(
         service,
         user.id,
@@ -297,9 +310,15 @@ def build_principal(
         user_id=user.id,
         username=user.username,
         display_name=user.display_name,
-        role_names=frozenset(effective_role_names.values()),
+        role_names=frozenset(
+            set(effective_role_names.values()).union(
+                platform_authority.role_names
+            )
+        ),
         permissions=frozenset(
-            _permissions_for_role_ids(service, effective_role_ids)
+            _permissions_for_role_ids(service, effective_role_ids).union(
+                platform_authority.permissions
+            )
         ),
         scoped_access=scoped_access,
         project_access=project_access,

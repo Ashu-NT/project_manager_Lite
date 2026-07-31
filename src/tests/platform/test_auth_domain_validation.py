@@ -34,6 +34,9 @@ class _FakeSession:
     def begin_nested(self) -> _FakeNestedTransaction:
         return _FakeNestedTransaction()
 
+    def flush(self) -> None:
+        return None
+
     def commit(self) -> None:
         self.commit_calls += 1
 

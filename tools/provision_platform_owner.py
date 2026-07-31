@@ -85,6 +85,7 @@ def main(argv: list[str] | None = None) -> int:
             scoped_access_repo=repositories.scoped_access_repo,
             project_membership_repo=repositories.project_membership_repo,
             user_tenant_repo=repositories.user_tenant_repo,
+            role_binding_repo=repositories.role_binding_repo,
         )
         result = auth_service.provision_platform_owner(
             username=args.username,

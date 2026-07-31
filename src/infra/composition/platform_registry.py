@@ -263,6 +263,11 @@ def build_platform_service_bundle(
         user_tenant_repo=repositories.user_tenant_repo,
         tenant_context_service=tenant_context_service,
         request_id_provider=current_trace_id,
+        role_binding_repo=repositories.role_binding_repo,
+        allow_platform_customer_context=(
+            security_configuration.tenancy_mode
+            is TenancyMode.LOCAL_SINGLE_TENANT
+        ),
     )
     tenant_context_service.set_principal_rebuilder(
         auth_service.rebuild_current_principal_for_context

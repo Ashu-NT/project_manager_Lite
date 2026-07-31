@@ -7,7 +7,7 @@ from src.core.platform.auth.authorization import (
     authorization_denied,
     require_permission,
 )
-from src.core.platform.auth.domain import UserRoleBinding
+from src.core.platform.auth.domain import ROLE_SCOPE_PLATFORM, UserRoleBinding
 
 from .session_service import refresh_current_session_if_user
 from .security_audit import add_atomic_security_audit
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from .auth_service import AuthService
 
 # RBAC-TRANSITION-ONLY: This module mutates legacy user_roles. Replace callers
-# with canonical governance, then remove after CANONICAL_ONLY observation.
+# with canonical governance, then remove in the direct tenant cutover.
 
 # C-1: privilege ceiling — roles ranked higher than the caller cannot be assigned.
 # admin (100) > tenant_admin (80) > org_admin (70) > everything else (10).
@@ -86,12 +86,22 @@ def _enforce_tenant_membership(service: AuthService, target_user_id: str, operat
 
 def assign_role(service: AuthService, user_id: str, role_name: str) -> None:
     require_permission(service._user_session, "auth.manage", operation_label="assign role")
+    role = service._require_role_by_name(role_name)
+    if role.allowed_scope_type == ROLE_SCOPE_PLATFORM:
+        authorization_denied(
+            service._user_session,
+            message="Platform roles require the dedicated provisioning workflow.",
+            code="PLATFORM_ROLE_ASSIGNMENT_DENIED",
+            operation_label="assign a platform role",
+            target_scope_type="role",
+            target_scope_id=role.id,
+            operation="authorization.platform_role.denied",
+        )
     _enforce_privilege_ceiling(service, role_name)
     user = service._require_user(user_id)
     _enforce_tenant_membership(service, user.id, "assign")
     existing_role_names = service.get_user_role_names(user.id)
     enforce_separation_of_duties(service, tuple(existing_role_names) + (role_name,))
-    role = service._require_role_by_name(role_name)
     if not service._user_role_repo.exists(user.id, role.id):
         try:
             service._user_role_repo.add(
@@ -124,9 +134,19 @@ def assign_role(service: AuthService, user_id: str, role_name: str) -> None:
 
 def revoke_role(service: AuthService, user_id: str, role_name: str) -> None:
     require_permission(service._user_session, "auth.manage", operation_label="revoke role")
+    role = service._require_role_by_name(role_name)
+    if role.allowed_scope_type == ROLE_SCOPE_PLATFORM:
+        authorization_denied(
+            service._user_session,
+            message="Platform roles require the dedicated provisioning workflow.",
+            code="PLATFORM_ROLE_ASSIGNMENT_DENIED",
+            operation_label="revoke a platform role",
+            target_scope_type="role",
+            target_scope_id=role.id,
+            operation="authorization.platform_role.denied",
+        )
     user = service._require_user(user_id)
     _enforce_tenant_membership(service, user.id, "revoke")
-    role = service._require_role_by_name(role_name)
     if service._user_role_repo.exists(user.id, role.id):
         try:
             service._user_role_repo.delete(user.id, role.id)

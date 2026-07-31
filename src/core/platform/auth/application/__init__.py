@@ -1,6 +1,10 @@
 from src.core.platform.auth.application.auth_query import AuthQueryMixin
 from src.core.platform.auth.application.auth_service import AuthService
 from src.core.platform.auth.application.auth_validation import AuthValidationMixin
+from src.core.platform.auth.application.canonical_role_resolver import (
+    CanonicalRoleResolver,
+    EffectiveRoleAuthority,
+)
 from src.core.platform.auth.application.platform_owner_provisioning_service import (
     PlatformOwnerProvisioningResult,
 )
@@ -24,6 +28,8 @@ __all__ = [
     "AuthQueryMixin",
     "AuthService",
     "AuthValidationMixin",
+    "CanonicalRoleResolver",
+    "EffectiveRoleAuthority",
     "PlatformOwnerProvisioningResult",
     "RolePermissionChange",
     "ROLE_ASSIGN_PERMISSION",

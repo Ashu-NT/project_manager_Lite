@@ -207,6 +207,7 @@ def main(argv: list[str] | None = None) -> int:
             project_membership_repo=repositories.project_membership_repo,
             user_session=user_session,
             user_tenant_repo=repositories.user_tenant_repo,
+            role_binding_repo=repositories.role_binding_repo,
         )
         actor = auth_service.authenticate(
             args.username,
@@ -225,6 +226,7 @@ def main(argv: list[str] | None = None) -> int:
             auth_session_repo=repositories.auth_session_repo,
             reconciliation_repo=repositories.auth_policy_reconciliation_repo,
             user_session=user_session,
+            role_binding_repo=repositories.role_binding_repo,
         )
         plan = service.preview()
         payload = {

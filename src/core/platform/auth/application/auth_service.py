@@ -14,6 +14,7 @@ from src.core.platform.auth.application.auth_validation import AuthValidationMix
 from src.core.platform.auth.contracts import (
     AuthSessionRepository,
     PermissionRepository,
+    RoleBindingRepository,
     RolePermissionRepository,
     RoleRepository,
     UserRepository,
@@ -36,6 +37,7 @@ from . import registration_service as _reg
 from . import role_assignment_service as _roles
 from . import session_service as _sessions
 from . import user_admin_service as _users
+from .canonical_role_resolver import CanonicalRoleResolver
 
 if TYPE_CHECKING:
     from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
@@ -63,6 +65,8 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         user_tenant_repo: "UserTenantMembershipRepository | None" = None,
         tenant_context_service: "TenantContextService | None" = None,
         request_id_provider: Callable[[], str | None] | None = None,
+        role_binding_repo: RoleBindingRepository | None = None,
+        allow_platform_customer_context: bool = False,
     ):
         self._session: Session = session
         self._user_repo: UserRepository = user_repo
@@ -82,6 +86,32 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             tenant_context_service
         )
         self._request_id_provider = request_id_provider
+        self._role_binding_repo = role_binding_repo
+        self._allow_platform_customer_context = bool(
+            allow_platform_customer_context
+        )
+        self._canonical_role_resolver = (
+            CanonicalRoleResolver(
+                role_binding_repo=role_binding_repo,
+                role_repo=role_repo,
+                role_permission_repo=role_permission_repo,
+                permission_repo=permission_repo,
+                scope_tenant_resolvers={},
+                allow_platform_customer_context=(
+                    self._allow_platform_customer_context
+                ),
+            )
+            if role_binding_repo is not None
+            else None
+        )
+
+    def _require_canonical_role_resolver(self) -> CanonicalRoleResolver:
+        if self._canonical_role_resolver is None:
+            raise BusinessRuleError(
+                "Canonical role-binding persistence is not configured.",
+                code="AUTHORIZATION_CANONICAL_REPOSITORY_REQUIRED",
+            )
+        return self._canonical_role_resolver
 
     def bootstrap_defaults(self) -> UserAccount:
         return _bootstrap.bootstrap_defaults(self)

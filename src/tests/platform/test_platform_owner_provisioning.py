@@ -6,7 +6,12 @@ import pytest
 from sqlalchemy import func, select
 
 from src.core.platform.auth.application import AuthService
-from src.core.platform.auth.domain import UserAccount, UserRoleBinding
+from src.core.platform.auth.domain import (
+    ROLE_SCOPE_PLATFORM,
+    RoleBinding,
+    UserAccount,
+    UserRoleBinding,
+)
 from src.core.platform.auth.passwords import hash_password
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.infrastructure.persistence.orm.audit_entry import AuditEntryORM
@@ -29,6 +34,7 @@ def _build_auth_service(session) -> tuple[AuthService, RepositoryBundle]:
             permission_repo=repositories.permission_repo,
             user_role_repo=repositories.user_role_repo,
             role_permission_repo=repositories.role_permission_repo,
+            role_binding_repo=repositories.role_binding_repo,
             auth_session_repo=repositories.auth_session_repo,
             scoped_access_repo=repositories.scoped_access_repo,
             project_membership_repo=repositories.project_membership_repo,
@@ -164,6 +170,66 @@ def test_provision_platform_owner_never_promotes_existing_username(session) -> N
     assert auth_service.get_user_role_names(ordinary_user.id) == set()
 
 
+def test_legacy_platform_role_row_does_not_grant_platform_authority(session) -> None:
+    auth_service, repositories = _build_auth_service(session)
+    auth_service.bootstrap_policy_catalog()
+    admin_role = repositories.role_repo.get_by_name("admin")
+    assert admin_role is not None
+    user = UserAccount.create(
+        username="legacy-platform-row",
+        password_hash=hash_password("ExistingStrong123!"),
+    )
+    repositories.user_repo.add(user)
+    session.flush()
+    repositories.user_role_repo.add(
+        UserRoleBinding.create(user_id=user.id, role_id=admin_role.id)
+    )
+    session.commit()
+
+    principal = auth_service.build_principal(user)
+
+    assert auth_service.get_user_role_names(user.id) == set()
+    assert "admin" not in principal.role_names
+    assert "platform.admin" not in principal.permissions
+
+
+def test_platform_principal_cannot_enter_customer_context(session) -> None:
+    auth_service, repositories = _build_auth_service(session)
+    result = auth_service.provision_platform_owner(
+        username="platform-owner",
+        raw_password="OwnerStrong123!",
+        audit_writer=repositories.audit_entry_repo,
+    )
+    owner = repositories.user_repo.get(result.user_id)
+    assert owner is not None
+
+    with pytest.raises(BusinessRuleError) as exc_info:
+        auth_service.build_principal_for_context(
+            owner,
+            tenant_id="customer-tenant",
+            organization_id=None,
+        )
+
+    assert exc_info.value.code == "PLATFORM_CUSTOMER_CONTEXT_DENIED"
+
+
+def test_ordinary_registration_cannot_create_platform_admin(services) -> None:
+    auth_service = services["auth_service"]
+
+    with pytest.raises(BusinessRuleError) as exc_info:
+        auth_service.register_user(
+            "second-platform-admin",
+            "OwnerStrong123!",
+            role_names=["admin"],
+        )
+
+    assert exc_info.value.code == "PLATFORM_ROLE_ASSIGNMENT_DENIED"
+    assert (
+        auth_service._user_repo.get_by_username("second-platform-admin")
+        is None
+    )
+
+
 def test_provision_platform_owner_rejects_a_second_owner(session) -> None:
     auth_service, repositories = _build_auth_service(session)
     auth_service.provision_platform_owner(
@@ -196,8 +262,13 @@ def test_provision_platform_owner_rejects_ambiguous_existing_owners(session) -> 
         password_hash=hash_password("OtherStrong123!"),
     )
     repositories.user_repo.add(second)
-    repositories.user_role_repo.add(
-        UserRoleBinding.create(user_id=second.id, role_id=owner_role.id)
+    session.flush()
+    repositories.role_binding_repo.add(
+        RoleBinding.create(
+            principal_id=second.id,
+            role_id=owner_role.id,
+            actual_scope_type=ROLE_SCOPE_PLATFORM,
+        )
     )
     session.commit()
 
