@@ -290,6 +290,104 @@ def test_project_role_assignment_rejects_unresolvable_project(services) -> None:
     assert exc_info.value.code == "PROJECT_NOT_FOUND"
 
 
+def _prepare_site_canonical_assignment(
+    services,
+    *,
+    target_role_name: str,
+    site_id: str,
+    create_policy: bool = True,
+):
+    auth = services["auth_service"]
+    tenant_id = _tenant_id(services)
+    actor = auth.register_user(
+        f"site-canonical-actor-{target_role_name}",
+        "CanonicalActor123!",
+        role_names=["tenant_admin"],
+        tenant_id=tenant_id,
+    )
+    target = auth.register_user(
+        f"site-canonical-target-{target_role_name}",
+        "CanonicalTarget123!",
+        role_names=[],
+        tenant_id=tenant_id,
+    )
+    actor_role = auth._role_repo.get_by_name("tenant_admin")
+    target_role = auth._role_repo.get_by_name(target_role_name)
+    assert actor_role is not None
+    assert target_role is not None
+    if create_policy:
+        services["role_governance_service"].create_delegation_policy(
+            actor_role_id=actor_role.id,
+            assignable_role_id=target_role.id,
+            target_scope_type="site",
+            tenant_id=tenant_id,
+        )
+
+    principal = auth.build_principal_for_context(
+        actor,
+        tenant_id=tenant_id,
+        organization_id=services["tenant_context_service"].get_active_organization_id(),
+    )
+    services["user_session"].set_principal(
+        replace(
+            principal,
+            session_id=None,
+            permissions=frozenset(
+                {*principal.permissions, "auth.role.assign"}
+            ),
+        )
+    )
+    return actor, target, target_role
+
+
+def test_site_role_assignment_is_scoped_and_audited(services) -> None:
+    tenant_id = _tenant_id(services)
+    site = services["site_service"].create_site(
+        site_code="GOV-SITE-A",
+        name="Governance Site A",
+        city="Berlin",
+        currency_code="EUR",
+    )
+    _, target, target_role = _prepare_site_canonical_assignment(
+        services,
+        target_role_name="site_viewer",
+        site_id=site.id,
+    )
+
+    binding = services["role_governance_service"].assign_role(
+        target_user_id=target.id,
+        role_id=target_role.id,
+        actual_scope_id=site.id,
+    )
+
+    assert binding.tenant_id == tenant_id
+    assert binding.actual_scope_type == "site"
+    assert binding.actual_scope_id == site.id
+
+
+def test_site_role_assignment_rejects_unresolvable_site(services) -> None:
+    site = services["site_service"].create_site(
+        site_code="GOV-SITE-B",
+        name="Governance Site B",
+        city="Berlin",
+        currency_code="EUR",
+    )
+    _, target, target_role = _prepare_site_canonical_assignment(
+        services,
+        target_role_name="site_viewer",
+        site_id=site.id,
+    )
+
+    with pytest.raises(NotFoundError) as exc_info:
+        services["role_governance_service"].assign_role(
+            target_user_id=target.id,
+            role_id=target_role.id,
+            actual_scope_id="nonexistent-site-id",
+        )
+
+    assert exc_info.value.code == "SITE_NOT_FOUND"
+
+
 def test_role_domain_enforces_system_and_tenant_ownership() -> None:
     with pytest.raises(ValidationError) as system_error:
         Role.create(

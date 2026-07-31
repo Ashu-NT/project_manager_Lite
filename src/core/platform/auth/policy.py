@@ -302,6 +302,21 @@ _PROJECT_OWNER = _PROJECT_LEAD | {
     "timesheet.lock",
 }
 
+_SITE_VIEWER = {
+    "site.read",
+}
+
+_SITE_OPERATOR = _SITE_VIEWER | {
+    "inventory.read",
+    "report.view",
+}
+
+_SITE_MANAGER = _SITE_OPERATOR | {
+    "inventory.manage",
+    "import.manage",
+    "report.export",
+}
+
 DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "viewer": set(_VIEWER),
     "team_member": set(_TEAM_MEMBER),
@@ -328,11 +343,14 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "project_contributor": set(_PROJECT_CONTRIBUTOR),
     "project_lead": set(_PROJECT_LEAD),
     "project_owner": set(_PROJECT_OWNER),
+    "site_viewer": set(_SITE_VIEWER),
+    "site_operator": set(_SITE_OPERATOR),
+    "site_manager": set(_SITE_MANAGER),
     "admin": set(DEFAULT_PERMISSIONS.keys()),
 }
 
 SYSTEM_ROLE_POLICY_NAME = "system-role-permissions"
-SYSTEM_ROLE_POLICY_VERSION = 4
+SYSTEM_ROLE_POLICY_VERSION = 5
 
 
 def login_lockout_threshold() -> int:

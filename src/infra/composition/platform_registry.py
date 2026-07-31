@@ -268,6 +268,13 @@ def build_platform_service_bundle(
                 )
                 is not None
             ),
+            "site": lambda tenant_id, site_id: (
+                tenant_context_service.require_active_tenant_id(
+                    operation_label="validate site access scope"
+                )
+                == tenant_id
+                and repositories.site_repo.get(site_id) is not None
+            ),
         },
         allow_platform_customer_context=(
             security_configuration.tenancy_mode

@@ -1131,10 +1131,12 @@ implemented, but no external delivery or public invitation/role adapter has been
 Canonical `org_viewer`/`org_member` role definitions and their direct cutover are implemented,
 retiring the legacy organization scoped-grant path entirely. Canonical project-scope roles
 (`project_viewer`/`project_contributor`/`project_lead`/`project_owner`) and their direct cutover
-are also implemented; project-role assignment remains fail-closed pending deliberate delegation-
-policy provisioning (`tools/provision_scope_delegations.py`). Generic site/storeroom/maintenance
-resource authority remain legacy-authoritative until their own direct scoped cutover packages
-replace them without fallback.
+are also implemented. Canonical site-scope roles (`site_viewer`/`site_operator`/`site_manager`)
+and their direct cutover are implemented too; project- and site-role assignment both remain
+fail-closed pending deliberate delegation-policy provisioning
+(`tools/provision_scope_delegations.py`). Generic storeroom/maintenance resource authority
+remain legacy-authoritative until their own direct scoped cutover packages replace them without
+fallback.
 
 - Extend membership lifecycle fields. Implemented additively with internal token issuance,
   authenticated acceptance, administrative transitions, targeted session invalidation, and
@@ -1228,17 +1230,18 @@ Current Phase 2 foundation:
   `org_viewer`/`org_member` are now canonical too, and the legacy organization scoped-grant
   path is retired. `CanonicalRoleResolver.resolve_principal_authority()` now also resolves
   project scope, `AccessControlService` writes/reads project grants through
-  `RoleGovernanceService` instead of `ScopedAccessGrant`/`ProjectMembership`, and
-  `project_viewer`/`project_contributor`/`project_lead`/`project_owner` delegation remains
-  fail-closed pending reviewed provisioning. Generic site/storeroom/maintenance resource grants
-  remain the next targets.
+  `RoleGovernanceService` instead of `ScopedAccessGrant`/`ProjectMembership`. The same is now
+  true for site scope, which had no `ProjectMembership`-style dual-table trick to unwind.
+  `project_viewer`/`project_contributor`/`project_lead`/`project_owner` and
+  `site_viewer`/`site_operator`/`site_manager` delegation both remain fail-closed pending
+  reviewed provisioning. Generic storeroom/maintenance resource grants remain the next targets.
 
 ### Phase 3: Principal and authorization-engine cutover
 
 Status: In progress. The complete legacy/canonical dependency map, permanent canonical
 effective-authority resolver, and platform/tenant/organization-role (including
-`org_viewer`/`org_member`) plus project-role authority cutovers are implemented. Generic
-site/storeroom/maintenance resource principal cutovers remain.
+`org_viewer`/`org_member`) plus project- and site-role authority cutovers are implemented.
+Generic storeroom/maintenance resource principal cutovers remain.
 
 - Replace the containment builder with principal construction over canonical bindings and
   explicit tenant and organization context.
@@ -2004,6 +2007,47 @@ Project-scope cutover ledger, 2026-07-31:
   `tools/provision_scope_delegations.py --apply`; project-role assignment stays fail-closed until
   then, matching the fail-closed-until-reviewed posture used throughout this program.
 
+Site-scope cutover ledger, 2026-07-31:
+
+- Added canonical `site_viewer`/`site_operator`/`site_manager` role definitions (policy version
+  bumped to 5), copied verbatim from the existing `SITE_SCOPE_ROLE_PERMISSIONS` sets in
+  `src/core/platform/site/access_policy.py`. `EXPLICIT_SCOPE_ROLE_NAMES`/`system_role_scope_type`
+  now also recognize the three site-scoped names.
+- Site scope was structurally simpler to cut over than project: research confirmed
+  `SqlAlchemyScopedAccessGrantRepository` has no site-specific dual-table redirect (unlike
+  project's `ProjectMembership` special case), and an exhaustive search found no downstream
+  consumer reading site membership directly outside `AccessControlService`/`AuthService` — no
+  hidden bypass analogous to the collaboration `@mention` regression found during the project
+  cutover. Site scope is still a live desktop feature, though (unconditionally wired into
+  `PlatformAccessDesktopApi`'s scope-type choices, with a real DB-backed end-to-end test already
+  covering it), so the same delegation-policy blocker as project applies.
+- `RoleGovernanceService`/`AccessControlService` already shared a `"site"` `scope_exists_resolvers`
+  entry (`platform_registry.py`), but `CanonicalRoleResolver`'s separate
+  `canonical_scope_tenant_resolvers` dict did not; added a `"site"` entry there (same
+  tenant-ownership check, duplicated inline to match the existing convention already used for
+  `"organization"` in that same dict).
+- Extended `DEFAULT_SCOPE_DELEGATIONS` with `access_admin` → `site_viewer`/`site_operator`/
+  `site_manager`, global (`tenant_id=None`) policies, provisioned the same reviewed
+  dry-run/apply way as the project-scope entries.
+- Added `"site"` to `AccessControlService._CANONICAL_SCOPE_TYPES` and
+  `principal_builder._CUTOVER_RESOURCE_SCOPE_TYPES` — both are the generic mechanisms already
+  built during the project cutover, so no new branching logic was needed in either file.
+- Found and fixed one test-only regression during verification (no production bypass, matching
+  the audit's finding above): `test_tenant_switch_rebuilds_only_target_tenant_grants` inserted
+  raw legacy `ScopedAccessGrantORM(scope_type="site", ...)` rows to test tenant-switch
+  containment: correctly, those no longer confer authority once site is canonical. Switched the
+  test to `scope_type="storeroom"` (still legacy), preserving its original containment-testing
+  intent.
+- Added policy-level, seeding, `build_principal`, site-scope-isolation, and legacy-grant
+  no-authority regression tests mirroring the project-scope tranche, plus `RoleGovernanceService`
+  site-assignment and unresolvable-scope tests. Verified 141 focused tests across every directly
+  and indirectly affected file (including the fixed containment test) with no other regressions;
+  the same pre-existing `pmenv/` virtualenv line-count artifact noted in the project-scope ledger
+  is unrelated to this work.
+- No application database was migrated, reset, backfilled, or otherwise modified by this work.
+  Site-role assignment stays fail-closed pending deliberate delegation-policy provisioning, same
+  as project scope.
+
 ### Repository re-audit, 2026-07-29
 
 Phases 0, 1, and 2 all remain in progress. The current snapshot was re-audited across domain
@@ -2089,15 +2133,16 @@ Completed in the current containment tranche:
 
 Remaining work, in order:
 
-1. Provision the reviewed `access_admin` → project-role delegation policies
+1. Provision the reviewed `access_admin` → project-role and site-role delegation policies
    (`tools/provision_scope_delegations.py --apply`) in each deployed environment once reviewed,
-   so project-role assignment through the desktop API stops being fail-closed.
-2. Define deterministic canonical role definitions for each remaining site/storeroom/maintenance
+   so project- and site-role assignment through the desktop API stop being fail-closed.
+2. Define deterministic canonical role definitions for each remaining storeroom/maintenance
    scope choice, including explicit unrestricted-vs-scoped permission semantics. Then replace
    their scoped-grant/project-membership decision sources one scope at a time without fallback,
-   following the organization- and project-scope cutovers already done. Audit each scope's
-   consumers for the same class of direct-legacy-repository read the project-scope cutover found
-   in `CollaborationSupportMixin` before assuming a scope is fully cut over.
+   following the organization-, project-, and site-scope cutovers already done. Audit each
+   scope's consumers for the same class of direct-legacy-repository read the project-scope
+   cutover found in `CollaborationSupportMixin` before assuming a scope is fully cut over —
+   confirmed absent for site scope by an explicit codebase-wide search, but re-verify per scope.
 3. Add the reviewed invitation delivery/account-onboarding adapter without exposing raw tokens
    through generic transports.
 4. Update fixtures and seed data, run migration-created and cross-tenant tests, explicitly reset

@@ -12,7 +12,10 @@ _ORGANIZATION_SCOPE_ROLE_NAMES = frozenset({"org_admin", "org_viewer", "org_memb
 _PROJECT_SCOPE_ROLE_NAMES = frozenset(
     {"project_viewer", "project_contributor", "project_lead", "project_owner"}
 )
-EXPLICIT_SCOPE_ROLE_NAMES = _ORGANIZATION_SCOPE_ROLE_NAMES | _PROJECT_SCOPE_ROLE_NAMES
+_SITE_SCOPE_ROLE_NAMES = frozenset({"site_viewer", "site_operator", "site_manager"})
+EXPLICIT_SCOPE_ROLE_NAMES = (
+    _ORGANIZATION_SCOPE_ROLE_NAMES | _PROJECT_SCOPE_ROLE_NAMES | _SITE_SCOPE_ROLE_NAMES
+)
 
 
 def normalize_role_name(role_name: str) -> str:
@@ -38,6 +41,8 @@ def system_role_scope_type(role_name: str) -> str:
         return "organization"
     if normalized in _PROJECT_SCOPE_ROLE_NAMES:
         return "project"
+    if normalized in _SITE_SCOPE_ROLE_NAMES:
+        return "site"
     return ROLE_SCOPE_TENANT
 
 

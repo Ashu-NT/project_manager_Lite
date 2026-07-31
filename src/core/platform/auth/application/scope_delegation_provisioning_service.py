@@ -15,6 +15,9 @@ DEFAULT_SCOPE_DELEGATIONS: tuple[tuple[str, str, str], ...] = (
     ("access_admin", "project_contributor", "project"),
     ("access_admin", "project_lead", "project"),
     ("access_admin", "project_owner", "project"),
+    ("access_admin", "site_viewer", "site"),
+    ("access_admin", "site_operator", "site"),
+    ("access_admin", "site_manager", "site"),
 )
 
 

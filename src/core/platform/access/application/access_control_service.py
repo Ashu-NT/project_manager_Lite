@@ -47,7 +47,7 @@ ScopeExistsResolver = Callable[[str, str], bool]
 # ScopedAccessGrant-shaped translation below exists only so the legacy
 # desktop API/QML contract keeps working; delete it once those adapters
 # consume canonical role names directly, one scope type at a time.
-_CANONICAL_SCOPE_TYPES = frozenset({"project"})
+_CANONICAL_SCOPE_TYPES = frozenset({"project", "site"})
 
 
 class AccessControlService:
