@@ -1126,8 +1126,10 @@ constrained `role_bindings` table, explicit delegation persistence and guarded m
 membership lifecycle, internal authorized invitation orchestration, and direct platform/tenant
 plus explicit organization-role authority cutover are implemented. Internal tenant custom-role lifecycle commands are
 implemented, but no external delivery or public invitation/role adapter has been enabled.
-Generic organization viewer/member grants and resource authority remain legacy-authoritative
-until the next direct scoped cutover package replaces them without fallback.
+Canonical `org_viewer`/`org_member` role definitions and their direct cutover are implemented,
+retiring the legacy organization scoped-grant path entirely. Generic project/site/storeroom/
+maintenance resource authority remain legacy-authoritative until their own direct scoped
+cutover packages replace them without fallback.
 
 - Extend membership lifecycle fields. Implemented additively with internal token issuance,
   authenticated acceptance, administrative transitions, targeted session invalidation, and
@@ -1218,13 +1220,16 @@ Current Phase 2 foundation:
   restore, tenant switching, organization switching, and runtime session revalidation now use
   canonical platform/tenant authority without legacy fallback. Explicit organization roles are
   also canonical and generic registration/role APIs reject them without an explicit scope.
-  Generic organization viewer/member grants and resource grants remain the next targets.
+  `org_viewer`/`org_member` are now canonical too, and the legacy organization scoped-grant
+  path is retired; generic project/site/storeroom/maintenance resource grants remain the next
+  targets.
 
 ### Phase 3: Principal and authorization-engine cutover
 
 Status: In progress. The complete legacy/canonical dependency map, permanent canonical
-effective-authority resolver, and platform/tenant plus explicit organization-role authority
-cutovers are implemented. Generic organization grants and resource principal cutovers remain.
+effective-authority resolver, and platform/tenant plus explicit organization-role (including
+`org_viewer`/`org_member`) authority cutovers are implemented. Generic resource principal
+cutovers (project/site/storeroom/maintenance) remain.
 
 - Replace the containment builder with principal construction over canonical bindings and
   explicit tenant and organization context.
@@ -1902,6 +1907,35 @@ Direct organization-role cutover ledger, 2026-07-31:
   growth budget and enterprise-calendar 1,200-line hard limit.
 - No application database was migrated, reset, backfilled, or otherwise modified by this work.
 
+Organization viewer/member cutover ledger, 2026-07-31:
+
+- Added canonical `org_viewer` and `org_member` role definitions (policy version bumped to 3)
+  reusing the existing `viewer`/`team_member` permission sets, and generalized
+  `EXPLICIT_SCOPE_ROLE_NAMES`/`system_role_scope_type` so both seed as organization-scoped
+  system roles alongside `org_admin`, with no other change needed for ordinary additive
+  startup seeding to pick them up.
+- Retired the legacy organization `ScopedAccessGrant` policy entirely: removed the
+  `organization` `ScopedRolePolicy` registration from `AccessControlService`, and deleted
+  `src/core/platform/tenancy/access_policy.py` (its `ORGANIZATION_SCOPE_ROLE_CHOICES`,
+  `normalize_organization_scope_role`, `resolve_organization_scope_permissions`). The desktop
+  runtime never wired `"organization"` into `PlatformAccessDesktopApi`'s scope-type choices, so
+  no customer-visible admin panel used this path; retiring it only changes internal/test-level
+  behavior.
+- `principal_builder.py` now drops any legacy `"organization"` scoped-access entry before
+  merging, so a pre-existing (or forged) `scoped_access_grants` row at organization scope can
+  no longer grant authority; canonical `role_bindings` are the sole organization-scope source.
+- `RoleGovernanceService.assign_role`/`revoke_role_binding` (already scope-generic) are now the
+  only way to grant an organization role, for all three roles (`org_admin`, `org_viewer`,
+  `org_member`) alike. No delegation policy is seeded for any of them, so assignment remains
+  fail-closed/dormant until an explicit reviewed delegation policy is created, matching the
+  existing `org_admin` precedent; no desktop/QML adapter is wired yet either.
+- Added policy-level, seeding, `build_principal`, and cross-tenant-rejection tests for
+  `org_viewer`/`org_member` mirroring the existing `org_admin` characterization tests, plus a
+  regression test proving a legacy organization `ScopedAccessGrant` row now grants zero
+  authority. Verified 113 focused RBAC/access/bootstrap/desktop-API tests across the directly
+  and indirectly affected files with no regressions.
+- No application database was migrated, reset, backfilled, or otherwise modified by this work.
+
 ### Repository re-audit, 2026-07-29
 
 Phases 0, 1, and 2 all remain in progress. The current snapshot was re-audited across domain
@@ -1966,13 +2000,19 @@ Completed in the current containment tranche:
 - Migrated inventoried post-gate resource, membership, delegation, SoD, permission-ceiling, and
   support-context denials to the typed isolated writer without changing their public error
   contracts.
+- Defined canonical `org_viewer`/`org_member` role definitions and directly cut over
+  organization scope: the legacy `ScopedAccessGrant` policy/path for organization scope is
+  retired, `principal_builder` no longer merges legacy organization-scope rows, and
+  `RoleGovernanceService.assign_role` is the sole assignment path for all three organization
+  roles. No adapter/UI is wired yet (matching the existing `org_admin` state); the legacy
+  desktop panel never exposed organization scope, so nothing customer-visible changed.
 
 Remaining work, in order:
 
-1. Define deterministic canonical role definitions for organization viewer/member and each
+1. Define deterministic canonical role definitions for each remaining
    project/site/storeroom/maintenance scope choice, including explicit unrestricted-vs-scoped
    permission semantics. Then replace scoped-grant/project-membership decision sources one
-   scope at a time without fallback.
+   scope at a time without fallback, following the organization-scope cutover already done.
 2. Add the reviewed invitation delivery/account-onboarding adapter without exposing raw tokens
    through generic transports.
 3. Update fixtures and seed data, run migration-created and cross-tenant tests, explicitly reset

@@ -6,10 +6,9 @@ import pytest
 
 from src.core.platform.access.authorization import require_scope_permission
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.infrastructure.persistence.orm.access import ScopedAccessGrantORM
 from src.core.platform.infrastructure.persistence.repositories.access import _scoped_access_grants_from_rows
-from src.core.platform.org.domain import Organization
 from src.core.modules.maintenance.access import resolve_maintenance_scope_permissions
 from src.core.modules.inventory_procurement.access.policy import resolve_storeroom_scope_permissions
 from src.core.modules.project_management.access.policy import resolve_project_scope_permissions
@@ -112,33 +111,22 @@ def test_scoped_access_repository_skips_null_rows_from_identity_map():
     assert grants[0].permission_codes == ["site.read"]
 
 
-def test_access_service_rejects_cross_tenant_organization_scope(services):
+def test_access_service_no_longer_supports_organization_scope(services):
     target = _register_active_tenant_user(
         services,
-        "cross-tenant-scope-target",
+        "retired-org-scope-target",
         role_names=["viewer"],
     )
-    other_tenant = services["tenant_admin_service"].create_tenant(
-        "ACCESS-OTHER",
-        "Access Other Tenant",
-    )
-    other_organization = Organization.create(
-        organization_code="ACCESS-OTHER-ORG",
-        display_name="Access Other Organization",
-        tenant_id=other_tenant.id,
-    )
-    services["organization_service"]._organization_repo.add(other_organization)
-    services["session"].flush()
 
-    with pytest.raises(NotFoundError) as exc_info:
+    with pytest.raises(ValidationError) as exc_info:
         services["access_service"].assign_scope_grant(
             scope_type="organization",
-            scope_id=other_organization.id,
+            scope_id="anything",
             user_id=target.id,
             scope_role="viewer",
         )
 
-    assert exc_info.value.code == "ORGANIZATION_NOT_FOUND"
+    assert exc_info.value.code == "UNSUPPORTED_SCOPE_TYPE"
 
 
 def test_access_service_rejects_target_from_another_tenant(services):
@@ -226,7 +214,6 @@ def test_access_service_supports_storeroom_scope_grants_and_principal_hydration(
     assert grant.permission_codes == sorted(resolve_storeroom_scope_permissions("operator"))
     assert access.list_scope_role_choices("storeroom") == ("viewer", "operator", "manager")
     assert set(access.list_supported_scope_types()) == {
-        "organization",
         "project",
         "site",
         "storeroom",

@@ -18,8 +18,10 @@ from src.core.platform.auth.domain import (
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
+    NotFoundError,
     ValidationError,
 )
+from src.core.platform.org.domain import Organization
 from src.core.platform.tenancy import Tenant
 from src.infra.persistence.migrations.runner import run_migrations
 
@@ -93,6 +95,111 @@ def _prepare_canonical_assignment(
         )
     )
     return actor, target, target_role
+
+
+def _prepare_organization_canonical_assignment(
+    services,
+    *,
+    target_role_name: str,
+    organization_id: str,
+    create_policy: bool = True,
+):
+    auth = services["auth_service"]
+    tenant_id = _tenant_id(services)
+    actor = auth.register_user(
+        f"org-canonical-actor-{target_role_name}",
+        "CanonicalActor123!",
+        role_names=["tenant_admin"],
+        tenant_id=tenant_id,
+    )
+    target = auth.register_user(
+        f"org-canonical-target-{target_role_name}",
+        "CanonicalTarget123!",
+        role_names=[],
+        tenant_id=tenant_id,
+    )
+    actor_role = auth._role_repo.get_by_name("tenant_admin")
+    target_role = auth._role_repo.get_by_name(target_role_name)
+    assert actor_role is not None
+    assert target_role is not None
+    if create_policy:
+        services["role_governance_service"].create_delegation_policy(
+            actor_role_id=actor_role.id,
+            assignable_role_id=target_role.id,
+            target_scope_type="organization",
+            tenant_id=tenant_id,
+        )
+
+    principal = auth.build_principal_for_context(
+        actor,
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+    )
+    services["user_session"].set_principal(
+        replace(
+            principal,
+            session_id=None,
+            permissions=frozenset(
+                {*principal.permissions, "auth.role.assign"}
+            ),
+        )
+    )
+    return actor, target, target_role
+
+
+def test_organization_role_assignment_is_scoped_and_audited(services) -> None:
+    tenant_id = _tenant_id(services)
+    organization_id = services["tenant_context_service"].get_active_organization_id()
+    assert organization_id is not None
+    _, target, target_role = _prepare_organization_canonical_assignment(
+        services,
+        target_role_name="org_viewer",
+        organization_id=organization_id,
+    )
+
+    binding = services["role_governance_service"].assign_role(
+        target_user_id=target.id,
+        role_id=target_role.id,
+        actual_scope_id=organization_id,
+    )
+
+    assert binding.tenant_id == tenant_id
+    assert binding.actual_scope_type == "organization"
+    assert binding.actual_scope_id == organization_id
+
+
+def test_organization_role_assignment_rejects_cross_tenant_organization(
+    services,
+) -> None:
+    organization_id = services["tenant_context_service"].get_active_organization_id()
+    assert organization_id is not None
+    _, target, target_role = _prepare_organization_canonical_assignment(
+        services,
+        target_role_name="org_viewer",
+        organization_id=organization_id,
+    )
+    other_tenant = Tenant.create(
+        tenant_code="ORG-ROLE-OTHER",
+        display_name="Other Org Role Tenant",
+    )
+    services["role_governance_service"]._tenant_repo.add(other_tenant)
+    services["session"].flush()
+    other_organization = Organization.create(
+        organization_code="ORG-ROLE-OTHER-ORG",
+        display_name="Other Org Role Organization",
+        tenant_id=other_tenant.id,
+    )
+    services["organization_service"]._organization_repo.add(other_organization)
+    services["session"].flush()
+
+    with pytest.raises(NotFoundError) as exc_info:
+        services["role_governance_service"].assign_role(
+            target_user_id=target.id,
+            role_id=target_role.id,
+            actual_scope_id=other_organization.id,
+        )
+
+    assert exc_info.value.code == "ORGANIZATION_NOT_FOUND"
 
 
 def test_role_domain_enforces_system_and_tenant_ownership() -> None:

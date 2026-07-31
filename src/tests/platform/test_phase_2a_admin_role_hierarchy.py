@@ -30,9 +30,9 @@ def _active_context_ids(services) -> tuple[str, str]:
     return tenant_id, organization_id
 
 
-def _bind_org_admin(services, user_id: str, organization_id: str) -> None:
+def _bind_org_role(services, user_id: str, organization_id: str, role_name: str) -> None:
     auth = services["auth_service"]
-    role = auth._role_repo.get_by_name("org_admin")
+    role = auth._role_repo.get_by_name(role_name)
     assert role is not None
     auth._role_binding_repo.add(
         RoleBinding.create(
@@ -46,6 +46,10 @@ def _bind_org_admin(services, user_id: str, organization_id: str) -> None:
         )
     )
     services["session"].flush()
+
+
+def _bind_org_admin(services, user_id: str, organization_id: str) -> None:
+    _bind_org_role(services, user_id, organization_id, "org_admin")
 
 
 # ---------------------------------------------------------------------------
@@ -111,6 +115,42 @@ def test_all_org_admin_permissions_are_registered():
         assert code in DEFAULT_PERMISSIONS, f"org_admin permission '{code}' is not in DEFAULT_PERMISSIONS"
 
 
+def test_org_viewer_role_is_defined_in_policy():
+    assert "org_viewer" in DEFAULT_ROLE_PERMISSIONS
+
+
+def test_org_member_role_is_defined_in_policy():
+    assert "org_member" in DEFAULT_ROLE_PERMISSIONS
+
+
+def test_org_viewer_has_read_only_organization_permissions():
+    perms = DEFAULT_ROLE_PERMISSIONS["org_viewer"]
+    assert "organization.access" in perms
+    assert "project.read" in perms
+    assert "org.manage" not in perms
+    assert "auth.manage" not in perms
+    assert "settings.manage" not in perms
+    assert "employee.manage" not in perms
+
+
+def test_org_member_has_org_viewer_permissions_plus_collaboration():
+    viewer_perms = DEFAULT_ROLE_PERMISSIONS["org_viewer"]
+    member_perms = DEFAULT_ROLE_PERMISSIONS["org_member"]
+    assert viewer_perms <= member_perms
+    assert "collaboration.manage" in member_perms
+    assert "timesheet.submit" in member_perms
+    assert "org.manage" not in member_perms
+    assert "auth.manage" not in member_perms
+
+
+def test_all_org_viewer_and_org_member_permissions_are_registered():
+    for role_name in ("org_viewer", "org_member"):
+        for code in DEFAULT_ROLE_PERMISSIONS[role_name]:
+            assert code in DEFAULT_PERMISSIONS, (
+                f"{role_name} permission '{code}' is not in DEFAULT_PERMISSIONS"
+            )
+
+
 def test_new_permissions_are_registered():
     for code in ("tenant.create", "tenant.manage", "tenant.read", "org.create", "org.manage"):
         assert code in DEFAULT_PERMISSIONS, f"'{code}' is missing from DEFAULT_PERMISSIONS"
@@ -132,6 +172,20 @@ def test_org_admin_role_is_seeded_in_db(services):
     auth = services["auth_service"]
     role = auth._role_repo.get_by_name("org_admin")
     assert role is not None, "org_admin role was not seeded"
+
+
+def test_org_viewer_role_is_seeded_in_db(services):
+    auth = services["auth_service"]
+    role = auth._role_repo.get_by_name("org_viewer")
+    assert role is not None, "org_viewer role was not seeded"
+    assert role.allowed_scope_type == "organization"
+
+
+def test_org_member_role_is_seeded_in_db(services):
+    auth = services["auth_service"]
+    role = auth._role_repo.get_by_name("org_member")
+    assert role is not None, "org_member role was not seeded"
+    assert role.allowed_scope_type == "organization"
 
 
 def test_tenant_admin_role_has_seeded_permissions(services):
@@ -219,6 +273,45 @@ def test_user_assigned_org_admin_gets_correct_permissions(services):
     assert "platform.admin" not in principal.permissions
 
 
+def test_user_assigned_org_viewer_gets_correct_permissions(services):
+    auth = services["auth_service"]
+    tenant_id, organization_id = _active_context_ids(services)
+
+    user = auth.register_user(
+        "p2a-assign-oviewer",
+        "StrongPass123!",
+        role_names=["viewer"],
+        tenant_id=tenant_id,
+    )
+    _bind_org_role(services, user.id, organization_id, "org_viewer")
+
+    principal = auth.build_principal(user)
+    assert "org_viewer" in principal.role_names
+    assert "organization.access" in principal.permissions
+    assert "project.read" in principal.permissions
+    assert "org.manage" not in principal.permissions
+    assert "auth.manage" not in principal.permissions
+
+
+def test_user_assigned_org_member_gets_correct_permissions(services):
+    auth = services["auth_service"]
+    tenant_id, organization_id = _active_context_ids(services)
+
+    user = auth.register_user(
+        "p2a-assign-omember",
+        "StrongPass123!",
+        role_names=["viewer"],
+        tenant_id=tenant_id,
+    )
+    _bind_org_role(services, user.id, organization_id, "org_member")
+
+    principal = auth.build_principal(user)
+    assert "org_member" in principal.role_names
+    assert "collaboration.manage" in principal.permissions
+    assert "timesheet.submit" in principal.permissions
+    assert "org.manage" not in principal.permissions
+
+
 def test_org_admin_is_effective_only_in_its_canonical_organization(services):
     from src.core.platform.infrastructure.persistence.repositories.org import (
         SqlAlchemyOrganizationRepository,
@@ -300,6 +393,39 @@ def test_legacy_org_admin_row_grants_no_runtime_authority(services):
 # ---------------------------------------------------------------------------
 # 10. is_platform_admin() end-to-end
 # ---------------------------------------------------------------------------
+
+def test_legacy_organization_scoped_grant_no_longer_grants_authority(services):
+    from src.core.platform.access.domain import ScopedAccessGrant
+
+    auth = services["auth_service"]
+    tenant_id, organization_id = _active_context_ids(services)
+    user = auth.register_user(
+        "p2a-legacy-org-scope",
+        "StrongPass123!",
+        role_names=["viewer"],
+        tenant_id=tenant_id,
+    )
+    auth._scoped_access_repo.add(
+        ScopedAccessGrant.create(
+            scope_type="organization",
+            scope_id=organization_id,
+            user_id=user.id,
+            scope_role="org_admin",
+            permission_codes=["org.manage", "auth.manage"],
+        )
+    )
+    services["session"].flush()
+
+    principal = auth.build_principal_for_context(
+        user,
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+    )
+
+    assert "organization" not in principal.scoped_access
+    assert "org.manage" not in principal.permissions
+    assert "auth.manage" not in principal.permissions
+
 
 def test_is_platform_admin_returns_true_for_admin(services):
     """The bootstrapped admin user has platform.admin and is_platform_admin() returns True."""

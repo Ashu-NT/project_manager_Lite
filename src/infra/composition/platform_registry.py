@@ -37,7 +37,6 @@ from src.core.platform.site.access_policy import (
     resolve_site_scope_permissions,
 )
 from src.core.platform.tenancy import (
-    ORGANIZATION_SCOPE_ROLE_CHOICES,
     TenantAdminService,
     TenantMembershipService,
     TenantContextService,
@@ -45,8 +44,6 @@ from src.core.platform.tenancy import (
     Tenant,
     UserTenantMembership,
     build_tenant_context_policy,
-    normalize_organization_scope_role,
-    resolve_organization_scope_permissions,
 )
 from src.core.platform.party import PartyService
 from src.core.platform.party.contracts import PartyRepository
@@ -451,12 +448,6 @@ def build_platform_service_bundle(
         auth_service=auth_service,
         policy_registry=ScopedRolePolicyRegistry(
             (
-                ScopedRolePolicy(
-                    scope_type="organization",
-                    role_choices=ORGANIZATION_SCOPE_ROLE_CHOICES,
-                    normalize_role=normalize_organization_scope_role,
-                    resolve_permissions=resolve_organization_scope_permissions,
-                ),
                 ScopedRolePolicy(
                     scope_type="site",
                     role_choices=SITE_SCOPE_ROLE_CHOICES,

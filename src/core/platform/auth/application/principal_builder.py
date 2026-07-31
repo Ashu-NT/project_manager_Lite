@@ -228,6 +228,9 @@ def build_principal(
         tenant_id=resolved_tenant_id,
         organization_id=resolved_organization_id,
     )
+    # RBAC-TRANSITION-ONLY: organization scope is canonical-only; drop any
+    # legacy row so a stale scoped_access_grants row grants no authority.
+    transitional_scoped_access.pop("organization", None)
     scoped_access = _merge_scoped_access(
         canonical_authority.scoped_access,
         transitional_scoped_access,

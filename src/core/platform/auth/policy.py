@@ -270,6 +270,9 @@ _ORG_ADMIN = {
     "auth.role.assign",
 }
 
+_ORG_VIEWER = set(_VIEWER)
+_ORG_MEMBER = set(_TEAM_MEMBER)
+
 DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "viewer": set(_VIEWER),
     "team_member": set(_TEAM_MEMBER),
@@ -290,11 +293,13 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "support_admin": set(_SUPPORT_ADMIN),
     "tenant_admin": set(_TENANT_ADMIN),
     "org_admin": set(_ORG_ADMIN),
+    "org_viewer": set(_ORG_VIEWER),
+    "org_member": set(_ORG_MEMBER),
     "admin": set(DEFAULT_PERMISSIONS.keys()),
 }
 
 SYSTEM_ROLE_POLICY_NAME = "system-role-permissions"
-SYSTEM_ROLE_POLICY_VERSION = 2
+SYSTEM_ROLE_POLICY_VERSION = 3
 
 
 def login_lockout_threshold() -> int:

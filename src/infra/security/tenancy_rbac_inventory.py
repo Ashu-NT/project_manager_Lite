@@ -12,6 +12,10 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Connection
 
 
+# RBAC-TRANSITION-ONLY: these role-name sets exist only to classify legacy
+# `user_roles` rows, which carry no scope metadata of their own. Remove them
+# with the rest of the legacy user_roles probe below once user_roles is
+# retired; canonical `role_bindings` never needs name-based classification.
 _PLATFORM_ROLE_NAMES = frozenset({"admin", "support_admin"})
 _CUSTOMER_PRIVILEGED_ROLE_NAMES = frozenset({"tenant_admin", "org_admin"})
 _MEMBERSHIP_LIFECYCLE_COLUMNS = frozenset(
@@ -37,6 +41,9 @@ _SECURITY_TABLES = (
     "user_tenants",
     "role_bindings",
     "role_delegation_policies",
+    # RBAC-TRANSITION-ONLY: these two tables back the superseded
+    # binding-migration preparation tooling; drop both entries in the same
+    # change that removes that tooling.
     "authorization_migration_batches",
     "legacy_role_binding_migration_records",
     "role_permissions",
@@ -193,6 +200,8 @@ def _schema_snapshot(reader: _SchemaReader) -> dict[str, Any]:
                     "updated_at",
                 }
             ),
+            # RBAC-TRANSITION-ONLY: reports legacy user_roles shape; remove
+            # once user_roles is retired.
             "legacy_role_organization_scope": (
                 "organization_id" in reader.columns("user_roles")
             ),
@@ -200,6 +209,8 @@ def _schema_snapshot(reader: _SchemaReader) -> dict[str, Any]:
                 "tenant_id" in reader.columns("scoped_access_grants")
             ),
             "canonical_role_bindings": "role_bindings" in reader.tables,
+            # RBAC-TRANSITION-ONLY: reports superseded migration-preparation
+            # table presence; remove with that tooling.
             "role_binding_migration_records": (
                 "authorization_migration_batches" in reader.tables
                 and "legacy_role_binding_migration_records" in reader.tables
@@ -296,6 +307,11 @@ def _inventory_data(
         if str(row.get("id") or "").strip()
     }
     organization_tenants = _scope_tenant_maps(reader).get("organization", {})
+    # RBAC-TRANSITION-ONLY: the block below, through `duplicate_legacy_bindings`,
+    # classifies legacy `user_roles` rows only. Remove it together with
+    # `_PLATFORM_ROLE_NAMES`, `_CUSTOMER_PRIVILEGED_ROLE_NAMES`, the four
+    # legacy findings appended below, and the `legacy_binding_classification_counts`
+    # / `legacy_bindings` output keys once user_roles is retired.
     user_role_rows = reader.rows(
         "user_roles",
         ("id", "user_id", "role_id", "organization_id"),
@@ -498,6 +514,8 @@ def _inventory_data(
                     }
                 )
 
+    # RBAC-TRANSITION-ONLY: the next four findings surface legacy `user_roles`
+    # conditions only; remove them with the rest of the legacy probe above.
     _append_finding(
         findings,
         code="CUSTOMER_PRIVILEGED_ROLE_WITHOUT_ACTIVE_MEMBERSHIP",
@@ -579,6 +597,8 @@ def _inventory_data(
     classification_counts = Counter(
         row["classification"] for row in legacy_classifications
     )
+    # RBAC-TRANSITION-ONLY: these two output keys expose the legacy
+    # classification above; remove them in the same change.
     return {
         "legacy_binding_classification_counts": dict(
             sorted(classification_counts.items())
