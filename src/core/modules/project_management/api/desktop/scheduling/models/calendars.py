@@ -31,6 +31,8 @@ class SchedulingCalendarSnapshotDto:
     working_days: tuple[SchedulingDayDescriptor, ...]
     hours_per_day: float
     holidays: tuple[SchedulingHolidayDto, ...]
+    calendar_id: str = ""
+    calendar_name: str = ""
 
 
 @dataclass(frozen=True)

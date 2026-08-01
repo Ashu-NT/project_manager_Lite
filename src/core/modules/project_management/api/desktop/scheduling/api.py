@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 from datetime import date
-from types import SimpleNamespace
 
 from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 from src.core.modules.project_management.application.tasks import TaskService
@@ -63,7 +62,12 @@ from src.core.modules.project_management.api.desktop.scheduling.builders.resourc
 from src.core.modules.project_management.api.desktop.scheduling.builders.constraint_builder import build_constraint_violations
 from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import build_change_impact
 from src.core.modules.project_management.api.desktop.scheduling.serializers.dependency_serializer import serialize_dependency
-from src.core.modules.project_management.api.desktop.scheduling.services.calendar_adapter_service import unwrap_platform_calendar_result
+from src.core.modules.project_management.api.desktop.scheduling.services.calendar_adapter_service import (
+    add_platform_holiday,
+    delete_platform_holiday,
+    unwrap_platform_calendar_result,
+    update_platform_calendar_working_days,
+)
 from src.core.modules.project_management.api.desktop.scheduling.services.dependency_resolution_service import (
     build_tasks_by_id,
     get_task_method,
@@ -120,15 +124,25 @@ class ProjectManagementSchedulingDesktopApi:
     def list_calendars(self) -> tuple[SchedulingCalendarOptionDescriptor, ...]:
         return build_calendar_options(self._platform_calendar_api, self._work_calendar_service)
 
-    def get_calendar_snapshot(self) -> SchedulingCalendarSnapshotDto:
-        return build_calendar_snapshot(self._platform_calendar_api, self._work_calendar_service)
+    def get_calendar_snapshot(self, calendar_id: str = "") -> SchedulingCalendarSnapshotDto:
+        return build_calendar_snapshot(
+            self._platform_calendar_api, self._work_calendar_service, calendar_id
+        )
 
     def update_calendar(self, command: SchedulingCalendarUpdateCommand) -> SchedulingCalendarSnapshotDto:
+        if self._platform_calendar_api is not None:
+            return update_platform_calendar_working_days(
+                self._platform_calendar_api, command.calendar_id, command
+            )
         # Calendar editing moved to Platform Admin → Calendar Management.
         # Stub kept for QML compatibility during transition.
         return self.get_calendar_snapshot()
 
     def add_holiday(self, command: SchedulingHolidayCreateCommand) -> SchedulingHolidayDto:
+        if self._platform_calendar_api is not None:
+            return add_platform_holiday(
+                self._platform_calendar_api, command.calendar_id, command
+            )
         # Holiday management moved to Platform Admin → Calendar Management.
         from datetime import datetime as _dt
         return SchedulingHolidayDto(
@@ -138,20 +152,35 @@ class ProjectManagementSchedulingDesktopApi:
         )
 
     def delete_holiday(self, holiday_id: str) -> None:
+        if self._platform_calendar_api is not None:
+            delete_platform_holiday(self._platform_calendar_api, holiday_id)
+            return
         pass  # Holiday management moved to Platform Admin → Calendar Management.
 
     def calculate_working_days(self, command: SchedulingWorkingDayCalculationCommand) -> SchedulingWorkingDayCalculationDto:
         if self._platform_calendar_api is not None:
+            from src.api.desktop.platform.models.enterprise_calendar import (
+                WorkingDaysCommand as PlatformWorkingDaysCommand,
+            )
+
             result = unwrap_platform_calendar_result(
-                self._platform_calendar_api.calculate_working_day(
-                    SimpleNamespace(start_date=command.start_date, working_days=command.working_days)
+                self._platform_calendar_api.calculate_working_days(
+                    PlatformWorkingDaysCommand(
+                        start_date=command.start_date.isoformat(),
+                        working_days=command.working_days,
+                    )
                 )
             )
+            result_date = date.fromisoformat(result.end_date)
+            skipped = max(
+                (result_date - command.start_date).days - max(command.working_days - 1, 0),
+                0,
+            )
             return SchedulingWorkingDayCalculationDto(
-                start_date=result.start_date,
-                working_days=result.working_days,
-                result_date=result.result_date,
-                skipped_non_working_days=result.skipped_non_working_days,
+                start_date=command.start_date,
+                working_days=command.working_days,
+                result_date=result_date,
+                skipped_non_working_days=skipped,
             )
         engine = self._require_work_calendar_engine()
         result_date = engine.add_working_days(command.start_date, command.working_days)

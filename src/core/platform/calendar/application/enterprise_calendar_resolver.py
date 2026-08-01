@@ -109,6 +109,7 @@ class EnterpriseCalendarResolver:
         project_assignment_repo: Any,
         resource_assignment_repo: Any,
         calculator: WorkingTimeCalculator,
+        shift_pattern_repo: Any = None,
     ) -> None:
         self._org_id = organization_id
         self._calendar_repo = calendar_repo
@@ -119,11 +120,14 @@ class EnterpriseCalendarResolver:
         self._project_assignment_repo = project_assignment_repo
         self._resource_assignment_repo = resource_assignment_repo
         self._calculator = calculator
+        self._shift_pattern_repo = shift_pattern_repo
         # In-process caches for data that rarely changes within a request/transaction.
         # Eliminates repeated DB queries when resolve_calendar_context is called
         # many times for the same calendar (e.g. during CPM forward pass).
         self._recurring_cache: dict[str, list] = {}  # cal_id → recurring events
         self._rules_cache: dict[str, list] = {}      # cal_id → working rules
+        self._shift_pattern_cache: dict[str, Any] = {}       # shift_code → ShiftPattern | None
+        self._shift_pattern_days_cache: dict[str, list] = {}  # pattern_id → ShiftPatternDay list
 
         self._missing_rule_warning_keys: set[tuple[tuple[str, ...], int]] = set()
 
@@ -137,6 +141,8 @@ class EnterpriseCalendarResolver:
         )
         self._recurring_cache.clear()
         self._rules_cache.clear()
+        self._shift_pattern_cache.clear()
+        self._shift_pattern_days_cache.clear()
         self._missing_rule_warning_keys.clear()
 
     # ------------------------------------------------------------------
@@ -174,12 +180,14 @@ class EnterpriseCalendarResolver:
         timezone = self._resolve_timezone(chain)
 
         working_rules = [effective_rule] if effective_rule else []
+        shift_pattern_day = self._resolve_shift_pattern_day(effective_rule, target_date)
         day = self._calculator.compute_day(
             working_rules=working_rules,
             exceptions=all_exceptions,
             recurring_events=all_recurring,
             target_date=target_date,
             assigned_hours=assigned_hours,
+            shift_pattern_day=shift_pattern_day,
         )
 
         labels = [label for label, _ in chain]
@@ -348,6 +356,7 @@ class EnterpriseCalendarResolver:
             day_exceptions.sort(key=lambda e: e.priority, reverse=True)
 
             working_rules = [effective_rule] if effective_rule else []
+            shift_pattern_day = self._resolve_shift_pattern_day(effective_rule, current)
             ah = (assigned_hours_by_date or {}).get(current, 0.0)
             day = self._calculator.compute_day(
                 working_rules=working_rules,
@@ -355,6 +364,7 @@ class EnterpriseCalendarResolver:
                 recurring_events=all_recurring,
                 target_date=current,
                 assigned_hours=ah,
+                shift_pattern_day=shift_pattern_day,
             )
 
             results.append(ResolvedCalendarContext.from_day_capacity(
@@ -498,6 +508,32 @@ class EnterpriseCalendarResolver:
             if rule is not None:
                 effective = rule
         return effective
+
+    def _get_cached_shift_pattern(self, shift_code: str):
+        if shift_code not in self._shift_pattern_cache:
+            self._shift_pattern_cache[shift_code] = self._shift_pattern_repo.get_by_code(
+                self._org_id, shift_code
+            )
+        return self._shift_pattern_cache[shift_code]
+
+    def _get_cached_shift_pattern_days(self, pattern_id: str) -> list:
+        if pattern_id not in self._shift_pattern_days_cache:
+            self._shift_pattern_days_cache[pattern_id] = self._shift_pattern_repo.list_days(
+                pattern_id
+            )
+        return self._shift_pattern_days_cache[pattern_id]
+
+    def _resolve_shift_pattern_day(
+        self, rule: CalendarWorkingRule | None, target_date: date
+    ):
+        if rule is None or not rule.shift_code or self._shift_pattern_repo is None:
+            return None
+        pattern = self._get_cached_shift_pattern(rule.shift_code)
+        if pattern is None or pattern.rotation_cycle_days is None or pattern.anchor_date is None:
+            return None
+        day_offset = (target_date - pattern.anchor_date).days % pattern.rotation_cycle_days
+        days = self._get_cached_shift_pattern_days(pattern.id)
+        return next((d for d in days if d.day_offset == day_offset), None)
 
     def _collect_exceptions(
         self, chain: list[tuple[str, str]], target_date: date

@@ -239,6 +239,7 @@ def shift_pattern_from_orm(obj: ShiftPatternORM) -> ShiftPattern:
         timezone=obj.timezone,
         description=obj.description,
         rotation_cycle_days=obj.rotation_cycle_days,
+        anchor_date=obj.anchor_date,
         is_active=obj.is_active,
     )
 
@@ -253,6 +254,7 @@ def shift_pattern_to_orm(pattern: ShiftPattern) -> ShiftPatternORM:
         timezone=pattern.timezone,
         description=pattern.description,
         rotation_cycle_days=pattern.rotation_cycle_days,
+        anchor_date=pattern.anchor_date,
         is_active=pattern.is_active,
     )
 

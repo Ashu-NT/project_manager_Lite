@@ -157,10 +157,11 @@ def build_calendar_summary_rows(model: dict[str, object]) -> list[dict[str, obje
         for day in model.get("workingDays", [])
         if bool(day.get("checked", False))
     ]
+    calendar_name = str(model.get("calendarName", "") or "Default Calendar")
     return [
         {
-            "id": "calendar:default",
-            "calendar": "Default Calendar",
+            "id": f"calendar:{model.get('calendarId', '') or 'default'}",
+            "calendar": calendar_name,
             "workingDays": ", ".join(working_days),
             "shiftPattern": "Business week" if working_days else "No shift",
             "hoursPerDay": str(model.get("hoursPerDay", "8")),
@@ -170,13 +171,14 @@ def build_calendar_summary_rows(model: dict[str, object]) -> list[dict[str, obje
 
 
 def build_holiday_rows(model: dict[str, object]) -> list[dict[str, object]]:
+    calendar_name = str(model.get("calendarName", "") or "Default Calendar")
     rows: list[dict[str, object]] = []
     for item in model.get("holidays", []):
         rows.append({
             "id": item.get("id", ""),
             "date": item.get("title", ""),
             "exception": item.get("subtitle", ""),
-            "calendar": "Default Calendar",
+            "calendar": calendar_name,
             "details": item.get("supportingText", "") or item.get("metaText", ""),
         })
     return rows

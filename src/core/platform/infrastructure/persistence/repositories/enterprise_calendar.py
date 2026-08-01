@@ -620,6 +620,7 @@ class SqlAlchemyShiftPatternRepository(
         obj.description = pattern.description
         obj.pattern_type = pattern.pattern_type
         obj.rotation_cycle_days = pattern.rotation_cycle_days
+        obj.anchor_date = pattern.anchor_date
         obj.timezone = pattern.timezone
         obj.is_active = pattern.is_active
 

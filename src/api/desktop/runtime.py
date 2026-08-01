@@ -323,6 +323,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             approval_service=approval_service,
             procurement_service=inventory_procurement_service,
             reservation_service=inventory_reservation_service,
+            enterprise_calendar_api=enterprise_calendar_api,
         ),
     )
     inventory_procurement_apis = build_inventory_procurement_desktop_runtime_apis(

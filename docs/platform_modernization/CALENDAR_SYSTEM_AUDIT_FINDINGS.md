@@ -1,7 +1,34 @@
 # Calendar System Audit — Findings & Recommendations
 
 Date: 2026-08-01
-Status: investigation complete, no code changes made as part of this document
+Status: investigation complete; all findings below have since been resolved
+or explicitly deferred — see "Resolution Status (2026-08-01)" immediately
+below. The rest of this document is the original investigation, kept as-is
+for context.
+
+## Resolution Status (2026-08-01)
+
+| # | Finding | Outcome |
+|---|---|---|
+| §2.5 | `CalendarEvent`/PM `CalendarService` (dead agenda feature) | **Deleted** — domain class, service, ORM/mapper/repo split out of `cost_calendar.py`, composition wiring, tests, and a migration dropping `calendar_events`. |
+| §2.6 | `cost_calendar.py` naming ghost | **Fixed** — `CalendarEvent` removed from the file entirely (see above), then the four `cost_calendar.py` files (contracts/orm/mappers/repositories) renamed to `cost.py` since only `CostItem`/`CostRepository` remained. |
+| §2.7 | Scheduling desktop API calendar stub (hard-coded fake calendar) | **Wired for real** — `platform_calendar_api` now flows from the composition root's real `EnterpriseCalendarDesktopApi` into `ProjectManagementSchedulingDesktopApi`; `calendar_adapter_service.py` rewritten to translate real `list_calendars`/`get_calendar`/`list_working_rules`/`list_exceptions`/`save_working_rule`/`add_exception`/`delete_exception` calls; `calendar_id` threaded end-to-end from the QML dropdown through `workspace_builder.py` so switching calendars actually re-fetches; the three hard-coded "Default Calendar" literals (`calendar_builder.py`, `row_builders.py`) now read the real calendar name. Legacy `work_calendar_service` fallback path (used only when no platform API is wired, e.g. some unit tests) preserved unchanged. |
+| §3 | Broken `updateCalendar`/`addCalendarHoliday`/`deleteCalendarHoliday` QML path | **Removed** — the three dead functions, their `@Slot` wrappers, the `WorkingCalendarEditorDialog.qml`/`WorkingCalendarHolidayDialog.qml` files, and the dead `isEnterpriseCalendar`-false routing branches deleted (they were unreachable in production since every calendar is enterprise-owned). The redundant "Holidays" tab in `AdminCalendarDetailPage.qml` — which duplicated the already-working "Exceptions" tab and was the only thing driving the broken actions — was removed rather than revived, since keeping two tabs for the same data would have reproduced the exact "two things doing the same job" confusion this audit is about. |
+| §5 item 5 | `ShiftPattern`/`ShiftPatternDay` never consulted by resolution | **Wired in** — `ShiftPatternDay.compute_hours()` added; `ShiftPattern.anchor_date` added (domain/ORM/mapper/migration) as the rotation's day-0 reference; `EnterpriseCalendarResolver` now accepts an optional `shift_pattern_repo`, resolves the working rule's `shift_code` against a pattern, computes `(target_date - anchor_date).days % rotation_cycle_days`, and looks up the matching `ShiftPatternDay`, feeding it into `WorkingTimeCalculator.compute_day()` (both the single-day and bulk-range paths) where it fully overrides the weekday-based schedule for that day. Desktop API gained `set_shift_pattern_day`/`delete_shift_pattern_day` (day-level CRUD was previously missing entirely from the desktop API). |
+| §5 item 6 | Retire `GlobalCalendarShim` | **Deferred**, as originally recommended — it is correct and load-bearing today; retiring it needs a separate audit of every PM consumer. |
+| §5 item 7 | Update the superseded Ownership Plan doc | **Done** earlier in this engagement — its status line now points here. |
+| §4 naming inventory | `PlatformCalendarController`/broken methods, dead comments (`WorkCalendarEngine` fallback comment, `CalendarResolver = None`) | Cleaned up as part of the QML fix above; the stale `scheduling_engine.py` comments were left as-is (out of scope — they reference an already-deleted class name in a comment only, no behavior change needed). |
+| §6.3 | Architecture guardrail test for the platform/calendar → project_management boundary | **Added** — `test_platform_calendar_does_not_import_project_management_at_module_scope` in `src/tests/architecture/test_architecture_guardrails_legacy_orm.py`. |
+
+Not done (explicitly out of scope for this pass, noted for a future one):
+admin QML UI for picking/assigning shift patterns and editing their days
+(the backend/resolver support and desktop API are complete; only the admin
+UI editor is missing), and the §6.1/§6.2 process recommendations (glossary
+doc, ADR for the split-table pattern) — a short ADR was added instead (see
+`docs/architecture_decisions/`).
+
+---
+
 Relationship to prior doc: this supersedes the discovery section of
 `docs/platform_modernization/PLATFORM_CALENDAR_OWNERSHIP_MIGRATION_PLAN.md`
 ("the Ownership Plan"). That plan described moving a first-generation

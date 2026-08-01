@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import time
+from datetime import date, time
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -67,6 +67,7 @@ class ShiftPatternService:
         timezone: str = "UTC",
         description: str | None = None,
         rotation_cycle_days: int | None = None,
+        anchor_date: date | None = None,
     ) -> ShiftPattern:
         require_permission(
             self._user_session, "task.manage", operation_label="create shift pattern"
@@ -80,6 +81,7 @@ class ShiftPatternService:
             timezone=timezone,
             description=description,
             rotation_cycle_days=rotation_cycle_days,
+            anchor_date=anchor_date,
         )
         existing = self._pattern_repo.get_by_code(org_id, pattern.code)
         if existing is not None:
@@ -97,6 +99,7 @@ class ShiftPatternService:
         pattern_type: str | None = None,
         timezone: str | None = None,
         rotation_cycle_days: int | None = None,
+        anchor_date: date | None = None,
         is_active: bool | None = None,
     ) -> ShiftPattern:
         require_permission(
@@ -115,6 +118,7 @@ class ShiftPatternService:
                 if rotation_cycle_days is None
                 else rotation_cycle_days
             ),
+            anchor_date=pattern.anchor_date if anchor_date is None else anchor_date,
             is_active=pattern.is_active if is_active is None else is_active,
         )
 

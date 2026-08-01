@@ -25,6 +25,7 @@ from src.api.desktop.platform.models.enterprise_calendar import (
     ResourceCapacityCommand,
     ResourceCapacityDto,
     ShiftPatternCreateCommand,
+    ShiftPatternDaySetCommand,
     ShiftPatternDayDto,
     ShiftPatternDto,
     ShiftPatternUpdateCommand,
@@ -180,6 +181,7 @@ def _serialize_shift_pattern(p: ShiftPattern) -> ShiftPatternDto:
         is_active=p.is_active,
         description=p.description or "",
         rotation_cycle_days=p.rotation_cycle_days or 0,
+        anchor_date=_fmt_date(p.anchor_date),
     )
 
 
@@ -476,6 +478,7 @@ class EnterpriseCalendarDesktopApi:
                     timezone=command.timezone or "UTC",
                     description=command.description or None,
                     rotation_cycle_days=command.rotation_cycle_days or None,
+                    anchor_date=_parse_date(command.anchor_date),
                 )
             )
         )
@@ -490,6 +493,7 @@ class EnterpriseCalendarDesktopApi:
                     pattern_type=command.pattern_type or None,
                     timezone=command.timezone or None,
                     rotation_cycle_days=command.rotation_cycle_days or None,
+                    anchor_date=_parse_date(command.anchor_date) if command.anchor_date else None,
                     is_active=command.is_active,
                 )
             )
@@ -498,6 +502,27 @@ class EnterpriseCalendarDesktopApi:
     def delete_shift_pattern(self, pattern_id: str) -> DesktopApiResult:
         return execute_desktop_operation(
             lambda: self._shift_pattern_service.delete_shift_pattern(pattern_id) or None
+        )
+
+    def set_shift_pattern_day(self, command: ShiftPatternDaySetCommand) -> DesktopApiResult:
+        return execute_desktop_operation(
+            lambda: _serialize_shift_day(
+                self._shift_pattern_service.set_day(
+                    command.pattern_id,
+                    command.day_offset,
+                    is_working_day=command.is_working_day,
+                    start_time=_parse_time(command.start_time),
+                    end_time=_parse_time(command.end_time),
+                    break_minutes=command.break_minutes,
+                    hours=command.hours if command.hours else None,
+                    shift_label=command.shift_label or None,
+                )
+            )
+        )
+
+    def delete_shift_pattern_day(self, day_id: str) -> DesktopApiResult:
+        return execute_desktop_operation(
+            lambda: self._shift_pattern_service.delete_day(day_id) or None
         )
 
     # --- Assignments ---

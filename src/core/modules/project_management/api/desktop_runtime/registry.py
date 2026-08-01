@@ -41,6 +41,7 @@ class ProjectManagementDesktopRuntimePlatformDependencies:
     approval_service: ApprovalService
     procurement_service: object | None
     reservation_service: object | None
+    enterprise_calendar_api: object | None = None
 
 
 __all__ = [

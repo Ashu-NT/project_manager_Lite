@@ -941,6 +941,7 @@ class ShiftPattern:
     timezone: str = "UTC"
     description: str | None = None
     rotation_cycle_days: int | None = None
+    anchor_date: date | None = None
     is_active: bool = True
 
     @field_validator("organization_id", mode="before")
@@ -1006,6 +1007,11 @@ class ShiftPattern:
             message="rotation_cycle_days must be positive.",
         )
 
+    @field_validator("anchor_date", mode="before")
+    @classmethod
+    def _validate_anchor_date(cls, value: object) -> date | None:
+        return _normalize_optional_date(value)
+
     @staticmethod
     def create(
         organization_id: str,
@@ -1016,6 +1022,7 @@ class ShiftPattern:
         timezone: str = "UTC",
         description: str | None = None,
         rotation_cycle_days: int | None = None,
+        anchor_date: date | None = None,
     ) -> "ShiftPattern":
         return ShiftPattern(
             id=generate_id(),
@@ -1026,6 +1033,7 @@ class ShiftPattern:
             timezone=timezone,
             description=description,
             rotation_cycle_days=rotation_cycle_days,
+            anchor_date=anchor_date,
             is_active=True,
         )
 
@@ -1100,6 +1108,18 @@ class ShiftPatternDay:
                 code="SHIFT_PATTERN_DAY_TIME_RANGE_INVALID",
             )
         return self
+
+    def compute_hours(self) -> float:
+        if not self.is_working_day:
+            return 0.0
+        if self.hours is not None:
+            return self.hours
+        if self.start_time and self.end_time:
+            start_min = self.start_time.hour * 60 + self.start_time.minute
+            end_min = self.end_time.hour * 60 + self.end_time.minute
+            total_min = max(0, end_min - start_min - self.break_minutes)
+            return total_min / 60.0
+        return 0.0
 
     @staticmethod
     def create(

@@ -580,6 +580,7 @@ def build_platform_service_bundle(
         project_assignment_repo=repositories.project_calendar_assignment_repo,
         resource_assignment_repo=repositories.resource_calendar_assignment_repo,
         calculator=working_time_calculator,
+        shift_pattern_repo=repositories.shift_pattern_repo,
     )
     global_calendar_shim = GlobalCalendarShim(resolver=enterprise_calendar_resolver)
     # Bootstrap global calendar. After the Alembic migration drops legacy tables,
