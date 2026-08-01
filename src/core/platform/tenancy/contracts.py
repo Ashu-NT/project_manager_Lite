@@ -54,6 +54,9 @@ class UserTenantMembershipRepository(ABC):
     def list_users_for_tenant(self, tenant_id: str) -> list[UserTenantMembership]: ...
 
     @abstractmethod
+    def list_memberships_for_user(self, user_id: str) -> list[UserTenantMembership]: ...
+
+    @abstractmethod
     def deactivate(self, user_id: str, tenant_id: str) -> None: ...
 
 

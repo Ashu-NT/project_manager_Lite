@@ -15,6 +15,7 @@ EXPECTED_AREAS = {
     "employee",
     "enterprise_calendar",
     "modules",
+    "notification",
     "org",
     "party",
     "platform_events",

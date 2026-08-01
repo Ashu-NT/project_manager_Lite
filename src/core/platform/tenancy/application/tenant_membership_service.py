@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
+import logging
 import secrets
 
 from sqlalchemy.orm import Session
@@ -32,6 +33,7 @@ from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
 )
+from src.core.platform.notifications import NotificationService
 from src.core.platform.tenancy.contracts import (
     TenantRepository,
     UserTenantMembershipRepository,
@@ -46,6 +48,7 @@ from src.core.platform.tenancy.domain import (
 from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.core.shared.events.domain_events import domain_events
 
+logger = logging.getLogger(__name__)
 
 _DEFAULT_INVITATION_ROLE = "viewer"
 _PLATFORM_ROLE_NAMES = frozenset({"admin", "support_admin"})
@@ -75,6 +78,7 @@ class TenantMembershipService:
         audit_repo: AuditRepository,
         user_session: UserSessionContext,
         tenant_context_service: TenantContextService,
+        notification_service: NotificationService,
     ) -> None:
         self._session = session
         self._tenant_repo = tenant_repo
@@ -86,6 +90,7 @@ class TenantMembershipService:
         self._audit_repo = audit_repo
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
+        self._notification_service = notification_service
 
     def issue_invitation(
         self,
@@ -166,9 +171,22 @@ class TenantMembershipService:
         except Exception:
             self._session.rollback()
             raise
+        self._notify_invitation_issued(target.id, tenant_id=tenant_id, membership=membership)
         return IssuedTenantInvitation(membership=membership, token=token)
 
+    def list_my_pending_invitations(self) -> list[UserTenantMembership]:
+        actor = self._require_authenticated_principal()
+        return [
+            membership
+            for membership in self._membership_repo.list_memberships_for_user(
+                actor.user_id
+            )
+            if membership.status == MEMBERSHIP_STATUS_INVITED
+            and not membership.invitation_is_expired()
+        ]
+
     def accept_invitation(self, token: str) -> UserTenantMembership:
+        """Accept via the raw one-time token (out-of-band delivery, e.g. a future emailed link)."""
         actor = self._require_authenticated_principal()
         token_hash = self.hash_invitation_token(token)
         membership = self._membership_repo.get_by_invitation_token_hash(token_hash)
@@ -197,7 +215,34 @@ class TenantMembershipService:
                 target_scope_id=membership.user_id,
                 operation="authorization.membership.denied",
             )
+        return self._accept_membership(membership, actor=actor)
 
+    def accept_invitation_for_tenant(self, tenant_id: str) -> UserTenantMembership:
+        """Accept the caller's own pending invitation for a tenant, surfaced via
+        `list_my_pending_invitations`/in-app notification. No bearer token is involved:
+        the caller is already an authenticated principal, and the membership lookup is
+        keyed by that principal's own user id, not a shared secret."""
+        actor = self._require_authenticated_principal()
+        membership = self._require_membership(actor.user_id, str(tenant_id or "").strip())
+        if (
+            membership.status != MEMBERSHIP_STATUS_INVITED
+            or membership.invitation_is_expired()
+        ):
+            authorization_denied(
+                self._user_session,
+                message="The tenant invitation is invalid or no longer available.",
+                code="TENANT_INVITATION_INVALID",
+                operation_label="accept a tenant invitation",
+                operation="authorization.invitation.denied",
+            )
+        return self._accept_membership(membership, actor=actor)
+
+    def _accept_membership(
+        self,
+        membership: UserTenantMembership,
+        *,
+        actor,
+    ) -> UserTenantMembership:
         target = self._require_active_user(membership.user_id)
         self._require_invitation_safe_roles(target)
         self._require_active_tenant(membership.tenant_id)
@@ -244,6 +289,7 @@ class TenantMembershipService:
             old_status=MEMBERSHIP_STATUS_INVITED,
             metadata={"target_user_id": target.id},
         )
+        self._notify_invitation_revoked(target.id, tenant_id=tenant_id, membership=revoked)
         return revoked
 
     def suspend_member(self, target_user_id: str) -> UserTenantMembership:
@@ -710,6 +756,69 @@ class TenantMembershipService:
             metadata={"action": action, **metadata},
         )
         self._audit_repo.add_for_tenant(entry, tenant_id)
+
+    def _notify_invitation_issued(
+        self,
+        recipient_user_id: str,
+        *,
+        tenant_id: str,
+        membership: UserTenantMembership,
+    ) -> None:
+        # The raw invitation token is never placed in notification metadata: notifications
+        # are a generic, broadly-readable transport. Acceptance from this notification goes
+        # through accept_invitation_for_tenant, which needs no bearer token.
+        self._safe_dispatch_notification(
+            recipient_user_id=recipient_user_id,
+            category="tenant.invitation.issued",
+            title="You've been invited to join a workspace",
+            body="You have a pending workspace invitation, expiring "
+            f"{membership.invitation_expires_at.isoformat()}.",
+            tenant_id=tenant_id,
+            metadata={"membership_id": membership.id},
+        )
+
+    def _notify_invitation_revoked(
+        self,
+        recipient_user_id: str,
+        *,
+        tenant_id: str,
+        membership: UserTenantMembership,
+    ) -> None:
+        self._safe_dispatch_notification(
+            recipient_user_id=recipient_user_id,
+            category="tenant.invitation.revoked",
+            title="Your workspace invitation was revoked",
+            body="A pending invitation to join a workspace was revoked by an administrator.",
+            tenant_id=tenant_id,
+            metadata={"membership_id": membership.id},
+        )
+
+    def _safe_dispatch_notification(
+        self,
+        *,
+        recipient_user_id: str,
+        category: str,
+        title: str,
+        body: str,
+        tenant_id: str,
+        metadata: dict[str, object],
+    ) -> None:
+        try:
+            self._notification_service.dispatch(
+                recipient_user_id=recipient_user_id,
+                category=category,
+                title=title,
+                body=body,
+                tenant_id=tenant_id,
+                metadata=metadata,
+                commit=True,
+            )
+        except Exception:
+            logger.exception(
+                "Tenant membership notification dispatch failed category=%s recipient=%s",
+                category,
+                recipient_user_id,
+            )
 
 
 __all__ = ["IssuedTenantInvitation", "TenantMembershipService"]

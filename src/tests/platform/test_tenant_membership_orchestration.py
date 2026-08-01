@@ -6,7 +6,7 @@ import json
 import pytest
 from sqlalchemy import select
 
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.infrastructure.persistence.orm.audit_entry import AuditEntryORM
 from src.core.platform.infrastructure.persistence.orm.auth import UserRoleORM
 from src.core.platform.tenancy import (
@@ -342,6 +342,103 @@ def test_invitation_expiry_is_bounded(
         )
 
     assert expiry_error.value.code == "TENANT_INVITATION_EXPIRY_INVALID"
+
+
+def test_issuing_invitation_notifies_invitee_without_leaking_the_token(
+    services,
+) -> None:
+    membership_service = services["tenant_membership_service"]
+    notifications = services["notification_service"]
+    tenant_id = services["tenant_context_service"].require_active_tenant_id(
+        operation_label="test invitation notification"
+    )
+    target = _register_user(services, "notified_invitee")
+
+    issued = membership_service.issue_invitation(
+        target.id,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+    )
+
+    _set_user_principal(services, target.username)
+    mine = notifications.list_my_notifications()
+    assert len(mine) == 1
+    assert mine[0].category == "tenant.invitation.issued"
+    assert issued.token not in mine[0].body
+    assert issued.token not in json.dumps(mine[0].metadata)
+    assert mine[0].metadata.get("membership_id") == issued.membership.id
+
+
+def test_revoking_invitation_notifies_invitee(services) -> None:
+    membership_service = services["tenant_membership_service"]
+    notifications = services["notification_service"]
+    target = _register_user(services, "revoke_notified_invitee")
+    membership_service.issue_invitation(
+        target.id,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+    )
+
+    membership_service.revoke_invitation(target.id)
+
+    _set_user_principal(services, target.username)
+    categories = {n.category for n in notifications.list_my_notifications()}
+    assert "tenant.invitation.revoked" in categories
+
+
+def test_list_my_pending_invitations_is_self_scoped_and_excludes_expired(
+    services,
+) -> None:
+    membership_service = services["tenant_membership_service"]
+    owner = _register_user(services, "pending_invitation_owner")
+    other = _register_user(services, "pending_invitation_other")
+    membership_service.issue_invitation(
+        owner.id,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+    )
+
+    _set_user_principal(services, owner.username)
+    mine = membership_service.list_my_pending_invitations()
+    assert len(mine) == 1
+    assert mine[0].user_id == owner.id
+
+    _set_user_principal(services, other.username)
+    assert membership_service.list_my_pending_invitations() == []
+
+
+def test_accept_invitation_for_tenant_requires_no_token(services) -> None:
+    membership_service = services["tenant_membership_service"]
+    tenant_id = services["tenant_context_service"].require_active_tenant_id(
+        operation_label="test token-free acceptance"
+    )
+    target = _register_user(services, "token_free_acceptor")
+    membership_service.issue_invitation(
+        target.id,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+    )
+
+    _set_user_principal(services, target.username)
+    accepted = membership_service.accept_invitation_for_tenant(tenant_id)
+
+    assert accepted.status == MEMBERSHIP_STATUS_ACTIVE
+    assert membership_service._membership_repo.is_active_member(target.id, tenant_id)
+    assert membership_service.list_my_pending_invitations() == []
+
+
+def test_accept_invitation_for_tenant_is_self_scoped(services) -> None:
+    membership_service = services["tenant_membership_service"]
+    tenant_id = services["tenant_context_service"].require_active_tenant_id(
+        operation_label="test token-free acceptance self-scope"
+    )
+    target = _register_user(services, "token_free_owner")
+    other = _register_user(services, "token_free_other")
+    membership_service.issue_invitation(
+        target.id,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+    )
+
+    _set_user_principal(services, other.username)
+    with pytest.raises(NotFoundError) as exc:
+        membership_service.accept_invitation_for_tenant(tenant_id)
+    assert exc.value.code == "TENANT_MEMBERSHIP_NOT_FOUND"
 
 
 def test_last_effective_tenant_administrator_cannot_be_suspended(

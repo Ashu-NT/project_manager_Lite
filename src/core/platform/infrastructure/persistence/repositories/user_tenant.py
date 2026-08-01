@@ -102,6 +102,11 @@ class SqlAlchemyUserTenantMembershipRepository(UserTenantMembershipRepository):
         rows = self._session.execute(stmt).scalars().all()
         return [user_tenant_from_orm(row) for row in rows]
 
+    def list_memberships_for_user(self, user_id: str) -> list[UserTenantMembership]:
+        stmt = select(UserTenantORM).where(UserTenantORM.user_id == user_id)
+        rows = self._session.execute(stmt).scalars().all()
+        return [user_tenant_from_orm(row) for row in rows]
+
     def deactivate(self, user_id: str, tenant_id: str) -> None:
         membership = self.get(user_id, tenant_id)
         if membership is None or not membership.is_active:

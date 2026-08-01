@@ -214,7 +214,7 @@ def test_migration_revision_builds_and_round_trips_foundation(tmp_path) -> None:
             ).scalar_one()
     finally:
         engine.dispose()
-    assert revision == "9c4d5e6f7a8b"
+    assert revision == "b1n2o3t4i5f6"
     assert {
         "ck_legacy_role_binding_migration_canonical_state",
         "ck_legacy_role_binding_migration_resolution",

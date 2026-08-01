@@ -18,6 +18,7 @@ from src.core.platform.integration.resolver import IntegrationResolver
 from src.core.platform.activity.application.activity_service import ActivityService
 from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import EnterpriseAuditService
+from src.core.platform.notifications import NotificationService
 from src.core.platform.auth import (
     AuthService,
     RoleGovernanceService,
@@ -199,6 +200,7 @@ class ServiceGraph:
     access_service: AccessControlService
     activity_service: ActivityService
     enterprise_audit_service: EnterpriseAuditService
+    notification_service: NotificationService
     approval_service: ApprovalService
     collaboration_service: CollaborationService
     project_service: ProjectService
@@ -297,6 +299,7 @@ class ServiceGraph:
             "access_service": self.access_service,
             "activity_service": self.activity_service,
             "enterprise_audit_service": self.enterprise_audit_service,
+            "notification_service": self.notification_service,
             "approval_service": self.approval_service,
             "collaboration_service": self.collaboration_service,
             "project_service": self.project_service,
@@ -435,6 +438,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         access_service=platform_services.access_service,
         activity_service=platform_services.activity_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,
+        notification_service=platform_services.notification_service,
         approval_service=platform_services.approval_service,
         collaboration_service=project_management_services.collaboration_service,
         project_service=project_management_services.project_service,
