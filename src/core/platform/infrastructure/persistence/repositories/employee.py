@@ -51,6 +51,7 @@ class SqlAlchemyEmployeeRepository(TenantScopedRepositorySupport, EmployeeReposi
                 "email": employee.email,
                 "phone": employee.phone,
                 "is_active": employee.is_active,
+                "user_id": employee.user_id,
             },
             extra_filters={
                 "tenant_id": ctx.tenant_id,

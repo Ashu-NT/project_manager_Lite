@@ -49,6 +49,11 @@ class EmployeeORM(Base):
     email: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    user_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
@@ -58,3 +63,4 @@ Index("idx_employees_department", EmployeeORM.department_id)
 Index("idx_employees_site", EmployeeORM.site_id)
 Index("idx_employees_code", EmployeeORM.employee_code, unique=True)
 Index("idx_employees_active", EmployeeORM.is_active)
+Index("idx_employees_user", EmployeeORM.user_id)

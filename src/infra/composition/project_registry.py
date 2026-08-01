@@ -233,6 +233,8 @@ def build_project_management_service_bundle(
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_runtime_service,
+        notification_service=platform_services.notification_service,
+        employee_repo=repositories.employee_repo,
     )
     resource_service = ResourceService(
         session,
@@ -296,6 +298,7 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         role_repo=repositories.role_repo,
         role_binding_repo=repositories.role_binding_repo,
+        notification_service=platform_services.notification_service,
     )
     portfolio_service = PortfolioService(
         session=session,

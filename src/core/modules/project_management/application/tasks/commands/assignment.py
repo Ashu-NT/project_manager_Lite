@@ -18,6 +18,7 @@ from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
+from src.core.shared.notifications import safe_dispatch_notification
 
 
 class TaskAssignmentMixin:
@@ -236,7 +237,27 @@ class TaskAssignmentMixin:
             raise
 
         domain_events.tasks_changed.emit(task.project_id)
+        self._notify_task_assigned(task=task, resource=resource)
         return assignment
+
+    def _notify_task_assigned(self, *, task, resource) -> None:
+        if resource is None or not getattr(resource, "employee_id", None):
+            return
+        employee_repo = getattr(self, "_employee_repo", None)
+        if employee_repo is None:
+            return
+        employee = employee_repo.get(resource.employee_id)
+        if employee is None or not getattr(employee, "user_id", None):
+            return
+        task_name = getattr(task, "name", "") or task.id
+        safe_dispatch_notification(
+            self,
+            recipient_user_id=employee.user_id,
+            category="pm.task.assigned.v1",
+            title="You were assigned a task",
+            body=f'You were assigned to "{task_name}".',
+            metadata={"task_id": task.id, "project_id": task.project_id},
+        )
 
 
 __all__ = ["TaskAssignmentMixin"]

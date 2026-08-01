@@ -11,8 +11,10 @@ from src.core.shared.audit import record_audit_entry
 from src.core.platform.approval.contracts import ApprovalRepository
 from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from src.core.platform.auth.authorization import require_any_permission, require_permission
+from src.core.platform.auth.domain.role_binding import ROLE_PRINCIPAL_USER
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.tenancy import TenantContextService
+from src.core.shared.notifications import safe_dispatch_notification
 
 ApplyHandler = Callable[[ApprovalRequest], None]
 
@@ -25,12 +27,22 @@ class ApprovalService:
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
+        notification_service: Any = None,
+        role_repo: Any = None,
+        role_permission_repo: Any = None,
+        permission_repo: Any = None,
+        role_binding_repo: Any = None,
     ):
         self._session = session
         self._approval_repo = approval_repo
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
+        self._notification_service = notification_service
+        self._role_repo = role_repo
+        self._role_permission_repo = role_permission_repo
+        self._permission_repo = permission_repo
+        self._role_binding_repo = role_binding_repo
         self._apply_handlers: dict[str, ApplyHandler] = {}
         self._reject_handlers: dict[str, ApplyHandler] = {}
 
@@ -97,6 +109,7 @@ class ApprovalService:
         if commit:
             self._session.commit()
             domain_events.approvals_changed.emit(request.id)
+            self._notify_approval_requested(request)
         else:
             self._session.flush()
         return request
@@ -169,6 +182,7 @@ class ApprovalService:
         )
         self._session.commit()
         domain_events.approvals_changed.emit(request.id)
+        self._notify_approval_decided(request, decided="rejected")
         return request
 
     def approve_and_apply(self, request_id: str, note: str | None = None) -> ApprovalRequest:
@@ -207,6 +221,7 @@ class ApprovalService:
         )
         self._session.commit()
         domain_events.approvals_changed.emit(request.id)
+        self._notify_approval_decided(request, decided="approved")
         return request
 
     def _require_pending(self, request_id: str) -> ApprovalRequest:
@@ -238,6 +253,73 @@ class ApprovalService:
     def _emit_post_apply_domain_events(request: ApprovalRequest) -> None:
         if request.request_type == "baseline.create" and request.project_id:
             domain_events.baseline_changed.emit(request.project_id)
+
+    def _active_tenant_id(self) -> str | None:
+        tenant_context = getattr(self, "_tenant_context_service", None)
+        if tenant_context is None:
+            return None
+        return tenant_context.get_active_tenant_id()
+
+    def _list_users_with_permission(self, permission_code: str, *, tenant_id: str | None) -> set[str]:
+        if (
+            self._permission_repo is None
+            or self._role_repo is None
+            or self._role_permission_repo is None
+            or self._role_binding_repo is None
+        ):
+            return set()
+        permission = self._permission_repo.get_by_code(permission_code)
+        if permission is None:
+            return set()
+        user_ids: set[str] = set()
+        for role in self._role_repo.list_all():
+            if permission.id not in self._role_permission_repo.list_permission_ids(role.id):
+                continue
+            bindings = list(self._role_binding_repo.list_active_for_role_across_tenants(role.id))
+            if tenant_id:
+                bindings.extend(self._role_binding_repo.list_active_for_role(role.id, tenant_id=tenant_id))
+            for binding in bindings:
+                if binding.principal_type == ROLE_PRINCIPAL_USER:
+                    user_ids.add(binding.principal_id)
+        return user_ids
+
+    def _notify_approval_requested(self, request: ApprovalRequest) -> None:
+        tenant_id = self._active_tenant_id()
+        recipients = self._list_users_with_permission("approval.decide", tenant_id=tenant_id)
+        recipients.discard(request.requested_by_user_id)
+        entity_label = request.entity_type.replace("_", " ")
+        for user_id in recipients:
+            safe_dispatch_notification(
+                self,
+                recipient_user_id=user_id,
+                category="approval.requested.v1",
+                title="Approval requested",
+                body=f"{request.requested_by_username or 'Someone'} requested approval for a {entity_label}.",
+                tenant_id=tenant_id,
+                metadata={
+                    "request_id": request.id,
+                    "request_type": request.request_type,
+                    "entity_type": request.entity_type,
+                    "entity_id": request.entity_id,
+                },
+            )
+
+    def _notify_approval_decided(self, request: ApprovalRequest, *, decided: str) -> None:
+        if not request.requested_by_user_id:
+            return
+        entity_label = request.entity_type.replace("_", " ")
+        body = f"Your {entity_label} request was {decided}."
+        if request.decision_note:
+            body = f"{body} Note: {request.decision_note}"
+        safe_dispatch_notification(
+            self,
+            recipient_user_id=request.requested_by_user_id,
+            category=f"approval.{decided}.v1",
+            title=f"Your approval request was {decided}",
+            body=body,
+            tenant_id=self._active_tenant_id(),
+            metadata={"request_id": request.id, "request_type": request.request_type},
+        )
 
     @staticmethod
     def _build_request_audit_details(

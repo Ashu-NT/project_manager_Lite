@@ -76,6 +76,7 @@ class EmployeeService:
         email: str | None = None,
         phone: str | None = None,
         is_active: bool = True,
+        user_id: str | None = None,
     ) -> Employee:
         require_permission(self._user_session, "employee.manage", operation_label="create employee")
         organization_id = self._active_organization_id(operation_label="create employee")
@@ -92,6 +93,7 @@ class EmployeeService:
             email=email,
             phone=phone,
             is_active=bool(is_active),
+            user_id=user_id,
         )
         if self._employee_repo.get_by_code_for_organization(employee.employee_code, organization_id) is not None:
             raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS")
@@ -145,6 +147,7 @@ class EmployeeService:
         email: str | None = None,
         phone: str | None = None,
         is_active: bool | None = None,
+        user_id: str | None = None,
         expected_version: int | None = None,
     ) -> Employee:
         require_permission(self._user_session, "employee.manage", operation_label="update employee")
@@ -193,6 +196,7 @@ class EmployeeService:
             email=email if email is not None else employee.email,
             phone=phone if phone is not None else employee.phone,
             is_active=bool(is_active) if is_active is not None else employee.is_active,
+            user_id=user_id if user_id is not None else employee.user_id,
         )
         if employee_code is not None:
             existing = self._employee_repo.get_by_code_for_organization(

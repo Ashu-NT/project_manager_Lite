@@ -55,6 +55,7 @@ class Employee:
     email: str | None = None
     phone: str | None = None
     is_active: bool = True
+    user_id: str | None = None
     version: int = 1
 
     @field_validator("employee_code", mode="before")
@@ -75,7 +76,7 @@ class Employee:
             code="EMPLOYEE_NAME_REQUIRED",
         )
 
-    @field_validator("organization_id", "department_id", "site_id", mode="before")
+    @field_validator("organization_id", "department_id", "site_id", "user_id", mode="before")
     @classmethod
     def _normalize_optional_ids(cls, value: object) -> str | None:
         return normalize_optional_identifier(value)
@@ -125,6 +126,7 @@ class Employee:
         email: str | None = None,
         phone: str | None = None,
         is_active: bool = True,
+        user_id: str | None = None,
     ) -> "Employee":
         return Employee(
             id=generate_id(),
@@ -140,6 +142,7 @@ class Employee:
             email=email,
             phone=phone,
             is_active=is_active,
+            user_id=user_id,
             version=1,
         )
 

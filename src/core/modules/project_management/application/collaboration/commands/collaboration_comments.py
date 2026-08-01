@@ -12,6 +12,7 @@ from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_events import domain_events
+from src.core.shared.notifications import safe_dispatch_notification
 
 
 class CollaborationCommentCommandMixin:
@@ -74,7 +75,23 @@ class CollaborationCommentCommandMixin:
             document_ids=normalized_linked_document_ids,
         )
         domain_events.collaboration_changed.emit(task_id)
+        self._notify_mentioned_users(task=task, comment=comment, author_user_id=comment.author_user_id)
         return comment
+
+    def _notify_mentioned_users(self, *, task, comment: TaskComment, author_user_id: str | None) -> None:
+        snippet = comment.body if len(comment.body) <= 140 else f"{comment.body[:137]}..."
+        task_name = getattr(task, "name", "") or task.id
+        for user_id in comment.mentioned_user_ids:
+            if not user_id or user_id == author_user_id:
+                continue
+            safe_dispatch_notification(
+                self,
+                recipient_user_id=user_id,
+                category="pm.comment.mentioned.v1",
+                title="You were mentioned in a comment",
+                body=f'On "{task_name}": {snippet}',
+                metadata={"task_id": task.id, "project_id": task.project_id, "comment_id": comment.id},
+            )
 
     def mark_task_mentions_read(self, task_id: str) -> None:
         task = self._require_task(task_id)

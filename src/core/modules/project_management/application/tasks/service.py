@@ -89,6 +89,8 @@ class TaskService(
         activity_service: ActivityService | None = None,
         approval_service: ApprovalService | None = None,
         module_catalog_service=None,
+        notification_service=None,
+        employee_repo=None,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -107,6 +109,8 @@ class TaskService(
         self._activity_service: ActivityService | None = activity_service
         self._approval_service: ApprovalService | None = approval_service
         self._module_catalog_service = module_catalog_service
+        self._notification_service = notification_service
+        self._employee_repo = employee_repo
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
         self._last_overallocation_warning: str | None = None
