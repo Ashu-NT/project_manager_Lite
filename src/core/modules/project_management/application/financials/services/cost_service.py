@@ -13,7 +13,7 @@ from src.core.modules.project_management.application.financials.costs.queries.co
 )
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
-from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
+from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 

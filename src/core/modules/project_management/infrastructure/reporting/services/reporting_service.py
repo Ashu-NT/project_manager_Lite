@@ -13,7 +13,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
+from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission

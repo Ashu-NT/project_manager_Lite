@@ -4,7 +4,7 @@ from datetime import date
 
 from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
+from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.application.financials.utils.helpers import (

@@ -24,7 +24,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.baseline
     BaselineTaskORM,
     ProjectBaselineORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.cost_calendar import (
+from src.core.modules.project_management.infrastructure.persistence.orm.cost import (
     CostItemORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (

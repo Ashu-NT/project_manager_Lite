@@ -47,8 +47,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.collabor
     TaskCommentORM,
     TaskPresenceORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.cost_calendar import (
-    CalendarEventORM,
+from src.core.modules.project_management.infrastructure.persistence.orm.cost import (
     CostItemORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.portfolio import (
@@ -106,8 +105,6 @@ def _seed_priority_pm_rows(services):
     presence_b = TaskPresenceORM(id="presence-b", task_id=task_b1.id, user_id="user-b", username="bob", display_name="Bob", activity="reviewing", started_at=now, last_seen_at=now)
     cost_a = CostItemORM(id="cost-a", project_id=project_a.id, task_id=task_a1.id, description="Cost A", cost_type=CostType.OVERHEAD.value, planned_amount=100.0, committed_amount=0.0, actual_amount=0.0, version=1)
     cost_b = CostItemORM(id="cost-b", project_id=project_b.id, task_id=task_b1.id, description="Cost B", cost_type=CostType.OVERHEAD.value, planned_amount=200.0, committed_amount=0.0, actual_amount=0.0, version=1)
-    event_a = CalendarEventORM(id="event-a", title="Event A", start_date=today, end_date=today, project_id=project_a.id, task_id=task_a1.id, all_day=True, description="")
-    event_b = CalendarEventORM(id="event-b", title="Event B", start_date=today, end_date=today, project_id=project_b.id, task_id=task_b1.id, all_day=True, description="")
     register_a = RegisterEntryORM(id="register-a", project_id=project_a.id, entry_type=RegisterEntryType.RISK, title="Register A", description="", severity=RegisterEntrySeverity.MEDIUM, status=RegisterEntryStatus.OPEN, impact_summary="", response_plan="", created_at=now, updated_at=now, version=1)
     register_b = RegisterEntryORM(id="register-b", project_id=project_b.id, entry_type=RegisterEntryType.RISK, title="Register B", description="", severity=RegisterEntrySeverity.MEDIUM, status=RegisterEntryStatus.OPEN, impact_summary="", response_plan="", created_at=now, updated_at=now, version=1)
     baseline_a = ProjectBaselineORM(id="baseline-a", project_id=project_a.id, name="Baseline A", created_at=now, status=BaselineStatus.DRAFT.value, version=1)
@@ -118,7 +115,7 @@ def _seed_priority_pm_rows(services):
     variance_b = BaselineVarianceRecordORM(id="variance-b", project_id=project_b.id, new_baseline_id=baseline_b.id, superseded_baseline_id=baseline_b.id, task_id=task_b1.id, task_name="Task B1", start_variance_days=0, finish_variance_days=0, cost_variance=0.0, created_at=today)
     session.add_all([project_a, project_b, resource_a, resource_b, task_a1, task_a2, task_b1, task_b2])
     session.commit()
-    session.add_all([assignment_a, assignment_b, dependency_a, dependency_b, comment_a, comment_b, presence_a, presence_b, cost_a, cost_b, event_a, event_b, register_a, register_b, baseline_a, baseline_b])
+    session.add_all([assignment_a, assignment_b, dependency_a, dependency_b, comment_a, comment_b, presence_a, presence_b, cost_a, cost_b, register_a, register_b, baseline_a, baseline_b])
     session.commit()
     session.add_all([baseline_task_a, baseline_task_b, variance_a, variance_b])
     session.commit()
@@ -133,7 +130,6 @@ def _seed_priority_pm_rows(services):
         "dependency_a": dependency_a.id, "dependency_b": dependency_b.id,
         "comment_a": comment_a.id, "comment_b": comment_b.id,
         "cost_a": cost_a.id, "cost_b": cost_b.id,
-        "event_a": event_a.id, "event_b": event_b.id,
         "register_a": register_a.id, "register_b": register_b.id,
         "baseline_a": baseline_a.id, "baseline_b": baseline_b.id,
     }

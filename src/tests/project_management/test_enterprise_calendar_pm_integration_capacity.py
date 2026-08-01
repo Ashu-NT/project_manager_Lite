@@ -333,8 +333,39 @@ def test_allocation_over_capacity_flagged(
 
 
 def test_resolver_source_chain_correct(
-    global_cal, cal_service, assignment_service, resolver
+    global_cal, cal_service, assignment_service, resolver, db_session, tenant_context, org_id
 ):
+    from datetime import datetime, timezone
+
+    from src.core.platform.infrastructure.persistence.orm.departments import DepartmentORM
+    from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
+
+    ctx = tenant_context.require_organization_context()
+    now = datetime.now(timezone.utc)
+    db_session.add_all(
+        [
+            SiteORM(
+                id="site-chain",
+                tenant_id=ctx.tenant_id,
+                organization_id=org_id,
+                site_code="site-chain",
+                name="site-chain",
+                created_at=now,
+                updated_at=now,
+            ),
+            DepartmentORM(
+                id="dept-chain",
+                tenant_id=ctx.tenant_id,
+                organization_id=org_id,
+                department_code="dept-chain",
+                name="dept-chain",
+                created_at=now,
+                updated_at=now,
+            ),
+        ]
+    )
+    db_session.commit()
+
     site_cal = cal_service.create_calendar(
         code="SITE-CHAIN",
         name="Site Chain",

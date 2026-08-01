@@ -7,8 +7,7 @@ from datetime import date
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.cost_calendar import (
-    CalendarEventRepository,
+from src.core.modules.project_management.contracts.repositories.cost import (
     CostRepository,
 )
 from src.core.modules.project_management.contracts.repositories.task import (
@@ -33,7 +32,6 @@ class TaskLifecycleMixin:
     _task_repo: TaskRepository
     _dependency_repo: DependencyRepository
     _assignment_repo: AssignmentRepository
-    _calendar_repo: CalendarEventRepository
     _cost_repo: CostRepository
     _work_calendar_engine: CalendarProtocol
 
@@ -203,7 +201,6 @@ class TaskLifecycleMixin:
                     time_entry_repo.delete_by_assignment(assignment.id)
             self._dependency_repo.delete_for_task(task_id)
             self._assignment_repo.delete_by_task(task_id)
-            self._calendar_repo.delete_for_task(task_id)
             cost_items = self._cost_repo.list_by_project(task.project_id)
             for cost_item in cost_items:
                 if cost_item.task_id == task_id:

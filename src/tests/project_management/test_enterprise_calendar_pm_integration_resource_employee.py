@@ -236,6 +236,24 @@ def global_cal(cal_service, org_id, rule_service):
     return cal
 
 
+def _seed_employee(db_session, tenant_context, employee_id: str) -> None:
+    from src.core.platform.infrastructure.persistence.orm.employee import EmployeeORM
+
+    ctx = tenant_context.require_organization_context()
+    if db_session.get(EmployeeORM, employee_id) is not None:
+        return
+    db_session.add(
+        EmployeeORM(
+            id=employee_id,
+            tenant_id=ctx.tenant_id,
+            organization_id=ctx.organization_id,
+            employee_code=employee_id,
+            full_name=employee_id,
+        )
+    )
+    db_session.commit()
+
+
 def _seed_resource(db_session, tenant_context, resource_id: str) -> None:
     ctx = tenant_context.require_organization_context()
     if db_session.get(ResourceORM, resource_id) is not None:
@@ -287,7 +305,7 @@ def _make_resource_repo(resource_id, worker_type="EXTERNAL", employee_id=None):
 
 
 def test_employee_backed_resource_inherits_employee_calendar(
-    global_cal, cal_service, assignment_service, resolver, rule_service
+    global_cal, cal_service, assignment_service, resolver, rule_service, db_session, tenant_context
 ):
     emp_cal = cal_service.create_calendar(
         code="EMP-SMITH",
@@ -300,6 +318,7 @@ def test_employee_backed_resource_inherits_employee_calendar(
         is_working_day=True,
         hours_override=7.5,
     )
+    _seed_employee(db_session, tenant_context, "emp-smith")
     assignment_service.assign_employee_calendar("emp-smith", emp_cal.id)
 
     resource_repo = _make_resource_repo(
@@ -314,7 +333,7 @@ def test_employee_backed_resource_inherits_employee_calendar(
 
 
 def test_employee_vacation_blocks_pm_resource(
-    global_cal, cal_service, assignment_service, exc_service, resolver, rule_service
+    global_cal, cal_service, assignment_service, exc_service, resolver, rule_service, db_session, tenant_context
 ):
     emp_cal = cal_service.create_calendar(
         code="EMP-JONES",
@@ -322,6 +341,7 @@ def test_employee_vacation_blocks_pm_resource(
         calendar_type=CalendarType.EMPLOYEE.value,
     )
     rule_service.save_rule(emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0)
+    _seed_employee(db_session, tenant_context, "emp-jones")
     assignment_service.assign_employee_calendar("emp-jones", emp_cal.id)
     exc_service.add_exception(
         emp_cal.id,
@@ -342,7 +362,7 @@ def test_employee_vacation_blocks_pm_resource(
 
 
 def test_employee_training_reduces_pm_resource_capacity(
-    global_cal, cal_service, assignment_service, recurring_service, resolver, rule_service
+    global_cal, cal_service, assignment_service, recurring_service, resolver, rule_service, db_session, tenant_context
 ):
     emp_cal = cal_service.create_calendar(
         code="EMP-TRAINING",
@@ -350,6 +370,7 @@ def test_employee_training_reduces_pm_resource_capacity(
         calendar_type=CalendarType.EMPLOYEE.value,
     )
     rule_service.save_rule(emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0)
+    _seed_employee(db_session, tenant_context, "emp-trainer")
     assignment_service.assign_employee_calendar("emp-trainer", emp_cal.id)
     recurring_service.add_recurring_event(
         emp_cal.id,
@@ -385,6 +406,7 @@ def test_employee_backed_resource_does_not_duplicate_employee_rules(
         calendar_type=CalendarType.EMPLOYEE.value,
     )
     rule_service.save_rule(emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0)
+    _seed_employee(db_session, tenant_context, "emp-nodupe")
     assignment_service.assign_employee_calendar("emp-nodupe", emp_cal.id)
 
     # Also assign a resource calendar with different hours — should NOT be used

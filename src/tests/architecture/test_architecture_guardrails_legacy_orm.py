@@ -156,7 +156,7 @@ def test_project_management_persistence_imports_project_management_orm_models():
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "task.py",
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "resource.py",
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "baseline.py",
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "cost_calendar.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "cost.py",
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "portfolio.py",
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "collaboration.py",
     ]
@@ -202,7 +202,7 @@ def test_orm_package_root_loads_all_model_packages():
     )
     for module in platform_orm_modules:
         assert f"import src.core.platform.infrastructure.persistence.orm.{module}" in package_text
-    for module in ("project", "resource", "task", "cost_calendar", "baseline", "register", "collaboration", "portfolio"):
+    for module in ("project", "resource", "task", "cost", "baseline", "register", "collaboration", "portfolio"):
         assert f"import src.core.modules.project_management.infrastructure.persistence.orm.{module}" in package_text
     for module in ("catalog", "inventory", "procurement"):
         assert f"import src.core.modules.inventory_procurement.infrastructure.persistence.orm.{module}" in package_text
@@ -311,3 +311,35 @@ def test_core_platform_does_not_import_module_contracts():
                     violations.append((str(path.relative_to(ROOT)), mod))
 
     assert not violations, f"Core platform layer imports module code directly: {violations}"
+
+
+def test_platform_calendar_does_not_import_project_management_at_module_scope():
+    """
+    The Enterprise Calendar resolver/assignment service intentionally take
+    PM-owned repositories as `Any`-typed constructor params and import the
+    concrete PM types *inside* method bodies (not at module scope) so the
+    platform module never gains a hard, top-level dependency on
+    project_management. This guards that boundary as the codebase evolves.
+    """
+    calendar_root = ROOT / "src" / "core" / "platform" / "calendar"
+    violations: list[tuple[str, str]] = []
+
+    for path in _python_files(calendar_root):
+        source = path.read_text(encoding="utf-8", errors="ignore")
+        tree = ast.parse(source)
+        for node in tree.body:
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    name = alias.name
+                    if name == "src.core.modules.project_management" or name.startswith(
+                        "src.core.modules.project_management."
+                    ):
+                        violations.append((str(path.relative_to(ROOT)), name))
+            elif isinstance(node, ast.ImportFrom):
+                mod = node.module or ""
+                if mod == "src.core.modules.project_management" or mod.startswith(
+                    "src.core.modules.project_management."
+                ):
+                    violations.append((str(path.relative_to(ROOT)), mod))
+
+    assert not violations, f"Platform calendar module imports project_management at module scope: {violations}"

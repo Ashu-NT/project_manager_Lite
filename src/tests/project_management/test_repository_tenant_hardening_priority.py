@@ -40,7 +40,6 @@ from src.core.modules.project_management.domain.scheduling.baseline import (
     BaselineStatus,
     ProjectBaseline,
 )
-from src.core.modules.project_management.domain.scheduling.calendar import CalendarEvent
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
 from src.core.modules.project_management.infrastructure.persistence.repositories.collaboration import (
     SqlAlchemyTaskPresenceRepository,
@@ -65,7 +64,6 @@ def test_priority_pm_repositories_hide_other_organization_rows(services):
     comment_repo = services["collaboration_service"]._comment_repo
     presence_repo = services["collaboration_service"]._presence_repo
     cost_repo = services["cost_service"]._cost_repo
-    calendar_repo = services["calendar_service"]._calendar_repo
     register_repo = services["register_service"]._register_repo
     baseline_repo = services["baseline_service"]._baselines
 
@@ -99,10 +97,6 @@ def test_priority_pm_repositories_hide_other_organization_rows(services):
     assert cost_repo.get(seeded["cost_b"]) is None
     assert cost_repo.list_by_project(seeded["project_b"]) == []
 
-    assert calendar_repo.get(seeded["event_b"]) is None
-    assert calendar_repo.list_for_project(seeded["project_b"]) == []
-    assert [row.id for row in calendar_repo.list_range(date.today(), date.today())] == [seeded["event_a"]]
-
     assert register_repo.get(seeded["register_b"]) is None
     assert register_repo.list_entries(project_id=seeded["project_b"]) == []
     assert [row.id for row in register_repo.list_entries()] == [seeded["register_a"]]
@@ -122,7 +116,6 @@ def test_priority_pm_repositories_scope_mutations_to_active_organization(service
     assignment_repo = services["task_service"]._assignment_repo
     dependency_repo = services["task_service"]._dependency_repo
     cost_repo = services["cost_service"]._cost_repo
-    calendar_repo = services["calendar_service"]._calendar_repo
     register_repo = services["register_service"]._register_repo
     baseline_repo = services["baseline_service"]._baselines
 
@@ -132,9 +125,6 @@ def test_priority_pm_repositories_scope_mutations_to_active_organization(service
     dependency_repo.delete_for_task(seeded["task_b1"])
     cost_repo.delete(seeded["cost_b"])
     cost_repo.delete_by_project(seeded["project_b"])
-    calendar_repo.delete(seeded["event_b"])
-    calendar_repo.delete_for_task(seeded["task_b1"])
-    calendar_repo.delete_for_project(seeded["project_b"])
     register_repo.delete(seeded["register_b"])
     baseline_repo.delete_tasks(seeded["baseline_b"])
     baseline_repo.delete_baseline(seeded["baseline_b"])
@@ -147,7 +137,6 @@ def test_priority_pm_repositories_scope_mutations_to_active_organization(service
     assert assignment_repo.get(seeded["assignment_b"]) is not None
     assert dependency_repo.get(seeded["dependency_b"]) is not None
     assert cost_repo.get(seeded["cost_b"]) is not None
-    assert calendar_repo.get(seeded["event_b"]) is not None
     assert register_repo.get(seeded["register_b"]) is not None
     assert baseline_repo.get_baseline(seeded["baseline_b"]) is not None
     assert [row.id for row in baseline_repo.list_tasks(seeded["baseline_b"])] == ["baseline-task-b"]
@@ -163,7 +152,6 @@ def test_priority_pm_repositories_reject_cross_organization_updates(services):
     dependency_repo = services["task_service"]._dependency_repo
     comment_repo = services["collaboration_service"]._comment_repo
     cost_repo = services["cost_service"]._cost_repo
-    calendar_repo = services["calendar_service"]._calendar_repo
     register_repo = services["register_service"]._register_repo
     baseline_repo = services["baseline_service"]._baselines
 
@@ -207,17 +195,6 @@ def test_priority_pm_repositories_reject_cross_organization_updates(services):
                 task_id=seeded["task_b1"],
                 description="Blocked",
                 planned_amount=250.0,
-            )
-        )
-    with pytest.raises(NotFoundError):
-        calendar_repo.update(
-            CalendarEvent(
-                id=seeded["event_b"],
-                title="Blocked",
-                start_date=date.today(),
-                end_date=date.today(),
-                project_id=seeded["project_b"],
-                task_id=seeded["task_b1"],
             )
         )
     with pytest.raises(BusinessRuleError):

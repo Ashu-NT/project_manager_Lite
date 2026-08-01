@@ -16,7 +16,6 @@ Item {
     property string errorMessage: ""
     property string feedbackMessage: ""
     property int activeSectionIndex: 0
-    property string selectedHolidayId: ""
     property string selectedRuleId: ""
     property string selectedExceptionId: ""
     property string selectedRecurringEventId: ""
@@ -31,7 +30,6 @@ Item {
 
     signal backRequested()
     signal editRequested()
-    signal addHolidayRequested()
     signal addExceptionRequested()
     signal addRecurringEventRequested()
     signal openAuditRequested()
@@ -40,11 +38,9 @@ Item {
     readonly property string _title: String(root.calendar && root.calendar.title ? root.calendar.title : "Working Calendar")
     readonly property string _workingDaysText: String(root._state.workingDaysText || "No working days configured")
     readonly property string _hoursPerDayLabel: String(root._state.hoursPerDayLabel || root._state.hoursPerDay || "8")
-    readonly property var _holidayRows: root._state.holidays || []
     readonly property var _sections: {
         const base = [
-            { "label": "Overview" },
-            { "label": "Holidays", "count": root._holidayRows.length }
+            { "label": "Overview" }
         ]
         if (root.isEnterpriseCalendar) {
             base.push({ "label": "Working Rules", "count": root.workingRules.length })
@@ -64,13 +60,6 @@ Item {
         if (root._activeSectionLabel === "Overview") {
             return [
                 { "id": "edit", "label": "Edit Calendar", "icon": "edit" },
-                { "id": "refresh", "label": "Refresh", "icon": "refresh" }
-            ]
-        }
-        if (root._activeSectionLabel === "Holidays") {
-            return [
-                { "id": "add_holiday", "label": "Add Exception", "icon": "add" },
-                { "id": "delete_holiday", "label": "Delete Exception", "icon": "delete", "danger": true, "enabled": root.selectedHolidayId.length > 0 },
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }
@@ -111,8 +100,6 @@ Item {
         switch (root._activeSectionLabel) {
         case "Overview":
             return "Shared working-week rules owned by Platform and consumed by PM Scheduling and other modules."
-        case "Holidays":
-            return "Holiday and non-working-day exceptions for the shared working calendar."
         case "Working Rules":
             return "Weekday working schedule — start/end times, breaks, and hours per day."
         case "Exceptions":
@@ -129,12 +116,6 @@ Item {
             return ""
         }
     }
-    readonly property var _holidayColumns: [
-        { "key": "date", "label": "Date", "flex": 1.0, "sortable": true },
-        { "key": "name", "label": "Exception", "flex": 1.8 },
-        { "key": "calendar", "label": "Calendar", "flex": 1.4 },
-        { "key": "details", "label": "Details", "flex": 1.8 }
-    ]
     readonly property var _workingRuleColumns: [
         { "key": "weekday", "label": "Day", "flex": 0.8 },
         { "key": "isWorkingDay", "label": "Working", "flex": 0.7 },
@@ -162,7 +143,7 @@ Item {
         { "label": "Ownership", "value": root.isEnterpriseCalendar ? "Enterprise Calendar" : "Platform Shared Master" },
         { "label": "Hours / Day", "value": root._hoursPerDayLabel + "h" },
         { "label": "Working Days", "value": root._workingDaysText },
-        { "label": "Exceptions", "value": String(root._holidayRows.length) },
+        { "label": "Exceptions", "value": String(root.enterpriseExceptions.length) },
         { "label": "Calendar ID", "value": root._state.calendarId || "default" }
     ]
 
@@ -224,18 +205,10 @@ Item {
             onActionTriggered: function(actionId) {
                 if (actionId === "edit") {
                     root.editRequested()
-                } else if (actionId === "add_holiday") {
-                    root.addHolidayRequested()
                 } else if (actionId === "add_exception") {
                     root.addExceptionRequested()
                 } else if (actionId === "add_recurring") {
                     root.addRecurringEventRequested()
-                } else if (actionId === "delete_holiday") {
-                    if (root.workspaceController !== null && root.selectedHolidayId.length > 0) {
-                        const result = root.workspaceController.deleteCalendarHoliday(root.selectedHolidayId)
-                        if (result && result.ok === true)
-                            root.selectedHolidayId = ""
-                    }
                 } else if (actionId === "delete_exception") {
                     if (root.workspaceController !== null && root.selectedExceptionId.length > 0) {
                         const result = root.workspaceController.deleteCalendarException(root.selectedExceptionId)
@@ -349,41 +322,6 @@ Item {
                                     }
                                 }
                             }
-                        }
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Holidays" ? holidaysLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: holidaysLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Holidays"
-                keepLoaded: true
-                loadingMessage: "Loading calendar exceptions..."
-                sourceComponent: Component {
-                    AdminDetailTableSection {
-                        sectionLabel: "Holiday Exceptions"
-                        infoMessage: "These exceptions are shared across any module that consumes the Platform working calendar."
-                        rows: root._holidayRows
-                        columns: root._holidayColumns
-                        selectedRowId: root.selectedHolidayId
-                        emptyTitle: "No exceptions yet"
-                        emptyMessage: "No holiday or non-working-day exceptions are configured."
-                        tableHeight: root._tableHeightForCount(root._holidayRows.length)
-                        onRowSelected: function(rowId) {
-                            root.selectedHolidayId = String(rowId || "")
-                        }
-                        onRowActivated: function(rowId) {
-                            root.selectedHolidayId = String(rowId || "")
                         }
                     }
                 }

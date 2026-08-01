@@ -13,33 +13,6 @@ from .admin_calendar_command_builders import (
 from .admin_refresh_service import refresh_after_calendar_change
 
 
-def update_calendar(controller, payload: dict) -> dict[str, object]:
-    return run_admin_result_action(
-        controller,
-        operation=lambda: controller._calendar_controller.updateCalendar(dict(payload)),
-        success_message="Working calendar updated.",
-        on_success=lambda: refresh_after_calendar_change(controller),
-    )
-
-
-def add_calendar_holiday(controller, payload: dict) -> dict[str, object]:
-    return run_admin_result_action(
-        controller,
-        operation=lambda: controller._calendar_controller.addCalendarHoliday(dict(payload)),
-        success_message="Calendar exception added.",
-        on_success=lambda: refresh_after_calendar_change(controller),
-    )
-
-
-def delete_calendar_holiday(controller, holiday_id: str) -> dict[str, object]:
-    return run_admin_result_action(
-        controller,
-        operation=lambda: controller._calendar_controller.deleteCalendarHoliday(holiday_id),
-        success_message="Calendar exception removed.",
-        on_success=lambda: refresh_after_calendar_change(controller),
-    )
-
-
 def calculate_calendar_working_days(controller, payload: dict) -> dict[str, object]:
     controller._set_is_busy(True)
     controller._set_error_message("")
@@ -166,15 +139,12 @@ def remove_calendar_assignment(
 
 __all__ = [
     "add_calendar_exception",
-    "add_calendar_holiday",
     "add_calendar_recurring_event",
     "assign_calendar",
     "calculate_calendar_working_days",
     "create_enterprise_calendar",
     "delete_calendar_exception",
-    "delete_calendar_holiday",
     "delete_calendar_recurring_event",
     "remove_calendar_assignment",
-    "update_calendar",
     "update_enterprise_calendar",
 ]

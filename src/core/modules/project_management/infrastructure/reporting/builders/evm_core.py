@@ -10,7 +10,7 @@ from datetime import date
 from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
-from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
+from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
     CostPolicyEngine,

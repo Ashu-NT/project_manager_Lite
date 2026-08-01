@@ -1,11 +1,11 @@
-"""Cost and PM calendar-event ORM rows."""
+"""Cost ORM rows."""
 
 from __future__ import annotations
 
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import Boolean, Date, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import Date, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infra.persistence.orm.base import Base
@@ -50,29 +50,4 @@ Index("idx_costs_task", CostItemORM.task_id)
 Index("idx_costs_type", CostItemORM.cost_type)
 Index("idx_costs_commitment_status", CostItemORM.commitment_status)
 
-
-class CalendarEventORM(Base):
-    __tablename__ = "calendar_events"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    title: Mapped[str] = mapped_column(String, nullable=False)
-    start_date: Mapped[date] = mapped_column(Date, nullable=False)
-    end_date: Mapped[date] = mapped_column(Date, nullable=False)
-    project_id: Mapped[Optional[str]] = mapped_column(
-        String,
-        ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=True,
-    )
-    task_id: Mapped[Optional[str]] = mapped_column(
-        String,
-        ForeignKey("tasks.id", ondelete="CASCADE"),
-        nullable=True,
-    )
-    all_day: Mapped[bool] = mapped_column(Boolean, default=True)
-    description: Mapped[str] = mapped_column(String, default="")
-
-
-Index("idx_clandar_project", CalendarEventORM.project_id)
-Index("idx_calendar_start_end", CalendarEventORM.start_date, CalendarEventORM.end_date)
-
-__all__ = ["CalendarEventORM", "CostItemORM"]
+__all__ = ["CostItemORM"]

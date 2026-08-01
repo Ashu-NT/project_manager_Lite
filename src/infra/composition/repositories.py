@@ -17,8 +17,7 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyPortfolioScenarioRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.baseline import SqlAlchemyBaselineRepository
-from src.core.modules.project_management.infrastructure.persistence.repositories.cost_calendar import (
-    SqlAlchemyCalendarEventRepository,
+from src.core.modules.project_management.infrastructure.persistence.repositories.cost import (
     SqlAlchemyCostRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.enterprise_calendar import (
@@ -105,7 +104,6 @@ class RepositoryBundle:
     timesheet_period_repo: SqlAlchemyTimesheetPeriodRepository
     dependency_repo: SqlAlchemyDependencyRepository
     cost_repo: SqlAlchemyCostRepository
-    calendar_repo: SqlAlchemyCalendarEventRepository
     platform_calendar_repo: SqlAlchemyPlatformCalendarRepository
     calendar_working_rule_repo: SqlAlchemyCalendarWorkingRuleRepository
     calendar_exception_repo: SqlAlchemyCalendarExceptionRepository
@@ -163,7 +161,6 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         timesheet_period_repo=SqlAlchemyTimesheetPeriodRepository(session),
         dependency_repo=SqlAlchemyDependencyRepository(session),
         cost_repo=SqlAlchemyCostRepository(session),
-        calendar_repo=SqlAlchemyCalendarEventRepository(session),
         platform_calendar_repo=SqlAlchemyPlatformCalendarRepository(session),
         calendar_working_rule_repo=SqlAlchemyCalendarWorkingRuleRepository(session),
         calendar_exception_repo=SqlAlchemyCalendarExceptionRepository(session),

@@ -103,7 +103,6 @@ from src.core.modules.project_management.application.resources import (
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
-    CalendarService,
     SchedulingEngine,
 )
 from src.core.modules.project_management.infrastructure.importers import DataImportService
@@ -206,7 +205,6 @@ class ServiceGraph:
     project_service: ProjectService
     task_service: TaskService
     timesheet_service: TimesheetService
-    calendar_service: CalendarService
     resource_service: ResourceService
     cost_service: CostService
     finance_service: FinanceService
@@ -305,7 +303,6 @@ class ServiceGraph:
             "project_service": self.project_service,
             "task_service": self.task_service,
             "timesheet_service": self.timesheet_service,
-            "calendar_service": self.calendar_service,
             "resource_service": self.resource_service,
             "cost_service": self.cost_service,
             "finance_service": self.finance_service,
@@ -444,7 +441,6 @@ def build_service_graph(session: Session) -> ServiceGraph:
         project_service=project_management_services.project_service,
         task_service=project_management_services.task_service,
         timesheet_service=project_management_services.timesheet_service,
-        calendar_service=project_management_services.calendar_service,
         resource_service=project_management_services.resource_service,
         cost_service=project_management_services.cost_service,
         finance_service=project_management_services.finance_service,

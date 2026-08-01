@@ -1,6 +1,14 @@
 # Platform Calendar Ownership Migration Plan
 
-Status: `discovery complete / backend ownership slice 1 complete / API ownership slice complete / frontend ownership slice complete / PM rewiring partial`
+Status: `superseded — the flat WorkingCalendar/Holiday/WorkCalendarEngine
+model described below was fully replaced by the hierarchical "Enterprise
+Calendar" system (PlatformCalendar/CalendarWorkingRule/CalendarException,
+site/department/employee/project/resource assignment, migration
+o8p9q0r1s2t3_drop_legacy_working_calendars). See
+docs/platform_modernization/CALENDAR_SYSTEM_AUDIT_FINDINGS.md for the
+current, accurate picture. Kept here only for historical context.`
+
+Status (historical, pre-supersession): `discovery complete / backend ownership slice 1 complete / API ownership slice complete / frontend ownership slice complete / PM rewiring partial`
 
 ## Goal
 

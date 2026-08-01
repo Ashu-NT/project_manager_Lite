@@ -31,7 +31,6 @@ from src.core.modules.project_management.application.resources import (
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
-    CalendarService,
     SchedulingEngine,
 )
 from src.core.modules.project_management.infrastructure.importers import DataImportService
@@ -82,7 +81,6 @@ class ProjectManagementServiceBundle:
     project_service: ProjectService
     task_service: TaskService
     timesheet_service: TimesheetService
-    calendar_service: CalendarService
     resource_service: ResourceService
     cost_service: CostService
     finance_service: FinanceService
@@ -150,7 +148,6 @@ def build_project_management_service_bundle(
         repositories.dependency_repo,
         repositories.assignment_repo,
         repositories.time_entry_repo,
-        repositories.calendar_repo,
         repositories.cost_repo,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
@@ -228,7 +225,6 @@ def build_project_management_service_bundle(
         timesheet_service,
         repositories.resource_repo,
         repositories.cost_repo,
-        repositories.calendar_repo,
         work_calendar_engine,
         scheduling_engine,
         repositories.project_resource_repo,
@@ -236,13 +232,6 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
-        module_catalog_service=platform_services.module_runtime_service,
-    )
-    calendar_service = CalendarService(
-        session,
-        repositories.calendar_repo,
-        repositories.task_repo,
-        user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
     )
     resource_service = ResourceService(
@@ -388,7 +377,6 @@ def build_project_management_service_bundle(
         project_service=project_service,
         task_service=task_service,
         timesheet_service=timesheet_service,
-        calendar_service=calendar_service,
         resource_service=resource_service,
         cost_service=cost_service,
         finance_service=finance_service,

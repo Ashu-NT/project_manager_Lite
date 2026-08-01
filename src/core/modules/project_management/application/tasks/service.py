@@ -33,8 +33,7 @@ from src.core.modules.project_management.application.tasks.queries.dependency_di
 from src.core.modules.project_management.application.tasks.queries.task_query import (
     TaskQueryMixin,
 )
-from src.core.modules.project_management.contracts.repositories.cost_calendar import (
-    CalendarEventRepository,
+from src.core.modules.project_management.contracts.repositories.cost import (
     CostRepository,
 )
 from src.core.modules.project_management.contracts.repositories.project import (
@@ -82,7 +81,6 @@ class TaskService(
         timesheet_service: TimesheetService | None,
         resource_repo: ResourceRepository,
         cost_repo: CostRepository,
-        calendar_repo: CalendarEventRepository,
         work_calendar_engine: CalendarProtocol,
         scheduling_engine: SchedulingEngine | None = None,
         project_resource_repo: ProjectResourceRepository | None = None,
@@ -101,7 +99,6 @@ class TaskService(
         self._timesheet_service = timesheet_service
         self._resource_repo: ResourceRepository = resource_repo
         self._cost_repo: CostRepository = cost_repo
-        self._calendar_repo: CalendarEventRepository = calendar_repo
         self._work_calendar_engine: CalendarProtocol = work_calendar_engine
         self._scheduling_engine: SchedulingEngine | None = scheduling_engine
         self._project_resource_repo: ProjectResourceRepository | None = project_resource_repo

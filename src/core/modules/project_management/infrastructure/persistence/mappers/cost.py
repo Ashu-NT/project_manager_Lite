@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.domain.scheduling.calendar import CalendarEvent
 from src.core.modules.project_management.domain.financials.cost import CommitmentStatus, CostItem
 from src.core.modules.project_management.domain.enums import CostType
-from src.core.modules.project_management.infrastructure.persistence.orm.cost_calendar import CalendarEventORM, CostItemORM
+from src.core.modules.project_management.infrastructure.persistence.orm.cost import CostItemORM
 
 
 def cost_to_orm(cost: CostItem) -> CostItemORM:
@@ -52,34 +51,7 @@ def cost_from_orm(obj: CostItemORM) -> CostItem:
     )
 
 
-def event_to_orm(event: CalendarEvent) -> CalendarEventORM:
-    return CalendarEventORM(
-        id=event.id,
-        title=event.title,
-        start_date=event.start_date,
-        end_date=event.end_date,
-        project_id=event.project_id,
-        task_id=event.task_id,
-        all_day=event.all_day,
-        description=event.description,
-    )
-
-
-def event_from_orm(obj: CalendarEventORM) -> CalendarEvent:
-    return CalendarEvent(
-        id=obj.id,
-        title=obj.title,
-        start_date=obj.start_date,
-        end_date=obj.end_date,
-        project_id=obj.project_id,
-        task_id=obj.task_id,
-        all_day=obj.all_day,
-        description=obj.description,
-    )
-
 __all__ = [
     "cost_to_orm",
     "cost_from_orm",
-    "event_to_orm",
-    "event_from_orm",
 ]
