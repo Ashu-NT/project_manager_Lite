@@ -12,12 +12,6 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Connection
 
 
-# RBAC-TRANSITION-ONLY: these role-name sets exist only to classify legacy
-# `user_roles` rows, which carry no scope metadata of their own. Remove them
-# with the rest of the legacy user_roles probe below once user_roles is
-# retired; canonical `role_bindings` never needs name-based classification.
-_PLATFORM_ROLE_NAMES = frozenset({"admin", "support_admin"})
-_CUSTOMER_PRIVILEGED_ROLE_NAMES = frozenset({"tenant_admin", "org_admin"})
 _MEMBERSHIP_LIFECYCLE_COLUMNS = frozenset(
     {
         "status",
@@ -37,33 +31,14 @@ _SECURITY_TABLES = (
     "tenants",
     "organizations",
     "roles",
-    "user_roles",
     "user_tenants",
     "role_bindings",
     "role_delegation_policies",
-    # RBAC-TRANSITION-ONLY: these two tables back the superseded
-    # binding-migration preparation tooling; drop both entries in the same
-    # change that removes that tooling.
-    "authorization_migration_batches",
-    "legacy_role_binding_migration_records",
     "role_permissions",
-    "scoped_access_grants",
-    "project_memberships",
     "auth_sessions",
     "audit_entries",
     "platform_events",
 )
-_SCOPE_TABLES = {
-    "organization": ("organizations",),
-    "site": ("sites",),
-    "project": ("projects",),
-    "storeroom": ("inventory_storerooms",),
-    "maintenance": (
-        "maintenance_locations",
-        "maintenance_systems",
-        "maintenance_assets",
-    ),
-}
 
 
 def _is_true(value: object) -> bool:
@@ -200,21 +175,7 @@ def _schema_snapshot(reader: _SchemaReader) -> dict[str, Any]:
                     "updated_at",
                 }
             ),
-            # RBAC-TRANSITION-ONLY: reports legacy user_roles shape; remove
-            # once user_roles is retired.
-            "legacy_role_organization_scope": (
-                "organization_id" in reader.columns("user_roles")
-            ),
-            "scoped_grant_tenant_scope": (
-                "tenant_id" in reader.columns("scoped_access_grants")
-            ),
             "canonical_role_bindings": "role_bindings" in reader.tables,
-            # RBAC-TRANSITION-ONLY: reports superseded migration-preparation
-            # table presence; remove with that tooling.
-            "role_binding_migration_records": (
-                "authorization_migration_batches" in reader.tables
-                and "legacy_role_binding_migration_records" in reader.tables
-            ),
             "canonical_active_unique_indexes": sorted(
                 binding_indexes
                 & {
@@ -229,26 +190,6 @@ def _schema_snapshot(reader: _SchemaReader) -> dict[str, Any]:
             ),
         },
     }
-
-
-def _scope_tenant_maps(reader: _SchemaReader) -> dict[str, dict[str, str | None]]:
-    result: dict[str, dict[str, str | None]] = {}
-    for scope_type, table_names in _SCOPE_TABLES.items():
-        rows_by_id: dict[str, str | None] = {}
-        known_scope_type = False
-        for table_name in table_names:
-            if not {"id", "tenant_id"} <= reader.columns(table_name):
-                continue
-            known_scope_type = True
-            for row in reader.rows(table_name, ("id", "tenant_id")):
-                scope_id = str(row.get("id") or "").strip()
-                if scope_id:
-                    rows_by_id[scope_id] = (
-                        str(row.get("tenant_id") or "").strip() or None
-                    )
-        if known_scope_type:
-            result[scope_type] = rows_by_id
-    return result
 
 
 def _inventory_data(
@@ -288,179 +229,6 @@ def _inventory_data(
                     "tenant_id": tenant_id,
                     "tenant_role": tenant_role,
                 }
-            )
-
-    role_rows = reader.rows(
-        "roles",
-        (
-            "id",
-            "name",
-            "tenant_id",
-            "allowed_scope_type",
-            "is_assignable",
-            "status",
-        ),
-    )
-    roles_by_id = {
-        str(row.get("id") or ""): row
-        for row in role_rows
-        if str(row.get("id") or "").strip()
-    }
-    organization_tenants = _scope_tenant_maps(reader).get("organization", {})
-    # RBAC-TRANSITION-ONLY: the block below, through `duplicate_legacy_bindings`,
-    # classifies legacy `user_roles` rows only. Remove it together with
-    # `_PLATFORM_ROLE_NAMES`, `_CUSTOMER_PRIVILEGED_ROLE_NAMES`, the four
-    # legacy findings appended below, and the `legacy_binding_classification_counts`
-    # / `legacy_bindings` output keys once user_roles is retired.
-    user_role_rows = reader.rows(
-        "user_roles",
-        ("id", "user_id", "role_id", "organization_id"),
-    )
-
-    legacy_classifications: list[dict[str, Any]] = []
-    duplicate_keys: dict[tuple[str, str, str | None], list[str]] = defaultdict(list)
-    customer_privileged_without_membership: list[dict[str, Any]] = []
-    platform_roles_with_customer_membership: list[dict[str, Any]] = []
-    legacy_cross_tenant: list[dict[str, Any]] = []
-
-    for row in user_role_rows:
-        binding_id = str(row.get("id") or "").strip()
-        user_id = str(row.get("user_id") or "").strip()
-        role_id = str(row.get("role_id") or "").strip()
-        organization_id = (
-            str(row.get("organization_id") or "").strip() or None
-        )
-        role = roles_by_id.get(role_id, {})
-        role_name = str(role.get("name") or "").strip().lower()
-        role_tenant_id = str(role.get("tenant_id") or "").strip() or None
-        allowed_scope = str(role.get("allowed_scope_type") or "").strip().lower()
-        role_status = str(role.get("status") or "").strip().lower()
-        active_tenants = sorted(active_tenants_by_user.get(user_id, set()))
-        duplicate_keys[(user_id, role_id, organization_id)].append(binding_id)
-
-        classification = "unresolved"
-        candidate_tenant_id: str | None = None
-        if role_name in _PLATFORM_ROLE_NAMES or allowed_scope == "platform":
-            classification = (
-                "platform_review_candidate"
-                if organization_id is None
-                else "invalid_platform_resource_scope"
-            )
-            if active_tenants:
-                platform_roles_with_customer_membership.append(
-                    {
-                        "binding_id": binding_id,
-                        "user_id": user_id,
-                        "role_name": role_name,
-                        "active_tenant_ids": active_tenants,
-                    }
-                )
-        elif organization_id is not None:
-            candidate_tenant_id = organization_tenants.get(organization_id)
-            if candidate_tenant_id is None:
-                classification = "missing_or_unowned_organization"
-            elif candidate_tenant_id not in active_tenants:
-                classification = "cross_tenant_organization_binding"
-                legacy_cross_tenant.append(
-                    {
-                        "binding_id": binding_id,
-                        "user_id": user_id,
-                        "role_name": role_name,
-                        "organization_id": organization_id,
-                        "organization_tenant_id": candidate_tenant_id,
-                        "active_tenant_ids": active_tenants,
-                    }
-                )
-            else:
-                classification = "organization_review_candidate"
-        elif len(active_tenants) == 1:
-            candidate_tenant_id = active_tenants[0]
-            classification = "single_tenant_review_candidate"
-        elif not active_tenants:
-            classification = "no_active_membership"
-        else:
-            classification = "ambiguous_multi_tenant"
-
-        if (
-            role_name in _CUSTOMER_PRIVILEGED_ROLE_NAMES
-            and not active_tenants
-        ):
-            customer_privileged_without_membership.append(
-                {
-                    "binding_id": binding_id,
-                    "user_id": user_id,
-                    "role_name": role_name,
-                }
-            )
-
-        legacy_classifications.append(
-            {
-                "binding_id": binding_id,
-                "user_id": user_id,
-                "role_id": role_id,
-                "role_name": role_name,
-                "role_tenant_id": role_tenant_id,
-                "role_allowed_scope_type": allowed_scope,
-                "role_status": role_status,
-                "role_is_assignable": (
-                    _is_true(role.get("is_assignable"))
-                    if "is_assignable" in role
-                    else None
-                ),
-                "organization_id": organization_id,
-                "candidate_tenant_id": candidate_tenant_id,
-                "active_tenant_ids": active_tenants,
-                "classification": classification,
-            }
-        )
-
-    duplicate_legacy_bindings = [
-        {
-            "user_id": key[0],
-            "role_id": key[1],
-            "organization_id": key[2],
-            "binding_ids": sorted(binding_ids),
-        }
-        for key, binding_ids in duplicate_keys.items()
-        if len(binding_ids) > 1
-    ]
-
-    scoped_grant_rows = reader.rows(
-        "scoped_access_grants",
-        ("id", "tenant_id", "scope_type", "scope_id", "user_id"),
-    )
-    scope_tenants = _scope_tenant_maps(reader)
-    unowned_scoped_grants: list[dict[str, Any]] = []
-    scoped_grants_without_membership: list[dict[str, Any]] = []
-    scoped_grant_tenant_mismatches: list[dict[str, Any]] = []
-    missing_scope_targets: list[dict[str, Any]] = []
-    for row in scoped_grant_rows:
-        grant_id = str(row.get("id") or "").strip()
-        tenant_id = str(row.get("tenant_id") or "").strip() or None
-        scope_type = str(row.get("scope_type") or "").strip().lower()
-        scope_id = str(row.get("scope_id") or "").strip()
-        user_id = str(row.get("user_id") or "").strip()
-        record = {
-            "grant_id": grant_id,
-            "tenant_id": tenant_id,
-            "scope_type": scope_type,
-            "scope_id": scope_id,
-            "user_id": user_id,
-        }
-        if tenant_id is None:
-            unowned_scoped_grants.append(record)
-            continue
-        if tenant_id not in active_tenants_by_user.get(user_id, set()):
-            scoped_grants_without_membership.append(record)
-        known_scope_rows = scope_tenants.get(scope_type)
-        if known_scope_rows is None:
-            continue
-        target_tenant_id = known_scope_rows.get(scope_id)
-        if target_tenant_id is None:
-            missing_scope_targets.append(record)
-        elif target_tenant_id != tenant_id:
-            scoped_grant_tenant_mismatches.append(
-                {**record, "target_tenant_id": target_tenant_id}
             )
 
     canonical_rows = reader.rows(
@@ -514,70 +282,12 @@ def _inventory_data(
                     }
                 )
 
-    # RBAC-TRANSITION-ONLY: the next four findings surface legacy `user_roles`
-    # conditions only; remove them with the rest of the legacy probe above.
-    _append_finding(
-        findings,
-        code="CUSTOMER_PRIVILEGED_ROLE_WITHOUT_ACTIVE_MEMBERSHIP",
-        severity="critical",
-        summary="A customer administrator role has no active tenant membership.",
-        records=customer_privileged_without_membership,
-    )
-    _append_finding(
-        findings,
-        code="PLATFORM_ROLE_WITH_CUSTOMER_MEMBERSHIP",
-        severity="high",
-        summary="A platform role holder also has customer memberships requiring review.",
-        records=platform_roles_with_customer_membership,
-    )
-    _append_finding(
-        findings,
-        code="DUPLICATE_LEGACY_ROLE_BINDING",
-        severity="high",
-        summary="Duplicate legacy role bindings require quarantine before backfill.",
-        records=duplicate_legacy_bindings,
-    )
-    _append_finding(
-        findings,
-        code="LEGACY_ROLE_CROSS_TENANT_SCOPE",
-        severity="critical",
-        summary="A legacy organization binding targets a tenant outside the user's membership.",
-        records=legacy_cross_tenant,
-    )
     _append_finding(
         findings,
         code="MEMBERSHIP_ROLE_AUTHORITY_PRESENT",
         severity="medium",
         summary="Membership tenant_role still duplicates authorization authority.",
         records=duplicated_membership_authority,
-    )
-    _append_finding(
-        findings,
-        code="SCOPED_GRANT_WITHOUT_TENANT",
-        severity="critical",
-        summary="A scoped grant has no tenant owner.",
-        records=unowned_scoped_grants,
-    )
-    _append_finding(
-        findings,
-        code="SCOPED_GRANT_TARGET_WITHOUT_ACTIVE_MEMBERSHIP",
-        severity="critical",
-        summary="A scoped grant target lacks active membership in the grant tenant.",
-        records=scoped_grants_without_membership,
-    )
-    _append_finding(
-        findings,
-        code="SCOPED_GRANT_TENANT_MISMATCH",
-        severity="critical",
-        summary="A scoped grant tenant differs from the resource tenant.",
-        records=scoped_grant_tenant_mismatches,
-    )
-    _append_finding(
-        findings,
-        code="SCOPED_GRANT_TARGET_MISSING",
-        severity="high",
-        summary="A scoped grant references a missing known resource.",
-        records=missing_scope_targets,
     )
     _append_finding(
         findings,
@@ -594,16 +304,7 @@ def _inventory_data(
         records=expired_unrevoked,
     )
 
-    classification_counts = Counter(
-        row["classification"] for row in legacy_classifications
-    )
-    # RBAC-TRANSITION-ONLY: these two output keys expose the legacy
-    # classification above; remove them in the same change.
     return {
-        "legacy_binding_classification_counts": dict(
-            sorted(classification_counts.items())
-        ),
-        "legacy_bindings": _stable_records(legacy_classifications),
         "active_membership_counts_by_user": {
             user_id: len(tenant_ids)
             for user_id, tenant_ids in sorted(active_tenants_by_user.items())
@@ -639,17 +340,6 @@ def _append_schema_findings(
                     "missing_role_columns": missing_role_columns,
                 }
             ],
-        )
-    if (
-        "scoped_access_grants" in reader.tables
-        and "tenant_id" not in reader.columns("scoped_access_grants")
-    ):
-        _append_finding(
-            findings,
-            code="SCOPED_GRANT_SCHEMA_WITHOUT_TENANT",
-            severity="critical",
-            summary="The scoped access table cannot represent tenant ownership.",
-            records=[{"table": "scoped_access_grants"}],
         )
     missing_membership_columns = sorted(
         _MEMBERSHIP_LIFECYCLE_COLUMNS - reader.columns("user_tenants")

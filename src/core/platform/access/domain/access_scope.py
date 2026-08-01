@@ -28,14 +28,6 @@ def normalize_access_scope_id(value: object) -> str:
     )
 
 
-def normalize_project_membership_project_id(value: object) -> str:
-    return normalize_required_text(
-        value,
-        message="Project id is required.",
-        code="PROJECT_ID_REQUIRED",
-    )
-
-
 def normalize_access_user_id(value: object) -> str:
     return normalize_required_text(
         value,
@@ -133,95 +125,11 @@ class ScopedAccessGrant:
         )
 
 
-@validated_dataclass
-class ProjectMembership:
-    id: str
-    project_id: str
-    user_id: str
-    scope_role: str
-    permission_codes: list[str] = field(default_factory=list)
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-
-    @field_validator("project_id", mode="before")
-    @classmethod
-    def _validate_project_id(cls, value: object) -> str:
-        return normalize_project_membership_project_id(value)
-
-    @field_validator("user_id", mode="before")
-    @classmethod
-    def _validate_user_id(cls, value: object) -> str:
-        return normalize_access_user_id(value)
-
-    @field_validator("scope_role", mode="before")
-    @classmethod
-    def _normalize_scope_role(cls, value: object) -> str:
-        return normalize_access_scope_role(value)
-
-    @field_validator("permission_codes", mode="before")
-    @classmethod
-    def _normalize_permission_codes(cls, value: Iterable[object] | object | None) -> list[str]:
-        return normalize_access_permission_codes(value)
-
-    @field_validator("created_at", mode="before")
-    @classmethod
-    def _validate_created_at(cls, value: object) -> datetime:
-        return _validate_created_at(value, code="PROJECT_MEMBERSHIP_CREATED_AT_INVALID")
-
-    @staticmethod
-    def create(
-        *,
-        project_id: str,
-        user_id: str,
-        scope_role: str,
-        permission_codes: Iterable[str] | None = None,
-    ) -> "ProjectMembership":
-        return ProjectMembership(
-            id=generate_id(),
-            project_id=project_id,
-            user_id=user_id,
-            scope_role=scope_role,
-            permission_codes=permission_codes,
-        )
-
-    @property
-    def scope_type(self) -> str:
-        return "project"
-
-    @property
-    def scope_id(self) -> str:
-        return self.project_id
-
-    def as_scoped_access_grant(self) -> ScopedAccessGrant:
-        return ScopedAccessGrant(
-            id=self.id,
-            scope_type=self.scope_type,
-            scope_id=self.project_id,
-            user_id=self.user_id,
-            scope_role=self.scope_role,
-            permission_codes=list(self.permission_codes or []),
-            created_at=self.created_at,
-        )
-
-    @staticmethod
-    def from_scoped_access_grant(grant: ScopedAccessGrant) -> "ProjectMembership":
-        if (grant.scope_type or "").strip().lower() != "project":
-            raise ValueError("ProjectMembership can only be created from a project-scoped grant.")
-        return ProjectMembership(
-            id=grant.id,
-            project_id=grant.scope_id,
-            user_id=grant.user_id,
-            scope_role=grant.scope_role,
-            permission_codes=list(grant.permission_codes or []),
-            created_at=grant.created_at,
-        )
-
 __all__ = [
-    "ProjectMembership",
     "ScopedAccessGrant",
     "normalize_access_permission_codes",
     "normalize_access_scope_id",
     "normalize_access_scope_role",
     "normalize_access_scope_type",
     "normalize_access_user_id",
-    "normalize_project_membership_project_id",
 ]

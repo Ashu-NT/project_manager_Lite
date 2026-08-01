@@ -181,36 +181,3 @@ def test_maintenance_role_binding_is_scoped_to_its_own_location(services):
     assert location_b.id not in principal.scoped_access.get("maintenance", {})
     assert "maintenance.manage" in principal.scoped_access["maintenance"][location_a.id]
 
-
-# ---------------------------------------------------------------------------
-# 5. Legacy scoped-grant regression: stale rows grant no runtime authority
-# ---------------------------------------------------------------------------
-
-def test_legacy_maintenance_scoped_grant_no_longer_grants_authority(services):
-    from src.core.platform.access.domain import ScopedAccessGrant
-
-    auth = services["auth_service"]
-    tenant_id, _ = _active_context_ids(services)
-
-    location = _create_maintenance_location(services, "P2E-LEGACY")
-    user = auth.register_user(
-        "p2e-legacy-maintenance-scope",
-        "StrongPass123!",
-        role_names=["viewer"],
-        tenant_id=tenant_id,
-    )
-    auth._scoped_access_repo.add(
-        ScopedAccessGrant.create(
-            scope_type="maintenance",
-            scope_id=location.id,
-            user_id=user.id,
-            scope_role="manager",
-            permission_codes=["maintenance.manage", "report.view"],
-        )
-    )
-    services["session"].flush()
-
-    principal = auth.build_principal(user)
-
-    assert location.id not in principal.scoped_access.get("maintenance", {})
-    assert "maintenance.manage" not in principal.permissions

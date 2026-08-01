@@ -10,21 +10,6 @@ from src.core.platform.auth.domain.role_binding import (
     RoleBinding,
     normalize_role_scope_type,
 )
-# RBAC-TRANSITION-ONLY: Remove migration-state exports at decommission.
-from src.core.platform.auth.domain.role_binding_migration import (
-    AUTHORIZATION_MIGRATION_BATCH_APPLIED,
-    AUTHORIZATION_MIGRATION_BATCH_PREPARED,
-    AUTHORIZATION_MIGRATION_BATCH_ROLLED_BACK,
-    AUTHORIZATION_MIGRATION_BATCH_STATUSES,
-    LEGACY_BINDING_MIGRATION_APPLIED,
-    LEGACY_BINDING_MIGRATION_QUARANTINED,
-    LEGACY_BINDING_MIGRATION_READY,
-    LEGACY_BINDING_MIGRATION_ROLLED_BACK,
-    LEGACY_BINDING_MIGRATION_STATUSES,
-    AuthorizationMigrationBatch,
-    LegacyRoleBindingMigrationRecord,
-    legacy_role_binding_snapshot_sha256,
-)
 from src.core.platform.auth.domain.role_delegation import RoleDelegationPolicy
 from src.core.platform.auth.domain.session import (
     AuthSession,
@@ -40,7 +25,6 @@ from src.core.platform.auth.domain.user import (
     Role,
     RolePermissionBinding,
     UserAccount,
-    UserRoleBinding,
     normalize_auth_device_label,
     normalize_auth_email,
     normalize_auth_federated_subject,
@@ -54,17 +38,6 @@ from src.core.platform.auth.domain.user import (
 
 __all__ = [
     "AuthPolicyReconciliation",
-    "AUTHORIZATION_MIGRATION_BATCH_APPLIED",
-    "AUTHORIZATION_MIGRATION_BATCH_PREPARED",
-    "AUTHORIZATION_MIGRATION_BATCH_ROLLED_BACK",
-    "AUTHORIZATION_MIGRATION_BATCH_STATUSES",
-    "AuthorizationMigrationBatch",
-    "LEGACY_BINDING_MIGRATION_APPLIED",
-    "LEGACY_BINDING_MIGRATION_QUARANTINED",
-    "LEGACY_BINDING_MIGRATION_READY",
-    "LEGACY_BINDING_MIGRATION_ROLLED_BACK",
-    "LEGACY_BINDING_MIGRATION_STATUSES",
-    "LegacyRoleBindingMigrationRecord",
     "RESOURCE_ROLE_SCOPE_TYPES",
     "ROLE_PRINCIPAL_USER",
     "ROLE_SCOPE_PLATFORM",
@@ -77,7 +50,6 @@ __all__ = [
     "Role",
     "RolePermissionBinding",
     "UserAccount",
-    "UserRoleBinding",
     "UserSessionContext",
     "UserSessionPrincipal",
     "normalize_auth_device_label",
@@ -93,6 +65,5 @@ __all__ = [
     "normalize_auth_session_user_id",
     "normalize_auth_username",
     "normalize_role_scope_type",
-    "legacy_role_binding_snapshot_sha256",
     "validate_auth_email",
 ]

@@ -10,13 +10,8 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
-from src.core.platform.auth.domain.user import UserRoleBinding
 from src.core.platform.auth.policy import DEFAULT_PERMISSIONS
-from src.core.platform.infrastructure.persistence.orm.auth import UserRoleORM
 from src.core.platform.infrastructure.persistence.orm.tenant import TenantORM
-from src.core.platform.infrastructure.persistence.repositories.auth import (
-    SqlAlchemyUserRoleRepository,
-)
 from src.core.platform.infrastructure.persistence.repositories.org import (
     SqlAlchemyOrganizationRepository,
 )
@@ -200,70 +195,3 @@ def test_is_platform_admin_returns_false_for_viewer(services):
 
     assert user_session.is_platform_admin() is False
 
-
-# ---------------------------------------------------------------------------
-# Fix 4: user_roles unique constraint allows same role at global and org scope
-# ---------------------------------------------------------------------------
-
-def test_user_role_allows_global_and_org_scoped_assignment(services):
-    """A user may hold the same role at global scope (org_id=NULL) and at a specific
-    org scope simultaneously without violating the unique constraint."""
-    session = services["session"]
-    auth = services["auth_service"]
-    org_service = services["organization_service"]
-
-    user = auth.register_user("dual-scope-user", "StrongPass123", role_names=[])
-    current_org = org_service.get_active_organization()
-    viewer_role = next(r for r in auth.list_roles() if r.name == "viewer")
-
-    repo = SqlAlchemyUserRoleRepository(session)
-
-    # Add global binding (organization_id=None)
-    global_binding = UserRoleBinding.create(user_id=user.id, role_id=viewer_role.id)
-    repo.add(global_binding)
-    session.flush()
-
-    # Add org-scoped binding for the same user + role — must NOT raise
-    org_binding = UserRoleBinding.create(
-        user_id=user.id,
-        role_id=viewer_role.id,
-        organization_id=current_org.id,
-    )
-    repo.add(org_binding)
-    session.flush()  # Would raise IntegrityError under the old (user_id, role_id) constraint
-
-    global_exists = repo.exists(user.id, viewer_role.id, organization_id=None)
-    org_exists = repo.exists(user.id, viewer_role.id, organization_id=current_org.id)
-
-    assert global_exists is True
-    assert org_exists is True
-
-
-def test_user_role_still_prevents_duplicate_global_assignment(services):
-    """Adding the exact same global role twice must not create a duplicate."""
-    session = services["session"]
-    auth = services["auth_service"]
-
-    user = auth.register_user("dup-global-user", "StrongPass123", role_names=[])
-    viewer_role = next(r for r in auth.list_roles() if r.name == "viewer")
-
-    repo = SqlAlchemyUserRoleRepository(session)
-
-    b1 = UserRoleBinding.create(user_id=user.id, role_id=viewer_role.id)
-    b2 = UserRoleBinding.create(user_id=user.id, role_id=viewer_role.id)
-
-    repo.add(b1)
-    session.flush()
-    repo.add(b2)  # Idempotent — exists() guard returns early
-    session.flush()
-
-    # Only one row should exist
-    from sqlalchemy import select
-    count = session.execute(
-        select(UserRoleORM).where(
-            UserRoleORM.user_id == user.id,
-            UserRoleORM.role_id == viewer_role.id,
-            UserRoleORM.organization_id.is_(None),
-        )
-    ).scalars().all()
-    assert len(count) == 1

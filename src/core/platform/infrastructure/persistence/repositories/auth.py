@@ -12,15 +12,12 @@ from src.core.platform.auth.contracts import (
     AuthSessionRepository,
     PermissionRepository,
     RoleBindingRepository,
-    RoleBindingMigrationRepository,
     RoleDelegationPolicyRepository,
     RolePermissionRepository,
     RoleRepository,
     UserRepository,
-    UserRoleRepository,
 )
 from src.core.platform.auth.domain import (
-    AuthorizationMigrationBatch,
     AuthPolicyReconciliation,
     AuthSession,
     Permission,
@@ -29,20 +26,14 @@ from src.core.platform.auth.domain import (
     RoleDelegationPolicy,
     RolePermissionBinding,
     UserAccount,
-    UserRoleBinding,
-    LegacyRoleBindingMigrationRecord,
     normalize_auth_session_context_id,
     normalize_auth_session_datetime,
 )
 from src.core.platform.infrastructure.persistence.mappers.auth import (
-    authorization_migration_batch_from_orm,
-    authorization_migration_batch_to_orm,
     auth_session_from_orm,
     auth_session_to_orm,
     permission_from_orm,
     permission_to_orm,
-    legacy_role_binding_migration_record_from_orm,
-    legacy_role_binding_migration_record_to_orm,
     role_from_orm,
     role_binding_from_orm,
     role_binding_to_orm,
@@ -51,21 +42,17 @@ from src.core.platform.infrastructure.persistence.mappers.auth import (
     role_permission_to_orm,
     role_to_orm,
     user_from_orm,
-    user_role_to_orm,
     user_to_orm,
 )
 from src.core.platform.infrastructure.persistence.orm.auth import (
-    AuthorizationMigrationBatchORM,
     AuthPolicyReconciliationORM,
     AuthSessionORM,
     PermissionORM,
-    LegacyRoleBindingMigrationRecordORM,
     RoleBindingORM,
     RoleDelegationPolicyORM,
     RoleORM,
     RolePermissionORM,
     UserORM,
-    UserRoleORM,
 )
 from src.core.platform.tenancy.domain.user_tenant_membership import (
     MEMBERSHIP_STATUS_ACTIVE,
@@ -612,67 +599,6 @@ class SqlAlchemyRoleBindingRepository(RoleBindingRepository):
         return int(result.rowcount or 0)
 
 
-class SqlAlchemyRoleBindingMigrationRepository(
-    RoleBindingMigrationRepository
-):
-    # RBAC-TRANSITION-ONLY: Remove with migration records after final retention.
-    def __init__(self, session: Session) -> None:
-        self.session = session
-
-    def add_batch(self, batch: AuthorizationMigrationBatch) -> None:
-        self.session.add(authorization_migration_batch_to_orm(batch))
-
-    def get_batch(
-        self,
-        batch_id: str,
-    ) -> AuthorizationMigrationBatch | None:
-        row = self.session.get(AuthorizationMigrationBatchORM, batch_id)
-        if row is None:
-            return None
-        return authorization_migration_batch_from_orm(row)
-
-    def get_batch_by_inventory_sha256(
-        self,
-        source_inventory_sha256: str,
-    ) -> AuthorizationMigrationBatch | None:
-        row = self.session.execute(
-            select(AuthorizationMigrationBatchORM).where(
-                AuthorizationMigrationBatchORM.source_inventory_sha256
-                == source_inventory_sha256
-            )
-        ).scalars().first()
-        if row is None:
-            return None
-        return authorization_migration_batch_from_orm(row)
-
-    def add_record(
-        self,
-        record: LegacyRoleBindingMigrationRecord,
-    ) -> None:
-        self.session.add(
-            legacy_role_binding_migration_record_to_orm(record)
-        )
-
-    def list_records(
-        self,
-        batch_id: str,
-    ) -> list[LegacyRoleBindingMigrationRecord]:
-        rows = self.session.execute(
-            select(LegacyRoleBindingMigrationRecordORM)
-            .where(
-                LegacyRoleBindingMigrationRecordORM.batch_id == batch_id
-            )
-            .order_by(
-                LegacyRoleBindingMigrationRecordORM.legacy_binding_id,
-                LegacyRoleBindingMigrationRecordORM.id,
-            )
-        ).scalars()
-        return [
-            legacy_role_binding_migration_record_from_orm(row)
-            for row in rows
-        ]
-
-
 class SqlAlchemyRoleDelegationPolicyRepository(
     RoleDelegationPolicyRepository
 ):
@@ -803,63 +729,6 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
         return [permission_from_orm(row) for row in rows]
 
 
-class SqlAlchemyUserRoleRepository(UserRoleRepository):
-    # RBAC-TRANSITION-ONLY: Remove after canonical reads/writes are exclusive.
-    session: Session
-
-    def __init__(self, session: Session) -> None:
-        self.session = session
-
-    def add(self, binding: UserRoleBinding) -> None:
-        if self.exists(binding.user_id, binding.role_id, organization_id=binding.organization_id):
-            return
-        self.session.add(user_role_to_orm(binding))
-
-    def delete(self, user_id: str, role_id: str, organization_id: str | None = None) -> None:
-        stmt = (
-            self.session.query(UserRoleORM)
-            .filter_by(user_id=user_id, role_id=role_id)
-        )
-        if organization_id is None:
-            stmt = stmt.filter(UserRoleORM.organization_id.is_(None))
-        else:
-            stmt = stmt.filter(UserRoleORM.organization_id == organization_id)
-        stmt.delete()
-
-    def exists(self, user_id: str, role_id: str, organization_id: str | None = None) -> bool:
-        stmt = select(UserRoleORM.id).where(
-            UserRoleORM.user_id == user_id,
-            UserRoleORM.role_id == role_id,
-        )
-        if organization_id is None:
-            stmt = stmt.where(UserRoleORM.organization_id.is_(None))
-        else:
-            stmt = stmt.where(UserRoleORM.organization_id == organization_id)
-        return self.session.execute(stmt).first() is not None
-
-    def list_role_ids(self, user_id: str) -> list[str]:
-        stmt = select(UserRoleORM.role_id).where(
-            UserRoleORM.user_id == user_id,
-            UserRoleORM.organization_id.is_(None),
-        )
-        return list(self.session.execute(stmt).scalars().all())
-
-    def list_role_ids_for_organization(self, user_id: str, organization_id: str) -> list[str]:
-        stmt = select(UserRoleORM.role_id).where(
-            UserRoleORM.user_id == user_id,
-            UserRoleORM.organization_id == organization_id,
-        )
-        return list(self.session.execute(stmt).scalars().all())
-
-    def list_user_ids_for_role(self, role_id: str) -> list[str]:
-        stmt = (
-            select(UserRoleORM.user_id)
-            .where(UserRoleORM.role_id == role_id)
-            .distinct()
-        )
-        return list(self.session.execute(stmt).scalars().all())
-
-
 class SqlAlchemyRolePermissionRepository(RolePermissionRepository):
     session: Session
 
@@ -897,6 +766,5 @@ __all__ = [
     "SqlAlchemyPermissionRepository",
     "SqlAlchemyRoleBindingRepository",
     "SqlAlchemyRoleDelegationPolicyRepository",
-    "SqlAlchemyUserRoleRepository",
     "SqlAlchemyRolePermissionRepository",
 ]

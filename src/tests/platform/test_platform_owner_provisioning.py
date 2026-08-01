@@ -10,7 +10,6 @@ from src.core.platform.auth.domain import (
     ROLE_SCOPE_PLATFORM,
     RoleBinding,
     UserAccount,
-    UserRoleBinding,
 )
 from src.core.platform.auth.passwords import hash_password
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
@@ -35,8 +34,6 @@ def _build_auth_service(session) -> tuple[AuthService, RepositoryBundle]:
             role_permission_repo=repositories.role_permission_repo,
             role_binding_repo=repositories.role_binding_repo,
             auth_session_repo=repositories.auth_session_repo,
-            scoped_access_repo=repositories.scoped_access_repo,
-            project_membership_repo=repositories.project_membership_repo,
             user_tenant_repo=repositories.user_tenant_repo,
         ),
         repositories,
@@ -167,29 +164,6 @@ def test_provision_platform_owner_never_promotes_existing_username(session) -> N
 
     assert exc_info.value.code == "PLATFORM_OWNER_USERNAME_EXISTS"
     assert auth_service.get_user_role_names(ordinary_user.id) == set()
-
-
-def test_legacy_platform_role_row_does_not_grant_platform_authority(session) -> None:
-    auth_service, repositories = _build_auth_service(session)
-    auth_service.bootstrap_policy_catalog()
-    admin_role = repositories.role_repo.get_by_name("admin")
-    assert admin_role is not None
-    user = UserAccount.create(
-        username="legacy-platform-row",
-        password_hash=hash_password("ExistingStrong123!"),
-    )
-    repositories.user_repo.add(user)
-    session.flush()
-    repositories.user_role_repo.add(
-        UserRoleBinding.create(user_id=user.id, role_id=admin_role.id)
-    )
-    session.commit()
-
-    principal = auth_service.build_principal(user)
-
-    assert auth_service.get_user_role_names(user.id) == set()
-    assert "admin" not in principal.role_names
-    assert "platform.admin" not in principal.permissions
 
 
 def test_platform_principal_cannot_enter_customer_context(session) -> None:

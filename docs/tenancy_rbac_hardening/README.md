@@ -2270,19 +2270,41 @@ no longer per-scope; it is:
 1. Provision the reviewed `access_admin` → project-, site-, storeroom-, and maintenance-role
    delegation policies (`tools/provision_scope_delegations.py --apply`) in each remaining
    deployed environment once reviewed, so assignment through the desktop API stops being
-   fail-closed there. Done for the local desktop development database on 2026-07-31 (13
-   policies applied); still pending for every other environment. That local database also
-   needed its 6 pending Alembic migrations applied first, plus one ordinary startup pass to
-   seed the new role rows — check any other environment's migration state before assuming the
+   fail-closed there. Done for the local desktop development database (13 policies applied,
+   re-applied again on 2026-08-01 after the explicit reset below); still pending for every
+   other environment. Check any other environment's migration state before assuming the
    delegation-provisioning tool alone is sufficient.
-2. Add the reviewed invitation delivery/account-onboarding adapter without exposing raw tokens
-   through generic transports.
-3. Update fixtures and seed data, run migration-created and cross-tenant tests, explicitly reset
-   development databases, then delete every transition-only and legacy-authority component
-   (including the `AccessControlService._CANONICAL_SCOPE_TYPES`/`_CANONICAL_ROLE_NAME_OVERRIDES`
-   translation shim, `principal_builder`'s legacy scoped-access merge, and the exact
-   `RBAC-TRANSITION-ONLY` decommission register) and apply a cleanup migration before the first
-   release.
+2. ~~Add the reviewed invitation delivery/account-onboarding adapter without exposing raw
+   tokens through generic transports.~~ Done on 2026-08-01: built a ports-and-adapters
+   `NotificationService` (`src/core/platform/notifications/`) with zero external channels
+   today — `dispatch()` always persists in-app first, then best-effort fans out to any
+   registered `NotificationChannel` (none exist yet; failures never roll back the underlying
+   business transaction). `TenantMembershipService.issue_invitation`/`revoke_invitation` now
+   dispatch a notification to the invitee. Deliberately does **not** put the raw invitation
+   token in notification metadata, since notifications are a generic, broadly-readable
+   transport — instead added a token-free `accept_invitation_for_tenant(tenant_id)` self-service
+   path (the caller is already an authenticated principal; the membership lookup is keyed by
+   that principal's own user id, not a shared secret) plus `list_my_pending_invitations()` so
+   the in-app flow never needs the bearer token at all. The original `accept_invitation(token)`
+   stays for a possible future out-of-band (e.g. emailed-link) delivery channel.
+3. Update fixtures and seed data, run migration-created and cross-tenant tests, explicitly
+   reset development databases, then delete every transition-only and legacy-authority
+   component (including the `AccessControlService._CANONICAL_SCOPE_TYPES`/
+   `_CANONICAL_ROLE_NAME_OVERRIDES` translation shim, `principal_builder`'s legacy
+   scoped-access merge, and the exact `RBAC-TRANSITION-ONLY` decommission register) and apply
+   a cleanup migration before the first release. Done through the explicit-reset step on
+   2026-08-01: audited fixtures/seed data (no production or test-fixture code creates new
+   legacy-authority rows outside of the "prove stale legacy rows grant zero authority"
+   regression tests, which are intentional); ran the full consolidated test suite (one real
+   regression found and fixed — `CollaborationSupportMixin._list_mention_candidates_for_project`
+   crashed instead of falling back when a caller wired a non-`None`, non-functional
+   `tenant_context_service` placeholder; all other failures were pre-existing and unrelated,
+   confirmed via diff against this program's changes); backed up and deleted the local desktop
+   database entirely, ran migrations against the empty file, confirmed zero rows existed in any
+   legacy or canonical authority table (only the migration-seeded default tenant row existed),
+   then ran one ordinary startup pass and the delegation-provisioning tool again — proving the
+   system builds correct canonical state from nothing. Final transition-code deletion + cleanup
+   migration is the one item still open.
 
 Lessons this program's per-scope work surfaced, worth keeping in mind for any future scope
 additions:

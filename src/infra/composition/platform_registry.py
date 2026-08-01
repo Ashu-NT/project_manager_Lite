@@ -258,8 +258,6 @@ def build_platform_service_bundle(
         permission_repo=repositories.permission_repo,
         role_permission_repo=repositories.role_permission_repo,
         auth_session_repo=repositories.auth_session_repo,
-        scoped_access_repo=repositories.scoped_access_repo,
-        project_membership_repo=repositories.project_membership_repo,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         security_audit_repo=repositories.audit_entry_repo,
@@ -478,7 +476,6 @@ def build_platform_service_bundle(
     auth_service.set_role_governance_service(role_governance_service)
     access_service = AccessControlService(
         session=session,
-        membership_repo=repositories.project_membership_repo,
         user_repo=repositories.user_repo,
         auth_service=auth_service,
         policy_registry=ScopedRolePolicyRegistry(
@@ -491,7 +488,6 @@ def build_platform_service_bundle(
                 ),
             )
         ),
-        scoped_access_repo=repositories.scoped_access_repo,
         scope_exists_resolvers=scope_exists_resolvers,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,

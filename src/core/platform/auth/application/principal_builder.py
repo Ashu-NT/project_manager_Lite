@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.core.platform.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.auth.domain.role_binding import RESOURCE_ROLE_SCOPE_TYPES
 from src.core.platform.auth.domain.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
 
@@ -13,95 +14,6 @@ if TYPE_CHECKING:
 
 
 _CONTEXT_UNSET = object()
-
-# RBAC-TRANSITION-ONLY: resource scope types already cut over to canonical
-# role_bindings. Grows one entry at a time as project/site/storeroom/
-# maintenance each replace their legacy scoped-grant decision source; delete
-# this constant and the pop loop below once every resource scope is cut over.
-_CUTOVER_RESOURCE_SCOPE_TYPES = frozenset({"project", "site", "storeroom", "maintenance"})
-
-
-# RBAC-TRANSITION-ONLY: Remove this legacy scoped-grant/project-membership
-# projection after each resource policy writes canonical role bindings.
-def _load_scoped_access(
-    service: AuthService,
-    user_id: str,
-    *,
-    tenant_id: str | None,
-    organization_id: str | None,
-) -> dict[str, dict[str, frozenset[str]]]:
-    scoped_access: dict[str, dict[str, frozenset[str]]] = {}
-    if tenant_id is None:
-        return scoped_access
-    if service._scoped_access_repo is not None:
-        try:
-            grants = service._scoped_access_repo.list_by_user_for_context(
-                user_id,
-                tenant_id=tenant_id,
-                organization_id=organization_id,
-            )
-        except NotImplementedError as exc:
-            raise BusinessRuleError(
-                "Explicit-context scoped access reads are not configured.",
-                code="AUTHORIZATION_CONTEXT_REQUIRED",
-            ) from exc
-        for grant in grants:
-            scope_type = str(grant.scope_type or "").strip().lower()
-            scope_id = str(grant.scope_id or "").strip()
-            if not scope_type or not scope_id:
-                continue
-            permissions = frozenset(
-                str(code).strip()
-                for code in grant.permission_codes
-                if str(code).strip()
-            )
-            if not permissions:
-                continue
-            scope_rows = scoped_access.setdefault(scope_type, {})
-            existing = scope_rows.get(scope_id, frozenset())
-            scope_rows[scope_id] = frozenset(set(existing).union(permissions))
-    elif service._project_membership_repo is not None:
-        scoped_access["project"] = {}
-        try:
-            memberships = (
-                service._project_membership_repo.list_by_user_for_context(
-                    user_id,
-                    tenant_id=tenant_id,
-                    organization_id=organization_id,
-                )
-            )
-        except NotImplementedError as exc:
-            raise BusinessRuleError(
-                "Explicit-context project access reads are not configured.",
-                code="AUTHORIZATION_CONTEXT_REQUIRED",
-            ) from exc
-        for membership in memberships:
-            permissions = frozenset(
-                str(code).strip()
-                for code in membership.permission_codes
-                if str(code).strip()
-            )
-            if permissions:
-                scoped_access["project"][membership.project_id] = permissions
-        if not scoped_access["project"]:
-            scoped_access.pop("project", None)
-    return scoped_access
-
-
-def _merge_scoped_access(
-    *sources: dict[str, dict[str, frozenset[str]]],
-) -> dict[str, dict[str, frozenset[str]]]:
-    merged: dict[str, dict[str, frozenset[str]]] = {}
-    for source in sources:
-        for scope_type, scope_rows in source.items():
-            target_rows = merged.setdefault(scope_type, {})
-            for scope_id, permissions in scope_rows.items():
-                target_rows[scope_id] = frozenset(
-                    set(target_rows.get(scope_id, frozenset())).union(
-                        permissions
-                    )
-                )
-    return merged
 
 
 def build_principal(
@@ -226,25 +138,10 @@ def build_principal(
             user.id,
             tenant_id=resolved_tenant_id,
             organization_id=resolved_organization_id,
-            cutover_resource_scope_types=_CUTOVER_RESOURCE_SCOPE_TYPES,
+            cutover_resource_scope_types=RESOURCE_ROLE_SCOPE_TYPES,
         )
     )
-    transitional_scoped_access = _load_scoped_access(
-        service,
-        user.id,
-        tenant_id=resolved_tenant_id,
-        organization_id=resolved_organization_id,
-    )
-    # RBAC-TRANSITION-ONLY: organization and cut-over resource scopes are
-    # canonical-only; drop any legacy row so a stale scoped_access_grants
-    # row grants no authority.
-    transitional_scoped_access.pop("organization", None)
-    for scope_type in _CUTOVER_RESOURCE_SCOPE_TYPES:
-        transitional_scoped_access.pop(scope_type, None)
-    scoped_access = _merge_scoped_access(
-        canonical_authority.scoped_access,
-        transitional_scoped_access,
-    )
+    scoped_access = canonical_authority.scoped_access
     project_access = dict(scoped_access.get("project", {}))
     return UserSessionPrincipal(
         user_id=user.id,

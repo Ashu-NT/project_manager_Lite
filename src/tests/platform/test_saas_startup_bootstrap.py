@@ -106,10 +106,6 @@ def test_saas_startup_does_not_promote_or_backfill_existing_user(session) -> Non
 
     admin_role = repositories.role_repo.get_by_name("admin")
     assert admin_role is not None
-    assert not repositories.user_role_repo.exists(
-        ordinary_admin_name_user.id,
-        admin_role.id,
-    )
     assert not repositories.user_tenant_repo.is_active_member(
         ordinary_admin_name_user.id,
         existing_tenant.id,

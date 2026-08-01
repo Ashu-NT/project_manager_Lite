@@ -78,8 +78,9 @@ def test_project_memberships_restrict_project_and_task_queries(services):
     task_service.create_task(project_beta.id, "Beta Task")
     viewer = auth.register_user("scoped-viewer", "StrongPass123", role_names=["viewer"])
 
-    access.assign_project_membership(
-        project_id=project_alpha.id,
+    access.assign_scope_grant(
+        scope_type="project",
+        scope_id=project_alpha.id,
         user_id=viewer.id,
         scope_role="viewer",
     )
@@ -111,13 +112,15 @@ def test_collaboration_inbox_filters_by_project_scope_and_marks_mentions_read(se
     viewer = auth.register_user("collab-viewer", "StrongPass123", role_names=["viewer"])
     beta_viewer = auth.register_user("collab-beta-viewer", "StrongPass123", role_names=["viewer"])
 
-    access.assign_project_membership(
-        project_id=project_alpha.id,
+    access.assign_scope_grant(
+        scope_type="project",
+        scope_id=project_alpha.id,
         user_id=viewer.id,
         scope_role="viewer",
     )
-    access.assign_project_membership(
-        project_id=project_beta.id,
+    access.assign_scope_grant(
+        scope_type="project",
+        scope_id=project_beta.id,
         user_id=beta_viewer.id,
         scope_role="viewer",
     )
@@ -154,8 +157,9 @@ def test_collaboration_notifications_filter_project_scope_for_mentions_and_times
     task_beta = task_service.create_task(project_beta.id, "Beta Delivery Task")
     viewer = auth.register_user("notify-viewer", "StrongPass123", role_names=["viewer"])
 
-    access.assign_project_membership(
-        project_id=project_alpha.id,
+    access.assign_scope_grant(
+        scope_type="project",
+        scope_id=project_alpha.id,
         user_id=viewer.id,
         scope_role="viewer",
     )

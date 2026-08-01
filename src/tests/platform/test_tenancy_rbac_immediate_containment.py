@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
 from inspect import signature
 
 import pytest
@@ -15,9 +14,6 @@ from src.core.platform.auth.domain import (
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.auth.passwords import hash_password
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.infrastructure.persistence.orm.access import (
-    ScopedAccessGrantORM,
-)
 from src.core.platform.infrastructure.persistence.repositories.org import (
     SqlAlchemyOrganizationRepository,
 )
@@ -61,8 +57,6 @@ def _customer_auth_service(
             role_permission_repo=auth._role_permission_repo,
             role_binding_repo=auth._role_binding_repo,
             auth_session_repo=auth._auth_session_repo,
-            scoped_access_repo=auth._scoped_access_repo,
-            project_membership_repo=auth._project_membership_repo,
             user_session=context,
             security_audit_repo=auth._security_audit_repo,
             user_tenant_repo=auth._user_tenant_repo,
@@ -389,35 +383,29 @@ def test_tenant_switch_rebuilds_only_target_tenant_grants(services) -> None:
         tenant_id=target_tenant.id,
     )
     SqlAlchemyOrganizationRepository(session).add(target_organization)
-    now = datetime.now(timezone.utc)
     current_user_id = user_session.principal.user_id
-    # "department" is a registered RESOURCE_ROLE_SCOPE_TYPES member with no
-    # live ScopedRolePolicy ever wired in production composition, so it is a
-    # permanent legacy example scope now that organization/project/site/
-    # storeroom/maintenance are all cut over to canonical role_bindings.
-    session.add_all(
-        [
-            ScopedAccessGrantORM(
-                id="containment-grant-current",
-                tenant_id=current_tenant_id,
-                scope_type="department",
-                scope_id="department-current",
-                user_id=current_user_id,
-                scope_role="viewer",
-                permission_codes_json='["department.read"]',
-                created_at=now,
-            ),
-            ScopedAccessGrantORM(
-                id="containment-grant-target",
-                tenant_id=target_tenant.id,
-                scope_type="department",
-                scope_id="department-target",
-                user_id=current_user_id,
-                scope_role="viewer",
-                permission_codes_json='["department.read"]',
-                created_at=now,
-            ),
-        ]
+    current_organization = services["organization_service"].get_active_organization()
+    assert current_organization is not None
+    session.flush()
+    org_viewer_role = auth._role_repo.get_by_name("org_viewer")
+    assert org_viewer_role is not None
+    auth._role_binding_repo.add(
+        RoleBinding.create(
+            principal_id=current_user_id,
+            role_id=org_viewer_role.id,
+            actual_scope_type="organization",
+            tenant_id=current_tenant_id,
+            actual_scope_id=current_organization.id,
+        )
+    )
+    auth._role_binding_repo.add(
+        RoleBinding.create(
+            principal_id=current_user_id,
+            role_id=org_viewer_role.id,
+            actual_scope_type="organization",
+            tenant_id=target_tenant.id,
+            actual_scope_id=target_organization.id,
+        )
     )
     session.flush()
     current_user = auth._require_user(current_user_id)
@@ -429,7 +417,7 @@ def test_tenant_switch_rebuilds_only_target_tenant_grants(services) -> None:
             session_id=user_session.principal.session_id,
         )
     )
-    assert "department-current" in user_session.principal.scoped_access["department"]
+    assert current_organization.id in user_session.principal.scoped_access["organization"]
 
     tenant_context.switch_to_tenant(target_tenant.id)
 
@@ -437,8 +425,8 @@ def test_tenant_switch_rebuilds_only_target_tenant_grants(services) -> None:
     assert switched is not None
     assert switched.active_tenant_id == target_tenant.id
     assert switched.active_organization_id == target_organization.id
-    assert "department-target" in switched.scoped_access["department"]
-    assert "department-current" not in switched.scoped_access["department"]
+    assert target_organization.id in switched.scoped_access["organization"]
+    assert current_organization.id not in switched.scoped_access["organization"]
 
 
 def test_tenant_switch_does_not_leak_canonical_tenant_admin_authority(

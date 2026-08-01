@@ -49,10 +49,6 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyDependencyRepository,
     SqlAlchemyTaskRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.access import (
-    SqlAlchemyProjectMembershipRepository,
-    SqlAlchemyScopedAccessGrantRepository,
-)
 from src.core.platform.infrastructure.persistence.repositories.activity import SqlAlchemyActivityRepository
 from src.core.platform.infrastructure.persistence.repositories.approval import SqlAlchemyApprovalRepository
 from src.core.platform.infrastructure.persistence.repositories.audit_entry import SqlAlchemyAuditRepository
@@ -63,12 +59,10 @@ from src.core.platform.infrastructure.persistence.repositories.auth import (
     SqlAlchemyAuthSessionRepository,
     SqlAlchemyPermissionRepository,
     SqlAlchemyRoleBindingRepository,
-    SqlAlchemyRoleBindingMigrationRepository,
     SqlAlchemyRoleDelegationPolicyRepository,
     SqlAlchemyRolePermissionRepository,
     SqlAlchemyRoleRepository,
     SqlAlchemyUserRepository,
-    SqlAlchemyUserRoleRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.documents import (
     SqlAlchemyDocumentLinkRepository,
@@ -127,14 +121,9 @@ class RepositoryBundle:
     auth_policy_reconciliation_repo: SqlAlchemyAuthPolicyReconciliationRepository
     role_repo: SqlAlchemyRoleRepository
     role_binding_repo: SqlAlchemyRoleBindingRepository
-    # RBAC-TRANSITION-ONLY: Remove after migration records are exported/retired.
-    role_binding_migration_repo: SqlAlchemyRoleBindingMigrationRepository
     role_delegation_policy_repo: SqlAlchemyRoleDelegationPolicyRepository
     permission_repo: SqlAlchemyPermissionRepository
-    user_role_repo: SqlAlchemyUserRoleRepository
     role_permission_repo: SqlAlchemyRolePermissionRepository
-    project_membership_repo: SqlAlchemyProjectMembershipRepository
-    scoped_access_repo: SqlAlchemyScopedAccessGrantRepository
     activity_repo: SqlAlchemyActivityRepository
     audit_entry_repo: SqlAlchemyAuditRepository
     notification_repo: SqlAlchemyNotificationRepository
@@ -192,17 +181,11 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         ),
         role_repo=SqlAlchemyRoleRepository(session),
         role_binding_repo=SqlAlchemyRoleBindingRepository(session),
-        role_binding_migration_repo=SqlAlchemyRoleBindingMigrationRepository(
-            session
-        ),
         role_delegation_policy_repo=SqlAlchemyRoleDelegationPolicyRepository(
             session
         ),
         permission_repo=SqlAlchemyPermissionRepository(session),
-        user_role_repo=SqlAlchemyUserRoleRepository(session),
         role_permission_repo=SqlAlchemyRolePermissionRepository(session),
-        project_membership_repo=SqlAlchemyProjectMembershipRepository(session),
-        scoped_access_repo=SqlAlchemyScopedAccessGrantRepository(session),
         activity_repo=SqlAlchemyActivityRepository(session),
         audit_entry_repo=SqlAlchemyAuditRepository(session),
         notification_repo=SqlAlchemyNotificationRepository(session),

@@ -355,76 +355,9 @@ def test_org_admin_is_effective_only_in_its_canonical_organization(services):
     assert organization_id in other_context.scoped_access["organization"]
 
 
-def test_legacy_org_admin_row_grants_no_runtime_authority(services):
-    from src.core.platform.auth.domain.user import UserRoleBinding
-    from src.core.platform.infrastructure.persistence.repositories.auth import (
-        SqlAlchemyUserRoleRepository,
-    )
-
-    auth = services["auth_service"]
-    tenant_id, organization_id = _active_context_ids(services)
-    user = auth.register_user(
-        "p2a-legacy-oadmin",
-        "StrongPass123!",
-        role_names=["viewer"],
-        tenant_id=tenant_id,
-    )
-    role = auth._role_repo.get_by_name("org_admin")
-    assert role is not None
-    SqlAlchemyUserRoleRepository(services["session"]).add(
-        UserRoleBinding.create(
-            user_id=user.id,
-            role_id=role.id,
-            organization_id=organization_id,
-        )
-    )
-    services["session"].flush()
-
-    principal = auth.build_principal_for_context(
-        user,
-        tenant_id=tenant_id,
-        organization_id=organization_id,
-    )
-
-    assert "org_admin" not in principal.role_names
-    assert "org.manage" not in principal.permissions
-
-
 # ---------------------------------------------------------------------------
 # 10. is_platform_admin() end-to-end
 # ---------------------------------------------------------------------------
-
-def test_legacy_organization_scoped_grant_no_longer_grants_authority(services):
-    from src.core.platform.access.domain import ScopedAccessGrant
-
-    auth = services["auth_service"]
-    tenant_id, organization_id = _active_context_ids(services)
-    user = auth.register_user(
-        "p2a-legacy-org-scope",
-        "StrongPass123!",
-        role_names=["viewer"],
-        tenant_id=tenant_id,
-    )
-    auth._scoped_access_repo.add(
-        ScopedAccessGrant.create(
-            scope_type="organization",
-            scope_id=organization_id,
-            user_id=user.id,
-            scope_role="org_admin",
-            permission_codes=["org.manage", "auth.manage"],
-        )
-    )
-    services["session"].flush()
-
-    principal = auth.build_principal_for_context(
-        user,
-        tenant_id=tenant_id,
-        organization_id=organization_id,
-    )
-
-    assert "organization" not in principal.scoped_access
-    assert "org.manage" not in principal.permissions
-    assert "auth.manage" not in principal.permissions
 
 
 def test_is_platform_admin_returns_true_for_admin(services):

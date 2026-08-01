@@ -51,30 +51,6 @@ def _seed_legacy_security_shape(connection) -> None:
         connection.exec_driver_sql(statement)
 
 
-def test_inventory_is_schema_aware_and_classifies_cross_tenant_authority() -> None:
-    engine = create_engine("sqlite:///:memory:", future=True)
-    with engine.begin() as connection:
-        _seed_legacy_security_shape(connection)
-        report = build_tenancy_rbac_inventory(connection)
-
-    snapshot = report["snapshot"]
-    findings = {finding["code"]: finding for finding in snapshot["findings"]}
-
-    assert report["read_only"] is True
-    assert snapshot["database"]["alembic_revisions"] == ["legacy-head"]
-    assert snapshot["schema"]["capabilities"]["canonical_role_bindings"] is False
-    assert (
-        findings["CUSTOMER_PRIVILEGED_ROLE_WITHOUT_ACTIVE_MEMBERSHIP"]["count"]
-        == 1
-    )
-    assert findings["LEGACY_ROLE_CROSS_TENANT_SCOPE"]["count"] == 1
-    assert findings["SCOPED_GRANT_WITHOUT_TENANT"]["count"] == 1
-    assert findings["SCOPED_GRANT_TARGET_WITHOUT_ACTIVE_MEMBERSHIP"]["count"] == 1
-    assert findings["SCOPED_GRANT_TENANT_MISMATCH"]["count"] == 1
-    assert findings["SCOPED_GRANT_TARGET_MISSING"]["count"] == 1
-    assert "username" not in str(snapshot["data"])
-
-
 def test_inventory_snapshot_hash_is_deterministic() -> None:
     engine = create_engine("sqlite:///:memory:", future=True)
     with engine.begin() as connection:

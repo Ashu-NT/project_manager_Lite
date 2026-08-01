@@ -16,8 +16,8 @@ import src.core.platform.infrastructure.persistence.orm.party  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.modules  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.time  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.auth  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.access  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.audit_entry  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.notification  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.approval  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.runtime_tracking  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.project  # noqa: F401

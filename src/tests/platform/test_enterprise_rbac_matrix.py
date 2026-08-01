@@ -101,10 +101,10 @@ def test_access_and_security_admin_capabilities_are_separated(services):
         tenant_id=active_tenant_id,
     )
 
-    access.assign_project_membership(project_id=project.id, user_id=target.id, scope_role="lead")
+    access.assign_scope_grant(scope_type="project", scope_id=project.id, user_id=target.id, scope_role="lead")
 
     login_as(services, "access-admin-user", "StrongPass123")
-    memberships = access.list_project_memberships(project.id)
+    memberships = access.list_scope_grants("project", project.id)
     assert len(memberships) == 1
     assert memberships[0].scope_role == "lead"
     assert len(auth.list_users()) >= 3

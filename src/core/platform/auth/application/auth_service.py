@@ -5,10 +5,6 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.access.contracts import (
-    ProjectMembershipRepository,
-    ScopedAccessGrantRepository,
-)
 from src.core.platform.auth.application.auth_query import AuthQueryMixin
 from src.core.platform.auth.application.auth_validation import AuthValidationMixin
 from src.core.platform.auth.contracts import (
@@ -56,8 +52,6 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         permission_repo: PermissionRepository,
         role_permission_repo: RolePermissionRepository,
         auth_session_repo: AuthSessionRepository | None = None,
-        scoped_access_repo: ScopedAccessGrantRepository | None = None,
-        project_membership_repo: ProjectMembershipRepository | None = None,
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: "EnterpriseAuditService | None" = None,
         security_audit_repo: "AuditRepository | None" = None,
@@ -78,8 +72,6 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._permission_repo: PermissionRepository = permission_repo
         self._role_permission_repo: RolePermissionRepository = role_permission_repo
         self._auth_session_repo: AuthSessionRepository | None = auth_session_repo
-        self._scoped_access_repo: ScopedAccessGrantRepository | None = scoped_access_repo
-        self._project_membership_repo: ProjectMembershipRepository | None = project_membership_repo
         self._user_session: UserSessionContext | None = user_session
         self._enterprise_audit_service: EnterpriseAuditService | None = enterprise_audit_service
         self._security_audit_repo: AuditRepository | None = security_audit_repo

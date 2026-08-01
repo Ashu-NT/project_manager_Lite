@@ -5,7 +5,6 @@ from src.tests.path_rewrites import REPO_ROOT
 ROOT = REPO_ROOT
 PERSISTENCE_ROOT = ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence"
 EXPECTED_AREAS = {
-    "access",
     "activity",
     "approval",
     "audit_entry",

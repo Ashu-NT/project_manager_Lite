@@ -162,36 +162,3 @@ def test_site_role_binding_is_scoped_to_its_own_site(services):
     assert site_b.id not in principal.scoped_access.get("site", {})
     assert "inventory.manage" in principal.scoped_access["site"][site_a.id]
 
-
-# ---------------------------------------------------------------------------
-# 5. Legacy scoped-grant regression: stale rows grant no runtime authority
-# ---------------------------------------------------------------------------
-
-def test_legacy_site_scoped_grant_no_longer_grants_authority(services):
-    from src.core.platform.access.domain import ScopedAccessGrant
-
-    auth = services["auth_service"]
-    tenant_id, _ = _active_context_ids(services)
-
-    site = _create_site(services, "P2C-LEGACY")
-    user = auth.register_user(
-        "p2c-legacy-site-scope",
-        "StrongPass123!",
-        role_names=["viewer"],
-        tenant_id=tenant_id,
-    )
-    auth._scoped_access_repo.add(
-        ScopedAccessGrant.create(
-            scope_type="site",
-            scope_id=site.id,
-            user_id=user.id,
-            scope_role="manager",
-            permission_codes=["inventory.manage", "import.manage"],
-        )
-    )
-    services["session"].flush()
-
-    principal = auth.build_principal(user)
-
-    assert site.id not in principal.scoped_access.get("site", {})
-    assert "inventory.manage" not in principal.permissions

@@ -8,7 +8,6 @@ from sqlalchemy import select
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.infrastructure.persistence.orm.audit_entry import AuditEntryORM
-from src.core.platform.infrastructure.persistence.orm.auth import UserRoleORM
 from src.core.platform.tenancy import (
     MEMBERSHIP_STATUS_ACTIVE,
     MEMBERSHIP_STATUS_INVITED,
@@ -90,12 +89,6 @@ def test_invitation_acceptance_is_self_scoped_atomic_and_one_time(
         )
     )
     assert any(binding.role_id == viewer.id for binding in active_bindings)
-    assert session.execute(
-        select(UserRoleORM.id).where(
-            UserRoleORM.user_id == target.id,
-            UserRoleORM.role_id == viewer.id,
-        )
-    ).scalar_one_or_none() is None
     assert _audit_actions(session, accepted.id) == [
         "tenant.membership.invitation_issued",
         "tenant.membership.invitation_accepted",

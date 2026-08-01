@@ -89,20 +89,38 @@ class _FakeUserRepo:
         return self._users.get(user_id)
 
 
-class _FakeProjectMembershipRepo:
-    def __init__(self, memberships: dict[str, list[object]] | None = None) -> None:
-        self._memberships = memberships or {
-            "proj-1": [
-                SimpleNamespace(
-                    user_id="user-2",
-                    permission_codes=["collaboration.read"],
-                    scope_role="viewer",
-                )
-            ]
-        }
+class _FakeRole:
+    def __init__(self, role_id: str, name: str) -> None:
+        self.id = role_id
+        self.name = name
 
-    def list_by_project(self, project_id: str) -> list[object]:
-        return list(self._memberships.get(project_id, []))
+
+class _FakeRoleRepo:
+    def __init__(self, roles: dict[str, _FakeRole]) -> None:
+        self._roles = roles
+
+    def get_by_name(self, name: str):
+        return self._roles.get(name)
+
+
+class _FakeRoleBinding:
+    def __init__(self, principal_id: str, actual_scope_type: str, actual_scope_id: str) -> None:
+        self.principal_id = principal_id
+        self.actual_scope_type = actual_scope_type
+        self.actual_scope_id = actual_scope_id
+
+
+class _FakeRoleBindingRepo:
+    def __init__(self, bindings_by_role: dict[str, list[_FakeRoleBinding]]) -> None:
+        self._bindings_by_role = bindings_by_role
+
+    def list_active_for_role(self, role_id: str, *, tenant_id: str) -> list[_FakeRoleBinding]:
+        return list(self._bindings_by_role.get(role_id, []))
+
+
+class _FakeTenantContextService:
+    def get_active_tenant_id(self) -> str:
+        return "tenant-1"
 
 
 class _FakeUserSession:
@@ -154,14 +172,17 @@ def _make_service(
         project_repo=object(),
         user_repo=_FakeUserRepo(),
         audit_repo=object(),
-        project_membership_repo=_FakeProjectMembershipRepo(),
         document_integration_service=None,
         user_session=_FakeUserSession(
             user_id=user_id,
             username=username,
             display_name=display_name,
         ),
-        tenant_context_service=object(),
+        tenant_context_service=_FakeTenantContextService(),
+        role_repo=_FakeRoleRepo({"project_viewer": _FakeRole("role-viewer", "project_viewer")}),
+        role_binding_repo=_FakeRoleBindingRepo(
+            {"role-viewer": [_FakeRoleBinding("user-2", "project", "proj-1")]}
+        ),
     )
 
 

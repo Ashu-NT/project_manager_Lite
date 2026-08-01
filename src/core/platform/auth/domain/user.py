@@ -510,53 +510,6 @@ class Permission:
 
 
 @validated_dataclass
-class UserRoleBinding:
-    # RBAC-TRANSITION-ONLY: Remove after canonical bindings are authoritative,
-    # legacy writes are disabled, and rollback evidence is retained.
-    id: str
-    user_id: str
-    role_id: str
-    organization_id: str | None = None
-
-    @field_validator("id", mode="before")
-    @classmethod
-    def _validate_id(cls, value: object) -> str:
-        return normalize_required_text(
-            value,
-            message="User-role binding id is required.",
-            code="AUTH_USER_ROLE_BINDING_ID_REQUIRED",
-        )
-
-    @field_validator("user_id", mode="before")
-    @classmethod
-    def _validate_user_id(cls, value: object) -> str:
-        return normalize_required_text(
-            value,
-            message="User id is required.",
-            code="USER_ID_REQUIRED",
-        )
-
-    @field_validator("role_id", mode="before")
-    @classmethod
-    def _validate_role_id(cls, value: object) -> str:
-        return normalize_auth_role_id(value)
-
-    @field_validator("organization_id", mode="before")
-    @classmethod
-    def _normalize_organization_id(cls, value: object) -> str | None:
-        return normalize_optional_identifier(value)
-
-    @staticmethod
-    def create(user_id: str, role_id: str, organization_id: str | None = None) -> "UserRoleBinding":
-        return UserRoleBinding(
-            id=generate_id(),
-            user_id=user_id,
-            role_id=role_id,
-            organization_id=organization_id,
-        )
-
-
-@validated_dataclass
 class RolePermissionBinding:
     id: str
     role_id: str
@@ -595,7 +548,6 @@ __all__ = [
     "Role",
     "RolePermissionBinding",
     "UserAccount",
-    "UserRoleBinding",
     "normalize_auth_device_label",
     "normalize_auth_email",
     "normalize_auth_federated_subject",

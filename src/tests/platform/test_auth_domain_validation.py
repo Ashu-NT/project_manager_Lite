@@ -12,7 +12,6 @@ from src.core.platform.auth.domain import (
     Role,
     RolePermissionBinding,
     UserAccount,
-    UserRoleBinding,
 )
 from src.core.platform.auth.domain.user import normalize_auth_session_timeout_override
 from src.core.platform.common.exceptions import ValidationError
@@ -250,8 +249,6 @@ def _make_auth_service(monkeypatch: pytest.MonkeyPatch) -> AuthService:
         permission_repo=_FakePermissionRepo(),
         role_permission_repo=_FakeRolePermissionRepo(),
         auth_session_repo=_FakeAuthSessionRepo(),
-        scoped_access_repo=None,
-        project_membership_repo=None,
         user_session=None,
         enterprise_audit_service=None,
         sod_policy=None,
@@ -344,11 +341,6 @@ def test_auth_rbac_dtos_normalize_and_validate_fields():
         code="  AUDIT.READ  ",
         description="  Read audit logs  ",
     )
-    user_role = UserRoleBinding.create(
-        user_id="  user-1  ",
-        role_id="  role-1  ",
-        organization_id="  org-1  ",
-    )
     role_permission = RolePermissionBinding.create(
         role_id="  role-1  ",
         permission_id="  permission-1  ",
@@ -360,9 +352,6 @@ def test_auth_rbac_dtos_normalize_and_validate_fields():
     assert role.tenant_id == "tenant-1"
     assert permission.code == "audit.read"
     assert permission.description == "Read audit logs"
-    assert user_role.user_id == "user-1"
-    assert user_role.role_id == "role-1"
-    assert user_role.organization_id == "org-1"
     assert role_permission.role_id == "role-1"
     assert role_permission.permission_id == "permission-1"
 
@@ -376,10 +365,6 @@ def test_auth_rbac_dtos_normalize_and_validate_fields():
     with pytest.raises(ValidationError) as exc_permission:
         Permission.create(code=" ", description="x")
     assert exc_permission.value.code == "AUTH_PERMISSION_CODE_REQUIRED"
-
-    with pytest.raises(ValidationError) as exc_user:
-        UserRoleBinding.create(user_id=" ", role_id="role-1")
-    assert exc_user.value.code == "USER_ID_REQUIRED"
 
     with pytest.raises(ValidationError) as exc_permission_id:
         RolePermissionBinding.create(role_id="role-1", permission_id=" ")

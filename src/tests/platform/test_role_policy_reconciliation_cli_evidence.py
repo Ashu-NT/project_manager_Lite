@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-# RBAC-TRANSITION-ONLY: Retire transition receipt assertions with the verifier;
-# retain ordinary policy reconciliation coverage.
-
 import json
 from pathlib import Path
 from types import SimpleNamespace

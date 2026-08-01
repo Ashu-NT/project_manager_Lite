@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 
 from src.core.platform.auth.domain import (
-    AuthorizationMigrationBatch,
     AuthPolicyReconciliation,
     AuthSession,
     Permission,
@@ -13,8 +12,6 @@ from src.core.platform.auth.domain import (
     RoleDelegationPolicy,
     RolePermissionBinding,
     UserAccount,
-    UserRoleBinding,
-    LegacyRoleBindingMigrationRecord,
 )
 
 
@@ -200,38 +197,6 @@ class RoleBindingRepository(ABC):
     ) -> int: ...
 
 
-class RoleBindingMigrationRepository(ABC):
-    """Persistence boundary for reversible legacy-binding migration state."""
-
-    # RBAC-TRANSITION-ONLY: Remove after all batches and rollback retention close.
-    @abstractmethod
-    def add_batch(self, batch: AuthorizationMigrationBatch) -> None: ...
-
-    @abstractmethod
-    def get_batch(
-        self,
-        batch_id: str,
-    ) -> AuthorizationMigrationBatch | None: ...
-
-    @abstractmethod
-    def get_batch_by_inventory_sha256(
-        self,
-        source_inventory_sha256: str,
-    ) -> AuthorizationMigrationBatch | None: ...
-
-    @abstractmethod
-    def add_record(
-        self,
-        record: LegacyRoleBindingMigrationRecord,
-    ) -> None: ...
-
-    @abstractmethod
-    def list_records(
-        self,
-        batch_id: str,
-    ) -> list[LegacyRoleBindingMigrationRecord]: ...
-
-
 class RoleDelegationPolicyRepository(ABC):
     @abstractmethod
     def add(self, policy: RoleDelegationPolicy) -> None: ...
@@ -277,27 +242,6 @@ class PermissionRepository(ABC):
     def list_all(self) -> list[Permission]: ...
 
 
-class UserRoleRepository(ABC):
-    # RBAC-TRANSITION-ONLY: Remove after CANONICAL_ONLY disables user_roles.
-    @abstractmethod
-    def add(self, binding: UserRoleBinding) -> None: ...
-
-    @abstractmethod
-    def delete(self, user_id: str, role_id: str, organization_id: str | None = None) -> None: ...
-
-    @abstractmethod
-    def exists(self, user_id: str, role_id: str, organization_id: str | None = None) -> bool: ...
-
-    @abstractmethod
-    def list_role_ids(self, user_id: str) -> list[str]: ...
-
-    def list_role_ids_for_organization(self, user_id: str, organization_id: str) -> list[str]:
-        return []
-
-    @abstractmethod
-    def list_user_ids_for_role(self, role_id: str) -> list[str]: ...
-
-
 class RolePermissionRepository(ABC):
     @abstractmethod
     def add(self, binding: RolePermissionBinding) -> None: ...
@@ -331,9 +275,7 @@ __all__ = [
     "PermissionRepository",
     "RolePermissionRepository",
     "RoleBindingRepository",
-    "RoleBindingMigrationRepository",
     "RoleDelegationPolicyRepository",
     "RoleRepository",
     "UserRepository",
-    "UserRoleRepository",
 ]

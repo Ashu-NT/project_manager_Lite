@@ -28,27 +28,23 @@ class CollaborationSupportMixin:
             tasks.extend(self._task_repo.list_by_project(project.id))
         return tasks, project_name_by_id
 
-    # RBAC-TRANSITION-ONLY: the `else` branch below reads legacy
-    # project_memberships directly for test doubles that do not wire
-    # role_repo/role_binding_repo. Delete it once every such construction
-    # site supplies the canonical dependencies.
     def _list_mention_candidates_for_project(self, project_id: str) -> list[CollaborationMentionCandidate]:
         candidates: list[CollaborationMentionCandidate] = []
         seen_user_ids: set[str] = set()
         tenant_id = (
             self._tenant_context_service.get_active_tenant_id()
-            if self._tenant_context_service is not None
+            if (
+                self._role_repo is not None
+                and self._role_binding_repo is not None
+                and self._tenant_context_service is not None
+            )
             else None
         )
-        if tenant_id is not None and self._role_repo is not None and self._role_binding_repo is not None:
-            membership_rows = list(
-                self._canonical_project_membership_rows(project_id, tenant_id=tenant_id)
-            )
-        else:
-            membership_rows = [
-                (membership.user_id, membership.scope_role, tuple(membership.permission_codes))
-                for membership in self._project_membership_repo.list_by_project(project_id)
-            ]
+        membership_rows = (
+            list(self._canonical_project_membership_rows(project_id, tenant_id=tenant_id))
+            if tenant_id is not None
+            else []
+        )
         for user_id, scope_role, permission_codes in membership_rows:
             permissions = {str(code).strip() for code in permission_codes}
             if permissions.isdisjoint({"collaboration.read", "collaboration.manage"}):
