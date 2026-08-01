@@ -164,7 +164,7 @@ class _FakeCollaborationService:
     def clear_task_presence(self, task_id: str) -> None:
         self.cleared_presence.append(task_id)
 
-    def post_comment(self, *, task_id, body, attachments=(), linked_document_ids=()) -> SimpleNamespace:
+    def post_comment(self, *, task_id, body, attachments=(), linked_document_ids=(), parent_comment_id=None) -> SimpleNamespace:
         self.posted_comments.append(
             {"task_id": task_id, "body": body, "attachments": tuple(attachments), "linked_document_ids": tuple(linked_document_ids)}
         )

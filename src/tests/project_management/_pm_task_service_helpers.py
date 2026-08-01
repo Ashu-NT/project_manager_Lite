@@ -132,7 +132,7 @@ class _FakeCollaborationService:
         self.cleared_presence.append(task_id)
 
     def post_comment(
-        self, *, task_id: str, body: str, attachments=(), linked_document_ids=()
+        self, *, task_id: str, body: str, attachments=(), linked_document_ids=(), parent_comment_id=None
     ) -> SimpleNamespace:
         self.posted_comments.append(
             {

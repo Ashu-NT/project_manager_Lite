@@ -29,10 +29,19 @@ class TaskCommentORM(Base):
     read_by_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
     read_by_user_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    parent_comment_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("task_comments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    reactions_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
 
 
 Index("idx_task_comments_task", TaskCommentORM.task_id)
 Index("idx_task_comments_created", TaskCommentORM.created_at)
+Index("idx_task_comments_parent", TaskCommentORM.parent_comment_id)
 
 
 class TaskPresenceORM(Base):

@@ -264,6 +264,7 @@ class _FakeCollaborationService:
         body: str,
         attachments=(),
         linked_document_ids=(),
+        parent_comment_id=None,
     ) -> SimpleNamespace:
         self.posted_comments.append(
             {

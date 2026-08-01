@@ -13,6 +13,7 @@ def record_assignment_action(
     project_id: str,
     task_name: str,
     resource_name: str,
+    task_id: str | None = None,
     extra: dict[str, Any] | None = None,
 ) -> None:
     details: dict[str, Any] = {
@@ -29,6 +30,7 @@ def record_assignment_action(
         entity_id=assignment_id,
         module="project_management",
         workspace_id=project_id,
+        parent_entity_id=task_id,
         details=details,
     )
 

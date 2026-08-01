@@ -44,7 +44,6 @@ from src.core.modules.project_management.application.resources.assignment_valida
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import ProjectCalendarAdapter
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
-from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle
 
@@ -93,7 +92,6 @@ class ProjectManagementServiceBundle:
     register_service: RegisterService
     project_resource_service: ProjectResourceService
     data_import_service: DataImportService
-    task_collaboration_store: TaskCollaborationStore
     assignment_skill_validator: AssignmentSkillValidator
     project_calendar_adapter: ProjectCalendarAdapter
     enterprise_resource_availability: EnterpriseResourceAvailabilityService
@@ -215,6 +213,11 @@ def build_project_management_service_bundle(
         project_calendar_adapter=_pre_project_calendar_adapter,
     )
     logger.debug("Project Management scheduling foundation built")
+    assignment_skill_validator = AssignmentSkillValidator(
+        skill_repo=repositories.resource_skill_repo,
+        cert_repo=repositories.resource_cert_repo,
+        requirement_repo=repositories.task_skill_req_repo,
+    )
     task_service = TaskService(
         session,
         repositories.task_repo,
@@ -235,6 +238,7 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_runtime_service,
         notification_service=platform_services.notification_service,
         employee_repo=repositories.employee_repo,
+        assignment_skill_validator=assignment_skill_validator,
     )
     resource_service = ResourceService(
         session,
@@ -348,12 +352,6 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
     )
-    task_collaboration_store = TaskCollaborationStore(session_factory=lambda: session)
-    assignment_skill_validator = AssignmentSkillValidator(
-        skill_repo=repositories.resource_skill_repo,
-        cert_repo=repositories.resource_cert_repo,
-        requirement_repo=repositories.task_skill_req_repo,
-    )
     project_calendar_adapter = _pre_project_calendar_adapter  # reuse the instance wired into SchedulingEngine
     enterprise_resource_availability = EnterpriseResourceAvailabilityService(
         resolver=platform_services.enterprise_calendar_resolver,
@@ -392,7 +390,6 @@ def build_project_management_service_bundle(
         register_service=register_service,
         project_resource_service=project_resource_service,
         data_import_service=data_import_service,
-        task_collaboration_store=task_collaboration_store,
         assignment_skill_validator=assignment_skill_validator,
         project_calendar_adapter=project_calendar_adapter,
         enterprise_resource_availability=enterprise_resource_availability,

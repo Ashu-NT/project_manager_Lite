@@ -230,6 +230,8 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
         row.allocation_percent = assignment.allocation_percent
         row.hours_logged = assignment.hours_logged
         row.project_resource_id = assignment.project_resource_id
+        row.response_status = assignment.response_status
+        row.responded_at = assignment.responded_at
 
     def delete(self, assignment_id: str) -> None:
         self.session.execute(

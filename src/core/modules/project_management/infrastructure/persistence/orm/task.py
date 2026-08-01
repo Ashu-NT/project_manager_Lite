@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import Date, Enum as SAEnum, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import Date, DateTime, Enum as SAEnum, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
@@ -65,6 +65,10 @@ class TaskAssignmentORM(Base):
         ForeignKey("project_resources.id", ondelete="CASCADE"),
         nullable=True,
     )
+    response_status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="pending", server_default="pending"
+    )
+    responded_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
 Index("idx_task_assignments_project_resource", TaskAssignmentORM.project_resource_id)

@@ -7,6 +7,7 @@ from src.core.modules.project_management.api.desktop.collaboration.models.collab
     CollaborationNotificationDesktopDto,
     CollaborationPresenceDesktopDto,
     TaskCollaborationCommentDesktopDto,
+    TaskCollaborationReactionSummaryDto,
 )
 from src.core.modules.project_management.api.desktop.collaboration.utils.formatting import (
     format_datetime,
@@ -91,11 +92,28 @@ def serialize_task_comment(comment, *, linked_documents) -> TaskCollaborationCom
     linked_document_labels = tuple(
         format_linked_document_label(document) for document in linked_documents
     )
+    is_deleted = bool(getattr(comment, "deleted_at", None))
+    updated_at = getattr(comment, "updated_at", None)
+    reactions_map = getattr(comment, "reactions", None) or {}
+    reactions = tuple(
+        TaskCollaborationReactionSummaryDto(
+            emoji=emoji,
+            count=len(user_ids),
+            reactor_user_ids=tuple(user_ids),
+        )
+        for emoji, user_ids in sorted(reactions_map.items())
+        if user_ids
+    )
+    reactions_label = (
+        "  ".join(f"{reaction.emoji} {reaction.count}" for reaction in reactions)
+        if reactions
+        else ""
+    )
     return TaskCollaborationCommentDesktopDto(
         comment_id=comment.id,
         task_id=comment.task_id,
         author_username=(comment.author_username or "unknown").strip() or "unknown",
-        body=comment.body,
+        body="This comment was deleted." if is_deleted else comment.body,
         mentions=mentions,
         mentions_label=(
             ", ".join(f"@{m}" for m in mentions) if mentions else "No direct mentions"
@@ -110,6 +128,15 @@ def serialize_task_comment(comment, *, linked_documents) -> TaskCollaborationCom
         ),
         created_at=comment.created_at,
         created_at_label=format_datetime(comment.created_at),
+        author_user_id=getattr(comment, "author_user_id", None),
+        parent_comment_id=getattr(comment, "parent_comment_id", None),
+        is_reply=bool(getattr(comment, "parent_comment_id", None)),
+        updated_at=updated_at,
+        updated_at_label=format_datetime(updated_at) if updated_at else "",
+        is_edited=bool(updated_at) and not is_deleted,
+        is_deleted=is_deleted,
+        reactions=reactions,
+        reactions_label=reactions_label,
     )
 
 

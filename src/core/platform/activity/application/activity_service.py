@@ -83,6 +83,8 @@ class ActivityService:
         entity_id: str | None = None,
         module: str | None = None,
         workspace_id: str | None = None,
+        parent_entity_id: str | None = None,
+        action_prefix: str | None = None,
     ) -> list[ActivityEntry]:
         tenant_id: str | None = None
         organization_id: str | None = None
@@ -103,6 +105,8 @@ class ActivityService:
             entity_id=entity_id,
             module=module,
             workspace_id=workspace_id,
+            parent_entity_id=parent_entity_id,
+            action_prefix=action_prefix,
         )
 
 

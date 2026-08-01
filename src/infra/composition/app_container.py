@@ -123,7 +123,6 @@ from src.core.platform.calendar.application.enterprise_calendar_resolver import 
 from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
-from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.infra.composition.inventory_registry import build_inventory_procurement_service_bundle
 from src.infra.composition.maintenance_registry import build_maintenance_service_bundle
 from src.infra.composition.platform_registry import build_platform_service_bundle
@@ -217,7 +216,6 @@ class ServiceGraph:
     register_service: RegisterService
     project_resource_service: ProjectResourceService
     data_import_service: DataImportService
-    task_collaboration_store: TaskCollaborationStore
     assignment_skill_validator: AssignmentSkillValidator
     enterprise_calendar_service: EnterpriseCalendarService | None
     working_rule_service: WorkingRuleService | None
@@ -315,7 +313,6 @@ class ServiceGraph:
             "register_service": self.register_service,
             "project_resource_service": self.project_resource_service,
             "data_import_service": self.data_import_service,
-            "task_collaboration_store": self.task_collaboration_store,
             "assignment_skill_validator": self.assignment_skill_validator,
             "enterprise_calendar_service": self.enterprise_calendar_service,
             "working_rule_service": self.working_rule_service,
@@ -453,7 +450,6 @@ def build_service_graph(session: Session) -> ServiceGraph:
         register_service=project_management_services.register_service,
         project_resource_service=project_management_services.project_resource_service,
         data_import_service=project_management_services.data_import_service,
-        task_collaboration_store=project_management_services.task_collaboration_store,
         assignment_skill_validator=project_management_services.assignment_skill_validator,
         enterprise_calendar_service=platform_services.enterprise_calendar_service,
         working_rule_service=platform_services.working_rule_service,

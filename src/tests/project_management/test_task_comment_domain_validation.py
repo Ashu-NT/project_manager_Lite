@@ -308,3 +308,109 @@ def test_collaboration_service_marks_mentions_read_idempotently(
 
     service.mark_task_mentions_read("task-1")
     assert service._session.commit_calls == 1
+
+
+# ---------------------------------------------------------------------------
+# Edit / soft-delete / threading / reactions (Phase 4)
+# ---------------------------------------------------------------------------
+
+
+def test_edit_comment_updates_body_and_sets_updated_at(monkeypatch: pytest.MonkeyPatch):
+    service = _make_service(monkeypatch)
+    comment = service.post_comment(task_id="task-1", body="Original text")
+    assert comment.updated_at is None
+
+    edited = service.edit_comment(comment.id, "Revised text @planner")
+
+    assert edited.body == "Revised text @planner"
+    assert edited.mentioned_user_ids == ["user-2"]
+    assert edited.updated_at is not None
+
+
+def test_edit_comment_rejects_non_author(monkeypatch: pytest.MonkeyPatch):
+    service = _make_service(monkeypatch)
+    comment = service.post_comment(task_id="task-1", body="Original text")
+
+    other_service = _make_service(monkeypatch, user_id="user-2", username="planner", display_name="Project Planner")
+    other_service._comment_repo = service._comment_repo
+
+    from src.core.platform.common.exceptions import OperationNotPermittedError
+
+    with pytest.raises(OperationNotPermittedError):
+        other_service.edit_comment(comment.id, "Hijacked text")
+
+
+def test_edit_comment_rejects_deleted_comment(monkeypatch: pytest.MonkeyPatch):
+    from src.core.platform.common.exceptions import BusinessRuleError
+
+    service = _make_service(monkeypatch)
+    comment = service.post_comment(task_id="task-1", body="Original text")
+    service.delete_comment(comment.id)
+
+    with pytest.raises(BusinessRuleError):
+        service.edit_comment(comment.id, "Edit after delete")
+
+
+def test_delete_comment_is_soft_and_idempotent(monkeypatch: pytest.MonkeyPatch):
+    service = _make_service(monkeypatch)
+    comment = service.post_comment(task_id="task-1", body="Will be removed")
+
+    deleted = service.delete_comment(comment.id)
+    assert deleted.is_deleted is True
+    assert deleted.deleted_at is not None
+    assert deleted.body == "Will be removed"  # original text preserved for audit, masked only at serialization
+
+    deleted_again = service.delete_comment(comment.id)
+    assert deleted_again.deleted_at == deleted.deleted_at
+
+
+def test_post_comment_with_parent_creates_reply_thread(monkeypatch: pytest.MonkeyPatch):
+    service = _make_service(monkeypatch)
+    root = service.post_comment(task_id="task-1", body="Root comment")
+
+    reply = service.post_comment(task_id="task-1", body="Reply comment", parent_comment_id=root.id)
+
+    assert reply.parent_comment_id == root.id
+    assert reply.is_reply is True
+    assert root.is_reply is False
+
+
+def test_post_comment_rejects_parent_from_different_task(monkeypatch: pytest.MonkeyPatch):
+    service = _make_service(
+        monkeypatch,
+    )
+    service._task_repo = _FakeTaskRepo(
+        {
+            "task-1": SimpleNamespace(id="task-1", project_id="proj-1"),
+            "task-2": SimpleNamespace(id="task-2", project_id="proj-1"),
+        }
+    )
+    root = service.post_comment(task_id="task-1", body="Root on task 1")
+
+    with pytest.raises(NotFoundError):
+        service.post_comment(task_id="task-2", body="Reply from wrong task", parent_comment_id=root.id)
+
+
+def test_react_and_remove_reaction_round_trip(monkeypatch: pytest.MonkeyPatch):
+    service = _make_service(monkeypatch)
+    comment = service.post_comment(task_id="task-1", body="React to me")
+
+    reacted = service.react_to_comment(comment.id, "👍")
+    assert reacted.reactions == {"👍": ["user-1"]}
+
+    reacted_twice = service.react_to_comment(comment.id, "👍")
+    assert reacted_twice.reactions == {"👍": ["user-1"]}
+
+    cleared = service.remove_reaction(comment.id, "👍")
+    assert cleared.reactions == {}
+
+
+def test_react_to_deleted_comment_raises(monkeypatch: pytest.MonkeyPatch):
+    from src.core.platform.common.exceptions import BusinessRuleError
+
+    service = _make_service(monkeypatch)
+    comment = service.post_comment(task_id="task-1", body="Will be removed")
+    service.delete_comment(comment.id)
+
+    with pytest.raises(BusinessRuleError):
+        service.react_to_comment(comment.id, "👍")

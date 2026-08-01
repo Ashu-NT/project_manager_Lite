@@ -999,7 +999,7 @@ def test_role_governance_migration_builds_namespace_and_delegation_schema(
     finally:
         engine.dispose()
 
-    assert revision == "4f20c1d95e8f"
+    assert revision == "8b2c3d4e5f6a"
     assert {
         "ux_roles_system_name",
         "ux_roles_tenant_name",

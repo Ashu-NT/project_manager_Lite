@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import field_validator, model_validator
 
@@ -133,6 +133,8 @@ class TaskAssignment:
     allocation_percent: float = 100.0
     hours_logged: float = 0.0
     project_resource_id: str | None = None
+    response_status: str = "pending"
+    responded_at: datetime | None = None
 
     @field_validator("task_id", mode="before")
     @classmethod
@@ -178,6 +180,33 @@ class TaskAssignment:
                 code="ASSIGNMENT_HOURS_INVALID",
             )
         return resolved
+
+    @field_validator("response_status", mode="before")
+    @classmethod
+    def _validate_response_status(cls, value: object) -> str:
+        normalized = normalize_optional_text(value).lower() or "pending"
+        if normalized not in {"pending", "accepted", "declined"}:
+            raise ValidationError(
+                "response_status must be one of: pending, accepted, declined.",
+                code="ASSIGNMENT_RESPONSE_STATUS_INVALID",
+            )
+        return normalized
+
+    @field_validator("responded_at", mode="before")
+    @classmethod
+    def _validate_responded_at(cls, value: object) -> datetime | None:
+        if value is None:
+            return None
+        if not isinstance(value, datetime):
+            raise ValidationError(
+                "responded_at must be a valid datetime.",
+                code="ASSIGNMENT_RESPONDED_AT_INVALID",
+            )
+        return value
+
+    @property
+    def is_response_pending(self) -> bool:
+        return self.response_status == "pending"
 
     @staticmethod
     def create(

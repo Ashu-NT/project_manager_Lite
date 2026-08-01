@@ -12,6 +12,8 @@ class TaskAssignmentDesktopDto:
     allocation_percent: float
     hours_logged: float
     project_resource_id: str | None
+    response_status: str = "pending"
+    response_status_label: str = "Pending"
 
 
 __all__ = ["TaskAssignmentDesktopDto"]

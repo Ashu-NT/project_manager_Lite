@@ -5,7 +5,10 @@ from __future__ import annotations
 from src.core.modules.project_management.application.collaboration import CollaborationService
 
 from src.core.modules.project_management.api.desktop.collaboration.commands.task_commands import (
+    TaskCollaborationDeleteCommand,
+    TaskCollaborationEditCommand,
     TaskCollaborationPostCommand,
+    TaskCollaborationReactionCommand,
 )
 from src.core.modules.project_management.api.desktop.collaboration.models.collaboration_models import (
     CollaborationWorkspaceSnapshotDto,
@@ -98,7 +101,13 @@ class ProjectManagementCollaborationDesktopApi:
                 serialize_presence_item(item)
                 for item in service.list_task_presence(normalized_task_id)
             ),
-            mention_options=tuple(
+            mention_options=(
+                TaskCollaborationMentionOptionDescriptor(
+                    value="everyone",
+                    label="@everyone  Notify everyone with access to this task",
+                ),
+            )
+            + tuple(
                 TaskCollaborationMentionOptionDescriptor(
                     value=candidate.handle,
                     label=candidate.label,
@@ -136,8 +145,57 @@ class ProjectManagementCollaborationDesktopApi:
             body=command.body,
             attachments=command.attachments,
             linked_document_ids=command.linked_document_ids,
+            parent_comment_id=getattr(command, "parent_comment_id", None),
         )
         linked_documents = service.list_comment_documents(normalized_task_id).get(comment.id, ())
+        return serialize_task_comment(comment, linked_documents=linked_documents)
+
+    def edit_task_comment(
+        self,
+        command: TaskCollaborationEditCommand,
+    ) -> TaskCollaborationCommentDesktopDto:
+        normalized_comment_id = (command.comment_id or "").strip()
+        if not normalized_comment_id:
+            raise ValueError("Comment ID is required to edit a collaboration update.")
+        service = self._require_collaboration_service()
+        comment = service.edit_comment(normalized_comment_id, command.body)
+        linked_documents = service.list_comment_documents(comment.task_id).get(comment.id, ())
+        return serialize_task_comment(comment, linked_documents=linked_documents)
+
+    def delete_task_comment(
+        self,
+        command: TaskCollaborationDeleteCommand,
+    ) -> TaskCollaborationCommentDesktopDto:
+        normalized_comment_id = (command.comment_id or "").strip()
+        if not normalized_comment_id:
+            raise ValueError("Comment ID is required to delete a collaboration update.")
+        service = self._require_collaboration_service()
+        comment = service.delete_comment(normalized_comment_id)
+        linked_documents = service.list_comment_documents(comment.task_id).get(comment.id, ())
+        return serialize_task_comment(comment, linked_documents=linked_documents)
+
+    def react_to_task_comment(
+        self,
+        command: TaskCollaborationReactionCommand,
+    ) -> TaskCollaborationCommentDesktopDto:
+        normalized_comment_id = (command.comment_id or "").strip()
+        if not normalized_comment_id:
+            raise ValueError("Comment ID is required to react to a collaboration update.")
+        service = self._require_collaboration_service()
+        comment = service.react_to_comment(normalized_comment_id, command.emoji)
+        linked_documents = service.list_comment_documents(comment.task_id).get(comment.id, ())
+        return serialize_task_comment(comment, linked_documents=linked_documents)
+
+    def remove_task_comment_reaction(
+        self,
+        command: TaskCollaborationReactionCommand,
+    ) -> TaskCollaborationCommentDesktopDto:
+        normalized_comment_id = (command.comment_id or "").strip()
+        if not normalized_comment_id:
+            raise ValueError("Comment ID is required to remove a reaction.")
+        service = self._require_collaboration_service()
+        comment = service.remove_reaction(normalized_comment_id, command.emoji)
+        linked_documents = service.list_comment_documents(comment.task_id).get(comment.id, ())
         return serialize_task_comment(comment, linked_documents=linked_documents)
 
     def _require_collaboration_service(self) -> CollaborationService:

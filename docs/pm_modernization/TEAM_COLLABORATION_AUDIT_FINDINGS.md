@@ -1,7 +1,18 @@
 # Team Collaboration Audit — Project Management Module
 
 Date: 2026-08-01
-Status: investigation complete, no code changes made as part of this document
+Status: investigation complete. **Update (2026-08-01): the core gap
+described in §2 ("nothing notifies anyone") has been closed for task
+assignment, @mentions, and approval request/decision** — see
+`TEAM_COLLABORATION_UPGRADE_PLAN.md`'s "Phase 1 implementation notes."
+**Further update (2026-08-01): Phase 0 (both integrity gaps) and Phase 4
+(comment edit/soft-delete/threading/reactions, @everyone/@team mentions,
+assignee accept/decline, and the dedicated audit-trail query) are also now
+implemented** — see that same plan doc's "Phase 0/Phase 4 implementation
+notes." The §3.3 checklist below is updated accordingly. Presence heartbeat,
+document versioning, and the "Delegate" approval-handoff concept remain open
+— the last of those was scoped and deliberately deferred as a separate,
+larger piece of work (see the Phase 4 notes for why).
 Relationship to `docs/pm_modernization/README.md`: that document's Workstream 8
 ("Portfolio, Collaboration, and Governance") and its Collaboration Workspace
 section (§9 of the detailed plan) describe collaboration at an aspirational,
@@ -68,20 +79,18 @@ composer) and then goes stale for up to 15 minutes if the user just leaves
 the task open. "Who's viewing this task" is accurate immediately after
 navigation and increasingly wrong the longer someone stays.
 
-### 1.4 Assignment safety — overallocation is enforced; skills are advisory only
+### 1.4 Assignment safety — overallocation and skills are both enforced server-side
 
 `_check_resource_overallocation()` runs **inside** `assign_resource`/
 `assign_project_resource`/`set_assignment_allocation` — a real, unbypassable
 domain-level check (warn or block, per `PM_OVERALLOCATION_POLICY`).
 
-`AssignmentSkillValidator` (skill/certification mismatch detection) exists
-and is real, but it is **not called from the assignment commands themselves**
-— it's only reachable via separate `validate_assignment`/`preview_assignment`
-desktop API methods that the assignment dialog calls *before* the user
-clicks "assign." A caller that skips the preview step (any future API
-consumer, a script, a different UI) can assign an unqualified/uncertified
-resource with no server-side check at all. This is an inconsistency worth
-fixing regardless of the notification gap below.
+**Update (2026-08-01, Phase 0):** `AssignmentSkillValidator` is now also
+called from inside `assign_project_resource` itself (not just the advisory
+`validate_assignment`/`preview_assignment` desktop API methods) — a BLOCK-mode
+violation raises `BusinessRuleError` server-side regardless of whether the
+caller checked first. See `TEAM_COLLABORATION_UPGRADE_PLAN.md`'s Phase 0
+implementation notes.
 
 ### 1.5 Document attachment on collaboration updates — works, no versioning
 
@@ -172,7 +181,16 @@ refresh or re-navigation into the relevant workspace/tab.**
 
 ## 3. Secondary findings
 
-### 3.1 A second, unguarded write path into the same comment table
+### 3.1 A second, unguarded write path into the same comment table — resolved 2026-08-01
+
+**Update:** confirmed dead-in-production (never resolved by any real desktop
+API/controller path — only its own tests read it) and deleted, along with
+its composition wiring. `CollaborationService` is now the sole comment-write
+path. See `TEAM_COLLABORATION_UPGRADE_PLAN.md`'s Phase 0 implementation
+notes.
+
+<details>
+<summary>Original finding (for history)</summary>
 
 `src/core/modules/project_management/infrastructure/collaboration_store.py`
 (`TaskCollaborationStore`) duplicates comment persistence with its own ad
@@ -187,13 +205,31 @@ bypassing every guarantee the main service enforces. Recommend either
 deleting it (if genuinely unused in production paths) or merging it into
 `CollaborationService` so there's one write path with one set of guarantees.
 
-### 3.2 Dead UI affordances suggesting unbuilt features
+</details>
+
+### 3.2 Dead UI affordances suggesting unbuilt features — partially resolved
+
+**Update (2026-08-01):** the backend concept "Assign" implicitly suggested
+(hand off a mention/inbox item to a task assignment) and what "Delegate"
+implicitly suggested (assignee accept/decline of a handoff) are now real:
+see Phase 4's assignee accept/decline implementation. The two buttons
+themselves are still `enabled: false` in QML — implementing "Assign" needs a
+new resource-picker popover UI (not just backend, which now exists);
+implementing "Delegate" as originally imagined (re-routing a pending
+*approval* decision to another approver) needs a new domain concept on
+`ApprovalRequest` that doesn't exist and wasn't part of this pass — see the
+Phase 4 notes for why that was deliberately scoped out rather than rushed.
+
+<details>
+<summary>Original finding (for history)</summary>
 
 The "Assign" quick action (Inbox/Mentions context menu) and "Delegate"
 (Approvals context menu) are visible in the QML but hardcoded
 `enabled: false` — chrome for a handoff/delegation feature that was never
 implemented. Leaving visibly-disabled buttons in an enterprise product reads
 as broken, not "coming soon."
+
+</details>
 
 ### 3.3 Enterprise feature checklist — present vs. absent
 
@@ -205,18 +241,18 @@ as broken, not "coming soon."
 | Multiple assignees per task | **Present** |
 | Overallocation check at assignment | **Present**, enforced server-side |
 | Document attach/link on comments | **Present**, no versioning |
-| Addressed notifications (assignment/mention/approval) | **Absent** |
-| Cross-session real-time refresh | **Absent** |
-| Comment edit | **Absent** |
-| Comment delete (soft or hard) | **Absent** |
-| Comment threading / reply-to | **Absent** (flat list only) |
-| Comment reactions | **Absent** |
-| @everyone / @team mentions | **Absent** (individual handles only) |
-| Assignee accept/decline of a handoff | **Absent** (one-directional push) |
-| Skill/certification check enforced server-side | **Absent** (advisory/UI-only) |
+| Addressed notifications (assignment/mention/approval) | **Present** (2026-08-01, Phase 1) |
+| Cross-session real-time refresh | **Absent** (Phase 2, needs a team decision) |
+| Comment edit | **Present** (2026-08-01, Phase 4) — author-only, sets an "edited" marker |
+| Comment delete (soft or hard) | **Present** (2026-08-01, Phase 4) — soft, moderation-permission gated |
+| Comment threading / reply-to | **Present** (2026-08-01, Phase 4), backend + API; QML reply UI not yet built |
+| Comment reactions | **Present** (2026-08-01, Phase 4), backend + API; QML reaction UI not yet built |
+| @everyone / @team mentions | **Present** (2026-08-01, Phase 4) |
+| Assignee accept/decline of a handoff | **Present** (2026-08-01, Phase 4), backend + desktop API; no QML action yet |
+| Skill/certification check enforced server-side | **Present** (2026-08-01, Phase 0) |
 | Task-level checklists/subtasks | **Absent** |
-| Document version history | **Absent** ("latest wins") |
-| Dedicated assignment/status audit trail | **Absent** (merged into generic activity log) |
+| Document version history | **Absent** ("latest wins") — platform-owned, out of this plan's scope |
+| Dedicated assignment/status audit trail | **Present** (2026-08-01, Phase 4) — query-level (`action_prefix`/`parent_entity_id` filters), not a new table |
 
 ---
 

@@ -1,9 +1,15 @@
 # Team Collaboration Upgrade Plan — For Team Evaluation
 
 Date: 2026-08-01
-Status: proposal — not started, no code changes made. This plan is written
-for the team to review, reprioritize, and approve before any implementation
-begins.
+Status: **Phase 1 implemented and verified (2026-08-01).** **Phase 0 (both
+items) and Phase 4 (all items except document version history, which stays
+out of scope per this plan's own README-ownership note) implemented and
+verified (2026-08-01)** — see "Phase 0 implementation notes" and "Phase 4
+implementation notes" at the end of their respective sections. Phase 2 and
+Phase 3 (cross-session delivery and real notification channels) remain
+proposals for the team to review — nothing in this pass touched them, since
+both explicitly require a team decision this plan cannot make on its own
+(see Phase 2's "Open question" and Phase 3's channel-scope question).
 Grounded in: `docs/pm_modernization/TEAM_COLLABORATION_AUDIT_FINDINGS.md`
 (read that first — every phase below cites a specific finding).
 Consistent with: `docs/pm_modernization/README.md`'s existing ownership
@@ -72,6 +78,40 @@ so there's exactly one comment-write code path with one set of guarantees.
 the usage question is answered — this is aligned with the README's guardrail
 "PM must not create duplicate ... systems."
 
+### Phase 0 implementation notes (2026-08-01)
+
+Both items shipped.
+
+**0.1 — skill/certification enforcement:** `TaskService`/`TaskAssignmentMixin`
+gained an `assignment_skill_validator` constructor param (wired at
+`project_registry.py`, reusing the same `AssignmentSkillValidator` instance
+already built for the advisory `validate_assignment`/`preview_assignment`
+desktop API methods — no new object, just a second reference to it).
+`assign_project_resource` now calls `_check_resource_skill_requirements()`
+immediately after the existing overallocation check, mirroring its exact
+shape: `result.is_blocked` → raises `BusinessRuleError` (code
+`ASSIGNMENT_SKILL_BLOCKED`) using the first blocking violation's message;
+`result.requires_approval` or non-blocking `result.warnings` → stashed in a
+new `_last_skill_violation_warning` / `consume_last_skill_violation_warning()`
+pair, exactly parallel to the existing overallocation-warning mechanism. No
+behavior change for tasks with zero skill requirements (the validator
+short-circuits to an empty, non-blocking result). Tests:
+`src/tests/project_management/test_assignment_skill_enforcement.py`.
+
+**0.2 — duplicate write path:** confirmed via full-repo trace that
+`TaskCollaborationStore` was dead-in-production — constructed and placed in
+the composition services dict, but never resolved by
+`ProjectManagementDesktopRuntimeServices`, any desktop API factory, or any
+controller; only its own unit tests and two regression tests read it
+directly. Deleted the class
+(`src/core/modules/project_management/infrastructure/collaboration_store.py`)
+and all composition wiring (`project_registry.py`, `app_container.py`).
+`CollaborationService` (backed by the tenant-scoped `TaskCommentRepository`)
+is now the sole comment-persistence path, as the audit recommended. The
+handful of tests that exercised the dead store directly were removed; the
+regression tests they lived in (import/timesheet cascade-delete behavior)
+were otherwise unaffected and remain green.
+
 ---
 
 ## Phase 1 — Wire PM into the real NotificationService (closes the core gap)
@@ -130,6 +170,60 @@ resolved by notifying *every user holding the deciding role/permission*, or
 does this need a real assignable-approver concept first? Recommend starting
 with "notify everyone who currently holds the deciding permission for that
 scope" — simplest, no schema change, and correct enough for a first version.
+
+### Phase 1 implementation notes (2026-08-01)
+
+Implemented as scoped above, with two decisions resolved during
+implementation (both confirmed by the team before coding):
+
+1. **Resource → user recipient gap (discovered during implementation, not
+   anticipated in the original plan):** neither `Resource` nor `Employee` had
+   any link to a real `UserAccount` — task-assignment notifications had no
+   resolvable recipient. Rather than skip this notification, the team asked
+   to close the gap: added a nullable `Employee.user_id` field (domain, ORM
+   column + index, migration `4f20c1d95e8f`, mapper, repository, and
+   `EmployeeService.create_employee`/`update_employee` + desktop API DTOs/
+   commands all threaded through). Task-assignment notifications resolve
+   `resource.employee_id → Employee.user_id` and no-op (log-free, by design)
+   when that link isn't set — most existing employees won't have it set
+   until someone links their account, which is expected and not a bug.
+2. **Approval notification wiring location:** implemented inside the shared
+   `ApprovalService` (not PM-only), per the team's choice — every module
+   using platform approvals benefits immediately.
+
+What shipped:
+- `src/core/shared/notifications/safe_dispatch.py` — a `safe_dispatch_notification(owner, ...)`
+  helper mirroring the existing `record_activity(owner, ...)` convention,
+  pulling `owner._notification_service` and swallowing/logging delivery
+  failures so a notification can never break the calling operation (same
+  guarantee `TenantMembershipService._safe_dispatch_notification` already
+  had, generalized).
+- `TaskService`/`CollaborationService`/`ApprovalService` all gained an
+  optional `notification_service` constructor param, wired at the
+  composition root (`project_registry.py`/`platform_registry.py`) from the
+  `NotificationService` instance that already existed.
+- `TaskAssignmentMixin.assign_project_resource` dispatches
+  `pm.task.assigned.v1` to the resolved assignee.
+- `CollaborationCommentCommandMixin.post_comment` dispatches
+  `pm.comment.mentioned.v1` to every `@mentioned` user except the comment's
+  own author.
+- `ApprovalService.request_change` fans out `approval.requested.v1` to every
+  user holding the `approval.decide` permission (tenant-scoped `approver`
+  role bindings plus platform-wide `admin` bindings), excluding the
+  requester. `reject`/`approve_and_apply` dispatch
+  `approval.rejected.v1`/`approval.approved.v1` back to the requester
+  (`ApprovalRequest.requested_by_user_id`), including the decision note when
+  present.
+- New tests: `src/tests/project_management/test_pm_assignment_and_mention_notifications.py`,
+  `src/tests/platform/test_approval_notification_dispatch.py`, plus the
+  `Employee.user_id` coverage folded into the existing employee test suite.
+  Full repo test suite re-run clean (same pre-existing, unrelated baseline
+  failures as before this work; zero regressions).
+
+Not done in this pass (intentionally, matches the plan's own scope): no
+delivery channels (Phase 3), no cross-session real-time delivery (Phase 2) —
+these remain in-app-only, pull-refreshed notifications for now, exactly as
+Phase 1 was scoped to deliver.
 
 ---
 
@@ -253,6 +347,96 @@ assignee-accept/decline workflow (highest value of the remaining items,
 since it turns a one-directional push into an actual collaborative
 handoff). Reactions and @everyone are genuinely optional polish — defer
 freely.
+
+### Phase 4 implementation notes (2026-08-01)
+
+Shipped: comment edit, comment soft-delete, comment threading, comment
+reactions, @everyone/@team mentions, assignee accept/decline, and the
+dedicated-audit-trail query enhancement. Deferred: document version history
+(unchanged from this doc's original scoping — platform-owned) and the
+"Delegate" approval quick-action (see below).
+
+**Comment edit + soft-delete + threading + reactions** (one combined pass,
+since they touch the same domain/ORM/repository/DTO files): `TaskComment`
+gained `parent_comment_id`, `updated_at`, `deleted_at`, and a
+`reactions: dict[emoji, [user_id, ...]]` field (domain, ORM columns +
+index, migration `7a1b2c3d4e5f`, mapper, and explicit field-copies in
+`SqlAlchemyTaskCommentRepository.update()`). New `CollaborationService`
+methods: `edit_comment` (author-only — enforced by comparing the current
+principal's `user_id` against `comment.author_user_id`, raising
+`OperationNotPermittedError` otherwise; re-resolves mentions against the
+edited body; sets `updated_at`), `delete_comment` (soft — sets `deleted_at`,
+idempotent; open to anyone holding `collaboration.manage`, i.e. moderation-
+capable, not author-restricted like edit — deleting spam/off-topic content
+is a different trust decision than rewriting someone else's words),
+`react_to_comment`/`remove_reaction` (toggle the current user's id into/out
+of `reactions[emoji]`, gated by `collaboration.read`). `post_comment` gained
+an optional `parent_comment_id` param, validated to belong to the same task.
+The desktop API/DTO/serializer layer surfaces all of this
+(`TaskCollaborationEditCommand`/`DeleteCommand`/`ReactionCommand`,
+`is_reply`/`is_edited`/`is_deleted`/`reactions` on the comment DTO — deleted
+comments render body as "This comment was deleted." at the serializer, not
+by mutating the stored text, so the original remains in the DB for audit).
+Controller/presenter/command-handler plumbing
+(`editTaskComment`/`deleteTaskComment`/`reactToTaskComment`/
+`removeTaskCommentReaction` slots, and the view-model now carries
+`authorUserId`/`parentCommentId`/`isEdited`/`isDeleted`/`reactions` in each
+row's `state`) is fully wired end-to-end so QML can call these today.
+**Not done in this pass:** the actual QML buttons/reply-composer/reaction-
+picker UI. The audit already noted the shared `ActivityFeed` widget used for
+the comment list doesn't even render the comment body/subtitle today — building
+real edit/delete/reply/react affordances needs either a dedicated comment-row
+component or a meaningfully extended `ActivityFeed`, which is a genuine UI
+task in its own right, not a mechanical follow-on. Recommend scoping that as
+a focused "Collaboration workspace comment UI" ticket now that every API it
+would call already exists and is tested.
+
+**@everyone / @team mentions:** `resolve_mentions()` special-cases the
+literal tokens `everyone`/`team` to expand to every candidate's `user_id`
+(no signature change — still returns the same 3-tuple), so existing callers
+were untouched. The mention-picker option list
+(`build_task_snapshot().mention_options`) now always includes an "@everyone"
+entry first.
+
+**Assignee accept/decline:** `TaskAssignment` gained `response_status`
+(`pending`/`accepted`/`declined`, default `pending` so existing assignments
+and every test that creates one are unaffected — nothing today reads or
+gates on this field) and `responded_at` (migration `8b2c3d4e5f6a`).
+`TaskAssignmentMixin.accept_assignment`/`decline_assignment` resolve the
+assignment → resource → `Employee.user_id` chain (the same link Phase 1
+added) and only allow the assignee's own linked user account to respond
+(`OperationNotPermittedError` otherwise; `BusinessRuleError` if the resource
+has no linked user at all, since there's no one to ask). Desktop API:
+`ProjectManagementTasksDesktopApi.accept_assignment`/`decline_assignment`.
+
+**Dedicated assignment/status audit trail:** rather than a new table (the
+generic `activity_entries` table + `record_activity` plumbing already had
+everything needed once two small gaps closed), added `action_prefix` and
+`parent_entity_id` filter params to `ActivityRepository.list_recent` /
+`ActivityService.list_recent` (pushed down to SQL, not filtered in Python),
+and `record_assignment_action` now accepts and forwards a `task_id` as
+`parent_entity_id` (previously always `None`). A per-task assignment-history
+view is now a single `activity_service.list_recent(entity_type="task_assignment",
+parent_entity_id=task_id)` call instead of a synthetic client-side join.
+
+**"Assign"/"Delegate" dead buttons — deliberately not implemented this
+pass:** the audit's research confirmed these need genuinely different
+amounts of work. "Assign" (mentions/inbox row → directly assign the
+underlying task) is small and could reuse `assign_project_resource`
+end-to-end, but still needs a new resource-picker popover and controller
+slot — real UI work, not a backend gap. "Delegate" (approvals row → hand a
+pending decision to someone else) needs a **brand-new domain concept from
+scratch**: `ApprovalRequest` has no delegation/reassignment field or
+service method today, and the platform's existing `RoleDelegationPolicy` is
+an unrelated concept (who may grant which roles, not per-request handoff).
+Building it means a new field/entity on the approval domain, a new
+authorization rule for who may accept a delegated decision, and its own
+notification wiring — a scope roughly comparable to a phase of its own, not
+a button fix. Recommend the team scope "Delegate" as its own ticket with an
+explicit design decision (field on `ApprovalRequest` vs. a separate
+`ApprovalDelegation` entity) rather than have it implemented as a
+side-effect of this backlog pass. Leaving both buttons `enabled: false` for
+now remains accurate — nothing about their disabled state changed.
 
 ---
 

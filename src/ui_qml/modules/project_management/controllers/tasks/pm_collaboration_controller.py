@@ -153,6 +153,50 @@ class PMCollaborationController(QObject):
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot("QVariantMap", result="QVariantMap")
+    def editTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.edit_task_comment(dict(payload)),
+            success_message="Comment updated.",
+            on_success=self._facade_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def deleteTaskComment(self, comment_id: str) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.delete_task_comment(comment_id),
+            success_message="Comment deleted.",
+            on_success=self._facade_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def reactToTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.react_to_task_comment(dict(payload)),
+            success_message="Reaction added.",
+            on_success=self._facade_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def removeTaskCommentReaction(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.remove_task_comment_reaction(dict(payload)),
+            success_message="Reaction removed.",
+            on_success=self._facade_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
     @Slot(str, result="QVariantMap")
     def markTaskCollaborationRead(self, task_id: str) -> dict[str, object]:
         return run_mutation(

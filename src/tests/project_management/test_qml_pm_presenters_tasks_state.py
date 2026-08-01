@@ -87,7 +87,8 @@ def test_pm_tasks_detail_loading(tmp_path: Path, qapp) -> None:
 
     controller.loadSelectedTaskCollaboration()
 
-    assert controller.collaborationMentionOptions[0]["value"] == "planner"
+    assert controller.collaborationMentionOptions[0]["value"] == "everyone"
+    assert controller.collaborationMentionOptions[1]["value"] == "planner"
     assert controller.collaborationDocumentOptions[0]["value"] == "doc-1"
     assert controller.collaborationComments["items"][0]["title"] == "@jamie"
     assert controller.collaborationPresence["items"][0]["title"] == "Alex Taylor (@planner)"

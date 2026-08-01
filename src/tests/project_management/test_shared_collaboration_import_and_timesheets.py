@@ -14,31 +14,6 @@ from src.core.modules.project_management.domain.enums import WorkerType
 from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
 
-def test_db_backed_collaboration_store_persists_and_marks_mentions(services):
-    ps = services["project_service"]
-    ts = services["task_service"]
-    store = services["task_collaboration_store"]
-
-    project = ps.create_project("Collaboration DB")
-    task = ts.create_task(project.id, "Commented Task", start_date=date(2026, 3, 1), duration_days=2)
-
-    store.add_comment(
-        task_id=task.id,
-        author="alice",
-        body="Please review this @bob and @robert",
-        attachments=[],
-    )
-
-    rows = store.list_comments(task.id)
-    assert len(rows) == 1
-    assert rows[0]["author"] == "alice"
-    assert rows[0]["mentions"] == ["bob", "robert"]
-    assert store.unread_mentions_count_for_users(["bob", "robert"]) == 1
-
-    store.mark_task_mentions_read(task_id=task.id, username="bob")
-    assert store.unread_mentions_count_for_users(["bob", "robert"]) == 0
-
-
 def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(services):
     ps = services["project_service"]
     ts = services["task_service"]

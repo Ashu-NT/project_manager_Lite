@@ -73,7 +73,7 @@ class _FakeCollaborationService:
     def clear_task_presence(self, task_id: str) -> None:
         self.cleared_presence.append(task_id)
 
-    def post_comment(self, *, task_id, body, attachments=(), linked_document_ids=()) -> SimpleNamespace:
+    def post_comment(self, *, task_id, body, attachments=(), linked_document_ids=(), parent_comment_id=None) -> SimpleNamespace:
         comment = SimpleNamespace(id="comment-1", task_id=task_id, author_username="alex", body=body, mentions=[], attachments=list(attachments), created_at=datetime(2026, 5, 1, 10, 15))
         self._comments.append(comment)
         return comment

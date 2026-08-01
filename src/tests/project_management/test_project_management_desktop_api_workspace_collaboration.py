@@ -69,7 +69,8 @@ def test_project_management_collaboration_desktop_api_builds_snapshot_and_marks_
     assert task_snapshot.comments[0].linked_documents_label == (
         "procedure.pdf [General | File], ticket-123 [General | Reference]"
     )
-    assert task_snapshot.mention_options[0].value == "planner"
+    assert task_snapshot.mention_options[0].value == "everyone"
+    assert task_snapshot.mention_options[1].value == "planner"
     assert task_snapshot.document_options[0].label == "PM-LINK-001 - Shared Method Statement"
 
     posted = api.post_task_comment(
@@ -260,6 +261,7 @@ class _FakeCollaborationService:
         body: str,
         attachments=(),
         linked_document_ids=(),
+        parent_comment_id=None,
     ) -> SimpleNamespace:
         self.posted_comments.append(
             {

@@ -91,6 +91,7 @@ class TaskService(
         module_catalog_service=None,
         notification_service=None,
         employee_repo=None,
+        assignment_skill_validator=None,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -111,13 +112,20 @@ class TaskService(
         self._module_catalog_service = module_catalog_service
         self._notification_service = notification_service
         self._employee_repo = employee_repo
+        self._assignment_skill_validator = assignment_skill_validator
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
         self._last_overallocation_warning: str | None = None
+        self._last_skill_violation_warning: str | None = None
 
     def consume_last_overallocation_warning(self) -> str | None:
         warning = self._last_overallocation_warning
         self._last_overallocation_warning = None
+        return warning
+
+    def consume_last_skill_violation_warning(self) -> str | None:
+        warning = self._last_skill_violation_warning
+        self._last_skill_violation_warning = None
         return warning
 
 

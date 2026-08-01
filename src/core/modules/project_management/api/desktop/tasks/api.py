@@ -376,6 +376,28 @@ class ProjectManagementTasksDesktopApi:
     def delete_assignment(self, assignment_id: str) -> None:
         self._require_task_method("unassign_resource")(assignment_id)
 
+    def accept_assignment(self, assignment_id: str) -> TaskAssignmentDesktopDto:
+        assignment = self._require_task_method("accept_assignment")(assignment_id)
+        return serialize_assignment(
+            assignment,
+            resources_by_id=resource_by_id(
+                resource_service=self._resource_service,
+                task_service=self._task_service,
+                resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
+            ),
+        )
+
+    def decline_assignment(self, assignment_id: str, reason: str = "") -> TaskAssignmentDesktopDto:
+        assignment = self._require_task_method("decline_assignment")(assignment_id, reason or None)
+        return serialize_assignment(
+            assignment,
+            resources_by_id=resource_by_id(
+                resource_service=self._resource_service,
+                task_service=self._task_service,
+                resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
+            ),
+        )
+
     def list_dependencies(self, task_id: str) -> tuple[TaskDependencyDesktopDto, ...]:
         if not task_id:
             return ()

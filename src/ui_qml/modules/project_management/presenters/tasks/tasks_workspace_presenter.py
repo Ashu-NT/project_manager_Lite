@@ -26,8 +26,12 @@ from .assignments_builder import build_task_assignments_state
 from .collaboration_builder import build_task_collaboration_state
 from .collaboration_command_handler import (
     clear_task_collaboration_presence,
+    delete_task_comment,
+    edit_task_comment,
     mark_task_collaboration_read,
     post_task_comment,
+    react_to_task_comment,
+    remove_task_comment_reaction,
     touch_task_collaboration_presence,
 )
 from .dependency_command_handler import (
@@ -281,6 +285,18 @@ class ProjectTasksWorkspacePresenter:
 
     def post_task_comment(self, payload: dict[str, Any]) -> None:
         post_task_comment(self._collaboration_desktop_api, payload)
+
+    def edit_task_comment(self, payload: dict[str, Any]) -> None:
+        edit_task_comment(self._collaboration_desktop_api, payload)
+
+    def delete_task_comment(self, comment_id: str) -> None:
+        delete_task_comment(self._collaboration_desktop_api, comment_id)
+
+    def react_to_task_comment(self, payload: dict[str, Any]) -> None:
+        react_to_task_comment(self._collaboration_desktop_api, payload)
+
+    def remove_task_comment_reaction(self, payload: dict[str, Any]) -> None:
+        remove_task_comment_reaction(self._collaboration_desktop_api, payload)
 
     def mark_task_collaboration_read(self, task_id: str) -> None:
         mark_task_collaboration_read(self._collaboration_desktop_api, task_id)

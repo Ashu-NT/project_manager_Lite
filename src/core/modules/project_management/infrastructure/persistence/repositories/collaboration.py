@@ -88,6 +88,10 @@ class SqlAlchemyTaskCommentRepository(TaskCommentRepository):
         row.read_by_json = mapped.read_by_json
         row.read_by_user_ids_json = mapped.read_by_user_ids_json
         row.created_at = mapped.created_at
+        row.parent_comment_id = mapped.parent_comment_id
+        row.updated_at = mapped.updated_at
+        row.deleted_at = mapped.deleted_at
+        row.reactions_json = mapped.reactions_json
 
     def get(self, comment_id: str) -> TaskComment | None:
         stmt = self._project_scoped_stmt().where(TaskCommentORM.id == comment_id)

@@ -34,6 +34,8 @@ class SqlAlchemyActivityRepository(TenantScopedRepositorySupport, ActivityReposi
         entity_id: str | None = None,
         module: str | None = None,
         workspace_id: str | None = None,
+        parent_entity_id: str | None = None,
+        action_prefix: str | None = None,
     ) -> list[ActivityEntry]:
         stmt = select(ActivityEntryORM)
         if tenant_id is not None:
@@ -48,6 +50,10 @@ class SqlAlchemyActivityRepository(TenantScopedRepositorySupport, ActivityReposi
             stmt = stmt.where(ActivityEntryORM.module == module)
         if workspace_id is not None:
             stmt = stmt.where(ActivityEntryORM.workspace_id == workspace_id)
+        if parent_entity_id is not None:
+            stmt = stmt.where(ActivityEntryORM.parent_entity_id == parent_entity_id)
+        if action_prefix is not None:
+            stmt = stmt.where(ActivityEntryORM.action.startswith(action_prefix))
         stmt = stmt.order_by(ActivityEntryORM.timestamp.desc()).limit(max(1, int(limit)))
         rows = self.session.execute(stmt).scalars().all()
         return [activity_from_orm(row) for row in rows]
