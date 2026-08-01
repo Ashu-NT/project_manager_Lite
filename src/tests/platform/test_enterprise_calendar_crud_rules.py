@@ -129,7 +129,31 @@ def rule_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def assignment_service(db_session, repos, mock_user_session):
+def seeded_assignment_entities(db_session, org_id):
+    from datetime import datetime, timezone
+
+    from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
+
+    now = datetime.now(timezone.utc)
+    db_session.add_all(
+        [
+            SiteORM(
+                id=site_id,
+                tenant_id="tenant-platform-foundation",
+                organization_id=org_id,
+                site_code=site_id,
+                name=site_id,
+                created_at=now,
+                updated_at=now,
+            )
+            for site_id in ("site-x",)
+        ]
+    )
+    db_session.flush()
+
+
+@pytest.fixture
+def assignment_service(db_session, repos, mock_user_session, seeded_assignment_entities):
     from unittest.mock import MagicMock
     pm_proj_repo = MagicMock()
     pm_proj_repo.save.return_value = None

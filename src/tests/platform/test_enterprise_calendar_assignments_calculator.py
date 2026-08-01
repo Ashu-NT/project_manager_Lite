@@ -122,7 +122,56 @@ def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
 
 
 @pytest.fixture
-def assignment_service(db_session, repos, mock_user_session):
+def seeded_assignment_entities(db_session, org_id):
+    from datetime import datetime, timezone
+
+    from src.core.platform.infrastructure.persistence.orm.departments import DepartmentORM
+    from src.core.platform.infrastructure.persistence.orm.employee import EmployeeORM
+    from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
+
+    tenant_id = "tenant-platform-foundation"
+    now = datetime.now(timezone.utc)
+    db_session.add_all(
+        [
+            SiteORM(
+                id=site_id,
+                tenant_id=tenant_id,
+                organization_id=org_id,
+                site_code=site_id,
+                name=site_id,
+                created_at=now,
+                updated_at=now,
+            )
+            for site_id in ("site-hamburg", "site-x")
+        ]
+        + [
+            DepartmentORM(
+                id=dept_id,
+                tenant_id=tenant_id,
+                organization_id=org_id,
+                department_code=dept_id,
+                name=dept_id,
+                created_at=now,
+                updated_at=now,
+            )
+            for dept_id in ("dept-eng",)
+        ]
+        + [
+            EmployeeORM(
+                id=emp_id,
+                tenant_id=tenant_id,
+                organization_id=org_id,
+                employee_code=emp_id,
+                full_name=emp_id,
+            )
+            for emp_id in ("emp-jsmith",)
+        ]
+    )
+    db_session.flush()
+
+
+@pytest.fixture
+def assignment_service(db_session, repos, mock_user_session, seeded_assignment_entities):
     from unittest.mock import MagicMock
     pm_proj_repo = MagicMock()
     pm_proj_repo.save.return_value = None
