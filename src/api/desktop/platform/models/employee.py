@@ -17,8 +17,8 @@ class EmployeeDto:
     email: str | None
     phone: str | None
     is_active: bool
-    user_id: str | None
     version: int
+    user_id: str | None = None
 
 
 @dataclass(frozen=True)
