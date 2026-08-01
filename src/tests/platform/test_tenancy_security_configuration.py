@@ -11,7 +11,6 @@ from src.core.platform.tenancy.context_policy import (
 from src.core.platform.tenancy.domain.tenant import Tenant
 from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.infra.platform.security_config import (
-    AuthorizationMigrationMode,
     DeploymentEnvironment,
     RuntimeSecurityConfigurationError,
     load_runtime_security_configuration,
@@ -39,10 +38,6 @@ def test_development_defaults_to_local_single_tenant() -> None:
 
     assert configuration.deployment_environment is DeploymentEnvironment.DEVELOPMENT
     assert configuration.tenancy_mode is TenancyMode.LOCAL_SINGLE_TENANT
-    assert (
-        configuration.authorization_migration_mode
-        is AuthorizationMigrationMode.LEGACY_AUTHORITATIVE
-    )
 
 
 def test_production_requires_explicit_tenancy_mode() -> None:
@@ -54,33 +49,10 @@ def test_production_requires_explicit_tenancy_mode() -> None:
 
 
 @pytest.mark.parametrize(
-    "mode",
-    (
-        "CANONICAL_SHADOW",
-        "CANONICAL_AUTHORITATIVE",
-        "CANONICAL_ONLY",
-    ),
-)
-def test_reserved_authorization_mode_fails_until_implemented(mode: str) -> None:
-    with pytest.raises(
-        RuntimeSecurityConfigurationError,
-        match="reserved but not operationally implemented",
-    ):
-        load_runtime_security_configuration(
-            {
-                "PM_DEPLOYMENT_ENV": "production",
-                "PM_TENANCY_MODE": "saas",
-                "PM_AUTHORIZATION_MIGRATION_MODE": mode,
-            }
-        )
-
-
-@pytest.mark.parametrize(
     ("variable", "value"),
     (
         ("PM_DEPLOYMENT_ENV", "staging"),
         ("PM_TENANCY_MODE", "automatic"),
-        ("PM_AUTHORIZATION_MIGRATION_MODE", "fallback"),
     ),
 )
 def test_invalid_security_configuration_fails_fast(
@@ -90,7 +62,6 @@ def test_invalid_security_configuration_fails_fast(
     values = {
         "PM_DEPLOYMENT_ENV": "test",
         "PM_TENANCY_MODE": "local_single_tenant",
-        "PM_AUTHORIZATION_MIGRATION_MODE": "LEGACY_AUTHORITATIVE",
         variable: value,
     }
 

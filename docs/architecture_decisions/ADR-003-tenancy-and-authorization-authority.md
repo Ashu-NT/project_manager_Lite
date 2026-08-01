@@ -11,9 +11,14 @@ role-binding foundation. These mechanisms cannot safely remain implicit or becom
 sources of authority.
 
 The codebase currently enforces several containment controls, but Phases 0, 1, and 2 of the
-hardening program remain in progress. In particular,
-`PM_AUTHORIZATION_MIGRATION_MODE` is parsed but only legacy authorization decisions are
-implemented. Selecting another value does not yet activate canonical behavior.
+hardening program remain in progress.
+
+Update, 2026-08-01: the direct prelaunch-cutover decision (see the Tenancy and RBAC Hardening
+README) superseded the staged legacy-to-canonical migration-mode plan this ADR originally
+assumed. `PM_AUTHORIZATION_MIGRATION_MODE` and its `AuthorizationMigrationMode` switch have been
+removed entirely rather than collapsed to a single operational value, since every resource and
+organization scope is now canonical and no staged/shadow/observation-window mode was ever
+implemented or used.
 
 This ADR freezes deployment mode, administrative boundaries, canonical scope semantics,
 migration gates, evidence ownership, and rollback rules. Detailed findings and implementation

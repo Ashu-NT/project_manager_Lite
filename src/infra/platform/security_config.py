@@ -18,37 +18,10 @@ class DeploymentEnvironment(str, Enum):
     PRODUCTION = "production"
 
 
-class AuthorizationMigrationMode(str, Enum):
-    # RBAC-TRANSITION-ONLY: Collapse this switch after CANONICAL_ONLY has
-    # completed its observation and evidence-retention gates.
-    LEGACY_AUTHORITATIVE = "LEGACY_AUTHORITATIVE"
-    CANONICAL_SHADOW = "CANONICAL_SHADOW"
-    CANONICAL_AUTHORITATIVE = "CANONICAL_AUTHORITATIVE"
-    CANONICAL_ONLY = "CANONICAL_ONLY"
-
-
-OPERATIONAL_AUTHORIZATION_MIGRATION_MODES = frozenset(
-    {AuthorizationMigrationMode.LEGACY_AUTHORITATIVE}
-)
-
-
 @dataclass(frozen=True)
 class RuntimeSecurityConfiguration:
     deployment_environment: DeploymentEnvironment
     tenancy_mode: TenancyMode
-    authorization_migration_mode: AuthorizationMigrationMode
-
-
-def ensure_operational_authorization_migration_mode(
-    mode: AuthorizationMigrationMode,
-) -> None:
-    if mode in OPERATIONAL_AUTHORIZATION_MIGRATION_MODES:
-        return
-    raise RuntimeSecurityConfigurationError(
-        "PM_AUTHORIZATION_MIGRATION_MODE="
-        f"{mode.value} is reserved but not operationally implemented. "
-        "Use LEGACY_AUTHORITATIVE until its transition gates are implemented."
-    )
 
 
 def _parse_enum(
@@ -91,31 +64,15 @@ def load_runtime_security_configuration(
         TenancyMode,
         variable_name="PM_TENANCY_MODE",
     )
-    authorization_migration_mode = _parse_enum(
-        values.get(
-            "PM_AUTHORIZATION_MIGRATION_MODE",
-            AuthorizationMigrationMode.LEGACY_AUTHORITATIVE.value,
-        ),
-        AuthorizationMigrationMode,
-        variable_name="PM_AUTHORIZATION_MIGRATION_MODE",
-        uppercase=True,
-    )
-    ensure_operational_authorization_migration_mode(
-        authorization_migration_mode
-    )
     return RuntimeSecurityConfiguration(
         deployment_environment=deployment_environment,
         tenancy_mode=tenancy_mode,
-        authorization_migration_mode=authorization_migration_mode,
     )
 
 
 __all__ = [
-    "AuthorizationMigrationMode",
     "DeploymentEnvironment",
-    "OPERATIONAL_AUTHORIZATION_MIGRATION_MODES",
     "RuntimeSecurityConfiguration",
     "RuntimeSecurityConfigurationError",
-    "ensure_operational_authorization_migration_mode",
     "load_runtime_security_configuration",
 ]

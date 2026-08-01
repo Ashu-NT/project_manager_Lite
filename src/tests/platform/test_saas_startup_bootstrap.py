@@ -7,7 +7,6 @@ from src.core.platform.tenancy import Tenant, TenancyMode
 from src.infra.composition.platform_registry import build_platform_service_bundle
 from src.infra.composition.repositories import build_repository_bundle
 from src.infra.platform.security_config import (
-    AuthorizationMigrationMode,
     DeploymentEnvironment,
     RuntimeSecurityConfiguration,
 )
@@ -17,9 +16,6 @@ def _security_configuration(mode: TenancyMode) -> RuntimeSecurityConfiguration:
     return RuntimeSecurityConfiguration(
         deployment_environment=DeploymentEnvironment.TEST,
         tenancy_mode=mode,
-        authorization_migration_mode=(
-            AuthorizationMigrationMode.LEGACY_AUTHORITATIVE
-        ),
     )
 
 

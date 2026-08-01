@@ -27,7 +27,6 @@ from src.core.platform.documents.domain import (
 from src.core.platform.documents.domain.document_link import (
     normalize_document_entity_id as _normalize_document_entity_id,
     normalize_document_entity_type as _normalize_document_entity_type,
-    normalize_document_link_role as _normalize_document_link_role,
     normalize_document_module_code as _normalize_document_module_code,
 )
 from src.core.platform.documents.support import (

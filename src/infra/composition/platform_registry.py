@@ -67,7 +67,6 @@ from src.infra.platform.security_audit_recorder import (
 )
 from src.infra.platform.security_config import (
     RuntimeSecurityConfiguration,
-    ensure_operational_authorization_migration_mode,
     load_runtime_security_configuration,
 )
 
@@ -195,15 +194,10 @@ def build_platform_service_bundle(
     security_configuration = (
         runtime_security_configuration or load_runtime_security_configuration()
     )
-    ensure_operational_authorization_migration_mode(
-        security_configuration.authorization_migration_mode
-    )
     logger.info(
-        "Runtime security configuration deployment_environment=%s tenancy_mode=%s "
-        "authorization_migration_mode=%s",
+        "Runtime security configuration deployment_environment=%s tenancy_mode=%s",
         security_configuration.deployment_environment.value,
         security_configuration.tenancy_mode.value,
-        security_configuration.authorization_migration_mode.value,
     )
     user_session = UserSessionContext()
     security_denial_recorder = DurableSecurityDenialRecorder.for_session(

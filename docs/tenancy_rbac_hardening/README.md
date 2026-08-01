@@ -2,25 +2,27 @@
 
 Date: 2026-07-27
 
-Status: Approved target architecture; Phases 0, 1, and 2 are all in progress.
-Configuration, replacement provisioning, explicit-context principal rebuilding, atomic context
-switching, sensitive target-user boundaries, direct customer onboarding containment, platform
-tenant authority separation, versioned system-role reconciliation, and mode-specific startup
-cutover are implemented. The additive canonical role metadata, tenant-safe role namespaces,
-role-binding schema, and explicit version/hash-pinned delegation foundation are implemented
-without changing customer decision authority. The application is prelaunch and has no customer data, so
-the earlier production-style backfill, dual-write, shadow-authority, observation-window, and
-per-row rollback-evidence plan is superseded by the direct canonical cutover decision below.
-The permanent canonical resolver and direct platform-role authority cutover are implemented.
-Tenant, organization, and resource authority, customer custom-role administration, invitation
-delivery, and mandatory legacy/transition-code removal remain pending.
+Status (updated 2026-08-01): The direct-cutover program is complete. Every resource and
+organization scope (organization, project, site, storeroom, maintenance) routes authority
+exclusively through canonical `role_bindings`. The in-app notification/invitation-delivery
+adapter is built. Fixtures/seed data are audited, the full consolidated test suite passes, the
+local dev database was explicitly reset to prove correct canonical state from empty, and every
+`RBAC-TRANSITION-ONLY` component plus the dead `ScopedAccessGrant`/`ProjectMembership`
+persistence layer has been deleted via a dedicated cleanup Alembic migration. One item is
+deliberately deferred as its own separate follow-up (collapsing `AuthorizationMigrationMode` —
+see the decommission register below); it is not a prelaunch-release blocker. Delegation-policy
+provisioning (`tools/provision_scope_delegations.py --apply`) and invitation-notification
+provisioning still need to run against every deployed environment other than local
+development.
 
 Owners: Platform, Security, Persistence, API, Desktop UI, and module teams.
 
 Governing decision:
 [ADR-003: Tenancy and Authorization Authority](../architecture_decisions/ADR-003-tenancy-and-authorization-authority.md).
-Operational procedure:
-[ADR-003 Operational Evidence Runbook](ADR-003_OPERATIONAL_EVIDENCE.md).
+The operational evidence runbook for the superseded staged legacy-to-canonical migration
+tooling was deleted on 2026-08-01 along with that tooling (see the 2026-08-01 ledger entry
+below) — this program used a direct prelaunch cutover instead, so no such evidence exists to
+document.
 
 ## Executive Decision
 
@@ -1035,17 +1037,24 @@ Every temporary migration implementation must carry the searchable marker
 allowed. Closing the migration includes a dedicated dead-code removal change; reaching
 `CANONICAL_ONLY` does not by itself make cleanup complete.
 
+**Done on 2026-08-01** (see the dated ledger entry below for the full account):
+
+| Transition-only component | Removal gate | Outcome |
+| --- | --- | --- |
+| `UserRoleBinding`, `UserRoleORM`, `UserRoleRepository`, and their SQLAlchemy adapter | Canonical resource fixtures/adapters and isolation tests pass; superseded preparation tooling is deleted; no source reference remains | Deleted; `user_roles` table dropped by the cleanup migration |
+| Legacy scoped-grant/project-membership projection in principal construction | Canonical bindings own organization viewer/member and resource authority as well as login, restore, tenant switch, and organization switch | Deleted; `principal_builder` now reads `canonical_authority.scoped_access` directly |
+| `AccessControlService`'s legacy `ScopedAccessGrant`/`ProjectMembership` write/read branches, plus the underlying persistence layer (confirmed unreachable in production) | Desktop API/QML adapters consume canonical role names directly for every cut-over scope type | Legacy branches, `ProjectMembership` domain class, both repository ABCs, both SQLAlchemy repos, and their ORM/mapper deleted. The `ScopedAccessGrant`-shaped translation shim itself **stays** — desktop API/QML still consume that shape |
+| `CollaborationSupportMixin`'s legacy `project_membership_repo` fallback in `_list_mention_candidates_for_project` | Every `CollaborationService` construction site supplies `role_repo`/`role_binding_repo` | Deleted; canonical-only, returns no candidates when those collaborators aren't wired |
+| `AuthorizationMigrationBatch`, `LegacyRoleBindingMigrationRecord`, their ORM/repository adapters, and runtime tables | Direct cutover no longer imports legacy rows; cleanup revision is ready | Deleted; tables dropped by the cleanup migration |
+| Legacy binding migration planner, preparation service, operator CLI, and focused tests | Canonical fixture/seed paths are complete and direct cutover tests pass | Deleted (`role_binding_migration_plan.py`, `role_binding_migration_preparation.py`, `tools/prepare_role_binding_migration.py`, their tests) |
+| Transition-evidence manifest verifier, CLI, focused tests, and runbook | Prelaunch direct-cutover checks replace staged promotion evidence | Deleted (`authorization_transition_evidence.py`, `tools/verify_authorization_transition_evidence.py`, its test, `ADR-003_OPERATIONAL_EVIDENCE.md`) |
+| Legacy-specific probes in the tenancy/RBAC inventory | Legacy tables are dropped and permanent tenant-isolation inventory remains | Deleted; `build_tenancy_rbac_inventory` keeps only permanent findings (canonical bindings, membership lifecycle, tenant-role duplication) |
+
+**Still open, deliberately deferred** (not a prelaunch-release blocker; tracked separately):
+
 | Transition-only component | Removal gate | What must be preserved |
 | --- | --- | --- |
-| `UserRoleBinding`, `UserRoleORM`, `UserRoleRepository`, and their SQLAlchemy adapter | Canonical resource fixtures/adapters and isolation tests pass; superseded preparation tooling is deleted; no source reference remains | Nothing; no customer migration evidence exists |
-| Legacy scoped-grant/project-membership projection in principal construction | Canonical bindings own organization viewer/member and resource authority as well as login, restore, tenant switch, and organization switch | Permanent canonical resolver and platform/tenant/organization-role regression tests |
-| `AccessControlService`'s `ScopedAccessGrant`-shaped translation for `_CANONICAL_SCOPE_TYPES` (project, and each following cut-over scope) | Desktop API/QML adapters consume canonical role names directly for every cut-over scope type | Permanent `RoleGovernanceService`/`CanonicalRoleResolver` cutover and their regression tests |
-| `CollaborationSupportMixin`'s legacy `project_membership_repo` fallback in `_list_mention_candidates_for_project` | Every `CollaborationService` construction site supplies `role_repo`/`role_binding_repo` | Canonical project-membership mention resolution |
-| `AuthorizationMigrationMode`, `PM_AUTHORIZATION_MIGRATION_MODE`, and mode-gating branches/tests | Every runtime decision is canonical and configuration no longer consumes the switch | Nothing |
-| `AuthorizationMigrationBatch`, `LegacyRoleBindingMigrationRecord`, their ORM/repository adapters, and runtime tables | Direct cutover no longer imports legacy rows; cleanup revision is ready | Alembic revision history only |
-| Legacy binding migration planner, preparation service, operator CLI, and focused tests | Canonical fixture/seed paths are complete and direct cutover tests pass | Nothing |
-| Transition-evidence manifest verifier, CLI, focused tests, and runbook | Prelaunch direct-cutover checks replace staged promotion evidence | Nothing |
-| Legacy-specific probes in the tenancy/RBAC inventory | Legacy tables are dropped and permanent tenant-isolation inventory remains | General tenant-isolation inventory |
+| `AuthorizationMigrationMode`, `PM_AUTHORIZATION_MIGRATION_MODE`, and mode-gating branches/tests | Every runtime decision is canonical and configuration no longer consumes the switch | Nothing — but collapsing it touches the shared `conftest.py` fixture used by nearly every test in the repo, plus the unmarked `tools/reconcile_role_policy.py` |
 
 The system-role policy reconciliation command is **not** transition-only; controlled role-policy
 updates remain necessary after canonical cutover. Applied Alembic revision files are immutable
@@ -2287,24 +2296,57 @@ no longer per-scope; it is:
    that principal's own user id, not a shared secret) plus `list_my_pending_invitations()` so
    the in-app flow never needs the bearer token at all. The original `accept_invitation(token)`
    stays for a possible future out-of-band (e.g. emailed-link) delivery channel.
-3. Update fixtures and seed data, run migration-created and cross-tenant tests, explicitly
+3. ~~Update fixtures and seed data, run migration-created and cross-tenant tests, explicitly
    reset development databases, then delete every transition-only and legacy-authority
-   component (including the `AccessControlService._CANONICAL_SCOPE_TYPES`/
-   `_CANONICAL_ROLE_NAME_OVERRIDES` translation shim, `principal_builder`'s legacy
-   scoped-access merge, and the exact `RBAC-TRANSITION-ONLY` decommission register) and apply
-   a cleanup migration before the first release. Done through the explicit-reset step on
-   2026-08-01: audited fixtures/seed data (no production or test-fixture code creates new
+   component ... and apply a cleanup migration before the first release.~~ **Done on
+   2026-08-01.** Fixtures/seed data audited (no production or test-fixture code creates new
    legacy-authority rows outside of the "prove stale legacy rows grant zero authority"
-   regression tests, which are intentional); ran the full consolidated test suite (one real
-   regression found and fixed — `CollaborationSupportMixin._list_mention_candidates_for_project`
-   crashed instead of falling back when a caller wired a non-`None`, non-functional
-   `tenant_context_service` placeholder; all other failures were pre-existing and unrelated,
-   confirmed via diff against this program's changes); backed up and deleted the local desktop
-   database entirely, ran migrations against the empty file, confirmed zero rows existed in any
-   legacy or canonical authority table (only the migration-seeded default tenant row existed),
-   then ran one ordinary startup pass and the delegation-provisioning tool again — proving the
-   system builds correct canonical state from nothing. Final transition-code deletion + cleanup
-   migration is the one item still open.
+   regression tests, which were removed in this same pass since the rows they proved inert can
+   no longer even be constructed). Deleted every `RBAC-TRANSITION-ONLY` component: the 10
+   whole-purpose-transition files (evidence runbook, `role_binding_migration.py` domain, the
+   3 `infra/security` migration-preparation modules, 2 `tools/*` CLIs, 3 test files); the marked
+   partial sections in `collaboration/utils/support.py`, `access_control_service.py`
+   (dead legacy scope-grant branches — the canonical translation shim itself stays, since the
+   desktop API/QML still consumes the `ScopedAccessGrant` shape), `principal_builder.py`
+   (the whole legacy scoped-access merge collapsed to `scoped_access = canonical_authority.scoped_access`
+   directly), `auth/contracts`, `auth/domain` (`RoleBindingMigrationRepository`,
+   `UserRoleRepository`, `UserRoleBinding`), the `auth` mapper/ORM/repository migration-batch and
+   `user_roles` adapters, `infra/composition/repositories.py`, `infra/security/__init__.py` and
+   `tenancy_rbac_inventory.py` (the legacy `user_roles` classification block and its four
+   findings). Additionally — since the audit proved `ScopedAccessGrant`/`ProjectMembership`
+   persistence had no reachable production write path at all (every entry point requires a
+   registered `ScopedRolePolicy`, and only project/site/storeroom/maintenance ever have one) —
+   deleted that whole persistence layer too, on top of the originally marked registry: the
+   `ProjectMembership` domain class, both repository ABCs, both concrete SQLAlchemy repositories,
+   their ORM classes and mapper module, and all composition wiring. `ScopedAccessGrant` itself
+   stays (still constructed in-memory by the canonical translation shim). Ran the full
+   consolidated test suite across every module directory; found and fixed two real regressions
+   along the way — `CollaborationSupportMixin._list_mention_candidates_for_project` crashed
+   instead of falling back when a caller wired a non-`None`, non-functional
+   `tenant_context_service` placeholder, and a stale `test_platform_persistence_structure.py`
+   area list — plus updated roughly a dozen test files whose fixtures directly touched the
+   removed repos/domain objects. All other failures across the full sweep were pre-existing and
+   unrelated (confirmed via diff against this program's changes): a site-domain
+   offset-naive/aware datetime bug, a stale QML route assertion, a project-management dashboard
+   activity-feed bug, a module-licensing-gate ordering issue in two unrelated import-schema
+   tests, the long-standing `pmenv/` vendored-file line-count artifact, one unrelated
+   line-budget breach, and date-sensitive `src/tests/pm` scheduling tests unrelated to any
+   authorization code. Backed up and deleted the local desktop database entirely, ran migrations
+   against the empty file, confirmed zero rows existed in any legacy or canonical authority
+   table (only the migration-seeded default tenant row existed), then ran one ordinary startup
+   pass and the delegation-provisioning tool again — proving the system builds correct canonical
+   state from nothing. Applied one cleanup migration (`b1n2o3t4i5f6` → `c1e2a3n4u5p6`) dropping
+   `user_roles`, `scoped_access_grants`, `project_memberships`, `authorization_migration_batches`,
+   and `legacy_role_binding_migration_records`; verified upgrade → downgrade → re-upgrade
+   round-trips cleanly and applied it to the local dev database.
+4. One item is deliberately deferred, not part of the prelaunch-release blocker above:
+   collapsing `AuthorizationMigrationMode` (`src/infra/platform/security_config.py`) to a single
+   value. It still carries its own `RBAC-TRANSITION-ONLY` marker and its own registry entry in
+   `src/tests/architecture/test_rbac_transition_decommission.py`. Deferred because collapsing it
+   touches the shared `conftest.py` `bootstrap_admin_env` fixture used by nearly every test in
+   the repo, plus the unmarked `tools/reconcile_role_policy.py`, which reads
+   `.authorization_migration_mode.value` into its receipts — a materially larger, separate change
+   than the rest of this cleanup.
 
 Lessons this program's per-scope work surfaced, worth keeping in mind for any future scope
 additions:

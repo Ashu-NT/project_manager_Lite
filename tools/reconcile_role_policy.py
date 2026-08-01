@@ -123,9 +123,6 @@ def _runtime_security_payload(configuration) -> dict[str, str]:
     return {
         "deployment_environment": configuration.deployment_environment.value,
         "tenancy_mode": configuration.tenancy_mode.value,
-        "authorization_migration_mode": (
-            configuration.authorization_migration_mode.value
-        ),
     }
 
 
