@@ -5,8 +5,7 @@ from src.core.platform.auth.domain.role_binding import (
     ROLE_SCOPE_TENANT,
 )
 
-# Transitional classification for legacy global roles. Canonical role bindings
-# will move this metadata into the role model during the schema migration.
+# Stable names and scope metadata for code-owned system roles.
 PLATFORM_ROLE_NAMES = frozenset({"admin", "support_admin"})
 _ORGANIZATION_SCOPE_ROLE_NAMES = frozenset({"org_admin", "org_viewer", "org_member"})
 _PROJECT_SCOPE_ROLE_NAMES = frozenset(

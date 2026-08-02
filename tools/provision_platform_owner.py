@@ -81,8 +81,6 @@ def main(argv: list[str] | None = None) -> int:
             permission_repo=repositories.permission_repo,
             role_permission_repo=repositories.role_permission_repo,
             auth_session_repo=repositories.auth_session_repo,
-            scoped_access_repo=repositories.scoped_access_repo,
-            project_membership_repo=repositories.project_membership_repo,
             user_tenant_repo=repositories.user_tenant_repo,
             role_binding_repo=repositories.role_binding_repo,
         )

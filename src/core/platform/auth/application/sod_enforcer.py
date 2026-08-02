@@ -26,7 +26,7 @@ def enforce_separation_of_duties(service: AuthService, role_names: Iterable[str]
     if conflicts:
         record_authorization_denial(
             service._user_session,
-            operation_label="validate legacy role separation of duties",
+            operation_label="validate role separation of duties",
             reason_code="ROLE_CONFLICT",
             required_permissions=permission_codes,
             target_scope_type="role",

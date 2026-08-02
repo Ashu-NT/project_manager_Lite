@@ -292,6 +292,45 @@ def test_platform_common_interfaces_are_platform_only():
     assert "class AuditLogRepository" not in text
 
 
+def test_legacy_rbac_runtime_dependencies_are_removed():
+    runtime_roots = (
+        ROOT / "src" / "core",
+        ROOT / "src" / "api",
+        ROOT / "src" / "ui_qml",
+        ROOT / "src" / "infra" / "composition",
+        ROOT / "src" / "infra" / "platform",
+        ROOT / "tools",
+    )
+    forbidden_tokens = (
+        "AuthorizationMigrationMode",
+        "authorization_migration_mode",
+        "PM_AUTHORIZATION_MIGRATION_MODE",
+        "RBAC-TRANSITION-ONLY",
+        "UserRoleORM",
+        "UserRoleRepository",
+        "ProjectMembershipRepository",
+        "ScopedAccessGrantRepository",
+        "project_membership_repo",
+        "scoped_access_repo",
+    )
+    violations: list[tuple[str, str]] = []
+
+    for root in runtime_roots:
+        for path in root.rglob("*.py"):
+            source = path.read_text(encoding="utf-8", errors="ignore")
+            for token in forbidden_tokens:
+                if token in source:
+                    violations.append((str(path.relative_to(ROOT)), token))
+
+    env_path = ROOT / ".env"
+    if env_path.exists():
+        env_text = env_path.read_text(encoding="utf-8", errors="ignore")
+        if "PM_AUTHORIZATION_MIGRATION_MODE" in env_text:
+            violations.append((".env", "PM_AUTHORIZATION_MIGRATION_MODE"))
+
+    assert not violations, f"Legacy RBAC runtime dependencies remain: {violations}"
+
+
 def test_core_platform_does_not_import_module_contracts():
     platform_root = ROOT / "core" / "platform"
     violations: list[tuple[str, str]] = []
