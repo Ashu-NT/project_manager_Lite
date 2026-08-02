@@ -1,9 +1,9 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; implementation not started  
+Status: audit complete; Phase A0 code complete, hosted PostgreSQL validation pending
 Last updated: 2026-08-02  
 Scope: Project Management finance plus reusable platform financial foundations  
-Decision gate: this document intentionally makes no production-code or migration changes
+Current increment: Phase A0 verification and Phase A1 decision gate
 
 ## 1. Executive Summary
 
@@ -614,6 +614,8 @@ Phase A is deliberately split into three independently reviewable increments. A0
 
 Ownership: **PLATFORM SECURITY + PLATFORM WORKFLOW + PROJECT FINANCE**
 
+Status: **CODE COMPLETE; HOSTED POSTGRESQL DEPLOYMENT VALIDATION PENDING**
+
 1. Introduce finance-specific query/mutation/sensitive permissions and switch `FinanceService` away from `report.view`.
 2. Remove the admin-session financial governance bypass. If emergency override remains a product requirement, use only a narrowly scoped permission, mandatory reason, and Enterprise Audit.
 3. Refactor Approval apply handling to participate in one outer unit of work. Financial mutation, approval decision, Enterprise Audit, and any outbox record commit or roll back together.
@@ -624,6 +626,17 @@ Ownership: **PLATFORM SECURITY + PLATFORM WORKFLOW + PROJECT FINANCE**
 Exit gate: finance reads require finance permission; sensitive fields redact correctly; failure injection proves approval application is atomic; admin session alone grants no finance override; direct-scope/RLS architecture tests pass.
 
 QML impact: capability properties, sensitive-field hiding, and typed error handling only.
+
+Implementation progress (2026-08-02):
+
+- Implemented canonical `finance.read` and `finance.read_sensitive` policy enforcement for finance and forecast queries; unauthorized detailed labor identity is aggregated/redacted.
+- Removed the admin-session bypass from governed CostService mutations. Admin identity alone can no longer apply governed financial changes directly.
+- Accepted and implemented the initial ADR-PF-008 transaction cutover: ApprovalService plus all registered PM/Procurement handlers stage mutation, decision, Activity, and mandatory Enterprise Audit in one outer transaction. Success signals are emitted only after commit.
+- Added failure-injection tests proving rollback when either approval persistence or required audit fails.
+- Added Enterprise Audit old/new-state records for cost create/update/delete and hardened CostItem task references to require the same project.
+- Added a permanent tenant-plus-organization PostgreSQL RLS migration helper and an architecture guard requiring every future `project_finance_*` table to own non-null tenant/org columns and declare `info['rls_scope']='tenant_organization'`.
+- Verification: the final focused A0 approval/event/security/RLS set has 32 passing tests; the finance/forecast/reporting batch has 30 passes; and 116 Inventory tests pass. The wider PM/platform run has 465 passes and 15 independently identified unrelated legacy/date-relative failures.
+- All A0 code gates are met. A hosted PostgreSQL run under a non-owner, non-superuser, non-`BYPASSRLS` application role remains a deployment-environment gate; it is not replaced by SQLite architecture tests.
 
 #### Phase A1 - Monetary foundations
 
@@ -794,8 +807,8 @@ This register is mandatory implementation scope. A phase cannot close while its 
 | Transitional component | Origin/added in | Removal gate | Owner | Status |
 | --- | --- | --- | --- | --- |
 | Desktop forecast/commitment fallback builders | Pre-existing | A2 canonical service composition and parity tests pass | PM Finance | OPEN |
-| `report.view` finance authorization | Pre-existing | A0 finance permission grants and policy tests pass | Platform Security / PM Finance | OPEN |
-| Admin-session governance bypass | Pre-existing | A0 explicit override policy or removal tests pass | Platform Security | OPEN |
+| `report.view` finance authorization | Pre-existing | A0 finance permission grants and policy tests pass | Platform Security / PM Finance | CLOSED; replaced by `finance.read` on 2026-08-02 |
+| Admin-session cost-governance bypass | Pre-existing | A0 removal tests pass | Platform Security | CLOSED; removed 2026-08-02 |
 | `cost.manage` umbrella/alias | Pre-existing; transitional mapping in A0 | Target command permissions active across desktop/services | Platform Security / PM Finance | OPEN |
 | Hard-coded PM `EUR` defaults | Pre-existing | A1 Organization/Profile currency resolution cutover | Platform Foundation / PM | OPEN |
 | Duplicate PM money formatters | Pre-existing | A1 canonical serialization/formatting adopted | Desktop UI / PM | OPEN |
@@ -808,6 +821,9 @@ This register is mandatory implementation scope. A phase cannot close while its 
 | Planned dual-write adapter, only if required | C | New writes and reports reconcile; legacy writes disabled | PM Finance | NOT CREATED |
 | Client-side fixed-limit Procurement lookup | Pre-existing | C typed project-source contract active | Procurement / PM Integration | OPEN |
 | Legacy financial permission aliases/feature flags | A0 onward | E final role/API/controller inventory passes | Platform Security / PM Finance | NOT CREATED |
+| Approval `commit=False` transaction switches in legacy cost/baseline/dependency/scheduling services | A0 | C dedicated approved commands own the shared Unit of Work | Platform Workflow / PM | OPEN; marked `TRANSITION(PF-A0-UOW-BRIDGE)` |
+| Approved-handler `bypass_approval=True` switches | Pre-existing; constrained in A0 handlers | C handlers call dedicated internal approved commands with no public bypass flag | Platform Workflow / PM | OPEN; marked `TRANSITION(PF-A0-UOW-BRIDGE)` |
+| Unused FinanceService ReportingService compatibility argument | A0 candidate | Remove before A0 merge | PM Finance | CLOSED; deleted 2026-08-02 |
 
 ## 21. Permission Migration Plan
 
@@ -815,9 +831,9 @@ Use the repository's canonical permission catalog and policy evaluation; do not 
 
 | Current permission/path | Transitional mapping | Target permissions |
 | --- | --- | --- |
-| `report.view` for FinanceService | Grant finance read to intended existing PM roles before code switch | `project_finance.read`; `project_finance.read_sensitive` |
+| `report.view` for FinanceService | Grant finance read to intended existing PM roles before code switch | `finance.read`; `finance.read_sensitive` |
 | `report.export` / `finance.export` | Retain alias only during rollout | `project_finance.export` |
-| `cost.read` | Map to non-sensitive finance read | `project_cost.read` or canonical `project_finance.read` |
+| `cost.read` | Map to non-sensitive finance read | `cost.read` or canonical `finance.read` by query responsibility |
 | `cost.manage` | Temporary umbrella with telemetry | `project_cost.create`, `.update_draft`, `.submit`, `.post`, `.reverse` |
 | `finance.manage` | Temporary administrative umbrella, no automatic approval | profile/cost-code/rate/budget/forecast/change-specific manage permissions |
 | `approval.decide` | Require request-type policy as well | `project_budget.approve`, `project_cost.approve`, `project_forecast.approve`, `project_change.approve` |
@@ -913,7 +929,7 @@ The repository already uses global ADR-001 through ADR-004, so Project Finance d
 | [ADR-PF-005](../architecture_decisions/ADR-PF-005-rate-card-precedence.md) | Rate-card precedence | PROPOSED | B rate-card implementation |
 | [ADR-PF-006](../architecture_decisions/ADR-PF-006-approved-time-posting-trigger.md) | Approved-time posting trigger | PROPOSED | A2 contract/C consumer |
 | [ADR-PF-007](../architecture_decisions/ADR-PF-007-procurement-financial-triggers.md) | Procurement commitment and actual triggers | PROPOSED | A2 contract/C consumer |
-| [ADR-PF-008](../architecture_decisions/ADR-PF-008-approval-unit-of-work.md) | Approval and unit-of-work transaction model | PROPOSED | A0 approval refactor |
+| [ADR-PF-008](../architecture_decisions/ADR-PF-008-approval-unit-of-work.md) | Approval and unit-of-work transaction model | ACCEPTED; INITIAL TRANSACTION CUTOVER IMPLEMENTED | A0 approval refactor |
 | [ADR-PF-009](../architecture_decisions/ADR-PF-009-cost-code-ownership.md) | Cost-code ownership and hierarchy | PROPOSED | B cost-code schema |
 | [ADR-PF-010](../architecture_decisions/ADR-PF-010-billing-and-accounting-boundary.md) | Billing versus external accounting ownership | PROPOSED | E implementation |
 

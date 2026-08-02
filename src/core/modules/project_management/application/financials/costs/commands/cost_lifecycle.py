@@ -13,6 +13,8 @@ from src.core.shared.activity import record_activity
 
 
 class CostLifecycleMixin:
+    # TRANSITION(PF-A0-UOW-BRIDGE): commit and approval_request_id bridge legacy
+    # mutable cost commands into ApprovalService's outer transaction. Remove at Phase C.
     @staticmethod
     def _is_cost_code_integrity_error(exc: IntegrityError) -> bool:
         message = " ".join(
@@ -75,6 +77,8 @@ class CostLifecycleMixin:
         currency_code: str | None = None,
         bypass_approval: bool = False,
         code: str = "",
+        commit: bool = True,
+        approval_request_id: str | None = None,
     ) -> CostItem:
         governed = self._is_governed(operation_code="cost.add", bypass_approval=bypass_approval)
         self._require_operation_permission(
@@ -111,6 +115,7 @@ class CostLifecycleMixin:
                     "task_name": task.name if task is not None else None,
                     "project_name": project.name,
                     "description": draft.description,
+                    "code": code,
                     "planned_amount": draft.planned_amount,
                     "committed_amount": draft.committed_amount,
                     "actual_amount": draft.actual_amount,
@@ -139,7 +144,6 @@ class CostLifecycleMixin:
 
         try:
             self._cost_repo.add(cost_item)
-            self._session.commit()
             record_activity(
                 self,
                 action="cost.add",
@@ -152,17 +156,30 @@ class CostLifecycleMixin:
                     "planned_amount": cost_item.planned_amount,
                     "actual_amount": cost_item.actual_amount,
                 },
+                commit=False,
             )
+            self._record_cost_audit(
+                operation="create",
+                item=cost_item,
+                approval_request_id=approval_request_id,
+            )
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
         except IntegrityError as exc:
-            self._session.rollback()
+            if commit:
+                self._session.rollback()
             if self._is_cost_code_integrity_error(exc):
                 self._raise_cost_code_duplicate(cost_item.code, exc)
             raise
         except Exception:
-            self._session.rollback()
+            if commit:
+                self._session.rollback()
             raise
 
-        domain_events.costs_changed.emit(project_id)
+        if commit:
+            domain_events.costs_changed.emit(project_id)
         return cost_item
 
     def update_cost_item(
@@ -178,6 +195,8 @@ class CostLifecycleMixin:
         expected_version: int | None = None,
         bypass_approval: bool = False,
         code: str | None = None,
+        commit: bool = True,
+        approval_request_id: str | None = None,
     ) -> CostItem:
         governed = self._is_governed(operation_code="cost.update", bypass_approval=bypass_approval)
         item = self._require_cost_item(cost_id)
@@ -207,9 +226,18 @@ class CostLifecycleMixin:
             if currency_code is None
             else self._normalize_currency(currency_code)
         )
+        resolved_code = item.code
+        if code is not None and code.strip():
+            resolved_code = self._resolve_cost_code(
+                code,
+                item.project_id,
+                resolved_description,
+                exclude_id=item.id,
+            )
         if governed:
             draft = replace(
                 item,
+                code=resolved_code,
                 description=resolved_description,
                 planned_amount=resolved_planned_amount,
                 committed_amount=resolved_committed_amount,
@@ -225,6 +253,7 @@ class CostLifecycleMixin:
                 project_id=item.project_id,
                 payload={
                     "cost_id": cost_id,
+                    "code": draft.code,
                     "description": draft.description,
                     "task_name": item_task.name if item_task is not None else None,
                     "planned_amount": draft.planned_amount,
@@ -243,6 +272,7 @@ class CostLifecycleMixin:
 
         candidate = replace(
             item,
+            code=resolved_code,
             description=resolved_description,
             planned_amount=resolved_planned_amount,
             committed_amount=resolved_committed_amount,
@@ -251,20 +281,8 @@ class CostLifecycleMixin:
             incurred_date=resolved_incurred_date,
             currency_code=resolved_currency_code,
         )
-        if code is not None and code.strip():
-            candidate = replace(
-                candidate,
-                code=self._resolve_cost_code(
-                    code,
-                    item.project_id,
-                    candidate.description,
-                    exclude_id=item.id,
-                ),
-            )
-
         try:
             self._cost_repo.update(candidate)
-            self._session.commit()
             record_activity(
                 self,
                 action="cost.update",
@@ -277,20 +295,41 @@ class CostLifecycleMixin:
                     "planned_amount": candidate.planned_amount,
                     "actual_amount": candidate.actual_amount,
                 },
+                commit=False,
             )
+            self._record_cost_audit(
+                operation="update",
+                item=candidate,
+                old_item=item,
+                approval_request_id=approval_request_id,
+            )
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
         except IntegrityError as exc:
-            self._session.rollback()
+            if commit:
+                self._session.rollback()
             if self._is_cost_code_integrity_error(exc):
                 self._raise_cost_code_duplicate(candidate.code, exc)
             raise
         except Exception:
-            self._session.rollback()
+            if commit:
+                self._session.rollback()
             raise
 
-        domain_events.costs_changed.emit(candidate.project_id)
+        if commit:
+            domain_events.costs_changed.emit(candidate.project_id)
         return candidate
 
-    def delete_cost_item(self, cost_id: str, bypass_approval: bool = False) -> None:
+    def delete_cost_item(
+        self,
+        cost_id: str,
+        bypass_approval: bool = False,
+        *,
+        commit: bool = True,
+        approval_request_id: str | None = None,
+    ) -> None:
         governed = self._is_governed(operation_code="cost.delete", bypass_approval=bypass_approval)
         item = self._require_cost_item(cost_id)
         self._require_operation_permission(
@@ -319,7 +358,6 @@ class CostLifecycleMixin:
             )
         try:
             self._cost_repo.delete(cost_id)
-            self._session.commit()
             record_activity(
                 self,
                 action="cost.delete",
@@ -328,9 +366,22 @@ class CostLifecycleMixin:
                 module="project_management",
                 workspace_id=item.project_id,
                 details={"description": item.description},
+                commit=False,
             )
+            self._record_cost_audit(
+                operation="delete",
+                item=item,
+                old_item=item,
+                approval_request_id=approval_request_id,
+            )
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
         except Exception:
-            self._session.rollback()
+            if commit:
+                self._session.rollback()
             raise
 
-        domain_events.costs_changed.emit(item.project_id)
+        if commit:
+            domain_events.costs_changed.emit(item.project_id)

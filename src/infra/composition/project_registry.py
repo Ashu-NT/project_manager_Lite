@@ -11,6 +11,10 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.core.platform.access import ScopedRolePolicy
+from src.core.platform.approval.contracts import (
+    ApprovalHandlerResult,
+    ApprovalPostCommitEvent,
+)
 from src.core.modules.project_management.domain.enums import CostType, DependencyType
 from src.core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_CHOICES,
@@ -262,6 +266,7 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_runtime_service,
     )
     reporting_service = ReportingService(
@@ -284,7 +289,7 @@ def build_project_management_service_bundle(
         resource_repo=repositories.resource_repo,
         cost_repo=repositories.cost_repo,
         project_resource_repo=repositories.project_resource_repo,
-        reporting_service=reporting_service,
+        assignment_repo=repositories.assignment_repo,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
     )
@@ -404,35 +409,46 @@ def _register_project_management_approval_handlers(
     task_service: TaskService,
     cost_service: CostService,
 ) -> None:
-    approval_service.register_apply_handler(
-        "baseline.create",
-        lambda req: baseline_service.create_baseline(
-            project_id=req.payload["project_id"],
+    # TRANSITION(PF-A0-UOW-BRIDGE): These handlers stage legacy service writes with
+    # commit=False/bypass_approval=True. Remove both switches at the Phase C command cutover.
+    def _result(signal_name: str, payload: str) -> ApprovalHandlerResult:
+        return ApprovalHandlerResult(
+            post_commit_events=(ApprovalPostCommitEvent(signal_name, payload),)
+        )
+
+    def _apply_baseline(req) -> ApprovalHandlerResult:
+        project_id = req.payload["project_id"]
+        baseline_service.create_baseline(
+            project_id=project_id,
             name=req.payload.get("name") or "Baseline",
             bypass_approval=True,
-        ),
-    )
-    approval_service.register_apply_handler(
-        "dependency.add",
-        lambda req: task_service.add_dependency(
+            commit=False,
+        )
+        return _result("baseline_changed", project_id)
+
+    def _apply_dependency_add(req) -> ApprovalHandlerResult:
+        task_service.add_dependency(
             predecessor_id=req.payload["predecessor_id"],
             successor_id=req.payload["successor_id"],
             dependency_type=_as_dependency_type(req.payload.get("dependency_type", "FS")),
             lag_days=int(req.payload.get("lag_days", 0) or 0),
             bypass_approval=True,
-        ),
-    )
-    approval_service.register_apply_handler(
-        "dependency.remove",
-        lambda req: task_service.remove_dependency(
+            commit=False,
+        )
+        return _result("tasks_changed", req.project_id or "")
+
+    def _apply_dependency_remove(req) -> ApprovalHandlerResult:
+        task_service.remove_dependency(
             dep_id=req.payload["dependency_id"],
             bypass_approval=True,
-        ),
-    )
-    approval_service.register_apply_handler(
-        "cost.add",
-        lambda req: cost_service.add_cost_item(
-            project_id=req.payload["project_id"],
+            commit=False,
+        )
+        return _result("tasks_changed", req.project_id or "")
+
+    def _apply_cost_add(req) -> ApprovalHandlerResult:
+        project_id = req.payload["project_id"]
+        cost_service.add_cost_item(
+            project_id=project_id,
             description=req.payload.get("description", ""),
             planned_amount=float(req.payload.get("planned_amount", 0.0) or 0.0),
             task_id=req.payload.get("task_id"),
@@ -441,12 +457,15 @@ def _register_project_management_approval_handlers(
             actual_amount=float(req.payload.get("actual_amount", 0.0) or 0.0),
             incurred_date=_parse_date(req.payload.get("incurred_date")),
             currency_code=req.payload.get("currency_code"),
+            code=req.payload.get("code", ""),
             bypass_approval=True,
-        ),
-    )
-    approval_service.register_apply_handler(
-        "cost.update",
-        lambda req: cost_service.update_cost_item(
+            commit=False,
+            approval_request_id=req.id,
+        )
+        return _result("costs_changed", project_id)
+
+    def _apply_cost_update(req) -> ApprovalHandlerResult:
+        cost_service.update_cost_item(
             cost_id=req.payload["cost_id"],
             description=req.payload.get("description"),
             planned_amount=req.payload.get("planned_amount"),
@@ -460,15 +479,45 @@ def _register_project_management_approval_handlers(
             incurred_date=_parse_date(req.payload.get("incurred_date")),
             currency_code=req.payload.get("currency_code"),
             expected_version=req.payload.get("expected_version"),
+            code=req.payload.get("code"),
             bypass_approval=True,
-        ),
+            commit=False,
+            approval_request_id=req.id,
+        )
+        return _result("costs_changed", req.project_id or "")
+
+    def _apply_cost_delete(req) -> ApprovalHandlerResult:
+        cost_service.delete_cost_item(
+            cost_id=req.payload["cost_id"],
+            bypass_approval=True,
+            commit=False,
+            approval_request_id=req.id,
+        )
+        return _result("costs_changed", req.project_id or "")
+
+    approval_service.register_apply_handler(
+        "baseline.create",
+        _apply_baseline,
+    )
+    approval_service.register_apply_handler(
+        "dependency.add",
+        _apply_dependency_add,
+    )
+    approval_service.register_apply_handler(
+        "dependency.remove",
+        _apply_dependency_remove,
+    )
+    approval_service.register_apply_handler(
+        "cost.add",
+        _apply_cost_add,
+    )
+    approval_service.register_apply_handler(
+        "cost.update",
+        _apply_cost_update,
     )
     approval_service.register_apply_handler(
         "cost.delete",
-        lambda req: cost_service.delete_cost_item(
-            cost_id=req.payload["cost_id"],
-            bypass_approval=True,
-        ),
+        _apply_cost_delete,
     )
 
 

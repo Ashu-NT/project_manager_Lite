@@ -23,6 +23,7 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "cost.read": "View costs",
     "cost.manage": "Create and edit costs",
     "finance.read": "View finance snapshots and ledgers",
+    "finance.read_sensitive": "View sensitive finance rates and labor details",
     "finance.manage": "Manage finance controls and adjustments",
     "finance.export": "Export finance analytics and ledgers",
     "payroll.read": "View payroll periods and summaries",
@@ -128,6 +129,7 @@ _FINANCE_CONTROLLER = {
     "report.view",
     "report.export",
     "finance.read",
+    "finance.read_sensitive",
     "finance.manage",
     "finance.export",
     "payroll.read",
@@ -189,6 +191,7 @@ _PORTFOLIO_MANAGER = {
     "report.export",
     "portfolio.read",
     "portfolio.manage",
+    "finance.read",
     "collaboration.read",
     "approval.request",
 }
@@ -215,6 +218,7 @@ _AUDITOR = {
     "resource.read",
     "cost.read",
     "finance.read",
+    "finance.read_sensitive",
     "payroll.read",
     "register.read",
     "report.view",
@@ -294,6 +298,7 @@ _PROJECT_LEAD = _PROJECT_CONTRIBUTOR | {
     "register.manage",
     "report.export",
     "approval.request",
+    "finance.read",
 }
 
 _PROJECT_OWNER = _PROJECT_LEAD | {

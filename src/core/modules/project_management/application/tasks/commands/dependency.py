@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 
 
 class TaskDependencyMixin:
+    # TRANSITION(PF-A0-UOW-BRIDGE): commit=False lets an approval use case own the
+    # transaction. Remove this switch with dedicated approved commands in Phase C.
     _session: Session
     _task_repo: TaskRepository
     _dependency_repo: DependencyRepository
@@ -49,6 +51,7 @@ class TaskDependencyMixin:
         dependency_type: DependencyType = DependencyType.FINISH_TO_START,
         lag_days: int = 0,
         bypass_approval: bool = False,
+        commit: bool = True,
     ) -> TaskDependency:
         predecessor = self._task_repo.get(predecessor_id)
         if not predecessor:
@@ -116,8 +119,7 @@ class TaskDependencyMixin:
         dependency = TaskDependency.create(predecessor_id, successor_id, dependency_type, lag_days)
         try:
             self._dependency_repo.add(dependency)
-            self._session.commit()
-            self._sync_project_schedule(predecessor.project_id)
+            self._sync_project_schedule(predecessor.project_id, commit=False)
             record_activity(
                 self,
                 action="dependency.add",
@@ -131,14 +133,27 @@ class TaskDependencyMixin:
                     "type": dependency.dependency_type.value,
                     "lag_days": dependency.lag_days,
                 },
+                commit=False,
             )
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
         except Exception as exc:
-            self._session.rollback()
+            if commit:
+                self._session.rollback()
             raise exc
-        domain_events.tasks_changed.emit(predecessor.project_id)
+        if commit:
+            domain_events.tasks_changed.emit(predecessor.project_id)
         return dependency
 
-    def remove_dependency(self, dep_id: str, bypass_approval: bool = False) -> None:
+    def remove_dependency(
+        self,
+        dep_id: str,
+        bypass_approval: bool = False,
+        *,
+        commit: bool = True,
+    ) -> None:
         governed = (
             not bypass_approval
             and self._approval_service is not None
@@ -182,9 +197,8 @@ class TaskDependencyMixin:
             )
         try:
             self._dependency_repo.delete(dep_id)
-            self._session.commit()
             project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
-            self._sync_project_schedule(project_id)
+            self._sync_project_schedule(project_id, commit=False)
             record_activity(
                 self,
                 action="dependency.remove",
@@ -196,11 +210,17 @@ class TaskDependencyMixin:
                     "predecessor_name": predecessor.name if predecessor else None,
                     "successor_name": successor.name if successor else None,
                 },
+                commit=False,
             )
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
         except Exception as exc:
-            self._session.rollback()
+            if commit:
+                self._session.rollback()
             raise exc
-        if project_id:
+        if commit and project_id:
             domain_events.tasks_changed.emit(project_id)
 
     def list_dependencies_for_task(self, task_id: str) -> list[TaskDependency]:

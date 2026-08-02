@@ -99,9 +99,9 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
         self._module_catalog_service = module_catalog_service
 
     def get_commitment_summary(self, project_id: str) -> CommitmentSummary:
-        require_permission(self._user_session, "report.view", operation_label="view commitment summary")
+        require_permission(self._user_session, "finance.read", operation_label="view commitment summary")
         require_project_permission(
-            self._user_session, project_id, "report.view",
+            self._user_session, project_id, "finance.read",
             operation_label="view commitment summary",
         )
         items = self._costs.list_by_project(project_id)
@@ -112,9 +112,9 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
         project_id: str,
         task_id: str | None = None,
     ) -> MaterialRollup:
-        require_permission(self._user_session, "report.view", operation_label="view material rollup")
+        require_permission(self._user_session, "finance.read", operation_label="view material rollup")
         require_project_permission(
-            self._user_session, project_id, "report.view",
+            self._user_session, project_id, "finance.read",
             operation_label="view material rollup",
         )
         all_items = self._costs.list_by_project(project_id)
@@ -144,9 +144,9 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
         method: EACMethod = EACMethod.BAC_OVER_CPI,
         threshold_percent: float = 10.0,
     ) -> CostForecastResult:
-        require_permission(self._user_session, "report.view", operation_label="compute cost forecast")
+        require_permission(self._user_session, "finance.read", operation_label="compute cost forecast")
         require_project_permission(
-            self._user_session, project_id, "report.view",
+            self._user_session, project_id, "finance.read",
             operation_label="compute cost forecast",
         )
         project = self._projects.get(project_id)
@@ -185,9 +185,9 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
         forecast_eac: float,
         threshold_percent: float = 10.0,
     ) -> bool:
-        require_permission(self._user_session, "report.view", operation_label="check cost threshold")
+        require_permission(self._user_session, "finance.read", operation_label="check cost threshold")
         require_project_permission(
-            self._user_session, project_id, "report.view",
+            self._user_session, project_id, "finance.read",
             operation_label="check cost threshold",
         )
         items = self._costs.list_by_project(project_id)

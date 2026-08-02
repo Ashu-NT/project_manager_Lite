@@ -44,6 +44,8 @@ from src.core.modules.project_management.application.scheduling.calendars.projec
 
 
 class SchedulingEngine(ResourceLevelingMixin):
+    # TRANSITION(PF-A0-UOW-BRIDGE): commit=False supports approval-owned transactions.
+    # Remove the switch when approved mutations use dedicated Unit-of-Work commands.
     """
     CPM-style scheduling engine:
     - Forward pass: ES/EF
@@ -83,6 +85,7 @@ class SchedulingEngine(ResourceLevelingMixin):
         project_id: str,
         *,
         persist: bool = True,
+        commit: bool = True,
     ) -> dict[str, CPMTaskInfo]:
         """
         Full CPM calculation for a project:
@@ -159,9 +162,13 @@ class SchedulingEngine(ResourceLevelingMixin):
             try:
                 for info in result.values():
                     self._task_repo.update(info.task)
-                self._session.commit()
+                if commit:
+                    self._session.commit()
+                else:
+                    self._session.flush()
             except Exception:
-                self._session.rollback()
+                if commit:
+                    self._session.rollback()
                 raise
 
         return result

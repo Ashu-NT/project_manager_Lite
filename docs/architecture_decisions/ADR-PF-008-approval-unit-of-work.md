@@ -1,6 +1,6 @@
 # ADR-PF-008: Approval Unit of Work
 
-- Status: proposed
+- Status: accepted; initial transaction cutover implemented
 - Date: 2026-08-02
 - Implementation gate: Phase A0
 
@@ -34,3 +34,13 @@ No financial data migration is required, but pending approval handlers must be i
 ## Test Impact
 
 Add failure injection before/after handler staging, audit, outbox, and decision update; concurrency/double-decision tests; post-commit notification tests; and regression tests for every registered approval handler.
+
+## Implementation Evidence
+
+- `ApprovalService` owns commit/rollback for approval application and rejection; registered handlers return typed post-commit events rather than emitting success signals while the transaction is open.
+- PM baseline/dependency/cost and Inventory requisition/purchase-order handlers stage writes and Activity with `commit=False`; approval and required Enterprise Audit rows share the outer transaction.
+- Cost mutations write old/new-state Enterprise Audit records and fail closed when required audit persistence fails.
+- Failure-injection tests prove cost state remains unchanged when decision persistence or required audit fails, and no cost success signal escapes a rolled-back transaction.
+- Temporary legacy service switches are marked `TRANSITION(PF-A0-UOW-BRIDGE)` and are registered for deletion at the Phase C dedicated-command cutover.
+
+Durable outbox/inbox selection remains a Phase A2 decision. The current post-commit process-local signals are UI refresh notifications, not a substitute for durable integration delivery.

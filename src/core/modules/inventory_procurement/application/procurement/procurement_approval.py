@@ -12,13 +12,19 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     PurchaseRequisitionStatus,
 )
 from src.core.platform.approval.domain import ApprovalRequest
+from src.core.platform.approval.contracts import (
+    ApprovalHandlerResult,
+    ApprovalPostCommitEvent,
+)
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.shared.events.domain_events import domain_events
 
 
 class ProcurementApprovalMixin:
-    def apply_submitted_requisition_approval(self, request: ApprovalRequest) -> None:
+    def apply_submitted_requisition_approval(
+        self,
+        request: ApprovalRequest,
+    ) -> ApprovalHandlerResult:
         requisition = self._requisition_repo.get(request.entity_id)
         if requisition is None:
             raise NotFoundError("Purchase requisition not found.", code="INVENTORY_REQUISITION_NOT_FOUND")
@@ -62,10 +68,21 @@ class ProcurementApprovalMixin:
                 "requisition_number": requisition.requisition_number,
                 "approval_request_id": request.id,
             },
+            commit=False,
         )
-        domain_events.inventory_requisitions_changed.emit(requisition.id)
+        return ApprovalHandlerResult(
+            post_commit_events=(
+                ApprovalPostCommitEvent(
+                    "inventory_requisitions_changed",
+                    requisition.id,
+                ),
+            )
+        )
 
-    def apply_submitted_requisition_rejection(self, request: ApprovalRequest) -> None:
+    def apply_submitted_requisition_rejection(
+        self,
+        request: ApprovalRequest,
+    ) -> ApprovalHandlerResult:
         requisition = self._requisition_repo.get(request.entity_id)
         if requisition is None:
             raise NotFoundError("Purchase requisition not found.", code="INVENTORY_REQUISITION_NOT_FOUND")
@@ -107,8 +124,16 @@ class ProcurementApprovalMixin:
                 "requisition_number": requisition.requisition_number,
                 "approval_request_id": request.id,
             },
+            commit=False,
         )
-        domain_events.inventory_requisitions_changed.emit(requisition.id)
+        return ApprovalHandlerResult(
+            post_commit_events=(
+                ApprovalPostCommitEvent(
+                    "inventory_requisitions_changed",
+                    requisition.id,
+                ),
+            )
+        )
 
 
 __all__ = ["ProcurementApprovalMixin"]

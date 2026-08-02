@@ -32,6 +32,7 @@ class CostService(
         user_session=None,
         activity_service=None,
         approval_service=None,
+        enterprise_audit_service=None,
         module_catalog_service=None,
     ):
         self._session: Session = session
@@ -41,6 +42,7 @@ class CostService(
         self._user_session = user_session
         self._activity_service = activity_service
         self._approval_service = approval_service
+        self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
 
 

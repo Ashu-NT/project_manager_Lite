@@ -57,7 +57,12 @@ class SqlAlchemyCostRepository(CostRepository):
         if project is None:
             raise NotFoundError("Project not found.")
 
-    def _ensure_task_in_scope(self, task_id: str | None) -> None:
+    def _ensure_task_in_scope(
+        self,
+        task_id: str | None,
+        *,
+        project_id: str,
+    ) -> None:
         if not task_id:
             return
         ctx = self._context()
@@ -66,6 +71,7 @@ class SqlAlchemyCostRepository(CostRepository):
             .join(ProjectORM, TaskORM.project_id == ProjectORM.id)
             .where(
                 TaskORM.id == task_id,
+                TaskORM.project_id == project_id,
                 ProjectORM.tenant_id == ctx.tenant_id,
                 ProjectORM.organization_id == ctx.organization_id,
             )
@@ -75,14 +81,20 @@ class SqlAlchemyCostRepository(CostRepository):
 
     def add(self, cost_item: CostItem) -> None:
         self._ensure_project_in_scope(cost_item.project_id)
-        self._ensure_task_in_scope(cost_item.task_id)
+        self._ensure_task_in_scope(
+            cost_item.task_id,
+            project_id=cost_item.project_id,
+        )
         self.session.add(cost_to_orm(cost_item))
 
     def update(self, cost_item: CostItem) -> None:
         if self.get(cost_item.id) is None:
             raise BusinessRuleError("Cost item not found.")
         self._ensure_project_in_scope(cost_item.project_id)
-        self._ensure_task_in_scope(cost_item.task_id)
+        self._ensure_task_in_scope(
+            cost_item.task_id,
+            project_id=cost_item.project_id,
+        )
         cost_item.version = update_with_version_check(
             self.session,
             CostItemORM,

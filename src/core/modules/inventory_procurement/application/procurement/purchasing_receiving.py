@@ -21,6 +21,10 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     ReceiptLine,
 )
 from src.core.platform.approval.domain import ApprovalRequest
+from src.core.platform.approval.contracts import (
+    ApprovalHandlerResult,
+    ApprovalPostCommitEvent,
+)
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
@@ -232,7 +236,10 @@ class PurchasingReceivingMixin:
             domain_events.inventory_balances_changed.emit(balance_id)
         return receipt
 
-    def apply_submitted_purchase_order_approval(self, request: ApprovalRequest) -> None:
+    def apply_submitted_purchase_order_approval(
+        self,
+        request: ApprovalRequest,
+    ) -> ApprovalHandlerResult:
         purchase_order = self._purchase_order_repo.get(request.entity_id)
         if purchase_order is None:
             raise NotFoundError("Purchase order not found.", code="INVENTORY_PURCHASE_ORDER_NOT_FOUND")
@@ -329,14 +336,28 @@ class PurchasingReceivingMixin:
                 "po_number": purchase_order.po_number,
                 "approval_request_id": request.id,
             },
+            commit=False,
         )
-        domain_events.inventory_purchase_orders_changed.emit(purchase_order.id)
-        for requisition_id in touched_requisition_ids:
-            domain_events.inventory_requisitions_changed.emit(requisition_id)
-        for balance_id in touched_balance_ids:
-            domain_events.inventory_balances_changed.emit(balance_id)
+        events = [
+            ApprovalPostCommitEvent(
+                "inventory_purchase_orders_changed",
+                purchase_order.id,
+            )
+        ]
+        events.extend(
+            ApprovalPostCommitEvent("inventory_requisitions_changed", requisition_id)
+            for requisition_id in sorted(touched_requisition_ids)
+        )
+        events.extend(
+            ApprovalPostCommitEvent("inventory_balances_changed", balance_id)
+            for balance_id in sorted(touched_balance_ids)
+        )
+        return ApprovalHandlerResult(post_commit_events=tuple(events))
 
-    def apply_submitted_purchase_order_rejection(self, request: ApprovalRequest) -> None:
+    def apply_submitted_purchase_order_rejection(
+        self,
+        request: ApprovalRequest,
+    ) -> ApprovalHandlerResult:
         purchase_order = self._purchase_order_repo.get(request.entity_id)
         if purchase_order is None:
             raise NotFoundError("Purchase order not found.", code="INVENTORY_PURCHASE_ORDER_NOT_FOUND")
@@ -378,8 +399,16 @@ class PurchasingReceivingMixin:
                 "po_number": purchase_order.po_number,
                 "approval_request_id": request.id,
             },
+            commit=False,
         )
-        domain_events.inventory_purchase_orders_changed.emit(purchase_order.id)
+        return ApprovalHandlerResult(
+            post_commit_events=(
+                ApprovalPostCommitEvent(
+                    "inventory_purchase_orders_changed",
+                    purchase_order.id,
+                ),
+            )
+        )
 
 
 __all__ = ["PurchasingReceivingMixin"]
