@@ -58,6 +58,15 @@ class ExportRuntime:
         try:
             artifact = finalize_artifact(definition.export(request))
             if execution is not None:
+                artifact = ExportArtifact(
+                    file_path=artifact.file_path,
+                    file_name=artifact.file_name,
+                    media_type=artifact.media_type,
+                    metadata=self._runtime_execution_service.artifact_metadata(
+                        execution,
+                        dict(artifact.metadata or {}),
+                    ),
+                )
                 self._runtime_execution_service.complete_execution(
                     execution,
                     output_path=getattr(artifact, "file_path", None),

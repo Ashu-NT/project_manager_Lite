@@ -105,12 +105,15 @@ def _normalize_status(value: object) -> str:
 @validated_dataclass
 class RuntimeExecution:
     id: str
+    tenant_id: str
+    organization_id: str
     operation_type: str
     operation_key: str
     module_code: str
     status: str
     requested_by_user_id: str | None = None
     requested_by_username: str | None = None
+    authorization_context_id: str | None = None
     input_path: str | None = None
     output_path: str | None = None
     output_file_name: str | None = None
@@ -151,7 +154,10 @@ class RuntimeExecution:
         return _normalize_status(value)
 
     @field_validator(
+        "tenant_id",
+        "organization_id",
         "requested_by_user_id",
+        "authorization_context_id",
         "cancellation_requested_by_user_id",
         "retry_of_execution_id",
         mode="before",
@@ -242,8 +248,11 @@ class RuntimeExecution:
         operation_type: str,
         operation_key: str,
         module_code: str,
+        tenant_id: str,
+        organization_id: str,
         requested_by_user_id: str | None = None,
         requested_by_username: str | None = None,
+        authorization_context_id: str | None = None,
         input_path: str | None = None,
         output_path: str | None = None,
         retry_of_execution_id: str | None = None,
@@ -252,12 +261,15 @@ class RuntimeExecution:
         now = datetime.now(timezone.utc)
         return RuntimeExecution(
             id=generate_id(),
+            tenant_id=tenant_id,
+            organization_id=organization_id,
             operation_type=operation_type,
             operation_key=operation_key,
             module_code=module_code,
             status=RUNTIME_EXECUTION_STATUS_RUNNING,
             requested_by_user_id=requested_by_user_id,
             requested_by_username=requested_by_username,
+            authorization_context_id=authorization_context_id,
             input_path=input_path,
             output_path=output_path,
             output_file_name=None,

@@ -331,6 +331,11 @@ def test_legacy_rbac_runtime_dependencies_are_removed():
     assert not violations, f"Legacy RBAC runtime dependencies remain: {violations}"
 
 
+def test_dormant_http_transport_is_removed_for_desktop_only_product():
+    http_root = ROOT / "src" / "api" / "http"
+    assert not http_root.exists() or not list(http_root.rglob("*.py"))
+
+
 def test_core_platform_does_not_import_module_contracts():
     platform_root = ROOT / "core" / "platform"
     violations: list[tuple[str, str]] = []

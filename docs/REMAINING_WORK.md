@@ -272,7 +272,7 @@ caught, the item below reflects the verified-against-code status, not just the d
 
 **Detail:** `docs/repo_structure_plan/EXECUTION_SPEC.md`, `docs/repo_structure_plan/README.md`
 
-- HTTP transport adapters for `project_management`, `inventory_procurement`, and `maintenance` — deferred; `src/api/http/` currently only has `platform/` and `runtime.py`.
+- ~~Remove the unused HTTP placeholder after verifying desktop parity.~~ Complete on 2026-08-02: `src/api/http` and its dedicated test were deleted; any future network API requires a new request-scoped design.
 - Slice 5 (HR Management, Payroll, QHSE): only placeholder package skeletons exist; cross-module isolation architecture tests for these not written.
 - Employee master-data ownership transfer from Platform to HR — unresolved.
 - **Slice 6 (Legacy Path Cleanup) — entirely open**: delete remaining legacy root paths, retire `tests/path_rewrites.py` (confirmed still present — it was only relocated to `src/tests/path_rewrites.py`, never actually removed), update architecture tests to ban old imports, remove duplicate shell/module-registration transition code, update the root `README.md` for the new `src/` tree.

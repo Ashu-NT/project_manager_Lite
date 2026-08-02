@@ -40,6 +40,7 @@ from src.core.platform.tenancy import (
     TenantMembershipService,
 )
 from src.core.platform.runtime_tracking import RuntimeExecutionService
+from src.core.platform.identity import ServicePrincipalService
 from src.core.modules.inventory_procurement import (
     ProcurementService,
     InventoryDataExchangeService,
@@ -150,6 +151,7 @@ class ServiceGraph:
     tenant_context_service: TenantContextService
     tenant_admin_service: TenantAdminService
     tenant_membership_service: TenantMembershipService
+    service_principal_service: ServicePrincipalService
     document_service: DocumentService
     party_service: PartyService
     department_service: DepartmentService
@@ -247,6 +249,7 @@ class ServiceGraph:
             "tenant_context_service": self.tenant_context_service,
             "tenant_admin_service": self.tenant_admin_service,
             "tenant_membership_service": self.tenant_membership_service,
+            "service_principal_service": self.service_principal_service,
             "document_service": self.document_service,
             "party_service": self.party_service,
             "department_service": self.department_service,
@@ -384,6 +387,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         tenant_context_service=platform_services.tenant_context_service,
         tenant_admin_service=platform_services.tenant_admin_service,
         tenant_membership_service=platform_services.tenant_membership_service,
+        service_principal_service=platform_services.service_principal_service,
         document_service=platform_services.document_service,
         party_service=platform_services.party_service,
         department_service=platform_services.department_service,

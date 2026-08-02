@@ -134,6 +134,7 @@ class PlatformUserDesktopApi:
             must_change_password=user.must_change_password,
             version=user.version,
             role_names=tuple(sorted(self._auth_service.get_user_role_names(user.id))),
+            account_type=getattr(user, "account_type", "human"),
         )
 
     def _assign_role_and_get_user(self, *, user_id: str, role_name: str) -> UserDto:

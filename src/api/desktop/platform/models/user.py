@@ -31,6 +31,7 @@ class UserDto:
     must_change_password: bool
     version: int
     role_names: tuple[str, ...] = field(default_factory=tuple)
+    account_type: str = "human"
 
 
 @dataclass(frozen=True)

@@ -78,6 +78,7 @@ class SqlAlchemyUserRepository(UserRepository):
             {
                 "username": user.username,
                 "password_hash": user.password_hash,
+                "account_type": getattr(user, "account_type", "human"),
                 "display_name": user.display_name,
                 "email": user.email,
                 "identity_provider": getattr(user, "identity_provider", None),
@@ -132,7 +133,6 @@ class SqlAlchemyUserRepository(UserRepository):
             .join(UserTenantORM, UserTenantORM.user_id == UserORM.id)
             .where(UserTenantORM.tenant_id == tenant_id)
             .where(UserTenantORM.status == MEMBERSHIP_STATUS_ACTIVE)
-            .where(UserTenantORM.is_active.is_(True))
         )
         rows = self.session.execute(stmt).scalars().all()
         return [user_from_orm(row) for row in rows]

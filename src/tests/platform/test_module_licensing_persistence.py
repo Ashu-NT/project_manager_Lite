@@ -68,6 +68,7 @@ def test_module_catalog_service_normalizes_legacy_payroll_entitlement_rows_to_hr
         text(
             """
         INSERT INTO organization_module_entitlements (
+            tenant_id,
             organization_id,
             module_code,
             licensed,
@@ -75,6 +76,7 @@ def test_module_catalog_service_normalizes_legacy_payroll_entitlement_rows_to_hr
             lifecycle_status,
             updated_at
         ) VALUES (
+            :tenant_id,
             :organization_id,
             'payroll',
             0,
@@ -84,7 +86,10 @@ def test_module_catalog_service_normalizes_legacy_payroll_entitlement_rows_to_hr
         )
         """
         ),
-        {"organization_id": active_org.id},
+        {
+            "tenant_id": services["tenant_context_service"].get_active_tenant_id(),
+            "organization_id": active_org.id,
+        },
     )
     session.commit()
 

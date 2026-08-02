@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
-    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -27,11 +26,6 @@ class UserTenantORM(Base):
             name="ck_user_tenants_status",
         ),
         CheckConstraint(
-            "(status = 'active' AND is_active) OR "
-            "(status <> 'active' AND NOT is_active)",
-            name="ck_user_tenants_active_status",
-        ),
-        CheckConstraint(
             "version >= 1",
             name="ck_user_tenants_version_positive",
         ),
@@ -51,12 +45,6 @@ class UserTenantORM(Base):
     )
     status: Mapped[str] = mapped_column(
         String(32), nullable=False, default="active", server_default="active"
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True, server_default="1"
-    )
-    tenant_role: Mapped[str] = mapped_column(
-        String(64), nullable=False, default="member", server_default="member"
     )
     invited_by_user_id: Mapped[Optional[str]] = mapped_column(
         String,
@@ -84,7 +72,6 @@ class UserTenantORM(Base):
 
 Index("idx_user_tenants_user", UserTenantORM.user_id)
 Index("idx_user_tenants_tenant", UserTenantORM.tenant_id)
-Index("idx_user_tenants_active", UserTenantORM.is_active)
 Index("idx_user_tenants_status", UserTenantORM.status)
 Index(
     "idx_user_tenants_invitation_expiry",

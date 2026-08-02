@@ -65,7 +65,7 @@ The application follows a strict four-layer architecture:
 ├─────────────────────────────────────────────────────────────────┤
 │  API LAYER  (src/api/)                                          │
 │  api/desktop/   — QProperty / Q_INVOKABLE bridge objects        │
-│  api/http/      — HTTP stubs (thin, not production-ready)       │
+│  desktop-only; no HTTP transport is currently supported         │
 ├─────────────────────────────────────────────────────────────────┤
 │  APPLICATION LAYER  (src/core/)                                 │
 │  core/platform/   — tenancy, auth, org, RBAC, access, docs      │
@@ -93,8 +93,6 @@ project_manager_Lite/
 │   │   │       ├── runtime.py
 │   │   │       ├── support.py
 │   │   │       └── models/       # Pydantic / dataclass response shapes
-│   │   └── http/
-│   │       └── platform/         # Thin HTTP adapter stubs
 │   ├── application/
 │   │   └── runtime/              # Module entitlement runtime
 │   ├── core/

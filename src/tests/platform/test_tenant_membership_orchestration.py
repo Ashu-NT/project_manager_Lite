@@ -6,6 +6,7 @@ import json
 import pytest
 from sqlalchemy import select
 
+from src.api.desktop.platform import PlatformTenantDesktopApi
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.infrastructure.persistence.orm.audit_entry import AuditEntryORM
 from src.core.platform.tenancy import (
@@ -432,6 +433,35 @@ def test_accept_invitation_for_tenant_is_self_scoped(services) -> None:
     with pytest.raises(NotFoundError) as exc:
         membership_service.accept_invitation_for_tenant(tenant_id)
     assert exc.value.code == "TENANT_MEMBERSHIP_NOT_FOUND"
+
+
+def test_desktop_adapter_lists_and_accepts_self_scoped_invitation(services) -> None:
+    membership_service = services["tenant_membership_service"]
+    tenant_id = services["tenant_context_service"].require_active_tenant_id(
+        operation_label="test desktop invitation adapter"
+    )
+    target = _register_user(services, "desktop_invitation_acceptor")
+    membership_service.issue_invitation(
+        target.id,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+    )
+    _set_user_principal(services, target.username)
+    api = PlatformTenantDesktopApi(
+        tenant_admin_service=services["tenant_admin_service"],
+        tenant_context_service=services["tenant_context_service"],
+        tenant_membership_service=membership_service,
+    )
+
+    pending = api.list_pending_invitations()
+    accepted = api.accept_invitation(tenant_id)
+
+    assert pending.ok is True
+    assert pending.data is not None and len(pending.data) == 1
+    assert pending.data[0].tenant_id == tenant_id
+    assert pending.data[0].status == MEMBERSHIP_STATUS_INVITED
+    assert accepted.ok is True
+    assert accepted.data is not None
+    assert accepted.data.status == MEMBERSHIP_STATUS_ACTIVE
 
 
 def test_last_effective_tenant_administrator_cannot_be_suspended(

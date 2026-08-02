@@ -78,8 +78,10 @@ For the full, up-to-date list of what's implemented vs. still open across every 
 Within `core/`, `infra/`, and `ui_qml/`, the codebase is consistently split between shared
 `platform/` concerns (tenancy, auth, org, calendar, documents, audit, activity, approval, ...)
 and business `modules/` (`project_management`, `inventory_procurement`, `maintenance`, `qhse`,
-`hr_management`/`payroll`). An optional HTTP transport layer exists under `src/api/http/` for
-future server-mode delivery but is not the primary deployment path.
+`hr_management`/`payroll`). The supported delivery boundary is `src/api/desktop/`; the dormant
+HTTP placeholder was removed after every operation was verified to have a desktop equivalent.
+Any future server mode must introduce a deliberately designed request-scoped transport rather
+than restoring the old shared-session adapter.
 
 Multi-tenancy is implemented as **column-based isolation**: every business row carries
 `tenant_id`/`organization_id` and repositories enforce scoping at both read and write time. The

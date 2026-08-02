@@ -4,8 +4,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.runtime_tracking.contracts import RuntimeExecutionRepository
 from src.core.platform.runtime_tracking.domain import RuntimeExecution
+from src.core.platform.tenancy.tenant_context import TenantContextService
 
 
 class RuntimeExecutionService:
@@ -13,9 +15,11 @@ class RuntimeExecutionService:
         self,
         *,
         runtime_execution_repo: RuntimeExecutionRepository,
+        tenant_context_service: TenantContextService,
         user_session: UserSessionContext | None = None,
     ) -> None:
         self._runtime_execution_repo = runtime_execution_repo
+        self._tenant_context_service = tenant_context_service
         self._user_session = user_session
 
     def start_execution(
@@ -29,6 +33,9 @@ class RuntimeExecutionService:
         retry_of_execution_id: str | None = None,
         attempt_number: int | None = None,
     ) -> RuntimeExecution:
+        ctx = self._tenant_context_service.require_organization_context(
+            operation_label="start runtime execution"
+        )
         principal = self._user_session.principal if self._user_session is not None else None
         resolved_attempt_number = max(1, int(attempt_number or 1))
         if retry_of_execution_id and attempt_number is None:
@@ -39,8 +46,13 @@ class RuntimeExecutionService:
             operation_type=operation_type,
             operation_key=operation_key,
             module_code=module_code,
+            tenant_id=ctx.tenant_id,
+            organization_id=ctx.organization_id,
             requested_by_user_id=getattr(principal, "user_id", None),
             requested_by_username=str(getattr(principal, "username", "") or "") or None,
+            authorization_context_id=(
+                str(getattr(principal, "session_id", "") or "").strip() or None
+            ),
             input_path=input_path,
             output_path=output_path,
             retry_of_execution_id=retry_of_execution_id,
@@ -61,6 +73,7 @@ class RuntimeExecutionService:
         updated_count: int | None = None,
         error_count: int | None = None,
     ) -> RuntimeExecution:
+        self._require_execution_scope(execution, operation_label="complete runtime execution")
         execution.status = "COMPLETED"
         if output_path is not None:
             execution.output_path = output_path
@@ -88,6 +101,7 @@ class RuntimeExecutionService:
         output_media_type: str | None = None,
         output_metadata: dict[str, object] | None = None,
     ) -> RuntimeExecution:
+        self._require_execution_scope(execution, operation_label="fail runtime execution")
         execution.status = "FAILED"
         execution.error_message = str(error_message or "").strip() or "Runtime execution failed."
         if output_path is not None:
@@ -119,6 +133,7 @@ class RuntimeExecutionService:
         return execution
 
     def cancel_execution(self, execution: RuntimeExecution, *, error_message: str | None = None) -> RuntimeExecution:
+        self._require_execution_scope(execution, operation_label="cancel runtime execution")
         execution.status = "CANCELLED"
         execution.error_message = str(error_message or "").strip() or "Runtime execution cancelled."
         execution.completed_at = datetime.now(timezone.utc)
@@ -160,6 +175,38 @@ class RuntimeExecutionService:
             module_code=module_code,
             status=status,
         )
+
+    def artifact_metadata(
+        self,
+        execution: RuntimeExecution,
+        metadata: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        self._require_execution_scope(execution, operation_label="qualify runtime artifact")
+        return {
+            **dict(metadata or {}),
+            "runtime_execution_id": execution.id,
+            "tenant_id": execution.tenant_id,
+            "organization_id": execution.organization_id,
+            "authorization_context_id": execution.authorization_context_id or "",
+        }
+
+    def _require_execution_scope(
+        self,
+        execution: RuntimeExecution,
+        *,
+        operation_label: str,
+    ) -> None:
+        ctx = self._tenant_context_service.require_organization_context(
+            operation_label=operation_label
+        )
+        if (
+            execution.tenant_id != ctx.tenant_id
+            or execution.organization_id != ctx.organization_id
+        ):
+            raise BusinessRuleError(
+                "Runtime execution is outside the active tenant scope.",
+                code="RUNTIME_EXECUTION_SCOPE_VIOLATION",
+            )
 
 
 __all__ = ["RuntimeExecutionService"]

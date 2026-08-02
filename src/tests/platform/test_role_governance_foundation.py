@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import IntegrityError
 
@@ -999,7 +1000,9 @@ def test_role_governance_migration_builds_namespace_and_delegation_schema(
     finally:
         engine.dispose()
 
-    assert revision == "8b2c3d4e5f6a"
+    assert revision == ScriptDirectory.from_config(
+        _alembic_config(database_url)
+    ).get_current_head()
     assert {
         "ux_roles_system_name",
         "ux_roles_tenant_name",

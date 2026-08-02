@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from src.core.platform.auth.domain import ACCOUNT_TYPE_HUMAN
 from src.core.platform.auth.mfa import verify_totp_code
 from src.core.platform.auth.passwords import verify_password
 from src.core.platform.common.exceptions import ValidationError
@@ -35,7 +36,11 @@ def authenticate(
     normalized = (username or "").strip().lower()
     now = datetime.now(timezone.utc)
     user = service._user_repo.get_by_username(normalized)
-    if not user or not user.is_active:
+    if (
+        not user
+        or not user.is_active
+        or getattr(user, "account_type", ACCOUNT_TYPE_HUMAN) != ACCOUNT_TYPE_HUMAN
+    ):
         persist_standalone_login_denial(
             service,
             username=normalized,
@@ -124,7 +129,11 @@ def authenticate_federated(
     audit_username = (
         user.username if user is not None else f"federated:{normalized_provider}"
     )
-    if not user or not user.is_active:
+    if (
+        not user
+        or not user.is_active
+        or getattr(user, "account_type", ACCOUNT_TYPE_HUMAN) != ACCOUNT_TYPE_HUMAN
+    ):
         persist_standalone_login_denial(
             service,
             username=audit_username,

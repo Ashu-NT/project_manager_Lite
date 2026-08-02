@@ -26,14 +26,33 @@ from src.infra.persistence.orm.base import Base
 
 class RuntimeExecutionORM(Base):
     __tablename__ = "runtime_executions"
+    __table_args__ = (
+        Index(
+            "idx_runtime_executions_tenant_org_started",
+            "tenant_id",
+            "organization_id",
+            "started_at",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     operation_type: Mapped[str] = mapped_column(String(32), nullable=False)
     operation_key: Mapped[str] = mapped_column(String(128), nullable=False)
     module_code: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="RUNNING", server_default="RUNNING")
     requested_by_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     requested_by_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    authorization_context_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     input_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     output_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     output_file_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

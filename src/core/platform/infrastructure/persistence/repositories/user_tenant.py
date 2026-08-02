@@ -38,8 +38,6 @@ class SqlAlchemyUserTenantMembershipRepository(UserTenantMembershipRepository):
             membership.version,
             {
                 "status": membership.status,
-                "is_active": membership.is_active,
-                "tenant_role": membership.tenant_role,
                 "invited_by_user_id": membership.invited_by_user_id,
                 "invited_at": membership.invited_at,
                 "invitation_expires_at": membership.invitation_expires_at,
@@ -85,7 +83,6 @@ class SqlAlchemyUserTenantMembershipRepository(UserTenantMembershipRepository):
             UserTenantORM.user_id == user_id,
             UserTenantORM.tenant_id == tenant_id,
             UserTenantORM.status == MEMBERSHIP_STATUS_ACTIVE,
-            UserTenantORM.is_active.is_(True),
         )
         return self._session.execute(stmt).first() is not None
 
@@ -93,7 +90,6 @@ class SqlAlchemyUserTenantMembershipRepository(UserTenantMembershipRepository):
         stmt = select(UserTenantORM.tenant_id).where(
             UserTenantORM.user_id == user_id,
             UserTenantORM.status == MEMBERSHIP_STATUS_ACTIVE,
-            UserTenantORM.is_active.is_(True),
         )
         return list(self._session.execute(stmt).scalars().all())
 
@@ -109,7 +105,7 @@ class SqlAlchemyUserTenantMembershipRepository(UserTenantMembershipRepository):
 
     def deactivate(self, user_id: str, tenant_id: str) -> None:
         membership = self.get(user_id, tenant_id)
-        if membership is None or not membership.is_active:
+        if membership is None or membership.status != MEMBERSHIP_STATUS_ACTIVE:
             return
         self.update(membership.suspend())
 

@@ -79,6 +79,10 @@ from src.core.platform.infrastructure.persistence.repositories.time import (
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,
 )
+from src.core.platform.infrastructure.persistence.repositories.identity import (
+    SqlAlchemyApiKeyCredentialRepository,
+    SqlAlchemyServicePrincipalRepository,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -137,6 +141,8 @@ class RepositoryBundle:
     resource_skill_repo: SqlAlchemyResourceSkillRepository
     resource_cert_repo: SqlAlchemyResourceCertificationRepository
     task_skill_req_repo: SqlAlchemyTaskSkillRequirementRepository
+    service_principal_repo: SqlAlchemyServicePrincipalRepository
+    api_key_credential_repo: SqlAlchemyApiKeyCredentialRepository
 
 
 def build_repository_bundle(session: Session) -> RepositoryBundle:
@@ -198,6 +204,14 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         resource_skill_repo=SqlAlchemyResourceSkillRepository(session),
         resource_cert_repo=SqlAlchemyResourceCertificationRepository(session),
         task_skill_req_repo=SqlAlchemyTaskSkillRequirementRepository(session),
+        service_principal_repo=SqlAlchemyServicePrincipalRepository(
+            session,
+            tenant_context_service=None,
+        ),
+        api_key_credential_repo=SqlAlchemyApiKeyCredentialRepository(
+            session,
+            tenant_context_service=None,
+        ),
     )
     logger.debug(
         "Repository bundle build complete duration_ms=%.1f repository_count=%s",

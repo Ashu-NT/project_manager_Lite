@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.activity.contracts import ActivityRepository
 from src.core.platform.activity.domain.activity_entry import ActivityEntry
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.infrastructure.persistence.mappers.activity import activity_from_orm, activity_to_orm
 from src.core.platform.infrastructure.persistence.orm.activity import ActivityEntryORM
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
@@ -21,7 +22,9 @@ class SqlAlchemyActivityRepository(TenantScopedRepositorySupport, ActivityReposi
         self._tenant_context_service = None
 
     def add(self, entry: ActivityEntry) -> None:
+        ctx = self._context(operation_label="record activity")
         orm = activity_to_orm(entry)
+        self._stamp_scope(ctx, orm)
         self.session.add(orm)
 
     def list_recent(
@@ -37,11 +40,18 @@ class SqlAlchemyActivityRepository(TenantScopedRepositorySupport, ActivityReposi
         parent_entity_id: str | None = None,
         action_prefix: str | None = None,
     ) -> list[ActivityEntry]:
-        stmt = select(ActivityEntryORM)
-        if tenant_id is not None:
-            stmt = stmt.where(ActivityEntryORM.tenant_id == tenant_id)
-        if organization_id is not None:
-            stmt = stmt.where(ActivityEntryORM.organization_id == organization_id)
+        ctx = self._context(operation_label="list activity")
+        if tenant_id is not None and tenant_id != ctx.tenant_id:
+            raise BusinessRuleError(
+                "Activity tenant is outside the active scope.",
+                code="TENANT_SCOPE_VIOLATION",
+            )
+        if organization_id is not None and organization_id != ctx.organization_id:
+            raise BusinessRuleError(
+                "Activity organization is outside the active scope.",
+                code="ORGANIZATION_SCOPE_VIOLATION",
+            )
+        stmt = self._apply_scope(select(ActivityEntryORM), ActivityEntryORM, ctx)
         if entity_type is not None:
             stmt = stmt.where(ActivityEntryORM.entity_type == entity_type)
         if entity_id is not None:

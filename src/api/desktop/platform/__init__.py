@@ -29,6 +29,11 @@ from src.api.desktop.platform.models import (
     EmployeeCreateCommand,
     EmployeeDto,
     EmployeeUpdateCommand,
+    ApiKeyCredentialDto,
+    ApiKeyIssueCommand,
+    IssuedApiKeyDto,
+    ServicePrincipalCreateCommand,
+    ServicePrincipalDto,
     ModuleDto,
     ModuleEntitlementDto,
     ModuleStatePatchCommand,
@@ -47,6 +52,7 @@ from src.api.desktop.platform.models import (
     SiteCreateCommand,
     SiteDto,
     SiteUpdateCommand,
+    TenantInvitationDto,
     SupportBundleDto,
     SupportEventDto,
     SupportInstallLaunchDto,
@@ -66,6 +72,7 @@ from src.api.desktop.platform.approval import PlatformApprovalDesktopApi
 from src.api.desktop.platform.document import PlatformDocumentDesktopApi
 from src.api.desktop.platform.department import PlatformDepartmentDesktopApi
 from src.api.desktop.platform.employee import PlatformEmployeeDesktopApi
+from src.api.desktop.platform.identity import PlatformIdentityDesktopApi
 from src.api.desktop.platform.party import PlatformPartyDesktopApi
 from src.api.desktop.platform.runtime import PlatformRuntimeDesktopApi
 from src.api.desktop.platform.site import PlatformSiteDesktopApi
@@ -74,6 +81,8 @@ from src.api.desktop.platform.tenant import PlatformTenantDesktopApi
 from src.api.desktop.platform.user import PlatformUserDesktopApi
 
 __all__ = [
+    "ApiKeyCredentialDto",
+    "ApiKeyIssueCommand",
     "ApprovalDecisionCommand",
     "ApprovalRequestDto",
     "ApprovalStatus",
@@ -104,6 +113,7 @@ __all__ = [
     "EmployeeCreateCommand",
     "EmployeeDto",
     "EmployeeUpdateCommand",
+    "IssuedApiKeyDto",
     "ModuleDto",
     "ModuleEntitlementDto",
     "ModuleStatePatchCommand",
@@ -123,6 +133,7 @@ __all__ = [
     "PlatformRuntimeContextDto",
     "PlatformDepartmentDesktopApi",
     "PlatformEmployeeDesktopApi",
+    "PlatformIdentityDesktopApi",
     "PlatformRuntimeDesktopApi",
     "PlatformSiteDesktopApi",
     "PlatformTenantDesktopApi",
@@ -134,6 +145,9 @@ __all__ = [
     "SiteCreateCommand",
     "SiteDto",
     "SiteUpdateCommand",
+    "ServicePrincipalCreateCommand",
+    "ServicePrincipalDto",
+    "TenantInvitationDto",
     "SupportBundleDto",
     "SupportEventDto",
     "SupportInstallLaunchDto",

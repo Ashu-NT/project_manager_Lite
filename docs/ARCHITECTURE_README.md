@@ -23,7 +23,7 @@ Project Manager Lite — Enterprise Architecture Reference
 
 ### 1.1 Summary
 
-Project Manager Lite is a layered desktop application. The frontend is written in QML (PySide6/Qt), the backend is pure Python, persistence is managed by SQLAlchemy 2 ORM, and schema evolution is handled by Alembic migrations. The application runs as a single process with a local SQLite database; there is no HTTP server in the default desktop deployment. An optional HTTP API layer (`src/api/http`) exists for future server-mode operation but is not the primary delivery mechanism.
+Project Manager Lite is a layered desktop application. The frontend is written in QML (PySide6/Qt), the backend is pure Python, persistence is managed by SQLAlchemy 2 ORM, and schema evolution is handled by Alembic migrations. The application runs as a single process with a local SQLite database. `src/api/desktop` is the only supported delivery adapter; the dormant HTTP placeholder was removed after a dependency audit. A future server mode requires a new request-scoped transport design.
 
 The codebase is organized into four top-level source areas:
 
@@ -31,7 +31,6 @@ The codebase is organized into four top-level source areas:
 src/
   api/               # Delivery adapters
   |  desktop/        #   Desktop Qt bridge (QML ↔ Python)
-  |  http/           #   Future HTTP REST adapter
   application/       # Cross-cutting application services and runtime orchestration
   core/              # Domain and application logic (no framework dependencies)
   |  platform/       #   Platform layer: tenancy, auth, org, access, calendar, ...

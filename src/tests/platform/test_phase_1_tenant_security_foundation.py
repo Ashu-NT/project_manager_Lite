@@ -55,12 +55,10 @@ def _make_principal(user_id: str, *, role_names=frozenset(), permissions=frozens
 # ---------------------------------------------------------------------------
 
 def test_user_tenant_membership_create():
-    m = UserTenantMembership.create(user_id="  u1  ", tenant_id="  t1  ", tenant_role="  MEMBER  ")
+    m = UserTenantMembership.create(user_id="  u1  ", tenant_id="  t1  ")
     assert m.user_id == "u1"
     assert m.tenant_id == "t1"
-    assert m.is_active is True
     assert m.status == MEMBERSHIP_STATUS_ACTIVE
-    assert m.tenant_role == "member"
     assert m.accepted_at is not None
     assert m.created_at is not None
     assert m.joined_at is not None
@@ -74,7 +72,6 @@ def test_user_tenant_membership_dto_validates_required_fields_and_datetimes():
         id="  membership-1  ",
         user_id="  user-1  ",
         tenant_id="  tenant-1  ",
-        tenant_role="  TENANT_ADMIN  ",
         invited_at=stamp,
         joined_at=stamp,
         created_at=stamp,
@@ -84,12 +81,8 @@ def test_user_tenant_membership_dto_validates_required_fields_and_datetimes():
     assert membership.id == "membership-1"
     assert membership.user_id == "user-1"
     assert membership.tenant_id == "tenant-1"
-    assert membership.tenant_role == "tenant_admin"
     assert membership.created_at is not None
     assert membership.created_at.tzinfo is not None
-
-    membership.tenant_role = "  MEMBER  "
-    assert membership.tenant_role == "member"
 
     with pytest.raises(ValidationError) as exc_user:
         UserTenantMembership.create(user_id=" ", tenant_id="tenant-1")
@@ -136,7 +129,7 @@ def test_user_tenant_repo_add_and_get(session):
     assert fetched is not None
     assert fetched.user_id == "u-repo-1"
     assert fetched.tenant_id == "t-repo-1"
-    assert fetched.is_active is True
+    assert fetched.status == MEMBERSHIP_STATUS_ACTIVE
 
 
 def test_user_tenant_repo_rejects_duplicate_membership_add(session):

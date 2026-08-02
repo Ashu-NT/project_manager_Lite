@@ -459,7 +459,6 @@ def test_tenant_switch_does_not_leak_canonical_tenant_admin_authority(
         UserTenantMembership.create(
             user_id=actor.id,
             tenant_id=target_tenant.id,
-            tenant_role="tenant_admin",
         )
     )
     services["session"].flush()

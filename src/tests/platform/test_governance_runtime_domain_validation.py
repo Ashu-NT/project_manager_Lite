@@ -57,6 +57,15 @@ class _FakeUserSession:
     principal: _FakePrincipal | None
 
 
+class _FakeTenantContextService:
+    def require_organization_context(self, *, operation_label: str):
+        return type(
+            "Context",
+            (),
+            {"tenant_id": "tenant-1", "organization_id": "org-1"},
+        )()
+
+
 def test_approval_request_dto_normalizes_and_validates_fields():
     request = ApprovalRequest.create(
         request_type="  COST.UPDATE  ",
@@ -156,6 +165,7 @@ def test_runtime_execution_service_uses_entity_validation_for_updates():
     repo = _FakeRuntimeExecutionRepo()
     runtime = RuntimeExecutionService(
         runtime_execution_repo=repo,
+        tenant_context_service=_FakeTenantContextService(),
         user_session=_FakeUserSession(
             principal=_FakePrincipal(
                 user_id="  user-1  ",
@@ -176,6 +186,8 @@ def test_runtime_execution_service_uses_entity_validation_for_updates():
     )
 
     assert execution.operation_type == "report"
+    assert execution.tenant_id == "tenant-1"
+    assert execution.organization_id == "org-1"
     assert execution.operation_key == "backlog.export"
     assert execution.module_code == "project_management"
     assert execution.status == "RUNNING"

@@ -23,6 +23,7 @@ from src.core.platform.auth.authorization import (
     require_permission,
 )
 from src.core.platform.auth.contracts import UserRepository
+from src.core.platform.tenancy.domain import MEMBERSHIP_STATUS_ACTIVE
 
 if TYPE_CHECKING:
     from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
@@ -466,7 +467,7 @@ class AccessControlService:
             )
         membership = self._user_tenant_repo.get(user_id, tenant_id)
         has_membership = membership is not None and (
-            not active_only or bool(membership.is_active)
+            not active_only or membership.status == MEMBERSHIP_STATUS_ACTIVE
         )
         if has_membership:
             return

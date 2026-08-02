@@ -12,7 +12,8 @@ As of 2026-05-19, the migration/cutover is complete at the desktop-runtime level
 - legacy widget-only tests are deleted
 - temporary `src/ui_qml/legacy_widgets/*` migration holding folders are deleted
 - module UI work now lives only under `src/ui_qml/*`
-- future HTTP work remains deferred
+- the dormant `src/api/http` placeholder was removed on 2026-08-02 after desktop parity and
+  zero external importers were verified; later HTTP references are historical migration trace
 
 Historical notes later in this document are kept as migration trace, but if they describe QWidget paths as still active, the current status above wins.
 

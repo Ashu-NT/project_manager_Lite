@@ -21,6 +21,9 @@ from src.core.platform.auth.domain.role_binding import (
 )
 
 _EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
+ACCOUNT_TYPE_HUMAN = "human"
+ACCOUNT_TYPE_SERVICE = "service"
+VALID_ACCOUNT_TYPES = frozenset({ACCOUNT_TYPE_HUMAN, ACCOUNT_TYPE_SERVICE})
 
 
 def normalize_auth_username(value: object) -> str:
@@ -189,6 +192,7 @@ class UserAccount:
     id: str
     username: str
     password_hash: str
+    account_type: str = ACCOUNT_TYPE_HUMAN
     display_name: str | None = None
     email: str | None = None
     identity_provider: str | None = None
@@ -220,6 +224,17 @@ class UserAccount:
     @classmethod
     def _validate_password_hash(cls, value: object) -> str:
         return normalize_auth_password_hash(value)
+
+    @field_validator("account_type", mode="before")
+    @classmethod
+    def _validate_account_type(cls, value: object) -> str:
+        normalized = normalize_optional_text(value).lower() or ACCOUNT_TYPE_HUMAN
+        if normalized not in VALID_ACCOUNT_TYPES:
+            raise ValidationError(
+                "Account type is invalid.",
+                code="AUTH_ACCOUNT_TYPE_INVALID",
+            )
+        return normalized
 
     @field_validator("display_name", "mfa_secret", "last_login_auth_method", mode="before")
     @classmethod
@@ -305,12 +320,14 @@ class UserAccount:
         federated_subject: str | None = None,
         session_timeout_minutes_override: int | str | None = None,
         must_change_password: bool = False,
+        account_type: str = ACCOUNT_TYPE_HUMAN,
     ) -> "UserAccount":
         now = datetime.now(timezone.utc)
         return UserAccount(
             id=generate_id(),
             username=username,
             password_hash=password_hash,
+            account_type=account_type,
             display_name=display_name,
             email=email,
             identity_provider=identity_provider,
@@ -544,6 +561,8 @@ class RolePermissionBinding:
 
 
 __all__ = [
+    "ACCOUNT_TYPE_HUMAN",
+    "ACCOUNT_TYPE_SERVICE",
     "Permission",
     "Role",
     "RolePermissionBinding",

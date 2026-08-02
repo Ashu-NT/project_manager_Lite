@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 
 from src.core.platform.common.exceptions import (
@@ -90,7 +91,6 @@ def test_membership_domain_enforces_explicit_lifecycle_transitions() -> None:
     )
 
     assert membership.status == MEMBERSHIP_STATUS_INVITED
-    assert membership.is_active is False
     assert membership.invitation_is_expired(
         at=invited_at + timedelta(days=1)
     ) is False
@@ -109,14 +109,11 @@ def test_membership_domain_enforces_explicit_lifecycle_transitions() -> None:
     )
 
     assert accepted.status == MEMBERSHIP_STATUS_ACTIVE
-    assert accepted.is_active is True
     assert accepted.invitation_token_hash is None
     assert suspended.status == MEMBERSHIP_STATUS_SUSPENDED
-    assert suspended.is_active is False
     assert reactivated.status == MEMBERSHIP_STATUS_ACTIVE
     assert reactivated.suspended_at is None
     assert removed.status == MEMBERSHIP_STATUS_REMOVED
-    assert removed.is_active is False
     assert membership.status == MEMBERSHIP_STATUS_INVITED
 
 
@@ -269,7 +266,9 @@ def test_membership_lifecycle_migration_builds_production_shape(tmp_path) -> Non
     finally:
         engine.dispose()
 
-    assert revision == "8b2c3d4e5f6a"
+    assert revision == ScriptDirectory.from_config(
+        _alembic_config(database_url)
+    ).get_current_head()
     assert {
         "status",
         "invited_by_user_id",
@@ -281,17 +280,19 @@ def test_membership_lifecycle_migration_builds_production_shape(tmp_path) -> Non
         "removed_at",
         "version",
     } <= columns
+    assert {"is_active", "tenant_role"}.isdisjoint(columns)
     assert {
         "ck_user_tenants_status",
-        "ck_user_tenants_active_status",
         "ck_user_tenants_version_positive",
         "ck_user_tenants_invitation_token_state",
     } <= checks
+    assert "ck_user_tenants_active_status" not in checks
     assert {
         "idx_user_tenants_status",
         "idx_user_tenants_invitation_expiry",
         "ux_user_tenants_invitation_token_hash",
     } <= indexes
+    assert "idx_user_tenants_active" not in indexes
 
 
 def test_membership_lifecycle_migration_backfills_and_round_trips(
@@ -350,7 +351,7 @@ def test_membership_lifecycle_migration_backfills_and_round_trips(
         with engine.connect() as connection:
             rows = connection.execute(
                 text(
-                    "SELECT id, status, is_active, accepted_at, "
+                    "SELECT id, status, accepted_at, "
                     "suspended_at, version FROM user_tenants ORDER BY id"
                 )
             ).mappings().all()
@@ -359,11 +360,9 @@ def test_membership_lifecycle_migration_backfills_and_round_trips(
 
     rows_by_id = {row["id"]: row for row in rows}
     assert rows_by_id["membership-active"]["status"] == "active"
-    assert rows_by_id["membership-active"]["is_active"] == 1
     assert rows_by_id["membership-active"]["accepted_at"] is not None
     assert rows_by_id["membership-active"]["suspended_at"] is None
     assert rows_by_id["membership-inactive"]["status"] == "suspended"
-    assert rows_by_id["membership-inactive"]["is_active"] == 0
     assert rows_by_id["membership-inactive"]["accepted_at"] is not None
     assert rows_by_id["membership-inactive"]["suspended_at"] is not None
     assert rows_by_id["membership-inactive"]["version"] == 1

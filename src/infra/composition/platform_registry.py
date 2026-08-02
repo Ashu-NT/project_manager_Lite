@@ -49,6 +49,7 @@ from src.core.platform.tenancy import (
 from src.core.platform.party import PartyService
 from src.core.platform.party.contracts import PartyRepository
 from src.core.platform.runtime_tracking import RuntimeExecutionService
+from src.core.platform.identity import ServicePrincipalService
 from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
 from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
 from src.core.platform.calendar.application.calendar_exception_service import CalendarExceptionService
@@ -68,6 +69,10 @@ from src.infra.platform.security_audit_recorder import (
 from src.infra.platform.security_config import (
     RuntimeSecurityConfiguration,
     load_runtime_security_configuration,
+)
+from src.infra.persistence.db.postgresql_rls import (
+    configure_session_rls_context,
+    validate_postgresql_execution_role,
 )
 
 
@@ -135,7 +140,6 @@ def _bootstrap_local_single_tenant_context(
             UserTenantMembership.create(
                 user_id=user.id,
                 tenant_id=default_tenant.id,
-                tenant_role="member",
             )
         )
     session.commit()
@@ -179,6 +183,7 @@ class PlatformServiceBundle:
     working_time_calculator: WorkingTimeCalculator
     tenant_admin_service: TenantAdminService
     tenant_membership_service: TenantMembershipService
+    service_principal_service: ServicePrincipalService
     global_calendar_shim: GlobalCalendarShim
     runtime_security_configuration: RuntimeSecurityConfiguration
 
@@ -399,13 +404,12 @@ def build_platform_service_bundle(
     def _active_organization() -> Organization | None:
         return tenant_context_service.get_active_organization()
 
-    def _active_organization_id() -> str | None:
-        return tenant_context_service.get_active_organization_id()
-
     module_entitlement_repo = SqlAlchemyModuleEntitlementRepository(
         session,
-        organization_id_provider=_active_organization_id,
+        tenant_context_service=tenant_context_service,
     )
+    configure_session_rls_context(session, user_session=user_session)
+    validate_postgresql_execution_role(session)
     module_catalog_service = ModuleCatalogService(
         modules=DEFAULT_ENTERPRISE_MODULES,
         enabled_codes=parse_enabled_module_codes(os.getenv("PM_ENABLED_MODULES")),
@@ -434,7 +438,11 @@ def build_platform_service_bundle(
         user_session=user_session,
     )
     runtime_execution_service = RuntimeExecutionService(
-        runtime_execution_repo=SqlAlchemyRuntimeExecutionRepository(session),
+        runtime_execution_repo=SqlAlchemyRuntimeExecutionRepository(
+            session,
+            tenant_context_service=tenant_context_service,
+        ),
+        tenant_context_service=tenant_context_service,
         user_session=user_session,
     )
     scope_exists_resolvers = {
@@ -473,6 +481,19 @@ def build_platform_service_bundle(
         ),
     )
     auth_service.set_role_governance_service(role_governance_service)
+    service_principal_service = ServicePrincipalService(
+        session=session,
+        principal_repo=repositories.service_principal_repo,
+        api_key_repo=repositories.api_key_credential_repo,
+        user_repo=repositories.user_repo,
+        tenant_repo=repositories.tenant_repo,
+        organization_repo=repositories.organization_repo,
+        membership_repo=repositories.user_tenant_repo,
+        audit_repo=repositories.audit_entry_repo,
+        auth_service=auth_service,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+    )
     access_service = AccessControlService(
         session=session,
         user_repo=repositories.user_repo,
@@ -638,6 +659,7 @@ def build_platform_service_bundle(
         working_time_calculator=working_time_calculator,
         tenant_admin_service=tenant_admin_service,
         tenant_membership_service=tenant_membership_service,
+        service_principal_service=service_principal_service,
         global_calendar_shim=global_calendar_shim,
         runtime_security_configuration=security_configuration,
     )

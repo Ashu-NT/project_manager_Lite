@@ -99,8 +99,8 @@ def test_list_accessible_tenants_returns_user_memberships(services):
     svc, _, ctx = _make_regular_user_svc(services, username="p2d-accessible-user1")
     user_id = ctx.principal.user_id
     ut_repo = SqlAlchemyUserTenantMembershipRepository(services["session"])
-    ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t1.id, tenant_role="member"))
-    ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t2.id, tenant_role="member"))
+    ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t1.id))
+    ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t2.id))
     services["session"].flush()
 
     accessible = svc.list_accessible_tenants()
@@ -122,8 +122,8 @@ def test_list_accessible_tenants_inactive_membership_excluded(services):
     svc, _, ctx = _make_regular_user_svc(services, username="p2d-membership-excl")
     user_id = ctx.principal.user_id
     ut_repo = SqlAlchemyUserTenantMembershipRepository(services["session"])
-    ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t_active.id, tenant_role="member"))
-    ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t_inactive.id, tenant_role="member"))
+    ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t_active.id))
+    ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t_inactive.id))
     services["session"].flush()
 
     ut_repo.deactivate(user_id, t_inactive.id)
@@ -147,7 +147,7 @@ def test_list_accessible_tenants_suspended_tenant_excluded(services):
     svc, _, ctx = _make_regular_user_svc(services, username="p2d-susp-excl-user")
     user_id = ctx.principal.user_id
     ut_repo = SqlAlchemyUserTenantMembershipRepository(services["session"])
-    ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t_susp.id, tenant_role="member"))
+    ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t_susp.id))
     services["session"].flush()
 
     admin_svc.suspend_tenant(t_susp.id)
@@ -165,7 +165,7 @@ def test_list_accessible_tenants_archived_tenant_excluded(services):
     svc, _, ctx = _make_regular_user_svc(services, username="p2d-arch-excl-user")
     user_id = ctx.principal.user_id
     ut_repo = SqlAlchemyUserTenantMembershipRepository(services["session"])
-    ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t_arch.id, tenant_role="member"))
+    ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t_arch.id))
     services["session"].flush()
 
     admin_svc.archive_tenant(t_arch.id)

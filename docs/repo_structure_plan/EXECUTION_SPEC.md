@@ -20,6 +20,8 @@ As of 2026-05-19, the desktop-runtime cutover is complete:
 - legacy QWidget trees `ui/*` and `src/ui/*` are deleted
 - legacy `main.py` is deleted
 - legacy widget-only tests are deleted
+- the dormant `src/api/http` placeholder was removed on 2026-08-02 after desktop parity and
+  zero external importers were verified; later HTTP references are historical migration trace
 - temporary `src/ui_qml/legacy_widgets/*` migration holding folders are deleted
 - HTTP transport remains deferred
 

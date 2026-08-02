@@ -152,6 +152,7 @@ def _create_user(
     commit: bool = True,
     audit_action: str = "user.register",
     system_audit_actor: str | None = None,
+    account_type: str = "human",
 ) -> UserAccount:
     normalized = normalize_auth_username(username)
     normalized_email = service._normalize_email(email)
@@ -217,6 +218,7 @@ def _create_user(
         federated_subject=normalized_subject,
         session_timeout_minutes_override=session_timeout_minutes_override,
         must_change_password=must_change_password,
+        account_type=account_type,
     )
     normalized_tenant_id = str(tenant_id or "").strip() or None
     if normalized_tenant_id is None:
@@ -254,7 +256,6 @@ def _create_user(
                 membership = UserTenantMembership.create(
                     user_id=user.id,
                     tenant_id=normalized_tenant_id,
-                    tenant_role="member",
                 )
                 service._user_tenant_repo.add(membership)
             actor = (
@@ -332,6 +333,7 @@ def register_user(
     session_timeout_minutes_override: int | None = None,
     tenant_id: str | None = None,
     commit: bool = True,
+    account_type: str = "human",
 ) -> UserAccount:
     require_permission(service._user_session, "auth.manage", operation_label="register user")
     return _create_user(
@@ -348,6 +350,7 @@ def register_user(
         session_timeout_minutes_override=session_timeout_minutes_override,
         tenant_id=tenant_id,
         commit=commit,
+        account_type=account_type,
     )
 
 

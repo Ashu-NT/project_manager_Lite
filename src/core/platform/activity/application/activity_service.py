@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.activity.contracts import ActivityRepository
 from src.core.platform.activity.domain.activity_entry import ActivityEntry
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
 
 
 class ActivityService:
@@ -14,7 +16,7 @@ class ActivityService:
         session: Session,
         activity_repo: ActivityRepository,
         user_session: Any = None,
-        tenant_context_service: Any = None,
+        tenant_context_service: TenantContextService | None = None,
     ) -> None:
         self._session = session
         self._activity_repo = activity_repo
@@ -41,17 +43,7 @@ class ActivityService:
     ) -> ActivityEntry:
         principal = self._user_session.principal if self._user_session else None
         actor_id = principal.user_id if principal else None
-        tenant_id: str | None = None
-        organization_id: str | None = None
-        if self._tenant_context_service is not None:
-            try:
-                tenant_id = self._tenant_context_service.get_active_tenant_id()
-            except Exception:
-                pass
-            try:
-                organization_id = self._tenant_context_service.get_active_organization_id()
-            except Exception:
-                pass
+        scope = self._require_scope(operation_label="record activity")
         entry = ActivityEntry.create(
             action=action,
             entity_type=entity_type,
@@ -59,8 +51,8 @@ class ActivityService:
             module=module,
             actor_id=actor_id,
             workspace_id=workspace_id,
-            tenant_id=tenant_id,
-            organization_id=organization_id,
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
             type=type,
             human_message=human_message or action,
             details=details or {},
@@ -86,27 +78,27 @@ class ActivityService:
         parent_entity_id: str | None = None,
         action_prefix: str | None = None,
     ) -> list[ActivityEntry]:
-        tenant_id: str | None = None
-        organization_id: str | None = None
-        if self._tenant_context_service is not None:
-            try:
-                tenant_id = self._tenant_context_service.get_active_tenant_id()
-            except Exception:
-                pass
-            try:
-                organization_id = self._tenant_context_service.get_active_organization_id()
-            except Exception:
-                pass
+        scope = self._require_scope(operation_label="list activity")
         return self._activity_repo.list_recent(
             limit=limit,
-            tenant_id=tenant_id,
-            organization_id=organization_id,
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
             entity_type=entity_type,
             entity_id=entity_id,
             module=module,
             workspace_id=workspace_id,
             parent_entity_id=parent_entity_id,
             action_prefix=action_prefix,
+        )
+
+    def _require_scope(self, *, operation_label: str) -> TenantContext:
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "ActivityService requires TenantContextService.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_organization_context(
+            operation_label=operation_label
         )
 
 

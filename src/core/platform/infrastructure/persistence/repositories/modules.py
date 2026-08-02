@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Callable
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.modules import (
     ModuleEntitlementRecord,
     ModuleEntitlementRepository,
@@ -14,30 +12,32 @@ from src.core.platform.modules import (
     normalize_module_code,
 )
 from src.core.platform.infrastructure.persistence.orm.modules import ModuleEntitlementORM
+from src.core.platform.infrastructure.persistence.orm.org import OrganizationORM
+from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
+    TenantScopedRepositorySupport,
+)
+from src.core.platform.tenancy.tenant_context import TenantContextService
 
 
 def _utc_now_naive() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
+class SqlAlchemyModuleEntitlementRepository(
+    TenantScopedRepositorySupport,
+    ModuleEntitlementRepository,
+):
+    _repository_label = "ModuleEntitlementRepository"
     session: Session
-    _organization_id_provider: Callable[[], str | None]
-    _tenant_id_provider: Callable[[], str | None]
 
     def __init__(
         self,
         session: Session,
         *,
-        organization_id_provider: Callable[[], str | None],
-        tenant_id_provider: Callable[[], str | None] | None = None,
+        tenant_context_service: TenantContextService,
     ) -> None:
         self.session = session
-        self._organization_id_provider = organization_id_provider
-        self._tenant_id_provider = tenant_id_provider or (lambda: None)
-
-    def _current_organization_id(self) -> str | None:
-        return self._organization_id_provider()
+        self._tenant_context_service = tenant_context_service
 
     def _preferred_record(
         self, rows: list[ModuleEntitlementORM], canonical_code: str
@@ -62,10 +62,15 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
         organization_id: str,
         module_code: str,
     ) -> list[ModuleEntitlementORM]:
+        tenant_id = self._require_organization_scope(
+            organization_id,
+            operation_label="view organization module entitlement",
+        )
         candidate_codes = module_storage_codes(module_code)
         return self.session.execute(
             select(ModuleEntitlementORM)
             .where(ModuleEntitlementORM.organization_id == organization_id)
+            .where(ModuleEntitlementORM.tenant_id == tenant_id)
             .where(ModuleEntitlementORM.module_code.in_(candidate_codes))
             .order_by(ModuleEntitlementORM.module_code.asc())
         ).scalars().all()
@@ -83,9 +88,14 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
         return self._to_record(obj, canonical_code)
 
     def list_all_for_organization(self, organization_id: str) -> list[ModuleEntitlementRecord]:
+        tenant_id = self._require_organization_scope(
+            organization_id,
+            operation_label="list organization module entitlements",
+        )
         rows = self.session.execute(
             select(ModuleEntitlementORM)
             .where(ModuleEntitlementORM.organization_id == organization_id)
+            .where(ModuleEntitlementORM.tenant_id == tenant_id)
             .order_by(ModuleEntitlementORM.module_code.asc())
         ).scalars().all()
         records_by_code: dict[str, ModuleEntitlementRecord] = {}
@@ -97,20 +107,27 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
             records_by_code[canonical_code] = self._to_record(row, canonical_code)
         return [records_by_code[code] for code in sorted(records_by_code)]
 
-    def upsert_for_organization(self, organization_id: str, record: ModuleEntitlementRecord, *, tenant_id: str | None = None) -> None:
+    def upsert_for_organization(
+        self,
+        organization_id: str,
+        record: ModuleEntitlementRecord,
+    ) -> None:
+        tenant_id = self._require_organization_scope(
+            organization_id,
+            operation_label="update organization module entitlement",
+        )
         canonical_code = record.module_code
         rows = self._list_rows_for_codes(organization_id, canonical_code)
         obj = self._preferred_record(rows, canonical_code)
         extra_rows = [row for row in rows if row is not obj]
         for extra_row in extra_rows:
             self.session.delete(extra_row)
-        resolved_tenant_id = tenant_id or self._tenant_id_provider()
         if obj is None:
             self.session.add(
                 ModuleEntitlementORM(
                     organization_id=organization_id,
                     module_code=canonical_code,
-                    tenant_id=resolved_tenant_id,
+                    tenant_id=tenant_id,
                     licensed=bool(record.licensed),
                     enabled=bool(record.enabled and record.licensed),
                     lifecycle_status=record.lifecycle_status,
@@ -118,8 +135,7 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
                 )
             )
             return
-        if resolved_tenant_id and not getattr(obj, "tenant_id", None):
-            obj.tenant_id = resolved_tenant_id
+        obj.tenant_id = tenant_id
         obj.module_code = canonical_code
         obj.licensed = bool(record.licensed)
         obj.enabled = bool(record.enabled and record.licensed)
@@ -127,25 +143,37 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
         obj.updated_at = _utc_now_naive()
 
     def get(self, module_code: str) -> ModuleEntitlementRecord | None:
-        organization_id = self._current_organization_id()
-        if not organization_id:
-            return None
-        return self.get_for_organization(organization_id, module_code)
+        ctx = self._context(operation_label="view module entitlement")
+        return self.get_for_organization(ctx.organization_id, module_code)
 
     def list_all(self) -> list[ModuleEntitlementRecord]:
-        organization_id = self._current_organization_id()
-        if not organization_id:
-            return []
-        return self.list_all_for_organization(organization_id)
+        ctx = self._context(operation_label="list module entitlements")
+        return self.list_all_for_organization(ctx.organization_id)
 
     def upsert(self, record: ModuleEntitlementRecord) -> None:
-        organization_id = self._current_organization_id()
-        if not organization_id:
-            raise BusinessRuleError(
-                "Active organization context is required for module entitlements.",
-                code="TENANT_CONTEXT_REQUIRED",
+        ctx = self._context(operation_label="update module entitlement")
+        self.upsert_for_organization(ctx.organization_id, record)
+
+    def _require_organization_scope(
+        self,
+        organization_id: str,
+        *,
+        operation_label: str,
+    ) -> str:
+        ctx = self._tenant_context(operation_label=operation_label)
+        normalized_id = str(organization_id or "").strip()
+        organization_exists = self.session.execute(
+            select(OrganizationORM.id).where(
+                OrganizationORM.id == normalized_id,
+                OrganizationORM.tenant_id == ctx.tenant_id,
             )
-        self.upsert_for_organization(organization_id, record)
+        ).scalar_one_or_none()
+        if organization_exists is None:
+            raise NotFoundError(
+                "Organization not found in the active tenant.",
+                code="ORGANIZATION_NOT_FOUND",
+            )
+        return ctx.tenant_id
 
 
 __all__ = ["SqlAlchemyModuleEntitlementRepository"]

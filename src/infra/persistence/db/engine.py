@@ -34,7 +34,8 @@ def get_db_url() -> str:
     env_url = (os.getenv("PM_DB_URL") or "").strip()
     if env_url:
         parsed = urlparse(env_url)
-        if parsed.scheme not in ("sqlite", "postgresql", "mysql", "oracle", "mssql"):
+        base_scheme = parsed.scheme.split("+", 1)[0]
+        if base_scheme not in ("sqlite", "postgresql", "mysql", "oracle", "mssql"):
             raise ValueError(f"Unsupported database scheme: {parsed.scheme}")
         _log_db_url_once(env_url, "Using database URL from PM_DB_URL: %s")
         return env_url

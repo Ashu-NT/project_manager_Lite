@@ -2,18 +2,19 @@
 
 Date: 2026-07-27
 
-Status (verified 2026-08-02): The canonical authority direct-cutover is complete, but the full
-tenancy/RBAC hardening program is not. Every identified resource and organization scope
-(organization, project, site, storeroom, maintenance) resolves authority exclusively through
-canonical `role_bindings`; the legacy authority tables, repositories, migration mode, evidence
-tooling, and transition markers are removed. The local development database was reset and the
-cleanup migration was applied. Environment-specific policy/delegation provisioning remains an
-operator action. The remaining program work is explicit: remove the non-authoritative
-`user_tenants.tenant_role` and duplicate membership `is_active` compatibility columns, expose a
-reviewed customer-facing invitation/account-onboarding adapter if required by the product, and
-complete the repository/background/audit and hosted PostgreSQL defense-in-depth phases. The
-2026-08-02 audit also removed stale legacy constructor arguments from all three security operator
-tools and added an architecture guard against their return.
+Status (verified 2026-08-02): The canonical authority direct cutover and the current hardening
+execution tranche are complete. Every identified resource and organization scope resolves
+authority exclusively through canonical `role_bindings`; legacy authority and transition code
+are removed. Membership admission is now status-only: the duplicate `user_tenants.is_active`
+and non-authoritative `tenant_role` columns are retired. Token-free invitation listing and
+acceptance are exposed through the desktop adapter. Shared fail-closed repository scoping,
+tenant-qualified runtime/artifact metadata, mandatory database-backed security audit semantics,
+service principals with scoped rotating API keys, and PostgreSQL RLS foundations are
+implemented. Remaining items are deployment/product follow-ups rather than alternate authority
+paths: apply reviewed policy catalogs per environment, validate RLS against a hosted PostgreSQL
+non-owner role, and select a supported network transport before implementing SCIM. The dormant
+`src/api/http` package was dependency-audited and removed on 2026-08-02 because every operation
+already has a supported desktop adapter.
 
 Owners: Platform, Security, Persistence, API, Desktop UI, and module teams.
 
@@ -131,11 +132,11 @@ be resolved in favor of this document.
 | Delegation policies | Accept | Replace `_PRIVILEGE_RANK` as a security authority with assignable-role and permission-subset rules. |
 | Invitations and first-owner provisioning | Accept | Add dedicated tenant provisioning and membership invitation workflows. Remove registration bypasses. |
 | Explicit tenant context and scoped repositories | Accept | Make SaaS mode fail closed. Keep a separately configured local/single-tenant mode if required. |
-| PostgreSQL row-level security | Defer as defense in depth | First make application scoping and migrations portable. Add RLS to the hosted PostgreSQL deployment profile after the canonical schema is stable. |
+| PostgreSQL row-level security | Implemented; hosted validation pending | Transaction-local tenant identity, default-deny policies, forced RLS, and unsafe execution-role rejection are implemented. A hosted PostgreSQL non-owner integration run remains a deployment gate. |
 | Server-side sessions with revalidation | Accept | Preserve the current session design, but validate membership and rebuild the principal on restore and context switch. |
 | Security audit trail | Accept | Make security audit durable and stop swallowing failed audit writes. Clarify or retire overlapping event stores. |
 | Entitlements separate from RBAC | Already present; harden | Preserve the module-entitlement subsystem, add mandatory tenant scope, and remove fail-open behavior. |
-| API keys and service accounts | Defer | Add non-human principals only after human role bindings and tenant context are canonical. |
+| API keys and service accounts | Implemented | Non-human accounts use canonical memberships and role bindings. API keys are tenant-located, hash-only at rest, permission-capped, expiring, rotating, revocable, and audited. |
 | External policy engine such as OPA | Reject for this phase | The current complexity does not justify a second policy runtime. Reassess only if policies must be shared across independently deployed services. |
 | Numeric role hierarchy as delegation | Reject | Ranking can remain display metadata, but it cannot decide what authority may be delegated. |
 | Default tenant fallback in SaaS | Reject | Implicit fallback is incompatible with strict multi-tenant isolation. |
@@ -968,7 +969,8 @@ The required cutover order is:
    authority with canonical scoped resolution. Implemented for every identified scope.
 5. Reset and reseed development databases through an explicit operator command, run the complete
    isolation matrix, then remove legacy schemas and all transition-only runtime code. Implemented
-   for canonical authority; membership compatibility columns are tracked separately below.
+   for canonical authority and status-only membership; the compatibility columns were removed by
+   revision `d2e3f4g5h6i7`.
 
 `AuthorizationMigrationMode`, its environment variable, transition evidence, preparation
 records, and migration operator CLIs were temporary repository state inherited from the previous
@@ -1133,12 +1135,14 @@ Exit criteria:
 
 ### Phase 2: Canonical membership and role-binding schema
 
-Status: In progress only for membership compatibility-column retirement and optional public
-adapters. Additive role metadata, tenant-safe role namespaces, the structurally
+Status: Complete for the canonical schema and desktop product boundary. Additive role metadata,
+tenant-safe role namespaces, the structurally
 constrained `role_bindings` table, explicit delegation persistence and guarded mutation,
 membership lifecycle, internal authorized invitation orchestration, and direct platform/tenant
 plus explicit organization-role authority cutover are implemented. Internal tenant custom-role lifecycle commands are
-implemented, but no external delivery or public invitation/role adapter has been enabled.
+implemented. The desktop tenant adapter exposes self-scoped pending invitations and token-free
+acceptance; external invitation delivery and network role administration are separate product
+decisions.
 Canonical `org_viewer`/`org_member` role definitions and their direct cutover are implemented,
 retiring the legacy organization scoped-grant path entirely. Canonical project-scope roles
 (`project_viewer`/`project_contributor`/`project_lead`/`project_owner`) and their direct cutover
@@ -1153,11 +1157,11 @@ environment until the reviewed `tools/provision_scope_delegations.py` catalog is
 been applied to the reset local development database; other environments require the same
 explicit operator action. Legacy authority and transition-code deletion are complete.
 
-- Extend membership lifecycle fields. Implemented additively with internal token issuance,
-  authenticated acceptance, administrative transitions, targeted session invalidation, and
-  atomic membership audit. External delivery and public adapters remain pending.
-- Remove role authority from membership. Implemented for authorization; compatibility columns
-  remain persisted and require a dedicated follow-up migration.
+- Extend membership lifecycle fields. Implemented with internal token issuance, authenticated
+  acceptance, administrative transitions, targeted session invalidation, atomic membership
+  audit, and a desktop acceptance adapter. External delivery remains optional.
+- Remove role authority from membership. Complete. Revision `d2e3f4g5h6i7` removes
+  `tenant_role` and duplicate `is_active`; `status` is the sole admission lifecycle authority.
 - Add tenant-aware role metadata.
 - Add tenant custom-role commands with curated permission ceilings, optimistic updates,
   non-destructive retirement, targeted session invalidation, and atomic audit.
@@ -1188,11 +1192,9 @@ Current Phase 2 foundation:
 - Membership reinvitation, acceptance, suspension, reactivation, revocation, and removal reuse
   the one `(user_id, tenant_id)` row. Duplicate repository `add()` now fails explicitly rather
   than silently ignoring a lifecycle conflict.
-- Membership repository admission and customer user catalogs still require `status=active`
-  together with the compatibility `is_active` flag. The duplicate flag and `tenant_role` remain
-  persisted compatibility columns after the authority-table cleanup; `tenant_role` is not read
-  as authorization. A follow-up migration must move all membership admission to `status`, remove
-  both fields from domain/ORM/mappers, and drop both columns.
+- Membership repository admission and customer user catalogs require `status=active` only.
+  Domain, ORM, mapper, repository, registration, and access-service compatibility references
+  were removed with revision `d2e3f4g5h6i7`; schema tests assert both retired columns stay absent.
 - Alembic revision `6f1a9c2e8d4b` adds lifecycle metadata and constraints, conservatively maps
   legacy inactive rows to `suspended`, and has migration-created upgrade, backfill,
   downgrade, and re-upgrade coverage on SQLite.
@@ -1207,8 +1209,9 @@ Current Phase 2 foundation:
 - Suspension and removal revoke persisted sessions whose active context is the affected tenant;
   removal also revokes unrevoked canonical bindings for that tenant.
 - Membership mutations and their tenant-level SOC 2 audit entries commit together. The service
-  is wired internally and emits in-app notifications, but intentionally has no desktop/HTTP
-  invitation adapter or external delivery channel.
+  emits in-app notifications and is exposed through `PlatformTenantDesktopApi` for pending-list
+  and acceptance flows. No invitation HTTP adapter is retained now that desktop is the only
+  supported UI.
 - `Role` and `roles` now carry tenant ownership, display name, allowed scope type,
   assignability, lifecycle status, policy version, and timestamps.
 - Existing system role metadata is deterministically classified during migration:
@@ -1278,20 +1281,37 @@ Exit criteria:
 
 ### Phase 4: Service, repository, audit, and background hardening
 
-Status: In progress. Canonical scoped-access/project-membership authority migration and
-tenant-aware authority resolvers are complete. Repository-wide scoping consolidation,
-background/artifact qualification, and durable audit/outbox completion remain open.
+Status: Complete for the current synchronous desktop architecture. Shared tenant repository
+support now fails closed and owns common read/write/stamping behavior; PM, inventory, and
+maintenance helpers delegate to it. Module entitlements require an active tenant and exact
+organization ownership. Runtime executions require tenant, organization, and authorization
+context, and generated export/report metadata carries that identity. The app has no production
+background worker today; `worker_tenant_scope()` provides an explicit revalidated context for a
+future worker instead of inheriting desktop state.
 
 - Replace containment target-user guards with canonical authorization-engine decisions.
 - Migrate scoped access and project membership authority. Implemented.
-- Harden module entitlement tenant scope.
-- Consolidate repository scope support and remove dynamic helper variants.
-- Scope organization/site resolvers and remaining collaboration queries.
-- Add tenant and actor context to activity and runtime execution.
-- Tenant-qualify cache keys, queued work, imports, exports, temporary files, and generated report
-  metadata.
-- Implement durable security audit/outbox semantics.
-- Align ORM nullability with migrations and add migration-created schema tests.
+- Harden module entitlement tenant scope. Complete; revision `f4g5h6i7j8k9` backfills ownership,
+  removes unverifiable rows, and makes `tenant_id` non-null.
+- Consolidate repository scope support and remove dynamic helper variants. Complete for the
+  active platform, PM, inventory, and maintenance persistence paths.
+- Scope organization/site resolvers and remaining collaboration queries. Complete; child reads
+  use tenant-qualified parent anchors and missing context denies.
+- Add tenant and actor context to activity and runtime execution. Runtime execution qualification
+  is complete in revision `e3f4g5h6i7j8`; legacy unowned runtime history is discarded because it
+  cannot be safely attributed. Activity recording/listing now requires exact tenant and
+  organization context instead of swallowing context failures; activity and platform-event
+  ledgers are included in the RLS inventory.
+- Tenant-qualify imports, exports, generated reports, and persisted runtime metadata. Complete
+  for current product paths. Any future cache, queue, or temporary-artifact implementation must
+  use the same mandatory scope contract before release.
+- Implement durable security audit semantics. Complete for the authoritative database ledger:
+  privileged success events commit atomically with their mutations; denials use an isolated
+  durable recorder, and writer failure never converts deny to allow. An outbox is intentionally
+  deferred until an external asynchronous audit sink exists; adding one now would duplicate the
+  authoritative local ledger without improving durability.
+- Align ORM nullability with migrations and add migration-created schema tests. Complete for the
+  changed membership, entitlement, runtime, service-principal, and API-key tables.
 
 Exit criteria:
 
@@ -1301,15 +1321,21 @@ Exit criteria:
 
 ### Phase 5: Customer custom roles and enterprise identity
 
-Status: In progress at internal application-service level. Tenant custom-role lifecycle,
-delegation ceilings, invitation/suspension flows, MFA, and federated identity primitives exist;
-customer adapters, ownership transfer/break-glass, SCIM, and service principals remain open.
+Status: Enterprise identity foundation complete for the desktop product. Tenant custom-role
+lifecycle, delegation ceilings, invitation/suspension flows, MFA, federated identity primitives,
+service principals, and API keys are implemented. Human and service accounts are explicitly
+typed; service accounts cannot use password or federated login and receive authority only from
+canonical membership and role bindings. API keys store only SHA-256 hashes, reveal plaintext
+once, cap requested permissions to effective authority, expire, rotate, revoke, and audit use.
+Ownership transfer/break-glass remains governance product work. A full SCIM protocol adapter is
+not included; its transport must be selected when a supported network API is introduced.
 
 - Add tenant-owned custom role management using fixed permissions.
 - Add delegation policy administration with safe ceilings.
 - Add invitation, suspension, ownership transfer, and break-glass workflows.
 - Add SSO/SCIM integration against membership and role-binding APIs.
-- Add service accounts/API keys with tenant, scope, expiry, rotation, and audit.
+- Add service accounts/API keys with tenant, scope, expiry, rotation, and audit. Complete in
+  revision `g5h6i7j8k9l0` and exposed through the desktop identity adapter.
 
 Exit criteria:
 
@@ -1318,14 +1344,24 @@ Exit criteria:
 
 ### Phase 6: Hosted PostgreSQL defense in depth
 
-Status: Deferred until Phases 1 through 4 are stable.
+Status: Implementation complete; hosted deployment validation pending. Revision
+`h6i7j8k9l0m1` enables and forces default-deny tenant RLS on every current tenant-data table.
+Identity/context bootstrap tables are deliberately classified separately because tenant switch,
+invitation discovery, canonical principal rebuild, and platform audit occur before or across an
+active customer tenant. Their repositories retain narrow explicit authorization and scoping.
 
-- Make all Alembic migrations PostgreSQL-compatible.
-- Introduce transaction-local verified tenant context.
-- Add default-deny RLS policies to tenant-owned tables.
-- force RLS for the application execution role where appropriate
-- test pool reset, transaction reuse, migrations, backup, support, and batch processing
-- run cross-tenant penetration and concurrency tests
+- Keep Alembic migrations PostgreSQL-compatible; SQLite migration round trips remain green.
+- Transaction start installs verified tenant, organization, and actor values with local
+  `set_config`; future workers must use an explicit revalidated context manager.
+- Default-deny tenant policies use both `USING` and `WITH CHECK`, and RLS is forced.
+- Startup rejects superuser and `BYPASSRLS` application roles. Production deployment must use
+  `requirements-postgresql.txt` and a separate least-privilege runtime role.
+- API-key tokens contain a non-secret tenant locator so PostgreSQL can select one RLS partition
+  before the complete token hash is verified; credential and principal lookup still require the
+  exact tenant.
+- A live hosted PostgreSQL pool-reset, migration, backup/restore, and cross-tenant penetration
+  run remains a release/deployment gate because no PostgreSQL service is available in this
+  desktop development environment.
 
 Exit criteria:
 
@@ -1373,12 +1409,12 @@ replacement provisioning is proven.
 | Explicit login/restoration context and atomic principal rebuild | Implemented | `principal_builder.py`, `authentication_service.py`, `session_service.py`, and `TenantContextService` |
 | Authorization denial/context-switch evidence | Shared and inventoried post-gate boundaries implemented | Permission, scoped-permission, resource-anchor, target membership, delegation, permission-ceiling, SoD, support-context, and tenant/organization switch denials use the typed isolated writer. Switch success commits persisted session context and audit before principal replacement; writer failure never changes deny to allow. |
 | SaaS missing-context denial and fallback removal | Implemented | Login/restoration supplies validated explicit context. SaaS composition does not create/select a default tenant or organization and does not backfill user memberships; local desktop behavior is isolated by mode. |
-| Registration bypass removal and membership onboarding | Implemented for direct onboarding and internal existing-user invitations; public adapter pending | `AuthService.register_user()` no longer exposes a permission bypass. `onboard_tenant_user()` creates the account, active membership, default `viewer` binding, and forced password change in one transaction. In-app notification and token-free self-acceptance services exist, but no desktop/HTTP adapter exposes the pending-invitation flow. |
+| Registration bypass removal and membership onboarding | Implemented for direct onboarding and desktop invitation acceptance | `AuthService.register_user()` no longer exposes a permission bypass. `onboard_tenant_user()` creates the account, active membership, default `viewer` binding, and forced password change in one transaction. `PlatformTenantDesktopApi` exposes self-scoped pending invitations and token-free acceptance. |
 | Sensitive target-user boundary | Implemented | Password, MFA, federated identity, session, user-admin, and role-assignment paths use `target_user_authorization.py`. |
 | Scoped-grant containment | Canonical migration complete | Grant reads and mutations use canonical role bindings with active tenant context, target membership, and tenant-aware resource resolvers. Missing context or resolver infrastructure denies instead of broadening access. |
 | Schema-aware authorization inventory | Permanent tenant-isolation inventory retained; transition evidence deleted | `python -m tools.inventory_tenancy_rbac` remains useful for schema/isolation checks. The transition manifest verifier, runbook, and evidence-only branches were removed. |
 | Reversible binding migration preparation | Superseded and deleted | The classifier, review contract, preparation service/repository/tables, CLI, and focused transition tests were removed after direct cutover. |
-| Membership lifecycle schema | Internal orchestration implemented; compatibility cleanup/public adapter pending | Explicit states, one-time token hashes, one-row transitions, optimistic updates, active-status admission, internal authorization, authenticated acceptance, targeted session invalidation, atomic membership audit, and canonical default `viewer` creation are implemented. `tenant_role` and duplicate `is_active` remain non-authoritative persisted compatibility fields. |
+| Membership lifecycle schema | Complete | Explicit states, one-time token hashes, one-row transitions, optimistic updates, status-only admission, desktop acceptance, targeted session invalidation, atomic membership audit, and canonical default `viewer` creation are implemented. Revision `d2e3f4g5h6i7` removes `tenant_role` and duplicate `is_active`. |
 | Platform-role removal from customer paths | Implemented as containment; canonical role scope metadata pending | Customer desktop/API/QML paths exclude and reject `admin`, `support_admin`, and organization-scoped `org_admin`; customer user catalogs are active-tenant scoped. |
 | Platform tenant provisioning/catalog authority | Implemented | Tenant create/global get/list and lifecycle operations require `platform.admin`; `tenant_admin` no longer receives `tenant.create`, `tenant.manage`, or `tenant.read`, and provisioning no longer creates a customer membership for the platform operator. |
 | Versioned system-role reconciliation | Implemented; policy-v2 environment apply pending | Policy v2 adds reviewed `auth.role.assign` authority, while deterministic preview, guarded transactional apply, system-role version stamping, session invalidation, append-only ledger migration, rollback artifact, and operator CLI are implemented. Existing databases require reviewed dry-run/apply. |
@@ -2193,10 +2229,11 @@ Local dev delegation-policy provisioning ledger, 2026-07-31:
 
 ### Repository re-audit, 2026-07-29
 
-Phases 0, 1, and 2 all remain in progress. The current snapshot was re-audited across domain
+Historical snapshot, superseded by the 2026-08-02 completion audit and progress tracker below.
+At that time, Phases 0, 1, and 2 remained in progress. That snapshot was re-audited across domain
 models, repositories, migrations, composition, desktop and HTTP adapters, QML callers, session
 restoration, scoped access, entitlements, runtime execution, activity, audit, and security tests.
-The earlier containment work is real, but it does not yet constitute canonical authorization.
+The table is retained as implementation history and must not be read as current status.
 
 | Area | Verified state | Required follow-up |
 | --- | --- | --- |
@@ -2287,15 +2324,12 @@ no longer per-scope; it is:
    re-applied again on 2026-08-01 after the explicit reset below); still pending for every
    other environment. Check any other environment's migration state before assuming the
    delegation-provisioning tool alone is sufficient.
-2. Add the reviewed customer-facing invitation/account-onboarding adapter without exposing raw
-   tokens through generic transports. Partially implemented on 2026-08-01: the ports-and-adapters
-   `NotificationService` (`src/core/platform/notifications/`) persists in-app notifications and
-   can fan out to registered external channels (none exist today). Membership issue/revoke emits
-   notifications without raw invitation tokens, while
-   `accept_invitation_for_tenant(tenant_id)` and `list_my_pending_invitations()` provide a
-   self-scoped token-free application flow. A desktop or HTTP adapter still must expose that flow
-   before this customer-facing onboarding item is complete. The bearer-token acceptance method
-   remains reserved for a future reviewed out-of-band delivery channel.
+2. ~~Add the reviewed customer-facing invitation/account-onboarding adapter without exposing raw
+   tokens through generic transports.~~ **Done on 2026-08-02 for desktop.**
+   `PlatformTenantDesktopApi` exposes `list_pending_invitations()` and
+   `accept_invitation(tenant_id)` over the self-scoped token-free service flow. The existing
+   notification service remains available for in-app delivery. Bearer-token acceptance remains
+   reserved for a future reviewed out-of-band channel.
 3. ~~Update fixtures and seed data, run migration-created and cross-tenant tests, explicitly
    reset development databases, then delete every transition-only and legacy-authority
    component ... and apply a cleanup migration before the first release.~~ **Done on
@@ -2345,6 +2379,15 @@ no longer per-scope; it is:
    test fixture and reconciliation tool no longer consume an authorization migration mode, the
    stale `.env` variable was removed, and an architecture guard scans runtime/tool source for the
    deleted dependencies and transition marker.
+5. Complete release-environment validation: install `requirements-postgresql.txt`, migrate a
+   hosted PostgreSQL database with a non-owner/non-`BYPASSRLS` application role, run the RLS
+   cross-tenant and pool-reuse suite, and apply reviewed delegation policy catalogs.
+6. ~~Audit imports and remove desktop-equivalent endpoints from the dormant `src/api/http`
+   package.~~ **Done on 2026-08-02.** Every HTTP operation had an exact supported desktop
+   equivalent, no production or QML importer referenced the package, and the transport-only
+   package plus its dedicated test were deleted. Shared application services were preserved.
+   An architecture guard prevents the desktop-only product from restoring this dead transport.
+   Any future SCIM work must begin with a deliberate supported network transport.
 
 Lessons this program's per-scope work surfaced, worth keeping in mind for any future scope
 additions:
@@ -2364,8 +2407,8 @@ additions:
 
 ### Independent completion audit, 2026-08-02
 
-The re-audit confirms the canonical authority migration is complete, but it does not classify the
-entire tenancy/RBAC hardening document as complete:
+The re-audit confirms the canonical authority migration and the 2026-08-02 hardening execution
+are complete in code. Environment rollout gates remain:
 
 - Runtime, composition, API/UI, and operator-tool source contains no legacy role/scoped-grant
   repository, migration-mode, transition-marker, or legacy fallback dependency. Immutable
@@ -2376,18 +2419,22 @@ entire tenancy/RBAC hardening document as complete:
 - Focused canonical binding, all resource scopes, membership, delegation, context-switch, and
   desktop access verification passed: 187 tests. The new legacy-dependency architecture guard
   and adjacent auth tests passed: 48 tests.
-- The full platform suite passed 680 tests. Its three failures are unrelated existing defects:
-  two Site offset-naive/offset-aware datetime comparisons and one stale platform QML route
-  expectation. The architecture suite has only the existing PM task-lifecycle and enterprise
-  calendar line-budget failures.
-- `user_tenants.tenant_role` and the duplicate membership `is_active` flag remain in the active
-  domain/ORM/mapper/repository path. They do not grant authority, but they are unfinished
-  compatibility cleanup and require a migration plus status-only admission tests.
-- In-app invitation notification and self-scoped acceptance exist at application-service level,
-  but no desktop or HTTP adapter exposes pending-invitation acceptance. This is customer
-  onboarding/product work, not a legacy authorization fallback.
-- Phases 4-6 remain separate hardening work: repository/background/artifact isolation and durable
-  audit completion, enterprise identity/service principals, and hosted PostgreSQL/RLS validation.
+- The final full platform run passed 688 tests and exposed five failures. Two tranche-owned
+  inventory failures (the new identity persistence area and activity/platform-event RLS
+  classification) were corrected and their focused 23-test slice passes. The three remaining
+  failures are unrelated existing defects: two Site offset-naive/offset-aware datetime
+  comparisons and one stale platform QML route expectation. The architecture suite passed 98
+  tests and retains only the existing PM task-lifecycle and enterprise-calendar line budgets.
+- Revision `d2e3f4g5h6i7` removes `user_tenants.tenant_role` and duplicate `is_active`; active
+  runtime code uses membership status only.
+- Desktop pending-invitation listing and acceptance are wired and tested. The dormant HTTP
+  package and its transport-only test are removed; shared application services remain intact.
+- Shared repository scope, runtime/artifact qualification, mandatory database audit, service
+  principals/API keys, and PostgreSQL RLS are implemented. Hosted PostgreSQL validation remains
+  a release-environment gate, not an application fallback.
+- Focused verification for the final tranche passed the identity/RLS/membership/role-governance
+  suites, 124 repository/runtime/audit tests across all active modules, the invitation/
+  entitlement/runtime adapter suites, and the final 23-test activity/RLS/persistence slice.
 
 ## Required Test Matrix
 
@@ -2487,11 +2534,12 @@ This program is complete when:
 | Migration and retirement plan | Complete; revised for direct prelaunch cutover on 2026-07-31 |
 | Phase 0 safety net | Complete for the direct prelaunch authority cutover; permanent inventory/characterization retained and superseded evidence tooling deleted |
 | Phase 1 immediate containment | Complete for authorization containment; environment provisioning and external channels are rollout concerns |
-| Phase 2 canonical membership and role-binding schema | In progress only for `tenant_role`/duplicate `is_active` retirement and optional public invitation/role adapters; canonical authority, local reseed, legacy schema removal, and transition deletion are complete |
+| Phase 2 canonical membership and role-binding schema | Complete for canonical authority, status-only membership, desktop invitation acceptance, local reseed, legacy schema removal, and transition deletion |
 | Principal/authorization-engine cutover | Complete; platform, tenant, organization, project, site, storeroom, and maintenance authority is canonical with no legacy fallback |
-| Repository/audit/background hardening | In progress; canonical scoped authority is complete, broader repository/background/artifact/audit hardening remains |
-| Custom roles and enterprise identity | In progress internally; customer adapters, ownership/break-glass, SCIM, and service principals remain |
-| Hosted PostgreSQL RLS | Deferred |
+| Repository/audit/background hardening | Complete for current synchronous desktop paths; future worker/cache implementations must adopt the established scope contract |
+| Custom roles and enterprise identity | Enterprise identity foundation complete, including service principals and API keys; ownership/break-glass and a future SCIM transport remain product follow-ups |
+| Hosted PostgreSQL RLS | Implemented in code; hosted non-owner-role deployment validation pending |
+| Dormant HTTP transport retirement | Complete on 2026-08-02; no external importer existed, desktop equivalents remain, and an architecture guard prevents restoration |
 
 ## Standards References
 

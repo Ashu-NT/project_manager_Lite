@@ -8,9 +8,6 @@ from src.core.modules.project_management.application.tasks.commands.assignment_a
     record_assignment_action,
 )
 from src.core.platform.activity.domain.activity_entry import ActivityEntry
-from src.core.platform.infrastructure.persistence.repositories.activity import (
-    SqlAlchemyActivityRepository,
-)
 
 
 class _FakeActivityService:
@@ -60,8 +57,9 @@ def test_record_assignment_action_without_task_id_leaves_parent_entity_id_none()
     assert activity_service.recorded[0]["parent_entity_id"] is None
 
 
-def test_activity_repository_filters_by_parent_entity_id_and_action_prefix(session):
-    repo = SqlAlchemyActivityRepository(session)
+def test_activity_repository_filters_by_parent_entity_id_and_action_prefix(services):
+    session = services["session"]
+    repo = services["activity_service"]._activity_repo
 
     repo.add(
         ActivityEntry.create(

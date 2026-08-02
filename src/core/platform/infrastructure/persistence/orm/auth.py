@@ -29,11 +29,21 @@ class UserORM(Base):
     __tablename__ = "users"
     __table_args__ = (
         UniqueConstraint("identity_provider", "federated_subject", name="ux_users_federated_identity"),
+        CheckConstraint(
+            "account_type IN ('human', 'service')",
+            name="ck_users_account_type",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     username: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    account_type: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="human",
+        server_default="human",
+    )
     display_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     identity_provider: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)

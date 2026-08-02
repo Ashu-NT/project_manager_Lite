@@ -39,7 +39,7 @@ class _FakeUserRepo:
 class _FakeTenantMembership:
     user_id: str
     tenant_id: str
-    is_active: bool = True
+    status: str = "active"
 
 
 class _FakeUserTenantRepo:
@@ -162,7 +162,7 @@ def test_access_service_denies_target_without_active_tenant_membership(
     monkeypatch: pytest.MonkeyPatch,
 ):
     service = _make_service(monkeypatch)
-    service._user_tenant_repo.membership.is_active = False
+    service._user_tenant_repo.membership.status = "suspended"
 
     with pytest.raises(BusinessRuleError) as exc_info:
         service.assign_scope_grant(

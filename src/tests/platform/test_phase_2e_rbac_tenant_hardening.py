@@ -68,7 +68,6 @@ def _make_auth_svc(services, *, role_names):
                 UserTenantMembership.create(
                     user_id=user.id,
                     tenant_id=active_tenant_id,
-                    tenant_role=role_names[0] if role_names else "viewer",
                 )
             )
             session.flush()
@@ -162,10 +161,10 @@ def _make_tenant_admin_svc(services, *, role_names=None):
     )
 
 
-def _register_in_tenant(session, user_id, tenant_id, *, role="viewer"):
+def _register_in_tenant(session, user_id, tenant_id):
     repo = SqlAlchemyUserTenantMembershipRepository(session)
     try:
-        repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=tenant_id, tenant_role=role))
+        repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=tenant_id))
         session.flush()
     except Exception:
         pass

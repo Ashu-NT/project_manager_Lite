@@ -173,6 +173,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         session_timeout_minutes_override: int | None = None,
         tenant_id: str | None = None,
         commit: bool = True,
+        account_type: str = "human",
     ) -> UserAccount:
         return _reg.register_user(
             self,
@@ -188,6 +189,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             session_timeout_minutes_override=session_timeout_minutes_override,
             tenant_id=tenant_id,
             commit=commit,
+            account_type=account_type,
         )
 
     def onboard_tenant_user(

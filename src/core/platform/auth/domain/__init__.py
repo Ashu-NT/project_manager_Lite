@@ -21,6 +21,8 @@ from src.core.platform.auth.domain.session import (
     normalize_auth_session_user_id,
 )
 from src.core.platform.auth.domain.user import (
+    ACCOUNT_TYPE_HUMAN,
+    ACCOUNT_TYPE_SERVICE,
     Permission,
     Role,
     RolePermissionBinding,
@@ -37,6 +39,8 @@ from src.core.platform.auth.domain.user import (
 )
 
 __all__ = [
+    "ACCOUNT_TYPE_HUMAN",
+    "ACCOUNT_TYPE_SERVICE",
     "AuthPolicyReconciliation",
     "RESOURCE_ROLE_SCOPE_TYPES",
     "ROLE_PRINCIPAL_USER",

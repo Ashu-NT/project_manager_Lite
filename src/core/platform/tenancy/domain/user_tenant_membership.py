@@ -56,10 +56,6 @@ def normalize_user_tenant_membership_tenant_id(value: object) -> str:
     )
 
 
-def normalize_user_tenant_membership_role(value: object) -> str:
-    return normalize_optional_text(value).lower() or "member"
-
-
 def normalize_user_tenant_membership_status(value: object) -> str:
     normalized = normalize_required_text(
         value,
@@ -113,8 +109,6 @@ class UserTenantMembership:
     user_id: str
     tenant_id: str
     status: str = MEMBERSHIP_STATUS_ACTIVE
-    is_active: bool = True
-    tenant_role: str = "member"
     invited_by_user_id: str | None = None
     invited_at: datetime | None = None
     invitation_expires_at: datetime | None = None
@@ -147,11 +141,6 @@ class UserTenantMembership:
     @classmethod
     def _validate_status(cls, value: object) -> str:
         return normalize_user_tenant_membership_status(value)
-
-    @field_validator("tenant_role", mode="before")
-    @classmethod
-    def _normalize_tenant_role(cls, value: object) -> str:
-        return normalize_user_tenant_membership_role(value)
 
     @field_validator("invited_by_user_id", mode="before")
     @classmethod
@@ -217,13 +206,6 @@ class UserTenantMembership:
 
     @model_validator(mode="after")
     def _validate_lifecycle_state(self) -> "UserTenantMembership":
-        should_be_active = self.status == MEMBERSHIP_STATUS_ACTIVE
-        if bool(self.is_active) != should_be_active:
-            raise ValidationError(
-                "Membership status and compatibility active flag do not match.",
-                code="USER_TENANT_MEMBERSHIP_STATE_MISMATCH",
-            )
-
         if self.status == MEMBERSHIP_STATUS_INVITED:
             if (
                 self.invited_by_user_id is None
@@ -299,30 +281,20 @@ class UserTenantMembership:
     def create(
         user_id: str,
         tenant_id: str,
-        *,
-        tenant_role: str = "member",
-        is_active: bool = True,
     ) -> "UserTenantMembership":
         now = datetime.now(timezone.utc)
-        status = (
-            MEMBERSHIP_STATUS_ACTIVE
-            if is_active
-            else MEMBERSHIP_STATUS_SUSPENDED
-        )
         return UserTenantMembership(
             id=generate_id(),
             user_id=user_id,
             tenant_id=tenant_id,
-            status=status,
-            is_active=is_active,
-            tenant_role=tenant_role,
+            status=MEMBERSHIP_STATUS_ACTIVE,
             invited_by_user_id=None,
             invited_at=None,
             invitation_expires_at=None,
             invitation_token_hash=None,
             accepted_at=now,
             joined_at=now,
-            suspended_at=None if is_active else now,
+            suspended_at=None,
             revoked_at=None,
             removed_at=None,
             created_at=now,
@@ -346,8 +318,6 @@ class UserTenantMembership:
             user_id=user_id,
             tenant_id=tenant_id,
             status=MEMBERSHIP_STATUS_INVITED,
-            is_active=False,
-            tenant_role="member",
             invited_by_user_id=invited_by_user_id,
             invited_at=now,
             invitation_expires_at=expires_at,
@@ -387,7 +357,6 @@ class UserTenantMembership:
         return replace(
             self,
             status=MEMBERSHIP_STATUS_ACTIVE,
-            is_active=True,
             accepted_at=now,
             joined_at=now,
             invitation_token_hash=None,
@@ -411,7 +380,6 @@ class UserTenantMembership:
         return replace(
             self,
             status=MEMBERSHIP_STATUS_SUSPENDED,
-            is_active=False,
             suspended_at=now,
             updated_at=now,
         )
@@ -430,7 +398,6 @@ class UserTenantMembership:
         return replace(
             self,
             status=MEMBERSHIP_STATUS_ACTIVE,
-            is_active=True,
             suspended_at=None,
             updated_at=now,
         )
@@ -449,7 +416,6 @@ class UserTenantMembership:
         return replace(
             self,
             status=MEMBERSHIP_STATUS_REMOVED,
-            is_active=False,
             invitation_token_hash=None,
             revoked_at=now,
             removed_at=now,
@@ -473,7 +439,6 @@ class UserTenantMembership:
         return replace(
             self,
             status=MEMBERSHIP_STATUS_REMOVED,
-            is_active=False,
             suspended_at=None,
             removed_at=now,
             updated_at=now,
@@ -499,7 +464,6 @@ class UserTenantMembership:
         return replace(
             self,
             status=MEMBERSHIP_STATUS_INVITED,
-            is_active=False,
             invited_by_user_id=invited_by_user_id,
             invited_at=now,
             invitation_expires_at=expires_at,
@@ -523,7 +487,6 @@ __all__ = [
     "normalize_user_tenant_membership_datetime",
     "normalize_user_tenant_membership_id",
     "normalize_membership_invitation_token_hash",
-    "normalize_user_tenant_membership_role",
     "normalize_user_tenant_membership_status",
     "normalize_user_tenant_membership_tenant_id",
     "normalize_user_tenant_membership_user_id",
